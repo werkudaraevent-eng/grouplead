@@ -48,6 +48,10 @@ export interface Lead {
     client_company_id: string | null;
     contact_id: string | null;
 
+    // Joined relations (from select with JOINs)
+    client_company?: { name: string } | null;
+    contact?: { full_name: string; email: string | null; phone: string | null } | null;
+
     manual_id: number | null;
     category: string | null;
     bu_revenue: string | null;

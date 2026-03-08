@@ -52,7 +52,11 @@ export const columns: ColumnDef<Lead>[] = [
     {
         accessorKey: "company_name",
         header: "Client",
-        cell: ({ row }) => <div className="font-medium">{row.getValue("company_name")}</div>,
+        cell: ({ row }) => {
+            const lead = row.original
+            const displayName = lead.client_company?.name || lead.company_name
+            return <div className="font-medium">{displayName || "-"}</div>
+        },
     },
     {
         accessorKey: "project_name",

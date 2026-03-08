@@ -234,8 +234,15 @@ function KanbanCard({ lead, onClick, isDragging }: { lead: Lead; onClick: () => 
 
             <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground mb-2.5">
                 <Building2 className="h-3 w-3 shrink-0" />
-                <span className="truncate">{lead.company_name || "-"}</span>
+                <span className="truncate">{lead.client_company?.name || lead.company_name || "-"}</span>
             </div>
+
+            {(lead.contact?.full_name || lead.contact_full_name) && (
+                <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground mb-2.5 -mt-1.5">
+                    <User className="h-3 w-3 shrink-0" />
+                    <span className="truncate">{lead.contact?.full_name || lead.contact_full_name}</span>
+                </div>
+            )}
 
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5">

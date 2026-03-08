@@ -11,7 +11,7 @@ export default async function LeadsPage() {
         getActiveCompany(),
     ])
 
-    const base = supabase.from('leads').select('*').order('created_at', { ascending: false })
+    const base = supabase.from('leads').select('*, client_company:client_companies!client_company_id(name), contact:contacts!contact_id(full_name, email, phone)').order('created_at', { ascending: false })
     const { data: leads, error } = await scopedQuery(base, activeCompany?.id ?? null)
 
     if (error) {
