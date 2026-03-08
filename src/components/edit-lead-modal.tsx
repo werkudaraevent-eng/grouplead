@@ -43,8 +43,6 @@ import { CompanyCombobox, ContactCombobox } from "@/components/entity-combobox"
 
 const leadFormSchema = z.object({
     project_name: z.string().nullable().optional(),
-    company_name: z.string().nullable().optional(),
-    main_company: z.string().nullable().optional(),
     client_company_id: z.string().nullable().optional(),
     contact_id: z.string().nullable().optional(),
     bu_revenue: z.string().nullable().optional(),
@@ -73,16 +71,6 @@ const leadFormSchema = z.object({
     tipe: z.string().nullable().optional(),
     is_onsite: z.boolean().nullable().optional(),
     is_online: z.boolean().nullable().optional(),
-    salutation: z.string().nullable().optional(),
-    contact_full_name: z.string().nullable().optional(),
-    contact_email: z.string().nullable().optional(),
-    contact_mobile: z.string().nullable().optional(),
-    job_title: z.string().nullable().optional(),
-    office_phone: z.string().nullable().optional(),
-    address: z.string().nullable().optional(),
-    destination: z.string().nullable().optional(),
-    client_province_country: z.string().nullable().optional(),
-    client_company_country: z.string().nullable().optional(),
     sector: z.string().nullable().optional(),
     line_industry: z.string().nullable().optional(),
     area: z.string().nullable().optional(),
@@ -94,7 +82,6 @@ type LeadFormValues = z.infer<typeof leadFormSchema>
 const STATUS_OPTIONS = ["Lead Masuk", "Estimasi Project", "Proposal Sent", "Closed Won", "Closed Lost"]
 const BU_OPTIONS = ["WNW", "WNS", "UK", "TEP", "CREATIVE"]
 const CATEGORY_OPTIONS = ["Corporate", "Government", "MICE", "Wedding", "Social"]
-const SALUTATION_OPTIONS = ["Mr.", "Mrs.", "Ms.", "Dr.", "Prof."]
 
 // ============================================================
 // COMPONENT
@@ -118,13 +105,10 @@ export function EditLeadModal({ lead, open, onOpenChange, onSaved }: EditLeadMod
         defaultValues: {},
     })
 
-    // Auto-populate when lead changes or modal opens
     useEffect(() => {
         if (lead && open) {
             form.reset({
                 project_name: lead.project_name,
-                company_name: lead.company_name,
-                main_company: lead.main_company,
                 client_company_id: lead.client_company_id,
                 contact_id: lead.contact_id,
                 bu_revenue: lead.bu_revenue,
@@ -153,16 +137,6 @@ export function EditLeadModal({ lead, open, onOpenChange, onSaved }: EditLeadMod
                 tipe: lead.tipe,
                 is_onsite: lead.is_onsite,
                 is_online: lead.is_online,
-                salutation: lead.salutation,
-                contact_full_name: lead.contact_full_name,
-                contact_email: lead.contact_email,
-                contact_mobile: lead.contact_mobile,
-                job_title: lead.job_title,
-                office_phone: lead.office_phone,
-                address: lead.address,
-                destination: lead.destination,
-                client_province_country: lead.client_province_country,
-                client_company_country: lead.client_company_country,
                 sector: lead.sector,
                 line_industry: lead.line_industry,
                 area: lead.area,
@@ -208,10 +182,9 @@ export function EditLeadModal({ lead, open, onOpenChange, onSaved }: EditLeadMod
                     <form onSubmit={form.handleSubmit(onSubmit)} className="flex-1 flex flex-col min-h-0">
                         <Tabs defaultValue="overview" className="flex-1 flex flex-col min-h-0">
                             <div className="px-6 pt-3 shrink-0">
-                                <TabsList className="grid w-full grid-cols-4 bg-muted p-1 rounded-lg">
+                                <TabsList className="grid w-full grid-cols-3 bg-muted p-1 rounded-lg">
                                     <TabsTrigger value="overview" className="text-xs">Overview</TabsTrigger>
                                     <TabsTrigger value="event" className="text-xs">Event</TabsTrigger>
-                                    <TabsTrigger value="contact" className="text-xs">Contact</TabsTrigger>
                                     <TabsTrigger value="financial" className="text-xs">Financial</TabsTrigger>
                                 </TabsList>
                             </div>
@@ -219,16 +192,10 @@ export function EditLeadModal({ lead, open, onOpenChange, onSaved }: EditLeadMod
                             <div className="flex-1 overflow-y-auto px-6 py-4">
                                 {/* OVERVIEW TAB */}
                                 <TabsContent value="overview" className="mt-0 space-y-5">
-                                    <FieldSection title="Project & Company">
+                                    <FieldSection title="Project & Client">
                                         <FieldGrid>
                                             <TextField control={form.control} name="project_name" label="Project Name" />
-                                            <TextField control={form.control} name="company_name" label="Company Name (Legacy)" />
-                                            <TextField control={form.control} name="main_company" label="Main Company / Group" />
                                             <SelectField control={form.control} name="category" label="Category" options={CATEGORY_OPTIONS} />
-                                        </FieldGrid>
-                                    </FieldSection>
-                                    <FieldSection title="Client Company & Contact">
-                                        <FieldGrid>
                                             <FormField control={form.control} name="client_company_id" render={({ field }) => (
                                                 <FormItem>
                                                     <FormLabel className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Client Company</FormLabel>
@@ -304,31 +271,7 @@ export function EditLeadModal({ lead, open, onOpenChange, onSaved }: EditLeadMod
                                             )} />
                                         </div>
                                     </FieldSection>
-                                </TabsContent>
-
-                                {/* CONTACT TAB */}
-                                <TabsContent value="contact" className="mt-0 space-y-5">
-                                    <FieldSection title="Contact Person">
-                                        <FieldGrid>
-                                            <SelectField control={form.control} name="salutation" label="Salutation" options={SALUTATION_OPTIONS} />
-                                            <TextField control={form.control} name="contact_full_name" label="Full Name" />
-                                            <TextField control={form.control} name="job_title" label="Job Title" />
-                                            <TextField control={form.control} name="contact_email" label="Email" type="email" />
-                                            <TextField control={form.control} name="contact_mobile" label="Mobile" />
-                                            <TextField control={form.control} name="office_phone" label="Office Phone" />
-                                        </FieldGrid>
-                                    </FieldSection>
-                                    <FieldSection title="Location">
-                                        <FieldGrid cols={1}>
-                                            <TextField control={form.control} name="address" label="Address" />
-                                        </FieldGrid>
-                                        <FieldGrid>
-                                            <TextField control={form.control} name="destination" label="Destination" />
-                                            <TextField control={form.control} name="client_province_country" label="Province / Country" />
-                                            <TextField control={form.control} name="client_company_country" label="Company Country" />
-                                        </FieldGrid>
-                                    </FieldSection>
-                                    <FieldSection title="Industry">
+                                    <FieldSection title="Industry & Location">
                                         <FieldGrid>
                                             <TextField control={form.control} name="sector" label="Sector" />
                                             <TextField control={form.control} name="line_industry" label="Line Industry" />

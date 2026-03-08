@@ -35,8 +35,6 @@ import { Save, Loader2 } from "lucide-react"
 
 const addLeadSchema = z.object({
     project_name: z.string().min(1, "Project name is required"),
-    company_name: z.string().nullable().optional(),
-    main_company: z.string().nullable().optional(),
     client_company_id: z.string().nullable().optional(),
     contact_id: z.string().nullable().optional(),
     bu_revenue: z.string().nullable().optional(),
@@ -46,7 +44,6 @@ const addLeadSchema = z.object({
     referral_source: z.string().nullable().optional(),
     pic_sales: z.string().nullable().optional(),
     account_manager: z.string().nullable().optional(),
-    cancel_lost_reason: z.string().nullable().optional(),
     estimated_revenue: z.coerce.number().nullable().optional(),
     nominal_konfirmasi: z.coerce.number().nullable().optional(),
     date_of_event: z.string().nullable().optional(),
@@ -62,13 +59,6 @@ const addLeadSchema = z.object({
     tipe: z.string().nullable().optional(),
     is_onsite: z.boolean().nullable().optional(),
     is_online: z.boolean().nullable().optional(),
-    salutation: z.string().nullable().optional(),
-    contact_full_name: z.string().nullable().optional(),
-    contact_email: z.string().nullable().optional(),
-    contact_mobile: z.string().nullable().optional(),
-    job_title: z.string().nullable().optional(),
-    office_phone: z.string().nullable().optional(),
-    address: z.string().nullable().optional(),
     sector: z.string().nullable().optional(),
     line_industry: z.string().nullable().optional(),
     area: z.string().nullable().optional(),
@@ -80,7 +70,6 @@ type AddLeadValues = z.infer<typeof addLeadSchema>
 const STATUS_OPTIONS = ["Lead Masuk", "Estimasi Project", "Proposal Sent", "Closed Won", "Closed Lost"]
 const BU_OPTIONS = ["WNW", "WNS", "UK", "TEP", "CREATIVE"]
 const CATEGORY_OPTIONS = ["Corporate", "Government", "MICE", "Wedding", "Social"]
-const SALUTATION_OPTIONS = ["Mr.", "Mrs.", "Ms.", "Dr.", "Prof."]
 
 // ============================================================
 // COMPONENT
@@ -125,26 +114,19 @@ export function LeadForm({ onSuccess }: LeadFormProps) {
         <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                 <Tabs defaultValue="overview" className="w-full">
-                    <TabsList className="grid w-full grid-cols-4 bg-muted p-1 rounded-lg">
+                    <TabsList className="grid w-full grid-cols-3 bg-muted p-1 rounded-lg">
                         <TabsTrigger value="overview" className="text-xs">Overview</TabsTrigger>
                         <TabsTrigger value="event" className="text-xs">Event</TabsTrigger>
-                        <TabsTrigger value="contact" className="text-xs">Contact</TabsTrigger>
                         <TabsTrigger value="financial" className="text-xs">Financial</TabsTrigger>
                     </TabsList>
 
                     <div className="mt-4 max-h-[55vh] overflow-y-auto pr-1">
                         {/* OVERVIEW */}
                         <TabsContent value="overview" className="mt-0 space-y-5">
-                            <FieldSection title="Project & Company">
+                            <FieldSection title="Project & Client">
                                 <FieldGrid>
                                     <TextField control={form.control} name="project_name" label="Project Name *" />
-                                    <TextField control={form.control} name="company_name" label="Company Name (Legacy)" />
-                                    <TextField control={form.control} name="main_company" label="Main Company / Group" />
                                     <SelectField control={form.control} name="category" label="Category" options={CATEGORY_OPTIONS} />
-                                </FieldGrid>
-                            </FieldSection>
-                            <FieldSection title="Client Company & Contact">
-                                <FieldGrid>
                                     <FormField control={form.control} name="client_company_id" render={({ field }) => (
                                         <FormItem>
                                             <FormLabel className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Client Company</FormLabel>
@@ -214,23 +196,8 @@ export function LeadForm({ onSuccess }: LeadFormProps) {
                                     )} />
                                 </div>
                             </FieldSection>
-                        </TabsContent>
-
-                        {/* CONTACT */}
-                        <TabsContent value="contact" className="mt-0 space-y-5">
-                            <FieldSection title="Contact Person">
+                            <FieldSection title="Industry & Location">
                                 <FieldGrid>
-                                    <SelectField control={form.control} name="salutation" label="Salutation" options={SALUTATION_OPTIONS} />
-                                    <TextField control={form.control} name="contact_full_name" label="Full Name" />
-                                    <TextField control={form.control} name="job_title" label="Job Title" />
-                                    <TextField control={form.control} name="contact_email" label="Email" type="email" />
-                                    <TextField control={form.control} name="contact_mobile" label="Mobile" />
-                                    <TextField control={form.control} name="office_phone" label="Office Phone" />
-                                </FieldGrid>
-                            </FieldSection>
-                            <FieldSection title="Location & Industry">
-                                <FieldGrid>
-                                    <TextField control={form.control} name="address" label="Address" />
                                     <TextField control={form.control} name="sector" label="Sector" />
                                     <TextField control={form.control} name="line_industry" label="Line Industry" />
                                     <TextField control={form.control} name="area" label="Area" />
