@@ -35,6 +35,7 @@ import {
 } from "@/components/ui/form"
 import { Lead } from "@/types"
 import { Save, Loader2 } from "lucide-react"
+import { CompanyCombobox, ContactCombobox } from "@/components/entity-combobox"
 
 // ============================================================
 // ZOD SCHEMA
@@ -44,6 +45,8 @@ const leadFormSchema = z.object({
     project_name: z.string().nullable().optional(),
     company_name: z.string().nullable().optional(),
     main_company: z.string().nullable().optional(),
+    client_company_id: z.string().nullable().optional(),
+    contact_id: z.string().nullable().optional(),
     bu_revenue: z.string().nullable().optional(),
     status: z.string().nullable().optional(),
     category: z.string().nullable().optional(),
@@ -122,6 +125,8 @@ export function EditLeadModal({ lead, open, onOpenChange, onSaved }: EditLeadMod
                 project_name: lead.project_name,
                 company_name: lead.company_name,
                 main_company: lead.main_company,
+                client_company_id: lead.client_company_id,
+                contact_id: lead.contact_id,
                 bu_revenue: lead.bu_revenue,
                 status: lead.status,
                 category: lead.category,
@@ -217,9 +222,33 @@ export function EditLeadModal({ lead, open, onOpenChange, onSaved }: EditLeadMod
                                     <FieldSection title="Project & Company">
                                         <FieldGrid>
                                             <TextField control={form.control} name="project_name" label="Project Name" />
-                                            <TextField control={form.control} name="company_name" label="Company Name" />
+                                            <TextField control={form.control} name="company_name" label="Company Name (Legacy)" />
                                             <TextField control={form.control} name="main_company" label="Main Company / Group" />
                                             <SelectField control={form.control} name="category" label="Category" options={CATEGORY_OPTIONS} />
+                                        </FieldGrid>
+                                    </FieldSection>
+                                    <FieldSection title="Client Company & Contact">
+                                        <FieldGrid>
+                                            <FormField control={form.control} name="client_company_id" render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Client Company</FormLabel>
+                                                    <FormControl>
+                                                        <CompanyCombobox value={field.value ?? null} onChange={(id) => field.onChange(id)} />
+                                                    </FormControl>
+                                                </FormItem>
+                                            )} />
+                                            <FormField control={form.control} name="contact_id" render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Contact Person</FormLabel>
+                                                    <FormControl>
+                                                        <ContactCombobox
+                                                            value={field.value ?? null}
+                                                            onChange={(id) => field.onChange(id)}
+                                                            clientCompanyId={form.watch("client_company_id") ?? null}
+                                                        />
+                                                    </FormControl>
+                                                </FormItem>
+                                            )} />
                                         </FieldGrid>
                                     </FieldSection>
                                     <FieldSection title="Status & Operations">

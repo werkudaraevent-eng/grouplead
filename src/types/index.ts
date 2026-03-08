@@ -1,5 +1,25 @@
 export * from './company'
 
+export interface ClientCompany {
+    id: string;
+    name: string;
+    industry: string | null;
+    website: string | null;
+    phone: string | null;
+    address: string | null;
+    created_at: string;
+}
+
+export interface Contact {
+    id: string;
+    client_company_id: string | null;
+    full_name: string;
+    email: string | null;
+    phone: string | null;
+    job_title: string | null;
+    created_at: string;
+}
+
 export interface PipelineStage {
     id: string;
     name: string;
@@ -25,6 +45,8 @@ export interface Lead {
     created_at: string;
     updated_at: string;
     company_id: string;
+    client_company_id: string | null;
+    contact_id: string | null;
 
     manual_id: number | null;
     category: string | null;

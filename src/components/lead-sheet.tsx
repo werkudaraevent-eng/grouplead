@@ -44,6 +44,7 @@ import {
 import { WorkflowActions } from "./workflow-actions"
 import { PermissionGate } from "@/components/permission-gate"
 import { Lead } from "@/types"
+import { CompanyCombobox, ContactCombobox } from "@/components/entity-combobox"
 import {
     Save, Trash2, Loader2, CheckCircle2, Circle,
     AlertTriangle, Clock
@@ -58,6 +59,8 @@ const leadFormSchema = z.object({
     project_name: z.string().nullable().optional(),
     company_name: z.string().nullable().optional(),
     main_company: z.string().nullable().optional(),
+    client_company_id: z.string().nullable().optional(),
+    contact_id: z.string().nullable().optional(),
     bu_revenue: z.string().nullable().optional(),
     status: z.string().nullable().optional(),
     category: z.string().nullable().optional(),
@@ -160,6 +163,8 @@ export function LeadSheet({ lead, open, onOpenChange }: LeadSheetProps) {
                 project_name: lead.project_name,
                 company_name: lead.company_name,
                 main_company: lead.main_company,
+                client_company_id: lead.client_company_id,
+                contact_id: lead.contact_id,
                 bu_revenue: lead.bu_revenue,
                 status: lead.status,
                 category: lead.category,
@@ -225,10 +230,8 @@ export function LeadSheet({ lead, open, onOpenChange }: LeadSheetProps) {
             toast.error(`Error: ${error.message}`)
         } else {
             toast.success("Lead updated successfully")
-            setTimeout(() => {
-                onOpenChange(false)
-                router.refresh()
-            }, 800)
+            onOpenChange(false)
+            router.refresh()
         }
         setSaving(false)
     }
@@ -325,6 +328,31 @@ export function LeadSheet({ lead, open, onOpenChange }: LeadSheetProps) {
                                                                 {CATEGORY_OPTIONS.map((opt) => (<SelectItem key={opt} value={opt}>{opt}</SelectItem>))}
                                                             </SelectContent>
                                                         </Select>
+                                                    </FormItem>
+                                                )} />
+                                            </FieldGrid>
+                                        </FieldSection>
+
+                                        <FieldSection title="Client Company & Contact">
+                                            <FieldGrid>
+                                                <FormField control={form.control} name="client_company_id" render={({ field }) => (
+                                                    <FormItem>
+                                                        <FormLabel className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Client Company</FormLabel>
+                                                        <FormControl>
+                                                            <CompanyCombobox value={field.value ?? null} onChange={(id) => field.onChange(id)} />
+                                                        </FormControl>
+                                                    </FormItem>
+                                                )} />
+                                                <FormField control={form.control} name="contact_id" render={({ field }) => (
+                                                    <FormItem>
+                                                        <FormLabel className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Contact Person</FormLabel>
+                                                        <FormControl>
+                                                            <ContactCombobox
+                                                                value={field.value ?? null}
+                                                                onChange={(id) => field.onChange(id)}
+                                                                clientCompanyId={form.watch("client_company_id") ?? null}
+                                                            />
+                                                        </FormControl>
                                                     </FormItem>
                                                 )} />
                                             </FieldGrid>
