@@ -137,7 +137,42 @@ export interface Lead {
     sign_doc_type: string | null;
     date_send_doc: string | null;
     time_log: string | null;
+
+    // Group 8: Relational Assignment (UUID FKs)
+    pic_sales_id: string | null;
+    account_manager_id: string | null;
+
+    // Joined relations for assignment
+    pic_sales_profile?: { full_name: string } | null;
+    account_manager_profile?: { full_name: string } | null;
 }
 
 export type LeadInsert = Omit<Lead, 'id' | 'created_at' | 'updated_at'>;
 export type LeadUpdate = Partial<LeadInsert>;
+
+export interface Profile {
+    id: string;
+    email: string | null;
+    full_name: string | null;
+    role: string;
+    department: string | null;
+    job_title: string | null;
+    avatar_url: string | null;
+    is_active: boolean;
+    created_at: string;
+    role_tier: number | null;
+    reports_to: string | null;
+    business_unit: string | null;
+    manager?: { full_name: string } | null;
+}
+
+export interface SalesTarget {
+    id: string;
+    created_at: string;
+    updated_at: string;
+    profile_id: string;
+    target_amount: number;
+    period_start: string;
+    period_end: string;
+    period_type: 'monthly' | 'quarterly' | 'yearly';
+}

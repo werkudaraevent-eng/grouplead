@@ -36,6 +36,7 @@ import {
 import { Lead } from "@/types"
 import { Save, Loader2 } from "lucide-react"
 import { CompanyCombobox, ContactCombobox } from "@/components/entity-combobox"
+import { ProfileCombobox } from "@/components/profile-combobox"
 
 // ============================================================
 // ZOD SCHEMA
@@ -50,8 +51,8 @@ const leadFormSchema = z.object({
     category: z.string().nullable().optional(),
     source_lead: z.string().nullable().optional(),
     referral_source: z.string().nullable().optional(),
-    pic_sales: z.string().nullable().optional(),
-    account_manager: z.string().nullable().optional(),
+    pic_sales_id: z.string().nullable().optional(),
+    account_manager_id: z.string().nullable().optional(),
     cancel_lost_reason: z.string().nullable().optional(),
     estimated_revenue: z.coerce.number().nullable().optional(),
     nominal_konfirmasi: z.coerce.number().nullable().optional(),
@@ -116,8 +117,8 @@ export function EditLeadModal({ lead, open, onOpenChange, onSaved }: EditLeadMod
                 category: lead.category,
                 source_lead: lead.source_lead,
                 referral_source: lead.referral_source,
-                pic_sales: lead.pic_sales,
-                account_manager: lead.account_manager,
+                pic_sales_id: lead.pic_sales_id,
+                account_manager_id: lead.account_manager_id,
                 cancel_lost_reason: lead.cancel_lost_reason,
                 estimated_revenue: lead.estimated_revenue,
                 nominal_konfirmasi: lead.nominal_konfirmasi,
@@ -222,8 +223,18 @@ export function EditLeadModal({ lead, open, onOpenChange, onSaved }: EditLeadMod
                                         <FieldGrid>
                                             <SelectField control={form.control} name="status" label="Status" options={STATUS_OPTIONS} />
                                             <SelectField control={form.control} name="bu_revenue" label="BU Revenue" options={BU_OPTIONS} />
-                                            <TextField control={form.control} name="pic_sales" label="PIC Sales" />
-                                            <TextField control={form.control} name="account_manager" label="Account Manager" />
+                                            <FormField control={form.control} name="pic_sales_id" render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">PIC Sales</FormLabel>
+                                                    <FormControl><ProfileCombobox value={field.value ?? null} onChange={(id) => field.onChange(id)} placeholder="Select PIC Sales..." /></FormControl>
+                                                </FormItem>
+                                            )} />
+                                            <FormField control={form.control} name="account_manager_id" render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Account Manager</FormLabel>
+                                                    <FormControl><ProfileCombobox value={field.value ?? null} onChange={(id) => field.onChange(id)} placeholder="Select Account Manager..." /></FormControl>
+                                                </FormItem>
+                                            )} />
                                             <TextField control={form.control} name="source_lead" label="Source Lead" />
                                             <TextField control={form.control} name="referral_source" label="Referral Source" />
                                         </FieldGrid>
