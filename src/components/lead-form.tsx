@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/form"
 import { CompanyCombobox, ContactCombobox } from "@/components/entity-combobox"
 import { ProfileCombobox } from "@/components/profile-combobox"
+import { PipelineStage } from "@/types"
 import { Save, Loader2 } from "lucide-react"
 
 // ============================================================
@@ -39,7 +40,7 @@ const addLeadSchema = z.object({
     client_company_id: z.string().nullable().optional(),
     contact_id: z.string().nullable().optional(),
     bu_revenue: z.string().nullable().optional(),
-    status: z.string().default("Lead Masuk"),
+    pipeline_stage_id: z.string().nullable().optional(),
     category: z.string().nullable().optional(),
     source_lead: z.string().nullable().optional(),
     referral_source: z.string().nullable().optional(),
@@ -68,7 +69,6 @@ const addLeadSchema = z.object({
 
 type AddLeadValues = z.infer<typeof addLeadSchema>
 
-const STATUS_OPTIONS = ["Lead Masuk", "Estimasi Project", "Proposal Sent", "Closed Won", "Closed Lost"]
 const BU_OPTIONS = ["WNW", "WNS", "UK", "TEP", "CREATIVE"]
 const CATEGORY_OPTIONS = ["Corporate", "Government", "MICE", "Wedding", "Social"]
 
@@ -82,14 +82,23 @@ interface LeadFormProps {
 
 export function LeadForm({ onSuccess }: LeadFormProps) {
     const [saving, setSaving] = useState(false)
+    const [stages, setStages] = useState<PipelineStage[]>([])
     const supabase = createClient()
     const router = useRouter()
     const { activeCompany } = useCompany()
 
+    useEffect(() => {
+        supabase.from("pipeline_stages").select("*").order("sort_order").then(({ data }) => {
+            if (data) setStages(data)
+        })
+    }, [supabase])
+
+    const defaultStageId = stages.find((s) => s.name === "Lead Masuk")?.id ?? null
+
     const form = useForm<AddLeadValues>({
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         resolver: zodResolver(addLeadSchema) as any,
-        defaultValues: { status: "Lead Masuk" },
+        defaultValues: { pipeline_stage_id: defaultStageId },
     })
 
     const onSubmit = async (values: AddLeadValues) => {
@@ -152,8 +161,18 @@ export function LeadForm({ onSuccess }: LeadFormProps) {
                             </FieldSection>
                             <FieldSection title="Status & Operations">
                                 <FieldGrid>
-                                    <SelectField control={form.control} name="status" label="Status" options={STATUS_OPTIONS} />
                                     <SelectField control={form.control} name="bu_revenue" label="BU Revenue" options={BU_OPTIONS} />
+                                    <FormField control={form.control} name="pipeline_stage_id" render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Pipeline Stage</FormLabel>
+                                            <Select value={field.value || undefined} onValueChange={(v) => field.onChange(v || null)}>
+                                                <FormControl><SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Select stage" /></SelectTrigger></FormControl>
+                                                <SelectContent>
+                                                    {stages.map((s) => (<SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>))}
+                                                </SelectContent>
+                                            </Select>
+                                        </FormItem>
+                                    )} />
                                     <FormField control={form.control} name="pic_sales_id" render={({ field }) => (
                                             <FormItem>
                                                 <FormLabel className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">PIC Sales</FormLabel>

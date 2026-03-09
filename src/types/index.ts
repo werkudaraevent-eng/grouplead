@@ -77,6 +77,8 @@ export interface Lead {
     location_city: string | null;
 
     // Group 3: Status & Operations
+    pipeline_stage_id: string | null;
+    pipeline_stage?: { name: string; color: string } | null;
     status: string | null;
     cancel_lost_reason: string | null;
     date_cancel_lost: string | null;

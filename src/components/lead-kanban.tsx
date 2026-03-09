@@ -75,12 +75,14 @@ export function LeadKanban({ leads: initialLeads, onSelectLead }: LeadKanbanProp
         fetchStages()
     }, [supabase])
 
-    // Group leads by stage name
+    // Group leads by pipeline_stage_id (relational), fallback to status text match
     const grouped = useMemo(() => {
         return stages.map((stage) => ({
             ...stage,
             leads: leads.filter(
-                (l) => (l.status || "").toLowerCase() === stage.name.toLowerCase()
+                (l) => l.pipeline_stage_id
+                    ? l.pipeline_stage_id === stage.id
+                    : (l.status || "").toLowerCase() === stage.name.toLowerCase()
             ),
         }))
     }, [stages, leads])
@@ -93,32 +95,35 @@ export function LeadKanban({ leads: initialLeads, onSelectLead }: LeadKanbanProp
             if (destination.droppableId === source.droppableId && destination.index === source.index) return
 
             const leadId = parseInt(draggableId, 10)
-            const newStageName = destination.droppableId
+            const newStageId = destination.droppableId
+            const newStage = stages.find((s) => s.id === newStageId)
 
             // Optimistic update
             setLeads((prev) =>
-                prev.map((l) => (l.id === leadId ? { ...l, status: newStageName } : l))
+                prev.map((l) => (l.id === leadId ? { ...l, pipeline_stage_id: newStageId, status: newStage?.name ?? l.status } : l))
             )
 
-            // Persist to DB
+            // Persist to DB — update pipeline_stage_id (trigger syncs status text)
             const { error } = await supabase
                 .from("leads")
-                .update({ status: newStageName })
+                .update({ pipeline_stage_id: newStageId })
                 .eq("id", leadId)
 
             if (error) {
                 toast.error(`Failed to move lead: ${error.message}`)
                 // Revert
+                const oldStageId = source.droppableId
+                const oldStage = stages.find((s) => s.id === oldStageId)
                 setLeads((prev) =>
                     prev.map((l) =>
-                        l.id === leadId ? { ...l, status: source.droppableId } : l
+                        l.id === leadId ? { ...l, pipeline_stage_id: oldStageId, status: oldStage?.name ?? l.status } : l
                     )
                 )
             } else {
-                toast.success(`Moved to ${newStageName}`)
+                toast.success(`Moved to ${newStage?.name || "stage"}`)
             }
         },
-        [supabase]
+        [supabase, stages]
     )
 
     if (loading) {
@@ -143,7 +148,7 @@ export function LeadKanban({ leads: initialLeads, onSelectLead }: LeadKanbanProp
                         )
 
                         return (
-                            <Droppable droppableId={stage.name} key={stage.id}>
+                            <Droppable droppableId={stage.id} key={stage.id}>
                                 {(provided, snapshot) => (
                                     <div
                                         ref={provided.innerRef}

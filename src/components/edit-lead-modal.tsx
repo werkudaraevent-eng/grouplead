@@ -33,7 +33,7 @@ import {
     FormItem,
     FormLabel,
 } from "@/components/ui/form"
-import { Lead } from "@/types"
+import { Lead, PipelineStage } from "@/types"
 import { Save, Loader2 } from "lucide-react"
 import { CompanyCombobox, ContactCombobox } from "@/components/entity-combobox"
 import { ProfileCombobox } from "@/components/profile-combobox"
@@ -47,7 +47,7 @@ const leadFormSchema = z.object({
     client_company_id: z.string().nullable().optional(),
     contact_id: z.string().nullable().optional(),
     bu_revenue: z.string().nullable().optional(),
-    status: z.string().nullable().optional(),
+    pipeline_stage_id: z.string().nullable().optional(),
     category: z.string().nullable().optional(),
     source_lead: z.string().nullable().optional(),
     referral_source: z.string().nullable().optional(),
@@ -80,7 +80,6 @@ const leadFormSchema = z.object({
 
 type LeadFormValues = z.infer<typeof leadFormSchema>
 
-const STATUS_OPTIONS = ["Lead Masuk", "Estimasi Project", "Proposal Sent", "Closed Won", "Closed Lost"]
 const BU_OPTIONS = ["WNW", "WNS", "UK", "TEP", "CREATIVE"]
 const CATEGORY_OPTIONS = ["Corporate", "Government", "MICE", "Wedding", "Social"]
 
@@ -97,8 +96,15 @@ interface EditLeadModalProps {
 
 export function EditLeadModal({ lead, open, onOpenChange, onSaved }: EditLeadModalProps) {
     const [saving, setSaving] = useState(false)
+    const [stages, setStages] = useState<PipelineStage[]>([])
     const supabase = createClient()
     const router = useRouter()
+
+    useEffect(() => {
+        supabase.from("pipeline_stages").select("*").order("sort_order").then(({ data }) => {
+            if (data) setStages(data)
+        })
+    }, [supabase])
 
     const form = useForm<LeadFormValues>({
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -113,7 +119,7 @@ export function EditLeadModal({ lead, open, onOpenChange, onSaved }: EditLeadMod
                 client_company_id: lead.client_company_id,
                 contact_id: lead.contact_id,
                 bu_revenue: lead.bu_revenue,
-                status: lead.status,
+                pipeline_stage_id: lead.pipeline_stage_id,
                 category: lead.category,
                 source_lead: lead.source_lead,
                 referral_source: lead.referral_source,
@@ -221,7 +227,17 @@ export function EditLeadModal({ lead, open, onOpenChange, onSaved }: EditLeadMod
                                     </FieldSection>
                                     <FieldSection title="Status & Operations">
                                         <FieldGrid>
-                                            <SelectField control={form.control} name="status" label="Status" options={STATUS_OPTIONS} />
+                                            <FormField control={form.control} name="pipeline_stage_id" render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Pipeline Stage</FormLabel>
+                                                    <Select value={field.value || undefined} onValueChange={(v) => field.onChange(v || null)}>
+                                                        <FormControl><SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Select stage" /></SelectTrigger></FormControl>
+                                                        <SelectContent>
+                                                            {stages.map((s) => (<SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>))}
+                                                        </SelectContent>
+                                                    </Select>
+                                                </FormItem>
+                                            )} />
                                             <SelectField control={form.control} name="bu_revenue" label="BU Revenue" options={BU_OPTIONS} />
                                             <FormField control={form.control} name="pic_sales_id" render={({ field }) => (
                                                 <FormItem>
