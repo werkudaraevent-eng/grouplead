@@ -54,7 +54,11 @@ export function LeadKanban({ leads: initialLeads, onSelectLead }: LeadKanbanProp
     const [stages, setStages] = useState<PipelineStage[]>(FALLBACK_STAGES)
     const [leads, setLeads] = useState<Lead[]>(initialLeads)
     const [loading, setLoading] = useState(true)
+    const [isMounted, setIsMounted] = useState(false)
     const supabase = createClient()
+
+    // Strict Mode hydration guard for @hello-pangea/dnd
+    useEffect(() => { setIsMounted(true) }, [])
 
     // Sync when parent data changes
     useEffect(() => { setLeads(initialLeads) }, [initialLeads])
@@ -126,7 +130,7 @@ export function LeadKanban({ leads: initialLeads, onSelectLead }: LeadKanbanProp
         [supabase, stages]
     )
 
-    if (loading) {
+    if (loading || !isMounted) {
         return (
             <div className="flex items-center justify-center h-64 text-muted-foreground">
                 <Loader2 className="h-5 w-5 animate-spin mr-2" /> Loading pipeline...

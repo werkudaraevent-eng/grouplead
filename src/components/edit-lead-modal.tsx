@@ -154,25 +154,30 @@ export function EditLeadModal({ lead, open, onOpenChange, onSaved }: EditLeadMod
 
     const onSubmit = async (values: LeadFormValues) => {
         setSaving(true)
-        const cleaned: Record<string, unknown> = {}
-        for (const [key, val] of Object.entries(values)) {
-            cleaned[key] = val === "" ? null : val
-        }
+        try {
+            // Build a clean payload — only send defined, schema-valid columns
+            const payload: Record<string, unknown> = {}
+            for (const [key, val] of Object.entries(values)) {
+                if (val === undefined) continue
+                payload[key] = val === "" ? null : val
+            }
 
-        const { error } = await supabase
-            .from("leads")
-            .update(cleaned)
-            .eq("id", lead.id)
+            const { error } = await supabase
+                .from("leads")
+                .update(payload)
+                .eq("id", lead.id)
 
-        if (error) {
-            toast.error(`Error: ${error.message}`)
-        } else {
+            if (error) throw new Error(error.message)
+
             toast.success("Lead updated successfully")
             onOpenChange(false)
             onSaved?.()
             router.refresh()
+        } catch (err) {
+            toast.error(`Update failed: ${err instanceof Error ? err.message : "Unknown error"}`)
+        } finally {
+            setSaving(false)
         }
-        setSaving(false)
     }
 
     return (

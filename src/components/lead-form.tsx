@@ -103,21 +103,25 @@ export function LeadForm({ onSuccess }: LeadFormProps) {
 
     const onSubmit = async (values: AddLeadValues) => {
         setSaving(true)
-        const cleaned: Record<string, unknown> = {}
-        for (const [key, val] of Object.entries(values)) {
-            cleaned[key] = val === "" ? null : val
-        }
-        if (activeCompany) cleaned.company_id = activeCompany.id
+        try {
+            const payload: Record<string, unknown> = {}
+            for (const [key, val] of Object.entries(values)) {
+                if (val === undefined) continue
+                payload[key] = val === "" ? null : val
+            }
+            if (activeCompany) payload.company_id = activeCompany.id
 
-        const { error } = await supabase.from("leads").insert(cleaned)
-        if (error) {
-            toast.error(`Error: ${error.message}`)
-        } else {
+            const { error } = await supabase.from("leads").insert(payload)
+            if (error) throw new Error(error.message)
+
             toast.success("Lead created successfully")
             onSuccess?.()
             router.refresh()
+        } catch (err) {
+            toast.error(`Create failed: ${err instanceof Error ? err.message : "Unknown error"}`)
+        } finally {
+            setSaving(false)
         }
-        setSaving(false)
     }
 
     return (

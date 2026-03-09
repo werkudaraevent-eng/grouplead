@@ -148,14 +148,22 @@ export function LeadSheet({ lead, open, onOpenChange }: LeadSheetProps) {
     const onSubmit = async (values: LeadFormValues) => {
         if (!lead) return
         setSaving(true)
-        const cleaned: Record<string, unknown> = {}
-        for (const [key, val] of Object.entries(values)) {
-            cleaned[key] = val === "" ? null : val
+        try {
+            const payload: Record<string, unknown> = {}
+            for (const [key, val] of Object.entries(values)) {
+                if (val === undefined) continue
+                payload[key] = val === "" ? null : val
+            }
+            const { error } = await supabase.from("leads").update(payload).eq("id", lead.id)
+            if (error) throw new Error(error.message)
+            toast.success("Lead updated successfully")
+            onOpenChange(false)
+            router.refresh()
+        } catch (err) {
+            toast.error(`Update failed: ${err instanceof Error ? err.message : "Unknown error"}`)
+        } finally {
+            setSaving(false)
         }
-        const { error } = await supabase.from("leads").update(cleaned).eq("id", lead.id)
-        if (error) { toast.error(`Error: ${error.message}`) }
-        else { toast.success("Lead updated successfully"); onOpenChange(false); router.refresh() }
-        setSaving(false)
     }
 
     const handleDelete = async () => {
