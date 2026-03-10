@@ -1,12 +1,13 @@
 "use client"
 
-import React, { useEffect, useState } from "react"
+import React, { useEffect, useState, useTransition } from "react"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { createClient } from "@/utils/supabase/client"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
+import { updateLeadAction } from "@/app/actions/lead-actions"
 
 import {
     Dialog,
@@ -95,8 +96,8 @@ interface EditLeadModalProps {
 }
 
 export function EditLeadModal({ lead, open, onOpenChange, onSaved }: EditLeadModalProps) {
-    const [saving, setSaving] = useState(false)
     const [stages, setStages] = useState<PipelineStage[]>([])
+    const [isPending, startTransition] = useTransition()
     const supabase = createClient()
     const router = useRouter()
 
@@ -152,32 +153,20 @@ export function EditLeadModal({ lead, open, onOpenChange, onSaved }: EditLeadMod
         }
     }, [lead, open, form])
 
-    const onSubmit = async (values: LeadFormValues) => {
-        setSaving(true)
-        try {
-            // Build a clean payload — only send defined, schema-valid columns
-            const payload: Record<string, unknown> = {}
-            for (const [key, val] of Object.entries(values)) {
-                if (val === undefined) continue
-                payload[key] = val === "" ? null : val
+    const onSubmit = (values: LeadFormValues) => {
+        startTransition(async () => {
+            try {
+                const result = await updateLeadAction(lead.id, values as Record<string, unknown>)
+                if (!result.success) throw new Error(result.error)
+
+                toast.success("Lead updated successfully")
+                onOpenChange(false)
+                onSaved?.()
+                router.refresh()
+            } catch (err) {
+                toast.error(`Update failed: ${err instanceof Error ? err.message : "Unknown error"}`)
             }
-
-            const { error } = await supabase
-                .from("leads")
-                .update(payload)
-                .eq("id", lead.id)
-
-            if (error) throw new Error(error.message)
-
-            toast.success("Lead updated successfully")
-            onOpenChange(false)
-            onSaved?.()
-            router.refresh()
-        } catch (err) {
-            toast.error(`Update failed: ${err instanceof Error ? err.message : "Unknown error"}`)
-        } finally {
-            setSaving(false)
-        }
+        })
     }
 
     return (
@@ -331,8 +320,8 @@ export function EditLeadModal({ lead, open, onOpenChange, onSaved }: EditLeadMod
                             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                                 Cancel
                             </Button>
-                            <Button type="submit" disabled={saving || !form.formState.isDirty}>
-                                {saving ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Save className="h-4 w-4 mr-1.5" />}
+                            <Button type="submit" disabled={isPending || !form.formState.isDirty}>
+                                {isPending ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Save className="h-4 w-4 mr-1.5" />}
                                 Save Changes
                             </Button>
                         </DialogFooter>

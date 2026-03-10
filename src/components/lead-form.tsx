@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useTransition } from "react"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -8,6 +8,7 @@ import { createClient } from "@/utils/supabase/client"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { useCompany } from "@/contexts/company-context"
+import { createLeadAction } from "@/app/actions/lead-actions"
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
@@ -81,8 +82,8 @@ interface LeadFormProps {
 }
 
 export function LeadForm({ onSuccess }: LeadFormProps) {
-    const [saving, setSaving] = useState(false)
     const [stages, setStages] = useState<PipelineStage[]>([])
+    const [isPending, startTransition] = useTransition()
     const supabase = createClient()
     const router = useRouter()
     const { activeCompany } = useCompany()
@@ -101,27 +102,22 @@ export function LeadForm({ onSuccess }: LeadFormProps) {
         defaultValues: { pipeline_stage_id: defaultStageId },
     })
 
-    const onSubmit = async (values: AddLeadValues) => {
-        setSaving(true)
-        try {
-            const payload: Record<string, unknown> = {}
-            for (const [key, val] of Object.entries(values)) {
-                if (val === undefined) continue
-                payload[key] = val === "" ? null : val
+    const onSubmit = (values: AddLeadValues) => {
+        startTransition(async () => {
+            try {
+                const payload: Record<string, unknown> = { ...values }
+                if (activeCompany) payload.company_id = activeCompany.id
+
+                const result = await createLeadAction(payload)
+                if (!result.success) throw new Error(result.error)
+
+                toast.success("Lead created successfully")
+                onSuccess?.()
+                router.refresh()
+            } catch (err) {
+                toast.error(`Create failed: ${err instanceof Error ? err.message : "Unknown error"}`)
             }
-            if (activeCompany) payload.company_id = activeCompany.id
-
-            const { error } = await supabase.from("leads").insert(payload)
-            if (error) throw new Error(error.message)
-
-            toast.success("Lead created successfully")
-            onSuccess?.()
-            router.refresh()
-        } catch (err) {
-            toast.error(`Create failed: ${err instanceof Error ? err.message : "Unknown error"}`)
-        } finally {
-            setSaving(false)
-        }
+        })
     }
 
     return (
@@ -252,8 +248,8 @@ export function LeadForm({ onSuccess }: LeadFormProps) {
                 </Tabs>
 
                 <div className="flex justify-end gap-2 pt-2 border-t">
-                    <Button type="submit" disabled={saving}>
-                        {saving ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Save className="h-4 w-4 mr-1.5" />}
+                    <Button type="submit" disabled={isPending}>
+                        {isPending ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Save className="h-4 w-4 mr-1.5" />}
                         Create Lead
                     </Button>
                 </div>

@@ -1,11 +1,12 @@
 ﻿"use client"
-import React, { useEffect, useState } from "react"
+import React, { useEffect, useState, useTransition } from "react"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { createClient } from "@/utils/supabase/client"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
+import { updateLeadAction, deleteLeadAction } from "@/app/actions/lead-actions"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetFooter } from "@/components/ui/sheet"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
@@ -19,7 +20,6 @@ import { Lead, PipelineStage } from "@/types"
 import { CompanyCombobox, ContactCombobox } from "@/components/entity-combobox"
 import { ProfileCombobox } from "@/components/profile-combobox"
 import { Save, Trash2, Loader2, CheckCircle2, Circle, AlertTriangle, Clock } from "lucide-react"
-
 const leadFormSchema = z.object({
     project_name: z.string().nullable().optional(),
     client_company_id: z.string().nullable().optional(),
@@ -59,21 +59,20 @@ type LeadFormValues = z.infer<typeof leadFormSchema>
 
 const BU_OPTIONS = ["WNW", "WNS", "UK", "TEP", "CREATIVE"]
 const CATEGORY_OPTIONS = ["Corporate", "Government", "MICE", "Wedding", "Social"]
-
 interface SlaItem { label: string; value: string | null; icon: React.ReactNode }
 function getSlaItems(lead: Lead): SlaItem[] {
     const raw: { label: string; value: string | null }[] = [
         { label: "Lead Received", value: lead.date_lead_received },
-        { label: "TEP \u2192 PD", value: lead.sla_tep_to_pd },
-        { label: "PD \u2192 SO", value: lead.sla_pd_to_so },
-        { label: "PD \u2192 ACS", value: lead.sla_pd_to_acs },
-        { label: "SO \u2192 PD", value: lead.sla_so_to_pd },
-        { label: "PD \u2192 TEP", value: lead.sla_pd_to_tep },
-        { label: "ACS \u2192 PD", value: lead.sla_acs_to_pd },
-        { label: "Quotation \u2192 TEP", value: lead.sla_quo_to_tep },
-        { label: "Proposal \u2192 TEP", value: lead.sla_pro_to_tep },
-        { label: "Quotation \u2192 Client", value: lead.sla_quo_send_client },
-        { label: "Proposal \u2192 Client", value: lead.sla_pro_send_client },
+        { label: "TEP → PD", value: lead.sla_tep_to_pd },
+        { label: "PD → SO", value: lead.sla_pd_to_so },
+        { label: "PD → ACS", value: lead.sla_pd_to_acs },
+        { label: "SO → PD", value: lead.sla_so_to_pd },
+        { label: "PD → TEP", value: lead.sla_pd_to_tep },
+        { label: "ACS → PD", value: lead.sla_acs_to_pd },
+        { label: "Quotation → TEP", value: lead.sla_quo_to_tep },
+        { label: "Proposal → TEP", value: lead.sla_pro_to_tep },
+        { label: "Quotation → Client", value: lead.sla_quo_send_client },
+        { label: "Proposal → Client", value: lead.sla_pro_send_client },
     ]
     return raw.map((item) => ({
         ...item,
@@ -86,10 +85,10 @@ function getSlaItems(lead: Lead): SlaItem[] {
 interface LeadSheetProps { lead: Lead | null; open: boolean; onOpenChange: (open: boolean) => void }
 
 export function LeadSheet({ lead, open, onOpenChange }: LeadSheetProps) {
-    const [saving, setSaving] = useState(false)
     const [deleteOpen, setDeleteOpen] = useState(false)
     const [deleting, setDeleting] = useState(false)
     const [stages, setStages] = useState<PipelineStage[]>([])
+    const [isPending, startTransition] = useTransition()
     const supabase = createClient()
     const router = useRouter()
 
@@ -104,7 +103,6 @@ export function LeadSheet({ lead, open, onOpenChange }: LeadSheetProps) {
         resolver: zodResolver(leadFormSchema) as any,
         defaultValues: {},
     })
-
     useEffect(() => {
         if (lead && open) {
             form.reset({
@@ -145,39 +143,40 @@ export function LeadSheet({ lead, open, onOpenChange }: LeadSheetProps) {
         }
     }, [lead, open, form])
 
-    const onSubmit = async (values: LeadFormValues) => {
+    const onSubmit = (values: LeadFormValues) => {
         if (!lead) return
-        setSaving(true)
-        try {
-            const payload: Record<string, unknown> = {}
-            for (const [key, val] of Object.entries(values)) {
-                if (val === undefined) continue
-                payload[key] = val === "" ? null : val
+        startTransition(async () => {
+            try {
+                const result = await updateLeadAction(lead.id, values as Record<string, unknown>)
+                if (!result.success) throw new Error(result.error)
+                toast.success("Lead updated successfully")
+                onOpenChange(false)
+                router.refresh()
+            } catch (err) {
+                toast.error(`Update failed: ${err instanceof Error ? err.message : "Unknown error"}`)
             }
-            const { error } = await supabase.from("leads").update(payload).eq("id", lead.id)
-            if (error) throw new Error(error.message)
-            toast.success("Lead updated successfully")
-            onOpenChange(false)
-            router.refresh()
-        } catch (err) {
-            toast.error(`Update failed: ${err instanceof Error ? err.message : "Unknown error"}`)
-        } finally {
-            setSaving(false)
-        }
+        })
     }
 
     const handleDelete = async () => {
         if (!lead) return
         setDeleting(true)
-        const { error } = await supabase.from("leads").delete().eq("id", lead.id)
-        if (error) { toast.error(`Delete failed: ${error.message}`) }
-        else { toast.success("Lead deleted"); setDeleteOpen(false); onOpenChange(false); router.refresh() }
-        setDeleting(false)
+        try {
+            const result = await deleteLeadAction(lead.id)
+            if (!result.success) throw new Error(result.error)
+            toast.success("Lead deleted")
+            setDeleteOpen(false)
+            onOpenChange(false)
+            router.refresh()
+        } catch (err) {
+            toast.error(`Delete failed: ${err instanceof Error ? err.message : "Unknown error"}`)
+        } finally {
+            setDeleting(false)
+        }
     }
 
     if (!lead) return null
     const slaItems = getSlaItems(lead)
-
     return (
         <>
             <Sheet open={open} onOpenChange={onOpenChange}>
@@ -334,14 +333,14 @@ export function LeadSheet({ lead, open, onOpenChange }: LeadSheetProps) {
                                                 <div className="flex items-center gap-2">
                                                     <Clock className="h-3.5 w-3.5 text-muted-foreground" />
                                                     <div>
-                                                        <p className="text-xs text-muted-foreground">Inquiry \u2192 PD</p>
+                                                        <p className="text-xs text-muted-foreground">Inquiry → PD</p>
                                                         <p className="text-sm font-medium">{lead.duration_inq_to_pd || "\u2014"}</p>
                                                     </div>
                                                 </div>
                                                 <div className="flex items-center gap-2">
                                                     <Clock className="h-3.5 w-3.5 text-muted-foreground" />
                                                     <div>
-                                                        <p className="text-xs text-muted-foreground">Inquiry \u2192 Client</p>
+                                                        <p className="text-xs text-muted-foreground">Inquiry → Client</p>
                                                         <p className="text-sm font-medium">{lead.duration_inq_to_client || "\u2014"}</p>
                                                     </div>
                                                 </div>
@@ -358,8 +357,8 @@ export function LeadSheet({ lead, open, onOpenChange }: LeadSheetProps) {
                                 </PermissionGate>
                                 <div className="flex items-center gap-2 ml-auto">
                                     <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-                                    <Button type="submit" disabled={saving || !form.formState.isDirty}>
-                                        {saving ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Save className="h-4 w-4 mr-1.5" />}
+                                    <Button type="submit" disabled={isPending || !form.formState.isDirty}>
+                                        {isPending ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Save className="h-4 w-4 mr-1.5" />}
                                         Save Changes
                                     </Button>
                                 </div>
@@ -390,7 +389,6 @@ export function LeadSheet({ lead, open, onOpenChange }: LeadSheetProps) {
         </>
     )
 }
-
 function FieldSection({ title, children }: { title: string; children: React.ReactNode }) {
     return (
         <div className="border rounded-lg p-4 bg-card space-y-4">

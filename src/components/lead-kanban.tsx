@@ -10,6 +10,7 @@ import {
 import { Lead, PipelineStage } from "@/types"
 import { createClient } from "@/utils/supabase/client"
 import { toast } from "sonner"
+import { updatePipelineStageAction } from "@/app/actions/lead-actions"
 import {
     Building2, DollarSign, Clock, AlertTriangle,
     User, ChevronRight, Loader2
@@ -107,14 +108,11 @@ export function LeadKanban({ leads: initialLeads, onSelectLead }: LeadKanbanProp
                 prev.map((l) => (l.id === leadId ? { ...l, pipeline_stage_id: newStageId, status: newStage?.name ?? l.status } : l))
             )
 
-            // Persist to DB — update pipeline_stage_id (trigger syncs status text)
-            const { error } = await supabase
-                .from("leads")
-                .update({ pipeline_stage_id: newStageId })
-                .eq("id", leadId)
+            // Persist via Server Action
+            const result2 = await updatePipelineStageAction(leadId, newStageId)
 
-            if (error) {
-                toast.error(`Failed to move lead: ${error.message}`)
+            if (!result2.success) {
+                toast.error(`Failed to move lead: ${result2.error}`)
                 // Revert
                 const oldStageId = source.droppableId
                 const oldStage = stages.find((s) => s.id === oldStageId)
@@ -127,7 +125,7 @@ export function LeadKanban({ leads: initialLeads, onSelectLead }: LeadKanbanProp
                 toast.success(`Moved to ${newStage?.name || "stage"}`)
             }
         },
-        [supabase, stages]
+        [stages]
     )
 
     if (loading || !isMounted) {
