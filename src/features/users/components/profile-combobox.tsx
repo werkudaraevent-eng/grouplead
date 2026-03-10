@@ -15,13 +15,14 @@ interface ProfileOption {
 }
 
 interface ProfileComboboxProps {
-    value: string | null
+    value?: string | null
     onChange: (id: string | null) => void
+    filterTierBelow?: number
     placeholder?: string
     disabled?: boolean
 }
 
-export function ProfileCombobox({ value, onChange, placeholder = "Select person...", disabled }: ProfileComboboxProps) {
+export function ProfileCombobox({ value, onChange, filterTierBelow, placeholder = "Select user...", disabled }: ProfileComboboxProps) {
     const [open, setOpen] = useState(false)
     const [profiles, setProfiles] = useState<ProfileOption[]>([])
     const [isLoading, setIsLoading] = useState(true)
@@ -34,7 +35,7 @@ export function ProfileCombobox({ value, onChange, placeholder = "Select person.
 
             const { data, error } = await supabase
                 .from("profiles")
-                .select("id, full_name")
+                .select("id, full_name, role_tier")
 
             if (error) {
                 console.error("Supabase Fetch Error:", error.message)
@@ -46,8 +47,12 @@ export function ProfileCombobox({ value, onChange, placeholder = "Select person.
 
             console.log("Profiles fetched:", data?.length ?? 0, data)
 
+            const filtered = (data ?? []).filter(
+                (p) => !filterTierBelow || (p.role_tier != null && p.role_tier < filterTierBelow)
+            )
+
             setProfiles(
-                (data ?? []).map((p) => ({
+                filtered.map((p) => ({
                     value: p.id,
                     label: p.full_name || "Unnamed User",
                 }))
@@ -56,7 +61,7 @@ export function ProfileCombobox({ value, onChange, placeholder = "Select person.
         }
 
         fetchProfiles()
-    }, [])
+    }, [filterTierBelow])
 
     const selected = profiles.find((p) => p.value === value)
 
