@@ -1,11 +1,11 @@
 "use client"
 
 import { useState } from "react"
-import { DataTable } from "@/components/data-table"
-import { columns } from "@/components/lead-columns"
-import { LeadKanban } from "@/components/lead-kanban"
-import { LeadDetailLayout } from "@/components/lead-detail-layout"
-import { LeadForm } from "@/components/lead-form"
+import { DataTable } from "@/components/shared/data-tablea-table"
+import { columns } from "@/features/leads/components/lead-columns"
+import { LeadKanban } from "@/features/leads/components/lead-kanbannts/lead-kanban"
+import { LeadDetailLayout } from "@/features/leads/components/lead-detail-layout"
+import { LeadForm } from "@/features/leads/components/lead-formnents/lead-form"
 import { Lead } from "@/types/index"
 import { Button } from "@/components/ui/button"
 import {
@@ -25,8 +25,8 @@ import {
 } from "@/components/ui/sheet"
 import { Plus, LayoutGrid, Table, X, Pencil } from "lucide-react"
 import { useRouter } from "next/navigation"
-import { PermissionGate } from "@/components/permission-gate"
-import { EditLeadModal } from "@/components/edit-lead-modal"
+import { PermissionGate } from "@/features/users/components/permission-gate"
+import { EditLeadModal } from "@/features/leads/components/edit-lead-modaledit-lead-modal"
 
 type ViewMode = 'table' | 'kanban'
 

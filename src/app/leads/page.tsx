@@ -1,4 +1,4 @@
-import { LeadDashboard } from "@/components/lead-dashboard"
+import { LeadDashboard } from "@/features/leads/components/lead-dashboard"
 import { createClient } from "@/utils/supabase/server"
 import { getActiveCompany } from "@/utils/company"
 import { scopedQuery } from "@/utils/supabase/scoped-query"

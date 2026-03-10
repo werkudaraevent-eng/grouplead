@@ -5,7 +5,7 @@ import { LeadTask, DEPARTMENTS, TASK_STATUS_CONFIG, DEPARTMENT_CONFIG } from "@/
 import { createClient } from "@/utils/supabase/client"
 import { useCompany } from "@/contexts/company-context"
 import { scopedQuery } from "@/utils/supabase/scoped-query"
-import { TaskCard } from "@/components/task-card"
+import { TaskCard } from "@/features/tasks/components/task-card"
 import { Button } from "@/components/ui/button"
 import { Loader2, Inbox, Filter, LayoutList } from "lucide-react"
 

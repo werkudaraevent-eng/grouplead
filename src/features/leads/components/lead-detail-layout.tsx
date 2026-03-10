@@ -6,7 +6,7 @@ import {
     CheckCircle2, Clock, Circle, ArrowRight,
     FileText, Send, Briefcase, CalendarDays
 } from "lucide-react"
-import { WorkflowActions } from "./workflow-actions"
+import { WorkflowActions } from "@/features/tasks/components/workflow-actions"
 
 interface LeadDetailLayoutProps {
     lead: Lead

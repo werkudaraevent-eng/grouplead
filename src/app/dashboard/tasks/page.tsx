@@ -1,4 +1,4 @@
-import { TaskBoard } from "@/components/task-board"
+import { TaskBoard } from "@/features/tasks/components/task-board"
 
 export const dynamic = 'force-dynamic'
 

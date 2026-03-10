@@ -15,7 +15,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Loader2, CheckCircle2, Clock, ArrowRight, Building2, User, FileText } from "lucide-react"
-import { PermissionGate } from "@/components/permission-gate"
+import { PermissionGate } from "@/features/users/components/permission-gate"
 
 interface TaskCardProps {
     task: LeadTask

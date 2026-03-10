@@ -1,4 +1,4 @@
-﻿"use client"
+"use client"
 
 import { useEffect, useState, useCallback } from "react"
 import { createClient } from "@/utils/supabase/client"
@@ -51,6 +51,7 @@ export default function PipelineSettingsPage() {
   const openEdit = (s: PipelineStage) => { setEditingStage(s); setFormName(s.name); setFormColor(s.color); setDialogOpen(true) }
   const openDelete = (s: PipelineStage) => { setDeletingStage(s); setDeleteDialogOpen(true) }
 
+
   const handleSave = async () => {
     if (!formName.trim()) { toast.error("Stage name is required"); return }
     setSaving(true)
@@ -71,7 +72,7 @@ export default function PipelineSettingsPage() {
     if (!deletingStage) return
     setSaving(true)
     const { count } = await supabase.from("leads").select("id", { count: "exact", head: true }).eq("status", deletingStage.name)
-    if (count && count > 0) { toast.error("Cannot delete - " + count + " lead(s) are in this stage"); setSaving(false); setDeleteDialogOpen(false); return }
+    if (count && count > 0) { toast.error(`Cannot delete — ${count} lead(s) are in this stage`); setSaving(false); setDeleteDialogOpen(false); return }
     const { error } = await supabase.from("pipeline_stages").delete().eq("id", deletingStage.id)
     if (error) toast.error("Failed to delete stage")
     else toast.success("Stage deleted")
@@ -92,7 +93,7 @@ export default function PipelineSettingsPage() {
 
   const dot = (color: string) => {
     const c = COLORS.find(x => x.value === color)
-    return <span className={"inline-block w-3 h-3 rounded-full " + (c?.cls ?? "bg-gray-500")} />
+    return <span className={`inline-block w-3 h-3 rounded-full ${c?.cls ?? "bg-gray-500"}`} />
   }
 
   return (
@@ -176,7 +177,7 @@ export default function PipelineSettingsPage() {
                   {COLORS.map((c) => (
                     <SelectItem key={c.value} value={c.value}>
                       <div className="flex items-center gap-2">
-                        <span className={"w-3 h-3 rounded-full " + c.cls} />
+                        <span className={`w-3 h-3 rounded-full ${c.cls}`} />
                         {c.label}
                       </div>
                     </SelectItem>
@@ -200,7 +201,7 @@ export default function PipelineSettingsPage() {
           <DialogHeader>
             <DialogTitle>Delete Stage</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete this stage? This action cannot be undone. Stages with active leads cannot be deleted.
+              Are you sure you want to delete &quot;{deletingStage?.name}&quot;? This action cannot be undone. Stages with active leads cannot be deleted.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

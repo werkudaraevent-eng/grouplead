@@ -1,4 +1,4 @@
-﻿"use client"
+"use client"
 import React, { useEffect, useState, useTransition } from "react"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
@@ -14,12 +14,13 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Form, FormControl, FormField, FormItem, FormLabel } from "@/components/ui/form"
-import { WorkflowActions } from "./workflow-actions"
-import { PermissionGate } from "@/components/permission-gate"
+import { WorkflowActions } from "../../../components/workflow-actionsomponents/workflow-actions"
+import { PermissionGate } from "@/features/users/components/permission-gate"
 import { Lead, PipelineStage } from "@/types"
-import { CompanyCombobox, ContactCombobox } from "@/components/entity-combobox"
-import { ProfileCombobox } from "@/components/profile-combobox"
+import { CompanyCombobox, ContactCombobox } from "@/components/shared/entity-comboboxombobox"
+import { ProfileCombobox } from "@/features/users/components/profile-comboboxrofile-combobox"
 import { Save, Trash2, Loader2, CheckCircle2, Circle, AlertTriangle, Clock } from "lucide-react"
+
 const leadFormSchema = z.object({
     project_name: z.string().nullable().optional(),
     client_company_id: z.string().nullable().optional(),
@@ -48,6 +49,7 @@ const leadFormSchema = z.object({
     tipe_stream: z.string().nullable().optional(),
     business_purpose: z.string().nullable().optional(),
     tipe: z.string().nullable().optional(),
+
     is_onsite: z.boolean().nullable().optional(),
     is_online: z.boolean().nullable().optional(),
     sector: z.string().nullable().optional(),
@@ -59,6 +61,7 @@ type LeadFormValues = z.infer<typeof leadFormSchema>
 
 const BU_OPTIONS = ["WNW", "WNS", "UK", "TEP", "CREATIVE"]
 const CATEGORY_OPTIONS = ["Corporate", "Government", "MICE", "Wedding", "Social"]
+
 interface SlaItem { label: string; value: string | null; icon: React.ReactNode }
 function getSlaItems(lead: Lead): SlaItem[] {
     const raw: { label: string; value: string | null }[] = [
@@ -84,6 +87,7 @@ function getSlaItems(lead: Lead): SlaItem[] {
 
 interface LeadSheetProps { lead: Lead | null; open: boolean; onOpenChange: (open: boolean) => void }
 
+
 export function LeadSheet({ lead, open, onOpenChange }: LeadSheetProps) {
     const [deleteOpen, setDeleteOpen] = useState(false)
     const [deleting, setDeleting] = useState(false)
@@ -103,6 +107,7 @@ export function LeadSheet({ lead, open, onOpenChange }: LeadSheetProps) {
         resolver: zodResolver(leadFormSchema) as any,
         defaultValues: {},
     })
+
     useEffect(() => {
         if (lead && open) {
             form.reset({
@@ -143,6 +148,7 @@ export function LeadSheet({ lead, open, onOpenChange }: LeadSheetProps) {
         }
     }, [lead, open, form])
 
+
     const onSubmit = (values: LeadFormValues) => {
         if (!lead) return
         startTransition(async () => {
@@ -177,6 +183,7 @@ export function LeadSheet({ lead, open, onOpenChange }: LeadSheetProps) {
 
     if (!lead) return null
     const slaItems = getSlaItems(lead)
+
     return (
         <>
             <Sheet open={open} onOpenChange={onOpenChange}>
@@ -191,6 +198,7 @@ export function LeadSheet({ lead, open, onOpenChange }: LeadSheetProps) {
                         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Workflow</p>
                         <WorkflowActions lead={lead} onUpdate={() => router.refresh()} />
                     </div>
+
                     <Form {...form}>
                         <form onSubmit={form.handleSubmit(onSubmit)} className="flex-1 flex flex-col min-h-0">
                             <Tabs defaultValue="overview" className="flex-1 flex flex-col min-h-0">
@@ -222,6 +230,7 @@ export function LeadSheet({ lead, open, onOpenChange }: LeadSheetProps) {
                                                 )} />
                                             </FieldGrid>
                                         </FieldSection>
+
                                         <FieldSection title="Status & Operations">
                                             <FieldGrid>
                                                 <FormField control={form.control} name="pipeline_stage_id" render={({ field }) => (
@@ -259,6 +268,7 @@ export function LeadSheet({ lead, open, onOpenChange }: LeadSheetProps) {
                                             </FieldGrid>
                                         </FieldSection>
                                     </TabsContent>
+
                                     <TabsContent value="event" className="mt-0 space-y-5">
                                         <FieldSection title="Event Info">
                                             <FieldGrid>
@@ -301,6 +311,7 @@ export function LeadSheet({ lead, open, onOpenChange }: LeadSheetProps) {
                                             </FieldGrid>
                                         </FieldSection>
                                     </TabsContent>
+
                                     <TabsContent value="financial" className="mt-0 space-y-5">
                                         <FieldSection title="Revenue & Deal">
                                             <FieldGrid>
@@ -349,6 +360,7 @@ export function LeadSheet({ lead, open, onOpenChange }: LeadSheetProps) {
                                     </TabsContent>
                                 </div>
                             </Tabs>
+
                             <SheetFooter className="px-6 py-4 border-t shrink-0 flex items-center justify-between gap-2">
                                 <PermissionGate resource="leads" action="delete">
                                     <Button type="button" variant="destructive" size="sm" onClick={() => setDeleteOpen(true)}>
@@ -389,6 +401,8 @@ export function LeadSheet({ lead, open, onOpenChange }: LeadSheetProps) {
         </>
     )
 }
+
+
 function FieldSection({ title, children }: { title: string; children: React.ReactNode }) {
     return (
         <div className="border rounded-lg p-4 bg-card space-y-4">

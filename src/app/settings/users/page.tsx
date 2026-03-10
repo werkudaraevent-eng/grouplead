@@ -13,11 +13,11 @@ import { Input } from "@/components/ui/input"
 import {
     ShieldCheck, Plus, Loader2, Search, Mail, MoreHorizontal, Network, Target,
 } from "lucide-react"
-import { PermissionGate } from "@/components/permission-gate"
+import { PermissionGate } from "@/features/users/components/permission-gate"
 import { Profile } from "@/types"
-import { EditUserModal } from "@/components/edit-user-modal"
-import { TargetManagementModal } from "@/components/target-management-modal"
-import { CreateUserModal } from "@/components/create-user-modal"
+import { EditUserModal } from "@/features/users/components/edit-user-modal"
+import { TargetManagementModal } from "@/features/users/components/target-management-modal"
+import { CreateUserModal } from "@/features/users/components/create-user-modal"
 
 const ROLE_BADGES: Record<string, { label: string; class: string }> = {
     super_admin: { label: "Super Admin", class: "bg-red-100 text-red-700 border-red-200" },

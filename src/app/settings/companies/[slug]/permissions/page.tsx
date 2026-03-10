@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from "react"
 import { useParams } from "next/navigation"
 import { createClient } from "@/utils/supabase/client"
-import { PermissionGate } from "@/components/permission-gate"
+import { PermissionGate } from "@/features/users/components/permission-gate"
 import { Button } from "@/components/ui/button"
 import { Loader2, ShieldCheck, Check, X } from "lucide-react"
 import type { RolePermission, UserType } from "@/types/company"

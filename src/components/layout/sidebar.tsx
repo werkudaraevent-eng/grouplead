@@ -18,7 +18,7 @@ import {
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { CompanySwitcher } from "@/components/layout/company-switcher"
-import { PermissionGate } from "@/components/permission-gate"
+import { PermissionGate } from "@/features/users/components/permission-gate"
 import { createClient } from "@/utils/supabase/client"
 
 interface SidebarProps {
