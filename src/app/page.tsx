@@ -1,4 +1,4 @@
-import { AnalyticsDashboard } from "@/features/leads/components/analytics-dashboardytics-dashboard"
+import { AnalyticsDashboard } from "@/features/leads/components/analytics-dashboard"
 import { createClient } from "@/utils/supabase/server"
 import { getActiveCompany } from "@/utils/company"
 import { scopedQuery } from "@/utils/supabase/scoped-query"

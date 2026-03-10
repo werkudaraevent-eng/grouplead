@@ -15,7 +15,7 @@ export default async function LeadsPage() {
     const { data: leads, error } = await scopedQuery(base, activeCompany?.id ?? null)
 
     if (error) {
-        console.error("❌ Supabase Fetch Error:", JSON.stringify(error, null, 2))
+        console.error("Supabase Fetch Error:", JSON.stringify(error, null, 2))
     }
 
     return (

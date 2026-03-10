@@ -27,8 +27,8 @@ import {
     FormItem,
     FormLabel,
 } from "@/components/ui/form"
-import { CompanyCombobox, ContactCombobox } from "@/components/shared/entity-comboboxombobox"
-import { ProfileCombobox } from "@/features/users/components/profile-comboboxrofile-combobox"
+import { CompanyCombobox, ContactCombobox } from "@/components/shared/entity-combobox"
+import { ProfileCombobox } from "@/features/users/components/profile-combobox"
 import { PipelineStage } from "@/types"
 import { Save, Loader2 } from "lucide-react"
 

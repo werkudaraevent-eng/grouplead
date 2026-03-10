@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useEffect, useState, useCallback } from "react"
 import { createClient } from "@/utils/supabase/client"
@@ -48,7 +48,7 @@ export default function ContactsPage() {
         const seen = new Set<string>()
         const unique: Contact[] = []
         for (const row of data || []) {
-            const key = `${row.contact_full_name}|${row.company_name}`
+            const key = `${row.contact_full_name}$${row.company_name}`
             if (!seen.has(key)) {
                 seen.add(key)
                 unique.push(row as Contact)
@@ -57,7 +57,7 @@ export default function ContactsPage() {
 
         setContacts(unique)
         setLoading(false)
-    }, [])
+    }, [supabase])
 
     useEffect(() => {
         fetchContacts()
@@ -66,8 +66,7 @@ export default function ContactsPage() {
     const filtered = contacts.filter((c) => {
         const q = search.toLowerCase()
         return (
-            !q ||
-            c.contact_full_name.toLowerCase().includes(q) ||
+            c?.contact_full_name?.toLowerCase().includes(q) ||
             (c.company_name || "").toLowerCase().includes(q) ||
             (c.contact_email || "").toLowerCase().includes(q) ||
             (c.job_title || "").toLowerCase().includes(q)
@@ -110,99 +109,96 @@ export default function ContactsPage() {
             </div>
 
             {/* Table */}
-            <div className="border rounded-xl bg-card overflow-hidden">
-                <Table>
-                    <TableHeader>
-                        <TableRow className="bg-muted/30">
-                            <TableHead className="w-[250px]">Contact</TableHead>
-                            <TableHead>Company</TableHead>
-                            <TableHead>Title</TableHead>
-                            <TableHead>Email</TableHead>
-                            <TableHead>Phone</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {loading && (
-                            <TableRow>
-                                <TableCell colSpan={5} className="text-center py-16">
-                                    <Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" />
-                                </TableCell>
+            {loading ? (
+                <div className="flex items-center justify-center py-16"><Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" /></div>
+            ) : contacts.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-16 text-center">
+                    <Inbox className="h-8 w-8 text-muted-foreground mb-2" />
+                    <p className="text-sm text-muted-foreground">No contacts found.</p>
+                </div>
+            ) : !loading && filtered.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-16 text-center">
+                    <Inbox className="h-8 w-8 text-muted-foreground mb-2" />
+                    <p className="text-sm">No contacts found.</p>
+                </div>
+            ) : (
+                <div className="border rounded-xl bg-card overflow-hidden">
+                    <Table>
+                        <TableHeader>
+                            <TableRow className="bg-muted/30">
+                                <TableHead className="w-[250px]">Contact</TableHead>
+                                <TableHead>Company</TableHead>
+                                <TableHead>Title</TableHead>
+                                <TableHead>Email</TableHead>
+                                <TableHead>Phone</TableHead>
                             </TableRow>
-                        )}
-                        {!loading && filtered.length === 0 && (
-                            <TableRow>
-                                <TableCell colSpan={5} className="text-center py-16">
-                                    <div className="flex flex-col items-center gap-2 text-muted-foreground">
-                                        <Inbox className="h-8 w-8" />
-                                        <p className="text-sm">No contacts found.</p>
-                                    </div>
-                                </TableCell>
-                            </TableRow>
-                        )}
-                        {filtered.map((contact, i) => (
-                            <TableRow key={`${contact.contact_full_name}-${i}`} className="hover:bg-muted/30 transition-colors">
-                                {/* Contact */}
-                                <TableCell>
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary shrink-0">
-                                            {getInitials(contact.contact_full_name, contact.salutation)}
+                        </TableHeader>
+                        <TableBody>
+                            {filtered.map((contact, i) => (
+                                <TableRow key={`${i}${contact.contact_full_name}-${i}`} className="hover:bg-muted/30 transition-colors">
+                                    {/* Contact */}
+                                    <TableCell>
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary shrink-0">
+                                                {getInitials(contact.contact_full_name, contact.salutation)}
+                                            </div>
+                                            <div className="min-w-0">
+                                                <p className="font-semibold text-sm truncate">
+                                                    {[contact.salutation, contact.contact_full_name].filter(Boolean).join(" ")}
+                                                </p>
+                                            </div>
                                         </div>
-                                        <div className="min-w-0">
-                                            <p className="font-semibold text-sm truncate">
-                                                {[contact.salutation, contact.contact_full_name].filter(Boolean).join(" ")}
-                                            </p>
-                                        </div>
-                                    </div>
-                                </TableCell>
+                                    </TableCell>
 
-                                {/* Company */}
-                                <TableCell>
-                                    <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                                        <Building2 className="h-3 w-3 shrink-0" />
-                                        <span className="truncate">{contact.company_name || "—"}</span>
-                                    </div>
-                                </TableCell>
-
-                                {/* Title */}
-                                <TableCell>
-                                    {contact.job_title ? (
+                                    {/* Company */}
+                                    <TableCell>
                                         <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                                            <Briefcase className="h-3 w-3 shrink-0" />
-                                            <span className="truncate">{contact.job_title}</span>
+                                            <Building2 className="h-3 w-3 shrink-0" />
+                                            <span className="truncate">{contact.company_name || "\u2014"}</span>
                                         </div>
-                                    ) : (
-                                        <span className="text-xs text-muted-foreground">—</span>
-                                    )}
-                                </TableCell>
+                                    </TableCell>
 
-                                {/* Email */}
-                                <TableCell>
-                                    {contact.contact_email ? (
-                                        <a href={`mailto:${contact.contact_email}`} className="flex items-center gap-1.5 text-xs text-blue-600 hover:underline">
-                                            <Mail className="h-3 w-3 shrink-0" />
-                                            <span className="truncate">{contact.contact_email}</span>
-                                        </a>
-                                    ) : (
-                                        <span className="text-xs text-muted-foreground">—</span>
-                                    )}
-                                </TableCell>
+                                    {/* Title */}
+                                    <TableCell>
+                                        {contact.job_title ? (
+                                            <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                                                <Briefcase className="h-3 w-3 shrink-0" />
+                                                <span className="truncate">{contact.job_title}</span>
+                                            </div>
+                                        ) : (
+                                            <span className="text-xs text-muted-foreground">&mdash;</span>
+                                        )}
+                                    </TableCell>
 
-                                {/* Phone */}
-                                <TableCell>
-                                    {contact.contact_mobile ? (
-                                        <a href={`tel:${contact.contact_mobile}`} className="flex items-center gap-1.5 text-xs text-blue-600 hover:underline">
-                                            <Phone className="h-3 w-3 shrink-0" />
-                                            {contact.contact_mobile}
-                                        </a>
-                                    ) : (
-                                        <span className="text-xs text-muted-foreground">—</span>
-                                    )}
-                                </TableCell>
-                            </TableRow>
-                        ))}
-                    </TableBody>
-                </Table>
-            </div>
+                                    {/* Email */}
+                                    <TableCell>
+                                        {contact.contact_email ? (
+                                            <a href={`mailto:${contact.contact_email}`} className="flex items-center gap-1.5 text-xs text-blue-600 hover:underline">
+                                                <Mail className="h-3 w-3 shrink-0" />
+                                                <span className="truncate">{contact.contact_email}</span>
+                                            </a>
+                                        ) : (
+                                            <span className="text-xs text-muted-foreground">&mdash;</span>
+                                        )}
+                                    </TableCell>
+
+                                    {/* Phone */}
+                                    <TableCell>
+                                        {contact.contact_mobile ? (
+                                            <a href={`tel:${contact.contact_mobile}`} className="flex items-center gap-1.5 text-xs text-blue-600 hover:underline">
+                                                <Phone className="h-3 w-3 shrink-0" />
+                                                {contact.contact_mobile}
+                                            </a>
+                                        ) : (
+                                            <span className="text-xs text-muted-foreground">&mdash;</span>
+                                        )}
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                </div>
+            )}
         </div>
     )
 }

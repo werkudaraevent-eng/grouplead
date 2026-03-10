@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { createContext, useContext, useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/utils/supabase/client'
@@ -31,17 +31,9 @@ export function PermissionsProvider({ children }: { children: React.ReactNode })
     const fetchPermissions = async () => {
       setLoading(true)
       const supabase = createClient()
-
-      // Get current user
       const { data: { user } } = await supabase.auth.getUser()
-      if (!user) {
-        setPermissions([])
-        setUserType(null)
-        setLoading(false)
-        return
-      }
+      if (!user) { setPermissions([]); setUserType(null); setLoading(false); return }
 
-      // Get user's type in the active company
       const { data: membership } = await supabase
         .from('company_members')
         .select('user_type')
@@ -49,23 +41,11 @@ export function PermissionsProvider({ children }: { children: React.ReactNode })
         .eq('company_id', activeCompany.id)
         .single()
 
-      if (!membership) {
-        setPermissions([])
-        setUserType(null)
-        setLoading(false)
-        return
-      }
-
+      if (!membership) { setPermissions([]); setUserType(null); setLoading(false); return }
       setUserType(membership.user_type)
 
-      // super_admin gets full access — no need to fetch rows
-      if (membership.user_type === 'super_admin') {
-        setPermissions([])
-        setLoading(false)
-        return
-      }
+      if (membership.user_type === 'super_admin') { setPermissions([]); setLoading(false); return }
 
-      // Fetch role permissions for this user type in the active company
       const { data: perms } = await supabase
         .from('role_permissions')
         .select('*')
@@ -80,13 +60,8 @@ export function PermissionsProvider({ children }: { children: React.ReactNode })
   }, [activeCompany?.id])
 
   const can = useCallback((resource: string, action: string): boolean => {
-    // super_admin always has full access
     if (userType === 'super_admin') return true
-
-    const perm = permissions.find(
-      p => p.resource === resource && p.action === action
-    )
-    // Default deny if no row exists
+    const perm = permissions.find(p => p.resource === resource && p.action === action)
     return perm?.is_allowed ?? false
   }, [permissions, userType])
 

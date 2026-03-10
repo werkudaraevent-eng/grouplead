@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { createContext, useContext, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
@@ -18,10 +18,7 @@ export function CompanyProvider({ initialCompany, companies: initialCompanies, c
   const [companies] = useState<CompanyContext[]>(initialCompanies)
 
   const switchCompany = useCallback((slug: string) => {
-    // Set cookie (1 year expiry)
     document.cookie = `active_company=${slug}; path=/; max-age=${60 * 60 * 24 * 365}; SameSite=Lax`
-
-    // Update local state optimistically
     if (slug === 'holding') {
       const holdingCompany = companies.find(c => c.isHolding)
       if (holdingCompany) setActiveCompany({ ...holdingCompany, isHolding: true })
@@ -29,8 +26,6 @@ export function CompanyProvider({ initialCompany, companies: initialCompanies, c
       const company = companies.find(c => c.slug === slug)
       if (company) setActiveCompany(company)
     }
-
-    // Refresh server components
     router.refresh()
   }, [companies, router])
 

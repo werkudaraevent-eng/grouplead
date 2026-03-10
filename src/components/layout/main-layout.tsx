@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useState } from "react"
 import { Sidebar } from "@/components/layout/sidebar"
@@ -22,19 +22,14 @@ export function MainLayout({ children, initialCompany, companies }: MainLayoutPr
         <CompanyProvider initialCompany={initialCompany} companies={companies}>
             <PermissionsProvider>
                 <div className="flex h-screen overflow-hidden">
-                    {/* Desktop Sidebar */}
                     <aside className="hidden lg:flex lg:w-64 lg:flex-col lg:border-r border-sidebar-border bg-sidebar shrink-0">
                         <Sidebar />
                     </aside>
-
-                    {/* Mobile Sidebar */}
                     <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
                         <SheetContent side="left" className="w-72 p-0 border-r-0">
                             <Sidebar isSheet onCollapse={() => setMobileOpen(false)} />
                         </SheetContent>
                     </Sheet>
-
-                    {/* Main Content Area */}
                     <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
                         <div className="lg:hidden flex items-center h-14 px-4 border-b bg-background/95 backdrop-blur shrink-0">
                             <Button variant="ghost" size="icon" onClick={() => setMobileOpen(true)} className="h-9 w-9 mr-3">
@@ -47,9 +42,7 @@ export function MainLayout({ children, initialCompany, companies }: MainLayoutPr
                                 <span className="font-bold text-sm">Werkudara Group</span>
                             </div>
                         </div>
-                        <main className="flex-1 overflow-y-auto bg-muted/30">
-                            {children}
-                        </main>
+                        <main className="flex-1 overflow-y-auto bg-muted/30">{children}</main>
                     </div>
                 </div>
             </PermissionsProvider>

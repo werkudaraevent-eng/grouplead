@@ -19,7 +19,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Loader2, Save } from "lucide-react"
 import { Profile } from "@/types"
-import { ProfileCombobox } from "@/features/users/components/profile-comboboxrofile-combobox"
+import { ProfileCombobox } from "@/features/users/components/profile-combobox"
 
 const schema = z.object({
     role_tier: z.coerce.number().min(1).max(5),

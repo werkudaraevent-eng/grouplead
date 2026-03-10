@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+﻿import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { headers } from "next/headers";
 import { MainLayout } from "@/components/layout/main-layout";
@@ -26,12 +26,10 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  // Check if we're on the login page — skip MainLayout wrapper
   const headersList = await headers();
   const pathname = headersList.get("x-pathname") || "";
   const isLoginPage = pathname.startsWith("/login");
 
-  // Only fetch company data if not on login page
   let initialCompany = null;
   let companies: Awaited<ReturnType<typeof getUserCompanies>> = [];
 
@@ -44,12 +42,8 @@ export default async function RootLayout({
 
   return (
     <html lang="en">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
-        {isLoginPage ? (
-          children
-        ) : (
+      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+        {isLoginPage ? children : (
           <MainLayout initialCompany={initialCompany} companies={companies}>
             {children}
           </MainLayout>

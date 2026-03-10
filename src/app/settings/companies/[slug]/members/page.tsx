@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/utils/supabase/client'
-import { PermissionGate } from '@/components/permission-gate'
+import { PermissionGate } from '@/features/users/components/permission-gate'
 import { Button } from '@/components/ui/button'
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
@@ -122,7 +122,6 @@ export default function CompanyMembersPage({ params }: { params: { slug: string 
 
   return (
     <div className="p-6 lg:p-8 space-y-6 max-w-5xl">
-      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <button
@@ -146,7 +145,6 @@ export default function CompanyMembersPage({ params }: { params: { slug: string 
         </PermissionGate>
       </div>
 
-      {/* Table */}
       <div className="border rounded-xl bg-card overflow-hidden">
         <Table>
           <TableHeader>

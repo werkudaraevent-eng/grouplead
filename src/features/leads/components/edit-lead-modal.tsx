@@ -36,8 +36,8 @@ import {
 } from "@/components/ui/form"
 import { Lead, PipelineStage } from "@/types"
 import { Save, Loader2 } from "lucide-react"
-import { CompanyCombobox, ContactCombobox } from "@/components/shared/entity-comboboxombobox"
-import { ProfileCombobox } from "@/features/users/components/profile-comboboxrofile-combobox"
+import { CompanyCombobox, ContactCombobox } from "@/components/shared/entity-combobox"
+import { ProfileCombobox } from "@/features/users/components/profile-combobox"
 
 // ============================================================
 // ZOD SCHEMA

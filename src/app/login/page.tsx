@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
@@ -70,7 +70,7 @@ export default function LoginPage() {
                             <Input
                                 id="password"
                                 type="password"
-                                placeholder="••••••••"
+                                placeholder="\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022"
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
                                 required
