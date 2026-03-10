@@ -7,16 +7,9 @@ import {
     Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table"
 import {
-    Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
-} from "@/components/ui/dialog"
-import {
-    Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select"
-import {
     DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import {
     ShieldCheck, Plus, Loader2, Search, Mail, MoreHorizontal, Network, Target,
 } from "lucide-react"
@@ -24,6 +17,7 @@ import { PermissionGate } from "@/components/permission-gate"
 import { Profile } from "@/types"
 import { EditUserModal } from "@/components/edit-user-modal"
 import { TargetManagementModal } from "@/components/target-management-modal"
+import { CreateUserModal } from "@/components/create-user-modal"
 
 const ROLE_BADGES: Record<string, { label: string; class: string }> = {
     super_admin: { label: "Super Admin", class: "bg-red-100 text-red-700 border-red-200" },
@@ -33,8 +27,6 @@ const ROLE_BADGES: Record<string, { label: string; class: string }> = {
     finance: { label: "Finance", class: "bg-amber-100 text-amber-700 border-amber-200" },
 }
 const TIER_LABELS: Record<number, string> = { 1: "Staff", 2: "Team Lead", 3: "Manager", 4: "Director", 5: "VP+" }
-const ROLES = ["super_admin", "director", "bu_manager", "sales", "finance"] as const
-const DEPARTMENTS = ["WNW", "WNS", "UK", "TEP", "CREATIVE", "FINANCE", "LEGAL", "PD", "SO", "ACS"] as const
 
 export default function UserManagementPage() {
     const [profiles, setProfiles] = useState<Profile[]>([])
@@ -78,7 +70,7 @@ export default function UserManagementPage() {
                     <p className="text-sm text-muted-foreground mt-1">Manage team hierarchy, roles, and sales quotas.</p>
                 </div>
                 <PermissionGate resource="members" action="create">
-                    <Button size="sm" onClick={() => setInviteOpen(true)}><Plus className="h-3.5 w-3.5 mr-1.5" /> Invite User</Button>
+                    <Button size="sm" onClick={() => setInviteOpen(true)}><Plus className="h-3.5 w-3.5 mr-1.5" /> Create User</Button>
                 </PermissionGate>
             </div>
 
@@ -153,45 +145,8 @@ export default function UserManagementPage() {
             {/* Quota Modal */}
             <TargetManagementModal profile={targetProfile} open={targetOpen} onOpenChange={setTargetOpen} />
 
-            {/* Invite User Dialog */}
-            <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
-                <DialogContent className="sm:max-w-md">
-                    <DialogHeader>
-                        <DialogTitle>Invite Team Member</DialogTitle>
-                        <DialogDescription>Send an invitation email to add a new team member.</DialogDescription>
-                    </DialogHeader>
-                    <div className="space-y-4 py-2">
-                        <div className="space-y-2">
-                            <Label htmlFor="inviteEmail">Email Address</Label>
-                            <Input id="inviteEmail" type="email" placeholder="colleague@company.com" />
-                        </div>
-                        <div className="space-y-2">
-                            <Label>Assign Role</Label>
-                            <Select defaultValue="sales">
-                                <SelectTrigger><SelectValue placeholder="Select role" /></SelectTrigger>
-                                <SelectContent>
-                                    {ROLES.map((r) => (<SelectItem key={r} value={r}>{ROLE_BADGES[r]?.label || r}</SelectItem>))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        <div className="space-y-2">
-                            <Label>Assign Department</Label>
-                            <Select>
-                                <SelectTrigger><SelectValue placeholder="Select department" /></SelectTrigger>
-                                <SelectContent>
-                                    {DEPARTMENTS.map((d) => (<SelectItem key={d} value={d}>{d}</SelectItem>))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                    </div>
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setInviteOpen(false)}>Cancel</Button>
-                        <Button onClick={() => { alert("Invitation sent! (Mocked)"); setInviteOpen(false) }}>
-                            <Mail className="h-4 w-4 mr-2" /> Send Invitation
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+            {/* Create User Modal */}
+            <CreateUserModal open={inviteOpen} onOpenChange={setInviteOpen} onCreated={fetchProfiles} />
         </div>
     )
 }
