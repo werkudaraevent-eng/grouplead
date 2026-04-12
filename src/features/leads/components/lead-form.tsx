@@ -84,6 +84,8 @@ const addLeadSchema = z.object({
     general_brief: z.string().nullable().optional(),
     production_sow: z.string().nullable().optional(),
     special_remarks: z.string().nullable().optional(),
+    lost_reason: z.string().nullable().optional(),
+    lost_reason_details: z.string().nullable().optional(),
     custom_data: z.record(z.string(), z.unknown()).optional(),
 }) // removed date validation refine because MultiDatePicker inherently avoids invalid ranges
 
@@ -232,9 +234,10 @@ export function LeadForm({ onSuccess, onClose, pipelineId, defaultStageId, initi
         fetchSchemas()
     }, [supabase, companies])
 
+    const dynamicSchema = getDynamicSchema(requiredOverrides)
     const form = useForm<AddLeadValues>({
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        resolver: zodResolver(getDynamicSchema(requiredOverrides)) as any,
+        resolver: zodResolver(dynamicSchema) as any,
         defaultValues: initialData ? {
             project_name: initialData.project_name || "",
             company_id: initialData.company_id || null,
@@ -859,7 +862,7 @@ export function LeadForm({ onSuccess, onClose, pipelineId, defaultStageId, initi
                                                 case "native:lost_reason_details":
                                                     if (!isFieldVisible(fieldId)) return null;
                                                     return (
-                                                        <FormField key={fieldId} control={form.control} name="lost_reason_details" render={({ field }) => (
+                                                        <FormField key={fieldId} control={form.control as any} name="lost_reason_details" render={({ field }) => (
                                                             <FormItem className="sm:col-span-2">
                                                                 <FormLabel className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{getLabelStr("Lost Reason Details", fieldId)}</FormLabel>
                                                                 <FormControl>
