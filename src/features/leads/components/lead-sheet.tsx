@@ -101,6 +101,7 @@ export function LeadSheet({ lead, open, onOpenChange }: LeadSheetProps) {
 
     const currentStageId = form.watch("pipeline_stage_id")
     const isClosedWon = stages.find((s) => s.id === currentStageId)?.name === "Closed Won"
+    const isClosedLost = stages.find((s) => s.id === currentStageId)?.name === "Closed Lost"
 
     useEffect(() => {
         if (lead && open) {
