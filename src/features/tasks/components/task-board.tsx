@@ -1,204 +1,152 @@
 "use client"
 
 import { useEffect, useState, useCallback } from "react"
-import { LeadTask, DEPARTMENTS, TASK_STATUS_CONFIG, DEPARTMENT_CONFIG } from "@/types/tasks"
 import { createClient } from "@/utils/supabase/client"
-import { useCompany } from "@/contexts/company-context"
 import { scopedQuery } from "@/utils/supabase/scoped-query"
-import { TaskCard } from "@/features/tasks/components/task-card"
-import { Button } from "@/components/ui/button"
-import { Loader2, Inbox, Filter, LayoutList } from "lucide-react"
+import { useCompany } from "@/contexts/company-context"
+import { LeadTask, DEPARTMENTS, DEPARTMENT_CONFIG } from "@/types/tasks"
+import { TaskCard } from "./task-card"
+import { ListTodo, AlertCircle, Loader2, Inbox } from "lucide-react"
 
-type FilterStatus = 'ALL' | 'PENDING' | 'IN_PROGRESS' | 'COMPLETED'
-type FilterDept = 'ALL' | string
+const STATUS_LABELS: Record<string, string> = {
+    All: "All",
+    PENDING: "Pending",
+    IN_PROGRESS: "In Progress",
+    COMPLETED: "Completed",
+}
 
 export function TaskBoard() {
+    const supabase = createClient()
+    const { activeCompany } = useCompany()
+
     const [tasks, setTasks] = useState<LeadTask[]>([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
-    const [filterStatus, setFilterStatus] = useState<FilterStatus>('ALL')
-    const [filterDept, setFilterDept] = useState<FilterDept>('ALL')
-
-    const supabase = createClient()
-    const { activeCompany } = useCompany()
+    const [statusFilter, setStatusFilter] = useState("All")
+    const [deptFilter, setDeptFilter] = useState("All")
 
     const fetchTasks = useCallback(async () => {
         setLoading(true)
         setError(null)
-
-        const base = supabase
-            .from('lead_tasks')
-            .select(`
-        *,
-        leads (
-          company_name,
-          project_name,
-          manual_id,
-          status,
-          estimated_revenue,
-          pic_sales
-        )
-      `)
-            .order('created_at', { ascending: false })
-
-        let query = scopedQuery(base, activeCompany?.id ?? null)
-
-        if (filterStatus !== 'ALL') {
-            query = query.eq('status', filterStatus)
-        }
-        if (filterDept !== 'ALL') {
-            query = query.eq('department', filterDept)
-        }
-
-        const { data, error: fetchError } = await query
-
-        if (fetchError) {
-            console.error("Error fetching tasks:", fetchError)
-            setError(fetchError.message)
-        } else {
+        try {
+            const base = supabase
+                .from("lead_tasks")
+                .select("*")
+                .order("created_at", { ascending: false })
+            const scoped = scopedQuery(base, activeCompany?.id ?? null)
+            const { data, error: fetchError } = await scoped
+            if (fetchError) throw fetchError
             setTasks((data as LeadTask[]) || [])
+        } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : "Unknown error"
+            setError(message)
+        } finally {
+            setLoading(false)
         }
-
-        setLoading(false)
-    }, [filterStatus, filterDept, activeCompany?.id])
+    }, [supabase, activeCompany])
 
     useEffect(() => {
         fetchTasks()
     }, [fetchTasks])
 
-    // Count by status for the filter pills
-    const statusCounts = tasks.reduce((acc, t) => {
-        acc[t.status] = (acc[t.status] || 0) + 1
-        return acc
-    }, {} as Record<string, number>)
-
-    const activeFilters = (filterStatus !== 'ALL' ? 1 : 0) + (filterDept !== 'ALL' ? 1 : 0)
+    const filteredTasks = tasks.filter((t) => {
+        if (statusFilter !== "All" && t.status !== statusFilter) return false
+        if (deptFilter !== "All" && t.department !== deptFilter) return false
+        return true
+    })
 
     return (
-        <div className="space-y-6">
-
-            {/* Header */}
-            <div className="flex items-center justify-between">
+        <div>
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-8 gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-                        <LayoutList className="h-6 w-6 text-primary" />
+                    <h1 className="text-3xl font-bold text-slate-900 flex items-center gap-2">
+                        <ListTodo className="w-8 h-8 text-slate-700" />
                         Department Tasks
                     </h1>
-                    <p className="text-sm text-muted-foreground mt-1">
+                    <p className="text-sm text-slate-500 mt-1">
                         Complete tasks to automatically update lead SLA timestamps.
                     </p>
                 </div>
-                <div className="flex items-center gap-2">
-                    {activeFilters > 0 && (
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => { setFilterStatus('ALL'); setFilterDept('ALL') }}
-                            className="text-xs text-muted-foreground"
-                        >
-                            Clear filters
-                        </Button>
-                    )}
-                    <span className="text-sm text-muted-foreground font-medium">
-                        {tasks.length} task{tasks.length !== 1 ? 's' : ''}
+                <div className="flex items-center gap-3">
+                    <span className="bg-white border border-slate-200 text-slate-700 px-3 py-1 rounded-md text-sm font-medium">
+                        {tasks.length} Total Tasks
                     </span>
                 </div>
             </div>
 
-            {/* Filters Row */}
-            <div className="space-y-3">
-                {/* Status Filter */}
-                <div className="flex items-center gap-2 flex-wrap">
-                    <Filter className="h-3.5 w-3.5 text-muted-foreground" />
-                    <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mr-1">Status:</span>
-                    {(['ALL', 'PENDING', 'IN_PROGRESS', 'COMPLETED'] as FilterStatus[]).map((s) => {
-                        const config = s === 'ALL' ? null : TASK_STATUS_CONFIG[s]
-                        const isActive = filterStatus === s
-                        return (
-                            <button
-                                key={s}
-                                onClick={() => setFilterStatus(s)}
-                                className={`px-3 py-1 rounded-full text-xs font-semibold transition-all border ${isActive
-                                        ? 'bg-primary text-primary-foreground border-primary shadow-sm'
-                                        : 'bg-muted/50 text-muted-foreground border-transparent hover:bg-muted'
-                                    }`}
-                            >
-                                {s === 'ALL' ? 'All' : config?.label}
-                                {s !== 'ALL' && filterStatus === 'ALL' && statusCounts[s] ? ` (${statusCounts[s]})` : ''}
-                            </button>
-                        )
-                    })}
-                </div>
-
-                {/* Department Filter */}
-                <div className="flex items-center gap-2 flex-wrap">
-                    <Filter className="h-3.5 w-3.5 text-muted-foreground" />
-                    <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mr-1">Dept:</span>
-                    <button
-                        onClick={() => setFilterDept('ALL')}
-                        className={`px-3 py-1 rounded-full text-xs font-semibold transition-all border ${filterDept === 'ALL'
-                                ? 'bg-primary text-primary-foreground border-primary shadow-sm'
-                                : 'bg-muted/50 text-muted-foreground border-transparent hover:bg-muted'
-                            }`}
-                    >
-                        All
-                    </button>
-                    {DEPARTMENTS.map((dept) => {
-                        const config = DEPARTMENT_CONFIG[dept]
-                        const isActive = filterDept === dept
-                        return (
-                            <button
-                                key={dept}
-                                onClick={() => setFilterDept(dept)}
-                                className={`px-3 py-1 rounded-full text-xs font-semibold transition-all border ${isActive
-                                        ? 'bg-primary text-primary-foreground border-primary shadow-sm'
-                                        : `${config?.color || 'bg-muted/50 text-muted-foreground'} border-transparent hover:opacity-80`
-                                    }`}
-                            >
-                                {config?.label || dept}
-                            </button>
-                        )
-                    })}
+            <div className="flex items-center gap-3 mb-6">
+                <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Status</span>
+                <div className="flex bg-slate-200/50 p-1 rounded-lg border border-slate-100">
+                    {Object.entries(STATUS_LABELS).map(([key, label]) => (
+                        <button
+                            key={key}
+                            onClick={() => setStatusFilter(key)}
+                            className={
+                                "px-3 py-1.5 text-sm font-medium rounded-md transition-all " +
+                                (statusFilter === key
+                                    ? "bg-white text-slate-900 shadow-sm"
+                                    : "text-slate-600 hover:text-slate-900")
+                            }
+                        >
+                            {label}
+                        </button>
+                    ))}
                 </div>
             </div>
 
-            {/* Error */}
-            {error && (
-                <div className="bg-destructive/15 text-destructive px-4 py-3 rounded-lg text-sm">
-                    <strong>Error:</strong> {error}
-                </div>
-            )}
-
-            {/* Loading */}
-            {loading && (
-                <div className="flex items-center justify-center py-20">
-                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-                </div>
-            )}
-
-            {/* Empty State */}
-            {!loading && tasks.length === 0 && (
-                <div className="flex flex-col items-center justify-center py-20 text-center">
-                    <div className="bg-muted rounded-full p-4 mb-4">
-                        <Inbox className="h-10 w-10 text-muted-foreground" />
-                    </div>
-                    <h3 className="font-semibold text-lg mb-1">No tasks found</h3>
-                    <p className="text-sm text-muted-foreground max-w-sm">
-                        {activeFilters > 0
-                            ? "Try changing your filters to see more tasks."
-                            : "No tasks have been created yet. Run the seed SQL to populate sample data."}
-                    </p>
-                </div>
-            )}
-
-            {/* Task List */}
-            {!loading && tasks.length > 0 && (
-                <div className="grid gap-3">
-                    {tasks.map((task) => (
-                        <TaskCard key={task.id} task={task} onComplete={fetchTasks} />
+            <div className="flex items-center gap-3 mb-8">
+                <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Dept</span>
+                <div className="flex flex-wrap gap-2">
+                    {(["All", ...DEPARTMENTS] as string[]).map((dept) => (
+                        <button
+                            key={dept}
+                            onClick={() => setDeptFilter(dept)}
+                            className={
+                                "px-3 py-1.5 text-sm rounded-md border transition-all flex items-center gap-2 " +
+                                (deptFilter === dept
+                                    ? "bg-slate-900 border-slate-900 text-white font-medium"
+                                    : "bg-white border-slate-200 text-slate-600 hover:border-slate-300")
+                            }
+                        >
+                            {dept === "All" ? dept : (DEPARTMENT_CONFIG[dept]?.label || dept)}
+                        </button>
                     ))}
                 </div>
+            </div>
+
+            {error && (
+                <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-r-md mb-8 flex items-start gap-3">
+                    <AlertCircle className="w-5 h-5 text-red-600 mt-0.5 shrink-0" />
+                    <div>
+                        <h3 className="text-sm font-semibold text-red-800">Database Query Failed</h3>
+                        <p className="text-sm text-red-700 mt-1">{error}</p>
+                    </div>
+                </div>
             )}
+
+            <div className="bg-white border border-slate-200 shadow-sm rounded-xl overflow-hidden min-h-[400px] flex flex-col">
+                {loading ? (
+                    <div className="flex-1 flex items-center justify-center p-12">
+                        <Loader2 className="w-8 h-8 text-slate-400 animate-spin" />
+                    </div>
+                ) : filteredTasks.length === 0 ? (
+                    <div className="flex-1 flex flex-col items-center justify-center p-12 text-center">
+                        <div className="w-16 h-16 bg-slate-50 border border-slate-100 rounded-2xl flex items-center justify-center mb-4">
+                            <Inbox className="w-8 h-8 text-slate-400" />
+                        </div>
+                        <h3 className="text-lg font-semibold text-slate-900">No tasks found</h3>
+                        <p className="text-sm text-slate-500 mt-1 max-w-sm mx-auto">
+                            There are currently no tasks matching your filters. Ensure the seed SQL has been executed.
+                        </p>
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 p-6">
+                        {filteredTasks.map((task: LeadTask) => (
+                            <TaskCard key={task.id} task={task} onComplete={fetchTasks} />
+                        ))}
+                    </div>
+                )}
+            </div>
         </div>
     )
 }

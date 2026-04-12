@@ -101,7 +101,7 @@ export function TaskCard({ task, onComplete }: TaskCardProps) {
                     <div className="flex items-center gap-3 text-xs text-muted-foreground mb-3">
                         <span className="flex items-center gap-1">
                             <Building2 className="h-3 w-3" />
-                            {lead.company_name}
+                            {lead.client_company?.name ?? "—"}
                         </span>
                         <span className="text-muted-foreground/40">•</span>
                         <span className="flex items-center gap-1">
@@ -174,7 +174,7 @@ export function TaskCard({ task, onComplete }: TaskCardProps) {
                     <DialogHeader>
                         <DialogTitle>Complete Task</DialogTitle>
                         <DialogDescription>
-                            Mark &quot;{task.task_title}&quot; as completed. This will automatically update the lead&apos;s SLA timestamp.
+                            Mark &quot;{task.task_title}&quot; as completed.
                         </DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4 py-2">

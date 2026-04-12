@@ -49,37 +49,55 @@
 
 :root {
   --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
+  /* ── Banani Enterprise Palette ── */
+  --background: #fafbfc;
+  --foreground: #0b1320;
+  --card: #ffffff;
+  --card-foreground: #0b1320;
+  --popover: #ffffff;
+  --popover-foreground: #0b1320;
+  --primary: #235ee7;
+  --primary-foreground: #ffffff;
+  --secondary: #f2f6fb;
+  --secondary-foreground: #0b1320;
+  --muted: #f4f6f8;
+  --muted-foreground: #8a95a1;
+  --accent: #f4c04d;
+  --accent-foreground: #3b2b00;
+  --destructive: #9b1e1e;
+  --border: rgba(0, 0, 0, 0.08);
+  --input: #ffffff;
+  --ring: #235ee7;
   --chart-1: oklch(0.646 0.222 41.116);
   --chart-2: oklch(0.6 0.118 184.704);
   --chart-3: oklch(0.398 0.07 227.392);
   --chart-4: oklch(0.828 0.189 84.429);
   --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --sidebar: #ffffff;
+  --sidebar-foreground: #5b6a73;
+  --sidebar-primary: #eef4ff;
+  --sidebar-primary-foreground: #235ee7;
+  --sidebar-accent: #f2f6fb;
+  --sidebar-accent-foreground: #0b1320;
+  --sidebar-border: rgba(0, 0, 0, 0.08);
+  --sidebar-ring: #235ee7;
+  /* ── Semantic Colors ── */
+  --success: #e6f7ee;
+  --success-foreground: #0f7a4a;
+  --warning: #fff9ec;
+  --warning-foreground: #7a5900;
+}
+
+/* ── Dark Sidebar Panel (Bigin-style) ── */
+.sidebar-dark {
+  --sidebar: #1a1f2e;
+  --sidebar-foreground: #c8cdd5;
+  --sidebar-primary: rgba(255, 255, 255, 0.08);
+  --sidebar-primary-foreground: #7db4ff;
+  --sidebar-accent: rgba(255, 255, 255, 0.06);
+  --sidebar-accent-foreground: #e2e6ec;
+  --sidebar-border: rgba(255, 255, 255, 0.08);
+  --sidebar-ring: #7db4ff;
 }
 
 .dark {
@@ -123,4 +141,110 @@
   body {
     @apply bg-background text-foreground;
   }
+  /* Global placeholder visibility safety net */
+  input::placeholder,
+  textarea::placeholder {
+    color: #94a3b8; /* slate-400 — guaranteed visible on white/light backgrounds */
+    opacity: 1; /* Override browser default opacity reduction */
+  }
 }
+
+
+/* Hide scrollbar while preserving scroll */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Enterprise slim scrollbar */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: var(--border);
+  border-radius: 20px;
+}
+.custom-scrollbar:hover::-webkit-scrollbar-thumb {
+  background-color: var(--muted-foreground);
+}
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+/* Kanban column thin scrollbar (Bigin-style) */
+.thin-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+.thin-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+  margin: 4px 0;
+}
+.thin-scrollbar::-webkit-scrollbar-thumb {
+  background-color: rgba(148, 163, 184, 0.3);
+  border-radius: 10px;
+}
+.thin-scrollbar:hover::-webkit-scrollbar-thumb {
+  background-color: rgba(100, 116, 139, 0.5);
+}
+.thin-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.3) transparent;
+}
+
+/* Data table slim scrollbar */
+.data-table-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.25) transparent;
+}
+.data-table-scroll::-webkit-scrollbar {
+  height: 6px;
+  width: 6px;
+}
+.data-table-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.data-table-scroll::-webkit-scrollbar-thumb {
+  background-color: rgba(148, 163, 184, 0.25);
+  border-radius: 3px;
+}
+.data-table-scroll::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(148, 163, 184, 0.5);
+}
+.data-table-scroll::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* ─── Tiptap Rich Text Editor Styles ─── */
+.tiptap-editor p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: #94a3b8;
+  font-style: italic;
+  pointer-events: none;
+  height: 0;
+}
+.tiptap-editor h2 { font-size: 1.1em; font-weight: 600; margin: 0.5em 0 0.25em; }
+.tiptap-editor h3 { font-size: 1em; font-weight: 600; margin: 0.5em 0 0.25em; }
+.tiptap-editor ul { list-style: disc; padding-left: 1.5em; }
+.tiptap-editor ol { list-style: decimal; padding-left: 1.5em; }
+.tiptap-editor li { margin: 0.15em 0; }
+.tiptap-editor p { margin: 0.25em 0; }
+.tiptap-editor a { color: #2563eb; text-decoration: underline; cursor: pointer; }
+.tiptap-editor a:hover { color: #1d4ed8; }
+
+/* Read-only rendered HTML */
+.tiptap-readonly h2 { font-size: 1.1em; font-weight: 600; margin: 0.5em 0 0.25em; color: #1e293b; }
+.tiptap-readonly h3 { font-size: 1em; font-weight: 600; margin: 0.5em 0 0.25em; color: #334155; }
+.tiptap-readonly ul { list-style: disc; padding-left: 1.5em; }
+.tiptap-readonly ol { list-style: decimal; padding-left: 1.5em; }
+.tiptap-readonly li { margin: 0.15em 0; }
+.tiptap-readonly p { margin: 0.25em 0; }
+.tiptap-readonly a { color: #2563eb; text-decoration: underline; cursor: pointer; }
+.tiptap-readonly a:hover { color: #1d4ed8; }

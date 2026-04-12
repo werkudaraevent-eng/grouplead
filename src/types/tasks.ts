@@ -22,12 +22,12 @@ export interface LeadTask {
 
     // Joined from leads table (when using select with join)
     leads?: {
-        company_name: string | null
         project_name: string | null
         manual_id: number | null
         status: string | null
-        estimated_revenue: number | null
-        pic_sales: string | null
+        estimated_value: number | null
+        client_company: { name: string } | null
+        pic_sales_profile: { full_name: string } | null
     }
 }
 

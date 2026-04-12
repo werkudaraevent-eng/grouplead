@@ -18,11 +18,12 @@ interface ProfileComboboxProps {
     value?: string | null
     onChange: (id: string | null) => void
     filterTierBelow?: number
+    filterRoles?: string[]
     placeholder?: string
     disabled?: boolean
 }
 
-export function ProfileCombobox({ value, onChange, filterTierBelow, placeholder = "Select user...", disabled }: ProfileComboboxProps) {
+export function ProfileCombobox({ value, onChange, filterTierBelow, filterRoles, placeholder = "Select user...", disabled }: ProfileComboboxProps) {
     const [open, setOpen] = useState(false)
     const [profiles, setProfiles] = useState<ProfileOption[]>([])
     const [isLoading, setIsLoading] = useState(true)
@@ -35,7 +36,7 @@ export function ProfileCombobox({ value, onChange, filterTierBelow, placeholder 
 
             const { data, error } = await supabase
                 .from("profiles")
-                .select("id, full_name, role_tier")
+                .select("id, full_name, role_tier, role")
 
             if (error) {
                 console.error("Supabase Fetch Error:", error.message)
@@ -45,11 +46,11 @@ export function ProfileCombobox({ value, onChange, filterTierBelow, placeholder 
                 return
             }
 
-            console.log("Profiles fetched:", data?.length ?? 0, data)
-
-            const filtered = (data ?? []).filter(
-                (p) => !filterTierBelow || (p.role_tier != null && p.role_tier < filterTierBelow)
-            )
+            const filtered = (data ?? []).filter((p) => {
+                if (filterTierBelow && (p.role_tier == null || p.role_tier >= filterTierBelow)) return false
+                if (filterRoles && !filterRoles.includes(p.role)) return false
+                return true
+            })
 
             setProfiles(
                 filtered.map((p) => ({
@@ -61,32 +62,32 @@ export function ProfileCombobox({ value, onChange, filterTierBelow, placeholder 
         }
 
         fetchProfiles()
-    }, [filterTierBelow])
+    }, [filterTierBelow, filterRoles])
 
     const selected = profiles.find((p) => p.value === value)
 
     return (
-        <Popover open={open} onOpenChange={setOpen}>
+        <Popover open={open} onOpenChange={setOpen} modal={true}>
             <PopoverTrigger asChild>
                 <Button variant="outline" role="combobox" aria-expanded={open} disabled={disabled || isLoading}
-                    className="w-full justify-between h-9 text-sm font-normal">
+                    className="w-full justify-between h-9 text-sm font-normal overflow-hidden">
                     {isLoading ? (
-                        <span className="text-muted-foreground">Loading users...</span>
+                        <span className="text-muted-foreground truncate flex-1 text-left">Loading users...</span>
                     ) : selected ? (
-                        <span className="flex items-center gap-2 truncate">
+                        <span className="flex items-center gap-2 truncate flex-1 text-left">
                             <User className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                            {selected.label}
+                            <span className="truncate">{selected.label}</span>
                         </span>
                     ) : (
-                        <span className="text-muted-foreground">{placeholder}</span>
+                        <span className="text-muted-foreground truncate flex-1 text-left">{placeholder}</span>
                     )}
                     <ChevronsUpDown className="ml-2 h-3.5 w-3.5 shrink-0 opacity-50" />
                 </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-[300px] p-0" align="start">
+            <PopoverContent className="w-[300px] p-0 pointer-events-auto" align="start">
                 <Command>
                     <CommandInput placeholder="Search by name..." />
-                    <CommandList>
+                    <CommandList className="max-h-[250px] overflow-y-auto overscroll-contain">
                         <CommandEmpty>No profiles found.</CommandEmpty>
                         <CommandGroup>
                             <CommandItem value="__clear__" onSelect={() => { onChange(null); setOpen(false) }}>

@@ -2,7 +2,16 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/utils/supabase/client'
 import type { MasterOption } from '@/types'
 
-export function useMasterOptions(type?: string, companyId?: string | null) {
+/**
+ * Fetches master options, filtered by type.
+ * master_options is GLOBAL REFERENCE DATA — RLS allows all authenticated
+ * users to read all rows. No client-side company filtering needed.
+ *
+ * @param type - option_type to filter by (e.g. "category", "lead_source")
+ * @param _companyIds - DEPRECATED. Kept for backward-compat call-sites.
+ *   No longer used for filtering. RLS handles scoping.
+ */
+export function useMasterOptions(type?: string, _companyIds?: string | string[] | null) {
     const [options, setOptions] = useState<MasterOption[]>([])
     const [loading, setLoading] = useState(true)
 
@@ -16,13 +25,10 @@ export function useMasterOptions(type?: string, companyId?: string | null) {
                 query = query.eq('option_type', type)
             }
 
-            // When companyId is provided, include company-specific options AND global options (company_id IS NULL)
-            // When companyId is not provided, RLS handles scoping
-            if (companyId != null) {
-                query = query.or(`company_id.eq.${companyId},company_id.is.null`)
-            }
+            // No company_id filter — master_options is global reference data.
+            // RLS policy "master_options_select_global" USING (true) handles access.
 
-            const { data } = await query
+            const { data } = await query.order('sort_order', { ascending: true }).order('label', { ascending: true })
 
             if (data) {
                 setOptions(data as MasterOption[])
@@ -31,7 +37,7 @@ export function useMasterOptions(type?: string, companyId?: string | null) {
         }
 
         fetchOptions()
-    }, [type, companyId])
+    }, [type])
 
     return { options, loading }
 }

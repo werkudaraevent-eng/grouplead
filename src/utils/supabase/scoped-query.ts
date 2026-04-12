@@ -3,7 +3,7 @@
  * When companyId is null (holding view), returns the query unchanged — RLS handles scoping.
  *
  * Usage:
- *   const base = supabase.from('leads').select('id, company_name, status')
+ *   const base = supabase.from('leads').select('id, project_name, status')
  *   const scoped = scopedQuery(base, activeCompany?.id ?? null)
  *   const { data } = await scoped.order('created_at', { ascending: false })
  */

@@ -1,21 +1,21 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { createClient } from '@/utils/supabase/client'
 import { Button } from '@/components/ui/button'
 import {
-  Dialog, DialogContent, DialogDescription, DialogFooter,
-  DialogHeader, DialogTitle,
-} from '@/components/ui/dialog'
+  Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription,
+} from '@/components/ui/sheet'
 import {
   Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage,
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Loader2 } from 'lucide-react'
+import { toast } from 'sonner'
 import type { Company } from '@/types/company'
 
 const companySchema = z.object({
@@ -66,10 +66,20 @@ export function CompanyForm({ open, onOpenChange, company, onSuccess }: CompanyF
     })
   }, [company, form])
 
-  // Auto-generate slug from name (only in create mode)
+  // Auto-generate slug from name (only in create mode, only if user hasn't manually edited slug)
   const nameValue = form.watch('name')
+  const slugTouched = useRef(false)
+  const slugValue = form.watch('slug')
+
+  // Detect manual slug edits
   useEffect(() => {
-    if (!isEdit) {
+    if (!isEdit && slugValue !== slugify(nameValue)) {
+      slugTouched.current = true
+    }
+  }, [slugValue]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!isEdit && !slugTouched.current) {
       form.setValue('slug', slugify(nameValue), { shouldValidate: false })
     }
   }, [nameValue, isEdit, form])
@@ -83,23 +93,57 @@ export function CompanyForm({ open, onOpenChange, company, onSuccess }: CompanyF
       logo_url: values.logo_url || null,
     }
 
-    let error
     if (isEdit && company) {
-      const result = await supabase
+      const { error } = await supabase
         .from('companies')
         .update(payload)
         .eq('id', company.id)
-      error = result.error
-    } else {
-      const result = await supabase
-        .from('companies')
-        .insert(payload)
-      error = result.error
-    }
 
-    if (error) {
-      form.setError('root', { message: error.message })
-      return
+      if (error) {
+        console.error('Company update error:', error.message)
+        toast.error(error.message || 'Failed to update company')
+        form.setError('root', { message: error.message })
+        return
+      }
+
+      toast.success('Company updated successfully')
+    } else {
+      // Step 1: Get current user
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        toast.error('You must be logged in to create a company')
+        return
+      }
+
+      // Step 2: Generate ID client-side to avoid SELECT RLS after insert
+      const companyId = crypto.randomUUID()
+
+      const { error: insertError } = await supabase
+        .from('companies')
+        .insert({ id: companyId, ...payload })
+
+      if (insertError) {
+        console.error('Company insert error:', insertError.message)
+        toast.error(insertError.message || 'Failed to create company')
+        form.setError('root', { message: insertError.message })
+        return
+      }
+
+      // Step 3: Add creator as admin member (uses known companyId)
+      const { error: memberError } = await supabase
+        .from('company_members')
+        .insert({
+          company_id: companyId,
+          user_id: user.id,
+          user_type: 'admin',
+        })
+
+      if (memberError) {
+        console.error('CRITICAL: Company created but member insert failed:', memberError.message)
+        toast.error('Company created but failed to add you as admin. Contact support.')
+      }
+
+      toast.success('Company created successfully')
     }
 
     onOpenChange(false)
@@ -107,99 +151,121 @@ export function CompanyForm({ open, onOpenChange, company, onSuccess }: CompanyF
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>{isEdit ? 'Edit Company' : 'Add Company'}</DialogTitle>
-          <DialogDescription>
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent
+        className="w-full sm:max-w-lg p-0 flex flex-col bg-slate-50 border-l border-slate-200"
+        onInteractOutside={(e) => e.preventDefault()}
+      >
+        {/* ── HEADER ──────────────────────── */}
+        <SheetHeader className="px-6 py-4 bg-white border-b border-slate-200">
+          <SheetTitle>{isEdit ? 'Edit Company' : 'Add Company'}</SheetTitle>
+          <SheetDescription className="text-xs mt-0.5">
             {isEdit ? `Update details for ${company?.name}.` : 'Create a new company in the system.'}
-          </DialogDescription>
-        </DialogHeader>
+          </SheetDescription>
+        </SheetHeader>
 
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <FormField
-              control={form.control}
-              name="name"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Company Name</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Werkudara Nusantara" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
+        {/* ── FORM BODY ────────────────────── */}
+        <div className="flex-1 overflow-y-auto p-6">
+          <Form {...form}>
+            <form id="company-bu-form" onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col gap-6">
+
+              {/* Section: Identity */}
+              <div className="bg-white border border-slate-200 rounded-xl p-5 space-y-4">
+                <h4 className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Identity</h4>
+                <FormField
+                  control={form.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Company Name *</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Werkudara Nusantara" className="placeholder:text-slate-400" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="slug"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Slug</FormLabel>
+                      <FormControl>
+                        <Input placeholder="werkudara-nusantara" className="placeholder:text-slate-400 font-mono text-sm" {...field} />
+                      </FormControl>
+                      <FormDescription className="text-xs">
+                        Used in URLs. Auto-generated from name.
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="logo_url"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Logo URL <span className="text-muted-foreground font-normal">(optional)</span></FormLabel>
+                      <FormControl>
+                        <Input placeholder="https://..." className="placeholder:text-slate-400" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              {/* Section: Configuration */}
+              <div className="bg-white border border-slate-200 rounded-xl p-5 space-y-4">
+                <h4 className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Configuration</h4>
+                <FormField
+                  control={form.control}
+                  name="is_holding"
+                  render={({ field }) => (
+                    <FormItem className="flex items-center gap-3 space-y-0 rounded-lg border border-slate-200 p-3 bg-slate-50/50">
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                      <div>
+                        <FormLabel className="cursor-pointer">Holding Company</FormLabel>
+                        <FormDescription className="text-xs">
+                          Holding companies have access to all subsidiary data.
+                        </FormDescription>
+                      </div>
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              {form.formState.errors.root && (
+                <p className="text-sm text-destructive">{form.formState.errors.root.message}</p>
               )}
-            />
+            </form>
+          </Form>
+        </div>
 
-            <FormField
-              control={form.control}
-              name="slug"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Slug</FormLabel>
-                  <FormControl>
-                    <Input placeholder="werkudara-nusantara" {...field} />
-                  </FormControl>
-                  <FormDescription className="text-xs">
-                    Used in URLs. Auto-generated from name.
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="logo_url"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Logo URL <span className="text-muted-foreground font-normal">(optional)</span></FormLabel>
-                  <FormControl>
-                    <Input placeholder="https://..." {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="is_holding"
-              render={({ field }) => (
-                <FormItem className="flex items-center gap-3 space-y-0 rounded-lg border p-3">
-                  <FormControl>
-                    <Checkbox
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                    />
-                  </FormControl>
-                  <div>
-                    <FormLabel className="cursor-pointer">Holding Company</FormLabel>
-                    <FormDescription className="text-xs">
-                      Holding companies have access to all subsidiary data.
-                    </FormDescription>
-                  </div>
-                </FormItem>
-              )}
-            />
-
-            {form.formState.errors.root && (
-              <p className="text-sm text-destructive">{form.formState.errors.root.message}</p>
-            )}
-
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-                Cancel
-              </Button>
-              <Button type="submit" disabled={form.formState.isSubmitting}>
-                {form.formState.isSubmitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                {isEdit ? 'Save Changes' : 'Create Company'}
-              </Button>
-            </DialogFooter>
-          </form>
-        </Form>
-      </DialogContent>
-    </Dialog>
+        {/* ── FOOTER ──────────────────────── */}
+        <div className="px-6 py-4 bg-white border-t border-slate-200 flex justify-end gap-3">
+          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button
+            type="submit"
+            form="company-bu-form"
+            disabled={form.formState.isSubmitting}
+            className="bg-slate-900 hover:bg-slate-800 text-white"
+          >
+            {form.formState.isSubmitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+            {isEdit ? 'Save Changes' : 'Create Company'}
+          </Button>
+        </div>
+      </SheetContent>
+    </Sheet>
   )
 }

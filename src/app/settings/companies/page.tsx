@@ -8,13 +8,23 @@ import { Button } from '@/components/ui/button'
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table'
-import { Building2, Globe, Plus, Loader2, Users, Settings2 } from 'lucide-react'
+import {
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+} from '@/components/ui/dialog'
+import { Building2, Globe, Plus, Loader2, Users, Pencil, Trash2 } from 'lucide-react'
+import { toast } from 'sonner'
+import { CompanyForm } from '@/features/companies/components/company-form'
 import type { Company } from '@/types/company'
 
 export default function CompanyManagementPage() {
   const router = useRouter()
   const [companies, setCompanies] = useState<Company[]>([])
   const [loading, setLoading] = useState(true)
+  const [editCompany, setEditCompany] = useState<Company | null>(null)
+  const [editOpen, setEditOpen] = useState(false)
+  const [deleteCompany, setDeleteCompany] = useState<Company | null>(null)
+  const [deleteOpen, setDeleteOpen] = useState(false)
+  const [deleting, setDeleting] = useState(false)
 
   const fetchCompanies = useCallback(async () => {
     setLoading(true)
@@ -33,8 +43,40 @@ export default function CompanyManagementPage() {
     fetchCompanies()
   }, [fetchCompanies])
 
+  const handleDelete = async () => {
+    if (!deleteCompany) return
+    setDeleting(true)
+    const supabase = createClient()
+
+    // Check for members first
+    const { count } = await supabase
+      .from('company_members')
+      .select('id', { count: 'exact', head: true })
+      .eq('company_id', deleteCompany.id)
+
+    if (count && count > 0) {
+      toast.error(`Cannot delete — ${count} member(s) are still assigned to this company`)
+      setDeleting(false)
+      setDeleteOpen(false)
+      return
+    }
+
+    const { error } = await supabase
+      .from('companies')
+      .delete()
+      .eq('id', deleteCompany.id)
+
+    if (error) toast.error(error.message || 'Failed to delete company')
+    else {
+      toast.success(`${deleteCompany.name} deleted`)
+      fetchCompanies()
+    }
+    setDeleting(false)
+    setDeleteOpen(false)
+  }
+
   return (
-    <div className="p-6 lg:p-8 space-y-6 max-w-5xl">
+    <div className="p-6 lg:p-8 space-y-6 w-full">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
@@ -46,7 +88,7 @@ export default function CompanyManagementPage() {
           </p>
         </div>
         <PermissionGate resource="companies" action="create">
-          <Button size="sm" onClick={() => router.push('/settings/companies/new')}>
+          <Button size="sm" onClick={() => { setEditCompany(null); setEditOpen(true) }}>
             <Plus className="h-3.5 w-3.5 mr-1.5" /> Add Company
           </Button>
         </PermissionGate>
@@ -116,10 +158,18 @@ export default function CompanyManagementPage() {
                     </Button>
                     <Button
                       variant="ghost" size="sm" className="h-7 text-xs"
-                      onClick={(e) => { e.stopPropagation(); router.push(`/settings/companies/${company.slug}/permissions`) }}
+                      onClick={(e) => { e.stopPropagation(); setEditCompany(company); setEditOpen(true) }}
                     >
-                      <Settings2 className="h-3 w-3 mr-1" /> Permissions
+                      <Pencil className="h-3 w-3 mr-1" /> Edit
                     </Button>
+                    {!company.is_holding && (
+                      <Button
+                        variant="ghost" size="sm" className="h-7 text-xs text-destructive hover:text-destructive"
+                        onClick={(e) => { e.stopPropagation(); setDeleteCompany(company); setDeleteOpen(true) }}
+                      >
+                        <Trash2 className="h-3 w-3 mr-1" /> Delete
+                      </Button>
+                    )}
                   </div>
                 </TableCell>
               </TableRow>
@@ -127,6 +177,33 @@ export default function CompanyManagementPage() {
           </TableBody>
         </Table>
       </div>
+
+      {/* Edit/Create Company Dialog */}
+      <CompanyForm
+        open={editOpen}
+        onOpenChange={setEditOpen}
+        company={editCompany ?? undefined}
+        onSuccess={fetchCompanies}
+      />
+
+      {/* Delete Confirmation */}
+      <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle>Delete Company</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete &quot;{deleteCompany?.name}&quot;? Companies with active members cannot be deleted. This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteOpen(false)}>Cancel</Button>
+            <Button variant="destructive" onClick={handleDelete} disabled={deleting}>
+              {deleting && <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />}
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

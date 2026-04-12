@@ -36,10 +36,31 @@ export interface RolePermission {
   id: string
   created_at: string
   company_id: string
-  user_type: UserType
-  resource: string
-  action: string
-  is_allowed: boolean
+  user_type?: UserType | null
+  role_id: string | null
+  module_id: string
+  can_create: boolean
+  can_read: 'none' | 'own' | 'company' | 'all'
+  can_update: boolean
+  can_delete: boolean
+}
+
+export interface AppModule {
+  id: string
+  name: string
+  description: string | null
+  sort_order: number
+}
+
+export interface Role {
+  id: string
+  created_at: string
+  name: string
+  description: string | null
+  parent_id: string | null
+  sort_order: number
+  is_system: boolean
+  peer_data_visibility: boolean
 }
 
 export interface CompanyContext {

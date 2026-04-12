@@ -34,15 +34,19 @@ export default async function RootLayout({
   let companies: Awaited<ReturnType<typeof getUserCompanies>> = [];
 
   if (!isLoginPage) {
-    [initialCompany, companies] = await Promise.all([
-      getActiveCompany(),
-      getUserCompanies(),
-    ]);
+    try {
+      [initialCompany, companies] = await Promise.all([
+        getActiveCompany(),
+        getUserCompanies(),
+      ]);
+    } catch (err) {
+      console.warn("[RootLayout] Failed to load company context:", err);
+    }
   }
 
   return (
-    <html lang="en">
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+    <html lang="en" suppressHydrationWarning>
+      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`} suppressHydrationWarning>
         {isLoginPage ? children : (
           <MainLayout initialCompany={initialCompany} companies={companies}>
             {children}

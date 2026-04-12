@@ -30,7 +30,7 @@ export function WorkflowActions({ lead, onUpdate }: WorkflowActionsProps) {
     const [pendingAction, setPendingAction] = useState<{
         label: string
         status: string
-        column: keyof Lead
+        column: string
     } | null>(null)
 
     const router = useRouter()
@@ -126,7 +126,7 @@ function getAvailableActions(lead: Lead) {
     // Normalize status for comparison
     const status = lead.status?.toLowerCase() || ""
 
-    const actions: { label: string, status: string, column: keyof Lead }[] = []
+    const actions: { label: string, status: string, column: string }[] = []
 
     // 1. Initial State -> Acknowledge
     // Assuming 'New' or empty

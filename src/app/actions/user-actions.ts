@@ -3,7 +3,7 @@
 import { createClient } from "@supabase/supabase-js"
 import { revalidatePath } from "next/cache"
 
-export type ActionResult = { success: boolean; error?: string }
+export type ActionResult = { success: boolean; error?: string; userId?: string }
 
 function getAdminClient() {
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -21,8 +21,8 @@ interface ProvisionUserData {
     password: string
     full_name: string
     role: string
+    role_id: string | null
     department: string | null
-    role_tier: number
     business_unit: string | null
 }
 
@@ -59,8 +59,8 @@ export async function provisionUserAction(
             .update({
                 full_name: data.full_name,
                 role: data.role,
+                role_id: data.role_id,
                 department: data.department,
-                role_tier: data.role_tier,
                 business_unit: data.business_unit,
             })
             .eq("id", authData.user.id)
@@ -69,6 +69,45 @@ export async function provisionUserAction(
             return {
                 success: false,
                 error: `User created but profile update failed: ${profileError.message}`,
+            }
+        }
+
+        revalidatePath("/settings/users")
+        return { success: true, userId: authData.user.id }
+    } catch (err) {
+        return {
+            success: false,
+            error: err instanceof Error ? err.message : "Unknown error",
+        }
+    }
+}
+
+export async function deactivateUserAction(
+    userId: string
+): Promise<ActionResult> {
+    try {
+        const supabase = getAdminClient()
+
+        // Soft-delete: ban the user in Supabase Auth (prevents login)
+        const { error: banError } = await supabase.auth.admin.updateUserById(
+            userId,
+            { ban_duration: "876600h" } // ~100 years = effectively permanent
+        )
+
+        if (banError) {
+            return { success: false, error: banError.message }
+        }
+
+        // Mark profile as deactivated
+        const { error: profileError } = await supabase
+            .from("profiles")
+            .update({ is_active: false })
+            .eq("id", userId)
+
+        if (profileError) {
+            return {
+                success: false,
+                error: `Auth banned but profile update failed: ${profileError.message}`,
             }
         }
 

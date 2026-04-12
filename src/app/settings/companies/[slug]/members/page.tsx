@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useParams } from 'next/navigation'
 import { createClient } from '@/utils/supabase/client'
 import { PermissionGate } from '@/features/users/components/permission-gate'
 import { Button } from '@/components/ui/button'
@@ -36,8 +36,10 @@ interface Profile {
   avatar_url: string | null
 }
 
-export default function CompanyMembersPage({ params }: { params: { slug: string } }) {
+export default function CompanyMembersPage() {
   const router = useRouter()
+  const params = useParams()
+  const slug = params.slug as string
   const [companyId, setCompanyId] = useState<string | null>(null)
   const [companyName, setCompanyName] = useState('')
   const [members, setMembers] = useState<CompanyMember[]>([])
@@ -58,7 +60,7 @@ export default function CompanyMembersPage({ params }: { params: { slug: string 
     const { data: company } = await supabase
       .from('companies')
       .select('id, name')
-      .eq('slug', params.slug)
+      .eq('slug', slug)
       .single()
 
     if (!company) { setLoading(false); return }
@@ -73,7 +75,7 @@ export default function CompanyMembersPage({ params }: { params: { slug: string 
 
     setMembers((memberData as CompanyMember[]) || [])
     setLoading(false)
-  }, [params.slug])
+  }, [slug])
 
   useEffect(() => { fetchData() }, [fetchData])
 
@@ -121,7 +123,7 @@ export default function CompanyMembersPage({ params }: { params: { slug: string 
     name ? name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) : '?'
 
   return (
-    <div className="p-6 lg:p-8 space-y-6 max-w-5xl">
+    <div className="p-6 lg:p-8 space-y-6 w-full">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <button
