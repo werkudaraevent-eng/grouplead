@@ -1,21 +1,19 @@
 import React, { useState, useEffect } from "react"
 import {
     DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors,
-    DragOverlay, defaultDropAnimationSideEffects,
+    DragOverlay, defaultDropAnimationSideEffects, DragStartEvent, DragOverEvent, DragEndEvent
 } from "@dnd-kit/core"
 import {
     SortableContext, arrayMove, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable,
 } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
-import { GripVertical, EyeOff, Eye, LayoutTemplate, Loader2, Save, X, Pencil, Asterisk, Zap, Plus, Trash2, Settings } from "lucide-react"
+import { GripVertical, EyeOff, Eye, LayoutTemplate, Loader2, Save, X, Pencil, Zap, Plus, Trash2, Settings } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { Switch } from "@/components/ui/switch"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { createClient } from "@/utils/supabase/client"
 import { toast } from "sonner"
 import type { FormSchema } from "@/types"
@@ -191,7 +189,7 @@ export function FormLayoutBuilder({ companyId, customSchemas, onEditCustomField 
                     } else { // old format fallback
                         loadedLayout = { ...DEFAULT_LAYOUTS[activeModule], ...parsed }
                     }
-                } catch(e) {}
+                } catch(_) {}
             } else {
                 setLayoutConfigId(null)
             }
@@ -291,19 +289,19 @@ export function FormLayoutBuilder({ companyId, customSchemas, onEditCustomField 
         return Object.keys(items).find((key) => items[key].includes(id))
     }
 
-    const handleDragStart = (event: any) => {
+    const handleDragStart = (event: DragStartEvent) => {
         const { active } = event
-        setActiveId(active.id)
+        setActiveId(String(active.id))
     }
 
-    const handleDragOver = (event: any) => {
+    const handleDragOver = (event: DragOverEvent) => {
         const { active, over } = event
         const overId = over?.id
 
         if (!overId || active.id === overId) return
 
-        const activeContainer = findContainer(active.id)
-        const overContainer = findContainer(overId)
+        const activeContainer = findContainer(String(active.id))
+        const overContainer = findContainer(String(overId))
 
         if (!activeContainer || !overContainer) return
 
@@ -311,8 +309,8 @@ export function FormLayoutBuilder({ companyId, customSchemas, onEditCustomField 
             setItems((prev) => {
                 const activeItems = prev[activeContainer]
                 const overItems = prev[overContainer]
-                const activeIndex = activeItems.indexOf(active.id)
-                const overIndex = overItems.indexOf(overId)
+                const activeIndex = activeItems.indexOf(String(active.id))
+                const overIndex = overItems.indexOf(String(overId))
 
                 let newIndex
                 if (overId in prev) {
@@ -328,7 +326,7 @@ export function FormLayoutBuilder({ companyId, customSchemas, onEditCustomField 
 
                 return {
                     ...prev,
-                    [activeContainer]: prev[activeContainer].filter((item) => item !== active.id),
+                    [activeContainer]: prev[activeContainer].filter((item) => item !== String(active.id)),
                     [overContainer]: [
                         ...prev[overContainer].slice(0, newIndex),
                         activeItems[activeIndex],
@@ -339,18 +337,18 @@ export function FormLayoutBuilder({ companyId, customSchemas, onEditCustomField 
         }
     }
 
-    const handleDragEnd = (event: any) => {
+    const handleDragEnd = (event: DragEndEvent) => {
         const { active, over } = event
-        const activeContainer = findContainer(active.id)
-        const overContainer = over?.id ? findContainer(over.id) : null
+        const activeContainer = findContainer(String(active.id))
+        const overContainer = over?.id ? findContainer(String(over.id)) : null
 
         if (!activeContainer || !overContainer || activeContainer !== overContainer) {
             setActiveId(null)
             return
         }
 
-        const activeIndex = items[activeContainer].indexOf(active.id)
-        const overIndex = items[overContainer].indexOf(over.id)
+        const activeIndex = items[activeContainer].indexOf(String(active.id))
+        const overIndex = items[overContainer].indexOf(String(over?.id))
 
         if (activeIndex !== overIndex) {
             setItems((items) => ({
@@ -388,10 +386,7 @@ export function FormLayoutBuilder({ companyId, customSchemas, onEditCustomField 
         })
     }
 
-    const getGroupName = (key: string) => {
-        if (key === "hidden") return "Unused Fields"
-        return key.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ') + " Section"
-    }
+
 
     const handleSetVisibilityRule = (fieldId: string, rule: VisibilityRule) => {
         setVisibilityRules(prev => ({ ...prev, [fieldId]: rule }))
@@ -483,13 +478,13 @@ export function FormLayoutBuilder({ companyId, customSchemas, onEditCustomField 
                                 title={tabSettings[containerId]?.label || `${containerId.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')} Tab`}
                                 isTabHidden={tabSettings[containerId]?.isHidden}
                                 tabId={containerId}
-                                onUpdateTab={(id, partial) => {
+                                onUpdateTab={(id: string, partial) => {
                                     setTabSettings(prev => ({
                                         ...prev,
                                         [id]: { ...prev[id], ...partial }
                                     }))
                                 }}
-                                onDeleteTab={(id) => {
+                                onDeleteTab={(id: string) => {
                                     if (items[id]?.length > 0) {
                                         toast.error("Cannot delete a tab that contains fields. Move fields to 'Unused Fields' first.")
                                         return
@@ -579,7 +574,29 @@ export function FormLayoutBuilder({ companyId, customSchemas, onEditCustomField 
     )
 }
 
-function SortableContainer({ id, items, label, title, isHiddenBox, heightClass = "h-[400px]", onHideField, onEditCustomField, customSchemas, requiredFields, onToggleRequired, visibilityRules, onSetVisibilityRule, onClearVisibilityRule, allFields, isTabHidden, tabId, onUpdateTab, onDeleteTab }: any ) {
+interface SortableContainerProps {
+    id: string;
+    items: string[];
+    label: (key: string) => string;
+    title: string;
+    isHiddenBox: boolean;
+    heightClass?: string;
+    onHideField?: (id: string) => void;
+    onEditCustomField?: (schema: FormSchema) => void;
+    customSchemas: FormSchema[];
+    requiredFields: string[];
+    onToggleRequired?: (id: string) => void;
+    visibilityRules: Record<string, VisibilityRule>;
+    onSetVisibilityRule: (fieldId: string, rule: VisibilityRule) => void;
+    onClearVisibilityRule: (fieldId: string) => void;
+    allFields: { id: string; label: string }[];
+    isTabHidden?: boolean;
+    tabId?: string;
+    onUpdateTab?: (id: string, partial: Partial<{ label: string; isHidden: boolean; sortOrder: number }>) => void;
+    onDeleteTab?: (id: string) => void;
+}
+
+function SortableContainer({ id, items, label, title, isHiddenBox, heightClass = "h-[400px]", onHideField, onEditCustomField, customSchemas, requiredFields, onToggleRequired, visibilityRules, onSetVisibilityRule, onClearVisibilityRule, allFields, isTabHidden, tabId, onUpdateTab, onDeleteTab }: SortableContainerProps ) {
     const { setNodeRef } = useSortable({
         id,
         data: { type: "container", children: items },
