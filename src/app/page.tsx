@@ -1,8 +1,8 @@
 import { AnalyticsDashboard } from "@/features/leads/components/analytics-dashboard"
 import { createClient } from "@/utils/supabase/server"
 import { getActiveCompany } from "@/utils/company"
-import { scopedQuery } from "@/utils/supabase/scoped-query"
-import type { Lead } from "@/types"
+import { getScopedCompanyId, scopedQuery } from "@/utils/supabase/scoped-query"
+import type { Lead, PipelineStage } from "@/types"
 
 export const dynamic = 'force-dynamic'
 
@@ -27,6 +27,16 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
     const resolvedParams = await searchParams
     const defaultPipeline = pipelines.find(p => p.is_default) || pipelines[0]
     const activePipelineId = resolvedParams.pipeline || defaultPipeline?.id
+    let pipelineStages: PipelineStage[] = []
+
+    if (activePipelineId) {
+        const { data: pipelineStagesData } = await supabase
+            .from("pipeline_stages")
+            .select("id, name, color, sort_order, is_default, stage_type, closed_status, pipeline_id, created_at")
+            .eq("pipeline_id", activePipelineId)
+            .order("sort_order", { ascending: true })
+        pipelineStages = (pipelineStagesData as PipelineStage[]) || []
+    }
 
     const base = supabase
         .from('leads')
@@ -40,7 +50,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
     let leads: Lead[] = []
     let error: { message: string } | null = null
     try {
-        const result = await scopedQuery(base, activeCompany?.id ?? null)
+        const result = await scopedQuery(base, getScopedCompanyId(activeCompany))
         leads = (result.data as Lead[]) || []
         error = result.error
     } catch (err) {
@@ -55,7 +65,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
                     <strong>Database Error:</strong> {error.message}
                 </div>
             )}
-            <AnalyticsDashboard leads={leads} pipelines={pipelines} activePipelineId={activePipelineId} />
+            <AnalyticsDashboard leads={leads} pipelines={pipelines} activePipelineId={activePipelineId} pipelineStages={pipelineStages} />
         </>
     )
 }

@@ -33,6 +33,7 @@ import type { ClientCompany, FormSchema } from "@/types"
 import { parseAddress } from "@/lib/address-parser"
 import { DynamicField } from "@/features/leads/components/dynamic-field"
 import { DEFAULT_LAYOUTS, type LayoutItemsMap } from "@/features/settings/components/form-layout-builder"
+import { formatTabLabel, getVisibleTabEntries } from "@/features/settings/lib/form-layout-tabs"
 import { useCompany } from "@/contexts/company-context"
 
 interface AddCompanyModalProps {
@@ -392,6 +393,7 @@ export function AddCompanyModal({ open, onOpenChange, onCreated, initialData }: 
                 return null
         }
     }
+    const visibleTabs = getVisibleTabEntries(layoutConfig, tabSettings)
 
     return (
         <Sheet open={open} onOpenChange={onOpenChange}>
@@ -421,35 +423,34 @@ export function AddCompanyModal({ open, onOpenChange, onCreated, initialData }: 
                         </SheetHeader>
 
                         <div className="flex-1 overflow-y-auto p-6 space-y-6">
-                            {Object.entries(layoutConfig)
-                                .filter(([tab]) => tab !== "hidden" && (!tabSettings[tab] || !tabSettings[tab].isHidden))
-                                .sort(([a], [b]) => (tabSettings[a]?.sortOrder || 0) - (tabSettings[b]?.sortOrder || 0))
-                                .map(([tab, fields]) => (
-                                fields.length > 0 && (
+                            {visibleTabs.map(([tab, fields]) => (
                                     <div key={tab} className="bg-white border border-slate-200 rounded-xl p-5 space-y-4 shadow-sm">
-                                        <h4 className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">{tabSettings[tab]?.label || tab.replace("_", " ")} Details</h4>
-                                        <div className="grid grid-cols-2 gap-4">
-                                            {fields.map(fieldId => {
-                                                if (fieldId.startsWith("custom:")) {
-                                                    const schema = customSchemas.find(s => s.field_key === fieldId.replace("custom:", ""))
-                                                    if (!schema) return null
-                                                    return (
-                                                        <div key={fieldId} className={schema.field_type === 'text' || schema.field_type === 'dropdown' ? "col-span-2" : ""}>
-                                                            <DynamicField 
-                                                                schema={schema}
-                                                                value={customValues[schema.field_key]}
-                                                                onChange={(val) => setCustomValues((prev) => ({ ...prev, [schema.field_key]: val }))}
-                                                                companyId={activeCompany?.id}
-                                                                allValues={customValues}
-                                                                isRequired={schema.is_required || isFieldMandatory(fieldId)} />
-                                                        </div>
-                                                    )
-                                                }
-                                                return renderNativeField(fieldId)
-                                            })}
-                                        </div>
+                                        <h4 className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">{tabSettings[tab]?.label || formatTabLabel(tab)} Details</h4>
+                                        {fields.length === 0 ? (
+                                            <p className="text-sm text-slate-500">No fields assigned to this tab yet.</p>
+                                        ) : (
+                                            <div className="grid grid-cols-2 gap-4">
+                                                {fields.map(fieldId => {
+                                                    if (fieldId.startsWith("custom:")) {
+                                                        const schema = customSchemas.find(s => s.field_key === fieldId.replace("custom:", ""))
+                                                        if (!schema) return null
+                                                        return (
+                                                            <div key={fieldId} className={schema.field_type === 'text' || schema.field_type === 'dropdown' ? "col-span-2" : ""}>
+                                                                <DynamicField 
+                                                                    schema={schema}
+                                                                    value={customValues[schema.field_key]}
+                                                                    onChange={(val) => setCustomValues((prev) => ({ ...prev, [schema.field_key]: val }))}
+                                                                    companyId={activeCompany?.id}
+                                                                    allValues={customValues}
+                                                                    isRequired={schema.is_required || isFieldMandatory(fieldId)} />
+                                                            </div>
+                                                        )
+                                                    }
+                                                    return renderNativeField(fieldId)
+                                                })}
+                                            </div>
+                                        )}
                                     </div>
-                                )
                             ))}
                         </div>
 

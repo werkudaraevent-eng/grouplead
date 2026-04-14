@@ -18,6 +18,7 @@ import { createClient } from "@/utils/supabase/client"
 import { toast } from "sonner"
 import type { FormSchema } from "@/types"
 import { cn } from "@/lib/utils"
+import { buildLayoutStateSnapshot, createTabId, formatTabLabel } from "@/features/settings/lib/form-layout-tabs"
 import {
     AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
     AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -144,7 +145,7 @@ export function FormLayoutBuilder({ companyId, customSchemas, onEditCustomField 
     const [initialStateStr, setInitialStateStr] = useState<string>("")
     const [pendingModuleMap, setPendingModuleMap] = useState<"leads" | "companies" | "contacts" | null>(null)
 
-    const isDirty = initialStateStr !== "" && initialStateStr !== JSON.stringify({ tabs: items, req: requiredOverrides, vis: visibilityRules, tabSettings })
+    const isDirty = initialStateStr !== "" && initialStateStr !== buildLayoutStateSnapshot(items, requiredOverrides, visibilityRules, tabSettings)
 
     useEffect(() => {
         const handleBeforeUnload = (e: BeforeUnloadEvent) => {
@@ -225,7 +226,7 @@ export function FormLayoutBuilder({ companyId, customSchemas, onEditCustomField 
             Object.keys(loadedLayout).forEach((key, idx) => {
                 if (key !== "hidden" && !loadedTabSettings[key]) {
                     loadedTabSettings[key] = {
-                        label: key.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '),
+                        label: formatTabLabel(key),
                         isHidden: false,
                         sortOrder: idx
                     }
@@ -235,7 +236,7 @@ export function FormLayoutBuilder({ companyId, customSchemas, onEditCustomField 
             setItems(loadedLayout)
             setRequiredOverrides(loadedReqOverrides)
             setVisibilityRules(loadedVisRules)
-            setInitialStateStr(JSON.stringify({ tabs: loadedLayout, req: loadedReqOverrides, vis: loadedVisRules, tabSettings: loadedTabSettings }))
+            setInitialStateStr(buildLayoutStateSnapshot(loadedLayout, loadedReqOverrides, loadedVisRules, loadedTabSettings))
             setIsLoading(false)
         }
         fetchLayout()
@@ -261,7 +262,7 @@ export function FormLayoutBuilder({ companyId, customSchemas, onEditCustomField 
             }
         }
         toast.success("Form Layout Map saved successfully!")
-        setInitialStateStr(JSON.stringify({ tabs: items, req: requiredOverrides, vis: visibilityRules }))
+        setInitialStateStr(buildLayoutStateSnapshot(items, requiredOverrides, visibilityRules, tabSettings))
         setIsSaving(false)
     }
 
@@ -401,6 +402,9 @@ export function FormLayoutBuilder({ companyId, customSchemas, onEditCustomField 
     const allFields = Object.entries(items)
         .filter(([key]) => key !== "hidden")
         .flatMap(([, fieldIds]) => fieldIds.map(id => ({ id, label: getFieldLabel(id) })))
+    const tabSectionIds = Object.keys(items)
+        .filter(key => key !== "hidden")
+        .sort((a, b) => (tabSettings[a]?.sortOrder || 0) - (tabSettings[b]?.sortOrder || 0))
 
     return (
         <div className="space-y-6">
@@ -448,9 +452,13 @@ export function FormLayoutBuilder({ companyId, customSchemas, onEditCustomField 
         <div className="flex justify-between items-center bg-white p-3 rounded-lg border shadow-sm">
             <h3 className="text-sm font-semibold text-slate-700">Tab Sections</h3>
             <Button size="sm" variant="outline" className="h-8 gap-1.5" onClick={() => {
-                const label = prompt("Enter new tab name:");
+                const label = prompt("Enter new tab name:")?.trim()
                 if (label) {
-                    const id = label.toLowerCase().replace(/[^a-z0-9]/g, '_');
+                    const id = createTabId(label)
+                    if (!id) {
+                        toast.error("Tab name must contain at least one letter or number")
+                        return
+                    }
                     if (items[id]) {
                         toast.error("A tab with this name already exists");
                         return;
@@ -466,16 +474,13 @@ export function FormLayoutBuilder({ companyId, customSchemas, onEditCustomField 
             </Button>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
-                        {Object.keys(items)
-        .filter(k => k !== "hidden")
-        .sort((a, b) => (tabSettings[a]?.sortOrder || 0) - (tabSettings[b]?.sortOrder || 0))
-        .map((containerId) => (
+                        {tabSectionIds.map((containerId) => (
                             <SortableContainer
                                 key={containerId}
                                 id={containerId}
                                 items={items[containerId] || []}
                                 label={getFieldLabel}
-                                title={tabSettings[containerId]?.label || `${containerId.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')} Tab`}
+                                title={tabSettings[containerId]?.label || `${formatTabLabel(containerId)} Tab`}
                                 isTabHidden={tabSettings[containerId]?.isHidden}
                                 tabId={containerId}
                                 onUpdateTab={(id: string, partial) => {
@@ -619,7 +624,11 @@ function SortableContainer({ id, items, label, title, isHiddenBox, heightClass =
                             <PopoverContent className="w-48 p-2" align="end">
                                 <div className="space-y-1">
                                     <Button variant="ghost" size="sm" className="w-full justify-start text-xs h-8" onClick={() => {
-                                        const newLabel = prompt("Enter new tab name:", title);
+                                        const newLabel = prompt("Enter new tab name:", title)?.trim()
+                                        if (newLabel === "") {
+                                            toast.error("Tab name cannot be empty")
+                                            return
+                                        }
                                         if (newLabel && newLabel !== title && onUpdateTab) {
                                             onUpdateTab(tabId, { label: newLabel });
                                         }
@@ -935,4 +944,3 @@ function ConditionPopover({ fieldId, currentRule, allFields, onSet, onClear }: {
         </Popover>
     )
 }
-

@@ -30,6 +30,7 @@ import { ProfileCombobox } from "@/features/users/components/profile-combobox"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
 import type { LayoutItemsMap, VisibilityRules } from "@/features/settings/components/form-layout-builder"
+import { formatTabLabel, getVisibleTabIds } from "@/features/settings/lib/form-layout-tabs"
 import { DynamicField } from "./dynamic-field"
 
 const DEFAULT_LAYOUT: LayoutItemsMap = {
@@ -235,6 +236,8 @@ export function LeadForm({ onSuccess, onClose, pipelineId, defaultStageId, initi
     }, [supabase, companies])
 
     const dynamicSchema = getDynamicSchema(requiredOverrides)
+    const visibleTabs = getVisibleTabIds(layoutConfig, tabSettings)
+    const resolvedActiveTab = visibleTabs.includes(activeTab) ? activeTab : (visibleTabs[0] || activeTab)
     const form = useForm<AddLeadValues>({
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         resolver: zodResolver(dynamicSchema) as any,
@@ -653,7 +656,7 @@ export function LeadForm({ onSuccess, onClose, pipelineId, defaultStageId, initi
         <>
         <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit, onError)} className="flex flex-col h-full overflow-hidden">
-                <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col h-full overflow-hidden">
+                <Tabs value={resolvedActiveTab} onValueChange={setActiveTab} className="flex flex-col h-full overflow-hidden">
                     {/* FIXED HEADER: Title + Tabs */}
                     <div className="flex-none px-6 pt-6 pb-2 border-b border-slate-100 bg-white z-10">
                         <div className="flex items-start justify-between">
@@ -682,12 +685,9 @@ export function LeadForm({ onSuccess, onClose, pipelineId, defaultStageId, initi
                         </div>
                         {/* DYNAMIC TABS LIST */}
                         <TabsList className="flex w-full mt-4 bg-muted p-1 rounded-lg overflow-x-auto no-scrollbar justify-start">
-                            {Object.keys(layoutConfig)
-                                .filter(k => k !== "hidden" && (!tabSettings[k] || !tabSettings[k].isHidden))
-                                .sort((a, b) => (tabSettings[a]?.sortOrder || 0) - (tabSettings[b]?.sortOrder || 0))
-                                .map(tab => (
+                            {visibleTabs.map(tab => (
                                     <TabsTrigger key={tab} value={tab} className="text-xs min-w-fit px-4 flex-1">
-                                        {tabSettings[tab]?.label || tab.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
+                                        {tabSettings[tab]?.label || formatTabLabel(tab)}
                                     </TabsTrigger>
                                 ))}
                         </TabsList>
@@ -696,9 +696,7 @@ export function LeadForm({ onSuccess, onClose, pipelineId, defaultStageId, initi
                     {/* SCROLLABLE BODY */}
                     <div className="flex-1 overflow-y-auto px-6 py-4">
 
-                        {Object.keys(layoutConfig)
-                            .filter(tab => tab !== "hidden" && (!tabSettings[tab] || !tabSettings[tab].isHidden))
-                            .map(tab => (
+                        {visibleTabs.map(tab => (
                             <TabsContent key={tab} value={tab} className="mt-0 space-y-5">
                                 {tab === "project" && isHoldingView && (
                                     <FieldSection title="Company Assignment">
@@ -713,7 +711,7 @@ export function LeadForm({ onSuccess, onClose, pipelineId, defaultStageId, initi
                                         )} />
                                     </FieldSection>
                                 )}
-                                <FieldSection title={`${tab.charAt(0).toUpperCase() + tab.slice(1)} Details`}>
+                                <FieldSection title={`${formatTabLabel(tab)} Details`}>
                                     <FieldGrid>
                                         {(layoutConfig[tab] || []).map((fieldId: string) => {
                                             // Handle Custom Fields dynamically

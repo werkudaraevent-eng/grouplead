@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache"
 import { createClient } from "@/utils/supabase/server"
 import { smartCaseRow } from "@/utils/smart-title-case"
 import { parseSmartEventDates } from "@/utils/smart-date-parser"
+import { buildStageTransitionAuditEntries } from "@/features/leads/lib/stage-transition-audit"
 
 export type ActionResult = { success: boolean; error?: string; data?: { id: number } }
 
@@ -123,8 +124,50 @@ export async function updatePipelineStageAction(
 ): Promise<ActionResult> {
     try {
         const supabase = await createClient()
-        
-        const payload: Record<string, any> = { pipeline_stage_id: stageId }
+
+        const [
+            { data: leadRow, error: leadError },
+            { data: stageRow, error: stageError },
+            { data: authData },
+        ] = await Promise.all([
+            supabase
+                .from("leads")
+                .select("estimated_value, pipeline_stage:pipeline_stages!pipeline_stage_id(name)")
+                .eq("id", leadId)
+                .single(),
+            supabase
+                .from("pipeline_stages")
+                .select("id, name")
+                .eq("id", stageId)
+                .single(),
+            supabase.auth.getUser(),
+        ])
+
+        if (leadError) return { success: false, error: leadError.message }
+        if (stageError) return { success: false, error: stageError.message }
+
+        const user = authData.user
+        let userName = "System"
+
+        if (user?.id) {
+            const { data: profile } = await supabase
+                .from("profiles")
+                .select("full_name")
+                .eq("id", user.id)
+                .single()
+            if (profile?.full_name) userName = profile.full_name
+        }
+
+        const payload: {
+            pipeline_stage_id: string
+            status: string
+            updated_at: string
+            kanban_sort_order?: number
+        } = {
+            pipeline_stage_id: stageId,
+            status: stageRow.name,
+            updated_at: new Date().toISOString(),
+        }
         if (sortOrder !== undefined) {
             payload.kanban_sort_order = sortOrder
         }
@@ -136,8 +179,31 @@ export async function updatePipelineStageAction(
 
         if (error) return { success: false, error: error.message }
 
+        const auditEntries = buildStageTransitionAuditEntries({
+            leadId,
+            newStageId: stageRow.id,
+            newStageName: stageRow.name,
+            previousStageName: (leadRow.pipeline_stage as unknown as { name: string } | null)?.name ?? null,
+            userId: user?.id ?? null,
+            userName,
+            amount: leadRow.estimated_value ?? null,
+        })
+
+        const { error: stageHistoryError } = await supabase
+            .from("lead_stage_history")
+            .insert(auditEntries.stageHistoryEntry)
+
+        if (stageHistoryError) return { success: false, error: stageHistoryError.message }
+
+        const { error: activityError } = await supabase
+            .from("lead_activities")
+            .insert(auditEntries.activityEntry)
+
+        if (activityError) return { success: false, error: activityError.message }
+
         revalidatePath("/", "layout")
         revalidatePath("/leads")
+        revalidatePath(`/leads/${leadId}`)
         return { success: true }
     } catch (err) {
         return {

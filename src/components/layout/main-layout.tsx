@@ -62,7 +62,7 @@ function MainLayoutInner({
                     <Sidebar isSheet onCollapse={() => setMobileOpen(false)} />
                 </SheetContent>
             </Sheet>
-            <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+            <div className="flex-1 flex flex-col min-w-0 overflow-x-hidden">
                 <div className="lg:hidden flex items-center h-14 px-4 border-b bg-background/95 backdrop-blur shrink-0">
                     <Button variant="ghost" size="icon" onClick={() => setMobileOpen(true)} className="h-9 w-9 mr-3">
                         <Menu className="h-5 w-5" />
