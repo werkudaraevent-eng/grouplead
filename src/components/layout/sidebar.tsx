@@ -4,12 +4,12 @@ import { useEffect, useState } from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import {
-    LayoutDashboard, KanbanSquare, Building2, Users, ClipboardList,
+    LayoutDashboard, KanbanSquare, Building2, Users,
     LogOut, ChevronLeft, Settings, Loader2, Moon, Sun,
+    Target,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { CompanySwitcher } from "@/components/layout/company-switcher"
-import { PermissionGate } from "@/features/users/components/permission-gate"
 import { usePermissions } from "@/contexts/permissions-context"
 import { useSidebarTheme } from "@/contexts/sidebar-theme-context"
 import { createClient } from "@/utils/supabase/client"
@@ -30,6 +30,10 @@ const mainNav = [
 
 const adminNav = [
     { href: "/settings", label: "Settings", icon: Settings },
+]
+
+const goalAdminNav = [
+    { href: "/settings/goals", label: "Goal Settings", icon: Target, module: "goal_settings" },
 ]
 
 interface UserProfile {
@@ -98,6 +102,13 @@ export function Sidebar({ onCollapse, isSheet = false }: SidebarProps) {
 
     // Admin section visible if user can read users OR master_options
     const showAdminNav = permsLoading || can('users', 'read') || can('master_options', 'read')
+
+    // Goals admin visible if user can manage goal settings
+    const showGoalAdmin = permsLoading || can('goal_settings', 'read')
+
+    const visibleGoalAdminNav = permsLoading
+        ? goalAdminNav
+        : goalAdminNav.filter(item => can(item.module, 'read'))
 
     // Theme-aware colors
     const menuItemClasses = (isActive: boolean) =>
@@ -171,6 +182,20 @@ export function Sidebar({ onCollapse, isSheet = false }: SidebarProps) {
                         <p className={sectionLabel}>Administration</p>
                         {adminNav.map((item) => {
                             const isActive = pathname.startsWith(item.href)
+                            return (
+                                <Link
+                                    key={item.href}
+                                    href={item.href}
+                                    onClick={isSheet ? onCollapse : undefined}
+                                    className={menuItemClasses(isActive)}
+                                >
+                                    <item.icon className={iconClasses(isActive)} />
+                                    <span>{item.label}</span>
+                                </Link>
+                            )
+                        })}
+                        {showGoalAdmin && visibleGoalAdminNav.map((item) => {
+                            const isActive = pathname === item.href || (item.href !== "/settings/goals" && pathname.startsWith(item.href))
                             return (
                                 <Link
                                     key={item.href}

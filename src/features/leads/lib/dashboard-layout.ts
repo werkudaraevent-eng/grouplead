@@ -15,6 +15,12 @@ export const WIDGET_IDS = [
   "lead-source",
   "classification",
   "stream",
+  "goal-attainment",
+  "goal-forecast",
+  "goal-variance",
+  "goal-company-breakdown",
+  "goal-segment-breakdown",
+  "goal-trend",
 ] as const
 
 export type WidgetId = (typeof WIDGET_IDS)[number]
@@ -32,6 +38,12 @@ export const WIDGET_LABELS: Record<WidgetId, string> = {
   "lead-source": "Lead Source",
   "classification": "Lead Classification",
   "stream": "Stream Alignment",
+  "goal-attainment": "Goal Attainment vs Target",
+  "goal-forecast": "Weighted Forecast",
+  "goal-variance": "Variance / Gap Indicators",
+  "goal-company-breakdown": "Goal Breakdown by Company",
+  "goal-segment-breakdown": "Goal Breakdown by Segment",
+  "goal-trend": "Historical Goal Trend",
 }
 
 // ─── Grid Constants ─────────────────────────────────────────────────────────
@@ -55,6 +67,13 @@ export function getDefaultLayout(): Layout {
     { i: "lead-source",    x: 0,  y: 12, w: 4,  h: 5, minW: 3,  minH: 3 },
     { i: "classification", x: 4,  y: 12, w: 4,  h: 5, minW: 3,  minH: 3 },
     { i: "stream",         x: 8,  y: 12, w: 4,  h: 5, minW: 3,  minH: 3 },
+    // Goal widgets
+    { i: "goal-attainment",         x: 0, y: 17, w: 4, h: 5, minW: 3, minH: 3 },
+    { i: "goal-forecast",           x: 4, y: 17, w: 4, h: 5, minW: 3, minH: 3 },
+    { i: "goal-variance",           x: 8, y: 17, w: 4, h: 5, minW: 3, minH: 3 },
+    { i: "goal-company-breakdown",  x: 0, y: 22, w: 4, h: 5, minW: 3, minH: 3 },
+    { i: "goal-segment-breakdown",  x: 4, y: 22, w: 4, h: 5, minW: 3, minH: 3 },
+    { i: "goal-trend",              x: 8, y: 22, w: 4, h: 5, minW: 3, minH: 3 },
   ]
 }
 

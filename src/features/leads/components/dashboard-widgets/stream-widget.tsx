@@ -9,8 +9,8 @@ interface StreamItem {
 
 interface StreamWidgetProps {
     data: StreamItem[]
-    streamToggle: 'main_stream' | 'stream_type' | 'business_purpose'
-    setStreamToggle: (v: 'main_stream' | 'stream_type' | 'business_purpose') => void
+    streamToggle: string
+    setStreamToggle: (v: string) => void
 }
 
 export function StreamWidget({ data, streamToggle, setStreamToggle }: StreamWidgetProps) {
@@ -25,6 +25,9 @@ export function StreamWidget({ data, streamToggle, setStreamToggle }: StreamWidg
                     <option value="main_stream">All</option>
                     <option value="stream_type">Sub Stream</option>
                     <option value="business_purpose">Biz Purpose</option>
+                    <option value="line_industry">Line Industry</option>
+                    <option value="area">Area</option>
+                    <option value="nationality">Nationality</option>
                 </select>
             </div>
             <SectionSub>Business alignment distribution</SectionSub>

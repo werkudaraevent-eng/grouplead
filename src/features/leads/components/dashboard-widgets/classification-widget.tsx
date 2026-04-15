@@ -9,8 +9,8 @@ interface CatGradeItem {
 
 interface ClassificationWidgetProps {
     data: CatGradeItem[]
-    catToggle: 'category' | 'grade_lead'
-    setCatToggle: (v: 'category' | 'grade_lead') => void
+    catToggle: string
+    setCatToggle: (v: string) => void
 }
 
 export function ClassificationWidget({ data, catToggle, setCatToggle }: ClassificationWidgetProps) {
@@ -25,6 +25,9 @@ export function ClassificationWidget({ data, catToggle, setCatToggle }: Classifi
                 <select style={{ ...miniSelectStyle, fontSize: 10 }} value={catToggle} onChange={(e: any) => setCatToggle(e.target.value)}>
                     <option value="category">Category</option>
                     <option value="grade_lead">Grade</option>
+                    <option value="lead_source">Lead Source</option>
+                    <option value="business_purpose">Biz Purpose</option>
+                    <option value="sector">Sector</option>
                 </select>
             </div>
             <SectionSub>Pipeline temperature breakdown</SectionSub>

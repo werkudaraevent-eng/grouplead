@@ -1,3 +1,6 @@
+> Historical design brief: this file captures redesign intent, not the canonical implemented system state.
+> Use [docs/leadengine-system-overview.md](D:\Website\Group Lead 2026\docs\leadengine-system-overview.md) for current system truth.
+
 # Form Layout Settings — UI/UX Redesign Specification
 
 > **Prompt untuk IDE agent — redesign halaman Form Layout agar lebih compact, profesional, dan space-efficient. JANGAN ubah font-family — gunakan font yang sudah ada di project.**

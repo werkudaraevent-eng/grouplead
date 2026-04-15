@@ -99,6 +99,75 @@ export async function updateLeadAction(
         const supabase = await createClient()
         const payload = sanitizePayload(data)
 
+        // ── Post-Win Adjustment Hook ──
+        // Before applying updates to a Closed Won lead, check if any
+        // reporting-critical fields are being modified
+        const { data: currentLead } = await supabase
+            .from("leads")
+            .select("*, pipeline_stage:pipeline_stages!pipeline_stage_id(closed_status)")
+            .eq("id", leadId)
+            .single()
+
+        if (currentLead) {
+            const stage = currentLead.pipeline_stage as unknown as { closed_status: string } | null
+            const isClosedWon = stage?.closed_status === "won"
+
+            if (isClosedWon) {
+                // Fetch goal_settings for the lead's company to get critical fields list
+                const { data: goalSettings } = await supabase
+                    .from("goal_settings")
+                    .select("reporting_critical_fields")
+                    .eq("company_id", currentLead.company_id)
+                    .single()
+
+                const criticalFields = goalSettings?.reporting_critical_fields ?? [
+                    "actual_value", "event_date_start", "event_date_end",
+                    "project_name", "company_id", "pic_sales_id"
+                ]
+
+                const { detectCriticalFieldChange } = await import(
+                    "@/features/goals/lib/adjustment-detection"
+                )
+
+                const changes = detectCriticalFieldChange(currentLead, payload, criticalFields)
+
+                if (changes) {
+                    const { data: { user } } = await supabase.auth.getUser()
+
+                    // Check if the lead's attributed date falls in a closed period
+                    let affectsClosedPeriod = false
+                    const { data: closedPeriods } = await supabase
+                        .from("goal_periods")
+                        .select("id, start_date, end_date")
+                        .eq("company_id", currentLead.company_id)
+                        .eq("status", "closed")
+
+                    if (closedPeriods && closedPeriods.length > 0) {
+                        const eventDate = currentLead.event_date_end ?? currentLead.event_date_start
+                        if (eventDate) {
+                            const dateStr = typeof eventDate === "string" ? eventDate : String(eventDate)
+                            affectsClosedPeriod = closedPeriods.some(
+                                (p) => dateStr >= p.start_date && dateStr <= p.end_date
+                            )
+                        }
+                    }
+
+                    // Insert post_win_adjustments records
+                    const adjustmentRows = changes.map((change) => ({
+                        company_id: currentLead.company_id,
+                        lead_id: leadId,
+                        field_name: change.field_name,
+                        old_value: change.old_value,
+                        new_value: change.new_value,
+                        changed_by: user?.id ?? "",
+                        affects_closed_period: affectsClosedPeriod,
+                    }))
+
+                    await supabase.from("post_win_adjustments").insert(adjustmentRows)
+                }
+            }
+        }
+
         const { error } = await supabase
             .from("leads")
             .update(payload)

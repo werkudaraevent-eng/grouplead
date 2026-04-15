@@ -1,4 +1,16 @@
 export * from './company'
+export * from './goals'
+
+export interface LeadFieldSetting {
+  id: string
+  created_at: string
+  updated_at: string
+  company_id: string
+  field_key: string
+  is_active: boolean
+  custom_label: string | null
+  custom_value_source: unknown | null
+}
 
 export interface ClientCompany {
     id: string;

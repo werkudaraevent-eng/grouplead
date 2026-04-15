@@ -1,17 +1,22 @@
 # Tech Stack & Build System
 
+## Canonical Reference
+The authoritative system document is [docs/leadengine-system-overview.md]. This file summarizes stack choices for quick reference.
+
 ## Framework
 - **Next.js 16** (App Router) with React 19
 - TypeScript (strict mode)
 - Server Components by default; `"use client"` directive for interactive components
 
 ## Backend
-- **Supabase** (hosted Postgres) for database, auth, and real-time
+- **Supabase** (hosted Postgres) for database, auth, real-time, and RLS-based access control
 - `@supabase/ssr` for both server and client Supabase clients
 - Server client: `src/utils/supabase/server.ts` (uses cookies)
 - Browser client: `src/utils/supabase/client.ts`
-- SQL migrations live in `supabase/` directory
-- Database triggers auto-sync task completions to lead SLA columns
+- Company-scoped query helper: `src/utils/supabase/scoped-query.ts`
+- Active company resolution: `src/utils/company.ts`
+- SQL migrations in `supabase/migrations/`
+- RLS is the authoritative security boundary — client-side checks are UI convenience only
 
 ## UI & Styling
 - **Tailwind CSS v4** with `@tailwindcss/postcss`
@@ -27,6 +32,11 @@
 
 ## Data Display
 - **TanStack React Table v8** for data tables
+
+## State & Context
+- `CompanyProvider` — active company context with cookie-based switching
+- `PermissionsProvider` — RBAC permissions context, re-fetches on company change
+- `SidebarThemeProvider` — sidebar UI preferences
 
 ## Path Aliases
 - `@/*` maps to `./src/*`

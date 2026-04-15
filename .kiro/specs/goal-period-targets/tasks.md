@@ -1,0 +1,372 @@
+# Implementation Plan: Goal Node Tree (goal-period-targets)
+
+## Overview
+
+This plan converts LeadEngine's goal breakdown from JSONB-based `breakdown_config`/`breakdown_targets` on `goals_v2` to a relational `goal_nodes` table with self-referencing parent FK, monthly weights, per-node monthly target overrides, and a matrix grid UI. Implementation proceeds bottom-up: types → migration → engine functions → server actions → UI components → integration.
+
+## Tasks
+
+- [ ] 1. TypeScript types and interfaces
+  - [ ] 1.1 Add GoalNode types to `src/types/goals.ts`
+    - Add `AllocationMode` union type (`'percentage' | 'absolute'`)
+    - Add `GoalNode` interface with all columns: `id`, `created_at`, `updated_at`, `goal_id`, `parent_node_id`, `name`, `dimension_type`, `reference_field`, `reference_value`, `allocation_mode`, `percentage`, `target_amount`, `monthly_targets`, `sort_order`, `company_id`
+    - Add `GoalNodeInsert` and `GoalNodeUpdate` utility types
+    - Add `GoalNodeTree` interface extending `GoalNode` with `children: GoalNodeTree[]` and optional runtime fields (`attainment?`, `forecast_raw?`, `forecast_weighted?`)
+    - Add `MonthlyWeights` type (`Record<string, number>`, keys "1"-"12", values sum to 1.0)
+    - Add `MonthlyTargets` type (`Record<string, number>`, keys "1"-"12", values are absolute amounts)
+    - _Requirements: 18.1, 18.2, 18.5, 18.6_
+  - [ ] 1.2 Update existing GoalV2 interface in `src/types/goals.ts`
+    - Add `monthly_weights: Record<string, number> | null` field to `GoalV2`
+    - _Requirements: 18.3_
+  - [ ] 1.3 Update existing GoalUserTarget interface in `src/types/goals.ts`
+    - Add `node_id: string | null` field to `GoalUserTarget`
+    - _Requirements: 18.4_
+
+- [ ] 2. Supabase migration
+  - [ ] 2.1 Create migration file for `goal_nodes` table and schema changes
+    - Create migration SQL file at `supabase/migrations/` with timestamped name
+    - Create `goal_nodes` table with all columns, constraints, CHECK on `allocation_mode`, CHECK on `target_amount >= 0`, self-referencing FK `parent_node_id`, FK to `goals_v2(id)` ON DELETE CASCADE, FK to `companies(id)` ON DELETE CASCADE
+    - Add indexes: `(goal_id)`, `(parent_node_id)`, `(goal_id, parent_node_id)`, `(company_id)`
+    - Add `monthly_weights` JSONB column to `goals_v2` with default `'{}'::jsonb`
+    - Add `monthly_targets` JSONB column to `goal_nodes` with default `'{}'::jsonb`
+    - Add `node_id` UUID column to `goal_user_targets` with FK to `goal_nodes(id)` ON DELETE SET NULL
+    - Add index on `goal_user_targets(node_id)`
+    - Make `breakdown_config` and `breakdown_targets` nullable on `goals_v2`
+    - Enable RLS on `goal_nodes` with SELECT (company_id match OR holding access), INSERT/UPDATE/DELETE (company_id match) policies
+    - _Requirements: 1.1, 1.7, 3.1, 5.1, 12.1, 12.2, 12.6, 21.1_
+  - [ ] 2.2 Add JSONB migration logic for existing breakdown data
+    - Read each `goals_v2` row's `breakdown_config` and `breakdown_targets`
+    - Create `goal_nodes` rows: top-level keys → root nodes, nested keys → child nodes with `parent_node_id`
+    - Set `allocation_mode = 'absolute'` for all migrated nodes
+    - Set `dimension_type` from `breakdown_config[].label`
+    - Set `reference_field` from `breakdown_config[].field`
+    - Set `target_amount` from `breakdown_targets[key]._target`
+    - Make migration idempotent (check for existing nodes before inserting)
+    - _Requirements: 16.1, 16.2, 16.3, 16.4, 16.5, 16.6, 16.7_
+
+- [ ] 3. Checkpoint — Verify migration
+  - Ensure migration applies cleanly against the Supabase project. Ask the user if questions arise.
+
+- [ ] 4. Core engine: cascade-service
+  - [ ] 4.1 Implement `cascade-service.ts` at `src/features/goals/lib/cascade-service.ts`
+    - Implement `cascadeRecalculate(parentTarget, children)`: percentage-mode children get `target_amount = parentTarget × (percentage / 100)`, absolute-mode children get `percentage = (target_amount / parentTarget) × 100`. Handle division by zero (parentTarget = 0 → percentage = 0). Return array of `{ id, target_amount, percentage }`.
+    - Implement `cascadeMonthlyTarget(parentMonthlyTarget, month, children)`: percentage-mode children get `monthly_targets[month] = parentMonthlyTarget × (child.percentage / 100)`, absolute-mode children unchanged. Return array of `{ id, monthly_targets }`.
+    - Implement `validateRootNodeSum(goalTarget, rootNodes)`: warn if sum of root node targets exceeds goal target.
+    - _Requirements: 2.1, 2.2, 2.3, 2.6_
+  - [ ]* 4.2 Write property tests for cascade-service
+    - **Property 1: Cascade recalculation preserves allocation invariant**
+    - **Validates: Requirements 1.4, 1.5, 2.1, 2.2, 2.3, 2.4**
+    - File: `src/features/goals/lib/__tests__/cascade-service.property.test.ts`
+  - [ ]* 4.3 Write property test for root node sum warning
+    - **Property 12: Root node sum warning**
+    - **Validates: Requirements 2.6**
+    - File: `src/features/goals/lib/__tests__/cascade-service.property.test.ts`
+  - [ ]* 4.4 Write property test for per-month cascade
+    - **Property 15: Matrix grid cell cascade for per-month edits**
+    - **Validates: Requirements 22.9**
+    - File: `src/features/goals/lib/__tests__/cascade-service.property.test.ts`
+  - [ ]* 4.5 Write unit tests for cascade-service edge cases
+    - Test cascade with zero parent target (division by zero)
+    - Test per-month cascade with percentage-mode and absolute-mode children
+    - File: `src/features/goals/lib/__tests__/cascade-service.test.ts`
+
+- [ ] 5. Core engine: target-calculator
+  - [ ] 5.1 Implement `target-calculator.ts` at `src/features/goals/lib/target-calculator.ts`
+    - Implement `computeMonthlyTarget(nodeTarget, monthlyWeights, month, monthlyTargets?)`: return `monthlyTargets[month]` if present, else `nodeTarget × monthlyWeights[month]`, else `nodeTarget / 12`.
+    - Implement `computePeriodTarget(nodeTarget, monthlyWeights, periodStart, periodEnd, monthlyTargets?)`: sum applicable monthly values with pro-rating for partial months. Return 0 if start > end.
+    - Implement `validateMonthlyWeights(weights)`: all 12 months present, non-negative, sum to 1.0 within 0.001 tolerance.
+    - Implement `validateMonthlyTargets(monthlyTargets, nodeTargetAmount)`: warn (not block) if sum ≠ nodeTargetAmount.
+    - _Requirements: 3.2, 3.3, 3.4, 3.5, 3.6, 3.7, 3.8, 13.4, 13.5, 13.6, 21.3, 21.4, 21.5_
+  - [ ]* 5.2 Write property tests for target-calculator
+    - **Property 2: Monthly weights validation**
+    - **Validates: Requirements 3.3, 3.4, 20.6**
+    - File: `src/features/goals/lib/__tests__/target-calculator.property.test.ts`
+  - [ ]* 5.3 Write property test for period target computation
+    - **Property 3: Period target computation with default fallback**
+    - **Validates: Requirements 3.5, 3.6, 3.7, 3.8, 13.4, 13.5, 13.6**
+    - File: `src/features/goals/lib/__tests__/target-calculator.property.test.ts`
+  - [ ]* 5.4 Write property test for monthly targets sum validation
+    - **Property 13: Per-node monthly targets sum validation**
+    - **Validates: Requirements 21.5**
+    - File: `src/features/goals/lib/__tests__/target-calculator.property.test.ts`
+  - [ ]* 5.5 Write property test for monthly targets override precedence
+    - **Property 14: Per-node monthly targets override precedence**
+    - **Validates: Requirements 21.3, 21.4**
+    - File: `src/features/goals/lib/__tests__/target-calculator.property.test.ts`
+  - [ ]* 5.6 Write unit tests for target-calculator edge cases
+    - Test single day, full year, week spanning month boundary
+    - Test monthly_targets override vs monthly_weights fallback
+    - Test equal distribution default (null weights)
+    - File: `src/features/goals/lib/__tests__/target-calculator.test.ts`
+
+- [ ] 6. Core engine: node-attribution
+  - [ ] 6.1 Implement `node-attribution.ts` at `src/features/goals/lib/node-attribution.ts`
+    - Implement `buildAncestorPath(nodeId, allNodes)`: walk parent chain from node to root, return ordered `{ reference_field, reference_value }[]`.
+    - Implement `matchLeadToNode(lead, ancestorPath, segments, clientCompany)`: check lead field values against every ancestor pair. Handle `segment:` prefix via `classifyLeadBySegment`. Handle `client_company_field` via joined record. Return false for NULL required fields.
+    - Implement `findLeadNodePaths(lead, allNodes, segments, clientCompany)`: return all leaf node IDs the lead contributes to.
+    - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7, 7.1, 7.3_
+  - [ ]* 6.2 Write property tests for node-attribution
+    - **Property 6: Ancestor path lead matching**
+    - **Validates: Requirements 4.2, 4.3, 4.4, 4.5, 4.6, 7.3, 8.1, 8.2, 8.4, 14.1, 14.2**
+    - File: `src/features/goals/lib/__tests__/node-attribution.property.test.ts`
+  - [ ]* 6.3 Write property test for per-node attainment
+    - **Property 7: Per-node attainment correctness**
+    - **Validates: Requirements 19.1, 19.6**
+    - File: `src/features/goals/lib/__tests__/node-attribution.property.test.ts`
+  - [ ]* 6.4 Write property test for per-node forecast
+    - **Property 8: Per-node forecast correctness**
+    - **Validates: Requirements 19.2, 19.3**
+    - File: `src/features/goals/lib/__tests__/node-attribution.property.test.ts`
+  - [ ]* 6.5 Write property test for rollup parent equals sum of children
+    - **Property 9: Rollup parent equals sum of children**
+    - **Validates: Requirements 19.4, 19.5**
+    - File: `src/features/goals/lib/__tests__/node-attribution.property.test.ts`
+  - [ ]* 6.6 Write unit tests for node-attribution edge cases
+    - Test ancestor path with NULL client_company_id
+    - Test empty ancestor path (root match)
+    - Test segment classification in ancestor matching
+    - File: `src/features/goals/lib/__tests__/node-attribution.test.ts`
+
+- [ ] 7. Core engine: node-validation and migration-transform
+  - [ ] 7.1 Implement node validation functions in `src/features/goals/lib/goal-validation.ts`
+    - Add `validateGoalNodeInput(data, siblings)`: validate reference_field against Lead_Field_Registry or `segment:{uuid}` pattern, percentage in [0,100] for percentage mode, non-negative target_amount, sibling allocation_mode consistency.
+    - Add `validateNodeCrossReference(nodeGoalId, parentGoalId)`: reject cross-goal parent references.
+    - Add `validateUserTargetNodeRef(targetGoalId, nodeGoalId)`: reject cross-goal node_id on user targets.
+    - _Requirements: 1.2, 1.3, 5.4, 10.4, 17.5, 17.6, 17.7, 17.8_
+  - [ ]* 7.2 Write property tests for node validation
+    - **Property 4: Node cross-reference validation**
+    - **Validates: Requirements 1.2, 5.4, 10.4**
+    - File: `src/features/goals/lib/__tests__/node-validation.property.test.ts`
+  - [ ]* 7.3 Write property test for node input validation
+    - **Property 5: Node input validation**
+    - **Validates: Requirements 1.3, 17.5, 17.6, 17.7, 17.8**
+    - File: `src/features/goals/lib/__tests__/node-validation.property.test.ts`
+  - [ ] 7.4 Implement migration transform function in `src/features/goals/lib/migration-transform.ts`
+    - Implement `transformBreakdownToNodes(goalId, companyId, breakdownConfig, breakdownTargets)`: convert JSONB to `GoalNodeInsert[]` with correct parent-child relationships, `allocation_mode = 'absolute'`, idempotent.
+    - _Requirements: 16.2, 16.3, 16.4, 16.5, 16.7_
+  - [ ]* 7.5 Write property test for migration transformation
+    - **Property 10: Migration transformation preserves targets**
+    - **Validates: Requirements 16.2, 16.3, 16.4, 16.5, 16.7**
+    - File: `src/features/goals/lib/__tests__/migration-transform.property.test.ts`
+
+- [ ] 8. Checkpoint — Engine functions complete
+  - Ensure all tests pass, ask the user if questions arise.
+
+- [ ] 9. Server actions: Goal Node CRUD
+  - [ ] 9.1 Add goal node CRUD actions to `src/app/actions/goal-actions.ts`
+    - Implement `createGoalNodeAction(data: GoalNodeInsert)`: validate input (reference_field, sibling mode, percentage range, target_amount), insert node, trigger cascade recalculation if parent has percentage-mode children.
+    - Implement `updateGoalNodeAction(nodeId, data: GoalNodeUpdate)`: validate, update, trigger cascade for affected subtree. Support `monthly_targets` updates for per-cell edits.
+    - Implement `deleteGoalNodeAction(nodeId)`: delete node + descendants (CASCADE), recalculate sibling percentages.
+    - Implement `reorderGoalNodesAction(nodeIds)`: update `sort_order` for sibling set.
+    - All operations within transactions for cascade atomicity.
+    - _Requirements: 2.5, 17.1, 17.2, 17.3, 17.4, 17.5, 17.6, 17.7, 17.8_
+  - [ ] 9.2 Update `updateGoalV2Action` to support `monthly_weights`
+    - Add `monthly_weights` validation (via `validateMonthlyWeights`) when present in update data.
+    - When `target_amount` changes on `goals_v2`, trigger cascade recalculation for root-level nodes.
+    - _Requirements: 2.4, 3.1, 3.3, 3.4, 20.5_
+  - [ ] 9.3 Update `upsertGoalUserTargetAction` to support `node_id`
+    - Add `node_id` to insert/upsert data.
+    - Validate that `node_id` belongs to the same `goal_id` as the target.
+    - _Requirements: 5.2, 5.3, 5.4_
+
+- [ ] 10. Checkpoint — Server actions complete
+  - Ensure all tests pass, ask the user if questions arise.
+
+- [ ] 11. Shared UI: PeriodSelector component
+  - [ ] 11.1 Create `PeriodSelector` at `src/features/goals/components/shared/period-selector.tsx`
+    - Implement preset options: "This Week", "This Month", "This Quarter", "This Year", "Custom Range".
+    - Compute `periodStart` and `periodEnd` dates from presets based on current date.
+    - Custom range: date range picker for arbitrary start/end.
+    - Default (no selection): full annual view, no period filtering.
+    - Pro-rate weekly targets by day fraction across month boundaries.
+    - _Requirements: 13.1, 13.2, 13.3, 13.7_
+
+- [ ] 12. Settings UI: MonthlyWeightsEditor
+  - [ ] 12.1 Create `MonthlyWeightsEditor` at `src/features/goals/components/settings/monthly-weights-editor.tsx`
+    - Display 12-month grid with editable weight fields (percentage display).
+    - Show running total and warn when ≠ 100%.
+    - Provide "Equal Distribution" button (sets all to 1/12).
+    - Display computed monthly target amount (`goal.target_amount × weight`) using `CurrencyInput`.
+    - Save via `updateGoalV2Action` writing to `monthly_weights` JSONB.
+    - Validate non-negative weights before saving.
+    - _Requirements: 20.1, 20.2, 20.3, 20.4, 20.5, 20.6, 20.7_
+
+- [ ] 13. Settings UI: GoalMatrixGrid
+  - [ ] 13.1 Create `GoalMatrixGrid` at `src/features/goals/components/settings/goal-matrix-grid.tsx`
+    - Rows = node hierarchy (expand/collapse via ▼/▷, indented by level). Month is NEVER a tree level.
+    - Columns = months within configured timeframe + Q Total + YTD Total computed columns.
+    - Each cell shows amount (top) + percentage of parent (bottom).
+    - Cell editing: click cell → input amount OR percentage → the other auto-computes.
+    - Display Metrics toggle: Nominal only / Percent only / Both.
+    - Hierarchy Levels bar showing configured levels with "+ Add Level" action.
+    - Timeframe Setup: date range picker for which months to show.
+    - Cascade: editing a parent cell cascades to percentage-mode children in the same month via `cascadeMonthlyTarget`.
+    - Per-cell edits update `monthly_targets[month]` via `updateGoalNodeAction`.
+    - _Requirements: 21.6, 21.7, 22.1, 22.2, 22.3, 22.4, 22.5, 22.6, 22.7, 22.8, 22.9, 22.10_
+
+- [ ] 14. Settings UI: NodePicker and goal-manager updates
+  - [ ] 14.1 Create `NodePicker` at `src/features/goals/components/settings/node-picker.tsx`
+    - Tree-based node selector for user target assignment.
+    - Populate `reference_value` options from appropriate data sources based on `reference_field`.
+    - _Requirements: 10.2, 15.9_
+  - [ ] 14.2 Update `goal-manager.tsx`
+    - Remove `BreakdownSelector` references (replaced by GoalMatrixGrid).
+    - Add `monthly_weights` to create/edit goal dialogs.
+    - Wire GoalMatrixGrid and MonthlyWeightsEditor into goal settings flow.
+    - _Requirements: 15.1, 15.2, 15.3, 15.4, 15.5, 15.6, 15.7, 15.8_
+  - [ ] 14.3 Update `goal-settings-page.tsx`
+    - Add GoalMatrixGrid section for node tree management.
+    - Add MonthlyWeightsEditor section for weight configuration.
+    - _Requirements: 15.1, 20.1_
+
+- [ ] 15. Checkpoint — Settings UI complete
+  - Ensure all tests pass, ask the user if questions arise.
+
+- [ ] 16. Dashboard UI: node-based widgets and period filtering
+  - [ ] 16.1 Create `NodeBreakdownWidget` at `src/features/goals/components/dashboard/node-breakdown-widget.tsx`
+    - Tree widget showing per-node attainment, forecast, target, progress indicator.
+    - Support drill-down from any node to children.
+    - _Requirements: 6.1, 6.2, 6.5_
+  - [ ] 16.2 Update `management-dashboard.tsx`
+    - Add `PeriodSelector` for period filtering.
+    - Replace breakdown widgets with `NodeBreakdownWidget`.
+    - Compute period-specific targets using `computePeriodTarget`.
+    - Filter leads by period using `attributeLeadToPeriodV2`.
+    - _Requirements: 6.3, 6.4_
+  - [ ] 16.3 Update `company-breakdown-widget.tsx`
+    - Read from `goal_nodes` where `reference_field = 'company_id'` instead of JSONB.
+    - _Requirements: 8.1_
+  - [ ] 16.4 Update `segment-breakdown-widget.tsx`
+    - Read from `goal_nodes` where `reference_field` starts with `'segment:'`.
+    - _Requirements: 14.1_
+  - [ ] 16.5 Update `sales-contribution-widget.tsx`
+    - Read from `goal_nodes` where `reference_field = 'pic_sales_id'`.
+    - _Requirements: 4.6_
+
+- [ ] 17. Data hooks: use-goal-data updates
+  - [ ] 17.1 Update `use-goal-data.ts` hook
+    - Add node-level attainment/forecast computation using `matchLeadToNode` and `buildAncestorPath`.
+    - Accept period parameters from `PeriodSelector`.
+    - Resolve `monthly_targets` fallback (per-node override → goal monthly_weights → 1/12 default).
+    - Fetch `goal_nodes` for the selected goal and build in-memory tree.
+    - _Requirements: 6.1, 6.3, 19.1, 19.2, 21.3, 21.4_
+
+- [ ] 18. Subsidiary filtering and tree-filtering engine
+  - [ ] 18.1 Implement subsidiary tree filtering in `src/features/goals/lib/tree-filtering.ts`
+    - Filter goal_nodes tree to a specific subsidiary's subtree based on root-level ancestor `reference_field = 'company_id'` and `reference_value` matching subsidiary ID.
+    - Preserve internal hierarchy and depth structure.
+    - Return complete tree for holding view.
+    - _Requirements: 11.1, 11.2, 11.3, 11.4_
+  - [ ]* 18.2 Write property test for subsidiary tree filtering
+    - **Property 11: Subsidiary tree filtering preserves subtree structure**
+    - **Validates: Requirements 11.1, 11.3**
+    - File: `src/features/goals/lib/__tests__/tree-filtering.property.test.ts`
+
+- [ ] 19. Cross-module integration: goal-breakdown, leads, contacts, users
+  - [ ] 19.1 Update `goal-breakdown.tsx`
+    - Replace JSONB tree rendering with `goal_nodes` query.
+    - Use `NodeBreakdownWidget` for tree display.
+    - _Requirements: 6.1, 6.2_
+  - [ ] 19.2 Add goal node path display to lead detail page
+    - Show which goal node(s) a lead contributes to using `findLeadNodePaths`.
+    - _Requirements: 7.1, 7.3, 7.4_
+  - [ ] 19.3 Add goal node association to client company detail
+    - Display total revenue attributed to goal nodes referencing that client company.
+    - _Requirements: 8.3_
+  - [ ] 19.4 Add inherited goal node association to contact detail
+    - Display goal node associations inherited from contact's `client_company_id` (read-only).
+    - Show no association if contact has no linked client company.
+    - _Requirements: 9.1, 9.2, 9.3_
+  - [ ] 19.5 Update user profile and user management for node-scoped targets
+    - Display `goal_user_targets` with node name and path alongside target amount.
+    - Add node picker to user target create/edit UI.
+    - Show personal target progress (attainment vs target) for sales users.
+    - _Requirements: 5.5, 10.1, 10.2, 10.3, 10.4_
+
+- [ ] 20. RBAC UI restrictions
+  - [ ] 20.1 Apply role-based UI restrictions for goal tree
+    - Users with `goal_settings.manage`: allow create, edit, reorder, delete nodes.
+    - Users with `management_dashboard.read` only: read-only tree view.
+    - Staff role: show only personal target progress and relevant nodes.
+    - _Requirements: 12.3, 12.4, 12.5_
+
+- [ ] 22. Goals matrix page and routing
+  - [ ] 22.1 Create `/goals` route at `src/app/goals/page.tsx`
+    - Server component that fetches initial goal data
+    - Permission gated: `management_dashboard.read`
+    - _Requirements: 23.1, 23.2, 23.3_
+  - [ ] 22.2 Add "Goals" to sidebar navigation
+    - Add nav item below Pipeline, above Companies
+    - Target/crosshair icon
+    - Permission: `management_dashboard.read`
+    - _Requirements: 23.1_
+
+- [ ] 23. Goal configuration side panel
+  - [ ] 23.1 Create `goal-config-panel.tsx` at `src/features/goals/components/config/`
+    - 540px slide-from-right panel with backdrop overlay
+    - Contains: GoalConfigOverview, GoalConfigWeights, GoalConfigHierarchy
+    - Save button triggers cascade recalculation via server actions
+    - _Requirements: 24.1, 24.2, 24.3, 24.4_
+  - [ ] 23.2 Create `goal-config-overview.tsx`
+    - Goal name input, period type dropdown, year dropdown, total target with Rp formatting, status badge
+    - _Requirements: 24.3_
+  - [ ] 23.3 Create `goal-config-hierarchy.tsx`
+    - Drag-to-reorder dimension levels list
+    - Dropdown per level for dimension type selection
+    - Delete level button (with warning if nodes exist)
+    - "+ Add Level" button
+    - Allocation mode default toggle (percentage/absolute)
+    - _Requirements: 24.3_
+
+- [ ] 24. Matrix table inline editing
+  - [ ] 24.1 Create `goal-matrix-cell-editor.tsx`
+    - Double-click to enter edit mode
+    - Auto-focus, select all text
+    - Percentage mode: input with % suffix, auto-compute amount
+    - Absolute mode: input with Rp prefix, auto-compute percentage
+    - Enter = save + cascade, Escape = cancel, Tab = save + next cell
+    - Flash green highlight animation on save
+    - Permission check: only admin/super_admin can edit
+    - _Requirements: 25.1, 25.2, 25.3, 25.4, 25.5, 25.6_
+
+- [ ] 25. Right-click context menu
+  - [ ] 25.1 Create `goal-context-menu.tsx`
+    - Context menu on right-click in hierarchy column
+    - Options: Edit Node Name, Switch Allocation Mode, Add Child Node, Assign Sales Person, Duplicate Branch, Delete Node
+    - Standard styling (white bg, border, shadow)
+    - Delete in red with confirmation dialog
+    - _Requirements: 26.1, 26.2_
+
+- [ ] 26. Unallocated and attainment display
+  - [ ] 26.1 Create `goal-unallocated-row.tsx`
+    - Amber background for under-allocated (sum < parent)
+    - Red background for over-allocated (sum > parent) — blocking error
+    - ⚠ icon, italic text, not expandable/editable
+    - Shows gap amount per month column
+    - _Requirements: 27.1, 27.2, 27.3_
+  - [ ] 26.2 Add attainment cell coloring to `goal-matrix-cell.tsx`
+    - Past months: green/indigo/amber/red tint based on actual vs target percentage
+    - Current month: left border 2px accent
+    - Future months: no coloring
+    - _Requirements: 28.1, 28.2, 28.3_
+
+- [ ] 27. Export view
+  - [ ] 27.1 Add export CSV functionality
+    - "Export View" button in matrix page header
+    - Export current view with hierarchy indentation, visible months, Q totals, YTD
+    - _Requirements: 29.1, 29.2, 29.3_
+
+- [ ] 28. Final checkpoint — Ensure all tests pass
+  - Ensure all tests pass, ask the user if questions arise.
+
+## Notes
+
+- Tasks marked with `*` are optional and can be skipped for faster MVP
+- Each task references specific requirements for traceability
+- Checkpoints ensure incremental validation
+- Property tests validate the 15 correctness properties from the design using fast-check
+- Unit tests cover specific edge cases and error messages
+- Existing property tests from `goal-system-redesign` (attainment, forecast, classification, attribution engines) remain valid and are not duplicated
+- All engine functions are pure TypeScript — no Supabase dependency — enabling fast local testing
+- Server actions handle cascade within transactions for atomicity
+- Migration is idempotent and preserves existing JSONB breakdown data

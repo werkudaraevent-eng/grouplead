@@ -1,3 +1,6 @@
+> Historical design brief: this file captures redesign intent, not the canonical implemented system state.
+> Use [docs/leadengine-system-overview.md](D:\Website\Group Lead 2026\docs\leadengine-system-overview.md) for current system truth.
+
 # Performance Dashboard — UI/UX Redesign Specification v2
 
 > **Prompt & spec untuk IDE agent (Cursor, Windsurf, Copilot, dll) — revisi dashboard Performance pada platform CRM/Lead Tracker.**

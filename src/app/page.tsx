@@ -8,6 +8,7 @@ export const dynamic = 'force-dynamic'
 
 export default async function DashboardPage({ searchParams }: { searchParams: Promise<{ pipeline?: string }> }) {
     const supabase = await createClient()
+    const resolvedParams = await searchParams
 
     let activeCompany: Awaited<ReturnType<typeof getActiveCompany>> = null
     try {
@@ -24,7 +25,6 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
     const { data: pipelinesData } = await pipelinesQuery
     const pipelines = pipelinesData || []
 
-    const resolvedParams = await searchParams
     const defaultPipeline = pipelines.find(p => p.is_default) || pipelines[0]
     const activePipelineId = resolvedParams.pipeline || defaultPipeline?.id
     let pipelineStages: PipelineStage[] = []
@@ -42,7 +42,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
         .from('leads')
         .select('*, client_company:client_companies!client_company_id(name), contact:contacts!contact_id(full_name, email, phone), pipeline_stage:pipeline_stages!pipeline_stage_id(name, color), pic_sales_profile:profiles!pic_sales_id(full_name)')
         .order('updated_at', { ascending: false })
-    
+
     if (activePipelineId) {
         base.eq('pipeline_id', activePipelineId)
     }

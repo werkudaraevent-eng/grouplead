@@ -1,0 +1,1 @@
+ALTER TABLE roles ADD COLUMN IF NOT EXISTS peer_data_visibility BOOLEAN NOT NULL DEFAULT false;;

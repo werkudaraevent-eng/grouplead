@@ -1,7 +1,14 @@
 import Link from "next/link"
-import { Users, GitBranch, Building, Shield, Library, ChevronRight } from "lucide-react"
+import { Users, GitBranch, Building, Shield, Library, Target, ChevronRight, Database, Tags } from "lucide-react"
 
 const modules = [
+    {
+        title: "Lead Field Registry",
+        description: "Manage which lead fields are available for analysis across goals, segments, and dashboard widgets.",
+        href: "/settings/registry",
+        icon: Database,
+        button: "Manage Fields",
+    },
     {
         title: "Lead Dropdown Options",
         description: "Manage categories and options for Streams, Purposes, and Companies.",
@@ -10,11 +17,11 @@ const modules = [
         button: "Configure Options",
     },
     {
-        title: "User Management",
-        description: "Manage team hierarchy, roles, sales quotas, and user provisioning.",
-        href: "/settings/users",
-        icon: Users,
-        button: "Manage Users",
+        title: "Segments & Dimensions",
+        description: "Define custom segments by grouping lead field values. Reusable across goals and dashboard analytics.",
+        href: "/settings/segments",
+        icon: Tags,
+        button: "Manage Segments",
     },
     {
         title: "Pipeline & Stages",
@@ -31,11 +38,26 @@ const modules = [
         button: "Manage Companies",
     },
     {
+        title: "User Management",
+        description: "Manage team hierarchy, roles, sales quotas, and user provisioning.",
+        href: "/settings/users",
+        icon: Users,
+        button: "Manage Users",
+    },
+    {
         title: "Roles & Permissions",
         description: "Define global access control matrices for all system roles.",
         href: "/settings/permissions",
         icon: Shield,
         button: "Configure Roles",
+    },
+    {
+        title: "Goal Settings",
+        description: "Configure goal periods, attribution rules, forecasting, and reporting settings.",
+        href: "/settings/goals",
+        icon: Target,
+        button: "Manage Goals",
+        dependencies: "References: Master Options, Pipeline, Companies, Segments",
     },
 ]
 
@@ -60,6 +82,9 @@ export default function SettingsPage() {
                                     </div>
                                     <h3 className="text-lg font-semibold text-slate-900 mt-4">{m.title}</h3>
                                     <p className="text-sm text-slate-600 mt-1">{m.description}</p>
+                                    {"dependencies" in m && m.dependencies && (
+                                        <p className="text-[11px] text-slate-400 mt-2 italic">{m.dependencies}</p>
+                                    )}
                                 </div>
                                 <div className="text-blue-600 text-sm font-medium mt-6 flex items-center w-full justify-between border border-slate-200 rounded-lg px-4 py-2 group-hover:bg-slate-50 transition-colors">
                                     {m.button}

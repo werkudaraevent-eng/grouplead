@@ -6,3 +6,11 @@ export { TopRevenueWidget } from "./top-revenue-widget"
 export { LeadSourceWidget } from "./lead-source-widget"
 export { ClassificationWidget } from "./classification-widget"
 export { StreamWidget } from "./stream-widget"
+export {
+    GoalAttainmentWidget,
+    GoalForecastWidget,
+    GoalVarianceWidget,
+    GoalCompanyBreakdownWidget,
+    GoalSegmentBreakdownWidget,
+    GoalTrendWidget,
+} from "./goal-widgets"

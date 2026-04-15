@@ -1,3 +1,6 @@
+> Partial-reference note: this file captures pipeline UI intent and should not be treated as the canonical implemented system document.
+> Use [docs/leadengine-system-overview.md](D:\Website\Group Lead 2026\docs\leadengine-system-overview.md) for current system truth.
+
 # Pipeline Settings — UI/UX Redesign Specification v2
 
 > **Prompt untuk IDE agent — Pipeline Settings dengan overview semua pipeline di satu halaman + drill-down ke detail rules.**

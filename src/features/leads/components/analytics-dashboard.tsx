@@ -18,6 +18,12 @@ import {
     LeadSourceWidget,
     ClassificationWidget,
     StreamWidget,
+    GoalAttainmentWidget,
+    GoalForecastWidget,
+    GoalVarianceWidget,
+    GoalCompanyBreakdownWidget,
+    GoalSegmentBreakdownWidget,
+    GoalTrendWidget,
 } from "./dashboard-widgets"
 
 // ─── Helper ─────────────────────────────────────────────────────────────────
@@ -41,8 +47,8 @@ export function AnalyticsDashboard({ leads, pipelines = [], activePipelineId, pi
     const currentYear = new Date().getFullYear()
     const [hasMounted, setHasMounted] = useState(false)
     const [periodStr, setPeriodStr] = useState("this_quarter")
-    const [catToggle, setCatToggle] = useState<'category' | 'grade_lead'>('category')
-    const [streamToggle, setStreamToggle] = useState<'main_stream' | 'stream_type' | 'business_purpose'>('main_stream')
+    const [catToggle, setCatToggle] = useState<string>('category')
+    const [streamToggle, setStreamToggle] = useState<string>('main_stream')
     const [trendYear, setTrendYear] = useState(currentYear)
     const [scrolled, setScrolled] = useState(false)
     const scrollRef = useRef<HTMLElement | null>(null)
@@ -192,13 +198,13 @@ export function AnalyticsDashboard({ leads, pipelines = [], activePipelineId, pi
 
     const catGradeData = useMemo(() => {
         const m: Record<string, number> = {}
-        leads.forEach(l => { const val = l[catToggle] as string || "Unspecified"; m[val] = (m[val] || 0) + 1 })
+        leads.forEach(l => { const val = (l as any)[catToggle] as string || "Unspecified"; m[val] = (m[val] || 0) + 1 })
         return Object.entries(m).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value)
     }, [leads, catToggle])
 
     const streamData = useMemo(() => {
         const m: Record<string, number> = {}
-        leads.forEach(l => { const val = l[streamToggle] as string || "Unspecified"; m[val] = (m[val] || 0) + 1 })
+        leads.forEach(l => { const val = (l as any)[streamToggle] as string || "Unspecified"; m[val] = (m[val] || 0) + 1 })
         return Object.entries(m).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value)
     }, [leads, streamToggle])
 
@@ -303,6 +309,13 @@ export function AnalyticsDashboard({ leads, pipelines = [], activePipelineId, pi
                     <LeadSourceWidget data={sourceData} />
                     <ClassificationWidget data={catGradeData} catToggle={catToggle} setCatToggle={setCatToggle} />
                     <StreamWidget data={streamData} streamToggle={streamToggle} setStreamToggle={setStreamToggle} />
+                    {/* Goal widgets */}
+                    <GoalAttainmentWidget />
+                    <GoalForecastWidget />
+                    <GoalVarianceWidget />
+                    <GoalCompanyBreakdownWidget />
+                    <GoalSegmentBreakdownWidget />
+                    <GoalTrendWidget />
                 </DashboardGrid>
             </div>
         </>

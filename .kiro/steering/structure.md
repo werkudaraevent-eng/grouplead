@@ -1,89 +1,95 @@
 # Project Structure
 
+## Canonical Reference
+The authoritative system document is [docs/leadengine-system-overview.md]. This file provides a quick structural map.
+
 ```
 src/
-├── app/                        # Next.js App Router pages
-│   ├── layout.tsx              # Root layout (wraps MainLayout with sidebar)
-│   ├── page.tsx                # Home — Analytics dashboard (server component)
-│   ├── globals.css             # Global styles + Tailwind
+├── app/                            # Next.js App Router pages
+│   ├── layout.tsx                  # Root layout (providers + MainLayout)
+│   ├── page.tsx                    # Home — Analytics dashboard
+│   ├── globals.css                 # Global styles + Tailwind
 │   ├── actions/
-│   │   ├── lead-actions.ts     # Server Actions for lead CRUD
-│   │   └── user-actions.ts     # Server Action for user provisioning (Admin API)
-│   ├── leads/page.tsx          # Pipeline view (LeadDashboard)
-│   ├── companies/page.tsx      # Companies list (client component)
-│   ├── contacts/page.tsx       # Contacts list (client component)
-│   ├── dashboard/tasks/page.tsx # Department task board
-│   ├── login/                  # Auth pages
+│   │   ├── auth-actions.ts         # Auth server actions
+│   │   ├── lead-actions.ts         # Lead CRUD server actions
+│   │   └── user-actions.ts         # User provisioning server actions
+│   ├── leads/
+│   │   ├── page.tsx                # Pipeline view (LeadDashboard)
+│   │   └── [leadId]/page.tsx       # Lead detail page
+│   ├── companies/
+│   │   ├── page.tsx                # Client companies list
+│   │   └── [companyId]/page.tsx    # Client company detail
+│   ├── contacts/
+│   │   ├── page.tsx                # Contacts list
+│   │   └── [contactId]/page.tsx    # Contact detail
+│   ├── dashboard/tasks/page.tsx    # Legacy task board (not active scope)
+│   ├── login/                      # Auth pages
 │   └── settings/
-│       ├── users/page.tsx      # User/role management
-│       ├── pipeline/page.tsx   # Pipeline stage settings
-│       └── companies/          # Multi-company settings
+│       ├── page.tsx                # Settings landing
+│       ├── profile/page.tsx        # User profile
+│       ├── users/page.tsx          # User management
+│       ├── permissions/page.tsx    # RBAC permissions matrix
+│       ├── master-options/page.tsx # Master option management
+│       ├── pipeline/
+│       │   ├── page.tsx            # Pipeline list
+│       │   └── [pipelineId]/page.tsx # Pipeline detail/stages
+│       └── companies/
+│           ├── page.tsx            # Company settings list
+│           ├── new/page.tsx        # New company setup
+│           └── [slug]/members/page.tsx # Company member management
 │
-├── features/                   # Feature-driven domain modules
-│   ├── leads/components/
-│   │   ├── analytics-dashboard.tsx  # Charts & KPI cards
-│   │   ├── lead-columns.tsx         # TanStack Table column definitions
-│   │   ├── lead-dashboard.tsx       # Kanban/table toggle view
-│   │   ├── lead-detail-layout.tsx   # 3-column detail layout inside sheet
-│   │   ├── lead-form.tsx            # New lead creation form
-│   │   ├── lead-kanban.tsx          # Kanban board with pipeline columns
-│   │   ├── lead-sheet.tsx           # Lead detail side-sheet with tabbed edit
-│   │   └── edit-lead-modal.tsx      # Edit lead dialog
-│   ├── users/components/
-│   │   ├── create-user-modal.tsx    # Direct user provisioning modal
-│   │   ├── edit-user-modal.tsx      # Org structure edit modal
-│   │   ├── permission-gate.tsx      # RBAC wrapper component
-│   │   ├── profile-combobox.tsx     # User/profile picker combobox
-│   │   └── target-management-modal.tsx # Sales quota management
-│   ├── tasks/components/
-│   │   ├── task-board.tsx           # Department task list with filters
-│   │   ├── task-card.tsx            # Individual task card
-│   │   └── workflow-actions.tsx     # Status transition buttons
-│   └── companies/components/
-│       └── company-form.tsx         # Company creation/edit form
+├── features/                       # Feature-driven domain modules
+│   ├── leads/components/           # Lead UI (kanban, table, form, sheet, analytics)
+│   ├── companies/components/       # Company UI (form, detail, import, timeline)
+│   ├── contacts/components/        # Contact UI (form, detail, import, timeline)
+│   ├── users/components/           # User UI (create, edit, permissions, targets)
+│   └── tasks/components/           # Legacy task UI (not active scope)
 │
 ├── components/
-│   ├── ui/                     # shadcn/ui primitives (button, card, dialog, etc.)
+│   ├── ui/                         # shadcn/ui primitives
 │   ├── layout/
-│   │   ├── main-layout.tsx     # Shell: sidebar + mobile sheet + content area
-│   │   ├── sidebar.tsx         # Navigation sidebar with main + admin sections
-│   │   └── company-switcher.tsx # Multi-company dropdown
+│   │   ├── main-layout.tsx         # Shell: sidebar + content area
+│   │   ├── sidebar.tsx             # Navigation sidebar
+│   │   └── company-switcher.tsx    # Multi-company dropdown
 │   ├── shared/
-│   │   ├── data-table.tsx      # Generic TanStack data table wrapper
-│   │   └── entity-combobox.tsx # Company/Contact combobox pickers
-│   └── app-nav.tsx             # Top nav bar (legacy, replaced by sidebar)
+│   │   ├── data-table.tsx          # Generic TanStack data table
+│   │   ├── entity-combobox.tsx     # Company/Contact pickers
+│   │   ├── currency-input.tsx      # IDR currency input
+│   │   └── multi-date-picker.tsx   # Multi-date picker
+│   └── app-nav.tsx                 # Legacy top nav
 │
 ├── contexts/
-│   ├── company-context.tsx     # Active company provider
-│   └── permissions-context.tsx # RBAC permissions provider
+│   ├── company-context.tsx         # Active company provider
+│   ├── permissions-context.tsx     # RBAC permissions provider
+│   └── sidebar-theme-context.tsx   # Sidebar UI preferences
 │
 ├── hooks/
-│   └── use-master-options.ts   # Fetches dynamic dropdown options
+│   └── use-master-options.ts       # Dynamic dropdown options hook
 │
 ├── types/
-│   ├── index.ts                # Lead, Profile, PipelineStage, MasterOption types
-│   ├── company.ts              # Company, CompanyMember types
-│   └── tasks.ts                # LeadTask type, department/status/priority configs
+│   ├── index.ts                    # Core types (Lead, Profile, Pipeline, etc.)
+│   ├── company.ts                  # Company, CompanyMember, Role, Permission types
+│   └── tasks.ts                    # Legacy LeadTask types
 │
 ├── lib/
-│   └── utils.ts                # cn() helper (clsx + tailwind-merge)
+│   └── utils.ts                    # cn() helper
 │
 └── utils/
-    ├── company.ts              # getActiveCompany helper
+    ├── company.ts                  # getActiveCompany helper
     └── supabase/
-        ├── client.ts           # Browser Supabase client (createBrowserClient)
-        ├── server.ts           # Server Supabase client (createServerClient with cookies)
-        └── scoped-query.ts     # Company-scoped query helper
+        ├── client.ts               # Browser Supabase client
+        ├── server.ts               # Server Supabase client (cookies)
+        └── scoped-query.ts         # Company-scoped query helper
 ```
 
 ## Conventions
-- Feature components live in `src/features/<domain>/components/` (domain-driven)
-- Shared/generic components live in `src/components/shared/`
-- shadcn/ui primitives live in `src/components/ui/`
-- Layout components live in `src/components/layout/`
-- Server Actions live in `src/app/actions/`
-- Server components for pages that fetch data (e.g. `page.tsx` with `export const dynamic = 'force-dynamic'`)
-- Client components (`"use client"`) for interactive UI with state, forms, and Supabase browser client calls
-- Types are centralized in `src/types/`
-- Import paths use `@/features/<domain>/components/<file>` for domain components
-- Import paths use `@/components/shared/<file>` for shared components
+- Feature components: `src/features/<domain>/components/`
+- Shared components: `src/components/shared/`
+- shadcn/ui primitives: `src/components/ui/`
+- Layout components: `src/components/layout/`
+- Server Actions: `src/app/actions/`
+- Types centralized in `src/types/`
+- Server components for data-fetching pages
+- Client components (`"use client"`) for interactive UI
+- Import paths: `@/features/<domain>/components/<file>`, `@/components/shared/<file>`
+- RLS is the security boundary — UI permission checks are convenience only
