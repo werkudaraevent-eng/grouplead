@@ -124,12 +124,12 @@ export function CreateUserModal({ open, onOpenChange, onCreated }: CreateUserMod
                 if (!result.success) throw new Error(result.error)
 
                 // Insert ALL company memberships into junction table
-                if (selectedCompanyIds.length > 0 && result.userId) {
+                if (selectedCompanyIds.length > 0 && result.data?.userId) {
                     const supabase = createClient()
                     await supabase.from("company_members").insert(
                         selectedCompanyIds.map(cid => ({
                             company_id: cid,
-                            user_id: result.userId!,
+                            user_id: result.data!.userId,
                             user_type: roleSlug || "staff",
                         }))
                     )

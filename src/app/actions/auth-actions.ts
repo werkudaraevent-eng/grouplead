@@ -1,20 +1,8 @@
 "use server"
 
-import { createClient } from "@supabase/supabase-js"
 import { revalidatePath } from "next/cache"
-
-type ActionResult = { success: boolean; error?: string }
-
-function getAdminClient() {
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL
-    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-    if (!url || !serviceKey) {
-        throw new Error("Missing SUPABASE_SERVICE_ROLE_KEY or SUPABASE_URL env vars")
-    }
-    return createClient(url, serviceKey, {
-        auth: { autoRefreshToken: false, persistSession: false },
-    })
-}
+import { createServiceClient } from "@/utils/supabase/service"
+import type { ActionResult } from "@/types"
 
 /**
  * Admin-only: Force-reset a user's password by UUID.
@@ -29,7 +17,7 @@ export async function adminResetUserPassword(
             return { success: false, error: "Password must be at least 8 characters" }
         }
 
-        const supabase = getAdminClient()
+        const supabase = createServiceClient()
 
         const { error } = await supabase.auth.admin.updateUserById(userId, {
             password: newPassword,

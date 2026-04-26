@@ -1,20 +1,8 @@
 "use server"
 
-import { createClient } from "@supabase/supabase-js"
 import { revalidatePath } from "next/cache"
-
-export type ActionResult = { success: boolean; error?: string; userId?: string }
-
-function getAdminClient() {
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL
-    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-    if (!url || !serviceKey) {
-        throw new Error("Missing SUPABASE_SERVICE_ROLE_KEY or SUPABASE_URL env vars")
-    }
-    return createClient(url, serviceKey, {
-        auth: { autoRefreshToken: false, persistSession: false },
-    })
-}
+import { createServiceClient } from "@/utils/supabase/service"
+import type { ActionResult } from "@/types"
 
 interface ProvisionUserData {
     email: string
@@ -28,9 +16,9 @@ interface ProvisionUserData {
 
 export async function provisionUserAction(
     data: ProvisionUserData
-): Promise<ActionResult> {
+): Promise<ActionResult<{ userId: string }>> {
     try {
-        const supabase = getAdminClient()
+        const supabase = createServiceClient()
 
         // 1. Create auth user via Admin API (bypasses email confirmation)
         const { data: authData, error: authError } =
@@ -73,7 +61,7 @@ export async function provisionUserAction(
         }
 
         revalidatePath("/settings/users")
-        return { success: true, userId: authData.user.id }
+        return { success: true, data: { userId: authData.user.id } }
     } catch (err) {
         return {
             success: false,
@@ -86,7 +74,7 @@ export async function deactivateUserAction(
     userId: string
 ): Promise<ActionResult> {
     try {
-        const supabase = getAdminClient()
+        const supabase = createServiceClient()
 
         // Soft-delete: ban the user in Supabase Auth (prevents login)
         const { error: banError } = await supabase.auth.admin.updateUserById(

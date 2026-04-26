@@ -5,8 +5,7 @@ import { createClient } from "@/utils/supabase/server"
 import { smartCaseRow } from "@/utils/smart-title-case"
 import { parseSmartEventDates } from "@/utils/smart-date-parser"
 import { buildStageTransitionAuditEntries } from "@/features/leads/lib/stage-transition-audit"
-
-export type ActionResult = { success: boolean; error?: string; data?: { id: number } }
+import type { ActionResult } from "@/types"
 
 // ── Column Whitelist: ONLY these keys are physical columns on the `leads` table ──
 const LEADS_COLUMNS = new Set([
@@ -47,7 +46,7 @@ function sanitizePayload(data: Record<string, unknown>): Record<string, unknown>
 
 export async function createLeadAction(
     data: Record<string, unknown>
-): Promise<ActionResult> {
+): Promise<ActionResult<{ id: number }>> {
     try {
         const supabase = await createClient()
         const payload = sanitizePayload(data)
@@ -79,6 +78,15 @@ export async function createLeadAction(
             .select("id")
             .single()
         if (error) return { success: false, error: error.message }
+
+        // Log creation activity
+        const { data: { user } } = await supabase.auth.getUser()
+        await supabase.from("lead_activities").insert({
+            lead_id: newLead.id,
+            user_id: user?.id ?? null,
+            action_type: "Create",
+            description: "Lead created",
+        })
 
         revalidatePath("/", "layout")
         revalidatePath("/leads")

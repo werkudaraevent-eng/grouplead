@@ -2,11 +2,10 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { LayoutDashboard, ClipboardList } from "lucide-react"
+import { LayoutDashboard } from "lucide-react"
 
 const navItems = [
     { href: "/", label: "Leads", icon: LayoutDashboard },
-    { href: "/dashboard/tasks", label: "Tasks", icon: ClipboardList },
 ]
 
 export function AppNav() {

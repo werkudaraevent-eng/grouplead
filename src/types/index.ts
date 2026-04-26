@@ -1,5 +1,6 @@
 export * from './company'
 export * from './goals'
+export type { ActionResult } from './action-result'
 
 export interface LeadFieldSetting {
   id: string
@@ -28,6 +29,8 @@ export interface ClientCompany {
     parent_id: string | null;
     line_industry: string | null;
     owner_id: string | null;
+    /** Account relationship: new, repeater, contracted */
+    account_status: string | null;
     created_at: string;
     custom_data?: any;
     parent?: { id: string; name: string } | null;
