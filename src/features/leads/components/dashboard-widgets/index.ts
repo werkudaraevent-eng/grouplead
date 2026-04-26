@@ -1,5 +1,5 @@
 export { SingleKPIWidget, type SingleKPIProps } from "./single-kpi-widget"
-export { RevenueChartWidget } from "./revenue-chart-widget"
+export { RevenueChartWidget, type RevenueBasis } from "./revenue-chart-widget"
 export { PipelineWidget } from "./pipeline-widget"
 export { SalesPerfWidget } from "./sales-perf-widget"
 export { TopRevenueWidget } from "./top-revenue-widget"

@@ -1,8 +1,11 @@
 "use client"
 
-import { useMemo, useState, useEffect, useRef } from "react"
+import { useMemo, useState, useEffect, useRef, useCallback } from "react"
 import { useRouter, usePathname, useSearchParams } from "next/navigation"
 import { Lead, PipelineStage } from "@/types"
+import type { GoalV2, GoalNode, GoalUserTarget, GoalSettingsV2 } from "@/types/goals"
+import { GoalDataProvider } from "@/features/goals/contexts/goal-data-context"
+import { EmptyState } from "./dashboard-widgets/shared"
 import { buildDashboardStageSeries } from "@/features/leads/lib/dashboard-stage-series"
 import { splitDashboardLeadsByPeriod } from "@/features/leads/lib/dashboard-period"
 import { Briefcase, Trophy, CheckSquare, RefreshCw, TrendingUp, Calendar } from "lucide-react"
@@ -12,6 +15,7 @@ import { DashboardGrid } from "./dashboard-grid"
 import {
     SingleKPIWidget,
     RevenueChartWidget,
+    type RevenueBasis,
     PipelineWidget,
     SalesPerfWidget,
     TopRevenueWidget,
@@ -25,6 +29,14 @@ import {
     GoalSegmentBreakdownWidget,
     GoalTrendWidget,
 } from "./dashboard-widgets"
+import { ContactAnalyticsWidget } from "@/features/contacts/components/dashboard"
+import type { CustomWidget } from "@/types/custom-widget"
+import { aggregateLeads } from "@/features/leads/lib/aggregate-leads"
+import { CustomWidgetRenderer } from "./dashboard-widgets/custom-widget-renderer"
+import { WidgetConfiguratorModal } from "./dashboard-widgets/widget-configurator-modal"
+import type { CustomWidgetInput } from "@/types/custom-widget"
+import { createClient } from "@/utils/supabase/client"
+import { useCompany } from "@/contexts/company-context"
 
 // ─── Helper ─────────────────────────────────────────────────────────────────
 function getStageComparisonLabel(period: string) {
@@ -38,22 +50,116 @@ interface AnalyticsDashboardProps {
     pipelines?: { id: string; name: string; is_default?: boolean }[]
     activePipelineId?: string
     pipelineStages?: PipelineStage[]
+    activeGoal?: GoalV2 | null
+    goalNodes?: GoalNode[]
+    userTargets?: GoalUserTarget[]
+    goalSettings?: GoalSettingsV2 | null
+    customWidgets?: CustomWidget[]
 }
 
-export function AnalyticsDashboard({ leads, pipelines = [], activePipelineId, pipelineStages = [] }: AnalyticsDashboardProps) {
+export function AnalyticsDashboard({
+    leads,
+    pipelines = [],
+    activePipelineId,
+    pipelineStages = [],
+    activeGoal = null,
+    goalNodes = [],
+    userTargets = [],
+    goalSettings = null,
+    customWidgets = [],
+}: AnalyticsDashboardProps) {
     const router = useRouter()
     const pathname = usePathname()
     const searchParams = useSearchParams()
+    const { activeCompany } = useCompany()
     const currentYear = new Date().getFullYear()
     const [hasMounted, setHasMounted] = useState(false)
     const [periodStr, setPeriodStr] = useState("this_quarter")
     const [catToggle, setCatToggle] = useState<string>('category')
     const [streamToggle, setStreamToggle] = useState<string>('main_stream')
     const [trendYear, setTrendYear] = useState(currentYear)
+    const [revenueBasis, setRevenueBasis] = useState<RevenueBasis>("revenue_recognition")
     const [scrolled, setScrolled] = useState(false)
     const scrollRef = useRef<HTMLElement | null>(null)
     const periodLeadBuckets = useMemo(() => splitDashboardLeadsByPeriod(leads, periodStr as "this_month" | "this_quarter" | "this_year" | "all_time" | "custom"), [leads, periodStr])
+    const periodLeads = periodLeadBuckets.current
+    const previousPeriodLeads = periodLeadBuckets.previous
     const stageComparisonLabel = useMemo(() => getStageComparisonLabel(periodStr), [periodStr])
+
+    // Custom widgets state
+    const [customWidgetsList, setCustomWidgetsList] = useState<CustomWidget[]>(customWidgets ?? [])
+    const [showConfigurator, setShowConfigurator] = useState(false)
+    const [editingWidget, setEditingWidget] = useState<CustomWidget | null>(null)
+
+    // Compute aggregation data for each custom widget
+    const customWidgetData = useMemo(() => {
+        const map = new Map<string, any>()
+        for (const w of customWidgetsList) {
+            const result = aggregateLeads(periodLeadBuckets.current, {
+                metricField: w.metric_field as any,
+                aggregation: w.aggregation as any,
+                groupBy: w.group_by,
+                limit: w.config?.limit ?? 10,
+            })
+            map.set(w.id, result)
+        }
+        return map
+    }, [customWidgetsList, periodLeadBuckets])
+
+    const handleSaveCustomWidget = useCallback(async (input: CustomWidgetInput) => {
+        const supabase = createClient()
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) return
+
+        if (editingWidget) {
+            // Update existing
+            const { data, error } = await supabase
+                .from('custom_widgets')
+                .update({
+                    title: input.title,
+                    widget_type: input.widget_type,
+                    metric_field: input.metric_field,
+                    aggregation: input.aggregation,
+                    group_by: input.group_by,
+                    config: input.config,
+                })
+                .eq('id', editingWidget.id)
+                .select()
+                .single()
+
+            if (!error && data) {
+                setCustomWidgetsList(prev => prev.map(w => w.id === data.id ? data : w))
+            }
+        } else {
+            // Create new
+            const { data, error } = await supabase
+                .from('custom_widgets')
+                .insert({
+                    user_id: user.id,
+                    company_id: input.company_id,
+                    title: input.title,
+                    widget_type: input.widget_type,
+                    metric_field: input.metric_field,
+                    aggregation: input.aggregation,
+                    group_by: input.group_by,
+                    config: input.config,
+                })
+                .select()
+                .single()
+
+            if (!error && data) {
+                setCustomWidgetsList(prev => [...prev, data])
+            }
+        }
+        setShowConfigurator(false)
+        setEditingWidget(null)
+    }, [editingWidget])
+
+    const handleDeleteCustomWidget = useCallback(async (widgetId: string) => {
+        const supabase = createClient()
+        await supabase.from('custom_widgets').delete().eq('id', widgetId)
+        setCustomWidgetsList(prev => prev.filter(w => w.id !== widgetId))
+    }, [])
 
     useEffect(() => { setHasMounted(true) }, [])
 
@@ -99,20 +205,28 @@ export function AnalyticsDashboard({ leads, pipelines = [], activePipelineId, pi
         }
     }, [])
 
+    const goalProviderValue = useMemo(() => ({
+        activeGoal: activeGoal ?? null,
+        goalNodes: goalNodes ?? [],
+        userTargets: userTargets ?? [],
+        goalSettings: goalSettings ?? null,
+        leads: periodLeads,
+    }), [activeGoal, goalNodes, userTargets, goalSettings, periodLeads])
+
     const availableYears = useMemo(() => {
         const years = new Set(leads.map(l => new Date(l.created_at).getFullYear()))
         years.add(currentYear)
         return Array.from(years).sort((a, b) => b - a)
     }, [leads, currentYear])
 
-    // ─── STATS ──────────────────────────────────────────────────────
+    // ─── STATS (period-filtered) ───────────────────────────────────
     const stats = useMemo(() => {
-        let totalInquiry = leads.length
+        let totalInquiry = periodLeads.length
         let closedWonCount = 0
         let closedLostCount = 0
         let totalRevenue = 0
 
-        leads.forEach(l => {
+        periodLeads.forEach(l => {
             const stage = (l.pipeline_stage?.name || "").toLowerCase()
             const val = l.estimated_value ?? 0
             if (stage.includes("won")) {
@@ -128,59 +242,346 @@ export function AnalyticsDashboard({ leads, pipelines = [], activePipelineId, pi
         const conversionRate = totalInquiry > 0 ? (closedWonCount / totalInquiry) * 100 : 0
         const avgSize = closedWonCount > 0 ? totalRevenue / closedWonCount : 0
 
-        return { totalInquiry, totalRevenue, winRate, conversionRate, avgSize }
-    }, [leads])
+        return { totalInquiry, totalRevenue, winRate, conversionRate, avgSize, closedWonCount }
+    }, [periodLeads])
 
-    const MOCK_PCT = {
-        inquiryYoy: 12.5, inquiryTgt: -4.2,
-        revYoy: 24.8, revTgt: 5.0,
-        winYoy: -2.1, winTgt: 1.5,
-        convYoy: 4.4, convTgt: 8.0,
-        avgYoy: 15.2, avgTgt: -1.2,
-    }
+    // ─── PERIOD COMPARISON METRICS ──────────────────────────────────
+    // Compares current period vs same period last year (from periodLeadBuckets)
+    const goalMetrics = useMemo(() => {
+        // Helper to calculate stats for a lead set
+        const calculateStats = (leadSet: Lead[]) => {
+            let totalInquiry = leadSet.length
+            let closedWonCount = 0
+            let closedLostCount = 0
+            let totalRevenue = 0
+
+            leadSet.forEach(l => {
+                const stage = (l.pipeline_stage?.name || "").toLowerCase()
+                if (stage.includes("won")) {
+                    closedWonCount++
+                    totalRevenue += (l.actual_value ?? l.estimated_value ?? 0)
+                } else if (stage.includes("lost") || stage.includes("cancel")) {
+                    closedLostCount++
+                }
+            })
+
+            const totalClosed = closedWonCount + closedLostCount
+            const winRate = totalClosed > 0 ? (closedWonCount / totalClosed) * 100 : 0
+            const conversionRate = totalInquiry > 0 ? (closedWonCount / totalInquiry) * 100 : 0
+            const avgSize = closedWonCount > 0 ? totalRevenue / closedWonCount : 0
+
+            return { totalInquiry, totalRevenue, winRate, conversionRate, avgSize, closedWonCount }
+        }
+
+        const currentStats = calculateStats(periodLeads)
+        const prevStats = calculateStats(previousPeriodLeads)
+
+        // Calculate vs previous period percentages
+        const calculateVsPrev = (current: number, previous: number) => {
+            if (previous === 0) return null
+            return ((current - previous) / previous) * 100
+        }
+
+        const inquiryYoy = calculateVsPrev(currentStats.totalInquiry, prevStats.totalInquiry)
+        const revYoy = calculateVsPrev(currentStats.totalRevenue, prevStats.totalRevenue)
+        const winYoy = calculateVsPrev(currentStats.winRate, prevStats.winRate)
+        const convYoy = calculateVsPrev(currentStats.conversionRate, prevStats.conversionRate)
+        const avgYoy = calculateVsPrev(currentStats.avgSize, prevStats.avgSize)
+
+        // Calculate vs target percentages
+        const revenueTarget = activeGoal?.target_amount || 0
+        const revenuePctVsTarget = revenueTarget > 0
+            ? ((stats.totalRevenue - revenueTarget) / revenueTarget) * 100
+            : null
+
+        return {
+            revenueTarget,
+            revenuePctVsTarget,
+            inquiryYoy,
+            inquiryTgt: null, // No target for inquiry count yet
+            revYoy,
+            revTgt: revenuePctVsTarget,
+            winYoy,
+            winTgt: null, // No target for win rate yet
+            convYoy,
+            convTgt: null, // No target for conversion yet
+            avgYoy,
+            avgTgt: null, // No target for avg deal size yet
+        }
+    }, [activeGoal, stats.totalRevenue, periodLeads, previousPeriodLeads])
 
     // ─── CHART DATA ─────────────────────────────────────────────────
+    // Parse "April 2026" → { month: 3, year: 2026 } for month_event field
+    const MONTH_NAMES_LONG = ["January","February","March","April","May","June","July","August","September","October","November","December"]
+
     const monthlyRev = useMemo(() => {
         const data = MONTHS_SHORT.map(m => ({ month: m, actual: 0, target: 0, prevYear: 0, overUnder: 0, vsLastYear: null as number | null }))
         leads.forEach(l => {
             const stage = (l.pipeline_stage?.name || "").toLowerCase()
-            const date = new Date(l.created_at)
-            const y = date.getFullYear()
-            const m = date.getMonth()
-            if (stage.includes("won")) {
-                const val = (l.actual_value ?? l.estimated_value ?? 0)
+            if (!stage.includes("won")) return
+
+            const val = (l.actual_value ?? l.estimated_value ?? 0)
+            let y: number | null = null
+            let m: number | null = null
+
+            if (revenueBasis === "revenue_recognition") {
+                // Use month_event field (format: "April 2026")
+                // Fallback to event_date_end → event_date_start if month_event is empty
+                const monthEvent = l.month_event
+                if (monthEvent && typeof monthEvent === "string") {
+                    const parts = monthEvent.trim().split(/\s+/)
+                    if (parts.length >= 2) {
+                        const mi = MONTH_NAMES_LONG.indexOf(parts[0])
+                        const yr = parseInt(parts[parts.length - 1], 10)
+                        if (mi >= 0 && !isNaN(yr)) { m = mi; y = yr }
+                    }
+                }
+                // Fallback to event dates
+                if (y === null || m === null) {
+                    const dateStr = l.event_date_end ?? l.event_date_start
+                    if (dateStr) {
+                        const d = new Date(dateStr)
+                        if (!isNaN(d.getTime())) { y = d.getFullYear(); m = d.getMonth() }
+                    }
+                }
+            } else {
+                // closed_won: use updated_at as proxy for closed won date
+                // (actual closed_won_date is not on the Lead type, but updated_at
+                // reflects when the stage was changed to won)
+                const d = new Date(l.updated_at)
+                if (!isNaN(d.getTime())) { y = d.getFullYear(); m = d.getMonth() }
+            }
+
+            if (y !== null && m !== null) {
                 if (y === trendYear) data[m].actual += val
                 else if (y === trendYear - 1) data[m].prevYear += val
             }
         })
-        data.forEach(d => {
-            d.target = 150_000_000
-            if (d.actual > 0) d.overUnder = ((d.actual - d.target) / d.target) * 100
+
+        // ── Calculate monthly target ──
+        //
+        // Priority:
+        //   1. breakdown_config "month" dimension — walk the tree to compute
+        //      each month's absolute target by multiplying pct through parent
+        //      levels. If month is at level N, its absolute value =
+        //      sum over all parent chains of (parent_amount * month_pct / 100).
+        //      When perParentNodes exist, each parent has its own month breakdown.
+        //   2. goal_nodes leaf monthly_targets — bottom-up aggregation.
+        //   3. monthly_weights on the goal — top-level distribution weights.
+        //   4. Equal distribution — target_amount / 12.
+
+        const monthNames = ["January", "February", "March", "April", "May", "June",
+            "July", "August", "September", "October", "November", "December"]
+
+        // --- Priority 1: breakdown_config month dimension ---
+        let monthTargetsFromConfig: Record<number, number> | null = null
+
+        if (activeGoal?.breakdown_config && Array.isArray(activeGoal.breakdown_config)) {
+            const levels = activeGoal.breakdown_config as any[]
+            const monthLevelIdx = levels.findIndex((lv: any) => lv.dimension === "month")
+
+            if (monthLevelIdx >= 0) {
+                const monthLevel = levels[monthLevelIdx]
+                const totalTarget = activeGoal.target_amount || 0
+
+                // Compute parent amounts by walking levels 0..monthLevelIdx-1
+                // Each parent node's absolute amount = parentAmount * (node.pct / 100)
+                // Start with [totalTarget] as the single root amount
+                let parentAmounts: { name: string; amount: number }[] = [{ name: "__root__", amount: totalTarget }]
+
+                for (let li = 0; li < monthLevelIdx; li++) {
+                    const lv = levels[li]
+                    const nodes: any[] = lv.nodes || []
+                    const nextParents: { name: string; amount: number }[] = []
+
+                    if (lv.applyAll !== false || !lv.perParentNodes || Object.keys(lv.perParentNodes).length === 0) {
+                        // Shared nodes: each node gets pct of sum(parentAmounts).
+                        // Always compute from pct — stored `value` may be stale
+                        // (config page bug computes value against single parent).
+                        const sumParent = parentAmounts.reduce((s, p) => s + p.amount, 0)
+                        for (const node of nodes) {
+                            const nodeAmt = sumParent * (node.pct || 0) / 100
+                            nextParents.push({ name: node.name, amount: nodeAmt })
+                        }
+                    } else {
+                        // Per-parent nodes: each parent has its own child breakdown
+                        for (const parent of parentAmounts) {
+                            const childNodes: any[] = lv.perParentNodes[parent.name] || nodes
+                            for (const node of childNodes) {
+                                const nodeAmt = node.value > 0 ? node.value : parent.amount * (node.pct || 0) / 100
+                                nextParents.push({ name: node.name, amount: nodeAmt })
+                            }
+                        }
+                    }
+                    parentAmounts = nextParents
+                }
+
+                // Now compute month targets from the month level
+                // Each parent feeds into the month breakdown
+                monthTargetsFromConfig = {}
+                for (let mi = 0; mi < 12; mi++) monthTargetsFromConfig[mi] = 0
+
+                if (monthLevel.applyAll !== false || !monthLevel.perParentNodes || Object.keys(monthLevel.perParentNodes).length === 0) {
+                    // Shared month nodes: each month gets pct of sum(parentAmounts).
+                    // ALWAYS compute from pct here — the stored `value` on shared month
+                    // nodes is unreliable because the config page computes it against a
+                    // single parent instead of the sum of all parents.
+                    const sumParent = parentAmounts.reduce((s, p) => s + p.amount, 0)
+                    const monthNodes: any[] = monthLevel.nodes || []
+                    for (const mn of monthNodes) {
+                        const mi = monthNames.indexOf(mn.name)
+                        if (mi < 0) continue
+                        const monthAmt = sumParent * (mn.pct || 0) / 100
+                        monthTargetsFromConfig[mi] += monthAmt
+                    }
+                } else {
+                    // Per-parent month nodes: each parent has its own month breakdown
+                    for (const parent of parentAmounts) {
+                        const monthNodes: any[] = monthLevel.perParentNodes[parent.name] || monthLevel.nodes || []
+                        for (const mn of monthNodes) {
+                            const mi = monthNames.indexOf(mn.name)
+                            if (mi < 0) continue
+                            const monthAmt = mn.value > 0 ? mn.value : parent.amount * (mn.pct || 0) / 100
+                            monthTargetsFromConfig[mi] += monthAmt
+                        }
+                    }
+                }
+            }
+        }
+
+        // --- Priority 2: goal_nodes leaf monthly_targets ---
+        const parentIds = new Set(goalNodes.map(n => n.parent_node_id).filter(Boolean))
+        const leafNodes = goalNodes.filter(n => !parentIds.has(n.id))
+        const leafMonthlyTargets = leafNodes.filter(
+            n => n.monthly_targets && Object.keys(n.monthly_targets).length > 0
+        )
+        const hasLeafMonthly = leafMonthlyTargets.length > 0
+
+        // --- Priority 3: monthly_weights ---
+        const hasMonthlyWeights = activeGoal?.monthly_weights && Object.keys(activeGoal.monthly_weights).length > 0
+
+        data.forEach((d, idx) => {
+            const monthKey = String(idx + 1) // "1" to "12"
+
+            if (monthTargetsFromConfig) {
+                // Priority 1: breakdown_config tree walk
+                d.target = monthTargetsFromConfig[idx] ?? 0
+            } else if (hasLeafMonthly) {
+                // Priority 2: goal_nodes leaf monthly_targets
+                let monthTotal = 0
+                for (const leaf of leafMonthlyTargets) {
+                    monthTotal += leaf.monthly_targets![monthKey] ?? 0
+                }
+                d.target = monthTotal > 0 ? monthTotal : (activeGoal?.target_amount ?? 0) / 12
+            } else if (hasMonthlyWeights) {
+                // Priority 3: monthly_weights from goal settings
+                const weight = activeGoal!.monthly_weights![monthKey] || (1 / 12)
+                d.target = activeGoal!.target_amount * weight
+            } else if (activeGoal) {
+                // Priority 4: equal distribution
+                d.target = activeGoal.target_amount / 12
+            } else {
+                d.target = 0
+            }
+
+            if (d.target > 0 && d.actual > 0) {
+                d.overUnder = ((d.actual - d.target) / d.target) * 100
+            }
             d.vsLastYear = getVsLastYearPct(d.actual, d.prevYear)
         })
         return data
-    }, [leads, trendYear])
+    }, [leads, trendYear, activeGoal, goalNodes, revenueBasis])
 
     const stageData = useMemo(() => {
         return buildDashboardStageSeries(pipelineStages, periodLeadBuckets.current, periodLeadBuckets.previous)
     }, [pipelineStages, periodLeadBuckets])
 
     const salesData = useMemo(() => {
-        const reps: Record<string, { name: string, actual: number, target: number }> = {}
-        leads.forEach(l => {
+        const reps: Record<string, { name: string, actual: number, target: number, userId?: string, hasRealTarget: boolean }> = {}
+
+        // Build actual revenue per sales (period-filtered)
+        periodLeads.forEach(l => {
             const stage = (l.pipeline_stage?.name || "").toLowerCase()
             const pic = l.pic_sales_profile?.full_name || "Unassigned"
-            if (!reps[pic]) reps[pic] = { name: pic, actual: 0, target: 0 }
-            if (stage.includes("won")) reps[pic].actual += (l.actual_value ?? l.estimated_value ?? 0)
+            const picId = l.pic_sales_id || "unassigned"
+            if (!reps[picId]) reps[picId] = { name: pic, actual: 0, target: 0, userId: picId, hasRealTarget: false }
+            if (stage.includes("won")) reps[picId].actual += (l.actual_value ?? l.estimated_value ?? 0)
         })
-        return Object.values(reps).map(r => ({
-            ...r, target: r.actual > 0 ? (r.actual * (0.8 + Math.random() * 0.5)) : 50_000_000
-        })).sort((a, b) => b.actual - a.actual).slice(0, 10)
-    }, [leads])
+
+        // Apply real targets from userTargets if available
+        if (userTargets && userTargets.length > 0) {
+            userTargets.forEach(ut => {
+                if (reps[ut.user_id]) {
+                    reps[ut.user_id].target = ut.target_amount
+                    reps[ut.user_id].hasRealTarget = true
+                }
+            })
+        }
+
+        // Fallback: apply targets from goal_nodes (pic_sales_id nodes)
+        if (goalNodes && goalNodes.length > 0) {
+            goalNodes.forEach(node => {
+                if (node.reference_field === "pic_sales_id" && node.reference_value && node.target_amount > 0) {
+                    const userId = node.reference_value
+                    if (reps[userId] && !reps[userId].hasRealTarget) {
+                        reps[userId].target = node.target_amount
+                        reps[userId].hasRealTarget = true
+                    }
+                }
+            })
+        }
+
+        // Fallback: apply targets from breakdown_config (sales_owner dimension)
+        if (activeGoal?.breakdown_config && Array.isArray(activeGoal.breakdown_config)) {
+            for (const level of activeGoal.breakdown_config as any[]) {
+                if (level.dimension === "sales_owner" && Array.isArray(level.nodes)) {
+                    const totalTarget = activeGoal.target_amount || 0
+                    level.nodes.forEach((node: any) => {
+                        // Match node name to rep name
+                        const matchedRep = Object.values(reps).find(
+                            r => r.name === node.name && !r.hasRealTarget
+                        )
+                        if (matchedRep) {
+                            const nodeTarget = node.value > 0 ? node.value : totalTarget * (node.pct || 0) / 100
+                            if (nodeTarget > 0) {
+                                matchedRep.target = nodeTarget
+                                matchedRep.hasRealTarget = true
+                            }
+                        }
+                    })
+
+                    // Also check perParentNodes for customize-per-parent mode
+                    if (level.perParentNodes && typeof level.perParentNodes === 'object') {
+                        Object.values(level.perParentNodes).forEach((parentNodes: any) => {
+                            if (!Array.isArray(parentNodes)) return
+                            parentNodes.forEach((node: any) => {
+                                const matchedRep = Object.values(reps).find(
+                                    r => r.name === node.name && !r.hasRealTarget
+                                )
+                                if (matchedRep) {
+                                    const nodeTarget = node.value > 0 ? node.value : totalTarget * (node.pct || 0) / 100
+                                    if (nodeTarget > 0) {
+                                        matchedRep.target = nodeTarget
+                                        matchedRep.hasRealTarget = true
+                                    }
+                                }
+                            })
+                        })
+                    }
+                }
+            }
+        }
+
+        // Filter out unassigned and sort by actual revenue
+        return Object.values(reps)
+            .filter(r => r.userId !== "unassigned") // Remove unassigned
+            .sort((a, b) => b.actual - a.actual)
+            .slice(0, 10)
+    }, [periodLeads, userTargets, goalNodes, activeGoal])
 
     const topComps = useMemo(() => {
         const comps: Record<string, number> = {}
-        leads.forEach(l => {
+        periodLeads.forEach(l => {
             const stage = (l.pipeline_stage?.name || "").toLowerCase()
             if (stage.includes("won")) {
                 const c = l.client_company?.name || "Unknown Company"
@@ -188,33 +589,77 @@ export function AnalyticsDashboard({ leads, pipelines = [], activePipelineId, pi
             }
         })
         return Object.entries(comps).map(([name, revenue]) => ({ name, revenue })).sort((a, b) => b.revenue - a.revenue).slice(0, 10)
-    }, [leads])
+    }, [periodLeads])
 
     const sourceData = useMemo(() => {
         const m: Record<string, number> = {}
-        leads.forEach(l => { m[l.lead_source || "Unspecified"] = (m[l.lead_source || "Unspecified"] || 0) + 1 })
+        periodLeads.forEach(l => { m[l.lead_source || "Unspecified"] = (m[l.lead_source || "Unspecified"] || 0) + 1 })
         return Object.entries(m).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value)
-    }, [leads])
+    }, [periodLeads])
 
     const catGradeData = useMemo(() => {
         const m: Record<string, number> = {}
-        leads.forEach(l => { const val = (l as any)[catToggle] as string || "Unspecified"; m[val] = (m[val] || 0) + 1 })
+        periodLeads.forEach(l => { const val = (l as any)[catToggle] as string || "Unspecified"; m[val] = (m[val] || 0) + 1 })
         return Object.entries(m).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value)
-    }, [leads, catToggle])
+    }, [periodLeads, catToggle])
 
     const streamData = useMemo(() => {
         const m: Record<string, number> = {}
-        leads.forEach(l => { const val = (l as any)[streamToggle] as string || "Unspecified"; m[val] = (m[val] || 0) + 1 })
+        periodLeads.forEach(l => { const val = (l as any)[streamToggle] as string || "Unspecified"; m[val] = (m[val] || 0) + 1 })
         return Object.entries(m).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value)
-    }, [leads, streamToggle])
+    }, [periodLeads, streamToggle])
 
     // ─── KPI DEFINITIONS ────────────────────────────────────────────
     const kpis = [
-        { label: "Total Leads", value: String(stats.totalInquiry), vsTarget: MOCK_PCT.inquiryTgt, vsPrev: MOCK_PCT.inquiryYoy, accent: ACCENT.leads, icon: Briefcase },
-        { label: "Won Revenue", value: formatCur(stats.totalRevenue).replace("Rp ", ""), prefix: "Rp ", vsTarget: MOCK_PCT.revTgt, vsPrev: MOCK_PCT.revYoy, accent: ACCENT.revenue, icon: Trophy },
-        { label: "Deal Win Rate", value: stats.winRate.toFixed(1), suffix: "%", vsTarget: MOCK_PCT.winTgt, vsPrev: MOCK_PCT.winYoy, accent: ACCENT.winrate, icon: CheckSquare },
-        { label: "Lead Conversion", value: stats.conversionRate.toFixed(1), suffix: "%", vsTarget: MOCK_PCT.convTgt, vsPrev: MOCK_PCT.convYoy, accent: ACCENT.conversion, icon: RefreshCw },
-        { label: "Avg Deal Size", value: formatCur(stats.avgSize).replace("Rp ", ""), prefix: "Rp ", vsTarget: MOCK_PCT.avgTgt, vsPrev: MOCK_PCT.avgYoy, accent: ACCENT.dealsize, icon: TrendingUp },
+        {
+            label: "Total Leads",
+            value: String(stats.totalInquiry),
+            vsTarget: goalMetrics.inquiryTgt,
+            vsPrev: goalMetrics.inquiryYoy,
+            accent: ACCENT.leads,
+            icon: Briefcase,
+            tooltip: "Total number of leads in the system"
+        },
+        {
+            label: "Won Revenue",
+            value: formatCur(stats.totalRevenue).replace("Rp ", ""),
+            prefix: "Rp ",
+            vsTarget: goalMetrics.revTgt,
+            vsPrev: goalMetrics.revYoy,
+            accent: ACCENT.revenue,
+            icon: Trophy,
+            tooltip: "Total revenue from closed won deals"
+        },
+        {
+            label: "Deal Win Rate",
+            value: stats.winRate.toFixed(1),
+            suffix: "%",
+            vsTarget: goalMetrics.winTgt,
+            vsPrev: goalMetrics.winYoy,
+            accent: ACCENT.winrate,
+            icon: CheckSquare,
+            tooltip: "Percentage of closed deals that were won (won / total closed)"
+        },
+        {
+            label: "Lead Conversion",
+            value: stats.conversionRate.toFixed(1),
+            suffix: "%",
+            vsTarget: goalMetrics.convTgt,
+            vsPrev: goalMetrics.convYoy,
+            accent: ACCENT.conversion,
+            icon: RefreshCw,
+            tooltip: "Percentage of leads that converted to won deals"
+        },
+        {
+            label: "Avg Deal Size",
+            value: formatCur(stats.avgSize).replace("Rp ", ""),
+            prefix: "Rp ",
+            vsTarget: goalMetrics.avgTgt,
+            vsPrev: goalMetrics.avgYoy,
+            accent: ACCENT.dealsize,
+            icon: TrendingUp,
+            tooltip: "Average revenue per won deal"
+        },
     ]
 
     return (
@@ -227,43 +672,43 @@ export function AnalyticsDashboard({ leads, pipelines = [], activePipelineId, pi
                     height: 64,
                     display: "flex", justifyContent: "space-between", alignItems: "center",
                     padding: "0 24px",
-                    background: scrolled ? "rgba(242,243,246,.88)" : "#f2f3f6",
-                    backdropFilter: scrolled ? "blur(14px)" : "none",
-                    WebkitBackdropFilter: scrolled ? "blur(14px)" : "none",
-                    borderBottom: `1px solid ${scrolled ? "#dfe2e7" : "transparent"}`,
-                    transition: "background .3s ease, border-color .3s ease, backdrop-filter .3s ease",
+                    background: scrolled ? "rgba(255,255,255,.95)" : "#fff",
+                    backdropFilter: scrolled ? "blur(12px)" : "none",
+                    WebkitBackdropFilter: scrolled ? "blur(12px)" : "none",
+                    borderBottom: `1px solid ${scrolled ? "#e5e8ed" : "transparent"}`,
+                    transition: "all .3s cubic-bezier(0.4, 0, 0.2, 1)",
+                    boxShadow: scrolled ? "0 1px 3px rgba(0,0,0,.04)" : "none",
                 }}
             >
                 <div style={{ position: "relative" }}>
                     <h1 style={{
-                        fontSize: scrolled ? 15 : 19, fontWeight: 800, color: "#0f1729",
-                        letterSpacing: "-0.3px", lineHeight: 1.3, margin: 0,
-                        transition: "font-size .3s ease",
+                        fontSize: scrolled ? 16 : 20, fontWeight: 800, color: "#0f1729",
+                        letterSpacing: "-0.4px", lineHeight: 1.2, margin: 0,
+                        transition: "font-size .3s cubic-bezier(0.4, 0, 0.2, 1)",
                     }}>
                         Performance Dashboard
                     </h1>
                     <p style={{
-                        fontSize: 11.5, color: "#8892a4", marginTop: 1, margin: 0,
+                        fontSize: 11.5, color: "#8892a4", marginTop: 2, margin: 0,
                         opacity: scrolled ? 0 : 1,
                         transform: scrolled ? "translateY(-4px)" : "translateY(0)",
                         transition: "opacity .3s ease, transform .3s ease",
                         position: "absolute", left: 0, top: "100%",
                         whiteSpace: "nowrap",
                         pointerEvents: scrolled ? "none" : "auto",
-                    }}>Strategic sales & pipeline analytics</p>
+                    }}>
+                        Real-time sales analytics & goal tracking
+                    </p>
                 </div>
-                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                    <div style={{ fontSize: 10, color: "#94a3b8", textAlign: "right" as const, lineHeight: 1.4 }}>
-                        <div style={{ fontWeight: 600, color: "#5a6178", fontSize: 10.5 }}>Subsidiary</div>
-                        <div>All Companies</div>
-                    </div>
+                <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
                     <select value={periodStr} onChange={e => setPeriodStr(e.target.value)} style={{
-                        appearance: "none" as const, background: "#fff", border: "1px solid #dfe2e7", borderRadius: 7,
-                        padding: "6px 28px 6px 10px", fontSize: 11.5, fontWeight: 600, color: "#0f1729",
+                        appearance: "none" as const, background: "#fff", border: "1px solid #e5e8ed", borderRadius: 7,
+                        padding: "7px 32px 7px 12px", fontSize: 12, fontWeight: 600, color: "#0f1729",
                         cursor: "pointer", fontFamily: "inherit",
-                        backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='9' height='9' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='2.5'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")`,
-                        backgroundRepeat: "no-repeat", backgroundPosition: "right 7px center",
-                        boxShadow: "0 1px 2px rgba(0,0,0,.03)",
+                        backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='2.5'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")`,
+                        backgroundRepeat: "no-repeat", backgroundPosition: "right 10px center",
+                        boxShadow: "0 1px 2px rgba(0,0,0,.04)",
+                        transition: "all .2s ease",
                     }}>
                         <option value="this_month">This Month</option>
                         <option value="this_quarter">This Quarter</option>
@@ -273,21 +718,28 @@ export function AnalyticsDashboard({ leads, pipelines = [], activePipelineId, pi
                     </select>
                     {periodStr === "custom" && (
                         <button style={{
-                            display: "flex", alignItems: "center", gap: 4, background: "#fff", border: "1px solid #dfe2e7",
-                            borderRadius: 7, padding: "5px 10px", fontSize: 11, fontWeight: 600, color: "#0f1729",
-                            cursor: "pointer", fontFamily: "inherit", boxShadow: "0 1px 2px rgba(0,0,0,.03)",
+                            display: "flex", alignItems: "center", gap: 6, background: "#fff", border: "1px solid #e5e8ed",
+                            borderRadius: 7, padding: "6px 12px", fontSize: 11.5, fontWeight: 600, color: "#0f1729",
+                            cursor: "pointer", fontFamily: "inherit", boxShadow: "0 1px 2px rgba(0,0,0,.04)",
+                            transition: "all .2s ease",
                         }}>
-                            <Calendar style={{ width: 12, height: 12 }} /> Select Dates
+                            <Calendar style={{ width: 14, height: 14 }} /> Select Dates
                         </button>
                     )}
                     {/* ─── Grid Edit Controls (portaled by DashboardGrid) ─── */}
-                    <div id="dashboard-edit-controls" style={{ display: "flex", alignItems: "center", borderLeft: "1px solid #e0e4ec", paddingLeft: 8, marginLeft: 2 }} />
+                    <div id="dashboard-edit-controls" style={{ display: "flex", alignItems: "center", borderLeft: "1px solid #e5e8ed", paddingLeft: 10, marginLeft: 2 }} />
                 </div>
             </div>
 
             {/* ─── CONTENT WITH GRID ─── */}
-            <div style={{ padding: "6px 24px 24px", background: "#f2f3f6", minHeight: "100%", overflowX: "clip", overflowY: "visible", boxSizing: "border-box", width: "100%", minWidth: 0 }}>
-                <DashboardGrid widgetIds={[...WIDGET_IDS]}>
+            <div style={{ padding: "20px 24px 24px", background: "#f8fafc", minHeight: "100%", overflowX: "clip", overflowY: "visible", boxSizing: "border-box", width: "100%", minWidth: 0 }}>
+                <DashboardGrid
+                    widgetIds={[...WIDGET_IDS]}
+                    customWidgets={customWidgetsList}
+                    onCreateCustomWidget={() => { setEditingWidget(null); setShowConfigurator(true) }}
+                    onEditCustomWidget={(w) => { setEditingWidget(w); setShowConfigurator(true) }}
+                    onDeleteCustomWidget={handleDeleteCustomWidget}
+                >
                     {/* Order MUST match WIDGET_IDS array */}
                     {/* 5 individual KPI cards */}
                     <SingleKPIWidget {...kpis[0]} />
@@ -302,6 +754,8 @@ export function AnalyticsDashboard({ leads, pipelines = [], activePipelineId, pi
                         setTrendYear={setTrendYear}
                         availableYears={availableYears}
                         hasMounted={hasMounted}
+                        revenueBasis={revenueBasis}
+                        setRevenueBasis={setRevenueBasis}
                     />
                     <PipelineWidget data={stageData} comparisonLabel={stageComparisonLabel} />
                     <SalesPerfWidget data={salesData} />
@@ -309,14 +763,45 @@ export function AnalyticsDashboard({ leads, pipelines = [], activePipelineId, pi
                     <LeadSourceWidget data={sourceData} />
                     <ClassificationWidget data={catGradeData} catToggle={catToggle} setCatToggle={setCatToggle} />
                     <StreamWidget data={streamData} streamToggle={streamToggle} setStreamToggle={setStreamToggle} />
-                    {/* Goal widgets */}
-                    <GoalAttainmentWidget />
-                    <GoalForecastWidget />
-                    <GoalVarianceWidget />
-                    <GoalCompanyBreakdownWidget />
-                    <GoalSegmentBreakdownWidget />
-                    <GoalTrendWidget />
+                    {/* Contact analytics */}
+                    <ContactAnalyticsWidget leads={periodLeads} />
+                    {/* Goal widgets - each individually wrapped */}
+                    <GoalDataProvider value={goalProviderValue}>
+                      {activeGoal ? <GoalAttainmentWidget /> : <div><EmptyState message="No active goal configured" cta="Configure Goals" href="/settings" /></div>}
+                    </GoalDataProvider>
+                    <GoalDataProvider value={goalProviderValue}>
+                      {activeGoal ? <GoalForecastWidget /> : <div><EmptyState message="No active goal configured" cta="Configure Goals" href="/settings" /></div>}
+                    </GoalDataProvider>
+                    <GoalDataProvider value={goalProviderValue}>
+                      {activeGoal ? <GoalVarianceWidget /> : <div><EmptyState message="No active goal configured" cta="Configure Goals" href="/settings" /></div>}
+                    </GoalDataProvider>
+                    <GoalDataProvider value={goalProviderValue}>
+                      {activeGoal ? <GoalCompanyBreakdownWidget /> : <div><EmptyState message="No active goal configured" cta="Configure Goals" href="/settings" /></div>}
+                    </GoalDataProvider>
+                    <GoalDataProvider value={goalProviderValue}>
+                      {activeGoal ? <GoalSegmentBreakdownWidget /> : <div><EmptyState message="No active goal configured" cta="Configure Goals" href="/settings" /></div>}
+                    </GoalDataProvider>
+                    <GoalDataProvider value={goalProviderValue}>
+                      {activeGoal ? <GoalTrendWidget /> : <div><EmptyState message="No active goal configured" cta="Configure Goals" href="/settings" /></div>}
+                    </GoalDataProvider>
+                    {/* Custom widgets */}
+                    {customWidgetsList.map(w => (
+                        <CustomWidgetRenderer
+                            key={`custom-${w.id}`}
+                            widget={w}
+                            data={customWidgetData.get(w.id) || { total: 0, groups: [] }}
+                        />
+                    ))}
                 </DashboardGrid>
+                {showConfigurator && (
+                    <WidgetConfiguratorModal
+                        leads={periodLeadBuckets.current}
+                        companyId={activeCompany?.id ?? null}
+                        onSave={handleSaveCustomWidget}
+                        onClose={() => { setShowConfigurator(false); setEditingWidget(null) }}
+                        editWidget={editingWidget}
+                    />
+                )}
             </div>
         </>
     )

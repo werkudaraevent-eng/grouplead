@@ -1,6 +1,10 @@
 "use client"
 
-import { SectionCard, SectionTitle, SectionSub, InsightCallout, CHART_COLORS, miniSelectStyle } from "./shared"
+import {
+    BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer, Cell, LabelList,
+} from "recharts"
+import { SectionCard, SectionTitle, SectionSub, InsightCallout, CHART_COLORS, miniSelectStyle, EllipsisTick } from "./shared"
+import { useHasMounted } from "@/hooks/use-has-mounted"
 
 interface StreamItem {
     name: string
@@ -13,9 +17,37 @@ interface StreamWidgetProps {
     setStreamToggle: (v: string) => void
 }
 
+function StreamTooltip({ active, payload }: any) {
+    if (!active || !payload?.length) return null
+    const d = payload[0].payload
+    return (
+        <div style={{
+            background: "#0f1729", color: "#fff", padding: "8px 11px", borderRadius: 8,
+            fontSize: 11, lineHeight: 1.6, boxShadow: "0 3px 12px rgba(0,0,0,.2)",
+        }}>
+            <div style={{ fontWeight: 700, marginBottom: 1 }}>{d.name}</div>
+            <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                <div style={{ width: 6, height: 6, borderRadius: 2, background: d.fill, flexShrink: 0 }} />
+                <span>Count: {d.value}</span>
+            </div>
+            <div style={{ opacity: 0.7 }}>{d.pctLabel}</div>
+        </div>
+    )
+}
+
 export function StreamWidget({ data, streamToggle, setStreamToggle }: StreamWidgetProps) {
+    const hasMounted = useHasMounted()
     const totalStream = data.reduce((s, d) => s + d.value, 0)
-    const maxStream = data[0]?.value || 1
+
+    const chartData = data.map((d, i) => {
+        const isUnspecified = d.name === "Unspecified"
+        return {
+            ...d,
+            fill: isUnspecified ? "#d1d5db" : CHART_COLORS[i % CHART_COLORS.length],
+            isUnspecified,
+            pctLabel: totalStream > 0 ? `${((d.value / totalStream) * 100).toFixed(1)}%` : "0%",
+        }
+    })
 
     return (
         <SectionCard>
@@ -32,24 +64,45 @@ export function StreamWidget({ data, streamToggle, setStreamToggle }: StreamWidg
             </div>
             <SectionSub>Business alignment distribution</SectionSub>
 
-            <div style={{ display: "flex", flexDirection: "column", gap: 7, flex: 1, minHeight: 0, overflowY: "auto" }}>
-                {data.map((d, i) => {
-                    const color = CHART_COLORS[i % CHART_COLORS.length]
-                    const isUnspecified = d.name === "Unspecified"
-                    const pct = totalStream > 0 ? (d.value / totalStream) * 100 : 0
-                    return (
-                        <div key={d.name} style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                            <div style={{ width: 85, fontSize: 10.5, fontWeight: 500, color: isUnspecified ? "#94a3b8" : "#5a6178", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", flexShrink: 0, fontStyle: isUnspecified ? "italic" : "normal" }}>
-                                {isUnspecified && <span style={{ marginRight: 2 }}>⚠</span>}{d.name}
-                            </div>
-                            <div style={{ flex: 1, height: 6, background: "#f1f3f5", borderRadius: 3, overflow: "hidden" }}>
-                                <div style={{ height: "100%", width: `${(d.value / maxStream) * 100}%`, background: isUnspecified ? "#e2e5ea" : color, borderRadius: 3, transition: "width .4s", borderStyle: isUnspecified ? "dashed" : "none" }} />
-                            </div>
-                            <span style={{ fontSize: 10.5, fontWeight: 700, color: "#0f1729", width: 18, textAlign: "right" as const, flexShrink: 0 }}>{d.value}</span>
-                            <span style={{ fontSize: 9.5, color: "#94a3b8", width: 30, flexShrink: 0 }}>({pct.toFixed(0)}%)</span>
-                        </div>
-                    )
-                })}
+            <div className="thin-scrollbar" style={{ flex: 1, minHeight: 0, overflowY: "auto", overflowX: "hidden" }}>
+                {hasMounted ? (
+                    <div style={{ width: "100%", height: Math.max(chartData.length * 36, 80) }}>
+                        <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={chartData} layout="vertical" margin={{ top: 0, right: 10, left: 0, bottom: 0 }}>
+                                <XAxis type="number" axisLine={false} tickLine={false} tick={{ fontSize: 9, fill: "#b0b8c8", fontWeight: 500 }} />
+                                <YAxis
+                                    type="category"
+                                    dataKey="name"
+                                    axisLine={false}
+                                    tickLine={false}
+                                    tick={<EllipsisTick width={85} fontSize={10.5} />}
+                                    width={85}
+                                />
+                                <RechartsTooltip content={<StreamTooltip />} cursor={{ fill: "rgba(0,0,0,.03)" }} />
+                                <Bar dataKey="value" radius={[0, 4, 4, 0]} barSize={14}>
+                                    {chartData.map((d, i) => (
+                                        <Cell
+                                            key={i}
+                                            fill={d.fill}
+                                            fillOpacity={d.isUnspecified ? 0.5 : 1}
+                                            strokeDasharray={d.isUnspecified ? "4 2" : undefined}
+                                            stroke={d.isUnspecified ? "#9ca3af" : undefined}
+                                            strokeWidth={d.isUnspecified ? 1 : 0}
+                                        />
+                                    ))}
+                                    <LabelList dataKey="value" position="right" style={{ fontSize: 9, fontWeight: 600, fill: "#64748b" }} />
+                                </Bar>
+                            </BarChart>
+                        </ResponsiveContainer>
+                    </div>
+                ) : (
+                    <div style={{
+                        height: "100%",
+                        borderRadius: 8,
+                        background: "linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%)",
+                        border: "1px solid #eef2f7",
+                    }} />
+                )}
             </div>
 
             {/* Insight */}

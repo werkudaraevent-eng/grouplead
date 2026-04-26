@@ -5,8 +5,26 @@ import { createClient } from "@/utils/supabase/client"
 import { useGoalData } from "@/features/goals/hooks/use-goal-data"
 import { useCompany } from "@/contexts/company-context"
 import { calculateAttainmentV2 } from "@/features/goals/lib/attainment-calculator"
-import { SectionCard, SectionTitle, SectionSub } from "./shared"
-import { TrendingUp, Target, ArrowDown, ArrowUp, Building2, PieChart, BarChart3 } from "lucide-react"
+import { SectionCard, SectionTitle, SectionSub, EmptyState } from "./shared"
+import { TrendingUp, Target, ArrowDown, ArrowUp, Building2, PieChart as PieChartIcon, BarChart3 } from "lucide-react"
+import { useHasMounted } from "@/hooks/use-has-mounted"
+import {
+  ResponsiveContainer,
+  RadialBarChart,
+  RadialBar,
+  PolarAngleAxis,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  CartesianGrid,
+  ReferenceLine,
+  PieChart,
+  Pie,
+  Cell,
+  Legend,
+} from "recharts"
 import type { GoalV2, LeadAttainmentInput } from "@/types/goals"
 
 // ─── Shared Helpers ─────────────────────────────────────────────────────────
@@ -18,11 +36,13 @@ function formatIDR(value: number): string {
   return `Rp${value.toLocaleString("id-ID")}`
 }
 
-function NoGoalData() {
+function NoGoalData({ message }: { message?: string }) {
   return (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", minHeight: 80 }}>
-      <span style={{ fontSize: 11.5, color: "#8892a4" }}>No goal data configured</span>
-    </div>
+    <EmptyState
+      message={message || "No active goal configured"}
+      cta="Configure Goals"
+      href="/settings"
+    />
   )
 }
 
@@ -35,12 +55,44 @@ function LoadingDot() {
   )
 }
 
+function ChartPlaceholder() {
+  return (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", flex: 1, minHeight: 60, color: "#cbd5e1", fontSize: 11 }}>
+      Loading chart…
+    </div>
+  )
+}
+
+/** Dark-themed tooltip used across all goal widgets */
+function GoalTooltip({ active, payload, label, formatter }: { active?: boolean; payload?: any[]; label?: string; formatter?: (v: number) => string }) {
+  if (!active || !payload?.length) return null
+  const fmt = formatter ?? formatIDR
+  return (
+    <div style={{
+      background: "#0f1729", color: "#fff", padding: "8px 11px", borderRadius: 8,
+      fontSize: 11, lineHeight: 1.6, boxShadow: "0 4px 16px rgba(0,0,0,.25)",
+    }}>
+      {label && <div style={{ fontWeight: 700, marginBottom: 1 }}>{label}</div>}
+      {payload.map((p: any, i: number) => (
+        <div key={i} style={{ display: "flex", gap: 6, alignItems: "center" }}>
+          <div style={{ width: 6, height: 6, borderRadius: 2, background: p.color ?? p.fill, flexShrink: 0 }} />
+          <span>{p.name}: {typeof p.value === "number" ? fmt(p.value) : p.value}</span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 // ─── 1. Goal Attainment Widget ──────────────────────────────────────────────
 
 export function GoalAttainmentWidget() {
   const data = useGoalData()
+  const mounted = useHasMounted()
   const pct = data.target > 0 ? (data.attainment / data.target) * 100 : 0
-  const barWidth = Math.min(pct, 100)
+  const clampedPct = Math.min(pct, 100)
+  const fillColor = pct >= 100 ? "#10b981" : pct >= 70 ? "#0ea5e9" : "#f59e0b"
+
+  const chartData = [{ name: "Attainment", value: clampedPct, fill: fillColor }]
 
   return (
     <SectionCard>
@@ -53,24 +105,49 @@ export function GoalAttainmentWidget() {
         <LoadingDot />
       ) : !data.goal ? (
         <NoGoalData />
+      ) : !mounted ? (
+        <ChartPlaceholder />
       ) : (
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center" }}>
-          <div style={{ fontSize: 22, fontWeight: 800, color: "#0f1729", letterSpacing: "-0.5px" }}>
-            {formatIDR(data.attainment)}
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+          <div style={{ flex: 1, minHeight: 80, width: "100%", position: "relative" }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <RadialBarChart
+                cx="50%"
+                cy="50%"
+                innerRadius="70%"
+                outerRadius="100%"
+                barSize={14}
+                data={chartData}
+                startAngle={90}
+                endAngle={-270}
+              >
+                <PolarAngleAxis type="number" domain={[0, 100]} angleAxisId={0} tick={false} />
+                <RadialBar
+                  background={{ fill: "#f1f5f9" }}
+                  dataKey="value"
+                  angleAxisId={0}
+                  cornerRadius={8}
+                />
+              </RadialBarChart>
+            </ResponsiveContainer>
+            {/* Center label */}
+            <div style={{
+              position: "absolute", top: "50%", left: "50%",
+              transform: "translate(-50%, -50%)",
+              textAlign: "center", pointerEvents: "none",
+            }}>
+              <div style={{ fontSize: 16, fontWeight: 800, color: fillColor, lineHeight: 1 }}>
+                {pct.toFixed(0)}%
+              </div>
+            </div>
           </div>
-          <div style={{ fontSize: 11, color: "#8892a4", marginTop: 2 }}>
-            {pct.toFixed(1)}% of {formatIDR(data.target)} target
-          </div>
-          <div style={{ marginTop: 10, height: 6, borderRadius: 4, background: "#f1f5f9", overflow: "hidden" }}>
-            <div
-              style={{
-                height: "100%",
-                borderRadius: 4,
-                background: pct >= 100 ? "#10b981" : pct >= 70 ? "#0ea5e9" : "#f59e0b",
-                width: `${barWidth}%`,
-                transition: "width 0.5s ease",
-              }}
-            />
+          <div style={{ textAlign: "center", marginTop: 4, flexShrink: 0 }}>
+            <div style={{ fontSize: 14, fontWeight: 800, color: "#0f1729", letterSpacing: "-0.3px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+              {formatIDR(data.attainment)}
+            </div>
+            <div style={{ fontSize: 10, color: "#8892a4", marginTop: 1 }}>
+              {pct.toFixed(1)}% of {formatIDR(data.target)}
+            </div>
           </div>
         </div>
       )}
@@ -82,6 +159,12 @@ export function GoalAttainmentWidget() {
 
 export function GoalForecastWidget() {
   const data = useGoalData()
+  const mounted = useHasMounted()
+
+  const chartData = [
+    { name: "Raw Pipeline", value: data.forecastRaw, fill: "#0ea5e9" },
+    { name: "Weighted Forecast", value: data.forecastWeighted, fill: "#6366f1" },
+  ]
 
   return (
     <SectionCard>
@@ -94,15 +177,34 @@ export function GoalForecastWidget() {
         <LoadingDot />
       ) : !data.goal ? (
         <NoGoalData />
+      ) : !mounted ? (
+        <ChartPlaceholder />
       ) : (
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", gap: 12 }}>
-          <div>
-            <div style={{ fontSize: 10.5, color: "#8892a4", marginBottom: 2 }}>Raw Pipeline</div>
-            <div style={{ fontSize: 20, fontWeight: 800, color: "#0f1729" }}>{formatIDR(data.forecastRaw)}</div>
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center" }}>
+          <div style={{ flex: 1, minHeight: 80, width: "100%" }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={chartData} barCategoryGap="30%">
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                <XAxis dataKey="name" tick={{ fontSize: 10, fill: "#8892a4" }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 10, fill: "#8892a4" }} axisLine={false} tickLine={false} tickFormatter={(v: number) => formatIDR(v)} width={60} />
+                <Tooltip content={<GoalTooltip />} cursor={{ fill: "rgba(0,0,0,.04)" }} />
+                <Bar dataKey="value" radius={[4, 4, 0, 0]} name="Amount">
+                  {chartData.map((entry, i) => (
+                    <Cell key={i} fill={entry.fill} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
           </div>
-          <div>
-            <div style={{ fontSize: 10.5, color: "#8892a4", marginBottom: 2 }}>Weighted Forecast</div>
-            <div style={{ fontSize: 20, fontWeight: 800, color: "#6366f1" }}>{formatIDR(data.forecastWeighted)}</div>
+          <div style={{ display: "flex", justifyContent: "space-around", marginTop: 4, flexShrink: 0 }}>
+            <div style={{ textAlign: "center" }}>
+              <div style={{ fontSize: 9, color: "#8892a4" }}>Raw Pipeline</div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "#0ea5e9" }}>{formatIDR(data.forecastRaw)}</div>
+            </div>
+            <div style={{ textAlign: "center" }}>
+              <div style={{ fontSize: 9, color: "#8892a4" }}>Weighted</div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "#6366f1" }}>{formatIDR(data.forecastWeighted)}</div>
+            </div>
           </div>
         </div>
       )}
@@ -114,8 +216,24 @@ export function GoalForecastWidget() {
 
 export function GoalVarianceWidget() {
   const data = useGoalData()
+  const mounted = useHasMounted()
+  // Positive gap = shortfall (target > attainment), negative gap = surplus
   const gapAttainment = data.target - data.attainment
   const gapWithForecast = data.target - (data.attainment + data.forecastWeighted)
+
+  // For the chart, we invert: surplus is positive bar, shortfall is negative bar
+  const chartData = [
+    {
+      name: "Gap to Target",
+      value: -gapAttainment, // negative when shortfall, positive when surplus
+      fill: gapAttainment > 0 ? "#ef4444" : "#10b981",
+    },
+    {
+      name: "Gap with Forecast",
+      value: -gapWithForecast,
+      fill: gapWithForecast > 0 ? "#ef4444" : "#10b981",
+    },
+  ]
 
   return (
     <SectionCard>
@@ -127,37 +245,45 @@ export function GoalVarianceWidget() {
         <LoadingDot />
       ) : !data.goal ? (
         <NoGoalData />
+      ) : !mounted ? (
+        <ChartPlaceholder />
       ) : (
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", gap: 14 }}>
-          <div>
-            <div style={{ fontSize: 10.5, color: "#8892a4", marginBottom: 3 }}>Gap to Target</div>
-            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center" }}>
+          <div style={{ flex: 1, minHeight: 80, width: "100%" }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={chartData} barCategoryGap="30%">
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                <XAxis dataKey="name" tick={{ fontSize: 10, fill: "#8892a4" }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 10, fill: "#8892a4" }} axisLine={false} tickLine={false} tickFormatter={(v: number) => formatIDR(v)} width={60} />
+                <Tooltip content={<GoalTooltip />} cursor={{ fill: "rgba(0,0,0,.04)" }} />
+                <ReferenceLine y={0} stroke="#94a3b8" strokeDasharray="3 3" />
+                <Bar dataKey="value" radius={[4, 4, 0, 0]} name="Gap">
+                  {chartData.map((entry, i) => (
+                    <Cell key={i} fill={entry.fill} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-around", marginTop: 4, flexShrink: 0 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
               {gapAttainment > 0 ? (
-                <ArrowDown style={{ width: 14, height: 14, color: "#ef4444" }} />
+                <ArrowDown style={{ width: 10, height: 10, color: "#ef4444" }} />
               ) : (
-                <ArrowUp style={{ width: 14, height: 14, color: "#10b981" }} />
+                <ArrowUp style={{ width: 10, height: 10, color: "#10b981" }} />
               )}
-              <span style={{ fontSize: 18, fontWeight: 800, color: gapAttainment > 0 ? "#ef4444" : "#10b981" }}>
-                {formatIDR(Math.abs(gapAttainment))}
-              </span>
-              <span style={{ fontSize: 10, color: "#8892a4" }}>
-                {gapAttainment > 0 ? "below target" : "above target"}
+              <span style={{ fontSize: 9, color: "#8892a4" }}>
+                {formatIDR(Math.abs(gapAttainment))} {gapAttainment > 0 ? "below" : "above"}
               </span>
             </div>
-          </div>
-          <div>
-            <div style={{ fontSize: 10.5, color: "#8892a4", marginBottom: 3 }}>Gap with Forecast</div>
-            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
               {gapWithForecast > 0 ? (
-                <ArrowDown style={{ width: 14, height: 14, color: "#f59e0b" }} />
+                <ArrowDown style={{ width: 10, height: 10, color: "#ef4444" }} />
               ) : (
-                <ArrowUp style={{ width: 14, height: 14, color: "#10b981" }} />
+                <ArrowUp style={{ width: 10, height: 10, color: "#10b981" }} />
               )}
-              <span style={{ fontSize: 18, fontWeight: 800, color: gapWithForecast > 0 ? "#f59e0b" : "#10b981" }}>
-                {formatIDR(Math.abs(gapWithForecast))}
-              </span>
-              <span style={{ fontSize: 10, color: "#8892a4" }}>
-                {gapWithForecast > 0 ? "projected shortfall" : "projected surplus"}
+              <span style={{ fontSize: 9, color: "#8892a4" }}>
+                {formatIDR(Math.abs(gapWithForecast))} {gapWithForecast > 0 ? "shortfall" : "surplus"}
               </span>
             </div>
           </div>
@@ -176,30 +302,28 @@ interface BreakdownRow { id: string; name: string; wonRevenue: number; target: n
 export function GoalCompanyBreakdownWidget() {
   const { activeCompany } = useCompany()
   const data = useGoalData()
+  const mounted = useHasMounted()
   const [rows, setRows] = useState<BreakdownRow[]>([])
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
     if (!data.goal || !activeCompany?.id) { setRows([]); return }
-    const goal = data.goal as GoalV2
-    if (!goal.breakdown_config?.length) { setRows([]); return }
 
     const load = async () => {
       setLoading(true)
       const supabase = createClient()
+      // Fetch leads with client_company join (CRM customers, NOT internal business units)
       const { data: leads } = await supabase
         .from("leads")
-        .select("id, actual_value, company_id, pipeline_stage:pipeline_stages!pipeline_stage_id(closed_status)")
+        .select("id, actual_value, client_company_id, client_company:client_companies!client_company_id(id, name), pipeline_stage:pipeline_stages!pipeline_stage_id(closed_status)")
         .eq("company_id", activeCompany.id)
 
-      const { data: companies } = await supabase.from("companies").select("id, name")
-      const companyMap = new Map((companies ?? []).map((c: { id: string; name: string }) => [c.id, c.name]))
-
       const grouped = new Map<string, { name: string; wonRevenue: number }>()
-      for (const lead of (leads ?? []) as Array<{ id: number; actual_value: number | null; company_id: string | null; pipeline_stage: { closed_status: string | null } | null }>) {
+      for (const lead of ((leads ?? []) as unknown) as Array<{ id: number; actual_value: number | null; client_company_id: string | null; client_company: { id: string; name: string } | null; pipeline_stage: { closed_status: string | null } | null }>) {
         if (lead.pipeline_stage?.closed_status !== "won") continue
-        const cid = lead.company_id ?? "unassigned"
-        const existing = grouped.get(cid) ?? { name: companyMap.get(cid) ?? cid, wonRevenue: 0 }
+        const cid = lead.client_company_id ?? "unassigned"
+        const cname = lead.client_company?.name ?? "Unknown Company"
+        const existing = grouped.get(cid) ?? { name: cname, wonRevenue: 0 }
         existing.wonRevenue += lead.actual_value ?? 0
         grouped.set(cid, existing)
       }
@@ -219,28 +343,34 @@ export function GoalCompanyBreakdownWidget() {
     <SectionCard>
       <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
         <Building2 style={{ width: 13, height: 13, color: "#8892a4" }} />
-        <SectionTitle>By Company</SectionTitle>
+        <SectionTitle>By Client Company</SectionTitle>
       </div>
-      <SectionSub>Goal breakdown by company</SectionSub>
+      <SectionSub>Won revenue by client company</SectionSub>
       {data.loading || loading ? (
         <LoadingDot />
       ) : !data.goal ? (
         <NoGoalData />
       ) : rows.length === 0 ? (
         <div style={{ fontSize: 11, color: "#8892a4" }}>No breakdown data.</div>
+      ) : !mounted ? (
+        <ChartPlaceholder />
       ) : (
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 6 }}>
-          {rows.map((row, i) => (
-            <div key={row.id}>
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, marginBottom: 3 }}>
-                <span style={{ fontWeight: 600, color: "#0f1729" }}>{row.name}</span>
-                <span style={{ color: "#8892a4" }}>{formatIDR(row.wonRevenue)}</span>
-              </div>
-              <div style={{ height: 4, borderRadius: 2, background: "#f1f5f9", overflow: "hidden" }}>
-                <div style={{ height: "100%", borderRadius: 2, background: COLORS[i % COLORS.length], width: "100%", transition: "width 0.4s ease" }} />
-              </div>
-            </div>
-          ))}
+        <div className="thin-scrollbar" style={{ flex: 1, width: "100%", minHeight: 0, overflowY: "auto", overflowX: "hidden" }}>
+          <div style={{ width: "100%", height: Math.max(rows.length * 36, 80) }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={rows} layout="vertical" barCategoryGap="20%" margin={{ left: 0, right: 12, top: 4, bottom: 4 }}>
+                <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
+                <XAxis type="number" tick={{ fontSize: 10, fill: "#8892a4" }} axisLine={false} tickLine={false} tickFormatter={(v: number) => formatIDR(v)} />
+                <YAxis type="category" dataKey="name" tick={{ fontSize: 10, fill: "#0f1729", fontWeight: 600 }} axisLine={false} tickLine={false} width={80} />
+                <Tooltip content={<GoalTooltip />} cursor={{ fill: "rgba(0,0,0,.04)" }} />
+                <Bar dataKey="wonRevenue" name="Revenue" radius={[0, 4, 4, 0]}>
+                  {rows.map((_, i) => (
+                    <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
         </div>
       )}
     </SectionCard>
@@ -252,6 +382,7 @@ export function GoalCompanyBreakdownWidget() {
 export function GoalSegmentBreakdownWidget() {
   const { activeCompany } = useCompany()
   const data = useGoalData()
+  const mounted = useHasMounted()
   const [rows, setRows] = useState<Array<{ name: string; wonRevenue: number }>>([])
   const [loading, setLoading] = useState(false)
 
@@ -270,7 +401,7 @@ export function GoalSegmentBreakdownWidget() {
       if (!segments.length) { setRows([]); setLoading(false); return }
 
       const seg = segments[0] as { source_field: string; fallback_name: string; mappings: Array<{ segment_name: string; match_values: string[] }> }
-      const leads = (leadsRes.data ?? []) as Array<{ id: number; actual_value: number | null; pipeline_stage: { closed_status: string | null } | null; [key: string]: unknown }>
+      const leads = ((leadsRes.data ?? []) as unknown) as Array<{ id: number; actual_value: number | null; pipeline_stage: { closed_status: string | null } | null; [key: string]: unknown }>
 
       const totals = new Map<string, number>()
       for (const lead of leads) {
@@ -293,10 +424,46 @@ export function GoalSegmentBreakdownWidget() {
 
   const total = rows.reduce((s, r) => s + r.wonRevenue, 0)
 
+  const pieData = rows.map((r, i) => ({
+    name: r.name,
+    value: r.wonRevenue,
+    fill: COLORS[i % COLORS.length],
+    share: total > 0 ? ((r.wonRevenue / total) * 100).toFixed(1) : "0",
+  }))
+
+  const renderLegend = () => (
+    <div style={{ display: "flex", flexDirection: "column", gap: 3, marginTop: 4, maxHeight: 80, overflowY: "auto", flexShrink: 0 }}>
+      {pieData.map((entry, i) => (
+        <div key={entry.name} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 10 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+            <div style={{ width: 7, height: 7, borderRadius: "50%", background: entry.fill, flexShrink: 0 }} />
+            <span style={{ fontWeight: 600, color: "#0f1729" }}>{entry.name}</span>
+          </div>
+          <span style={{ color: "#8892a4" }}>{formatIDR(entry.value)} ({entry.share}%)</span>
+        </div>
+      ))}
+    </div>
+  )
+
+  const SegmentTooltip = ({ active, payload }: { active?: boolean; payload?: any[] }) => {
+    if (!active || !payload?.length) return null
+    const d = payload[0].payload
+    return (
+      <div style={{
+        background: "#0f1729", color: "#fff", padding: "8px 11px", borderRadius: 8,
+        fontSize: 11, lineHeight: 1.6, boxShadow: "0 4px 16px rgba(0,0,0,.25)",
+      }}>
+        <div style={{ fontWeight: 700, marginBottom: 1 }}>{d.name}</div>
+        <div>Revenue: {formatIDR(d.value)}</div>
+        <div>Share: {d.share}%</div>
+      </div>
+    )
+  }
+
   return (
     <SectionCard>
       <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
-        <PieChart style={{ width: 13, height: 13, color: "#8892a4" }} />
+        <PieChartIcon style={{ width: 13, height: 13, color: "#8892a4" }} />
         <SectionTitle>By Segment</SectionTitle>
       </div>
       <SectionSub>Goal breakdown by segment</SectionSub>
@@ -306,20 +473,33 @@ export function GoalSegmentBreakdownWidget() {
         <NoGoalData />
       ) : rows.length === 0 ? (
         <div style={{ fontSize: 11, color: "#8892a4" }}>No segment data.</div>
+      ) : !mounted ? (
+        <ChartPlaceholder />
       ) : (
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 4 }}>
-          {rows.map((row, i) => {
-            const share = total > 0 ? (row.wonRevenue / total) * 100 : 0
-            return (
-              <div key={row.name} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 11, padding: "2px 0" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <div style={{ width: 7, height: 7, borderRadius: "50%", background: COLORS[i % COLORS.length], flexShrink: 0 }} />
-                  <span style={{ fontWeight: 600, color: "#0f1729" }}>{row.name}</span>
-                </div>
-                <span style={{ color: "#8892a4" }}>{formatIDR(row.wonRevenue)} ({share.toFixed(0)}%)</span>
-              </div>
-            )
-          })}
+        <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+          <div style={{ flex: 1, minHeight: 80, width: "100%" }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={pieData}
+                  dataKey="value"
+                  nameKey="name"
+                  cx="50%"
+                  cy="50%"
+                  innerRadius="50%"
+                  outerRadius="80%"
+                  paddingAngle={2}
+                  strokeWidth={0}
+                >
+                  {pieData.map((entry, i) => (
+                    <Cell key={i} fill={entry.fill} />
+                  ))}
+                </Pie>
+                <Tooltip content={<SegmentTooltip />} />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+          {renderLegend()}
         </div>
       )}
     </SectionCard>
@@ -333,6 +513,7 @@ interface TrendEntry { label: string; attainment: number; target: number }
 export function GoalTrendWidget() {
   const { activeCompany } = useCompany()
   const data = useGoalData()
+  const mounted = useHasMounted()
   const [entries, setEntries] = useState<TrendEntry[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -356,7 +537,7 @@ export function GoalTrendWidget() {
         monthMap.set(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`, [])
       }
 
-      for (const lead of (leads ?? []) as Array<{ id: number; actual_value: number | null; event_date_end: string | null; event_date_start: string | null; closed_won_date: string | null; pipeline_stage: { closed_status: string | null } | null }>) {
+      for (const lead of ((leads ?? []) as unknown) as Array<{ id: number; actual_value: number | null; event_date_end: string | null; event_date_start: string | null; closed_won_date: string | null; pipeline_stage: { closed_status: string | null } | null }>) {
         const dateStr = goal.attribution_basis === "closed_won_date" ? lead.closed_won_date : (lead.event_date_end ?? lead.event_date_start)
         if (!dateStr) continue
         const d = new Date(dateStr)
@@ -366,11 +547,23 @@ export function GoalTrendWidget() {
         monthMap.get(key)!.push({ id: lead.id, actual_value: lead.actual_value, is_closed_won: lead.pipeline_stage?.closed_status === "won" })
       }
 
+      // Calculate monthly target using same priority as revenue chart:
+      // monthly_weights > equal distribution
+      const hasMonthlyWeights = goal.monthly_weights && Object.keys(goal.monthly_weights).length > 0
+
       const trendData: TrendEntry[] = Array.from(monthMap.entries()).map(([key, monthLeads]) => {
         const [year, month] = key.split("-")
-        const label = new Date(Number(year), Number(month) - 1, 1).toLocaleDateString("id-ID", { month: "short", year: "2-digit" })
+        const monthIdx = Number(month) // 1-12
+        const label = new Date(Number(year), monthIdx - 1, 1).toLocaleDateString("id-ID", { month: "short", year: "2-digit" })
         const { total } = calculateAttainmentV2(monthLeads)
-        return { label, attainment: total, target: goal.target_amount / 12 }
+
+        let monthTarget = goal.target_amount / 12
+        if (hasMonthlyWeights) {
+          const weight = goal.monthly_weights![String(monthIdx)] || (1 / 12)
+          monthTarget = goal.target_amount * weight
+        }
+
+        return { label, attainment: total, target: monthTarget }
       })
 
       setEntries(trendData)
@@ -379,8 +572,6 @@ export function GoalTrendWidget() {
 
     fetchTrend()
   }, [data.goal, activeCompany?.id])
-
-  const maxVal = Math.max(...entries.map((e) => Math.max(e.attainment, e.target, 1)), 1)
 
   return (
     <SectionCard>
@@ -395,21 +586,20 @@ export function GoalTrendWidget() {
         <NoGoalData />
       ) : entries.length === 0 ? (
         <div style={{ fontSize: 11, color: "#8892a4" }}>No trend data.</div>
+      ) : !mounted ? (
+        <ChartPlaceholder />
       ) : (
-        <div style={{ flex: 1, display: "flex", alignItems: "flex-end", gap: 4, minHeight: 100 }}>
-          {entries.map((entry, i) => {
-            const attH = (entry.attainment / maxVal) * 100
-            const tgtH = (entry.target / maxVal) * 100
-            return (
-              <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
-                <div style={{ display: "flex", alignItems: "flex-end", gap: 1, height: 80 }}>
-                  <div style={{ width: 10, borderRadius: "3px 3px 0 0", background: "#10b981", height: `${attH}%`, transition: "height 0.4s ease" }} title={`Attainment: ${formatIDR(entry.attainment)}`} />
-                  <div style={{ width: 10, borderRadius: "3px 3px 0 0", background: "#cbd5e1", height: `${tgtH}%`, transition: "height 0.4s ease" }} title={`Target: ${formatIDR(entry.target)}`} />
-                </div>
-                <span style={{ fontSize: 9, color: "#8892a4" }}>{entry.label}</span>
-              </div>
-            )
-          })}
+        <div style={{ flex: 1, width: "100%", minHeight: 0 }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={entries} barCategoryGap="20%" margin={{ left: 0, right: 4, top: 4, bottom: 4 }}>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+              <XAxis dataKey="label" tick={{ fontSize: 9, fill: "#8892a4" }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fontSize: 10, fill: "#8892a4" }} axisLine={false} tickLine={false} tickFormatter={(v: number) => formatIDR(v)} width={55} />
+              <Tooltip content={<GoalTooltip />} cursor={{ fill: "rgba(0,0,0,.04)" }} />
+              <Bar dataKey="attainment" name="Attainment" fill="#10b981" radius={[3, 3, 0, 0]} />
+              <Bar dataKey="target" name="Target" fill="#cbd5e1" radius={[3, 3, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
         </div>
       )}
     </SectionCard>

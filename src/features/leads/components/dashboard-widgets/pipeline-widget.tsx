@@ -1,8 +1,12 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
-import { resolveStageColor, toRgba } from "@/features/leads/lib/stage-color"
-import { CHART_COLORS, formatPct, formatSignedPct } from "./shared"
+import {
+    BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip,
+    ResponsiveContainer, Cell, LabelList,
+} from "recharts"
+import { resolveStageColor } from "@/features/leads/lib/stage-color"
+import { useHasMounted } from "@/hooks/use-has-mounted"
+import { SectionCard, SectionTitle, SectionSub, CHART_COLORS, formatPct, formatSignedPct, EllipsisTick } from "./shared"
 
 interface PipelineStageData {
     id: string
@@ -21,136 +25,81 @@ interface PipelineWidgetProps {
     comparisonLabel: string
 }
 
-export function PipelineWidget({ data, comparisonLabel }: PipelineWidgetProps) {
-    const [hovIdx, setHovIdx] = useState<number | null>(null)
-    const [showTopFade, setShowTopFade] = useState(false)
-    const [showBottomFade, setShowBottomFade] = useState(false)
-    const scrollRef = useRef<HTMLDivElement | null>(null)
-    const maxCount = Math.max(...data.map(d => d.count), 1)
-
-    useEffect(() => {
-        const el = scrollRef.current
-        if (!el) return
-        const updateScrollState = () => {
-            const { scrollTop, scrollHeight, clientHeight } = el
-            setShowTopFade(scrollTop > 4)
-            setShowBottomFade(scrollTop + clientHeight < scrollHeight - 4)
-        }
-        updateScrollState()
-        el.addEventListener("scroll", updateScrollState, { passive: true })
-        window.addEventListener("resize", updateScrollState)
-        return () => {
-            el.removeEventListener("scroll", updateScrollState)
-            window.removeEventListener("resize", updateScrollState)
-        }
-    }, [data])
-
+function PipelineTooltip({ active, payload, comparisonLabel }: any) {
+    if (!active || !payload?.[0]) return null
+    const d = payload[0].payload as PipelineStageData
     return (
         <div style={{
-            background: "#fff", borderRadius: 10, padding: 16,
-            border: "1px solid #e5e8ed", boxShadow: "0 1px 2px rgba(0,0,0,.03)",
-            height: "100%",
-            display: "flex",
-            flexDirection: "column",
-            position: "relative",
-            overflow: "hidden",
+            background: "#0f1729", color: "#fff", padding: "8px 11px", borderRadius: 8,
+            fontSize: 11, lineHeight: 1.6, boxShadow: "0 3px 12px rgba(0,0,0,.2)",
         }}>
-            <div style={{ fontSize: 12.5, fontWeight: 700, color: "#0f1729", marginBottom: 1 }}>Pipeline Stages</div>
-            <div style={{ fontSize: 10.5, color: "#8892a4", marginBottom: 14 }}>Lead distribution by stage</div>
-
-            <div style={{ position: "relative", flex: 1, minHeight: 0 }}>
-                {showTopFade && (
-                    <div style={{
-                        position: "absolute", top: 0, left: 0, right: 8, height: 18,
-                        background: "linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(255,255,255,0) 100%)",
-                        zIndex: 2, pointerEvents: "none",
-                    }} />
-                )}
-                {showBottomFade && (
-                    <div style={{
-                        position: "absolute", bottom: 0, left: 0, right: 8, height: 24,
-                        background: "linear-gradient(180deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.98) 100%)",
-                        zIndex: 2, pointerEvents: "none",
-                    }} />
-                )}
-                <div
-                    ref={scrollRef}
-                    className="pipeline-stages-scroll"
-                    style={{
-                        display: "flex", flexDirection: "column", gap: 10,
-                        overflowY: "auto", paddingRight: 6,
-                        scrollbarWidth: "thin", scrollbarColor: "#cbd5e1 transparent",
-                        maxHeight: "100%",
-                    }}
-                >
-                    {data.map((p, i) => {
-                        const color = resolveStageColor(p.color, CHART_COLORS[i % CHART_COLORS.length])
-                        return (
-                            <div key={p.id}
-                                onMouseEnter={() => setHovIdx(i)} onMouseLeave={() => setHovIdx(null)}
-                                style={{ cursor: "default", position: "relative" }}
-                            >
-                                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
-                                    <span style={{ fontSize: 11, fontWeight: 500, color: hovIdx === i ? "#0f1729" : "#5a6178", transition: "color .12s" }}>{p.name}</span>
-                                    <span style={{
-                                        fontSize: 10, fontWeight: 700,
-                                        color: hovIdx === i ? "#fff" : color,
-                                        background: hovIdx === i ? color : toRgba(color, 0.12),
-                                        border: `1px solid ${toRgba(color, hovIdx === i ? 0.35 : 0.22)}`,
-                                        padding: "0 5px", borderRadius: 3, minWidth: 20, textAlign: "center" as const,
-                                        transition: "background .12s, color .12s, border-color .12s", lineHeight: "16px",
-                                    }}>{p.count}</span>
-                                </div>
-                                <div style={{ height: 5, background: "#f1f3f5", borderRadius: 3, overflow: "hidden" }}>
-                                    <div style={{
-                                        height: "100%", width: `${(p.count / maxCount) * 100}%`,
-                                        background: `linear-gradient(90deg, ${color}, ${toRgba(color, 0.72)})`,
-                                        borderRadius: 3, transition: "width .45s ease",
-                                    }} />
-                                </div>
-                                {hovIdx === i && (
-                                    <div style={{
-                                        position: "absolute", top: 28, left: 0, zIndex: 10,
-                                        minWidth: 220, maxWidth: 280, padding: "8px 10px",
-                                        background: "#0f1729", boxShadow: "0 8px 24px rgba(15, 23, 41, 0.22)",
-                                        borderRadius: 10, pointerEvents: "none",
-                                    }}>
-                                        <div style={{
-                                            position: "absolute", top: -6, left: 18,
-                                            width: 12, height: 12, background: "#0f1729",
-                                            transform: "rotate(45deg)", borderRadius: 2,
-                                        }} />
-                                        <div style={{ fontSize: 10.5, fontWeight: 700, color: "#fff", position: "relative" }}>
-                                            {formatPct(p.share)} of current leads
-                                        </div>
-                                        <div style={{ fontSize: 9.5, color: "#cbd5e1", marginTop: 3, position: "relative" }}>
-                                            {comparisonLabel}: {p.previousCount} lead{p.previousCount === 1 ? "" : "s"} ({formatPct(p.previousShare)})
-                                        </div>
-                                        <div style={{
-                                            fontSize: 9.5, fontWeight: 600,
-                                            color: p.shareDelta >= 0 ? "#6ee7b7" : "#fca5a5",
-                                            marginTop: 3, position: "relative",
-                                        }}>
-                                            YoY share: {formatSignedPct(p.shareDelta, " pts")}
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        )
-                    })}
-                </div>
+            <div style={{ fontWeight: 700, marginBottom: 1 }}>{d.name}</div>
+            <div>Count: {d.count} ({formatPct(d.share)} of current leads)</div>
+            <div style={{ opacity: 0.7 }}>
+                {comparisonLabel}: {d.previousCount} lead{d.previousCount === 1 ? "" : "s"} ({formatPct(d.previousShare)})
             </div>
-            <style jsx>{`
-                .pipeline-stages-scroll::-webkit-scrollbar { width: 8px; }
-                .pipeline-stages-scroll::-webkit-scrollbar-track { background: transparent; }
-                .pipeline-stages-scroll::-webkit-scrollbar-thumb {
-                    background: #d7dee9; border-radius: 999px;
-                    border: 2px solid transparent; background-clip: padding-box;
-                }
-                .pipeline-stages-scroll::-webkit-scrollbar-thumb:hover {
-                    background: #c0c9d8; border: 2px solid transparent; background-clip: padding-box;
-                }
-            `}</style>
+            <div style={{
+                fontWeight: 600,
+                color: d.shareDelta >= 0 ? "#6ee7b7" : "#fca5a5",
+            }}>
+                YoY share: {formatSignedPct(d.shareDelta, " pts")}
+            </div>
         </div>
+    )
+}
+
+export function PipelineWidget({ data, comparisonLabel }: PipelineWidgetProps) {
+    const hasMounted = useHasMounted()
+
+    const chartData = data.map((d, i) => ({
+        ...d,
+        _color: resolveStageColor(d.color, CHART_COLORS[i % CHART_COLORS.length]),
+    }))
+
+    return (
+        <SectionCard>
+            <SectionTitle>Pipeline Stages</SectionTitle>
+            <SectionSub>Lead distribution by stage</SectionSub>
+            <div className="thin-scrollbar" style={{ flex: 1, minHeight: 0, overflowY: "auto", overflowX: "hidden" }}>
+                {hasMounted ? (
+                    <div style={{ width: "100%", height: Math.max(chartData.length * 36, 80) }}>
+                        <ResponsiveContainer width="100%" height="100%">
+                            <BarChart
+                                data={chartData}
+                                layout="vertical"
+                                margin={{ top: 0, right: 12, left: 0, bottom: 0 }}
+                            >
+                                <XAxis type="number" axisLine={false} tickLine={false} tick={{ fontSize: 9, fill: "#b0b8c8", fontWeight: 500 }} />
+                                <YAxis
+                                    type="category"
+                                    dataKey="name"
+                                    axisLine={false}
+                                    tickLine={false}
+                                    tick={<EllipsisTick width={90} fontSize={10.5} />}
+                                    width={90}
+                                />
+                                <RechartsTooltip
+                                    content={<PipelineTooltip comparisonLabel={comparisonLabel} />}
+                                    cursor={{ fill: "rgba(99,102,241,0.04)" }}
+                                />
+                                <Bar dataKey="count" radius={[0, 3, 3, 0]} barSize={14}>
+                                    {chartData.map((entry, i) => (
+                                        <Cell key={entry.id} fill={entry._color} />
+                                    ))}
+                                    <LabelList dataKey="count" position="right" style={{ fontSize: 9, fontWeight: 600, fill: "#64748b" }} />
+                                </Bar>
+                            </BarChart>
+                        </ResponsiveContainer>
+                    </div>
+                ) : (
+                    <div style={{
+                        height: "100%",
+                        borderRadius: 8,
+                        background: "linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%)",
+                        border: "1px solid #eef2f7",
+                    }} />
+                )}
+            </div>
+        </SectionCard>
     )
 }

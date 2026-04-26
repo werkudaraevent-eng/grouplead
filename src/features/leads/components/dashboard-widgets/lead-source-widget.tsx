@@ -1,6 +1,10 @@
 "use client"
 
-import { SectionCard, SectionTitle, SectionSub, InsightCallout, CHART_COLORS } from "./shared"
+import {
+    BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer, Cell, LabelList,
+} from "recharts"
+import { SectionCard, SectionTitle, SectionSub, InsightCallout, CHART_COLORS, EllipsisTick } from "./shared"
+import { useHasMounted } from "@/hooks/use-has-mounted"
 
 interface SourceItem {
     name: string
@@ -11,39 +15,74 @@ interface LeadSourceWidgetProps {
     data: SourceItem[]
 }
 
+function SourceTooltip({ active, payload }: any) {
+    if (!active || !payload?.length) return null
+    const d = payload[0].payload
+    return (
+        <div style={{
+            background: "#0f1729", color: "#fff", padding: "8px 11px", borderRadius: 8,
+            fontSize: 11, lineHeight: 1.6, boxShadow: "0 3px 12px rgba(0,0,0,.2)",
+        }}>
+            <div style={{ fontWeight: 700, marginBottom: 1 }}>{d.name}</div>
+            <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                <div style={{ width: 6, height: 6, borderRadius: 2, background: d.fill, flexShrink: 0 }} />
+                <span>Count: {d.value}</span>
+            </div>
+            <div style={{ opacity: 0.7 }}>{d.pctLabel}</div>
+        </div>
+    )
+}
+
 export function LeadSourceWidget({ data }: LeadSourceWidgetProps) {
+    const hasMounted = useHasMounted()
     const totalLeads = data.reduce((s, d) => s + d.value, 0)
     const sourceColors: Record<string, string> = { "Referral": "#6366f1", "Event Partnership": "#8b5cf6", "Direct Request": "#0ea5e9", "Cold Call": "#f59e0b", "Repeat Client": "#10b981" }
+
+    const chartData = data.map((d, i) => ({
+        ...d,
+        fill: sourceColors[d.name] || CHART_COLORS[i % CHART_COLORS.length],
+        pctLabel: totalLeads > 0 ? `${((d.value / totalLeads) * 100).toFixed(1)}%` : "0%",
+    }))
 
     return (
         <SectionCard>
             <SectionTitle>Lead Source</SectionTitle>
             <SectionSub>Origin channel distribution</SectionSub>
 
-            {/* Stacked bar */}
-            <div style={{ display: "flex", height: 10, borderRadius: 5, overflow: "hidden", marginBottom: 12 }}>
-                {data.map((d, i) => (
-                    <div key={d.name} style={{ width: `${(d.value / totalLeads) * 100}%`, background: sourceColors[d.name] || CHART_COLORS[i % CHART_COLORS.length], transition: "width .4s ease" }} />
-                ))}
-            </div>
-            <div style={{ fontSize: 9, color: "#94a3b8", textAlign: "right" as const, marginTop: -8, marginBottom: 8 }}>Total: {totalLeads}</div>
+            <div style={{ fontSize: 9, color: "#94a3b8", textAlign: "right" as const, marginBottom: 4 }}>Total: {totalLeads}</div>
 
-            {/* Breakdown list */}
-            <div style={{ display: "flex", flexDirection: "column", gap: 6, flex: 1, minHeight: 0, overflowY: "auto" }}>
-                {data.map((d, i) => {
-                    const color = sourceColors[d.name] || CHART_COLORS[i % CHART_COLORS.length]
-                    const pct = totalLeads > 0 ? (d.value / totalLeads) * 100 : 0
-                    return (
-                        <div key={d.name} style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                            <div style={{ width: 75, fontSize: 10.5, fontWeight: 500, color: "#5a6178", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", flexShrink: 0 }}>{d.name}</div>
-                            <div style={{ flex: 1, height: 6, background: "#f1f3f5", borderRadius: 3, overflow: "hidden" }}>
-                                <div style={{ height: "100%", width: `${pct}%`, background: color, borderRadius: 3, transition: "width .4s" }} />
-                            </div>
-                            <span style={{ fontSize: 10.5, fontWeight: 700, color: "#0f1729", width: 20, textAlign: "right" as const, flexShrink: 0 }}>{d.value}</span>
-                            <span style={{ fontSize: 9.5, color: "#94a3b8", width: 30, flexShrink: 0 }}>({pct.toFixed(0)}%)</span>
-                        </div>
-                    )
-                })}
+            <div className="thin-scrollbar" style={{ flex: 1, minHeight: 0, overflowY: "auto", overflowX: "hidden" }}>
+                {hasMounted ? (
+                    <div style={{ width: "100%", height: Math.max(chartData.length * 36, 80) }}>
+                        <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={chartData} layout="vertical" margin={{ top: 0, right: 10, left: 0, bottom: 0 }}>
+                                <XAxis type="number" axisLine={false} tickLine={false} tick={{ fontSize: 9, fill: "#b0b8c8", fontWeight: 500 }} />
+                                <YAxis
+                                    type="category"
+                                    dataKey="name"
+                                    axisLine={false}
+                                    tickLine={false}
+                                    tick={<EllipsisTick width={80} fontSize={10.5} />}
+                                    width={80}
+                                />
+                                <RechartsTooltip content={<SourceTooltip />} cursor={{ fill: "rgba(0,0,0,.03)" }} />
+                                <Bar dataKey="value" radius={[0, 4, 4, 0]} barSize={14}>
+                                    {chartData.map((d, i) => (
+                                        <Cell key={i} fill={d.fill} />
+                                    ))}
+                                    <LabelList dataKey="value" position="right" style={{ fontSize: 9, fontWeight: 600, fill: "#64748b" }} />
+                                </Bar>
+                            </BarChart>
+                        </ResponsiveContainer>
+                    </div>
+                ) : (
+                    <div style={{
+                        height: "100%",
+                        borderRadius: 8,
+                        background: "linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%)",
+                        border: "1px solid #eef2f7",
+                    }} />
+                )}
             </div>
 
             {/* Insight */}

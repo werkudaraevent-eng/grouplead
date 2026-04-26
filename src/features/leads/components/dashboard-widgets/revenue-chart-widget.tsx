@@ -2,9 +2,11 @@
 
 import {
     ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid,
-    Tooltip as RechartsTooltip, ResponsiveContainer, Legend,
+    Tooltip as RechartsTooltip, ResponsiveContainer, Legend, LabelList,
 } from "recharts"
 import { SectionCard, SectionTitle, SectionSub, DarkTooltip, formatCur, miniSelectStyle } from "./shared"
+
+export type RevenueBasis = "revenue_recognition" | "closed_won"
 
 interface RevenueDataPoint {
     month: string
@@ -21,30 +23,46 @@ interface RevenueChartWidgetProps {
     setTrendYear: (year: number) => void
     availableYears: number[]
     hasMounted: boolean
+    revenueBasis: RevenueBasis
+    setRevenueBasis: (basis: RevenueBasis) => void
 }
 
-export function RevenueChartWidget({ data, trendYear, setTrendYear, availableYears, hasMounted }: RevenueChartWidgetProps) {
+export function RevenueChartWidget({ data, trendYear, setTrendYear, availableYears, hasMounted, revenueBasis, setRevenueBasis }: RevenueChartWidgetProps) {
+    const basisLabel = revenueBasis === "revenue_recognition" ? "Revenue Recognition Month" : "Closed Won Date"
+
     return (
         <SectionCard style={{ alignSelf: "stretch" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
                 <div>
                     <SectionTitle>Monthly Revenue vs Target</SectionTitle>
-                    <SectionSub>Actual vs Target vs Last Year</SectionSub>
+                    <SectionSub>By {basisLabel}</SectionSub>
                 </div>
-                <select style={miniSelectStyle} value={trendYear} onChange={e => setTrendYear(Number(e.target.value))}>
-                    {availableYears.map(y => <option key={y} value={y}>{y}</option>)}
-                </select>
+                <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                    <select
+                        style={{ ...miniSelectStyle, fontSize: 10 }}
+                        value={revenueBasis}
+                        onChange={e => setRevenueBasis(e.target.value as RevenueBasis)}
+                    >
+                        <option value="revenue_recognition">Rev. Recognition</option>
+                        <option value="closed_won">Closed Won Date</option>
+                    </select>
+                    <select style={miniSelectStyle} value={trendYear} onChange={e => setTrendYear(Number(e.target.value))}>
+                        {availableYears.map(y => <option key={y} value={y}>{y}</option>)}
+                    </select>
+                </div>
             </div>
             <div style={{ flex: 1, minHeight: 0, width: "100%" }}>
                 {hasMounted ? (
                     <ResponsiveContainer width="100%" height="100%">
-                        <ComposedChart data={data} margin={{ top: 5, right: 5, left: 0, bottom: 0 }}>
+                        <ComposedChart data={data} margin={{ top: 15, right: 5, left: 0, bottom: 0 }}>
                             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f3f5" />
                             <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fontSize: 9, fill: '#94a3b8', fontWeight: 500 }} dy={8} />
                             <YAxis yAxisId="left" tickFormatter={formatCur} axisLine={false} tickLine={false} tick={{ fontSize: 9, fill: '#b0b8c8', fontWeight: 500 }} dx={-5} width={55} />
                             <RechartsTooltip content={<DarkTooltip />} />
                             <Legend wrapperStyle={{ paddingTop: '6px', fontSize: '9.5px', fontWeight: 500 }} />
-                            <Bar yAxisId="left" dataKey="actual" name={`Actual ${trendYear}`} barSize={20} fill="#6366f1" radius={[3, 3, 0, 0]} />
+                            <Bar yAxisId="left" dataKey="actual" name={`Actual ${trendYear}`} barSize={20} fill="#6366f1" radius={[3, 3, 0, 0]}>
+                                <LabelList dataKey="actual" position="top" formatter={formatCur} style={{ fontSize: 8, fontWeight: 600, fill: "#64748b" }} />
+                            </Bar>
                             <Bar yAxisId="left" dataKey="prevYear" name={`Last Year`} barSize={12} fill="#ddd6fe" radius={[3, 3, 0, 0]} />
                             <Line yAxisId="left" type="step" dataKey="target" name="Target" stroke="#c0c7d2" strokeWidth={1.5} strokeDasharray="4 4" dot={false} />
                         </ComposedChart>
