@@ -170,6 +170,10 @@ export interface Lead {
     // Description / Initial Inquiry
     description: string | null;
 
+    // Closed dates (auto-stamped on stage transition, editable for imports)
+    closed_won_date: string | null;
+    closed_lost_date: string | null;
+
     // Status
     status: string | null;
     cancel_lost_reason: string | null;

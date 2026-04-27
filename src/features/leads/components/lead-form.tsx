@@ -34,7 +34,7 @@ import { formatTabLabel, getVisibleTabIds } from "@/features/settings/lib/form-l
 import { DynamicField } from "./dynamic-field"
 
 const DEFAULT_LAYOUT: LayoutItemsMap = {
-    project: ["native:project_name", "native:pipeline_stage_id", "native:category", "native:grade_lead", "native:client_company_id", "native:contact_id", "native:pic_sales_id", "native:lead_source", "native:referral_source", "native:target_close_date"],
+    project: ["native:project_name", "native:pipeline_stage_id", "native:category", "native:grade_lead", "native:client_company_id", "native:account_status", "native:contact_id", "native:pic_sales_id", "native:lead_source", "native:referral_source", "native:target_close_date"],
     event: ["native:event_dates", "native:month_event", "native:pax_count", "native:event_format", "native:destinations", "native:virtual_platform"],
     classification: ["native:main_stream", "native:stream_type", "native:business_purpose", "native:area"],
     financial: ["native:estimated_value"],
@@ -64,6 +64,8 @@ const addLeadSchema = z.object({
     referral_source: z.string().nullable().optional(),
     pic_sales_id: z.string().nullable().optional(),
     target_close_date: z.string().min(1, "Target close date is required"),
+    closed_won_date: z.string().optional().or(z.literal("")),
+    closed_lost_date: z.string().optional().or(z.literal("")),
     estimated_value: z.coerce.number().nullable().optional(),
     event_date_start: z.string().nullable().optional(),
     event_date_end: z.string().nullable().optional(),
@@ -90,11 +92,14 @@ const addLeadSchema = z.object({
     custom_data: z.record(z.string(), z.unknown()).optional(),
 }) // removed date validation refine because MultiDatePicker inherently avoids invalid ranges
 
+const READONLY_FIELDS = new Set(["account_status"])
+
 const getDynamicSchema = (requiredIds: string[]) => {
     return addLeadSchema.superRefine((data, ctx) => {
         requiredIds.forEach(fieldId => {
             if (fieldId.startsWith('native:')) {
                 const key = fieldId.replace('native:', '')
+                if (READONLY_FIELDS.has(key)) return // skip read-only derived fields
                 let val = (data as any)[key]
                 if (key === "month_event") {
                     val = [data.tentative_month, data.tentative_year].filter(Boolean).join(" ")
@@ -140,6 +145,7 @@ export function LeadForm({ onSuccess, onClose, pipelineId, defaultStageId, initi
     const [showWarning, setShowWarning] = useState(false)
     const [activeTab, setActiveTab] = useState("project")
     const [isPending, startTransition] = useTransition()
+    const [clientAccountStatus, setClientAccountStatus] = useState<string | null>(null)
     const supabase = createClient()
     const router = useRouter()
     const { activeCompany, isHoldingView, companies } = useCompany()
@@ -217,6 +223,15 @@ export function LeadForm({ onSuccess, onClose, pipelineId, defaultStageId, initi
                                 baseLayout.project.splice(projectNameIdx + 1, 0, "native:pipeline_stage_id")
                             } else {
                                 baseLayout.project.unshift("native:pipeline_stage_id")
+                            }
+                        }
+                        if (!allPresent.has("native:account_status")) {
+                            if (!baseLayout.project) baseLayout.project = []
+                            const companyIdx = baseLayout.project.indexOf("native:client_company_id")
+                            if (companyIdx !== -1) {
+                                baseLayout.project.splice(companyIdx + 1, 0, "native:account_status")
+                            } else {
+                                baseLayout.project.push("native:account_status")
                             }
                         }
 
@@ -313,6 +328,8 @@ export function LeadForm({ onSuccess, onClose, pipelineId, defaultStageId, initi
             referral_source: null,
             pic_sales_id: null,
             target_close_date: "",
+            closed_won_date: "",
+            closed_lost_date: "",
             month_event: null,
             tentative_month: null,
             tentative_year: null,
@@ -372,7 +389,9 @@ export function LeadForm({ onSuccess, onClose, pipelineId, defaultStageId, initi
                 lead_source: initialData.lead_source || null,
                 referral_source: initialData.referral_source || null,
                 pic_sales_id: initialData.pic_sales_id || null,
-                target_close_date: initialData.target_close_date || "",
+            target_close_date: initialData.target_close_date || "",
+            closed_won_date: initialData.closed_won_date ? initialData.closed_won_date.split("T")[0] : "",
+            closed_lost_date: initialData.closed_lost_date ? initialData.closed_lost_date.split("T")[0] : "",
                 month_event: initialData.month_event || null,
                 tentative_month: tMonth,
                 tentative_year: tYear,
@@ -518,6 +537,15 @@ export function LeadForm({ onSuccess, onClose, pipelineId, defaultStageId, initi
     const watchedMainStream = useWatch({ control: form.control, name: "main_stream" })
     const watchedStreamType = useWatch({ control: form.control, name: "stream_type" })
 
+    // Fetch account_status when client company changes
+    const watchedClientCompanyId = useWatch({ control: form.control, name: "client_company_id" })
+    useEffect(() => {
+        if (!watchedClientCompanyId) { setClientAccountStatus(null); return }
+        supabase.from("client_companies").select("account_status").eq("id", watchedClientCompanyId).single()
+            .then(({ data }) => setClientAccountStatus(data?.account_status ?? null))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [watchedClientCompanyId])
+
     const filteredStreamTypes = watchedMainStream
         ? allStreamTypeOptions.filter((o) => o.parent_value === watchedMainStream)
         : []
@@ -633,18 +661,28 @@ export function LeadForm({ onSuccess, onClose, pipelineId, defaultStageId, initi
     }
 
     const onError = (errors: any) => {
-        const firstErrorKey = Object.keys(errors)[0]
-        if (!firstErrorKey) return
+        const errorKeys = Object.keys(errors)
+        if (errorKeys.length === 0) return
 
-        const nativeKey = `native:${firstErrorKey}`
-        const errorTab = Object.entries(layoutConfig).find(([_, fields]) => Array.isArray(fields) && fields.includes(nativeKey))?.[0]
-
-        if (errorTab) {
-            setActiveTab(errorTab)
-            toast.error(`Please fill all required fields in the ${errorTab.charAt(0).toUpperCase() + errorTab.slice(1)} tab.`)
-        } else {
-             toast.error("Please fill all required fields.")
+        // Build human-readable field names
+        const fieldLabels: Record<string, string> = {
+            project_name: "Project Name", category: "Category", grade_lead: "Grade Lead",
+            client_company_id: "Client Company", contact_id: "Contact Person",
+            pic_sales_id: "PIC Sales", lead_source: "Lead Source", target_close_date: "Target Close Date",
+            pipeline_stage_id: "Pipeline Stage", estimated_value: "Estimated Value",
+            main_stream: "Main Stream", stream_type: "Stream Type", business_purpose: "Business Purpose",
+            area: "Client Source Area", event_dates: "Event Dates", company_id: "Assign to Company",
         }
+
+        const errorFieldNames = errorKeys.map(k => fieldLabels[k] || k.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase()))
+
+        // Navigate to the tab containing the first error
+        const firstKey = errorKeys[0]
+        const nativeKey = `native:${firstKey}`
+        const errorTab = Object.entries(layoutConfig).find(([_, fields]) => Array.isArray(fields) && fields.includes(nativeKey))?.[0]
+        if (errorTab) setActiveTab(errorTab)
+
+        toast.error(`Required: ${errorFieldNames.join(", ")}`)
     }
 
     const currentStageId = form.watch("pipeline_stage_id")
@@ -759,6 +797,27 @@ export function LeadForm({ onSuccess, onClose, pipelineId, defaultStageId, initi
                                                             </FormItem>
                                                         )} />
                                                     )
+                                                case "native:account_status": {
+                                                    const statusLabel = clientAccountStatus
+                                                        ? clientAccountStatus.charAt(0).toUpperCase() + clientAccountStatus.slice(1)
+                                                        : "—"
+                                                    const statusColors: Record<string, string> = {
+                                                        new: "text-blue-700 bg-blue-50 border-blue-200",
+                                                        repeater: "text-emerald-700 bg-emerald-50 border-emerald-200",
+                                                        contracted: "text-violet-700 bg-violet-50 border-violet-200",
+                                                    }
+                                                    return (
+                                                        <div key={fieldId} className="space-y-2">
+                                                            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Account Status</label>
+                                                            <div className={cn(
+                                                                "flex h-9 w-full items-center rounded-md border px-3 text-sm",
+                                                                clientAccountStatus ? statusColors[clientAccountStatus] ?? "bg-muted/50 border-border text-muted-foreground" : "bg-muted/30 border-border text-muted-foreground"
+                                                            )}>
+                                                                {watchedClientCompanyId ? statusLabel : "Select company first"}
+                                                            </div>
+                                                        </div>
+                                                    )
+                                                }
                                                 case "native:contact_id":
                                                     return (
                                                         <FormField key={fieldId} control={form.control} name="contact_id" render={({ field }) => (
@@ -782,7 +841,17 @@ export function LeadForm({ onSuccess, onClose, pipelineId, defaultStageId, initi
                                                 case "native:referral_source":
                                                     return isFieldVisible("native:referral_source") ? <TextField key={fieldId} control={form.control} name="referral_source" label={getLabelStr("Referral Source", fieldId)} /> : null
                                                 case "native:target_close_date":
-                                                    return <TextField key={fieldId} control={form.control} name="target_close_date" label={getLabelStr("Target Close Date", fieldId)} type="date" />
+                                                    return (
+                                                        <div key={fieldId} className="sm:col-span-2 grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                                            <TextField control={form.control} name="target_close_date" label={getLabelStr("Target Close Date", fieldId)} type="date" />
+                                                            {initialData && (
+                                                                <>
+                                                                    <TextField control={form.control} name="closed_won_date" label="Closed Won Date" type="date" />
+                                                                    <TextField control={form.control} name="closed_lost_date" label="Closed Lost Date" type="date" />
+                                                                </>
+                                                            )}
+                                                        </div>
+                                                    )
                                                 case "native:event_dates":
                                                     return (
                                                         <FormField key={fieldId} control={form.control} name="event_dates" render={({ field }) => (
@@ -976,6 +1045,32 @@ function TextField({ control, name, label, type = "text", className }: { control
                 <FormControl><Input type={type} className="h-9 text-sm" {...field} value={field.value ?? ""} /></FormControl>
             </FormItem>
         )} />
+    )
+}
+
+// ── Account Status Badge (fetches from client_company) ──
+function AccountStatusBadge({ companyId }: { companyId: string | null }) {
+    const [status, setStatus] = useState<string | null>(null)
+    const supabase = createClient()
+
+    useEffect(() => {
+        if (!companyId) { setStatus(null); return }
+        supabase.from("client_companies").select("account_status").eq("id", companyId).single()
+            .then(({ data }) => setStatus(data?.account_status ?? null))
+    }, [companyId, supabase])
+
+    if (!status) return null
+
+    const colors: Record<string, string> = {
+        new: "bg-blue-100 text-blue-700",
+        repeater: "bg-emerald-100 text-emerald-700",
+        contracted: "bg-violet-100 text-violet-700",
+    }
+
+    return (
+        <span className={cn("inline-flex items-center text-[10px] font-medium px-2 py-0.5 rounded-full mt-1 capitalize", colors[status] ?? "bg-muted text-muted-foreground")}>
+            {status}
+        </span>
     )
 }
 

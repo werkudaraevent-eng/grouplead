@@ -18,7 +18,8 @@ const LEADS_COLUMNS = new Set([
     "actual_value", "event_format", "target_close_date", "description",
     "virtual_platform", "main_stream", "destinations", "pipeline_id",
     "custom_data", "general_brief", "production_sow", "special_remarks", "event_dates", "month_event",
-    "kanban_sort_order", "lost_reason", "lost_reason_details"
+    "kanban_sort_order", "lost_reason", "lost_reason_details",
+    "closed_won_date", "closed_lost_date"
 ])
 
 // ── Blocklist: relational join objects that come from Supabase `.select('*, relation(…)')` ──
@@ -214,7 +215,7 @@ export async function updatePipelineStageAction(
                 .single(),
             supabase
                 .from("pipeline_stages")
-                .select("id, name")
+                .select("id, name, closed_status")
                 .eq("id", stageId)
                 .single(),
             supabase.auth.getUser(),
@@ -235,18 +236,28 @@ export async function updatePipelineStageAction(
             if (profile?.full_name) userName = profile.full_name
         }
 
-        const payload: {
-            pipeline_stage_id: string
-            status: string
-            updated_at: string
-            kanban_sort_order?: number
-        } = {
+        const now = new Date().toISOString()
+        const payload: Record<string, unknown> = {
             pipeline_stage_id: stageId,
             status: stageRow.name,
-            updated_at: new Date().toISOString(),
+            updated_at: now,
         }
         if (sortOrder !== undefined) {
             payload.kanban_sort_order = sortOrder
+        }
+
+        // Auto-stamp closed dates when transitioning to Won or Lost
+        const closedStatus = (stageRow as any).closed_status as string | null
+        if (closedStatus === "won") {
+            payload.closed_won_date = now
+            payload.closed_lost_date = null  // clear if previously lost
+        } else if (closedStatus === "lost") {
+            payload.closed_lost_date = now
+            payload.closed_won_date = null  // clear if previously won
+        } else {
+            // Reopened — clear both closed dates
+            payload.closed_won_date = null
+            payload.closed_lost_date = null
         }
 
         const { error } = await supabase

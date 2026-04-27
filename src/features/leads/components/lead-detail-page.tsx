@@ -472,6 +472,12 @@ export function LeadDetailPage({ lead, prevLeadId, nextLeadId, lastModifiedBy = 
                             )}
                             <KVRow icon={Wallet} label="Estimated Value" value={fmtCurrency(lead.estimated_value)} />
                             <KVRow icon={CalendarDays} label="Target Close" value={fmtDate(lead.target_close_date)} />
+                            {lead.closed_won_date && (
+                                <KVRow icon={CheckSquare} label="Closed Won" value={fmtDateTime(lead.closed_won_date)} highlight />
+                            )}
+                            {lead.closed_lost_date && (
+                                <KVRow icon={ThumbsDown} label="Closed Lost" value={fmtDateTime(lead.closed_lost_date)} />
+                            )}
                             <KVRow icon={MapPin} label="Lead Source" value={lead.lead_source} />
                             <KVRow icon={Tags} label="Category" value={lead.category} highlight />
                             <KVRow icon={Layers} label="Main Stream" value={lead.main_stream} />

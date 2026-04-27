@@ -347,10 +347,9 @@ export function AnalyticsDashboard({
                     }
                 }
             } else {
-                // closed_won: use updated_at as proxy for closed won date
-                // (actual closed_won_date is not on the Lead type, but updated_at
-                // reflects when the stage was changed to won)
-                const d = new Date(l.updated_at)
+                // closed_won: use closed_won_date field, fallback to updated_at
+                const dateStr = l.closed_won_date ?? l.updated_at
+                const d = new Date(dateStr)
                 if (!isNaN(d.getTime())) { y = d.getFullYear(); m = d.getMonth() }
             }
 
