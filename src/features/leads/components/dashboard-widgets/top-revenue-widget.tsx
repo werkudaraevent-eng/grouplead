@@ -31,25 +31,47 @@ function RevenueTooltip({ active, payload, fmt }: any) {
     )
 }
 
-function RankedTick({ x, y, payload }: any) {
+function RankedTick({ x, y, payload, visibleLines = 2 }: any) {
     const index: number = payload.index
-    const name: string = payload.value
+    const name: string = payload.value ?? ""
     const isTop3 = index < 3
-    const maxLen = 22
-    const display = name.length > maxLen ? name.slice(0, maxLen - 1) + "\u2026" : name
+    const color = isTop3 ? "#6366f1" : "#64748b"
+    const rankColor = isTop3 ? "#6366f1" : "#94a3b8"
+
+    // Split into max 2 lines of ~18 chars each
+    const maxPerLine = 18
+    let line1 = name
+    let line2 = ""
+
+    if (name.length > maxPerLine) {
+        // Try to break at a space near maxPerLine
+        const breakIdx = name.lastIndexOf(" ", maxPerLine)
+        if (breakIdx > 6) {
+            line1 = name.slice(0, breakIdx)
+            line2 = name.slice(breakIdx + 1)
+            if (line2.length > maxPerLine) {
+                line2 = line2.slice(0, maxPerLine - 1) + "\u2026"
+            }
+        } else {
+            line1 = name.slice(0, maxPerLine - 1) + "\u2026"
+        }
+    }
+
+    const hasTwo = line2.length > 0
+    const yOffset = hasTwo ? -4 : 3.5
+
     return (
         <g transform={`translate(${x},${y})`}>
             <title>{name}</title>
-            <text
-                x={0} y={0} dy={3.5}
-                textAnchor="end"
-                fontSize={10}
-                fontWeight={500}
-                fill={isTop3 ? "#6366f1" : "#64748b"}
-            >
-                <tspan fontWeight={700} fill={isTop3 ? "#6366f1" : "#94a3b8"}>#{index + 1} </tspan>
-                {display}
+            <text x={0} y={0} dy={yOffset} textAnchor="end" fontSize={9.5} fontWeight={500} fill={color}>
+                <tspan fontWeight={700} fill={rankColor}>#{index + 1} </tspan>
+                {line1}
             </text>
+            {hasTwo && (
+                <text x={0} y={0} dy={yOffset + 12} textAnchor="end" fontSize={9} fontWeight={400} fill="#94a3b8">
+                    {line2}
+                </text>
+            )}
         </g>
     )
 }
@@ -66,7 +88,7 @@ export function TopRevenueWidget({ data }: TopRevenueWidgetProps) {
             <SectionSub>Client companies by contribution</SectionSub>
             <div className="thin-scrollbar" style={{ flex: 1, minHeight: 0, overflowY: "auto", overflowX: "hidden" }}>
                 {hasMounted ? (
-                    <div style={{ width: "100%", height: Math.max(data.length * 36, 80) }}>
+                    <div style={{ width: "100%", height: Math.max(data.length * 42, 80) }}>
                         <ResponsiveContainer width="100%" height="100%">
                             <BarChart
                                 data={data}
