@@ -52,9 +52,9 @@ export function RevenueChartWidget({ data, trendYear, setTrendYear, availableYea
                         </select>
                     </div>
                     <div>
-                        <div style={{ fontSize: 9, fontWeight: 600, color: "#94a3b8", marginBottom: 3, letterSpacing: "0.3px" }}>Year</div>
+                        <div style={{ fontSize: 9, fontWeight: 600, color: "#94a3b8", marginBottom: 3, letterSpacing: "0.3px" }}>Showing</div>
                         <select style={miniSelectStyle} value={trendYear} onChange={e => setTrendYear(Number(e.target.value))}>
-                            {availableYears.map(y => <option key={y} value={y}>{y}</option>)}
+                            {availableYears.map(y => <option key={y} value={y}>{y} vs {y - 1}</option>)}
                         </select>
                     </div>
                 </div>
