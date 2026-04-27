@@ -51,9 +51,9 @@ export function LeadSourceWidget({ data }: LeadSourceWidgetProps) {
 
             <div style={{ fontSize: 9, color: "#94a3b8", textAlign: "right" as const, marginBottom: 4 }}>Total: {totalLeads}</div>
 
-            <div className="thin-scrollbar" style={{ flex: 1, minHeight: 0, overflowY: "auto", overflowX: "hidden" }}>
+            <div className="thin-scrollbar" style={{ flex: 1, minHeight: 80, overflowY: "auto", overflowX: "hidden" }}>
                 {hasMounted ? (
-                    <div style={{ width: "100%", height: Math.max(chartData.length * 36, 80) }}>
+                    <div style={{ width: "100%", height: Math.max(chartData.length * 32, 80), minHeight: "100%" }}>
                         <ResponsiveContainer width="100%" height="100%">
                             <BarChart data={chartData} layout="vertical" margin={{ top: 0, right: 10, left: 0, bottom: 0 }}>
                                 <XAxis type="number" axisLine={false} tickLine={false} tick={{ fontSize: 9, fill: "#b0b8c8", fontWeight: 500 }} />

@@ -60,9 +60,9 @@ export function PipelineWidget({ data, comparisonLabel }: PipelineWidgetProps) {
         <SectionCard>
             <SectionTitle>Pipeline Stages</SectionTitle>
             <SectionSub>Lead distribution by stage</SectionSub>
-            <div className="thin-scrollbar" style={{ flex: 1, minHeight: 0, overflowY: "auto", overflowX: "hidden" }}>
+            <div className="thin-scrollbar" style={{ flex: 1, minHeight: 80, overflowY: "auto", overflowX: "hidden" }}>
                 {hasMounted ? (
-                    <div style={{ width: "100%", height: Math.max(chartData.length * 36, 80) }}>
+                    <div style={{ width: "100%", height: Math.max(chartData.length * 32, 80), minHeight: "100%" }}>
                         <ResponsiveContainer width="100%" height="100%">
                             <BarChart
                                 data={chartData}
