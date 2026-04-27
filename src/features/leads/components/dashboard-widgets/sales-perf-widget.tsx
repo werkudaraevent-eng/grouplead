@@ -5,7 +5,8 @@ import {
     ResponsiveContainer, Cell, LabelList,
 } from "recharts"
 import { useHasMounted } from "@/hooks/use-has-mounted"
-import { SectionCard, SectionTitle, SectionSub, InsightCallout, formatCur, EllipsisTick } from "./shared"
+import { useCurrency } from "@/contexts/currency-context"
+import { SectionCard, SectionTitle, SectionSub, InsightCallout, EllipsisTick } from "./shared"
 import { EmptyState, NoTargetBadge } from "@/components/shared/empty-state"
 import { Users } from "lucide-react"
 
@@ -28,7 +29,7 @@ function getBarColor(rep: SalesRep): string {
     return "#ef4444"
 }
 
-function SalesPerfTooltip({ active, payload }: any) {
+function SalesPerfTooltip({ active, payload, fmt }: any) {
     if (!active || !payload?.[0]) return null
     const d = payload[0].payload as SalesRep
     const hasTarget = d.target > 0
@@ -39,10 +40,10 @@ function SalesPerfTooltip({ active, payload }: any) {
             fontSize: 11, lineHeight: 1.6, boxShadow: "0 3px 12px rgba(0,0,0,.2)",
         }}>
             <div style={{ fontWeight: 700, marginBottom: 1 }}>{d.name}</div>
-            <div>Actual: {formatCur(d.actual)}</div>
+            <div>Actual: {fmt(d.actual)}</div>
             {hasTarget ? (
                 <>
-                    <div>Target: {formatCur(d.target)}</div>
+                    <div>Target: {fmt(d.target)}</div>
                     <div style={{
                         fontWeight: 600,
                         color: pct >= 100 ? "#6ee7b7" : pct >= 70 ? "#a5b4fc" : "#fca5a5",
@@ -58,6 +59,7 @@ function SalesPerfTooltip({ active, payload }: any) {
 }
 
 export function SalesPerfWidget({ data }: SalesPerfWidgetProps) {
+    const { fmt } = useCurrency()
     const hasMounted = useHasMounted()
 
     if (data.length === 0) {
@@ -93,7 +95,7 @@ export function SalesPerfWidget({ data }: SalesPerfWidgetProps) {
                                     type="number"
                                     axisLine={false}
                                     tickLine={false}
-                                    tickFormatter={formatCur}
+                                    tickFormatter={fmt}
                                     tick={{ fontSize: 9, fill: "#b0b8c8", fontWeight: 500 }}
                                 />
                                 <YAxis
@@ -105,7 +107,7 @@ export function SalesPerfWidget({ data }: SalesPerfWidgetProps) {
                                     width={90}
                                 />
                                 <RechartsTooltip
-                                    content={<SalesPerfTooltip />}
+                                    content={<SalesPerfTooltip fmt={fmt} />}
                                     cursor={{ fill: "rgba(99,102,241,0.04)" }}
                                 />
                                 <Bar dataKey="target" name="Target" fill="#e2e8f0" radius={[0, 3, 3, 0]} barSize={12} />
@@ -113,7 +115,7 @@ export function SalesPerfWidget({ data }: SalesPerfWidgetProps) {
                                     {data.map((rep) => (
                                         <Cell key={rep.name} fill={getBarColor(rep)} />
                                     ))}
-                                    <LabelList dataKey="actual" position="right" formatter={formatCur} style={{ fontSize: 9, fontWeight: 600, fill: "#64748b" }} />
+                                    <LabelList dataKey="actual" position="right" formatter={fmt} style={{ fontSize: 9, fontWeight: 600, fill: "#64748b" }} />
                                 </Bar>
                             </BarChart>
                         </ResponsiveContainer>

@@ -18,6 +18,7 @@ import { CSS } from "@dnd-kit/utilities"
 import { useDroppable } from "@dnd-kit/core"
 import { Lead, PipelineStage, TransitionRule } from "@/types"
 import { createClient } from "@/utils/supabase/client"
+import { useCurrency } from "@/contexts/currency-context"
 import { toast } from "sonner"
 import { updatePipelineStageAction } from "@/app/actions/lead-actions"
 import { Building2, CalendarDays, Copy, Edit2, Globe, Loader2, MoreHorizontal, Pencil, Trash2, User } from "lucide-react"
@@ -103,6 +104,7 @@ export function LeadKanban({
     onLeadStageChange,
     onAddLead,
 }: LeadKanbanProps) {
+    const { fmt: formatCompact } = useCurrency()
     const [stages, setStages] = useState<PipelineStage[]>(FALLBACK_STAGES)
     const [leads, setLeads] = useState<Lead[]>(initialLeads)
     const [loading, setLoading] = useState(true)
@@ -863,6 +865,7 @@ function KanbanCard({
     onToggleSelect?: (leadId: string, checked: boolean) => void
     config: KanbanCardConfig
 }) {
+    const { fmt } = useCurrency()
     const picName = lead.pic_sales_profile?.full_name
     const amName = lead.account_manager_profile?.full_name
 
@@ -1023,7 +1026,7 @@ function KanbanCard({
                     <div className="flex flex-row items-center gap-3">
                         {showEstimatedValue && lead.estimated_value && (
                             <span className="font-bold text-[13px] text-slate-800 tracking-tight">
-                                {formatCompact(lead.estimated_value)}
+                                {fmt(lead.estimated_value)}
                             </span>
                         )}
                         {showCloseDate && lead.target_close_date && (
@@ -1075,11 +1078,4 @@ function KanbanCard({
     )
 }
 
-// ============================================================
-// HELPERS
-// ============================================================
 
-function formatCompact(amount: number | null | undefined): string {
-    if (!amount) return "-"
-    return `Rp ${amount.toLocaleString("id-ID")}`
-}

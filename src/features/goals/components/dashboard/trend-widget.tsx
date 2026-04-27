@@ -7,13 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Loader2 } from "lucide-react"
 import { calculateAttainmentV2 } from "@/features/goals/lib/attainment-calculator"
 import type { GoalV2, LeadAttainmentInput } from "@/types/goals"
-
-function formatIDR(value: number): string {
-  if (value >= 1_000_000_000) return `Rp${(value / 1_000_000_000).toFixed(1)}B`
-  if (value >= 1_000_000) return `Rp${(value / 1_000_000).toFixed(1)}M`
-  if (value >= 1_000) return `Rp${(value / 1_000).toFixed(0)}K`
-  return `Rp${value.toLocaleString("id-ID")}`
-}
+import { useCurrency } from "@/contexts/currency-context"
 
 interface TrendEntry {
   label: string
@@ -32,6 +26,7 @@ interface TrendWidgetProps {
 export function TrendWidget({ goalId }: TrendWidgetProps) {
   const supabase = createClient()
   const { activeCompany } = useCompany()
+  const { fmt } = useCurrency()
   const [entries, setEntries] = useState<TrendEntry[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -53,7 +48,7 @@ export function TrendWidget({ goalId }: TrendWidgetProps) {
     ])
 
     const goal = goalRes.data as Pick<GoalV2, "target_amount" | "attribution_basis" | "monthly_cutoff_day"> | null
-    const leads = (leadsRes.data ?? []) as Array<{
+    const leads = ((leadsRes.data ?? []) as unknown) as Array<{
       id: number
       actual_value: number | null
       event_date_end: string | null
@@ -141,12 +136,12 @@ export function TrendWidget({ goalId }: TrendWidgetProps) {
                     <div
                       className="w-3 bg-emerald-500 rounded-t transition-all"
                       style={{ height: `${attH}%` }}
-                      title={`Attainment: ${formatIDR(entry.attainment)}`}
+                      title={`Attainment: ${fmt(entry.attainment)}`}
                     />
                     <div
                       className="w-3 bg-slate-300 rounded-t transition-all"
                       style={{ height: `${tgtH}%` }}
-                      title={`Target: ${formatIDR(entry.target)}`}
+                      title={`Target: ${fmt(entry.target)}`}
                     />
                   </div>
                   <span className="text-[10px] text-muted-foreground">{entry.label}</span>

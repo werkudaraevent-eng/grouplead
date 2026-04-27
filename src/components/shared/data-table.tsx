@@ -13,6 +13,7 @@ import {
     ColumnOrderState,
     RowSelectionState,
 } from "@tanstack/react-table"
+import { useCurrency } from "@/contexts/currency-context"
 
 import {
     Table,
@@ -55,6 +56,8 @@ interface DataTableProps<TData, TValue> {
     enableRowSelection?: boolean
     bulkActions?: BulkActions<TData>
     getRowId?: (row: TData) => string
+    totalValueAccessor?: (row: TData) => number
+    totalValueLabel?: string
 }
 
 export function DataTable<TData, TValue>({
@@ -65,6 +68,8 @@ export function DataTable<TData, TValue>({
     enableRowSelection = false,
     bulkActions,
     getRowId,
+    totalValueAccessor,
+    totalValueLabel = "Total value",
 }: DataTableProps<TData, TValue>) {
     const [sorting, setSorting] = React.useState<SortingState>([])
     const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>(defaultHiddenColumns ?? {})
@@ -154,10 +159,18 @@ export function DataTable<TData, TValue>({
         setDragOverCol(null)
     }
 
+    // Compute total value if accessor provided
+    const totalValue = React.useMemo(() => {
+        if (!totalValueAccessor) return null
+        return data.reduce((sum, row) => sum + (totalValueAccessor(row) || 0), 0)
+    }, [data, totalValueAccessor])
+
+    const { fmt: formatCurrency } = useCurrency()
+
     return (
         <div className="flex flex-col h-full">
             {/* ── Toolbar / Bulk Action Bar ── */}
-            <div className="flex items-center justify-between px-1 pb-1.5 shrink-0">
+            <div className="flex items-center justify-between px-1 pb-2 shrink-0">
                 {selectedCount > 0 ? (
                     /* ── Floating Bulk Toolbar ── */
                     <div className="flex items-center gap-3 w-full">
@@ -272,17 +285,17 @@ export function DataTable<TData, TValue>({
                 )}
             </div>
 
-            {/* ── Table Container ── */}
-            <div className="flex-1 relative rounded-lg border border-slate-200 bg-white shadow-sm overflow-hidden">
+            {/* ── Table Container (full-width, no card wrapper) ── */}
+            <div className="flex-1 relative overflow-hidden border-t border-b border-[#E5E7EB]">
                 {/* Single scroll layer: absolute fills full container, grid pushes scrollbar to bottom */}
                 <div className="absolute inset-0 overflow-auto data-table-scroll" style={{ display: 'grid', gridTemplateRows: 'auto 1fr' }}>
                         <Table className="w-full" style={{ minWidth: '900px' }}>
                             <TableHeader className="sticky top-0 z-10">
                                 {table.getHeaderGroups().map((headerGroup) => (
-                                    <TableRow key={headerGroup.id} className="bg-slate-50 border-b-2 border-slate-200 hover:bg-slate-50">
+                                    <TableRow key={headerGroup.id} className="bg-[#FAFAFA] border-b-[1.5px] border-[#E5E7EB] hover:bg-[#FAFAFA]">
                                         {/* Frozen header: checkbox + row number combined into one sticky cell */}
                                         <TableHead
-                                            className="h-10 bg-slate-50 sticky left-0 z-20 p-0"
+                                            className="h-10 bg-[#FAFAFA] sticky left-0 z-20 p-0"
                                             style={{
                                                 width: enableRowSelection ? 88 : 48,
                                                 minWidth: enableRowSelection ? 88 : 48,
@@ -310,7 +323,7 @@ export function DataTable<TData, TValue>({
                                         {headerGroup.headers.map((header) => (
                                             <TableHead
                                                 key={header.id}
-                                                className="h-10 px-4 text-[11px] font-semibold uppercase tracking-wider text-slate-500 whitespace-nowrap bg-slate-50"
+                                                className="h-10 px-4 text-[11px] font-semibold uppercase tracking-wider text-slate-500 whitespace-nowrap bg-[#FAFAFA]"
                                                 style={{ width: header.getSize() !== 150 ? header.getSize() : undefined }}
                                             >
                                                 {header.isPlaceholder
@@ -334,17 +347,15 @@ export function DataTable<TData, TValue>({
                                                 className={`
                                                     ${onRowClick ? "cursor-pointer" : ""}
                                                     ${isSelected
-                                                        ? "bg-blue-50 hover:bg-blue-100/80"
-                                                        : idx % 2 === 0
-                                                            ? "bg-white hover:bg-blue-50/60"
-                                                            : "bg-slate-50 hover:bg-blue-50/60"
+                                                        ? "bg-[#E0F2FE] hover:bg-[#d0e8fc]"
+                                                        : "bg-white hover:bg-[#F0F9FF]"
                                                     }
-                                                    transition-colors border-b border-slate-100
+                                                    transition-colors border-b border-[#F3F4F6] group
                                                 `}
                                             >
                                                 {/* Frozen cell: checkbox + row number combined */}
                                                 <TableCell
-                                                    className={`p-0 sticky left-0 z-[5] ${isSelected ? 'bg-blue-50' : idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}`}
+                                                    className={`p-0 sticky left-0 z-[5] ${isSelected ? 'bg-[#E0F2FE] group-hover:bg-[#d0e8fc]' : 'bg-white group-hover:bg-[#F0F9FF]'}`}
                                                     style={{
                                                         width: enableRowSelection ? 88 : 48,
                                                         minWidth: enableRowSelection ? 88 : 48,
@@ -370,7 +381,7 @@ export function DataTable<TData, TValue>({
                                                     </div>
                                                 </TableCell>
                                                 {row.getVisibleCells().map((cell) => (
-                                                    <TableCell key={cell.id} className="px-4 py-3 text-sm">
+                                                    <TableCell key={cell.id} className="px-4 py-2 text-sm h-[52px] align-middle">
                                                         {flexRender(cell.column.columnDef.cell, cell.getContext())}
                                                     </TableCell>
                                                 ))}
@@ -395,9 +406,9 @@ export function DataTable<TData, TValue>({
                     </div>
                 </div>
 
-            {/* ── Pagination Footer (outside the table border) ── */}
+            {/* ── Footer (pinned to bottom) ── */}
             {totalRows > 0 && (
-                <div className="flex items-center justify-between pt-1.5 pb-1 shrink-0">
+                <div className="flex items-center justify-between px-4 py-2.5 shrink-0 mt-auto border-t border-[#E5E7EB] bg-white">
                     {/* Left: rows info */}
                     <div className="text-[12px] text-slate-400">
                         Showing <span className="font-medium text-slate-600">{start}</span>–<span className="font-medium text-slate-600">{end}</span> of <span className="font-medium text-slate-600">{totalRows}</span>
@@ -453,28 +464,36 @@ export function DataTable<TData, TValue>({
                         </Button>
                     </div>
 
-                    {/* Right: Page size selector */}
-                    <div className="flex items-center gap-2">
-                        <span className="text-[11px] text-slate-400">Rows:</span>
-                        <Select
-                            value={String(pageSize)}
-                            onValueChange={(val) => {
-                                const newSize = Number(val)
-                                setPageSize(newSize)
-                                setPageIndex(0)
-                            }}
-                        >
-                            <SelectTrigger className="h-7 w-[60px] text-[12px] border-slate-200">
-                                <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="10">10</SelectItem>
-                                <SelectItem value="15">15</SelectItem>
-                                <SelectItem value="25">25</SelectItem>
-                                <SelectItem value="50">50</SelectItem>
-                                <SelectItem value="100">100</SelectItem>
-                            </SelectContent>
-                        </Select>
+                    {/* Right: Total value OR Page size selector */}
+                    <div className="flex items-center gap-4">
+                        {totalValue !== null && (
+                            <div className="flex items-center gap-2">
+                                <span className="text-[12px] text-slate-400">{totalValueLabel}:</span>
+                                <span className="text-[14px] font-bold text-emerald-600">{formatCurrency(totalValue)}</span>
+                            </div>
+                        )}
+                        <div className="flex items-center gap-2">
+                            <span className="text-[11px] text-slate-400">Rows:</span>
+                            <Select
+                                value={String(pageSize)}
+                                onValueChange={(val) => {
+                                    const newSize = Number(val)
+                                    setPageSize(newSize)
+                                    setPageIndex(0)
+                                }}
+                            >
+                                <SelectTrigger className="h-7 w-[60px] text-[12px] border-slate-200">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="10">10</SelectItem>
+                                    <SelectItem value="15">15</SelectItem>
+                                    <SelectItem value="25">25</SelectItem>
+                                    <SelectItem value="50">50</SelectItem>
+                                    <SelectItem value="100">100</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
                     </div>
                 </div>
             )}

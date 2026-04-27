@@ -6,14 +6,8 @@ import { useCompany } from "@/contexts/company-context"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Loader2, PieChart } from "lucide-react"
 import { classifyLeadBySegment } from "@/features/goals/lib/classification-engine"
-import type { GoalSegment } from "@/types/goals"
-
-function formatIDR(value: number): string {
-  if (value >= 1_000_000_000) return `Rp${(value / 1_000_000_000).toFixed(1)}B`
-  if (value >= 1_000_000) return `Rp${(value / 1_000_000).toFixed(1)}M`
-  if (value >= 1_000) return `Rp${(value / 1_000).toFixed(0)}K`
-  return `Rp${value.toLocaleString("id-ID")}`
-}
+import type { GoalNode, GoalSegment } from "@/types/goals"
+import { useCurrency } from "@/contexts/currency-context"
 
 const COLORS = [
   "bg-blue-500", "bg-emerald-500", "bg-amber-500", "bg-purple-500",
@@ -23,6 +17,7 @@ const COLORS = [
 interface SegmentRow {
   name: string
   wonRevenue: number
+  target: number
 }
 
 interface SegmentBreakdownWidgetProps {
@@ -34,17 +29,20 @@ interface SegmentBreakdownWidgetProps {
 export function SegmentBreakdownWidget({ goalId, loading: parentLoading, onDrillDown }: SegmentBreakdownWidgetProps) {
   const supabase = createClient()
   const { activeCompany } = useCompany()
+  const { fmt } = useCurrency()
   const [rows, setRows] = useState<SegmentRow[]>([])
   const [loading, setLoading] = useState(false)
 
   const loadData = useCallback(async () => {
-    if (!activeCompany?.id) {
-      setRows([])
-      return
-    }
+    if (!activeCompany?.id || !goalId) { setRows([]); return }
     setLoading(true)
 
-    const [segmentsRes, leadsRes] = await Promise.all([
+    const [nodesRes, segmentsRes, leadsRes] = await Promise.all([
+      supabase
+        .from("goal_nodes")
+        .select("*")
+        .eq("goal_id", goalId)
+        .like("reference_field", "segment:%"),
       supabase.from("goal_segments").select("*").eq("company_id", activeCompany.id),
       supabase
         .from("leads")
@@ -52,46 +50,40 @@ export function SegmentBreakdownWidget({ goalId, loading: parentLoading, onDrill
         .eq("company_id", activeCompany.id),
     ])
 
+    const nodes = (nodesRes.data as GoalNode[]) ?? []
     const segments = (segmentsRes.data as GoalSegment[]) ?? []
-    const leads = (leadsRes.data ?? []) as Array<{
-      id: number
-      actual_value: number | null
+    const leads = ((leadsRes.data ?? []) as unknown) as Array<{
+      id: number; actual_value: number | null
       pipeline_stage: { closed_status: string | null } | null
       [key: string]: unknown
     }>
 
-    if (segments.length === 0) {
-      setRows([])
-      setLoading(false)
-      return
-    }
+    if (nodes.length === 0) { setRows([]); setLoading(false); return }
 
-    // Use the first segment for breakdown display
-    const primarySegment = segments[0]
-    const segmentTotals = new Map<string, number>()
+    // For each segment node, compute won revenue by classifying leads
+    const segRows: SegmentRow[] = nodes.map((node) => {
+      const segId = node.reference_field.replace("segment:", "")
+      const segment = segments.find((s) => s.id === segId)
+      let wonRevenue = 0
+      if (segment) {
+        for (const lead of leads) {
+          if (lead.pipeline_stage?.closed_status !== "won") continue
+          const rawValue = lead[segment.source_field] as string | null
+          const classified = classifyLeadBySegment(rawValue, segment)
+          if (classified === node.reference_value) {
+            wonRevenue += (lead.actual_value as number) ?? 0
+          }
+        }
+      }
+      return { name: node.name, wonRevenue, target: node.target_amount }
+    })
 
-    for (const lead of leads) {
-      const isWon = lead.pipeline_stage?.closed_status === "won"
-      if (!isWon) continue
-
-      const rawValue = lead[primarySegment.source_field] as string | null
-      const segName = classifyLeadBySegment(rawValue, primarySegment)
-
-      segmentTotals.set(segName, (segmentTotals.get(segName) ?? 0) + (lead.actual_value ?? 0))
-    }
-
-    const segRows: SegmentRow[] = Array.from(segmentTotals.entries())
-      .map(([name, wonRevenue]) => ({ name, wonRevenue }))
-      .sort((a, b) => b.wonRevenue - a.wonRevenue)
-      .slice(0, 8)
-
-    setRows(segRows)
+    segRows.sort((a, b) => b.wonRevenue - a.wonRevenue)
+    setRows(segRows.slice(0, 8))
     setLoading(false)
-  }, [activeCompany?.id, supabase])
+  }, [activeCompany?.id, goalId, supabase])
 
-  useEffect(() => {
-    loadData()
-  }, [loadData])
+  useEffect(() => { loadData() }, [loadData])
 
   const isLoading = parentLoading || loading
   const totalAttainment = rows.reduce((s, r) => s + r.wonRevenue, 0)
@@ -125,7 +117,7 @@ export function SegmentBreakdownWidget({ goalId, loading: parentLoading, onDrill
                       <span className="font-medium truncate">{row.name}</span>
                     </div>
                     <span className="text-muted-foreground">
-                      {formatIDR(row.wonRevenue)} ({share.toFixed(0)}%)
+                      {fmt(row.wonRevenue)} ({share.toFixed(0)}%)
                     </span>
                   </div>
                 </button>

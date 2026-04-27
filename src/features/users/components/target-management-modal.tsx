@@ -7,6 +7,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { createClient } from "@/utils/supabase/client"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
+import { useCurrency } from "@/contexts/currency-context"
 import {
     Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog"
@@ -42,6 +43,7 @@ export function TargetManagementModal({ profile, open, onOpenChange }: TargetMan
     const [deleting, setDeleting] = useState<string | null>(null)
     const supabase = createClient()
     const router = useRouter()
+    const { fmt } = useCurrency()
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const form = useForm<FormValues>({ resolver: zodResolver(schema) as any, defaultValues: { period_type: "monthly", target_amount: 0 } })
@@ -85,7 +87,7 @@ export function TargetManagementModal({ profile, open, onOpenChange }: TargetMan
         setDeleting(null)
     }
 
-    const formatIDR = (n: number) => new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(n)
+    const formatIDR = (n: number) => fmt(n)
 
     if (!profile) return null
 

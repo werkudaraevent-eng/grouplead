@@ -2,13 +2,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Loader2, Target } from "lucide-react"
-
-function formatIDR(value: number): string {
-  if (value >= 1_000_000_000) return `Rp${(value / 1_000_000_000).toFixed(1)}B`
-  if (value >= 1_000_000) return `Rp${(value / 1_000_000).toFixed(1)}M`
-  if (value >= 1_000) return `Rp${(value / 1_000).toFixed(0)}K`
-  return `Rp${value.toLocaleString("id-ID")}`
-}
+import { useCurrency } from "@/contexts/currency-context"
 
 interface ForecastWidgetProps {
   forecastWeighted: number
@@ -21,6 +15,7 @@ interface ForecastWidgetProps {
  * and applied via calculateForecastV2 in use-goal-data.ts.
  */
 export function ForecastWidget({ forecastWeighted, loading }: ForecastWidgetProps) {
+  const { fmt } = useCurrency()
   return (
     <Card>
       <CardHeader className="pb-2">
@@ -34,7 +29,7 @@ export function ForecastWidget({ forecastWeighted, loading }: ForecastWidgetProp
           <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
         ) : (
           <>
-            <div className="text-2xl font-bold tracking-tight">{formatIDR(forecastWeighted)}</div>
+            <div className="text-2xl font-bold tracking-tight">{fmt(forecastWeighted)}</div>
             <p className="text-xs text-muted-foreground mt-1">
               Stage-weighted pipeline forecast
             </p>

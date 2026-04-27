@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react"
 import { createClient } from "@/utils/supabase/client"
 import { Loader2, User } from "lucide-react"
+import { useCurrency } from "@/contexts/currency-context"
 
 interface StageHistoryEntry {
     id: string
@@ -22,6 +23,7 @@ interface StageHistoryTabProps {
 
 export function StageHistoryTab({ leadId }: StageHistoryTabProps) {
     const supabase = createClient()
+    const { fmt } = useCurrency()
     const [history, setHistory] = useState<StageHistoryEntry[]>([])
     const [loading, setLoading] = useState(true)
 
@@ -51,11 +53,7 @@ export function StageHistoryTab({ leadId }: StageHistoryTabProps) {
 
     const formatCurrency = (amount: number | null) => {
         if (!amount) return "—"
-        return new Intl.NumberFormat("id-ID", {
-            style: "currency",
-            currency: "IDR",
-            minimumFractionDigits: 0,
-        }).format(amount)
+        return fmt(amount)
     }
 
     if (loading) {

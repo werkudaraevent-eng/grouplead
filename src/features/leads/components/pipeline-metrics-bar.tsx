@@ -6,15 +6,7 @@ import {
     TrendingUp, Target, BarChart3, AlertTriangle,
     ArrowUpRight, ArrowDownRight, Minus,
 } from "lucide-react"
-
-/* ─── Formatters ──────────────────────────────────────────────────────── */
-function formatCompactCurrency(value: number): string {
-    if (!value) return "Rp 0"
-    if (value >= 1_000_000_000) return `Rp ${(value / 1_000_000_000).toFixed(1)}B`
-    if (value >= 1_000_000) return `Rp ${(value / 1_000_000).toFixed(0)}M`
-    if (value >= 1_000) return `Rp ${(value / 1_000).toFixed(0)}K`
-    return `Rp ${value.toLocaleString("id-ID")}`
-}
+import { useCurrency } from "@/contexts/currency-context"
 
 /* ─── Stage Classification Engine ─────────────────────────────────────── */
 function classifyLead(lead: Lead): "won" | "lost" | "active" {
@@ -46,6 +38,7 @@ interface PipelineMetricsBarProps {
 }
 
 export function PipelineMetricsBar({ leads, loading }: PipelineMetricsBarProps) {
+    const { fmt: formatCompactCurrency } = useCurrency()
     const metrics = useMemo(() => {
         const now = new Date()
         const fourteenDaysAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000)

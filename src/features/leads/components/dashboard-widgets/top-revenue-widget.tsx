@@ -5,7 +5,8 @@ import {
     ResponsiveContainer, Cell, LabelList,
 } from "recharts"
 import { useHasMounted } from "@/hooks/use-has-mounted"
-import { SectionCard, SectionTitle, SectionSub, InsightCallout, formatCur } from "./shared"
+import { useCurrency } from "@/contexts/currency-context"
+import { SectionCard, SectionTitle, SectionSub, InsightCallout } from "./shared"
 
 interface TopCompany {
     name: string
@@ -16,7 +17,7 @@ interface TopRevenueWidgetProps {
     data: TopCompany[]
 }
 
-function RevenueTooltip({ active, payload }: any) {
+function RevenueTooltip({ active, payload, fmt }: any) {
     if (!active || !payload?.[0]) return null
     const d = payload[0].payload as TopCompany
     return (
@@ -25,7 +26,7 @@ function RevenueTooltip({ active, payload }: any) {
             fontSize: 11, lineHeight: 1.6, boxShadow: "0 3px 12px rgba(0,0,0,.2)",
         }}>
             <div style={{ fontWeight: 700, marginBottom: 1 }}>{d.name}</div>
-            <div>Revenue: {formatCur(d.revenue)}</div>
+            <div>Revenue: {fmt(d.revenue)}</div>
         </div>
     )
 }
@@ -51,6 +52,7 @@ function RankedTick({ x, y, payload }: any) {
 }
 
 export function TopRevenueWidget({ data }: TopRevenueWidgetProps) {
+    const { fmt } = useCurrency()
     const hasMounted = useHasMounted()
 
     const totalRevenue = data.reduce((s, c) => s + c.revenue, 0)
@@ -72,7 +74,7 @@ export function TopRevenueWidget({ data }: TopRevenueWidgetProps) {
                                     type="number"
                                     axisLine={false}
                                     tickLine={false}
-                                    tickFormatter={formatCur}
+                                    tickFormatter={fmt}
                                     tick={{ fontSize: 9, fill: "#b0b8c8", fontWeight: 500 }}
                                 />
                                 <YAxis
@@ -84,7 +86,7 @@ export function TopRevenueWidget({ data }: TopRevenueWidgetProps) {
                                     tick={<RankedTick />}
                                 />
                                 <RechartsTooltip
-                                    content={<RevenueTooltip />}
+                                    content={<RevenueTooltip fmt={fmt} />}
                                     cursor={{ fill: "rgba(99,102,241,0.04)" }}
                                 />
                                 <Bar dataKey="revenue" radius={[0, 3, 3, 0]} barSize={16}>
@@ -94,7 +96,7 @@ export function TopRevenueWidget({ data }: TopRevenueWidgetProps) {
                                             fill={entry.name === "Unknown Company" ? "#e2e5ea" : "#6366f1"}
                                         />
                                     ))}
-                                    <LabelList dataKey="revenue" position="right" formatter={formatCur} style={{ fontSize: 9, fontWeight: 600, fill: "#64748b" }} />
+                                    <LabelList dataKey="revenue" position="right" formatter={fmt} style={{ fontSize: 9, fontWeight: 600, fill: "#64748b" }} />
                                 </Bar>
                             </BarChart>
                         </ResponsiveContainer>
@@ -110,7 +112,7 @@ export function TopRevenueWidget({ data }: TopRevenueWidgetProps) {
             </div>
             {/* Summary footer */}
             <div style={{ marginTop: 6, paddingTop: 6, borderTop: "1px solid #f1f3f5", fontSize: 10, color: "#8892a4", flexShrink: 0 }}>
-                Total Won Revenue: <span style={{ fontWeight: 700, color: "#0f1729" }}>{formatCur(totalRevenue)}</span> from {data.length} {data.length === 1 ? "company" : "companies"}
+                Total Won Revenue: <span style={{ fontWeight: 700, color: "#0f1729" }}>{fmt(totalRevenue)}</span> from {data.length} {data.length === 1 ? "company" : "companies"}
             </div>
             {/* Insight */}
             {(() => {

@@ -13,6 +13,7 @@ import {
     Target, TrendingUp, CheckCircle2, XCircle, Loader2, Linkedin,
     CalendarDays, Link2, Upload, Search, ChevronLeft, ChevronRight, ArrowUpRight
 } from "lucide-react"
+import { useCurrency } from "@/contexts/currency-context"
 
 import { ContactTimelineTab } from "./contact-timeline-tab"
 import { AddContactModal } from "./add-contact-modal"
@@ -81,6 +82,7 @@ interface ContactNote {
 export function ContactDetailPage({ contact, leads, lastModified, lastModifiedBy, nextContactId, prevContactId }: ContactDetailPageProps) {
     const router = useRouter()
     const supabase = createClient()
+    const { fmt } = useCurrency()
 
     // ─── Editable Details Setup ────────────────────────────
     const [isEditingName, setIsEditingName] = useState(false)
@@ -223,7 +225,7 @@ export function ContactDetailPage({ contact, leads, lastModified, lastModifiedBy
 
     // ─── Formatters ──────────────────────────────────────
     const fmtCurrency = (v: number | null | undefined) =>
-        v ? new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(v) : "—"
+        v ? fmt(v) : "—"
     const fmtDate = (d: string | null | undefined) =>
         d ? new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "—"
     const fmtDateTime = (d: string | null | undefined) =>

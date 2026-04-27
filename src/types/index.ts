@@ -1,5 +1,6 @@
 export * from './company'
 export * from './goals'
+export * from './currency'
 export type { ActionResult } from './action-result'
 
 export interface LeadFieldSetting {

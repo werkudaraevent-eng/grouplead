@@ -2,13 +2,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Loader2, ArrowDown, ArrowUp } from "lucide-react"
-
-function formatIDR(value: number): string {
-  if (Math.abs(value) >= 1_000_000_000) return `Rp${(value / 1_000_000_000).toFixed(1)}B`
-  if (Math.abs(value) >= 1_000_000) return `Rp${(value / 1_000_000).toFixed(1)}M`
-  if (Math.abs(value) >= 1_000) return `Rp${(value / 1_000).toFixed(0)}K`
-  return `Rp${value.toLocaleString("id-ID")}`
-}
+import { useCurrency } from "@/contexts/currency-context"
 
 interface VarianceWidgetProps {
   attainment: number
@@ -19,6 +13,7 @@ interface VarianceWidgetProps {
 }
 
 export function VarianceWidget({ attainment, forecastRaw, forecastWeighted, target, loading }: VarianceWidgetProps) {
+  const { fmt } = useCurrency()
   const gapAttainment = target - attainment
   const gapWithForecast = target - (attainment + forecastWeighted)
 
@@ -41,7 +36,7 @@ export function VarianceWidget({ attainment, forecastRaw, forecastWeighted, targ
                   <ArrowUp className="h-4 w-4 text-emerald-500" />
                 )}
                 <span className={`text-lg font-bold ${gapAttainment > 0 ? "text-red-600" : "text-emerald-600"}`}>
-                  {formatIDR(Math.abs(gapAttainment))}
+                  {fmt(Math.abs(gapAttainment))}
                 </span>
                 <span className="text-xs text-muted-foreground">
                   {gapAttainment > 0 ? "below target" : "above target"}
@@ -57,7 +52,7 @@ export function VarianceWidget({ attainment, forecastRaw, forecastWeighted, targ
                   <ArrowUp className="h-4 w-4 text-emerald-500" />
                 )}
                 <span className={`text-lg font-bold ${gapWithForecast > 0 ? "text-amber-600" : "text-emerald-600"}`}>
-                  {formatIDR(Math.abs(gapWithForecast))}
+                  {fmt(Math.abs(gapWithForecast))}
                 </span>
                 <span className="text-xs text-muted-foreground">
                   {gapWithForecast > 0 ? "projected shortfall" : "projected surplus"}

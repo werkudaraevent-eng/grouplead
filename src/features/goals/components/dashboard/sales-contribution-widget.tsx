@@ -5,14 +5,8 @@ import { createClient } from "@/utils/supabase/client"
 import { useCompany } from "@/contexts/company-context"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Loader2, Users } from "lucide-react"
-import type { GoalUserTarget } from "@/types/goals"
-
-function formatIDR(value: number): string {
-  if (value >= 1_000_000_000) return `Rp${(value / 1_000_000_000).toFixed(1)}B`
-  if (value >= 1_000_000) return `Rp${(value / 1_000_000).toFixed(1)}M`
-  if (value >= 1_000) return `Rp${(value / 1_000).toFixed(0)}K`
-  return `Rp${value.toLocaleString("id-ID")}`
-}
+import type { GoalNode, GoalUserTarget } from "@/types/goals"
+import { useCurrency } from "@/contexts/currency-context"
 
 interface SalesRow {
   userId: string
@@ -31,17 +25,20 @@ interface SalesContributionWidgetProps {
 export function SalesContributionWidget({ goalId, loading: parentLoading, onDrillDown }: SalesContributionWidgetProps) {
   const supabase = createClient()
   const { activeCompany } = useCompany()
+  const { fmt } = useCurrency()
   const [rows, setRows] = useState<SalesRow[]>([])
   const [loading, setLoading] = useState(false)
 
   const loadData = useCallback(async () => {
-    if (!goalId || !activeCompany?.id) {
-      setRows([])
-      return
-    }
+    if (!goalId || !activeCompany?.id) { setRows([]); return }
     setLoading(true)
 
-    const [targetsRes, leadsRes, profilesRes] = await Promise.all([
+    const [nodesRes, targetsRes, leadsRes, profilesRes] = await Promise.all([
+      supabase
+        .from("goal_nodes")
+        .select("*")
+        .eq("goal_id", goalId)
+        .eq("reference_field", "pic_sales_id"),
       supabase
         .from("goal_user_targets")
         .select("*")
@@ -54,15 +51,23 @@ export function SalesContributionWidget({ goalId, loading: parentLoading, onDril
       supabase.from("profiles").select("id, full_name"),
     ])
 
+    const nodes = (nodesRes.data as GoalNode[]) ?? []
     const targets = (targetsRes.data as GoalUserTarget[]) ?? []
-    const leads = (leadsRes.data ?? []) as Array<{
-      id: number
-      actual_value: number | null
-      pic_sales_id: string | null
+    const leads = ((leadsRes.data ?? []) as unknown) as Array<{
+      id: number; actual_value: number | null; pic_sales_id: string | null
       pipeline_stage: { closed_status: string | null } | null
     }>
-    const profiles = (profilesRes.data ?? []) as Array<{ id: string; full_name: string | null }>
+    const profiles = ((profilesRes.data ?? []) as unknown) as Array<{ id: string; full_name: string | null }>
     const profileMap = new Map(profiles.map((p) => [p.id, p.full_name ?? p.id]))
+
+    // Build target map from goal_nodes (pic_sales_id nodes) + goal_user_targets
+    const targetByUser = new Map<string, number>()
+    for (const node of nodes) {
+      targetByUser.set(node.reference_value, (targetByUser.get(node.reference_value) ?? 0) + node.target_amount)
+    }
+    for (const t of targets) {
+      targetByUser.set(t.user_id, (targetByUser.get(t.user_id) ?? 0) + t.target_amount)
+    }
 
     // Aggregate won revenue per sales owner
     const wonByUser = new Map<string, { revenue: number; count: number }>()
@@ -76,13 +81,6 @@ export function SalesContributionWidget({ goalId, loading: parentLoading, onDril
       })
     }
 
-    // Aggregate targets per user (sum across periods)
-    const targetByUser = new Map<string, number>()
-    for (const t of targets) {
-      targetByUser.set(t.user_id, (targetByUser.get(t.user_id) ?? 0) + t.target_amount)
-    }
-
-    // Build rows — include users with targets or won revenue
     const userIds = new Set([...targetByUser.keys(), ...wonByUser.keys()])
     const salesRows: SalesRow[] = Array.from(userIds).map((userId) => ({
       userId,
@@ -97,9 +95,7 @@ export function SalesContributionWidget({ goalId, loading: parentLoading, onDril
     setLoading(false)
   }, [goalId, activeCompany?.id, supabase])
 
-  useEffect(() => {
-    loadData()
-  }, [loadData])
+  useEffect(() => { loadData() }, [loadData])
 
   const isLoading = parentLoading || loading
 
@@ -129,7 +125,7 @@ export function SalesContributionWidget({ goalId, loading: parentLoading, onDril
                   <div className="flex items-center justify-between text-xs">
                     <span className="font-medium truncate">{row.userName}</span>
                     <div className="flex items-center gap-3 text-muted-foreground">
-                      <span>{formatIDR(row.wonRevenue)}</span>
+                      <span>{fmt(row.wonRevenue)}</span>
                       {row.target > 0 && (
                         <span className="text-[10px]">{pct.toFixed(0)}% of target</span>
                       )}

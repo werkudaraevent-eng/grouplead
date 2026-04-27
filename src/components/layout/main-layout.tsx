@@ -8,25 +8,31 @@ import { Menu } from "lucide-react"
 import { CompanyProvider } from "@/contexts/company-context"
 import { PermissionsProvider } from "@/contexts/permissions-context"
 import { SidebarThemeProvider } from "@/contexts/sidebar-theme-context"
+import { CurrencyProvider } from "@/contexts/currency-context"
 import type { CompanyContext } from "@/types/company"
+import type { CurrencySettings } from "@/types/currency"
+import { DEFAULT_CURRENCY_SETTINGS } from "@/types/currency"
 
 interface MainLayoutProps {
     children: React.ReactNode
     initialCompany: CompanyContext | null
     companies: CompanyContext[]
+    currencySettings?: CurrencySettings
 }
 
-export function MainLayout({ children, initialCompany, companies }: MainLayoutProps) {
+export function MainLayout({ children, initialCompany, companies, currencySettings = DEFAULT_CURRENCY_SETTINGS }: MainLayoutProps) {
     const [mobileOpen, setMobileOpen] = useState(false)
 
     return (
         <CompanyProvider initialCompany={initialCompany} companies={companies}>
             <PermissionsProvider>
-                <SidebarThemeProvider>
-                    <MainLayoutInner mobileOpen={mobileOpen} setMobileOpen={setMobileOpen}>
-                        {children}
-                    </MainLayoutInner>
-                </SidebarThemeProvider>
+                <CurrencyProvider settings={currencySettings}>
+                    <SidebarThemeProvider>
+                        <MainLayoutInner mobileOpen={mobileOpen} setMobileOpen={setMobileOpen}>
+                            {children}
+                        </MainLayoutInner>
+                    </SidebarThemeProvider>
+                </CurrencyProvider>
             </PermissionsProvider>
         </CompanyProvider>
     )
@@ -50,6 +56,7 @@ function MainLayoutInner({
     return (
         <div className="flex h-screen overflow-hidden">
             <aside
+                data-sidebar
                 className={`hidden lg:flex lg:w-[220px] lg:flex-col lg:border-r shrink-0 flex-none transition-colors duration-300 ${isDarkPanel ? 'border-[#2a3040]' : 'border-sidebar-border bg-sidebar'}`}
                 style={isDarkPanel ? { backgroundColor: '#1a1f2e' } : undefined}
             >

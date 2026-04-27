@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from "react"
 import { createClient } from "@/utils/supabase/client"
 import { useGoalData } from "@/features/goals/hooks/use-goal-data"
 import { useCompany } from "@/contexts/company-context"
+import { useCurrency } from "@/contexts/currency-context"
 import { calculateAttainmentV2 } from "@/features/goals/lib/attainment-calculator"
 import { SectionCard, SectionTitle, SectionSub, EmptyState } from "./shared"
 import { TrendingUp, Target, ArrowDown, ArrowUp, Building2, PieChart as PieChartIcon, BarChart3 } from "lucide-react"
@@ -28,13 +29,6 @@ import {
 import type { GoalV2, LeadAttainmentInput } from "@/types/goals"
 
 // ─── Shared Helpers ─────────────────────────────────────────────────────────
-
-function formatIDR(value: number): string {
-  if (Math.abs(value) >= 1_000_000_000) return `Rp${(value / 1_000_000_000).toFixed(1)}B`
-  if (Math.abs(value) >= 1_000_000) return `Rp${(value / 1_000_000).toFixed(0)}M`
-  if (Math.abs(value) >= 1_000) return `Rp${(value / 1_000).toFixed(0)}K`
-  return `Rp${value.toLocaleString("id-ID")}`
-}
 
 function NoGoalData({ message }: { message?: string }) {
   return (
@@ -64,9 +58,8 @@ function ChartPlaceholder() {
 }
 
 /** Dark-themed tooltip used across all goal widgets */
-function GoalTooltip({ active, payload, label, formatter }: { active?: boolean; payload?: any[]; label?: string; formatter?: (v: number) => string }) {
+function GoalTooltip({ active, payload, label, fmt }: { active?: boolean; payload?: any[]; label?: string; fmt: (v: number) => string }) {
   if (!active || !payload?.length) return null
-  const fmt = formatter ?? formatIDR
   return (
     <div style={{
       background: "#0f1729", color: "#fff", padding: "8px 11px", borderRadius: 8,
@@ -86,6 +79,7 @@ function GoalTooltip({ active, payload, label, formatter }: { active?: boolean; 
 // ─── 1. Goal Attainment Widget ──────────────────────────────────────────────
 
 export function GoalAttainmentWidget() {
+  const { fmt } = useCurrency()
   const data = useGoalData()
   const mounted = useHasMounted()
   const pct = data.target > 0 ? (data.attainment / data.target) * 100 : 0
@@ -143,10 +137,10 @@ export function GoalAttainmentWidget() {
           </div>
           <div style={{ textAlign: "center", marginTop: 4, flexShrink: 0 }}>
             <div style={{ fontSize: 14, fontWeight: 800, color: "#0f1729", letterSpacing: "-0.3px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-              {formatIDR(data.attainment)}
+              {fmt(data.attainment)}
             </div>
             <div style={{ fontSize: 10, color: "#8892a4", marginTop: 1 }}>
-              {pct.toFixed(1)}% of {formatIDR(data.target)}
+              {pct.toFixed(1)}% of {fmt(data.target)}
             </div>
           </div>
         </div>
@@ -158,6 +152,7 @@ export function GoalAttainmentWidget() {
 // ─── 2. Goal Forecast Widget ────────────────────────────────────────────────
 
 export function GoalForecastWidget() {
+  const { fmt } = useCurrency()
   const data = useGoalData()
   const mounted = useHasMounted()
 
@@ -186,8 +181,8 @@ export function GoalForecastWidget() {
               <BarChart data={chartData} barCategoryGap="30%">
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                 <XAxis dataKey="name" tick={{ fontSize: 10, fill: "#8892a4" }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 10, fill: "#8892a4" }} axisLine={false} tickLine={false} tickFormatter={(v: number) => formatIDR(v)} width={60} />
-                <Tooltip content={<GoalTooltip />} cursor={{ fill: "rgba(0,0,0,.04)" }} />
+                <YAxis tick={{ fontSize: 10, fill: "#8892a4" }} axisLine={false} tickLine={false} tickFormatter={fmt} width={60} />
+                <Tooltip content={<GoalTooltip fmt={fmt} />} cursor={{ fill: "rgba(0,0,0,.04)" }} />
                 <Bar dataKey="value" radius={[4, 4, 0, 0]} name="Amount">
                   {chartData.map((entry, i) => (
                     <Cell key={i} fill={entry.fill} />
@@ -199,11 +194,11 @@ export function GoalForecastWidget() {
           <div style={{ display: "flex", justifyContent: "space-around", marginTop: 4, flexShrink: 0 }}>
             <div style={{ textAlign: "center" }}>
               <div style={{ fontSize: 9, color: "#8892a4" }}>Raw Pipeline</div>
-              <div style={{ fontSize: 12, fontWeight: 700, color: "#0ea5e9" }}>{formatIDR(data.forecastRaw)}</div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "#0ea5e9" }}>{fmt(data.forecastRaw)}</div>
             </div>
             <div style={{ textAlign: "center" }}>
               <div style={{ fontSize: 9, color: "#8892a4" }}>Weighted</div>
-              <div style={{ fontSize: 12, fontWeight: 700, color: "#6366f1" }}>{formatIDR(data.forecastWeighted)}</div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "#6366f1" }}>{fmt(data.forecastWeighted)}</div>
             </div>
           </div>
         </div>
@@ -215,6 +210,7 @@ export function GoalForecastWidget() {
 // ─── 3. Goal Variance Widget ────────────────────────────────────────────────
 
 export function GoalVarianceWidget() {
+  const { fmt } = useCurrency()
   const data = useGoalData()
   const mounted = useHasMounted()
   // Positive gap = shortfall (target > attainment), negative gap = surplus
@@ -254,8 +250,8 @@ export function GoalVarianceWidget() {
               <BarChart data={chartData} barCategoryGap="30%">
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                 <XAxis dataKey="name" tick={{ fontSize: 10, fill: "#8892a4" }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 10, fill: "#8892a4" }} axisLine={false} tickLine={false} tickFormatter={(v: number) => formatIDR(v)} width={60} />
-                <Tooltip content={<GoalTooltip />} cursor={{ fill: "rgba(0,0,0,.04)" }} />
+                <YAxis tick={{ fontSize: 10, fill: "#8892a4" }} axisLine={false} tickLine={false} tickFormatter={fmt} width={60} />
+                <Tooltip content={<GoalTooltip fmt={fmt} />} cursor={{ fill: "rgba(0,0,0,.04)" }} />
                 <ReferenceLine y={0} stroke="#94a3b8" strokeDasharray="3 3" />
                 <Bar dataKey="value" radius={[4, 4, 0, 0]} name="Gap">
                   {chartData.map((entry, i) => (
@@ -273,7 +269,7 @@ export function GoalVarianceWidget() {
                 <ArrowUp style={{ width: 10, height: 10, color: "#10b981" }} />
               )}
               <span style={{ fontSize: 9, color: "#8892a4" }}>
-                {formatIDR(Math.abs(gapAttainment))} {gapAttainment > 0 ? "below" : "above"}
+                {fmt(Math.abs(gapAttainment))} {gapAttainment > 0 ? "below" : "above"}
               </span>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
@@ -283,7 +279,7 @@ export function GoalVarianceWidget() {
                 <ArrowUp style={{ width: 10, height: 10, color: "#10b981" }} />
               )}
               <span style={{ fontSize: 9, color: "#8892a4" }}>
-                {formatIDR(Math.abs(gapWithForecast))} {gapWithForecast > 0 ? "shortfall" : "surplus"}
+                {fmt(Math.abs(gapWithForecast))} {gapWithForecast > 0 ? "shortfall" : "surplus"}
               </span>
             </div>
           </div>
@@ -300,6 +296,7 @@ const COLORS = ["#6366f1", "#0ea5e9", "#10b981", "#f59e0b", "#ef4444", "#ec4899"
 interface BreakdownRow { id: string; name: string; wonRevenue: number; target: number }
 
 export function GoalCompanyBreakdownWidget() {
+  const { fmt } = useCurrency()
   const { activeCompany } = useCompany()
   const data = useGoalData()
   const mounted = useHasMounted()
@@ -360,9 +357,9 @@ export function GoalCompanyBreakdownWidget() {
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={rows} layout="vertical" barCategoryGap="20%" margin={{ left: 0, right: 12, top: 4, bottom: 4 }}>
                 <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
-                <XAxis type="number" tick={{ fontSize: 10, fill: "#8892a4" }} axisLine={false} tickLine={false} tickFormatter={(v: number) => formatIDR(v)} />
+                <XAxis type="number" tick={{ fontSize: 10, fill: "#8892a4" }} axisLine={false} tickLine={false} tickFormatter={fmt} />
                 <YAxis type="category" dataKey="name" tick={{ fontSize: 10, fill: "#0f1729", fontWeight: 600 }} axisLine={false} tickLine={false} width={80} />
-                <Tooltip content={<GoalTooltip />} cursor={{ fill: "rgba(0,0,0,.04)" }} />
+                <Tooltip content={<GoalTooltip fmt={fmt} />} cursor={{ fill: "rgba(0,0,0,.04)" }} />
                 <Bar dataKey="wonRevenue" name="Revenue" radius={[0, 4, 4, 0]}>
                   {rows.map((_, i) => (
                     <Cell key={i} fill={COLORS[i % COLORS.length]} />
@@ -380,6 +377,7 @@ export function GoalCompanyBreakdownWidget() {
 // ─── 5. Goal Segment Breakdown Widget ───────────────────────────────────────
 
 export function GoalSegmentBreakdownWidget() {
+  const { fmt } = useCurrency()
   const { activeCompany } = useCompany()
   const data = useGoalData()
   const mounted = useHasMounted()
@@ -439,7 +437,7 @@ export function GoalSegmentBreakdownWidget() {
             <div style={{ width: 7, height: 7, borderRadius: "50%", background: entry.fill, flexShrink: 0 }} />
             <span style={{ fontWeight: 600, color: "#0f1729" }}>{entry.name}</span>
           </div>
-          <span style={{ color: "#8892a4" }}>{formatIDR(entry.value)} ({entry.share}%)</span>
+          <span style={{ color: "#8892a4" }}>{fmt(entry.value)} ({entry.share}%)</span>
         </div>
       ))}
     </div>
@@ -454,7 +452,7 @@ export function GoalSegmentBreakdownWidget() {
         fontSize: 11, lineHeight: 1.6, boxShadow: "0 4px 16px rgba(0,0,0,.25)",
       }}>
         <div style={{ fontWeight: 700, marginBottom: 1 }}>{d.name}</div>
-        <div>Revenue: {formatIDR(d.value)}</div>
+        <div>Revenue: {fmt(d.value)}</div>
         <div>Share: {d.share}%</div>
       </div>
     )
@@ -511,6 +509,7 @@ export function GoalSegmentBreakdownWidget() {
 interface TrendEntry { label: string; attainment: number; target: number }
 
 export function GoalTrendWidget() {
+  const { fmt } = useCurrency()
   const { activeCompany } = useCompany()
   const data = useGoalData()
   const mounted = useHasMounted()
@@ -594,8 +593,8 @@ export function GoalTrendWidget() {
             <BarChart data={entries} barCategoryGap="20%" margin={{ left: 0, right: 4, top: 4, bottom: 4 }}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
               <XAxis dataKey="label" tick={{ fontSize: 9, fill: "#8892a4" }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 10, fill: "#8892a4" }} axisLine={false} tickLine={false} tickFormatter={(v: number) => formatIDR(v)} width={55} />
-              <Tooltip content={<GoalTooltip />} cursor={{ fill: "rgba(0,0,0,.04)" }} />
+              <YAxis tick={{ fontSize: 10, fill: "#8892a4" }} axisLine={false} tickLine={false} tickFormatter={fmt} width={55} />
+              <Tooltip content={<GoalTooltip fmt={fmt} />} cursor={{ fill: "rgba(0,0,0,.04)" }} />
               <Bar dataKey="attainment" name="Attainment" fill="#10b981" radius={[3, 3, 0, 0]} />
               <Bar dataKey="target" name="Target" fill="#cbd5e1" radius={[3, 3, 0, 0]} />
             </BarChart>

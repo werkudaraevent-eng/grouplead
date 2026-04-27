@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { Lead, PipelineStage } from "@/types"
+import { Lead, PipelineStage, TransitionRule } from "@/types"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { LeadForm } from "@/features/leads/components/lead-form"
@@ -28,6 +28,8 @@ import { StageHistoryTab } from "@/features/leads/components/stage-history-tab"
 import { HeaderMetricPopover } from "@/features/leads/components/header-metric-popover"
 import { HeaderAssigneePopover } from "@/features/leads/components/header-assignee-popover"
 import { TasksTab } from "@/features/leads/components/tasks-tab"
+import { TransitionPromptModal } from "@/features/leads/components/transition-prompt-modal"
+import { useCurrency } from "@/contexts/currency-context"
 interface LeadDetailPageProps {
     lead: Lead & { pipeline?: { name: string } | null }
     prevLeadId?: number | null
@@ -39,6 +41,7 @@ interface LeadDetailPageProps {
 export function LeadDetailPage({ lead, prevLeadId, nextLeadId, lastModifiedBy = "System", lastModified }: LeadDetailPageProps) {
     const router = useRouter()
     const supabase = createClient()
+    const { fmt } = useCurrency()
     const [editOpen, setEditOpen] = useState(false)
     const [deleteConfirm, setDeleteConfirm] = useState(false)
 
@@ -46,6 +49,13 @@ export function LeadDetailPage({ lead, prevLeadId, nextLeadId, lastModifiedBy = 
     const [stages, setStages] = useState<PipelineStage[]>([])
     const [movingStage, setMovingStage] = useState(false)
     const [isScrolled, setIsScrolled] = useState(false)
+    const [transitionRules, setTransitionRules] = useState<TransitionRule[]>([])
+    const [transitionPrompt, setTransitionPrompt] = useState<{
+        lead: Lead;
+        oldStageId: string;
+        newStageId: string;
+        rule: TransitionRule;
+    } | null>(null)
 
     const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
         const top = e.currentTarget.scrollTop
@@ -64,12 +74,19 @@ export function LeadDetailPage({ lead, prevLeadId, nextLeadId, lastModifiedBy = 
 
     const loadStages = useCallback(async () => {
         if (!lead.pipeline_id) return
-        const { data } = await supabase
-            .from('pipeline_stages')
-            .select('*')
-            .eq('pipeline_id', lead.pipeline_id)
-            .order('sort_order', { ascending: true })
+        const [{ data }, { data: rulesData }] = await Promise.all([
+            supabase
+                .from('pipeline_stages')
+                .select('*')
+                .eq('pipeline_id', lead.pipeline_id)
+                .order('sort_order', { ascending: true }),
+            supabase
+                .from('pipeline_transition_rules')
+                .select('*')
+                .eq('pipeline_id', lead.pipeline_id)
+        ])
         if (data) setStages(data)
+        if (rulesData) setTransitionRules(rulesData as TransitionRule[])
     }, [lead.pipeline_id])
 
     useEffect(() => { loadStages() }, [loadStages])
@@ -78,6 +95,28 @@ export function LeadDetailPage({ lead, prevLeadId, nextLeadId, lastModifiedBy = 
 
     const handleStageClick = async (stage: PipelineStage) => {
         if (stage.name === stageName || movingStage) return
+
+        // ── Check transition rules BEFORE moving ──
+        const currentStageId = lead.pipeline_stage_id
+        if (currentStageId) {
+            const matchedRule = transitionRules.find(r =>
+                (r.from_stage_id === currentStageId || r.from_stage_id === null) &&
+                r.to_stage_id === stage.id
+            )
+
+            if (matchedRule && (matchedRule.required_fields.length > 0 || matchedRule.note_required || matchedRule.attachment_required)) {
+                // Show modal instead of direct update
+                setTransitionPrompt({
+                    lead: lead,
+                    oldStageId: currentStageId,
+                    newStageId: stage.id,
+                    rule: matchedRule,
+                })
+                return
+            }
+        }
+
+        // ── No rule matched — proceed with direct update ──
         setMovingStage(true)
         const { error } = await supabase
             .from('leads')
@@ -121,7 +160,7 @@ export function LeadDetailPage({ lead, prevLeadId, nextLeadId, lastModifiedBy = 
 
     // ─── Currency formatter ──────────────────────────────
     const fmtCurrency = (v: number | null | undefined) =>
-        v ? new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(v) : "—"
+        v ? fmt(v) : "—"
 
     const fmtDate = (d: string | null | undefined) =>
         d ? new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "—"
@@ -695,6 +734,16 @@ export function LeadDetailPage({ lead, prevLeadId, nextLeadId, lastModifiedBy = 
                     />
                 </SheetContent>
             </Sheet>
+
+            {/* ═══ Transition Prompt Modal ═══════════════════════════ */}
+            <TransitionPromptModal
+                prompt={transitionPrompt}
+                onClose={() => setTransitionPrompt(null)}
+                onSuccess={() => {
+                    setTransitionPrompt(null)
+                    router.refresh()
+                }}
+            />
         </div>
     )
 }

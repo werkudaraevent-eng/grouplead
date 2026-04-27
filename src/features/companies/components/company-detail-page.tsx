@@ -14,6 +14,7 @@ import {
     Plus, Loader2, Upload, Target, TrendingUp,
     CheckCircle2, XCircle, Search, ChevronLeft, ChevronRight
 } from "lucide-react"
+import { useCurrency } from "@/contexts/currency-context"
 import type { ClientCompany, Contact } from "@/types"
 import { TimelineTab } from "./timeline-tab"
 import { AddCompanyModal } from "./add-company-modal"
@@ -61,6 +62,7 @@ interface CompanyNote {
 export function CompanyDetailPage({ company, leads, contactCount, lastModified, lastModifiedBy, nextCompanyId, prevCompanyId }: CompanyDetailPageProps) {
     const router = useRouter()
     const supabase = createClient()
+    const { fmt } = useCurrency()
 
     // ─── Contacts State ──────────────────────────────────
     const [contacts, setContacts] = useState<Contact[]>([])
@@ -146,7 +148,7 @@ export function CompanyDetailPage({ company, leads, contactCount, lastModified, 
 
     // ─── Formatters ──────────────────────────────────────
     const fmtCurrency = (v: number | null | undefined) =>
-        v ? new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(v) : "—"
+        v ? fmt(v) : "—"
     const fmtDate = (d: string | null | undefined) =>
         d ? new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "—"
     const fmtDateTime = (d: string | null | undefined) =>
@@ -754,6 +756,7 @@ export function CompanyDetailPage({ company, leads, contactCount, lastModified, 
                 open={editModalOpen}
                 onOpenChange={setEditModalOpen}
                 initialData={company}
+                onCreated={() => router.refresh()}
             />
         </div>
     )

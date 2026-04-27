@@ -1,27 +1,15 @@
 import Link from "next/link"
-import { Users, GitBranch, Building, Shield, Library, Target, ChevronRight, Database, Tags } from "lucide-react"
+import { Users, GitBranch, Building, Shield, Target, ChevronRight, Database } from "lucide-react"
+import { SettingsPageHeader } from "@/components/layout/settings-page-header"
+import { CurrencySettingsCard } from "@/features/settings/components/currency-settings-card"
 
 const modules = [
     {
-        title: "Lead Field Registry",
-        description: "Manage which lead fields are available for analysis across goals, segments, and dashboard widgets.",
-        href: "/settings/registry",
-        icon: Database,
-        button: "Manage Fields",
-    },
-    {
-        title: "Lead Dropdown Options",
-        description: "Manage categories and options for Streams, Purposes, and Companies.",
+        title: "Lead Attributes & Segments",
+        description: "Manage lead fields, dropdown options, custom form layouts, and segment rules.",
         href: "/settings/master-options",
-        icon: Library,
-        button: "Configure Options",
-    },
-    {
-        title: "Segments & Dimensions",
-        description: "Define custom segments by grouping lead field values. Reusable across goals and dashboard analytics.",
-        href: "/settings/segments",
-        icon: Tags,
-        button: "Manage Segments",
+        icon: Database,
+        button: "Manage Configuration",
     },
     {
         title: "Pipeline & Stages",
@@ -63,16 +51,13 @@ const modules = [
 
 export default function SettingsPage() {
     return (
-        <div className="bg-slate-50 min-h-screen">
-            <div className="w-full px-10 py-10">
-                <div>
-                    <h1 className="text-3xl font-bold text-slate-900">Settings</h1>
-                    <p className="text-base text-slate-500 mt-1">
-                        Configure dropdown options, custom fields, and pipelines for your event leads.
-                    </p>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-10">
+        <div className="min-h-screen">
+            <SettingsPageHeader
+                title="Settings"
+                subtitle="Configure dropdown options, custom fields, and pipelines for your event leads."
+            />
+            <div className="px-6 lg:px-8 pb-10">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
                     {modules.map((m) => (
                         <Link key={m.href} href={m.href} className="group">
                             <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow cursor-pointer h-full">
@@ -93,6 +78,8 @@ export default function SettingsPage() {
                             </div>
                         </Link>
                     ))}
+                    {/* Currency Display — inline settings card (no separate page needed) */}
+                    <CurrencySettingsCard />
                 </div>
             </div>
         </div>

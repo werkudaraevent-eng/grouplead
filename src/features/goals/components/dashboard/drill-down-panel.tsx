@@ -6,13 +6,7 @@ import { createClient } from "@/utils/supabase/client"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet"
 import { Button } from "@/components/ui/button"
 import { Loader2, Download } from "lucide-react"
-
-function formatIDR(value: number): string {
-  if (value >= 1_000_000_000) return `Rp${(value / 1_000_000_000).toFixed(1)}B`
-  if (value >= 1_000_000) return `Rp${(value / 1_000_000).toFixed(1)}M`
-  if (value >= 1_000) return `Rp${(value / 1_000).toFixed(0)}K`
-  return `Rp${value.toLocaleString("id-ID")}`
-}
+import { useCurrency } from "@/contexts/currency-context"
 
 interface LeadRow {
   id: number
@@ -35,6 +29,7 @@ interface DrillDownPanelProps {
 
 export function DrillDownPanel({ label, filterType, filterValue, goalId, onClose }: DrillDownPanelProps) {
   const router = useRouter()
+  const { fmt } = useCurrency()
   const [leads, setLeads] = useState<LeadRow[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -158,7 +153,7 @@ export function DrillDownPanel({ label, filterType, filterValue, goalId, onClose
                   </div>
                   <div className="text-right shrink-0 ml-3">
                     <div className="font-medium">
-                      {formatIDR(lead.actual_value ?? lead.estimated_value ?? 0)}
+                      {fmt(lead.actual_value ?? lead.estimated_value ?? 0)}
                     </div>
                   </div>
                 </div>

@@ -9,7 +9,8 @@ import { EmptyState } from "./dashboard-widgets/shared"
 import { buildDashboardStageSeries } from "@/features/leads/lib/dashboard-stage-series"
 import { splitDashboardLeadsByPeriod } from "@/features/leads/lib/dashboard-period"
 import { Briefcase, Trophy, CheckSquare, RefreshCw, TrendingUp, Calendar } from "lucide-react"
-import { ACCENT, MONTHS_SHORT, formatCur, getVsLastYearPct } from "./dashboard-widgets/shared"
+import { useCurrency } from "@/contexts/currency-context"
+import { ACCENT, MONTHS_SHORT, getVsLastYearPct } from "./dashboard-widgets/shared"
 import { WIDGET_IDS } from "@/features/leads/lib/dashboard-layout"
 import { DashboardGrid } from "./dashboard-grid"
 import {
@@ -72,6 +73,7 @@ export function AnalyticsDashboard({
     const pathname = usePathname()
     const searchParams = useSearchParams()
     const { activeCompany } = useCompany()
+    const { fmt } = useCurrency()
     const currentYear = new Date().getFullYear()
     const [hasMounted, setHasMounted] = useState(false)
     const [periodStr, setPeriodStr] = useState("this_quarter")
@@ -622,8 +624,7 @@ export function AnalyticsDashboard({
         },
         {
             label: "Won Revenue",
-            value: formatCur(stats.totalRevenue).replace("Rp ", ""),
-            prefix: "Rp ",
+            value: fmt(stats.totalRevenue),
             vsTarget: goalMetrics.revTgt,
             vsPrev: goalMetrics.revYoy,
             accent: ACCENT.revenue,
@@ -652,8 +653,7 @@ export function AnalyticsDashboard({
         },
         {
             label: "Avg Deal Size",
-            value: formatCur(stats.avgSize).replace("Rp ", ""),
-            prefix: "Rp ",
+            value: fmt(stats.avgSize),
             vsTarget: goalMetrics.avgTgt,
             vsPrev: goalMetrics.avgYoy,
             accent: ACCENT.dealsize,

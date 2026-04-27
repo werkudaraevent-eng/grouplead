@@ -4,7 +4,8 @@ import {
     ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid,
     Tooltip as RechartsTooltip, ResponsiveContainer, Legend, LabelList,
 } from "recharts"
-import { SectionCard, SectionTitle, SectionSub, DarkTooltip, formatCur, miniSelectStyle } from "./shared"
+import { useCurrency } from "@/contexts/currency-context"
+import { SectionCard, SectionTitle, SectionSub, DarkTooltip, miniSelectStyle } from "./shared"
 
 export type RevenueBasis = "revenue_recognition" | "closed_won"
 
@@ -28,6 +29,7 @@ interface RevenueChartWidgetProps {
 }
 
 export function RevenueChartWidget({ data, trendYear, setTrendYear, availableYears, hasMounted, revenueBasis, setRevenueBasis }: RevenueChartWidgetProps) {
+    const { fmt } = useCurrency()
     const basisLabel = revenueBasis === "revenue_recognition" ? "Revenue Recognition Month" : "Closed Won Date"
 
     return (
@@ -57,11 +59,11 @@ export function RevenueChartWidget({ data, trendYear, setTrendYear, availableYea
                         <ComposedChart data={data} margin={{ top: 15, right: 5, left: 0, bottom: 0 }}>
                             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f3f5" />
                             <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fontSize: 9, fill: '#94a3b8', fontWeight: 500 }} dy={8} />
-                            <YAxis yAxisId="left" tickFormatter={formatCur} axisLine={false} tickLine={false} tick={{ fontSize: 9, fill: '#b0b8c8', fontWeight: 500 }} dx={-5} width={55} />
-                            <RechartsTooltip content={<DarkTooltip />} />
+                            <YAxis yAxisId="left" tickFormatter={fmt} axisLine={false} tickLine={false} tick={{ fontSize: 9, fill: '#b0b8c8', fontWeight: 500 }} dx={-5} width={55} />
+                            <RechartsTooltip content={<DarkTooltip fmt={fmt} />} />
                             <Legend wrapperStyle={{ paddingTop: '6px', fontSize: '9.5px', fontWeight: 500 }} />
                             <Bar yAxisId="left" dataKey="actual" name={`Actual ${trendYear}`} barSize={20} fill="#6366f1" radius={[3, 3, 0, 0]}>
-                                <LabelList dataKey="actual" position="top" formatter={formatCur} style={{ fontSize: 8, fontWeight: 600, fill: "#64748b" }} />
+                                <LabelList dataKey="actual" position="top" formatter={fmt} style={{ fontSize: 8, fontWeight: 600, fill: "#64748b" }} />
                             </Bar>
                             <Bar yAxisId="left" dataKey="prevYear" name={`Last Year`} barSize={12} fill="#ddd6fe" radius={[3, 3, 0, 0]} />
                             <Line yAxisId="left" type="step" dataKey="target" name="Target" stroke="#c0c7d2" strokeWidth={1.5} strokeDasharray="4 4" dot={false} />

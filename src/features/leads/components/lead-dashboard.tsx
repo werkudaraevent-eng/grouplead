@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { DataTable } from "@/components/shared/data-table"
-import { columns, DEFAULT_HIDDEN_COLUMNS } from "@/features/leads/components/lead-columns"
+import { getColumns, DEFAULT_HIDDEN_COLUMNS } from "@/features/leads/components/lead-columns"
+import { useCurrency } from "@/contexts/currency-context"
 import { LeadKanban } from "@/features/leads/components/lead-kanban"
 import { LeadForm } from "@/features/leads/components/lead-form"
 import { ImportLeadsModal } from "@/features/leads/components/import-leads-modal"
@@ -28,7 +29,7 @@ import {
     Archive, RotateCcw, Settings2, ArchiveRestore, Upload,
     ChevronsLeft, ChevronsRight, TrendingUp,
 } from "lucide-react"
-import { PipelineFilters, PipelineFilterState, INITIAL_FILTER_STATE } from "@/features/leads/components/pipeline-filters"
+import { PipelineFilters, PipelineFilterState, INITIAL_FILTER_STATE, ActiveFilterPills, applyFilters } from "@/features/leads/components/pipeline-filters"
 import { PipelineIconPicker, PipelineIcon, DEFAULT_PIPELINE_ICON } from "@/features/leads/components/pipeline-icon-picker"
 import { useRouter } from "next/navigation"
 import { PermissionGate } from "@/features/users/components/permission-gate"
@@ -55,8 +56,12 @@ type ViewMode = 'table' | 'kanban'
 
 export function LeadDashboard() {
     const { activeCompany, companies, isHoldingView } = useCompany()
+    const { fmt } = useCurrency()
     const supabase = createClient()
     const router = useRouter()
+
+    // Columns with currency formatting from context
+    const columns = useMemo(() => getColumns(fmt), [fmt])
 
     // Pipeline state
     const [pipelines, setPipelines] = useState<Pipeline[]>([])
@@ -125,27 +130,21 @@ export function LeadDashboard() {
                 (l.project_name || "").toLowerCase().includes(q) ||
                 (l.client_company?.name || "").toLowerCase().includes(q) ||
                 (l.pic_sales_profile?.full_name || "").toLowerCase().includes(q) ||
+                (l.account_manager_profile?.full_name || "").toLowerCase().includes(q) ||
+                (l.contact?.full_name || "").toLowerCase().includes(q) ||
                 (l.status || "").toLowerCase().includes(q) ||
                 (l.main_stream || "").toLowerCase().includes(q) ||
-                (l.event_format || "").toLowerCase().includes(q)
+                (l.stream_type || "").toLowerCase().includes(q) ||
+                (l.event_format || "").toLowerCase().includes(q) ||
+                (l.lead_source || "").toLowerCase().includes(q) ||
+                (l.referral_source || "").toLowerCase().includes(q) ||
+                (l.business_purpose || "").toLowerCase().includes(q) ||
+                (l.grade_lead || "").toLowerCase().includes(q)
             )
         }
 
-        if (filters.pics.length > 0) {
-            result = result.filter(l => filters.pics.includes(l.pic_sales_id || "unassigned"))
-        }
-        if (filters.categories.length > 0) {
-            result = result.filter(l => filters.categories.includes(l.category || "Uncategorized"))
-        }
-        if (filters.streams.length > 0) {
-            result = result.filter(l => filters.streams.includes(l.main_stream || "Uncategorized"))
-        }
-        if (filters.minValue) {
-            result = result.filter(l => (l.estimated_value || 0) >= parseInt(filters.minValue))
-        }
-        if (filters.maxValue) {
-            result = result.filter(l => (l.estimated_value || 0) <= parseInt(filters.maxValue))
-        }
+        // Apply dynamic filter rules
+        result = applyFilters(result, filters)
 
         return result
     }, [leads, searchQuery, filters])
@@ -203,26 +202,35 @@ export function LeadDashboard() {
     const handleBulkExport = (rows: Lead[]) => {
         if (rows.length === 0) return
         const headers = [
-            'No', 'Manual ID', 'Subsidiary', 'Client', 'Project', 'Category',
-            'Stream', 'Format', 'Stage', 'Grade', 'PIC Sales', 'Close Date',
-            'Estimated Value', 'Status', 'Lead Source',
+            'No', 'Manual ID', 'Subsidiary', 'Client', 'Contact Person', 'Project', 'Category',
+            'Stream', 'Stream Type', 'Format', 'Stage', 'Grade', 'PIC Sales', 'Account Manager',
+            'Lead Source', 'Referral Source', 'Business Purpose', 'Target Close Date',
+            'Event Dates', 'Pax Count', 'Destinations', 'Estimated Value', 'Actual Value',
         ]
         const csvRows = rows.map((lead, i) => [
             i + 1,
             lead.manual_id ?? '',
             lead.company?.name ?? '',
             lead.client_company?.name ?? '',
+            lead.contact?.full_name ?? '',
             lead.project_name ?? '',
             lead.category ?? '',
             lead.main_stream ?? '',
+            lead.stream_type ?? '',
             lead.event_format ?? '',
-            lead.status ?? '',
+            lead.pipeline_stage?.name ?? lead.status ?? '',
             lead.grade_lead ?? '',
             lead.pic_sales_profile?.full_name ?? '',
-            lead.target_close_date ?? '',
-            lead.estimated_value ?? '',
-            lead.status ?? '',
+            lead.account_manager_profile?.full_name ?? '',
             lead.lead_source ?? '',
+            lead.referral_source ?? '',
+            lead.business_purpose ?? '',
+            lead.target_close_date ?? '',
+            lead.event_dates?.join('; ') ?? (lead.event_date_start ? `${lead.event_date_start}${lead.event_date_end ? ` - ${lead.event_date_end}` : ''}` : ''),
+            lead.pax_count ?? '',
+            lead.destinations?.map(d => d.venue ? `${d.city} (${d.venue})` : d.city).join('; ') ?? '',
+            lead.estimated_value ?? '',
+            lead.actual_value ?? '',
         ])
         const csvContent = [
             headers.join(','),
@@ -889,7 +897,7 @@ export function LeadDashboard() {
                             </div>
                         </div>
 
-                        <div className="flex items-center gap-2 shrink-0 ml-auto pb-1 sm:pb-0 overflow-x-auto hide-scrollbar max-w-full">
+                        <div className="flex items-center gap-2 shrink-0 ml-auto pb-1 sm:pb-0 max-w-full overflow-visible">
                             {/* Search Bar */}
                             <div className="relative shrink-0">
                                 <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
@@ -1015,9 +1023,12 @@ export function LeadDashboard() {
                     </div>
                 </div>
 
+                {/* ─── Active Filter Pills ─────────────────────────────── */}
+                <ActiveFilterPills filters={filters} setFilters={setFilters} />
+
                 {/* ─── Board / Table Content ───────────────────────────── */}
                 <div className={`flex-1 overflow-x-auto overflow-y-hidden ${
-                    viewMode === 'kanban' ? 'pt-6 px-6 pb-4' : 'pt-1 pb-0 px-6'
+                    viewMode === 'kanban' ? 'pt-6 px-6 pb-4' : 'pt-1 pb-0 px-0'
                 }`}>
                     {!activePipeline ? (
                         <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
@@ -1043,7 +1054,7 @@ export function LeadDashboard() {
                             }}
                         />
                     ) : (
-                        <div className="h-full flex flex-col pb-6">
+                        <div className="h-full flex flex-col">
                             <DataTable
                                 columns={columns}
                                 data={filteredLeads}
@@ -1051,6 +1062,8 @@ export function LeadDashboard() {
                                 defaultHiddenColumns={DEFAULT_HIDDEN_COLUMNS}
                                 enableRowSelection
                                 getRowId={(row) => String((row as Lead).id)}
+                                totalValueAccessor={(row) => (row as Lead).estimated_value || 0}
+                                totalValueLabel="Total value"
                                 bulkActions={{
                                     onBulkDelete: handleTableBulkDelete,
                                     onBulkExport: handleBulkExport,

@@ -2,13 +2,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Loader2, Layers } from "lucide-react"
-
-function formatIDR(value: number): string {
-  if (value >= 1_000_000_000) return `Rp${(value / 1_000_000_000).toFixed(1)}B`
-  if (value >= 1_000_000) return `Rp${(value / 1_000_000).toFixed(1)}M`
-  if (value >= 1_000) return `Rp${(value / 1_000).toFixed(0)}K`
-  return `Rp${value.toLocaleString("id-ID")}`
-}
+import { useCurrency } from "@/contexts/currency-context"
 
 interface PipelineWidgetProps {
   forecastRaw: number
@@ -16,6 +10,7 @@ interface PipelineWidgetProps {
 }
 
 export function PipelineWidget({ forecastRaw, loading }: PipelineWidgetProps) {
+  const { fmt } = useCurrency()
   return (
     <Card>
       <CardHeader className="pb-2">
@@ -29,7 +24,7 @@ export function PipelineWidget({ forecastRaw, loading }: PipelineWidgetProps) {
           <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
         ) : (
           <>
-            <div className="text-2xl font-bold tracking-tight">{formatIDR(forecastRaw)}</div>
+            <div className="text-2xl font-bold tracking-tight">{fmt(forecastRaw)}</div>
             <p className="text-xs text-muted-foreground mt-1">Open pipeline value</p>
           </>
         )}

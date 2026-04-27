@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState, useCallback } from "react"
+import { useRouter } from "next/navigation"
 import { createClient } from "@/utils/supabase/client"
 import { useCompany } from "@/contexts/company-context"
 import { Button } from "@/components/ui/button"
@@ -22,107 +23,18 @@ import {
 } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
 import { createGoalV2Action, updateGoalV2Action, deleteGoalV2Action } from "@/app/actions/goal-actions"
-import { LEAD_FIELD_REGISTRY } from "@/config/lead-field-registry"
 import { toast } from "sonner"
-import { Plus, Loader2, Pencil, Trash2, Target, ArrowRight, X } from "lucide-react"
-import type { GoalV2, BreakdownLevelConfig } from "@/types/goals"
-
-const MAX_BREAKDOWN_LEVELS = 10
-
-function formatIDR(value: number): string {
-  if (Math.abs(value) >= 1_000_000_000) return `Rp${(value / 1_000_000_000).toFixed(1)}B`
-  if (Math.abs(value) >= 1_000_000) return `Rp${(value / 1_000_000).toFixed(0)}M`
-  return `Rp${value.toLocaleString("id-ID")}`
-}
-
-interface GoalSegmentOption {
-  id: string
-  name: string
-}
-
-interface BreakdownSelectorProps {
-  levels: BreakdownLevelConfig[]
-  onChange: (levels: BreakdownLevelConfig[]) => void
-  segments: GoalSegmentOption[]
-}
-
-function BreakdownSelector({ levels, onChange, segments }: BreakdownSelectorProps) {
-  const fieldOptions = LEAD_FIELD_REGISTRY.map((f) => ({ value: f.key, label: f.label }))
-  const segmentOptions = segments.map((s) => ({ value: `segment:${s.id}`, label: `Segment: ${s.name}` }))
-  const allOptions = [...fieldOptions, ...segmentOptions]
-
-  const usedFields = new Set(levels.map((l) => l.field))
-
-  const getAvailable = (currentField: string) =>
-    allOptions.filter((o) => o.value === currentField || !usedFields.has(o.value))
-
-  const handleChange = (index: number, fieldValue: string) => {
-    const opt = allOptions.find((o) => o.value === fieldValue)
-    if (!opt) return
-    const next = [...levels]
-    next[index] = { field: fieldValue, label: opt.label }
-    onChange(next)
-  }
-
-  const handleAdd = () => {
-    if (levels.length >= MAX_BREAKDOWN_LEVELS) return
-    const available = allOptions.find((o) => !usedFields.has(o.value))
-    if (!available) return
-    onChange([...levels, { field: available.value, label: available.label }])
-  }
-
-  const handleRemove = (index: number) => {
-    onChange(levels.filter((_, i) => i !== index))
-  }
-
-  return (
-    <div className="space-y-2">
-      <div className="flex items-center flex-wrap gap-1.5">
-        {levels.map((level, i) => (
-          <div key={i} className="flex items-center gap-1.5">
-            {i > 0 && <ArrowRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />}
-            <div className="relative group">
-              <Select value={level.field} onValueChange={(v) => handleChange(i, v)}>
-                <SelectTrigger className="w-[160px] h-7 text-xs">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {getAvailable(level.field).map((opt) => (
-                    <SelectItem key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <button
-                type="button"
-                onClick={() => handleRemove(i)}
-                className="absolute -top-1.5 -right-1.5 hidden group-hover:flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-destructive-foreground text-[10px]"
-              >
-                <X className="h-2.5 w-2.5" />
-              </button>
-            </div>
-          </div>
-        ))}
-        {levels.length < MAX_BREAKDOWN_LEVELS && (
-          <Button type="button" variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={handleAdd}>
-            <Plus className="h-3 w-3" /> Add Level
-          </Button>
-        )}
-      </div>
-      <p className="text-[11px] text-muted-foreground">
-        Up to {MAX_BREAKDOWN_LEVELS} levels. Defines how goal attainment is broken down.
-      </p>
-    </div>
-  )
-}
+import { Plus, Loader2, Pencil, Trash2, Target } from "lucide-react"
+import type { GoalV2 } from "@/types/goals"
+import { useCurrency } from "@/contexts/currency-context"
 
 export function GoalManager({ onDataChange }: { onDataChange?: () => void } = {}) {
   const supabase = createClient()
+  const router = useRouter()
   const { activeCompany } = useCompany()
+  const { fmt } = useCurrency()
 
   const [goals, setGoals] = useState<GoalV2[]>([])
-  const [segments, setSegments] = useState<GoalSegmentOption[]>([])
   const [loading, setLoading] = useState(true)
 
   // Create dialog
@@ -130,7 +42,6 @@ export function GoalManager({ onDataChange }: { onDataChange?: () => void } = {}
   const [createName, setCreateName] = useState("")
   const [createPeriodType, setCreatePeriodType] = useState<"monthly" | "quarterly" | "yearly">("yearly")
   const [createTarget, setCreateTarget] = useState("")
-  const [createBreakdown, setCreateBreakdown] = useState<BreakdownLevelConfig[]>([])
   const [createWeightedForecast, setCreateWeightedForecast] = useState(false)
   const [creating, setCreating] = useState(false)
 
@@ -138,7 +49,6 @@ export function GoalManager({ onDataChange }: { onDataChange?: () => void } = {}
   const [editGoal, setEditGoal] = useState<GoalV2 | null>(null)
   const [editName, setEditName] = useState("")
   const [editTarget, setEditTarget] = useState("")
-  const [editBreakdown, setEditBreakdown] = useState<BreakdownLevelConfig[]>([])
   const [editWeightedForecast, setEditWeightedForecast] = useState(false)
   const [saving, setSaving] = useState(false)
 
@@ -149,21 +59,13 @@ export function GoalManager({ onDataChange }: { onDataChange?: () => void } = {}
   const loadData = useCallback(async () => {
     if (!activeCompany?.id) return
     setLoading(true)
-    const [goalsRes, segmentsRes] = await Promise.all([
-      supabase
-        .from("goals_v2")
-        .select("*")
-        .eq("company_id", activeCompany.id)
-        .eq("is_active", true)
-        .order("created_at", { ascending: false }),
-      supabase
-        .from("goal_segments")
-        .select("id, name")
-        .eq("company_id", activeCompany.id)
-        .order("name"),
-    ])
+    const goalsRes = await supabase
+      .from("goals_v2")
+      .select("*")
+      .eq("company_id", activeCompany.id)
+      .eq("is_active", true)
+      .order("created_at", { ascending: false })
     setGoals((goalsRes.data as GoalV2[]) ?? [])
-    setSegments((segmentsRes.data as GoalSegmentOption[]) ?? [])
     setLoading(false)
   }, [activeCompany?.id, supabase])
 
@@ -184,8 +86,9 @@ export function GoalManager({ onDataChange }: { onDataChange?: () => void } = {}
       monthly_cutoff_day: 25,
       per_month_cutoffs: null,
       weighted_forecast_enabled: createWeightedForecast,
-      breakdown_config: createBreakdown,
+      breakdown_config: [],
       breakdown_targets: {},
+      monthly_weights: null,
       created_by: null,
     })
     setCreating(false)
@@ -194,7 +97,6 @@ export function GoalManager({ onDataChange }: { onDataChange?: () => void } = {}
       setShowCreate(false)
       setCreateName("")
       setCreateTarget("")
-      setCreateBreakdown([])
       setCreateWeightedForecast(false)
       loadData()
       onDataChange?.()
@@ -207,7 +109,6 @@ export function GoalManager({ onDataChange }: { onDataChange?: () => void } = {}
     setEditGoal(goal)
     setEditName(goal.name)
     setEditTarget(String(goal.target_amount))
-    setEditBreakdown(goal.breakdown_config ?? [])
     setEditWeightedForecast(goal.weighted_forecast_enabled)
   }
 
@@ -217,7 +118,6 @@ export function GoalManager({ onDataChange }: { onDataChange?: () => void } = {}
     const result = await updateGoalV2Action(editGoal.id, {
       name: editName.trim(),
       target_amount: parseFloat(editTarget) || 0,
-      breakdown_config: editBreakdown,
       weighted_forecast_enabled: editWeightedForecast,
     })
     setSaving(false)
@@ -285,7 +185,6 @@ export function GoalManager({ onDataChange }: { onDataChange?: () => void } = {}
                 <TableHead>Name</TableHead>
                 <TableHead>Period Type</TableHead>
                 <TableHead>Target Amount</TableHead>
-                <TableHead>Breakdown Levels</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -298,18 +197,11 @@ export function GoalManager({ onDataChange }: { onDataChange?: () => void } = {}
                       {periodTypeLabel(goal.period_type)}
                     </span>
                   </TableCell>
-                  <TableCell>{formatIDR(goal.target_amount)}</TableCell>
-                  <TableCell>
-                    <span className="text-xs text-muted-foreground">
-                      {goal.breakdown_config?.length
-                        ? goal.breakdown_config.map((l) => l.label).join(" → ")
-                        : "None"}
-                    </span>
-                  </TableCell>
+                  <TableCell>{fmt(goal.target_amount)}</TableCell>
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-1">
-                      <Button variant="ghost" size="sm" onClick={() => openEdit(goal)}>
-                        <Pencil className="h-3.5 w-3.5" /> Edit
+                      <Button variant="ghost" size="sm" onClick={() => router.push(`/settings/goals/${goal.slug}`)}>
+                        <Pencil className="h-3.5 w-3.5 mr-1" /> Configure
                       </Button>
                       <Button
                         variant="ghost"
@@ -370,17 +262,9 @@ export function GoalManager({ onDataChange }: { onDataChange?: () => void } = {}
               />
               {createTarget && (
                 <p className="text-xs text-muted-foreground">
-                  {formatIDR(parseFloat(createTarget) || 0)}
+                  {fmt(parseFloat(createTarget) || 0)}
                 </p>
               )}
-            </div>
-            <div className="grid gap-2">
-              <Label>Breakdown Levels</Label>
-              <BreakdownSelector
-                levels={createBreakdown}
-                onChange={setCreateBreakdown}
-                segments={segments}
-              />
             </div>
             <div className="flex items-center gap-3">
               <Switch
@@ -389,6 +273,9 @@ export function GoalManager({ onDataChange }: { onDataChange?: () => void } = {}
               />
               <Label>Enable weighted forecast</Label>
             </div>
+            <p className="text-[11px] text-muted-foreground">
+              Configure hierarchy levels and monthly weights in the Goal Matrix after creation.
+            </p>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowCreate(false)}>
@@ -423,17 +310,9 @@ export function GoalManager({ onDataChange }: { onDataChange?: () => void } = {}
               />
               {editTarget && (
                 <p className="text-xs text-muted-foreground">
-                  {formatIDR(parseFloat(editTarget) || 0)}
+                  {fmt(parseFloat(editTarget) || 0)}
                 </p>
               )}
-            </div>
-            <div className="grid gap-2">
-              <Label>Breakdown Levels</Label>
-              <BreakdownSelector
-                levels={editBreakdown}
-                onChange={setEditBreakdown}
-                segments={segments}
-              />
             </div>
             <div className="flex items-center gap-3">
               <Switch

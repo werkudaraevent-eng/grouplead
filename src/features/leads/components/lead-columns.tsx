@@ -3,10 +3,11 @@
 import { ColumnDef } from "@tanstack/react-table"
 import { Lead } from "@/types"
 import { ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react"
+import { formatCurrency as formatCurrencyDefault } from "@/lib/format-currency"
 
 // ── Badge helper ──
 const Badge = ({ children, className }: { children: React.ReactNode; className?: string }) => (
-    <span className={`inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-semibold tracking-wider uppercase ${className ?? "bg-slate-100 text-slate-600"}`}>
+    <span className={`inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-semibold tracking-wider uppercase whitespace-nowrap max-w-[120px] truncate ${className ?? "bg-slate-100 text-slate-600"}`}>
         {children}
     </span>
 )
@@ -36,6 +37,7 @@ function getStatusStyle(val: string | null | undefined): string {
     if (lower.includes("masuk") || lower.includes("new")) return "bg-blue-50 text-blue-700"
     if (lower.includes("sent") || lower.includes("proposal")) return "bg-violet-50 text-violet-700"
     if (lower.includes("estimasi") || lower.includes("project")) return "bg-amber-50 text-amber-700"
+    if (lower.includes("postpone")) return "bg-orange-50 text-orange-700"
     return "bg-slate-50 text-slate-600"
 }
 
@@ -65,10 +67,6 @@ function getCategoryStyle(val: string | null | undefined): string {
     return "bg-slate-50 text-slate-600"
 }
 
-// ── Currency formatter ──
-const fmtCurrency = (v: number | null | undefined) =>
-    v ? new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(v) : "—"
-
 const fmtDate = (d: string | null | undefined) =>
     d ? new Date(d).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" }) : "—"
 
@@ -76,7 +74,16 @@ const fmtDate = (d: string | null | undefined) =>
 //  COLUMN DEFINITIONS
 // ════════════════════════════════════════════════════════════
 
-export const columns: ColumnDef<Lead>[] = [
+/**
+ * Returns column definitions for the leads table.
+ * Accepts an optional `fmt` function for currency formatting.
+ * When called without `fmt`, uses the default formatter.
+ */
+export function getColumns(fmt?: (amount: number) => string): ColumnDef<Lead>[] {
+  const fmtCurrency = (v: number | null | undefined) =>
+      v ? (fmt ?? formatCurrencyDefault)(v) : "—"
+
+  return [
     {
         id: "subsidiary",
         header: "Subsidiary",
@@ -85,7 +92,7 @@ export const columns: ColumnDef<Lead>[] = [
             const name = row.original.company?.name
             if (!name) return <span className="text-slate-300">—</span>
             return (
-                <span className="text-[11px] font-medium text-slate-600 bg-slate-50 px-1.5 py-0.5 rounded">
+                <span className="text-[11px] font-medium text-slate-600 bg-slate-50 px-1.5 py-0.5 rounded truncate block max-w-[120px]" title={name}>
                     {name}
                 </span>
             )
@@ -148,6 +155,17 @@ export const columns: ColumnDef<Lead>[] = [
         enableHiding: true,
     },
     {
+        accessorKey: "stream_type",
+        id: "stream_type",
+        header: "Stream Type",
+        cell: ({ row }) => {
+            const val = row.getValue("stream_type") as string
+            if (!val) return <span className="text-slate-300">—</span>
+            return <Badge className="bg-indigo-50 text-indigo-700">{val}</Badge>
+        },
+        enableHiding: true,
+    },
+    {
         accessorKey: "event_format",
         id: "event_format",
         header: "Format",
@@ -180,8 +198,28 @@ export const columns: ColumnDef<Lead>[] = [
         enableHiding: true,
     },
     {
+        id: "contact_person",
+        header: "Contact Person",
+        accessorFn: (row) => row.contact?.full_name ?? "",
+        cell: ({ row }) => {
+            const contact = row.original.contact
+            if (!contact?.full_name) return <span className="text-slate-300">—</span>
+            return (
+                <div className="flex items-center gap-1.5">
+                    <div className="h-5 w-5 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center text-[9px] font-bold shrink-0">
+                        {contact.full_name.charAt(0).toUpperCase()}
+                    </div>
+                    <span className="text-[12px] font-medium text-slate-700 truncate max-w-[130px]" title={`${contact.salutation ? contact.salutation + ' ' : ''}${contact.full_name}`}>
+                        {contact.salutation ? `${contact.salutation} ` : ""}{contact.full_name}
+                    </span>
+                </div>
+            )
+        },
+        enableHiding: true,
+    },
+    {
         id: "pic_sales",
-        header: ({ column }) => <SortableHeader column={column} label="Sales" />,
+        header: ({ column }) => <SortableHeader column={column} label="Pic Sales" />,
         accessorFn: (row) => row.pic_sales_profile?.full_name ?? "",
         cell: ({ row }) => {
             const name = row.original.pic_sales_profile?.full_name
@@ -195,14 +233,135 @@ export const columns: ColumnDef<Lead>[] = [
                 </div>
             )
         },
+        enableHiding: true,
+    },
+    {
+        id: "account_manager",
+        header: "Account Manager",
+        accessorFn: (row) => row.account_manager_profile?.full_name ?? "",
+        cell: ({ row }) => {
+            const name = row.original.account_manager_profile?.full_name
+            if (!name) return <span className="text-slate-300">—</span>
+            return (
+                <div className="flex items-center gap-1.5">
+                    <div className="h-5 w-5 rounded-full bg-gradient-to-br from-indigo-500 to-indigo-700 text-white flex items-center justify-center text-[9px] font-bold shrink-0">
+                        {name.split(" ").map(w => w[0]).join("").slice(0, 2)}
+                    </div>
+                    <span className="text-[12px] text-slate-700 truncate max-w-[100px]">{name}</span>
+                </div>
+            )
+        },
+        enableHiding: true,
+    },
+    {
+        accessorKey: "lead_source",
+        id: "lead_source",
+        header: "Lead Source",
+        cell: ({ row }) => {
+            const val = row.getValue("lead_source") as string
+            if (!val) return <span className="text-slate-300">—</span>
+            return <Badge className="bg-teal-50 text-teal-700">{val}</Badge>
+        },
+        enableHiding: true,
+    },
+    {
+        accessorKey: "referral_source",
+        id: "referral_source",
+        header: "Referral Source",
+        cell: ({ row }) => {
+            const val = row.getValue("referral_source") as string
+            if (!val) return <span className="text-slate-300">—</span>
+            return (
+                <span className="text-[12px] text-slate-600 truncate block max-w-[120px]" title={val}>
+                    {val}
+                </span>
+            )
+        },
+        enableHiding: true,
+    },
+    {
+        accessorKey: "business_purpose",
+        id: "business_purpose",
+        header: "Business Purpose",
+        cell: ({ row }) => {
+            const val = row.getValue("business_purpose") as string
+            if (!val) return <span className="text-slate-300">—</span>
+            return <Badge className="bg-purple-50 text-purple-700">{val}</Badge>
+        },
+        enableHiding: true,
     },
     {
         accessorKey: "target_close_date",
         id: "target_close_date",
-        header: ({ column }) => <SortableHeader column={column} label="Close Date" />,
+        header: ({ column }) => <SortableHeader column={column} label="Target Close Date" />,
         cell: ({ row }) => {
             const val = row.getValue("target_close_date") as string
             return <span className="text-[12px] text-slate-500 whitespace-nowrap">{fmtDate(val)}</span>
+        },
+        enableHiding: true,
+    },
+    {
+        id: "event_dates",
+        header: "Event Dates",
+        accessorFn: (row) => {
+            if (row.event_dates && row.event_dates.length > 0) return row.event_dates.join(", ")
+            if (row.event_date_start) return row.event_date_start
+            return ""
+        },
+        cell: ({ row }) => {
+            const lead = row.original
+            if (lead.event_dates && lead.event_dates.length > 0) {
+                const formatted = lead.event_dates.map(d => fmtDate(d)).join(", ")
+                return <span className="text-[12px] text-slate-500 whitespace-nowrap truncate max-w-[140px] block" title={formatted}>{formatted}</span>
+            }
+            if (lead.event_date_start) {
+                const start = fmtDate(lead.event_date_start)
+                const end = lead.event_date_end ? fmtDate(lead.event_date_end) : null
+                return (
+                    <span className="text-[12px] text-slate-500 whitespace-nowrap">
+                        {start}{end ? ` – ${end}` : ""}
+                    </span>
+                )
+            }
+            return <span className="text-slate-300">—</span>
+        },
+        enableHiding: true,
+    },
+    {
+        accessorKey: "pax_count",
+        id: "pax_count",
+        header: ({ column }) => (
+            <div className="text-right">
+                <SortableHeader column={column} label="Pax" />
+            </div>
+        ),
+        cell: ({ row }) => {
+            const val = row.getValue("pax_count") as number
+            if (!val) return <span className="text-slate-300 text-right block">—</span>
+            return (
+                <div className="text-right text-[13px] font-medium text-slate-700">
+                    {new Intl.NumberFormat("id-ID").format(val)}
+                </div>
+            )
+        },
+        enableHiding: true,
+    },
+    {
+        id: "destinations",
+        header: "Destinations",
+        accessorFn: (row) => {
+            if (!row.destinations || row.destinations.length === 0) return ""
+            return row.destinations.map(d => d.city).join(", ")
+        },
+        cell: ({ row }) => {
+            const dests = row.original.destinations
+            if (!dests || dests.length === 0) return <span className="text-slate-300">—</span>
+            const displayText = dests.map(d => d.venue ? `${d.city} (${d.venue})` : d.city).join(", ")
+            return (
+                <span className="text-[12px] text-slate-600 truncate block max-w-[160px]" title={displayText}>
+                    {displayText}
+                </span>
+            )
         },
         enableHiding: true,
     },
@@ -211,7 +370,7 @@ export const columns: ColumnDef<Lead>[] = [
         id: "estimated_value",
         header: ({ column }) => (
             <div className="text-right">
-                <SortableHeader column={column} label="Est. Value" />
+                <SortableHeader column={column} label="Estimated Value" />
             </div>
         ),
         cell: ({ row }) => {
@@ -223,11 +382,42 @@ export const columns: ColumnDef<Lead>[] = [
             )
         },
     },
-]
+    {
+        accessorKey: "actual_value",
+        id: "actual_value",
+        header: ({ column }) => (
+            <div className="text-right">
+                <SortableHeader column={column} label="Actual Value" />
+            </div>
+        ),
+        cell: ({ row }) => {
+            const amount = parseFloat(row.getValue("actual_value"))
+            return (
+                <div className="text-right font-semibold text-[13px] text-emerald-700 whitespace-nowrap">
+                    {fmtCurrency(amount || null)}
+                </div>
+            )
+        },
+        enableHiding: true,
+    },
+  ]
+}
 
-// Default hidden columns
+// Backward-compatible export for consumers that don't pass fmt
+export const columns: ColumnDef<Lead>[] = getColumns()
+
+// Default hidden columns — columns hidden by default to keep initial view clean
+// Users can toggle these on via the Columns popover
 export const DEFAULT_HIDDEN_COLUMNS: Record<string, boolean> = {
-    main_stream: false,
+    stream_type: false,
     grade_lead: false,
-    target_close_date: false,
+    contact_person: false,
+    account_manager: false,
+    lead_source: false,
+    referral_source: false,
+    business_purpose: false,
+    event_dates: false,
+    pax_count: false,
+    destinations: false,
+    actual_value: false,
 }

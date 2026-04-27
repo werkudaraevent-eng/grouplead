@@ -6,6 +6,7 @@ import {
     ArrowRight, Briefcase, CalendarDays, Globe
 } from "lucide-react"
 import { WorkflowActions } from "@/features/tasks/components/workflow-actions"
+import { useCurrency } from "@/contexts/currency-context"
 
 interface LeadDetailLayoutProps {
     lead: Lead
@@ -159,20 +160,15 @@ function DetailRow({ icon: Icon, label, value }: { icon: typeof User; label: str
 }
 
 function FinancialRow({ label, value, primary = false }: { label: string; value: number | null | undefined; primary?: boolean }) {
+    const { fmt } = useCurrency()
     return (
         <div className="flex justify-between items-center">
             <span className="text-xs text-muted-foreground">{label}</span>
             <span className={`text-sm font-mono ${primary ? "font-bold text-foreground" : "text-muted-foreground"}`}>
-                {value != null ? formatCurrency(value) : "-"}
+                {value != null ? fmt(value) : "-"}
             </span>
         </div>
     )
-}
-
-function formatCurrency(amount: number): string {
-    return new Intl.NumberFormat("id-ID", {
-        style: "currency", currency: "IDR", minimumFractionDigits: 0, maximumFractionDigits: 0,
-    }).format(amount)
 }
 
 function formatDate(dateStr: string): string {
