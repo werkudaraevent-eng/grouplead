@@ -39,18 +39,24 @@ export function RevenueChartWidget({ data, trendYear, setTrendYear, availableYea
                     <SectionTitle>Monthly Revenue vs Target</SectionTitle>
                     <SectionSub>By {basisLabel}</SectionSub>
                 </div>
-                <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                    <select
-                        style={{ ...miniSelectStyle, fontSize: 10 }}
-                        value={revenueBasis}
-                        onChange={e => setRevenueBasis(e.target.value as RevenueBasis)}
-                    >
-                        <option value="revenue_recognition">Rev. Recognition</option>
-                        <option value="closed_won">Closed Won Date</option>
-                    </select>
-                    <select style={miniSelectStyle} value={trendYear} onChange={e => setTrendYear(Number(e.target.value))}>
-                        {availableYears.map(y => <option key={y} value={y}>{y}</option>)}
-                    </select>
+                <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
+                    <div>
+                        <div style={{ fontSize: 9, fontWeight: 600, color: "#94a3b8", marginBottom: 3, letterSpacing: "0.3px" }}>Based on</div>
+                        <select
+                            style={{ ...miniSelectStyle, fontSize: 10 }}
+                            value={revenueBasis}
+                            onChange={e => setRevenueBasis(e.target.value as RevenueBasis)}
+                        >
+                            <option value="revenue_recognition">Rev. Recognition</option>
+                            <option value="closed_won">Closed Won Date</option>
+                        </select>
+                    </div>
+                    <div>
+                        <div style={{ fontSize: 9, fontWeight: 600, color: "#94a3b8", marginBottom: 3, letterSpacing: "0.3px" }}>Year</div>
+                        <select style={miniSelectStyle} value={trendYear} onChange={e => setTrendYear(Number(e.target.value))}>
+                            {availableYears.map(y => <option key={y} value={y}>{y}</option>)}
+                        </select>
+                    </div>
                 </div>
             </div>
             <div style={{ flex: 1, minHeight: 0, width: "100%" }}>
