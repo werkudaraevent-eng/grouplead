@@ -53,14 +53,17 @@ export function StreamWidget({ data, streamToggle, setStreamToggle }: StreamWidg
         <SectionCard>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 1 }}>
                 <SectionTitle>Stream Alignment</SectionTitle>
-                <select style={{ ...miniSelectStyle, fontSize: 10 }} value={streamToggle} onChange={(e: any) => setStreamToggle(e.target.value)}>
-                    <option value="main_stream">All</option>
-                    <option value="stream_type">Sub Stream</option>
-                    <option value="business_purpose">Biz Purpose</option>
-                    <option value="line_industry">Line Industry</option>
-                    <option value="area">Area</option>
-                    <option value="nationality">Nationality</option>
-                </select>
+                <div>
+                    <div style={{ fontSize: 9, fontWeight: 600, color: "#94a3b8", marginBottom: 3, letterSpacing: "0.3px" }}>Group by</div>
+                    <select style={{ ...miniSelectStyle, fontSize: 10 }} value={streamToggle} onChange={(e: any) => setStreamToggle(e.target.value)}>
+                        <option value="main_stream">Main Stream</option>
+                        <option value="stream_type">Sub Stream</option>
+                        <option value="business_purpose">Biz Purpose</option>
+                        <option value="line_industry">Line Industry</option>
+                        <option value="area">Area</option>
+                        <option value="nationality">Nationality</option>
+                    </select>
+                </div>
             </div>
             <SectionSub>Business alignment distribution</SectionSub>
 

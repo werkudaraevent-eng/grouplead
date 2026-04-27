@@ -49,13 +49,16 @@ export function ClassificationWidget({ data, catToggle, setCatToggle }: Classifi
         <SectionCard>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
                 <SectionTitle>Lead Classification</SectionTitle>
-                <select style={{ ...miniSelectStyle, fontSize: 10 }} value={catToggle} onChange={(e: any) => setCatToggle(e.target.value)}>
-                    <option value="category">Category</option>
-                    <option value="grade_lead">Grade</option>
-                    <option value="lead_source">Lead Source</option>
-                    <option value="business_purpose">Biz Purpose</option>
-                    <option value="sector">Sector</option>
-                </select>
+                <div>
+                    <div style={{ fontSize: 9, fontWeight: 600, color: "#94a3b8", marginBottom: 3, letterSpacing: "0.3px" }}>Group by</div>
+                    <select style={{ ...miniSelectStyle, fontSize: 10 }} value={catToggle} onChange={(e: any) => setCatToggle(e.target.value)}>
+                        <option value="category">Category</option>
+                        <option value="grade_lead">Grade</option>
+                        <option value="lead_source">Lead Source</option>
+                        <option value="business_purpose">Biz Purpose</option>
+                        <option value="sector">Sector</option>
+                    </select>
+                </div>
             </div>
             <SectionSub>Pipeline temperature breakdown</SectionSub>
 
