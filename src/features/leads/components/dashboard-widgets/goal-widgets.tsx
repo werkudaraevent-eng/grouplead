@@ -393,7 +393,7 @@ export function GoalSegmentBreakdownWidget() {
       const supabase = createClient()
       const [segmentsRes, leadsRes] = await Promise.all([
         supabase.from("goal_segments").select("id, source_field, fallback_name, mappings").eq("company_id", activeCompany.id).limit(1),
-        supabase.from("leads").select("id, actual_value, pipeline_stage:pipeline_stages!pipeline_stage_id(closed_status), category, lead_source, main_stream, grade_lead, stream_type, business_purpose, tipe, nationality, sector, area, referral_source, event_format").eq("company_id", activeCompany.id),
+        supabase.from("leads").select("id, actual_value, pipeline_stage:pipeline_stages!pipeline_stage_id(closed_status), client_company:client_companies!client_company_id(line_industry, area, sector, nationality, industry), category, lead_source, main_stream, grade_lead, stream_type, business_purpose, tipe, nationality, sector, area, referral_source, event_format, line_industry").eq("company_id", activeCompany.id),
       ])
 
       const segments = segmentsRes.data ?? []
@@ -405,7 +405,14 @@ export function GoalSegmentBreakdownWidget() {
       const totals = new Map<string, number>()
       for (const lead of leads) {
         if (lead.pipeline_stage?.closed_status !== "won") continue
-        const raw = lead[seg.source_field] as string | null
+        // Resolve field with 2nd level fallback (e.g. line_industry from client_company)
+        let raw = lead[seg.source_field] as string | null
+        if (!raw) {
+          const cc = (lead as any).client_company as Record<string, unknown> | null
+          if (cc && seg.source_field in cc) {
+            raw = cc[seg.source_field] as string | null
+          }
+        }
         let segName = seg.fallback_name
         if (raw) {
           for (const m of seg.mappings) {

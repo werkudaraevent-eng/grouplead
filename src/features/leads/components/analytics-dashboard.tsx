@@ -38,6 +38,7 @@ import { WidgetConfiguratorModal } from "./dashboard-widgets/widget-configurator
 import type { CustomWidgetInput } from "@/types/custom-widget"
 import { createClient } from "@/utils/supabase/client"
 import { useCompany } from "@/contexts/company-context"
+import { resolveLeadField, resolveCompanyName } from "@/lib/resolve-lead-field"
 
 // ─── Helper ─────────────────────────────────────────────────────────────────
 function getStageComparisonLabel(period: string) {
@@ -585,7 +586,7 @@ export function AnalyticsDashboard({
         periodLeads.forEach(l => {
             const stage = (l.pipeline_stage?.name || "").toLowerCase()
             if (stage.includes("won")) {
-                const c = l.client_company?.name || "Unknown Company"
+                const c = resolveCompanyName(l) || "Unknown Company"
                 comps[c] = (comps[c] || 0) + (l.actual_value ?? l.estimated_value ?? 0)
             }
         })
@@ -594,35 +595,21 @@ export function AnalyticsDashboard({
 
     const sourceData = useMemo(() => {
         const m: Record<string, number> = {}
-        periodLeads.forEach(l => { m[l.lead_source || "Unspecified"] = (m[l.lead_source || "Unspecified"] || 0) + 1 })
+        periodLeads.forEach(l => { const val = resolveLeadField(l, "lead_source") || "Unspecified"; m[val] = (m[val] || 0) + 1 })
         return Object.entries(m).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value)
     }, [periodLeads])
 
-    // Resolve a field value from lead, falling back to client_company relation
-    // e.g. lead.line_industry || lead.client_company.line_industry
-    const resolveField = useCallback((lead: Lead, field: string): string | null => {
-        const direct = (lead as any)[field] as string | null
-        if (direct) return direct
-        // 2nd level: check client_company relation
-        const cc = lead.client_company as Record<string, unknown> | null
-        if (cc && field in cc) {
-            const relVal = cc[field] as string | null
-            if (relVal) return relVal
-        }
-        return null
-    }, [])
-
     const catGradeData = useMemo(() => {
         const m: Record<string, number> = {}
-        periodLeads.forEach(l => { const val = resolveField(l, catToggle) || "Unspecified"; m[val] = (m[val] || 0) + 1 })
+        periodLeads.forEach(l => { const val = resolveLeadField(l, catToggle) || "Unspecified"; m[val] = (m[val] || 0) + 1 })
         return Object.entries(m).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value)
-    }, [periodLeads, catToggle, resolveField])
+    }, [periodLeads, catToggle])
 
     const streamData = useMemo(() => {
         const m: Record<string, number> = {}
-        periodLeads.forEach(l => { const val = resolveField(l, streamToggle) || "Unspecified"; m[val] = (m[val] || 0) + 1 })
+        periodLeads.forEach(l => { const val = resolveLeadField(l, streamToggle) || "Unspecified"; m[val] = (m[val] || 0) + 1 })
         return Object.entries(m).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value)
-    }, [periodLeads, streamToggle, resolveField])
+    }, [periodLeads, streamToggle])
 
     // ─── KPI DEFINITIONS ────────────────────────────────────────────
     const kpis = [
