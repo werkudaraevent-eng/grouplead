@@ -598,17 +598,31 @@ export function AnalyticsDashboard({
         return Object.entries(m).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value)
     }, [periodLeads])
 
+    // Resolve a field value from lead, falling back to client_company relation
+    // e.g. lead.line_industry || lead.client_company.line_industry
+    const resolveField = useCallback((lead: Lead, field: string): string | null => {
+        const direct = (lead as any)[field] as string | null
+        if (direct) return direct
+        // 2nd level: check client_company relation
+        const cc = lead.client_company as Record<string, unknown> | null
+        if (cc && field in cc) {
+            const relVal = cc[field] as string | null
+            if (relVal) return relVal
+        }
+        return null
+    }, [])
+
     const catGradeData = useMemo(() => {
         const m: Record<string, number> = {}
-        periodLeads.forEach(l => { const val = (l as any)[catToggle] as string || "Unspecified"; m[val] = (m[val] || 0) + 1 })
+        periodLeads.forEach(l => { const val = resolveField(l, catToggle) || "Unspecified"; m[val] = (m[val] || 0) + 1 })
         return Object.entries(m).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value)
-    }, [periodLeads, catToggle])
+    }, [periodLeads, catToggle, resolveField])
 
     const streamData = useMemo(() => {
         const m: Record<string, number> = {}
-        periodLeads.forEach(l => { const val = (l as any)[streamToggle] as string || "Unspecified"; m[val] = (m[val] || 0) + 1 })
+        periodLeads.forEach(l => { const val = resolveField(l, streamToggle) || "Unspecified"; m[val] = (m[val] || 0) + 1 })
         return Object.entries(m).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value)
-    }, [periodLeads, streamToggle])
+    }, [periodLeads, streamToggle, resolveField])
 
     // ─── KPI DEFINITIONS ────────────────────────────────────────────
     const kpis = [
