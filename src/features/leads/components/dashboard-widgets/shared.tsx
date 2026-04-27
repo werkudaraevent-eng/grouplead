@@ -160,14 +160,14 @@ export function Badge({ value, label }: { value: number | null; label: string })
 
 // ─── MINI SELECT STYLE ──────────────────────────────────────────────────────
 export const TOOLTIP_STYLE: CSSProperties = {
-    background: "#0f1729", color: "#fff", padding: "8px 11px", borderRadius: 8,
+    background: "#0f172a", color: "#fff", padding: "8px 11px", borderRadius: 8,
     fontSize: 11, lineHeight: 1.6, boxShadow: "0 4px 16px rgba(0,0,0,.25)",
     maxWidth: 260,
 }
 
 export const miniSelectStyle: CSSProperties = {
     appearance: "none" as const, background: "#f4f5f7", border: "1px solid #e5e8ed", borderRadius: 5,
-    padding: "3px 20px 3px 8px", fontSize: 11, fontWeight: 600, color: "#0f1729",
+    padding: "3px 20px 3px 8px", fontSize: 11, fontWeight: 600, color: "#0f172a",
     cursor: "pointer", fontFamily: "inherit",
     backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='9' height='9' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='2.5'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")`,
     backgroundRepeat: "no-repeat", backgroundPosition: "right 5px center",

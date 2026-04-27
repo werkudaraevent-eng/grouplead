@@ -26,9 +26,9 @@ export function SingleKPIWidget({ label, value, prefix = "", suffix = "", vsTarg
             onMouseEnter={() => setHov(true)}
             onMouseLeave={() => setHov(false)}
             style={{
-                background: "#fff", borderRadius: 10,
+                background: "#fff", borderRadius: 12,
                 padding: "10px 14px 8px",
-                border: `1px solid ${hov ? accent + "35" : "#e5e8ed"}`,
+                border: `1px solid ${hov ? accent + "35" : "#e8ecf1"}`,
                 opacity: vis ? 1 : 0,
                 transform: vis ? (hov ? "translateY(-2px)" : "translateY(0)") : "translateY(8px)",
                 transition: "all .25s ease",
@@ -51,7 +51,7 @@ export function SingleKPIWidget({ label, value, prefix = "", suffix = "", vsTarg
             {/* Label + icon */}
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                    <span style={{ fontSize: 10.5, fontWeight: 600, color: "#8892a4", letterSpacing: ".15px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{label}</span>
+                    <span style={{ fontSize: 10.5, fontWeight: 600, color: "#94a3b8", letterSpacing: ".15px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{label}</span>
                     {tooltip && <InfoIcon tooltip={tooltip} position="top" />}
                 </div>
                 <span style={{
@@ -66,7 +66,7 @@ export function SingleKPIWidget({ label, value, prefix = "", suffix = "", vsTarg
 
             {/* Value */}
             <div style={{
-                fontSize: 22, fontWeight: 800, color: "#0f1729",
+                fontSize: 22, fontWeight: 800, color: "#0f172a",
                 letterSpacing: "-0.5px", lineHeight: 1,
                 whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
             }}>

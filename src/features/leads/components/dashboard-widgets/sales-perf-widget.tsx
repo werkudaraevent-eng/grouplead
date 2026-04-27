@@ -36,8 +36,8 @@ function SalesPerfTooltip({ active, payload, fmt }: any) {
     const pct = hasTarget ? (d.actual / d.target) * 100 : 0
     return (
         <div style={{
-            background: "#0f1729", color: "#fff", padding: "8px 11px", borderRadius: 8,
-            fontSize: 11, lineHeight: 1.6, boxShadow: "0 3px 12px rgba(0,0,0,.2)",
+            background: "#0f172a", color: "#fff", padding: "8px 11px", borderRadius: 8,
+            fontSize: 11, lineHeight: 1.6, boxShadow: "0 4px 16px rgba(0,0,0,.25)",
         }}>
             <div style={{ fontWeight: 700, marginBottom: 1 }}>{d.name}</div>
             <div>Actual: {fmt(d.actual)}</div>

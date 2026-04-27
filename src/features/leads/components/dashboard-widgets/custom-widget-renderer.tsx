@@ -101,7 +101,7 @@ function KPIRenderer({ widget, data }: CustomWidgetRendererProps) {
 
       {/* Label */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <span style={{ fontSize: 10.5, fontWeight: 600, color: "#8892a4", letterSpacing: ".15px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+        <span style={{ fontSize: 10.5, fontWeight: 600, color: "#94a3b8", letterSpacing: ".15px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
           {widget.title}
         </span>
         <span style={{
@@ -116,7 +116,7 @@ function KPIRenderer({ widget, data }: CustomWidgetRendererProps) {
 
       {/* Value */}
       <div style={{
-        fontSize: 22, fontWeight: 800, color: "#0f1729",
+        fontSize: 22, fontWeight: 800, color: "#0f172a",
         letterSpacing: "-0.5px", lineHeight: 1,
         whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
       }}>
@@ -140,8 +140,8 @@ function BarTooltip({ active, payload, metricField, aggregation, fmt }: any) {
   const d = payload[0].payload
   return (
     <div style={{
-      background: "#0f1729", color: "#fff", padding: "8px 11px", borderRadius: 8,
-      fontSize: 11, lineHeight: 1.6, boxShadow: "0 3px 12px rgba(0,0,0,.2)",
+      background: "#0f172a", color: "#fff", padding: "8px 11px", borderRadius: 8,
+      fontSize: 11, lineHeight: 1.6, boxShadow: "0 4px 16px rgba(0,0,0,.25)",
     }}>
       <div style={{ fontWeight: 700, marginBottom: 1 }}>{d.label}</div>
       <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
@@ -176,7 +176,7 @@ function BarRenderer({ widget, data }: CustomWidgetRendererProps) {
           {hasMounted ? (
             <div style={{ width: "100%", height: Math.max(chartData.length * 36, 80) }}>
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chartData} layout="vertical" margin={{ top: 0, right: 10, left: 0, bottom: 0 }}>
+                <BarChart data={chartData} layout="vertical" margin={{ top: 4, right: 12, left: 0, bottom: 4 }}>
                   <XAxis type="number" axisLine={false} tickLine={false} tick={{ fontSize: 9, fill: "#b0b8c8", fontWeight: 500 }} />
                   <YAxis
                     type="category"
@@ -213,8 +213,8 @@ function PieTooltip({ active, payload, metricField, aggregation, fmt }: any) {
   const d = payload[0].payload
   return (
     <div style={{
-      background: "#0f1729", color: "#fff", padding: "8px 11px", borderRadius: 8,
-      fontSize: 11, lineHeight: 1.6, boxShadow: "0 3px 12px rgba(0,0,0,.2)",
+      background: "#0f172a", color: "#fff", padding: "8px 11px", borderRadius: 8,
+      fontSize: 11, lineHeight: 1.6, boxShadow: "0 4px 16px rgba(0,0,0,.25)",
     }}>
       <div style={{ fontWeight: 700, marginBottom: 1 }}>{d.label}</div>
       <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
@@ -307,8 +307,8 @@ function ListTooltip({ active, payload, metricField, aggregation, fmt }: any) {
   const d = payload[0].payload
   return (
     <div style={{
-      background: "#0f1729", color: "#fff", padding: "8px 11px", borderRadius: 8,
-      fontSize: 11, lineHeight: 1.6, boxShadow: "0 3px 12px rgba(0,0,0,.2)",
+      background: "#0f172a", color: "#fff", padding: "8px 11px", borderRadius: 8,
+      fontSize: 11, lineHeight: 1.6, boxShadow: "0 4px 16px rgba(0,0,0,.25)",
     }}>
       <div style={{ fontWeight: 700, marginBottom: 1 }}>#{d.rank} {d.label}</div>
       <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
@@ -329,7 +329,7 @@ function ListRankTick({ x, y, payload, data, width = 100, fontSize = 10.5 }: any
   return (
     <g transform={`translate(${x},${y})`}>
       <title>{fullText}</title>
-      <text x={-4} y={0} dy={4} textAnchor="end" fontSize={fontSize} fill="#5a6178" fontWeight={500}>
+      <text x={-4} y={0} dy={4} textAnchor="end" fontSize={fontSize} fill="#64748b" fontWeight={500}>
         {rankPrefix}{display}
       </text>
     </g>
@@ -362,7 +362,7 @@ function ListRenderer({ widget, data }: CustomWidgetRendererProps) {
           {hasMounted ? (
             <div style={{ width: "100%", height: Math.max(chartData.length * 36, 80) }}>
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chartData} layout="vertical" margin={{ top: 0, right: 10, left: 0, bottom: 0 }}>
+                <BarChart data={chartData} layout="vertical" margin={{ top: 4, right: 12, left: 0, bottom: 4 }}>
                   <XAxis type="number" axisLine={false} tickLine={false} tick={{ fontSize: 9, fill: "#b0b8c8", fontWeight: 500 }} />
                   <YAxis
                     type="category"

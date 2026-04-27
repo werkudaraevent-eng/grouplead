@@ -22,8 +22,8 @@ function RevenueTooltip({ active, payload, fmt }: any) {
     const d = payload[0].payload as TopCompany
     return (
         <div style={{
-            background: "#0f1729", color: "#fff", padding: "8px 11px", borderRadius: 8,
-            fontSize: 11, lineHeight: 1.6, boxShadow: "0 3px 12px rgba(0,0,0,.2)",
+            background: "#0f172a", color: "#fff", padding: "8px 11px", borderRadius: 8,
+            fontSize: 11, lineHeight: 1.6, boxShadow: "0 4px 16px rgba(0,0,0,.25)",
         }}>
             <div style={{ fontWeight: 700, marginBottom: 1 }}>{d.name}</div>
             <div>Revenue: {fmt(d.revenue)}</div>
@@ -136,8 +136,8 @@ export function TopRevenueWidget({ data }: TopRevenueWidgetProps) {
                 )}
             </div>
             {/* Summary footer */}
-            <div style={{ marginTop: 6, paddingTop: 6, borderTop: "1px solid #f1f3f5", fontSize: 10, color: "#8892a4", flexShrink: 0 }}>
-                Total Won Revenue: <span style={{ fontWeight: 700, color: "#0f1729" }}>{fmt(totalRevenue)}</span> from {data.length} {data.length === 1 ? "company" : "companies"}
+            <div style={{ marginTop: 6, paddingTop: 6, borderTop: "1px solid #f1f5f9", fontSize: 10, color: "#94a3b8", flexShrink: 0 }}>
+                Total Won Revenue: <span style={{ fontWeight: 700, color: "#0f172a" }}>{fmt(totalRevenue)}</span> from {data.length} {data.length === 1 ? "company" : "companies"}
             </div>
             {/* Insight */}
             {(() => {

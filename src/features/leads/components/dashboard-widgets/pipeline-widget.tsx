@@ -6,7 +6,7 @@ import {
 } from "recharts"
 import { resolveStageColor } from "@/features/leads/lib/stage-color"
 import { useHasMounted } from "@/hooks/use-has-mounted"
-import { SectionCard, SectionTitle, SectionSub, CHART_COLORS, formatPct, formatSignedPct, EllipsisTick } from "./shared"
+import { SectionCard, SectionTitle, SectionSub, CHART_COLORS, formatPct, formatSignedPct, EllipsisTick, TOOLTIP_STYLE } from "./shared"
 
 interface PipelineStageData {
     id: string
@@ -29,10 +29,7 @@ function PipelineTooltip({ active, payload, comparisonLabel }: any) {
     if (!active || !payload?.[0]) return null
     const d = payload[0].payload as PipelineStageData
     return (
-        <div style={{
-            background: "#0f1729", color: "#fff", padding: "8px 11px", borderRadius: 8,
-            fontSize: 11, lineHeight: 1.6, boxShadow: "0 3px 12px rgba(0,0,0,.2)",
-        }}>
+        <div style={{ ...TOOLTIP_STYLE }}>
             <div style={{ fontWeight: 700, marginBottom: 1 }}>{d.name}</div>
             <div>Count: {d.count} ({formatPct(d.share)} of current leads)</div>
             <div style={{ opacity: 0.7 }}>
@@ -67,9 +64,9 @@ export function PipelineWidget({ data, comparisonLabel }: PipelineWidgetProps) {
                             <BarChart
                                 data={chartData}
                                 layout="vertical"
-                                margin={{ top: 0, right: 12, left: 0, bottom: 0 }}
+                                margin={{ top: 4, right: 12, left: 0, bottom: 4 }}
                             >
-                                <XAxis type="number" axisLine={false} tickLine={false} tick={{ fontSize: 9, fill: "#b0b8c8", fontWeight: 500 }} />
+                                <XAxis type="number" axisLine={false} tickLine={false} tick={{ fontSize: 9, fill: "#94a3b8", fontWeight: 500 }} />
                                 <YAxis
                                     type="category"
                                     dataKey="name"
@@ -80,9 +77,9 @@ export function PipelineWidget({ data, comparisonLabel }: PipelineWidgetProps) {
                                 />
                                 <RechartsTooltip
                                     content={<PipelineTooltip comparisonLabel={comparisonLabel} />}
-                                    cursor={{ fill: "rgba(99,102,241,0.04)" }}
+                                    cursor={{ fill: "rgba(0,0,0,.03)" }}
                                 />
-                                <Bar dataKey="count" radius={[0, 3, 3, 0]} barSize={14}>
+                                <Bar dataKey="count" radius={[0, 4, 4, 0]} barSize={14}>
                                     {chartData.map((entry, i) => (
                                         <Cell key={entry.id} fill={entry._color} />
                                     ))}

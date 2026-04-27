@@ -62,7 +62,7 @@ function GoalTooltip({ active, payload, label, fmt }: { active?: boolean; payloa
   if (!active || !payload?.length) return null
   return (
     <div style={{
-      background: "#0f1729", color: "#fff", padding: "8px 11px", borderRadius: 8,
+        background: "#0f172a", color: "#fff", padding: "8px 11px", borderRadius: 8,
       fontSize: 11, lineHeight: 1.6, boxShadow: "0 4px 16px rgba(0,0,0,.25)",
     }}>
       {label && <div style={{ fontWeight: 700, marginBottom: 1 }}>{label}</div>}
@@ -91,7 +91,7 @@ export function GoalAttainmentWidget() {
   return (
     <SectionCard>
       <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
-        <TrendingUp style={{ width: 13, height: 13, color: "#8892a4" }} />
+        <TrendingUp style={{ width: 13, height: 13, color: "#94a3b8" }} />
         <SectionTitle>Goal Attainment</SectionTitle>
       </div>
       <SectionSub>Attainment vs target</SectionSub>
@@ -136,10 +136,10 @@ export function GoalAttainmentWidget() {
             </div>
           </div>
           <div style={{ textAlign: "center", marginTop: 4, flexShrink: 0 }}>
-            <div style={{ fontSize: 14, fontWeight: 800, color: "#0f1729", letterSpacing: "-0.3px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+            <div style={{ fontSize: 14, fontWeight: 800, color: "#0f172a", letterSpacing: "-0.3px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
               {fmt(data.attainment)}
             </div>
-            <div style={{ fontSize: 10, color: "#8892a4", marginTop: 1 }}>
+            <div style={{ fontSize: 10, color: "#94a3b8", marginTop: 1 }}>
               {pct.toFixed(1)}% of {fmt(data.target)}
             </div>
           </div>
@@ -164,7 +164,7 @@ export function GoalForecastWidget() {
   return (
     <SectionCard>
       <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
-        <Target style={{ width: 13, height: 13, color: "#8892a4" }} />
+        <Target style={{ width: 13, height: 13, color: "#94a3b8" }} />
         <SectionTitle>Weighted Forecast</SectionTitle>
       </div>
       <SectionSub>Pipeline + weighted forecast</SectionSub>
@@ -180,8 +180,8 @@ export function GoalForecastWidget() {
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={chartData} barCategoryGap="30%">
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                <XAxis dataKey="name" tick={{ fontSize: 10, fill: "#8892a4" }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 10, fill: "#8892a4" }} axisLine={false} tickLine={false} tickFormatter={fmtAxis} width={60} />
+                <XAxis dataKey="name" tick={{ fontSize: 9, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 10, fill: "#64748b" }} axisLine={false} tickLine={false} tickFormatter={fmtAxis} width={60} />
                 <Tooltip content={<GoalTooltip fmt={fmt} />} cursor={{ fill: "rgba(0,0,0,.04)" }} />
                 <Bar dataKey="value" radius={[4, 4, 0, 0]} name="Amount">
                   {chartData.map((entry, i) => (
@@ -193,11 +193,11 @@ export function GoalForecastWidget() {
           </div>
           <div style={{ display: "flex", justifyContent: "space-around", marginTop: 4, flexShrink: 0 }}>
             <div style={{ textAlign: "center" }}>
-              <div style={{ fontSize: 9, color: "#8892a4" }}>Raw Pipeline</div>
+              <div style={{ fontSize: 9, color: "#94a3b8" }}>Raw Pipeline</div>
               <div style={{ fontSize: 12, fontWeight: 700, color: "#0ea5e9" }}>{fmt(data.forecastRaw)}</div>
             </div>
             <div style={{ textAlign: "center" }}>
-              <div style={{ fontSize: 9, color: "#8892a4" }}>Weighted</div>
+              <div style={{ fontSize: 9, color: "#94a3b8" }}>Weighted</div>
               <div style={{ fontSize: 12, fontWeight: 700, color: "#6366f1" }}>{fmt(data.forecastWeighted)}</div>
             </div>
           </div>
@@ -234,6 +234,7 @@ export function GoalVarianceWidget() {
   return (
     <SectionCard>
       <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
+        <ArrowDown style={{ width: 13, height: 13, color: "#94a3b8" }} />
         <SectionTitle>Variance / Gap</SectionTitle>
       </div>
       <SectionSub>Gap indicators</SectionSub>
@@ -249,8 +250,8 @@ export function GoalVarianceWidget() {
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={chartData} barCategoryGap="30%">
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                <XAxis dataKey="name" tick={{ fontSize: 10, fill: "#8892a4" }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 10, fill: "#8892a4" }} axisLine={false} tickLine={false} tickFormatter={fmtAxis} width={60} />
+                <XAxis dataKey="name" tick={{ fontSize: 9, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 10, fill: "#64748b" }} axisLine={false} tickLine={false} tickFormatter={fmtAxis} width={60} />
                 <Tooltip content={<GoalTooltip fmt={fmt} />} cursor={{ fill: "rgba(0,0,0,.04)" }} />
                 <ReferenceLine y={0} stroke="#94a3b8" strokeDasharray="3 3" />
                 <Bar dataKey="value" radius={[4, 4, 0, 0]} name="Gap">
@@ -268,7 +269,7 @@ export function GoalVarianceWidget() {
               ) : (
                 <ArrowUp style={{ width: 10, height: 10, color: "#10b981" }} />
               )}
-              <span style={{ fontSize: 9, color: "#8892a4" }}>
+              <span style={{ fontSize: 9, color: "#94a3b8" }}>
                 {fmt(Math.abs(gapAttainment))} {gapAttainment > 0 ? "below" : "above"}
               </span>
             </div>
@@ -278,7 +279,7 @@ export function GoalVarianceWidget() {
               ) : (
                 <ArrowUp style={{ width: 10, height: 10, color: "#10b981" }} />
               )}
-              <span style={{ fontSize: 9, color: "#8892a4" }}>
+              <span style={{ fontSize: 9, color: "#94a3b8" }}>
                 {fmt(Math.abs(gapWithForecast))} {gapWithForecast > 0 ? "shortfall" : "surplus"}
               </span>
             </div>
@@ -339,7 +340,7 @@ export function GoalCompanyBreakdownWidget() {
   return (
     <SectionCard>
       <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
-        <Building2 style={{ width: 13, height: 13, color: "#8892a4" }} />
+        <Building2 style={{ width: 13, height: 13, color: "#94a3b8" }} />
         <SectionTitle>By Client Company</SectionTitle>
       </div>
       <SectionSub>Won revenue by client company</SectionSub>
@@ -348,7 +349,7 @@ export function GoalCompanyBreakdownWidget() {
       ) : !data.goal ? (
         <NoGoalData />
       ) : rows.length === 0 ? (
-        <div style={{ fontSize: 11, color: "#8892a4" }}>No breakdown data.</div>
+        <div style={{ fontSize: 11, color: "#94a3b8" }}>No breakdown data.</div>
       ) : !mounted ? (
         <ChartPlaceholder />
       ) : (
@@ -357,8 +358,8 @@ export function GoalCompanyBreakdownWidget() {
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={rows} layout="vertical" barCategoryGap="20%" margin={{ left: 0, right: 12, top: 4, bottom: 4 }}>
                 <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
-                <XAxis type="number" tick={{ fontSize: 10, fill: "#8892a4" }} axisLine={false} tickLine={false} tickFormatter={fmtAxis} />
-                <YAxis type="category" dataKey="name" tick={{ fontSize: 10, fill: "#0f1729", fontWeight: 600 }} axisLine={false} tickLine={false} width={80} />
+                <XAxis type="number" tick={{ fontSize: 9, fill: "#94a3b8" }} axisLine={false} tickLine={false} tickFormatter={fmtAxis} />
+                <YAxis type="category" dataKey="name" tick={{ fontSize: 10, fill: "#64748b", fontWeight: 500 }} axisLine={false} tickLine={false} width={80} />
                 <Tooltip content={<GoalTooltip fmt={fmt} />} cursor={{ fill: "rgba(0,0,0,.04)" }} />
                 <Bar dataKey="wonRevenue" name="Revenue" radius={[0, 4, 4, 0]}>
                   {rows.map((_, i) => (
@@ -435,9 +436,9 @@ export function GoalSegmentBreakdownWidget() {
         <div key={entry.name} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 10 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
             <div style={{ width: 7, height: 7, borderRadius: "50%", background: entry.fill, flexShrink: 0 }} />
-            <span style={{ fontWeight: 600, color: "#0f1729" }}>{entry.name}</span>
+            <span style={{ fontWeight: 600, color: "#0f172a" }}>{entry.name}</span>
           </div>
-          <span style={{ color: "#8892a4" }}>{fmt(entry.value)} ({entry.share}%)</span>
+          <span style={{ color: "#94a3b8" }}>{fmt(entry.value)} ({entry.share}%)</span>
         </div>
       ))}
     </div>
@@ -448,7 +449,7 @@ export function GoalSegmentBreakdownWidget() {
     const d = payload[0].payload
     return (
       <div style={{
-        background: "#0f1729", color: "#fff", padding: "8px 11px", borderRadius: 8,
+      background: "#0f172a", color: "#fff", padding: "8px 11px", borderRadius: 8,
         fontSize: 11, lineHeight: 1.6, boxShadow: "0 4px 16px rgba(0,0,0,.25)",
       }}>
         <div style={{ fontWeight: 700, marginBottom: 1 }}>{d.name}</div>
@@ -461,7 +462,7 @@ export function GoalSegmentBreakdownWidget() {
   return (
     <SectionCard>
       <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
-        <PieChartIcon style={{ width: 13, height: 13, color: "#8892a4" }} />
+        <PieChartIcon style={{ width: 13, height: 13, color: "#94a3b8" }} />
         <SectionTitle>By Segment</SectionTitle>
       </div>
       <SectionSub>Goal breakdown by segment</SectionSub>
@@ -470,7 +471,7 @@ export function GoalSegmentBreakdownWidget() {
       ) : !data.goal ? (
         <NoGoalData />
       ) : rows.length === 0 ? (
-        <div style={{ fontSize: 11, color: "#8892a4" }}>No segment data.</div>
+        <div style={{ fontSize: 11, color: "#94a3b8" }}>No segment data.</div>
       ) : !mounted ? (
         <ChartPlaceholder />
       ) : (
@@ -575,7 +576,7 @@ export function GoalTrendWidget() {
   return (
     <SectionCard>
       <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
-        <BarChart3 style={{ width: 13, height: 13, color: "#8892a4" }} />
+        <BarChart3 style={{ width: 13, height: 13, color: "#94a3b8" }} />
         <SectionTitle>Historical Trend</SectionTitle>
       </div>
       <SectionSub>Monthly attainment (last 12 months)</SectionSub>
@@ -584,7 +585,7 @@ export function GoalTrendWidget() {
       ) : !data.goal ? (
         <NoGoalData />
       ) : entries.length === 0 ? (
-        <div style={{ fontSize: 11, color: "#8892a4" }}>No trend data.</div>
+        <div style={{ fontSize: 11, color: "#94a3b8" }}>No trend data.</div>
       ) : !mounted ? (
         <ChartPlaceholder />
       ) : (
@@ -592,8 +593,8 @@ export function GoalTrendWidget() {
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={entries} barCategoryGap="20%" margin={{ left: 0, right: 4, top: 4, bottom: 4 }}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-              <XAxis dataKey="label" tick={{ fontSize: 9, fill: "#8892a4" }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 10, fill: "#8892a4" }} axisLine={false} tickLine={false} tickFormatter={fmtAxis} width={55} />
+              <XAxis dataKey="label" tick={{ fontSize: 9, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fontSize: 10, fill: "#64748b" }} axisLine={false} tickLine={false} tickFormatter={fmtAxis} width={55} />
               <Tooltip content={<GoalTooltip fmt={fmt} />} cursor={{ fill: "rgba(0,0,0,.04)" }} />
               <Bar dataKey="attainment" name="Attainment" fill="#10b981" radius={[3, 3, 0, 0]} />
               <Bar dataKey="target" name="Target" fill="#cbd5e1" radius={[3, 3, 0, 0]} />

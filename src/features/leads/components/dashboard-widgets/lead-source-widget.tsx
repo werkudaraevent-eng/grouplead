@@ -20,8 +20,8 @@ function SourceTooltip({ active, payload }: any) {
     const d = payload[0].payload
     return (
         <div style={{
-            background: "#0f1729", color: "#fff", padding: "8px 11px", borderRadius: 8,
-            fontSize: 11, lineHeight: 1.6, boxShadow: "0 3px 12px rgba(0,0,0,.2)",
+            background: "#0f172a", color: "#fff", padding: "8px 11px", borderRadius: 8,
+            fontSize: 11, lineHeight: 1.6, boxShadow: "0 4px 16px rgba(0,0,0,.25)",
         }}>
             <div style={{ fontWeight: 700, marginBottom: 1 }}>{d.name}</div>
             <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
@@ -55,7 +55,7 @@ export function LeadSourceWidget({ data }: LeadSourceWidgetProps) {
                 {hasMounted ? (
                     <div style={{ width: "100%", height: Math.max(chartData.length * 32, 80), minHeight: "100%" }}>
                         <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={chartData} layout="vertical" margin={{ top: 0, right: 10, left: 0, bottom: 0 }}>
+                            <BarChart data={chartData} layout="vertical" margin={{ top: 4, right: 12, left: 0, bottom: 4 }}>
                                 <XAxis type="number" axisLine={false} tickLine={false} tick={{ fontSize: 9, fill: "#b0b8c8", fontWeight: 500 }} />
                                 <YAxis
                                     type="category"
