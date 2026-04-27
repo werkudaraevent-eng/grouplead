@@ -35,17 +35,20 @@ function RankedTick({ x, y, payload }: any) {
     const index: number = payload.index
     const name: string = payload.value
     const isTop3 = index < 3
+    const maxLen = 22
+    const display = name.length > maxLen ? name.slice(0, maxLen - 1) + "\u2026" : name
     return (
         <g transform={`translate(${x},${y})`}>
+            <title>{name}</title>
             <text
                 x={0} y={0} dy={3.5}
                 textAnchor="end"
-                fontSize={10.5}
+                fontSize={10}
                 fontWeight={500}
-                fill={isTop3 ? "#6366f1" : "#5a6178"}
+                fill={isTop3 ? "#6366f1" : "#64748b"}
             >
-                <tspan fontWeight={700} fill={isTop3 ? "#6366f1" : "#8892a4"}>#{index + 1} </tspan>
-                {name.length > 16 ? name.slice(0, 15) + "\u2026" : name}
+                <tspan fontWeight={700} fill={isTop3 ? "#6366f1" : "#94a3b8"}>#{index + 1} </tspan>
+                {display}
             </text>
         </g>
     )
@@ -82,7 +85,7 @@ export function TopRevenueWidget({ data }: TopRevenueWidgetProps) {
                                     dataKey="name"
                                     axisLine={false}
                                     tickLine={false}
-                                    width={110}
+                                    width={130}
                                     tick={<RankedTick />}
                                 />
                                 <RechartsTooltip

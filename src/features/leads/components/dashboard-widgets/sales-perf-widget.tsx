@@ -103,8 +103,8 @@ export function SalesPerfWidget({ data }: SalesPerfWidgetProps) {
                                     dataKey="name"
                                     axisLine={false}
                                     tickLine={false}
-                                    tick={<EllipsisTick width={90} fontSize={10.5} />}
-                                    width={90}
+                                    tick={<EllipsisTick width={120} fontSize={10} />}
+                                    width={120}
                                 />
                                 <RechartsTooltip
                                     content={<SalesPerfTooltip fmt={fmt} />}

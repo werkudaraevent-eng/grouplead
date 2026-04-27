@@ -75,8 +75,8 @@ export function StreamWidget({ data, streamToggle, setStreamToggle }: StreamWidg
                                     dataKey="name"
                                     axisLine={false}
                                     tickLine={false}
-                                    tick={<EllipsisTick width={85} fontSize={10.5} />}
-                                    width={85}
+                                    tick={<EllipsisTick width={100} fontSize={10} />}
+                                    width={100}
                                 />
                                 <RechartsTooltip content={<StreamTooltip />} cursor={{ fill: "rgba(0,0,0,.03)" }} />
                                 <Bar dataKey="value" radius={[0, 4, 4, 0]} barSize={14}>

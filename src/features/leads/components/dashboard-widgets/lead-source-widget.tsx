@@ -62,8 +62,8 @@ export function LeadSourceWidget({ data }: LeadSourceWidgetProps) {
                                     dataKey="name"
                                     axisLine={false}
                                     tickLine={false}
-                                    tick={<EllipsisTick width={80} fontSize={10.5} />}
-                                    width={80}
+                                    tick={<EllipsisTick width={100} fontSize={10} />}
+                                    width={100}
                                 />
                                 <RechartsTooltip content={<SourceTooltip />} cursor={{ fill: "rgba(0,0,0,.03)" }} />
                                 <Bar dataKey="value" radius={[0, 4, 4, 0]} barSize={14}>

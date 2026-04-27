@@ -75,8 +75,8 @@ export function PipelineWidget({ data, comparisonLabel }: PipelineWidgetProps) {
                                     dataKey="name"
                                     axisLine={false}
                                     tickLine={false}
-                                    tick={<EllipsisTick width={90} fontSize={10.5} />}
-                                    width={90}
+                                    tick={<EllipsisTick width={110} fontSize={10} />}
+                                    width={110}
                                 />
                                 <RechartsTooltip
                                     content={<PipelineTooltip comparisonLabel={comparisonLabel} />}

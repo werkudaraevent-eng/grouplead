@@ -53,8 +53,8 @@ export function SectionCard({ children, style }: { children: React.ReactNode; st
         <div
             className="thin-scrollbar"
             style={{
-                background: "#fff", borderRadius: 10, padding: "14px 16px 12px",
-                border: "1px solid #e5e8ed", boxShadow: "0 1px 2px rgba(0,0,0,.03)",
+                background: "#fff", borderRadius: 12, padding: "16px 18px 14px",
+                border: "1px solid #e8ecf1", boxShadow: "0 1px 3px rgba(0,0,0,.04), 0 1px 2px rgba(0,0,0,.02)",
                 height: "100%", display: "flex", flexDirection: "column",
                 overflowY: "auto", overflowX: "hidden",
                 ...style,
@@ -66,18 +66,18 @@ export function SectionCard({ children, style }: { children: React.ReactNode; st
 }
 
 export function SectionTitle({ children }: { children: React.ReactNode }) {
-    return <div style={{ fontSize: 12.5, fontWeight: 700, color: "#0f1729", marginBottom: 1 }}>{children}</div>
+    return <div style={{ fontSize: 13, fontWeight: 700, color: "#0f172a", marginBottom: 2, letterSpacing: "-0.2px" }}>{children}</div>
 }
 
 export function SectionSub({ children }: { children: React.ReactNode }) {
-    return <div style={{ fontSize: 10.5, color: "#8892a4", marginBottom: 12 }}>{children}</div>
+    return <div style={{ fontSize: 11, color: "#94a3b8", marginBottom: 12 }}>{children}</div>
 }
 
 export function InsightCallout({ icon, text }: { icon: string; text: string }) {
     return (
         <div style={{
-            marginTop: 10, paddingTop: 8, borderLeft: "2px solid #6366f1",
-            paddingLeft: 8, fontSize: 10, fontStyle: "italic", color: "#8892a4",
+            marginTop: 10, paddingTop: 8, borderLeft: "2px solid #e0e7ff",
+            paddingLeft: 10, fontSize: 10.5, color: "#64748b",
             lineHeight: 1.5,
             overflow: "hidden",
             textOverflow: "ellipsis",
@@ -207,14 +207,14 @@ export function EmptyState({ icon, message, cta, href }: {
 }
 
 /** Shared Y-axis tick that truncates long labels with ellipsis */
-export function EllipsisTick({ x, y, payload, width = 90, fontSize = 10.5 }: any) {
-  const maxChars = Math.floor((width - 8) / (fontSize * 0.55))
+export function EllipsisTick({ x, y, payload, width = 100, fontSize = 10 }: any) {
+  const maxChars = Math.floor((width - 8) / (fontSize * 0.52))
   const text = payload?.value ?? ""
   const display = text.length > maxChars ? text.slice(0, maxChars - 1) + "\u2026" : text
   return (
     <g transform={`translate(${x},${y})`}>
       <title>{text}</title>
-      <text x={-4} y={0} dy={4} textAnchor="end" fill="#5a6178" fontSize={fontSize} fontWeight={500}>
+      <text x={-4} y={0} dy={4} textAnchor="end" fill="#64748b" fontSize={fontSize} fontWeight={500}>
         {display}
       </text>
     </g>
