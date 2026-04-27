@@ -59,7 +59,7 @@ function SalesPerfTooltip({ active, payload, fmt }: any) {
 }
 
 export function SalesPerfWidget({ data }: SalesPerfWidgetProps) {
-    const { fmt } = useCurrency()
+    const { fmt, fmtAxis } = useCurrency()
     const hasMounted = useHasMounted()
 
     if (data.length === 0) {
@@ -95,7 +95,7 @@ export function SalesPerfWidget({ data }: SalesPerfWidgetProps) {
                                     type="number"
                                     axisLine={false}
                                     tickLine={false}
-                                    tickFormatter={fmt}
+                                    tickFormatter={fmtAxis}
                                     tick={{ fontSize: 9, fill: "#b0b8c8", fontWeight: 500 }}
                                 />
                                 <YAxis

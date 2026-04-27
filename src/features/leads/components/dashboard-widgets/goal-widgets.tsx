@@ -152,7 +152,7 @@ export function GoalAttainmentWidget() {
 // ─── 2. Goal Forecast Widget ────────────────────────────────────────────────
 
 export function GoalForecastWidget() {
-  const { fmt } = useCurrency()
+  const { fmt, fmtAxis } = useCurrency()
   const data = useGoalData()
   const mounted = useHasMounted()
 
@@ -181,7 +181,7 @@ export function GoalForecastWidget() {
               <BarChart data={chartData} barCategoryGap="30%">
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                 <XAxis dataKey="name" tick={{ fontSize: 10, fill: "#8892a4" }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 10, fill: "#8892a4" }} axisLine={false} tickLine={false} tickFormatter={fmt} width={60} />
+                <YAxis tick={{ fontSize: 10, fill: "#8892a4" }} axisLine={false} tickLine={false} tickFormatter={fmtAxis} width={60} />
                 <Tooltip content={<GoalTooltip fmt={fmt} />} cursor={{ fill: "rgba(0,0,0,.04)" }} />
                 <Bar dataKey="value" radius={[4, 4, 0, 0]} name="Amount">
                   {chartData.map((entry, i) => (
@@ -210,7 +210,7 @@ export function GoalForecastWidget() {
 // ─── 3. Goal Variance Widget ────────────────────────────────────────────────
 
 export function GoalVarianceWidget() {
-  const { fmt } = useCurrency()
+  const { fmt, fmtAxis } = useCurrency()
   const data = useGoalData()
   const mounted = useHasMounted()
   // Positive gap = shortfall (target > attainment), negative gap = surplus
@@ -250,7 +250,7 @@ export function GoalVarianceWidget() {
               <BarChart data={chartData} barCategoryGap="30%">
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                 <XAxis dataKey="name" tick={{ fontSize: 10, fill: "#8892a4" }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 10, fill: "#8892a4" }} axisLine={false} tickLine={false} tickFormatter={fmt} width={60} />
+                <YAxis tick={{ fontSize: 10, fill: "#8892a4" }} axisLine={false} tickLine={false} tickFormatter={fmtAxis} width={60} />
                 <Tooltip content={<GoalTooltip fmt={fmt} />} cursor={{ fill: "rgba(0,0,0,.04)" }} />
                 <ReferenceLine y={0} stroke="#94a3b8" strokeDasharray="3 3" />
                 <Bar dataKey="value" radius={[4, 4, 0, 0]} name="Gap">
@@ -296,7 +296,7 @@ const COLORS = ["#6366f1", "#0ea5e9", "#10b981", "#f59e0b", "#ef4444", "#ec4899"
 interface BreakdownRow { id: string; name: string; wonRevenue: number; target: number }
 
 export function GoalCompanyBreakdownWidget() {
-  const { fmt } = useCurrency()
+  const { fmt, fmtAxis } = useCurrency()
   const { activeCompany } = useCompany()
   const data = useGoalData()
   const mounted = useHasMounted()
@@ -357,7 +357,7 @@ export function GoalCompanyBreakdownWidget() {
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={rows} layout="vertical" barCategoryGap="20%" margin={{ left: 0, right: 12, top: 4, bottom: 4 }}>
                 <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
-                <XAxis type="number" tick={{ fontSize: 10, fill: "#8892a4" }} axisLine={false} tickLine={false} tickFormatter={fmt} />
+                <XAxis type="number" tick={{ fontSize: 10, fill: "#8892a4" }} axisLine={false} tickLine={false} tickFormatter={fmtAxis} />
                 <YAxis type="category" dataKey="name" tick={{ fontSize: 10, fill: "#0f1729", fontWeight: 600 }} axisLine={false} tickLine={false} width={80} />
                 <Tooltip content={<GoalTooltip fmt={fmt} />} cursor={{ fill: "rgba(0,0,0,.04)" }} />
                 <Bar dataKey="wonRevenue" name="Revenue" radius={[0, 4, 4, 0]}>
@@ -509,7 +509,7 @@ export function GoalSegmentBreakdownWidget() {
 interface TrendEntry { label: string; attainment: number; target: number }
 
 export function GoalTrendWidget() {
-  const { fmt } = useCurrency()
+  const { fmt, fmtAxis } = useCurrency()
   const { activeCompany } = useCompany()
   const data = useGoalData()
   const mounted = useHasMounted()
@@ -593,7 +593,7 @@ export function GoalTrendWidget() {
             <BarChart data={entries} barCategoryGap="20%" margin={{ left: 0, right: 4, top: 4, bottom: 4 }}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
               <XAxis dataKey="label" tick={{ fontSize: 9, fill: "#8892a4" }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 10, fill: "#8892a4" }} axisLine={false} tickLine={false} tickFormatter={fmt} width={55} />
+              <YAxis tick={{ fontSize: 10, fill: "#8892a4" }} axisLine={false} tickLine={false} tickFormatter={fmtAxis} width={55} />
               <Tooltip content={<GoalTooltip fmt={fmt} />} cursor={{ fill: "rgba(0,0,0,.04)" }} />
               <Bar dataKey="attainment" name="Attainment" fill="#10b981" radius={[3, 3, 0, 0]} />
               <Bar dataKey="target" name="Target" fill="#cbd5e1" radius={[3, 3, 0, 0]} />

@@ -52,7 +52,7 @@ function RankedTick({ x, y, payload }: any) {
 }
 
 export function TopRevenueWidget({ data }: TopRevenueWidgetProps) {
-    const { fmt } = useCurrency()
+    const { fmt, fmtAxis } = useCurrency()
     const hasMounted = useHasMounted()
 
     const totalRevenue = data.reduce((s, c) => s + c.revenue, 0)
@@ -74,7 +74,7 @@ export function TopRevenueWidget({ data }: TopRevenueWidgetProps) {
                                     type="number"
                                     axisLine={false}
                                     tickLine={false}
-                                    tickFormatter={fmt}
+                                    tickFormatter={fmtAxis}
                                     tick={{ fontSize: 9, fill: "#b0b8c8", fontWeight: 500 }}
                                 />
                                 <YAxis

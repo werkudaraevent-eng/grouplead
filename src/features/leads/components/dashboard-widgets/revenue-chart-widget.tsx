@@ -29,7 +29,7 @@ interface RevenueChartWidgetProps {
 }
 
 export function RevenueChartWidget({ data, trendYear, setTrendYear, availableYears, hasMounted, revenueBasis, setRevenueBasis }: RevenueChartWidgetProps) {
-    const { fmt } = useCurrency()
+    const { fmt, fmtAxis } = useCurrency()
     const basisLabel = revenueBasis === "revenue_recognition" ? "Revenue Recognition Month" : "Closed Won Date"
 
     return (
@@ -59,7 +59,7 @@ export function RevenueChartWidget({ data, trendYear, setTrendYear, availableYea
                         <ComposedChart data={data} margin={{ top: 15, right: 5, left: 0, bottom: 0 }}>
                             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f3f5" />
                             <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fontSize: 9, fill: '#94a3b8', fontWeight: 500 }} dy={8} />
-                            <YAxis yAxisId="left" tickFormatter={fmt} axisLine={false} tickLine={false} tick={{ fontSize: 9, fill: '#b0b8c8', fontWeight: 500 }} dx={-5} width={55} />
+                            <YAxis yAxisId="left" tickFormatter={fmtAxis} axisLine={false} tickLine={false} tick={{ fontSize: 9, fill: '#b0b8c8', fontWeight: 500 }} dx={-5} width={55} />
                             <RechartsTooltip content={<DarkTooltip fmt={fmt} />} />
                             <Legend wrapperStyle={{ paddingTop: '6px', fontSize: '9.5px', fontWeight: 500 }} />
                             <Bar yAxisId="left" dataKey="actual" name={`Actual ${trendYear}`} barSize={20} fill="#6366f1" radius={[3, 3, 0, 0]}>
