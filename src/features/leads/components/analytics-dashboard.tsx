@@ -307,11 +307,13 @@ export function AnalyticsDashboard({
             winYoy,
             winTgt: null, // No target for win rate yet
             convYoy,
-            convTgt: null, // No target for conversion yet
+            convTgt: goalSettings?.conversion_target_pct != null && goalSettings.conversion_target_pct > 0
+                ? ((currentStats.conversionRate - goalSettings.conversion_target_pct) / goalSettings.conversion_target_pct) * 100
+                : null,
             avgYoy,
             avgTgt: null, // No target for avg deal size yet
         }
-    }, [activeGoal, stats.totalRevenue, periodLeads, previousPeriodLeads])
+    }, [activeGoal, goalSettings, stats.totalRevenue, periodLeads, previousPeriodLeads])
 
     // ─── CHART DATA ─────────────────────────────────────────────────
     // Parse "April 2026" → { month: 3, year: 2026 } for month_event field
@@ -649,7 +651,9 @@ export function AnalyticsDashboard({
             vsPrev: goalMetrics.convYoy,
             accent: ACCENT.conversion,
             icon: RefreshCw,
-            tooltip: "Percentage of leads that converted to won deals"
+            tooltip: goalSettings?.conversion_target_pct
+                ? `Percentage of leads converted to won deals (target: ${goalSettings.conversion_target_pct}%)`
+                : "Percentage of leads that converted to won deals"
         },
         {
             label: "Avg Deal Size",

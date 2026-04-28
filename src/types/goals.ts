@@ -18,6 +18,7 @@ export interface GoalV2 {
   updated_at: string
   company_id: string
   name: string
+  slug: string
   period_type: 'monthly' | 'quarterly' | 'yearly'
   target_amount: number
   is_active: boolean
@@ -27,7 +28,10 @@ export interface GoalV2 {
   weighted_forecast_enabled: boolean
   breakdown_config: BreakdownLevelConfig[]
   breakdown_targets: BreakdownTargets
+  monthly_weights: MonthlyWeights | null
   created_by: string | null
+  period_start: string | null
+  period_end: string | null
 }
 
 export type GoalV2Insert = Omit<GoalV2, 'id' | 'created_at' | 'updated_at'>
@@ -62,10 +66,11 @@ export interface GoalUserTarget {
   period_start: string
   period_end: string
   target_amount: number
+  node_id: string | null
 }
 
 export type GoalUserTargetInsert = Omit<GoalUserTarget, 'id' | 'created_at' | 'updated_at'>
-export type GoalUserTargetUpdate = Partial<Pick<GoalUserTarget, 'target_amount' | 'period_start' | 'period_end'>>
+export type GoalUserTargetUpdate = Partial<Pick<GoalUserTarget, 'target_amount' | 'period_start' | 'period_end' | 'node_id'>>
 
 export interface StageWeightsMap {
   [pipelineId: string]: {
@@ -82,10 +87,12 @@ export interface GoalSettingsV2 {
   auto_lock_enabled: boolean
   auto_lock_day_offset: number
   stage_weights: StageWeightsMap
+  /** Target lead conversion rate (%). e.g. 30 = 30% */
+  conversion_target_pct: number | null
 }
 
 export type GoalSettingsV2Update = Partial<Pick<GoalSettingsV2,
-  'reporting_critical_fields' | 'auto_lock_enabled' | 'auto_lock_day_offset' | 'stage_weights'
+  'reporting_critical_fields' | 'auto_lock_enabled' | 'auto_lock_day_offset' | 'stage_weights' | 'conversion_target_pct'
 >>
 
 // ── Saved Views (unchanged) ──
@@ -159,4 +166,43 @@ export interface LeadForecastInput {
 export interface OverlapWarning {
   value: string
   segments: string[]
+}
+
+// ── Goal Node Types (recursive tree) ──
+
+export type AllocationMode = 'percentage' | 'absolute'
+
+/** Monthly weight distribution — keys "1"-"12", values are decimal fractions summing to 1.0 */
+export type MonthlyWeights = Record<string, number>
+
+/** Per-node monthly target overrides — keys "1"-"12", values are absolute amounts */
+export type MonthlyTargets = Record<string, number>
+
+export interface GoalNode {
+  id: string
+  created_at: string
+  updated_at: string
+  goal_id: string
+  parent_node_id: string | null
+  name: string
+  dimension_type: string
+  reference_field: string
+  reference_value: string
+  allocation_mode: AllocationMode
+  percentage: number | null
+  target_amount: number
+  monthly_targets: MonthlyTargets | null
+  sort_order: number
+  company_id: string
+}
+
+export type GoalNodeInsert = Omit<GoalNode, 'id' | 'created_at' | 'updated_at'>
+export type GoalNodeUpdate = Partial<Omit<GoalNodeInsert, 'goal_id' | 'company_id'>>
+
+/** In-memory tree representation for recursive rendering */
+export interface GoalNodeTree extends GoalNode {
+  children: GoalNodeTree[]
+  attainment?: number
+  forecast_raw?: number
+  forecast_weighted?: number
 }
