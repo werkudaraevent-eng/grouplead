@@ -109,8 +109,9 @@ export function GoalConfigurationPage({ goal, dimensions }: { goal: GoalV2; dime
   const [periodStart, setPeriodStart] = useState(goal.period_start || '2026-01-01');
   const [periodEnd, setPeriodEnd] = useState(goal.period_end || '2026-12-31');
   const [isActive, setIsActive] = useState(goal.is_active);
+  const [conversionTarget, setConversionTarget] = useState("");
   // Stash original values for cancel
-  const [origOverview] = useState({ target: goal.target_amount, name: goal.name, periodStart: goal.period_start || '2026-01-01', periodEnd: goal.period_end || '2026-12-31', active: goal.is_active });
+  const [origOverview] = useState({ target: goal.target_amount, name: goal.name, periodStart: goal.period_start || '2026-01-01', periodEnd: goal.period_end || '2026-12-31', active: goal.is_active, conversionTarget: "" });
 
   // Auto-sync month nodes when period changes
   // Uses a ref to track last-applied period to avoid unnecessary rerenders
@@ -161,6 +162,18 @@ export function GoalConfigurationPage({ goal, dimensions }: { goal: GoalV2; dime
       return changed ? next : prev;
     });
   }, [periodStart, periodEnd, levels.length]);  // also trigger when levels are added/removed
+
+  // Load conversion target from goal_settings_v2
+  useEffect(() => {
+    if (!goal.company_id) return;
+    const supabase = createClient();
+    supabase.from("goal_settings_v2").select("conversion_target_pct").eq("company_id", goal.company_id).maybeSingle()
+      .then(({ data }) => {
+        const val = data?.conversion_target_pct ? String(data.conversion_target_pct) : "";
+        setConversionTarget(val);
+        origOverview.conversionTarget = val;
+      });
+  }, [goal.company_id]);
 
   // Format period for display
   const fmtPeriod = (start: string, end: string) => {
@@ -354,6 +367,15 @@ export function GoalConfigurationPage({ goal, dimensions }: { goal: GoalV2; dime
       const res = await updateGoalV2Action(goal.id, payload);
       console.log('[GoalConfig] Save result:', JSON.stringify(res));
       
+      // Save conversion target to goal_settings_v2
+      const convPct = parseFloat(conversionTarget);
+      const supabase = createClient();
+      await supabase.from("goal_settings_v2").upsert({
+        company_id: goal.company_id,
+        conversion_target_pct: !isNaN(convPct) && convPct > 0 ? convPct : null,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: "company_id" });
+
       if (res.success) toast.success("Configuration saved!");
       else toast.error(res.error || "Failed to save configuration");
     } catch (err) {
@@ -666,9 +688,14 @@ export function GoalConfigurationPage({ goal, dimensions }: { goal: GoalV2; dime
                       color: isActive ? "#10b981" : "#ef4444", background: isActive ? "rgba(16,185,129,.06)" : "rgba(239,68,68,.06)",
                     }}>{isActive ? "● Active" : "● Inactive"}</button>
                   </div>
+                  <div>
+                    <label style={{ fontSize: 11, fontWeight: 600, color: "#64748b", display: "block", marginBottom: 6 }}>Lead Conversion Target (%)</label>
+                    <input type="number" min="0" max="100" step="0.1" placeholder="e.g. 30" value={conversionTarget} onChange={e => setConversionTarget(e.target.value)}
+                      style={{ width: "100%", fontSize: 14, fontWeight: 600, color: "#0f172a", border: "1.5px solid #e2e8f0", borderRadius: 8, padding: "10px 12px", fontFamily: "inherit", boxSizing: "border-box" }} />
+                  </div>
                 </div>
                 <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 16, paddingTop: 14, borderTop: "1px solid #f1f3f5" }}>
-                  <button onClick={() => { setTargetAmount(origOverview.target); setTargetDisplay(fmtNumber(origOverview.target)); setGoalName(origOverview.name); setPeriodStart(origOverview.periodStart); setPeriodEnd(origOverview.periodEnd); setIsActive(origOverview.active); setOverviewEditing(false); }}
+                  <button onClick={() => { setTargetAmount(origOverview.target); setTargetDisplay(fmtNumber(origOverview.target)); setGoalName(origOverview.name); setPeriodStart(origOverview.periodStart); setPeriodEnd(origOverview.periodEnd); setIsActive(origOverview.active); setConversionTarget(origOverview.conversionTarget); setOverviewEditing(false); }}
                     style={{ padding: "8px 20px", fontSize: 12, fontWeight: 600, border: "1px solid #e2e8f0", borderRadius: 8, background: "#fff", color: "#64748b", cursor: "pointer", fontFamily: "inherit" }}>Cancel</button>
                   <button onClick={() => setOverviewEditing(false)}
                     style={{ padding: "8px 20px", fontSize: 12, fontWeight: 600, border: "none", borderRadius: 8, background: "#f59e0b", color: "#fff", cursor: "pointer", fontFamily: "inherit" }}>Done</button>
@@ -691,6 +718,11 @@ export function GoalConfigurationPage({ goal, dimensions }: { goal: GoalV2; dime
                   <div>
                     <div style={{ fontSize: 9.5, fontWeight: 600, color: "#8892a4", marginBottom: 2 }}>Period</div>
                     <div style={{ fontSize: 13, fontWeight: 600 }}>{fmtPeriod(periodStart, periodEnd)}</div>
+                  </div>
+                  <div style={{ width: 1, height: 36, background: "#e5e8ed" }} />
+                  <div>
+                    <div style={{ fontSize: 9.5, fontWeight: 600, color: "#8892a4", marginBottom: 2 }}>Conversion Target</div>
+                    <div style={{ fontSize: 13, fontWeight: 600 }}>{conversionTarget ? `${conversionTarget}%` : "—"}</div>
                   </div>
                   <div style={{ width: 1, height: 36, background: "#e5e8ed" }} />
                   <div>

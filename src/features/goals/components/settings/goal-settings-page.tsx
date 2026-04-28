@@ -71,6 +71,8 @@ export function GoalSettingsPage() {
 
   // Dropdown menu
   const [menuOpen, setMenuOpen] = useState<string | null>(null)
+  // Conversion target display (loaded from goal_settings_v2)
+  const [conversionTargetDisplay, setConversionTargetDisplay] = useState<string>("")
 
   const loadData = useCallback(async () => {
     if (!activeCompany?.id) return
@@ -87,7 +89,14 @@ export function GoalSettingsPage() {
 
   useEffect(() => {
     loadData()
-  }, [loadData])
+    // Load conversion target for card display
+    if (activeCompany?.id) {
+      supabase.from("goal_settings_v2").select("conversion_target_pct").eq("company_id", activeCompany.id).maybeSingle()
+        .then(({ data }) => {
+          setConversionTargetDisplay(data?.conversion_target_pct ? `${data.conversion_target_pct}%` : "")
+        })
+    }
+  }, [loadData, activeCompany?.id, supabase])
 
   // Close menu on outside click
   useEffect(() => {
@@ -467,6 +476,17 @@ export function GoalSettingsPage() {
                           </div>
                           <div style={{ fontSize: 11.5, fontWeight: 600, color: "#334155" }}>
                             {goal.weighted_forecast_enabled ? "Weighted" : "Standard"}
+                          </div>
+                        </div>
+                        <div style={{
+                          flex: 1, background: "#f8f9fb", borderRadius: 7, padding: "8px 10px",
+                        }}>
+                          <div style={{ fontSize: 9, fontWeight: 600, color: "#94a3b8", marginBottom: 2 }}>
+                            <Target className="h-2.5 w-2.5 inline mr-1" style={{ verticalAlign: "middle" }} />
+                            Conversion
+                          </div>
+                          <div style={{ fontSize: 11.5, fontWeight: 600, color: "#334155" }}>
+                            {conversionTargetDisplay || "—"}
                           </div>
                         </div>
                       </div>
