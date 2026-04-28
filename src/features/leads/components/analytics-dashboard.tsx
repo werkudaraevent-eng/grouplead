@@ -307,8 +307,9 @@ export function AnalyticsDashboard({
             winYoy,
             winTgt: null, // No target for win rate yet
             convYoy,
+            // Absolute difference in percentage points (e.g. 34.6% - 30% = +4.6)
             convTgt: goalSettings?.conversion_target_pct != null && goalSettings.conversion_target_pct > 0
-                ? ((currentStats.conversionRate - goalSettings.conversion_target_pct) / goalSettings.conversion_target_pct) * 100
+                ? currentStats.conversionRate - goalSettings.conversion_target_pct
                 : null,
             avgYoy,
             avgTgt: null, // No target for avg deal size yet
@@ -652,7 +653,7 @@ export function AnalyticsDashboard({
             accent: ACCENT.conversion,
             icon: RefreshCw,
             tooltip: goalSettings?.conversion_target_pct
-                ? `Percentage of leads converted to won deals (target: ${goalSettings.conversion_target_pct}%)`
+                ? `Lead-to-deal conversion rate. Target: ${goalSettings.conversion_target_pct}% · Actual: ${stats.conversionRate.toFixed(1)}% · Gap: ${(stats.conversionRate - goalSettings.conversion_target_pct) > 0 ? "+" : ""}${(stats.conversionRate - goalSettings.conversion_target_pct).toFixed(1)} pts`
                 : "Percentage of leads that converted to won deals"
         },
         {
