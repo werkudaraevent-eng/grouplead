@@ -52,6 +52,7 @@ export function GoalSettingsPage() {
   const [createPeriodStart, setCreatePeriodStart] = useState("2026-01-01")
   const [createPeriodEnd, setCreatePeriodEnd] = useState("2026-12-31")
   const [createWeightedForecast, setCreateWeightedForecast] = useState(false)
+  const [createConversionTarget, setCreateConversionTarget] = useState("")
   const [creating, setCreating] = useState(false)
 
   // Edit dialog
@@ -61,6 +62,7 @@ export function GoalSettingsPage() {
   const [editPeriodStart, setEditPeriodStart] = useState("")
   const [editPeriodEnd, setEditPeriodEnd] = useState("")
   const [editWeightedForecast, setEditWeightedForecast] = useState(false)
+  const [editConversionTarget, setEditConversionTarget] = useState("")
   const [saving, setSaving] = useState(false)
 
   // Delete confirmation
@@ -115,12 +117,22 @@ export function GoalSettingsPage() {
       period_start: createPeriodStart,
       period_end: createPeriodEnd,
     })
+    // Save conversion target to goal_settings_v2
+    const convPct = parseFloat(createConversionTarget)
+    if (!isNaN(convPct) && convPct > 0 && activeCompany?.id) {
+      await supabase.from("goal_settings_v2").upsert({
+        company_id: activeCompany.id,
+        conversion_target_pct: convPct,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: "company_id" })
+    }
     setCreating(false)
     if (result.success) {
       toast.success("Goal created successfully")
       setShowCreate(false)
       setCreateName("")
       setCreateTarget("")
+      setCreateConversionTarget("")
       setCreatePeriodStart("2026-01-01")
       setCreatePeriodEnd("2026-12-31")
       setCreateWeightedForecast(false)
@@ -130,7 +142,7 @@ export function GoalSettingsPage() {
     }
   }
 
-  const openEdit = (goal: GoalV2) => {
+  const openEdit = async (goal: GoalV2) => {
     setEditGoal(goal)
     setEditName(goal.name)
     setEditTarget(formatCurrencyInput(goal.target_amount))
@@ -138,6 +150,11 @@ export function GoalSettingsPage() {
     setEditPeriodEnd(goal.period_end || "2026-12-31")
     setEditWeightedForecast(goal.weighted_forecast_enabled)
     setMenuOpen(null)
+    // Load conversion target from goal_settings_v2
+    if (activeCompany?.id) {
+      const { data } = await supabase.from("goal_settings_v2").select("conversion_target_pct").eq("company_id", activeCompany.id).maybeSingle()
+      setEditConversionTarget(data?.conversion_target_pct ? String(data.conversion_target_pct) : "")
+    }
   }
 
   const handleEdit = async () => {
@@ -150,6 +167,15 @@ export function GoalSettingsPage() {
       period_end: editPeriodEnd,
       weighted_forecast_enabled: editWeightedForecast,
     })
+    // Save conversion target to goal_settings_v2
+    const convPct = parseFloat(editConversionTarget)
+    if (activeCompany?.id) {
+      await supabase.from("goal_settings_v2").upsert({
+        company_id: activeCompany.id,
+        conversion_target_pct: !isNaN(convPct) && convPct > 0 ? convPct : null,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: "company_id" })
+    }
     setSaving(false)
     if (result.success) {
       toast.success("Goal updated")
@@ -612,6 +638,21 @@ export function GoalSettingsPage() {
                 />
               </div>
             </div>
+            <div className="grid gap-2">
+              <Label>Lead Conversion Target (%)</Label>
+              <Input
+                type="number"
+                placeholder="e.g. 30"
+                min="0"
+                max="100"
+                step="0.1"
+                value={createConversionTarget}
+                onChange={(e) => setCreateConversionTarget(e.target.value)}
+              />
+              <p className="text-[11px] text-muted-foreground">
+                Target conversion rate for all business units. Shown on dashboard KPI.
+              </p>
+            </div>
             <div className="flex items-center gap-3">
               <Switch
                 checked={createWeightedForecast}
@@ -682,6 +723,21 @@ export function GoalSettingsPage() {
                   onChange={(e) => setEditPeriodEnd(e.target.value)}
                 />
               </div>
+            </div>
+            <div className="grid gap-2">
+              <Label>Lead Conversion Target (%)</Label>
+              <Input
+                type="number"
+                placeholder="e.g. 30"
+                min="0"
+                max="100"
+                step="0.1"
+                value={editConversionTarget}
+                onChange={(e) => setEditConversionTarget(e.target.value)}
+              />
+              <p className="text-[11px] text-muted-foreground">
+                Target conversion rate. Shown on dashboard KPI card.
+              </p>
             </div>
             <div className="flex items-center gap-3">
               <Switch
