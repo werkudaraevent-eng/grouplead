@@ -6,6 +6,7 @@ import { useCompany } from "@/contexts/company-context"
 import { PermissionGate } from "@/features/users/components/permission-gate"
 import { RoleModal } from "@/features/roles/components/create-role-modal"
 import { Loader2, ShieldCheck, Shield, Lock, Crown, UserCog, User, Plus, ChevronRight, Pencil, Trash2, Info } from "lucide-react"
+import { SettingsPageHeader } from "@/components/layout/settings-page-header"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Button } from "@/components/ui/button"
 import { toast } from "sonner"
@@ -313,30 +314,29 @@ export default function GlobalPermissionsPage() {
     <PermissionGate resource="companies" action="update" fallback={
       <div className="p-8 text-center text-muted-foreground">You don&apos;t have permission to manage permissions.</div>
     }>
-      <div className="p-6 lg:p-8 space-y-6 w-full">
+      <div className="space-y-6 w-full">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-              <ShieldCheck className="h-6 w-6 text-primary" /> Roles &amp; Permissions
-            </h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              Configure access control matrices per role{companyName ? ` — ${companyName}` : ""}
-            </p>
-          </div>
-          {isHoldingView && (
-            <Select value={companyId ?? ""} onValueChange={(val) => setSelectedCompanyId(val)}>
-              <SelectTrigger className="w-[220px]">
-                <SelectValue placeholder="Select company" />
-              </SelectTrigger>
-              <SelectContent>
-                {companies.filter((c) => !c.isHolding).map((c) => (
-                  <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
-        </div>
+        <SettingsPageHeader
+          title="Roles & Permissions"
+          subtitle={`Configure access control matrices per role${companyName ? ` — ${companyName}` : ""}`}
+          breadcrumbs={[{ label: "Permissions" }]}
+          actions={
+            isHoldingView ? (
+              <Select value={companyId ?? ""} onValueChange={(val) => setSelectedCompanyId(val)}>
+                <SelectTrigger className="w-[220px]">
+                  <SelectValue placeholder="Select company" />
+                </SelectTrigger>
+                <SelectContent>
+                  {companies.filter((c) => !c.isHolding).map((c) => (
+                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : undefined
+          }
+        />
+
+        <div className="px-6 lg:px-8 pb-6 space-y-6">
 
         {error && (
           <div className="bg-destructive/15 text-destructive px-4 py-3 rounded-lg text-sm">{error}</div>
@@ -574,6 +574,7 @@ export default function GlobalPermissionsPage() {
             </div>
           </div>
         )}
+        </div>
       </div>
 
       {/* Role Upsert Modal */}

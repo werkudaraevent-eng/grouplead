@@ -3,7 +3,7 @@
 import {
     BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer, Cell, LabelList,
 } from "recharts"
-import { SectionCard, SectionTitle, SectionSub, InsightCallout, CHART_COLORS, EllipsisTick } from "./shared"
+import { SectionCard, SectionTitle, SectionSub, InsightCallout, CHART_COLORS, TOOLTIP_STYLE, EllipsisTick, WidgetSkeleton } from "./shared"
 import { useHasMounted } from "@/hooks/use-has-mounted"
 
 interface SourceItem {
@@ -19,10 +19,7 @@ function SourceTooltip({ active, payload }: any) {
     if (!active || !payload?.length) return null
     const d = payload[0].payload
     return (
-        <div style={{
-            background: "#0f172a", color: "#fff", padding: "8px 11px", borderRadius: 8,
-            fontSize: 11, lineHeight: 1.6, boxShadow: "0 4px 16px rgba(0,0,0,.25)",
-        }}>
+        <div style={{ ...TOOLTIP_STYLE }}>
             <div style={{ fontWeight: 700, marginBottom: 1 }}>{d.name}</div>
             <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
                 <div style={{ width: 6, height: 6, borderRadius: 2, background: d.fill, flexShrink: 0 }} />
@@ -49,9 +46,9 @@ export function LeadSourceWidget({ data }: LeadSourceWidgetProps) {
             <SectionTitle>Lead Source</SectionTitle>
             <SectionSub>Origin channel distribution</SectionSub>
 
-            <div style={{ fontSize: 9, color: "#94a3b8", textAlign: "right" as const, marginBottom: 4 }}>Total: {totalLeads}</div>
+            <div className="text-[9px] text-muted-foreground text-right mb-1">Total: {totalLeads}</div>
 
-            <div className="thin-scrollbar" style={{ flex: 1, minHeight: 80, overflowY: "auto", overflowX: "hidden" }}>
+            <div className="thin-scrollbar flex-1 min-h-[80px] overflow-y-auto overflow-x-hidden">
                 {hasMounted ? (
                     <div style={{ width: "100%", height: Math.max(chartData.length * 32, 80), minHeight: "100%" }}>
                         <ResponsiveContainer width="100%" height="100%">
@@ -76,12 +73,7 @@ export function LeadSourceWidget({ data }: LeadSourceWidgetProps) {
                         </ResponsiveContainer>
                     </div>
                 ) : (
-                    <div style={{
-                        height: "100%",
-                        borderRadius: 8,
-                        background: "linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%)",
-                        border: "1px solid #eef2f7",
-                    }} />
+                    <WidgetSkeleton />
                 )}
             </div>
 

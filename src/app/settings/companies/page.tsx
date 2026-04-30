@@ -12,6 +12,7 @@ import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog'
 import { Building2, Globe, Plus, Loader2, Users, Pencil, Trash2 } from 'lucide-react'
+import { SettingsPageHeader } from "@/components/layout/settings-page-header"
 import { toast } from 'sonner'
 import { CompanyForm } from '@/features/companies/components/company-form'
 import type { Company } from '@/types/company'
@@ -76,28 +77,25 @@ export default function CompanyManagementPage() {
   }
 
   return (
-    <div className="p-6 lg:p-8 space-y-6 w-full">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-            <Building2 className="h-6 w-6 text-primary" />
-            Company Management
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Manage companies, members, and role permissions.
-          </p>
-        </div>
-        <PermissionGate resource="companies" action="create">
-          <Button size="sm" onClick={() => { setEditCompany(null); setEditOpen(true) }}>
-            <Plus className="h-3.5 w-3.5 mr-1.5" /> Add Company
-          </Button>
-        </PermissionGate>
-      </div>
+    <div className="space-y-6 w-full">
+      <SettingsPageHeader
+        title="Company Management"
+        subtitle="Manage companies, members, and role permissions."
+        breadcrumbs={[{ label: "Companies" }]}
+        actions={
+          <PermissionGate resource="companies" action="create">
+            <Button size="sm" onClick={() => { setEditCompany(null); setEditOpen(true) }}>
+              <Plus className="h-3.5 w-3.5 mr-1.5" /> Add Company
+            </Button>
+          </PermissionGate>
+        }
+      />
 
+      <div className="px-6 lg:px-8 pb-6 space-y-6">
       <div className="border rounded-xl bg-card overflow-hidden">
         <Table>
           <TableHeader>
-            <TableRow className="bg-muted/30">
+            <TableRow>
               <TableHead>Company</TableHead>
               <TableHead>Slug</TableHead>
               <TableHead>Type</TableHead>
@@ -176,6 +174,8 @@ export default function CompanyManagementPage() {
             ))}
           </TableBody>
         </Table>
+      </div>
+
       </div>
 
       {/* Edit/Create Company Dialog */}

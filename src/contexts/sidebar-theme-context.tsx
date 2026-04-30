@@ -19,11 +19,14 @@ export function useSidebarTheme() {
 
 export function SidebarThemeProvider({ children }: { children: ReactNode }) {
     const [isDarkPanel, setIsDarkPanel] = useState(false)
+    const [mounted, setMounted] = useState(false)
 
-    // Hydrate from localStorage on client mount
     useEffect(() => {
         const stored = localStorage.getItem("sidebar-panel-theme")
         if (stored === "dark") setIsDarkPanel(true)
+        setMounted(true)
+        // Clean up the pre-hydration CSS class — React now controls the theme
+        document.documentElement.classList.remove("sidebar-dark-mode")
     }, [])
 
     const togglePanel = useCallback(() => {

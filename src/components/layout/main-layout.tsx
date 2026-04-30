@@ -57,8 +57,7 @@ function MainLayoutInner({
         <div className="flex h-screen overflow-hidden">
             <aside
                 data-sidebar
-                className={`hidden lg:flex lg:w-[220px] lg:flex-col lg:border-r shrink-0 flex-none transition-colors duration-300 ${isDarkPanel ? 'border-[#2a3040]' : 'border-sidebar-border bg-sidebar'}`}
-                style={isDarkPanel ? { backgroundColor: '#1a1f2e' } : undefined}
+                className={`hidden lg:flex lg:w-[220px] lg:flex-col lg:border-r shrink-0 flex-none transition-colors duration-300 border-sidebar-border bg-sidebar ${darkClass}`}
             >
                 <Sidebar />
             </aside>
@@ -71,7 +70,7 @@ function MainLayoutInner({
             </Sheet>
             <div className="flex-1 flex flex-col min-w-0 overflow-x-hidden">
                 <div className="lg:hidden flex items-center h-14 px-4 border-b bg-background/95 backdrop-blur shrink-0">
-                    <Button variant="ghost" size="icon" onClick={() => setMobileOpen(true)} className="h-9 w-9 mr-3">
+                    <Button variant="ghost" size="icon" onClick={() => setMobileOpen(true)} className="h-9 w-9 mr-3" aria-label="Open navigation menu">
                         <Menu className="h-5 w-5" />
                     </Button>
                     <div className="flex items-center gap-2">
@@ -81,7 +80,7 @@ function MainLayoutInner({
                         <span className="font-bold text-sm">Werkudara Group</span>
                     </div>
                 </div>
-                <main className="flex-1 overflow-y-auto bg-muted/30">{children}</main>
+                <main id="main-content" className="flex-1 overflow-y-auto bg-muted/30">{children}</main>
             </div>
         </div>
     )

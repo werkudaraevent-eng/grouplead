@@ -5,7 +5,7 @@ import {
     Tooltip as RechartsTooltip, ResponsiveContainer, Legend, LabelList,
 } from "recharts"
 import { useCurrency } from "@/contexts/currency-context"
-import { SectionCard, SectionTitle, SectionSub, DarkTooltip, miniSelectStyle } from "./shared"
+import { SectionCard, SectionTitle, SectionSub, DarkTooltip, MiniSelect, WidgetSkeleton } from "./shared"
 
 export type RevenueBasis = "revenue_recognition" | "closed_won"
 
@@ -33,33 +33,32 @@ export function RevenueChartWidget({ data, trendYear, setTrendYear, availableYea
     const basisLabel = revenueBasis === "revenue_recognition" ? "Revenue Recognition Month" : "Closed Won Date"
 
     return (
-        <SectionCard style={{ alignSelf: "stretch" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
+        <SectionCard className="self-stretch">
+            <div className="flex justify-between items-start mb-2.5">
                 <div>
                     <SectionTitle>Monthly Revenue vs Target</SectionTitle>
                     <SectionSub>By {basisLabel}</SectionSub>
                 </div>
-                <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
-                    <div>
-                        <div style={{ fontSize: 9, fontWeight: 600, color: "#94a3b8", marginBottom: 3, letterSpacing: "0.3px" }}>Based on</div>
-                        <select
-                            style={{ ...miniSelectStyle, fontSize: 10 }}
-                            value={revenueBasis}
-                            onChange={e => setRevenueBasis(e.target.value as RevenueBasis)}
-                        >
-                            <option value="revenue_recognition">Rev. Recognition</option>
-                            <option value="closed_won">Closed Won Date</option>
-                        </select>
-                    </div>
-                    <div>
-                        <div style={{ fontSize: 9, fontWeight: 600, color: "#94a3b8", marginBottom: 3, letterSpacing: "0.3px" }}>Showing</div>
-                        <select style={miniSelectStyle} value={trendYear} onChange={e => setTrendYear(Number(e.target.value))}>
-                            {availableYears.map(y => <option key={y} value={y}>{y} vs {y - 1}</option>)}
-                        </select>
-                    </div>
+                <div className="flex gap-2 items-end">
+                    <MiniSelect
+                        label="Based on"
+                        value={revenueBasis}
+                        onChange={e => setRevenueBasis(e.target.value as RevenueBasis)}
+                        className="text-[10px]"
+                    >
+                        <option value="revenue_recognition">Rev. Recognition</option>
+                        <option value="closed_won">Closed Won Date</option>
+                    </MiniSelect>
+                    <MiniSelect
+                        label="Showing"
+                        value={trendYear}
+                        onChange={e => setTrendYear(Number(e.target.value))}
+                    >
+                        {availableYears.map(y => <option key={y} value={y}>{y} vs {y - 1}</option>)}
+                    </MiniSelect>
                 </div>
             </div>
-            <div style={{ flex: 1, minHeight: 0, width: "100%" }}>
+            <div className="flex-1 min-h-0 w-full">
                 {hasMounted ? (
                     <ResponsiveContainer width="100%" height="100%">
                         <ComposedChart data={data} margin={{ top: 15, right: 12, left: 0, bottom: 4 }}>
@@ -76,12 +75,7 @@ export function RevenueChartWidget({ data, trendYear, setTrendYear, availableYea
                         </ComposedChart>
                     </ResponsiveContainer>
                 ) : (
-                    <div style={{
-                        height: "100%",
-                        borderRadius: 8,
-                        background: "linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%)",
-                        border: "1px solid #eef2f7",
-                    }} />
+                    <WidgetSkeleton />
                 )}
             </div>
         </SectionCard>

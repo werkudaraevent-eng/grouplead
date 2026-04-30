@@ -5,7 +5,7 @@ import { useRouter, usePathname, useSearchParams } from "next/navigation"
 import { Lead, PipelineStage } from "@/types"
 import type { GoalV2, GoalNode, GoalUserTarget, GoalSettingsV2 } from "@/types/goals"
 import { GoalDataProvider } from "@/features/goals/contexts/goal-data-context"
-import { EmptyState } from "./dashboard-widgets/shared"
+import { EmptyState } from "@/components/shared/empty-state"
 import { buildDashboardStageSeries } from "@/features/leads/lib/dashboard-stage-series"
 import { splitDashboardLeadsByPeriod } from "@/features/leads/lib/dashboard-period"
 import { Briefcase, Trophy, CheckSquare, RefreshCw, TrendingUp, Calendar } from "lucide-react"
@@ -772,22 +772,22 @@ export function AnalyticsDashboard({
                     <ContactAnalyticsWidget leads={periodLeads} />
                     {/* Goal widgets - each individually wrapped */}
                     <GoalDataProvider value={goalProviderValue}>
-                      {activeGoal ? <GoalAttainmentWidget /> : <div><EmptyState message="No active goal configured" cta="Configure Goals" href="/settings" /></div>}
+                      {activeGoal ? <GoalAttainmentWidget /> : <div><EmptyState icon={TrendingUp} title="No active goal configured" description="Set up goals in settings" size="sm" /></div>}
                     </GoalDataProvider>
                     <GoalDataProvider value={goalProviderValue}>
-                      {activeGoal ? <GoalForecastWidget /> : <div><EmptyState message="No active goal configured" cta="Configure Goals" href="/settings" /></div>}
+                      {activeGoal ? <GoalForecastWidget /> : <div><EmptyState icon={TrendingUp} title="No active goal configured" description="Set up goals in settings" size="sm" /></div>}
                     </GoalDataProvider>
                     <GoalDataProvider value={goalProviderValue}>
-                      {activeGoal ? <GoalVarianceWidget /> : <div><EmptyState message="No active goal configured" cta="Configure Goals" href="/settings" /></div>}
+                      {activeGoal ? <GoalVarianceWidget /> : <div><EmptyState icon={TrendingUp} title="No active goal configured" description="Set up goals in settings" size="sm" /></div>}
                     </GoalDataProvider>
                     <GoalDataProvider value={goalProviderValue}>
-                      {activeGoal ? <GoalCompanyBreakdownWidget /> : <div><EmptyState message="No active goal configured" cta="Configure Goals" href="/settings" /></div>}
+                      {activeGoal ? <GoalCompanyBreakdownWidget /> : <div><EmptyState icon={TrendingUp} title="No active goal configured" description="Set up goals in settings" size="sm" /></div>}
                     </GoalDataProvider>
                     <GoalDataProvider value={goalProviderValue}>
-                      {activeGoal ? <GoalSegmentBreakdownWidget /> : <div><EmptyState message="No active goal configured" cta="Configure Goals" href="/settings" /></div>}
+                      {activeGoal ? <GoalSegmentBreakdownWidget /> : <div><EmptyState icon={TrendingUp} title="No active goal configured" description="Set up goals in settings" size="sm" /></div>}
                     </GoalDataProvider>
                     <GoalDataProvider value={goalProviderValue}>
-                      {activeGoal ? <GoalTrendWidget /> : <div><EmptyState message="No active goal configured" cta="Configure Goals" href="/settings" /></div>}
+                      {activeGoal ? <GoalTrendWidget /> : <div><EmptyState icon={TrendingUp} title="No active goal configured" description="Set up goals in settings" size="sm" /></div>}
                     </GoalDataProvider>
                     {/* Custom widgets */}
                     {customWidgetsList.map(w => (

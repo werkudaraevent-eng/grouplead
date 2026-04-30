@@ -14,9 +14,11 @@ import { TrendWidget } from "./trend-widget"
 import { CompanyBreakdownWidget } from "./company-breakdown-widget"
 import { SegmentBreakdownWidget } from "./segment-breakdown-widget"
 import { SalesContributionWidget } from "./sales-contribution-widget"
+import { NodeBreakdownWidget } from "./node-breakdown-widget"
 import { ExceptionListWidget } from "./exception-list-widget"
 import { DrillDownPanel } from "./drill-down-panel"
 import { SavedViewSelector } from "./saved-view-selector"
+import { PeriodSelector, type PeriodSelection } from "@/features/goals/components/shared/period-selector"
 import {
   Select,
   SelectContent,
@@ -39,6 +41,9 @@ export function ManagementDashboard() {
     filterType: string
     filterValue: string
   } | null>(null)
+  const [period, setPeriod] = useState<PeriodSelection>({
+    periodStart: null, periodEnd: null, periodType: "all",
+  })
 
   // Load goals_v2 for this company
   const loadGoals = useCallback(async () => {
@@ -63,7 +68,11 @@ export function ManagementDashboard() {
     loadGoals()
   }, [loadGoals])
 
-  const goalData = useGoalData({ goalId: selectedGoalId })
+  const goalData = useGoalData({
+    goalId: selectedGoalId,
+    periodStart: period.periodStart,
+    periodEnd: period.periodEnd,
+  })
 
   const handleLoadView = (config: SavedViewConfig) => {
     if (config.goal_id) setSelectedGoalId(config.goal_id)
@@ -125,6 +134,7 @@ export function ManagementDashboard() {
             />
 
             {/* Company scope selector */}
+            <PeriodSelector value={period} onChange={setPeriod} />
             <Select
               value={activeCompany?.slug ?? ""}
               onValueChange={(slug) => switchCompany(slug)}
@@ -200,7 +210,14 @@ export function ManagementDashboard() {
               </div>
 
               {/* Breakdown row */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+                <NodeBreakdownWidget
+                  goalId={selectedGoalId}
+                  loading={goalData.loading}
+                  periodStart={period.periodStart}
+                  periodEnd={period.periodEnd}
+                  onDrillDown={handleDrillDown}
+                />
                 <CompanyBreakdownWidget
                   goalId={selectedGoalId}
                   loading={goalData.loading}

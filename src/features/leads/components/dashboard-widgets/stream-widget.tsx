@@ -3,7 +3,7 @@
 import {
     BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer, Cell, LabelList,
 } from "recharts"
-import { SectionCard, SectionTitle, SectionSub, InsightCallout, CHART_COLORS, miniSelectStyle, EllipsisTick } from "./shared"
+import { SectionCard, SectionTitle, SectionSub, InsightCallout, CHART_COLORS, TOOLTIP_STYLE, MiniSelect, EllipsisTick, WidgetSkeleton } from "./shared"
 import { useHasMounted } from "@/hooks/use-has-mounted"
 
 interface StreamItem {
@@ -21,10 +21,7 @@ function StreamTooltip({ active, payload }: any) {
     if (!active || !payload?.length) return null
     const d = payload[0].payload
     return (
-        <div style={{
-            background: "#0f172a", color: "#fff", padding: "8px 11px", borderRadius: 8,
-            fontSize: 11, lineHeight: 1.6, boxShadow: "0 4px 16px rgba(0,0,0,.25)",
-        }}>
+        <div style={{ ...TOOLTIP_STYLE }}>
             <div style={{ fontWeight: 700, marginBottom: 1 }}>{d.name}</div>
             <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
                 <div style={{ width: 6, height: 6, borderRadius: 2, background: d.fill, flexShrink: 0 }} />
@@ -51,23 +48,25 @@ export function StreamWidget({ data, streamToggle, setStreamToggle }: StreamWidg
 
     return (
         <SectionCard>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 1 }}>
+            <div className="flex justify-between items-center mb-px">
                 <SectionTitle>Stream Alignment</SectionTitle>
-                <div>
-                    <div style={{ fontSize: 9, fontWeight: 600, color: "#94a3b8", marginBottom: 3, letterSpacing: "0.3px" }}>Group by</div>
-                    <select style={{ ...miniSelectStyle, fontSize: 10 }} value={streamToggle} onChange={(e: any) => setStreamToggle(e.target.value)}>
-                        <option value="main_stream">Main Stream</option>
-                        <option value="stream_type">Sub Stream</option>
-                        <option value="business_purpose">Biz Purpose</option>
-                        <option value="line_industry">Line Industry</option>
-                        <option value="area">Area</option>
-                        <option value="nationality">Nationality</option>
-                    </select>
-                </div>
+                <MiniSelect
+                    label="Group by"
+                    value={streamToggle}
+                    onChange={(e: any) => setStreamToggle(e.target.value)}
+                    className="text-[10px]"
+                >
+                    <option value="main_stream">Main Stream</option>
+                    <option value="stream_type">Sub Stream</option>
+                    <option value="business_purpose">Biz Purpose</option>
+                    <option value="line_industry">Line Industry</option>
+                    <option value="area">Area</option>
+                    <option value="nationality">Nationality</option>
+                </MiniSelect>
             </div>
             <SectionSub>Business alignment distribution</SectionSub>
 
-            <div className="thin-scrollbar" style={{ flex: 1, minHeight: 80, overflowY: "auto", overflowX: "hidden" }}>
+            <div className="thin-scrollbar flex-1 min-h-[80px] overflow-y-auto overflow-x-hidden">
                 {hasMounted ? (
                     <div style={{ width: "100%", height: Math.max(chartData.length * 32, 80), minHeight: "100%" }}>
                         <ResponsiveContainer width="100%" height="100%">
@@ -99,12 +98,7 @@ export function StreamWidget({ data, streamToggle, setStreamToggle }: StreamWidg
                         </ResponsiveContainer>
                     </div>
                 ) : (
-                    <div style={{
-                        height: "100%",
-                        borderRadius: 8,
-                        background: "linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%)",
-                        border: "1px solid #eef2f7",
-                    }} />
+                    <WidgetSkeleton />
                 )}
             </div>
 

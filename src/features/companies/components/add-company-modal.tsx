@@ -27,6 +27,7 @@ import { toast } from "sonner"
 import Link from "next/link"
 import { usePermissions } from "@/contexts/permissions-context"
 import { useMasterOptions } from "@/hooks/use-master-options"
+import { useCascadedOptions } from "@/hooks/use-cascaded-options"
 import { COUNTRIES, DEFAULT_COUNTRY } from "@/lib/countries"
 import { ProfileCombobox } from "@/features/users/components/profile-combobox"
 import type { ClientCompany, FormSchema } from "@/types"
@@ -56,16 +57,20 @@ const addCompanySchema = z.object({
     phone: z.string().nullable().optional(),
     website: z.string().nullable().optional(),
     owner_id: z.string().nullable().optional(),
+    account_status: z.string().nullable().optional(),
     custom_data: z.record(z.string(), z.unknown()).optional(),
 })
 
 type AddCompanyValues = z.infer<typeof addCompanySchema>
+
+const NULLABLE_FIELDS = new Set(["parent_id", "account_status", "owner_id"])
 
 const getDynamicSchema = (requiredIds: string[]) => {
     return addCompanySchema.superRefine((data, ctx) => {
         requiredIds.forEach(fieldId => {
             if (fieldId.startsWith('native:')) {
                 const key = fieldId.replace('native:', '')
+                if (NULLABLE_FIELDS.has(key)) return // These fields accept null as valid
                 let internalKey = key
                 if (key === 'sector') internalKey = 'industry'
 
@@ -104,6 +109,12 @@ export function AddCompanyModal({ open, onOpenChange, onCreated, initialData }: 
     const { options: industryOptions, loading: industriesLoading } = useMasterOptions("sector", companyIds)
     const { options: lineIndustryOptions, loading: lineIndustriesLoading } = useMasterOptions("line_industry", companyIds)
 
+    // ── Generic cascading: detect parent for line_industry from cascade_relations ──
+    const { parentCategory: liParentCat } = useCascadedOptions("line_industry", null, companyIds)
+    const liParentFieldKey = liParentCat ? liParentCat.replace(/^custom_[a-z]+__/, "") : null
+    const liParentValue = liParentFieldKey ? (customValues[liParentFieldKey] as string | null) ?? null : null
+    const { options: filteredLineIndustryOptions, isDisabledByParent: liDisabled } = useCascadedOptions("line_industry", liParentValue, companyIds)
+
     const form = useForm<AddCompanyValues>({
         // @ts-ignore
         resolver: zodResolver(getDynamicSchema(requiredOverrides)),
@@ -119,6 +130,7 @@ export function AddCompanyModal({ open, onOpenChange, onCreated, initialData }: 
             phone: "",
             website: "",
             owner_id: null,
+            account_status: "new",
             custom_data: {},
         }
     })
@@ -152,12 +164,26 @@ export function AddCompanyModal({ open, onOpenChange, onCreated, initialData }: 
                     try {
                         const parsed = JSON.parse(cnf.value)
                         if (parsed.tabs && parsed.requiredOverrides) {
-                            setLayoutConfig({ ...DEFAULT_LAYOUTS.companies, ...parsed.tabs })
+                            const merged = { ...DEFAULT_LAYOUTS.companies, ...parsed.tabs }
+                            // Self-heal: inject missing native fields
+                            const allPresent = new Set(Object.values(merged).flat())
+                            if (!allPresent.has("native:account_status")) {
+                                if (!merged.identity) merged.identity = []
+                                const liIdx = merged.identity.indexOf("native:line_industry")
+                                if (liIdx !== -1) merged.identity.splice(liIdx + 1, 0, "native:account_status")
+                                else merged.identity.push("native:account_status")
+                            }
+                            setLayoutConfig(merged)
                             setRequiredOverrides(parsed.requiredOverrides)
                             if (parsed.tabSettings) setTabSettings(parsed.tabSettings)
-                            if (parsed.tabSettings) setTabSettings(parsed.tabSettings)
                         } else {
-                            setLayoutConfig({ ...DEFAULT_LAYOUTS.companies, ...parsed })
+                            const merged = { ...DEFAULT_LAYOUTS.companies, ...parsed }
+                            const allPresent = new Set(Object.values(merged).flat())
+                            if (!allPresent.has("native:account_status")) {
+                                if (!merged.identity) merged.identity = []
+                                merged.identity.push("native:account_status")
+                            }
+                            setLayoutConfig(merged)
                         }
                     } catch(e) {}
                 }
@@ -182,6 +208,7 @@ export function AddCompanyModal({ open, onOpenChange, onCreated, initialData }: 
                 phone: initialData.phone || "",
                 website: initialData.website || "",
                 owner_id: initialData.owner_id || null,
+                account_status: initialData.account_status || "new",
                 custom_data: initialData.custom_data || {},
             })
             setCustomValues(initialData.custom_data || {})
@@ -198,14 +225,34 @@ export function AddCompanyModal({ open, onOpenChange, onCreated, initialData }: 
                 phone: "",
                 website: "",
                 owner_id: currentUserId,
+                account_status: "new",
                 custom_data: {},
             })
             setCustomValues({})
         }
     }, [open, initialData, loadParents, currentUserId, form])
 
+    // ── Cascade reset: clear line_industry when parent (segment) changes ──
+    useEffect(() => {
+        if (!liParentFieldKey) return
+        const currentLI = form.getValues("line_industry")
+        if (currentLI && liParentValue) {
+            const isValid = lineIndustryOptions.some(o => o.value === currentLI && o.parent_value === liParentValue)
+            if (!isValid) form.setValue("line_industry", null)
+        } else if (!liParentValue && currentLI) {
+            form.setValue("line_industry", null)
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [liParentValue])
+
     const onSubmit = async (data: AddCompanyValues) => {
         setSaving(true)
+        // Sanitize phone: strip non-digits except leading +
+        if (data.phone) {
+            const hasPlus = data.phone.trim().startsWith("+")
+            const digits = data.phone.replace(/[^\d]/g, "")
+            data.phone = digits ? (hasPlus ? `+${digits}` : digits) : null
+        }
         const payload = {
             ...data,
             custom_data: customValues,
@@ -291,13 +338,32 @@ export function AddCompanyModal({ open, onOpenChange, onCreated, initialData }: 
                     <FormField key={fieldId} control={form.control} name="line_industry" render={({ field }) => (
                         <FormItem>
                             <FormLabel className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{getLabelStr("Line Industry", fieldId)}</FormLabel>
-                            <Select value={field.value || "none"} onValueChange={v => field.onChange(v === "none" ? null : v)}>
+                            <Select value={field.value || "none"} onValueChange={v => field.onChange(v === "none" ? null : v)} disabled={liDisabled}>
                                 <FormControl>
-                                    <SelectTrigger><SelectValue placeholder={lineIndustriesLoading ? "Loading..." : "Select line industry"} /></SelectTrigger>
+                                    <SelectTrigger><SelectValue placeholder={lineIndustriesLoading ? "Loading..." : liDisabled ? "Select parent field first" : "Select line industry"} /></SelectTrigger>
                                 </FormControl>
                                 <SelectContent>
                                     <SelectItem value="none">— None —</SelectItem>
-                                    {lineIndustryOptions.map(opt => (<SelectItem key={opt.id} value={opt.value}>{opt.label}</SelectItem>))}
+                                    {filteredLineIndustryOptions.map(opt => (<SelectItem key={opt.id} value={opt.value}>{opt.label}</SelectItem>))}
+                                </SelectContent>
+                            </Select>
+                            <FormMessage className="text-[10px]" />
+                        </FormItem>
+                    )} />
+                )
+            case "native:account_status":
+                return (
+                    <FormField key={fieldId} control={form.control} name="account_status" render={({ field }) => (
+                        <FormItem>
+                            <FormLabel className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{getLabelStr("Account Status", fieldId)}</FormLabel>
+                            <Select value={field.value || "new"} onValueChange={v => field.onChange(v)}>
+                                <FormControl>
+                                    <SelectTrigger><SelectValue /></SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                    <SelectItem value="new">New</SelectItem>
+                                    <SelectItem value="repeater">Repeater</SelectItem>
+                                    <SelectItem value="contracted">Contracted</SelectItem>
                                 </SelectContent>
                             </Select>
                             <FormMessage className="text-[10px]" />
@@ -364,7 +430,20 @@ export function AddCompanyModal({ open, onOpenChange, onCreated, initialData }: 
                     <FormField key={fieldId} control={form.control} name="phone" render={({ field }) => (
                         <FormItem>
                             <FormLabel className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{getLabelStr("Phone", fieldId)}</FormLabel>
-                            <FormControl><Input placeholder="+62..." {...field} value={field.value || ""} /></FormControl>
+                            <FormControl>
+                                <Input placeholder="+62..." {...field} value={field.value || ""}
+                                    onBlur={() => {
+                                        field.onBlur()
+                                        if (!field.value) return
+                                        // Sanitize: strip (), spaces, dashes → keep only digits and leading +
+                                        const raw = field.value.trim()
+                                        const hasPlus = raw.startsWith("+")
+                                        const digits = raw.replace(/[^\d]/g, "")
+                                        if (!digits) return
+                                        field.onChange(hasPlus ? `+${digits}` : digits)
+                                    }}
+                                />
+                            </FormControl>
                             <FormMessage className="text-[10px]" />
                         </FormItem>
                     )} />
@@ -384,7 +463,7 @@ export function AddCompanyModal({ open, onOpenChange, onCreated, initialData }: 
                     <FormField key={fieldId} control={form.control} name="owner_id" render={({ field }) => (
                         <FormItem className="col-span-2">
                             <FormLabel className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{getLabelStr("Owner", fieldId)}</FormLabel>
-                            <FormControl><ProfileCombobox value={field.value || null} onChange={field.onChange} placeholder="Assign..." /></FormControl>
+                            <FormControl><ProfileCombobox value={field.value || null} onChange={field.onChange} placeholder="Assign..." filterRoles={["sales", "bu_manager"]} /></FormControl>
                             <FormMessage className="text-[10px]" />
                         </FormItem>
                     )} />

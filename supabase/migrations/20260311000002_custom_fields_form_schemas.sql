@@ -65,6 +65,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trg_form_schemas_updated_at ON public.form_schemas;
 CREATE TRIGGER trg_form_schemas_updated_at
   BEFORE UPDATE ON public.form_schemas
   FOR EACH ROW

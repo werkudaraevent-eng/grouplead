@@ -6,7 +6,7 @@ import {
 } from "recharts"
 import { useHasMounted } from "@/hooks/use-has-mounted"
 import { useCurrency } from "@/contexts/currency-context"
-import { SectionCard, SectionTitle, SectionSub, InsightCallout, EllipsisTick } from "./shared"
+import { SectionCard, SectionTitle, SectionSub, InsightCallout, EllipsisTick, TOOLTIP_STYLE, WidgetSkeleton } from "./shared"
 import { EmptyState, NoTargetBadge } from "@/components/shared/empty-state"
 import { Users } from "lucide-react"
 
@@ -35,10 +35,7 @@ function SalesPerfTooltip({ active, payload, fmt }: any) {
     const hasTarget = d.target > 0
     const pct = hasTarget ? (d.actual / d.target) * 100 : 0
     return (
-        <div style={{
-            background: "#0f172a", color: "#fff", padding: "8px 11px", borderRadius: 8,
-            fontSize: 11, lineHeight: 1.6, boxShadow: "0 4px 16px rgba(0,0,0,.25)",
-        }}>
+        <div style={{ ...TOOLTIP_STYLE }}>
             <div style={{ fontWeight: 700, marginBottom: 1 }}>{d.name}</div>
             <div>Actual: {fmt(d.actual)}</div>
             {hasTarget ? (
@@ -81,7 +78,7 @@ export function SalesPerfWidget({ data }: SalesPerfWidgetProps) {
         <SectionCard>
             <SectionTitle>Sales Performance vs Target</SectionTitle>
             <SectionSub>Revenue achievement per sales rep</SectionSub>
-            <div className="thin-scrollbar" style={{ flex: 1, minHeight: 0, overflowY: "auto", overflowX: "hidden" }}>
+            <div className="thin-scrollbar flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
                 {hasMounted ? (
                     <div style={{ width: "100%", height: Math.max(data.length * 40, 80) }}>
                         <ResponsiveContainer width="100%" height="100%">
@@ -121,19 +118,14 @@ export function SalesPerfWidget({ data }: SalesPerfWidgetProps) {
                         </ResponsiveContainer>
                     </div>
                 ) : (
-                    <div style={{
-                        height: "100%",
-                        borderRadius: 8,
-                        background: "linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%)",
-                        border: "1px solid #eef2f7",
-                    }} />
+                    <WidgetSkeleton />
                 )}
             </div>
             {/* Legend */}
-            <div style={{ display: "flex", gap: 10, marginTop: 6, paddingTop: 6, borderTop: "1px solid #f1f3f5", flexShrink: 0 }}>
+            <div className="flex gap-2.5 mt-1.5 pt-1.5 border-t border-border/50 shrink-0">
                 {[{ color: "#10b981", label: "Above Target" }, { color: "#6366f1", label: "On Track" }, { color: "#ef4444", label: "Below Target" }].map(l => (
-                    <div key={l.label} style={{ display: "flex", alignItems: "center", gap: 3, fontSize: 9, color: "#94a3b8" }}>
-                        <div style={{ width: 6, height: 6, borderRadius: 2, background: l.color }} />{l.label}
+                    <div key={l.label} className="flex items-center gap-1 text-[9px] text-muted-foreground">
+                        <div className="w-1.5 h-1.5 rounded-sm" style={{ background: l.color }} />{l.label}
                     </div>
                 ))}
             </div>

@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useCallback, useRef } from "react"
+import { useEffect, useState, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/utils/supabase/client"
 import type { PipelineStage, Pipeline } from "@/types/index"
@@ -12,7 +12,8 @@ import { useCompany } from "@/contexts/company-context"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { ArrowLeft, Plus, MoreVertical, Pencil, Trash2, CheckCircle2, GripVertical, AlertTriangle, Check, X, Loader2, Star } from "lucide-react"
+import { Plus, MoreVertical, Pencil, Trash2, CheckCircle2, GripVertical, AlertTriangle, Check, X, Loader2, Star } from "lucide-react"
+import { SettingsPageHeader } from "@/components/layout/settings-page-header"
 import {
     DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
@@ -46,7 +47,6 @@ export default function PipelineOverviewPage() {
     const [rulesCount, setRulesCount] = useState<Record<string, number>>({})
     const [restrictionsCount, setRestrictionsCount] = useState<Record<string, number>>({})
     const [loading, setLoading] = useState(true)
-    const [scrolled, setScrolled] = useState(false)
 
     // Stage editing states
     const [editingStage, setEditingStage] = useState<{ id: string, name: string } | null>(null)
@@ -87,19 +87,6 @@ export default function PipelineOverviewPage() {
     // Set as default confirmation dialog
     const [showSetDefaultDialog, setShowSetDefaultDialog] = useState(false)
     const [setDefaultPipelineTarget, setSetDefaultPipelineTarget] = useState<Pipeline | null>(null)
-
-    // Scroll tracking for sticky header
-    const contentRef = useRef<HTMLDivElement>(null)
-    useEffect(() => {
-        const el = contentRef.current?.closest('.main-scroll-container') || window
-        const handler = () => {
-            if (contentRef.current) {
-                setScrolled(window.scrollY > 10)
-            }
-        }
-        window.addEventListener('scroll', handler, { passive: true })
-        return () => window.removeEventListener('scroll', handler)
-    }, [])
 
     // ─── Load Data ───────────────────────────────────────────
     const loadData = useCallback(async () => {
@@ -395,21 +382,12 @@ export default function PipelineOverviewPage() {
 
     // ─── Render ───────────────────────────────────────────────
     return (
-        <div className="min-h-screen bg-[#f2f3f6]" ref={contentRef}>
-            {/* Sticky Header */}
-            <div className={`sticky top-0 z-30 bg-[#f2f3f6] transition-shadow duration-200 ${scrolled ? 'shadow-[0_2px_8px_rgba(0,0,0,.06)]' : ''}`}>
-                <div className="px-8 pt-6 pb-4 max-w-[1400px] mx-auto">
-                    <button onClick={() => router.push("/settings")} className="text-[12px] font-medium text-[#8892a4] hover:text-[#4f46e5] flex items-center gap-1.5 mb-3 transition-colors">
-                        <ArrowLeft className="h-3.5 w-3.5" /> Back to Settings
-                    </button>
-                    <div className="flex justify-between items-center">
-                        <div>
-                            <h1 className="text-[19px] font-[800] text-[#0f1729] tracking-[-0.3px] mb-0.5">Pipeline Configuration</h1>
-                            <p className="text-[12px] text-[#8892a4]">Manage your sales pipelines, stages, and rules</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
+        <div className="min-h-screen bg-[#f2f3f6]">
+            <SettingsPageHeader
+                title="Pipeline & Stages"
+                subtitle="Manage your sales pipelines, stages, and rules"
+                breadcrumbs={[{ label: "Pipeline" }]}
+            />
 
             {/* Content */}
             <div className="px-8 pb-8 max-w-[1400px] mx-auto">

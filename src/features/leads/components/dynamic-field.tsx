@@ -1,6 +1,7 @@
 "use client"
 
 import { useMasterOptions } from "@/hooks/use-master-options"
+import { useCascadeRelations } from "@/hooks/use-cascade-relations"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
 import type { FormSchema } from "@/types"
@@ -11,9 +12,21 @@ export function DynamicField({ schema, value, onChange, companyId, allValues, is
     const { options } = useMasterOptions(
         schema.field_type === "dropdown" ? (schema.options_category ?? undefined) : undefined, companyId
     )
-    const parentVal = schema.parent_dependency ? (allValues[schema.parent_dependency] as string | null) : null
-    const isDisabledByParent = !!schema.parent_dependency && !parentVal
-    const filteredOptions = schema.parent_dependency
+    const cascadeRelations = useCascadeRelations()
+
+    // Determine parent: explicit parent_dependency OR auto-detected from cascade_relations
+    const explicitParent = schema.parent_dependency
+    const autoCascadeParent = !explicitParent && schema.options_category
+        ? cascadeRelations[schema.options_category] ?? null
+        : null
+    const autoCascadeParentFieldKey = autoCascadeParent
+        ? autoCascadeParent.replace(/^custom_[a-z]+__/, "")
+        : null
+
+    const parentFieldKey = explicitParent ?? autoCascadeParentFieldKey
+    const parentVal = parentFieldKey ? (allValues[parentFieldKey] as string | null) : null
+    const isDisabledByParent = !!parentFieldKey && !parentVal
+    const filteredOptions = parentFieldKey
         ? (parentVal ? options.filter((o) => o.parent_value === parentVal) : [])
         : options
     const label = `${schema.field_name}${isRequired ? " *" : ""}`

@@ -234,7 +234,7 @@ export function AddContactModal({ isOpen, onOpenChange, preselectedCompanyId, in
                 salutation: values.salutation || null,
                 full_name: values.full_name,
                 email: values.email || null,
-                phone: values.phone || null,
+                phone: values.phone ? (() => { const r = values.phone!.trim(); const p = r.startsWith("+"); const d = r.replace(/[^\d]/g, ""); return d ? (p ? `+${d}` : d) : null })() : null,
                 job_title: values.job_title || null,
                 client_company_id: values.client_company_id || null,
                 date_of_birth: values.date_of_birth || null,
@@ -346,7 +346,19 @@ export function AddContactModal({ isOpen, onOpenChange, preselectedCompanyId, in
                     <FormField key={fieldId} control={form.control} name="phone" render={({ field }) => (
                         <FormItem className="col-span-2">
                             <FormLabel className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">{getLabelStr("Primary Phone", fieldId)}</FormLabel>
-                            <FormControl><Input placeholder="+62 8..." {...field} value={field.value || ""} /></FormControl>
+                            <FormControl>
+                                <Input placeholder="+62 8..." {...field} value={field.value || ""}
+                                    onBlur={() => {
+                                        field.onBlur()
+                                        if (!field.value) return
+                                        const raw = field.value.trim()
+                                        const hasPlus = raw.startsWith("+")
+                                        const digits = raw.replace(/[^\d]/g, "")
+                                        if (!digits) return
+                                        field.onChange(hasPlus ? `+${digits}` : digits)
+                                    }}
+                                />
+                            </FormControl>
                             <FormMessage className="text-[10px]" />
                         </FormItem>
                     )} />
@@ -453,7 +465,7 @@ export function AddContactModal({ isOpen, onOpenChange, preselectedCompanyId, in
                     <FormField key={fieldId} control={form.control} name="owner_id" render={({ field }) => (
                         <FormItem className="col-span-2">
                             <FormLabel className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">{getLabelStr("Owner", fieldId)}</FormLabel>
-                            <FormControl><ProfileCombobox value={field.value || null} onChange={field.onChange} placeholder="Assign..." /></FormControl>
+                            <FormControl><ProfileCombobox value={field.value || null} onChange={field.onChange} placeholder="Assign..." filterRoles={["sales", "bu_manager"]} /></FormControl>
                             <FormMessage className="text-[10px]" />
                         </FormItem>
                     )} />

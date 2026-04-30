@@ -61,3 +61,85 @@ export function validateStageWeights(
   }
   return { valid: true }
 }
+
+import { LEAD_FIELD_REGISTRY } from '@/config/lead-field-registry'
+
+// UUID v4 pattern for segment:{uuid} validation
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+/**
+ * Validates goal node input data.
+ * - reference_field must be in Lead_Field_Registry or match segment:{uuid} pattern
+ * - percentage must be in [0, 100] for percentage mode
+ * - target_amount must be non-negative
+ * - allocation_mode must be consistent with siblings
+ */
+export function validateGoalNodeInput(
+  data: {
+    reference_field: string
+    allocation_mode: string
+    percentage?: number | null
+    target_amount: number
+  },
+  siblings: { allocation_mode: string }[]
+): { valid: boolean; error?: string } {
+  // Validate reference_field
+  const isRegistryField = LEAD_FIELD_REGISTRY.some((f) => f.key === data.reference_field)
+  const isSegmentField =
+    data.reference_field.startsWith('segment:') &&
+    UUID_PATTERN.test(data.reference_field.replace('segment:', ''))
+
+  if (!isRegistryField && !isSegmentField) {
+    return { valid: false, error: `Invalid reference field: ${data.reference_field}` }
+  }
+
+  // Validate percentage range for percentage mode
+  if (data.allocation_mode === 'percentage' && data.percentage != null) {
+    if (data.percentage < 0 || data.percentage > 100) {
+      return { valid: false, error: 'Percentage must be between 0 and 100' }
+    }
+  }
+
+  // Validate non-negative target_amount
+  if (data.target_amount < 0) {
+    return { valid: false, error: 'Target amount must be non-negative' }
+  }
+
+  // Validate sibling allocation_mode consistency
+  if (siblings.length > 0) {
+    const siblingMode = siblings[0].allocation_mode
+    if (data.allocation_mode !== siblingMode) {
+      return { valid: false, error: 'All siblings must use the same allocation mode' }
+    }
+  }
+
+  return { valid: true }
+}
+
+/**
+ * Validates that a node's goal_id matches its parent's goal_id.
+ * Rejects cross-goal parent references.
+ */
+export function validateNodeCrossReference(
+  nodeGoalId: string,
+  parentGoalId: string
+): { valid: boolean; error?: string } {
+  if (nodeGoalId !== parentGoalId) {
+    return { valid: false, error: 'Parent node must belong to the same goal' }
+  }
+  return { valid: true }
+}
+
+/**
+ * Validates that a user target's goal_id matches the referenced node's goal_id.
+ * Rejects cross-goal node_id on user targets.
+ */
+export function validateUserTargetNodeRef(
+  targetGoalId: string,
+  nodeGoalId: string
+): { valid: boolean; error?: string } {
+  if (targetGoalId !== nodeGoalId) {
+    return { valid: false, error: 'Node must belong to the same goal as the target' }
+  }
+  return { valid: true }
+}

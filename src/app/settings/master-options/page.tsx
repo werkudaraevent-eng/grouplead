@@ -27,7 +27,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Switch } from "@/components/ui/switch"
-import { Plus, Pencil, Trash2, Loader2, ListChecks, FolderPlus, Tag, Link2, Upload, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Search, RotateCcw, GripVertical, Archive } from "lucide-react"
+import { Plus, Pencil, Trash2, Loader2, ListChecks, FolderPlus, Tag, Link2, Upload, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Search, RotateCcw, GripVertical, Archive, GitBranch } from "lucide-react"
 import { toast } from "sonner"
 import type { MasterOption, FormSchema } from "@/types"
 import { cn } from "@/lib/utils"
@@ -41,6 +41,10 @@ import {
 } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
 import { FormLayoutBuilder } from "@/features/settings/components/form-layout-builder"
+import { SegmentSettings } from "@/features/goals/components/settings/segment-settings"
+import { CascadingTreeManager } from "@/features/settings/components/cascading-tree-manager"
+import { SettingsPageHeader } from "@/components/layout/settings-page-header"
+import { invalidateCascadeCache } from "@/hooks/use-cascade-relations"
 
 const SYSTEM_MANAGED_CATEGORIES = ["status", "bu_revenue"]
 
@@ -55,7 +59,8 @@ const CATEGORY_GROUPS: Record<string, string[]> = {
     "Contacts": ["nationality"],
 }
 
-const CATEGORY_RELATIONS: Record<string, string> = {
+// Default cascade relations — used as fallback when no DB setting exists
+const DEFAULT_CASCADE_RELATIONS: Record<string, string> = {
     stream_type: "main_stream",
     business_purpose: "stream_type",
 }
@@ -124,17 +129,24 @@ function MasterOptionsContent() {
     const [newCatOpen, setNewCatOpen] = useState(false)
     const [newCatName, setNewCatName] = useState("")
     const [newCatModule, setNewCatModule] = useState("leads")
+    const [newCatParent, setNewCatParent] = useState("")
     const [editCatOpen, setEditCatOpen] = useState(false)
     const [editCatName, setEditCatName] = useState("")
     const [editCatModule, setEditCatModule] = useState("leads")
+    const [editCatParent, setEditCatParent] = useState("")
     const [editCatLoading, setEditCatLoading] = useState(false)
     const [deleteCatConfirmOpen, setDeleteCatConfirmOpen] = useState(false)
     const [bulkOpen, setBulkOpen] = useState(false)
     const [bulkText, setBulkText] = useState("")
     const [bulkSaving, setBulkSaving] = useState(false)
     const [bulkParentValue, setBulkParentValue] = useState("")
+    const [bulkReassignOpen, setBulkReassignOpen] = useState(false)
+    const [bulkReassignParent, setBulkReassignParent] = useState("")
+    const [bulkReassignSelected, setBulkReassignSelected] = useState<Set<number>>(new Set())
+    const [bulkReassignSaving, setBulkReassignSaving] = useState(false)
     const [searchQuery, setSearchQuery] = useState("")
     const [showInactive, setShowInactive] = useState(false)
+    const [showCascadeTree, setShowCascadeTree] = useState(false)
     const [sortConfig, setSortConfig] = useState<{ key: "label" | "parent"; direction: "asc" | "desc" } | null>(null)
     const [currentPage, setCurrentPage] = useState(1)
     const [pageSize, setPageSize] = useState(20)
@@ -142,6 +154,46 @@ function MasterOptionsContent() {
     // ── System Settings state ──
     const [cutoffDate, setCutoffDate] = useState<string>("31")
     const [settingsSaving, setSettingsSaving] = useState(false)
+
+    // ── Cascade Relations state (dynamic parent-child mapping) ──
+    const [cascadeRelations, setCascadeRelations] = useState<Record<string, string>>(DEFAULT_CASCADE_RELATIONS)
+    const cascadeCategories = useMemo(() => {
+        const cats = new Set<string>()
+        for (const [child, parent] of Object.entries(cascadeRelations)) {
+            cats.add(child)
+            cats.add(parent)
+        }
+        return cats
+    }, [cascadeRelations])
+
+    // Compute the cascade chain relevant to the selected category
+    const activeCascadeChain = useMemo(() => {
+        if (!selectedCategory) return {}
+        // Check if this category is part of any cascade chain
+        const isChild = !!cascadeRelations[selectedCategory]
+        const isParent = Object.values(cascadeRelations).includes(selectedCategory)
+        if (!isChild && !isParent) return {}
+
+        const relevant: Record<string, string> = {}
+        // Walk up to find root
+        let current: string | undefined = selectedCategory
+        while (current && cascadeRelations[current]) {
+            relevant[current] = cascadeRelations[current]
+            current = cascadeRelations[current]
+        }
+        const rootType = current ?? selectedCategory
+        // Walk down from root to collect entire chain
+        const collectChildren = (parent: string) => {
+            for (const [child, p] of Object.entries(cascadeRelations)) {
+                if (p === parent && !relevant[child]) {
+                    relevant[child] = p
+                    collectChildren(child)
+                }
+            }
+        }
+        collectChildren(rootType)
+        return relevant
+    }, [selectedCategory, cascadeRelations])
 
     // ── Form Schemas state ──
     const [schemas, setSchemas] = useState<FormSchema[]>([])
@@ -182,6 +234,14 @@ function MasterOptionsContent() {
             if (cutoffOption) {
                 setCutoffDate(cutoffOption.value)
             }
+            // Load cascade relations from DB
+            const cascadeOption = data?.find(o => o.option_type === "system_setting" && o.label === "cascade_relations")
+            if (cascadeOption) {
+                try {
+                    const parsed = JSON.parse(cascadeOption.value)
+                    if (typeof parsed === "object" && parsed !== null) setCascadeRelations(parsed)
+                } catch { /* keep defaults */ }
+            }
         }
         setOptLoading(false)
     }, [companies])
@@ -221,7 +281,15 @@ function MasterOptionsContent() {
         if (!selectedCategory && categories.length > 0) setSelectedCategory(categories[0])
     }, [categories.length])
 
-    useEffect(() => { setSearchQuery(""); setSortConfig(null); setCurrentPage(1) }, [selectedCategory, showInactive])
+    useEffect(() => {
+        setSearchQuery(""); setSortConfig(null); setCurrentPage(1)
+        // Auto-switch to tree view when selecting a cascading category
+        if (selectedCategory && cascadeCategories.has(selectedCategory)) {
+            setShowCascadeTree(true)
+        } else {
+            setShowCascadeTree(false)
+        }
+    }, [selectedCategory, showInactive])
 
     const activeItems = useMemo(() => {
         const items = selectedCategory ? (grouped[selectedCategory] ?? []) : []
@@ -325,7 +393,7 @@ function MasterOptionsContent() {
         if (!optForm.label.trim() || !optForm.value.trim()) { toast.error("Label and value are required"); return }
         if (!selectedCategory) { toast.error("No category selected"); return }
         const activeCat = editingOpt?.option_type ?? selectedCategory
-        const parentCat = CATEGORY_RELATIONS[activeCat]
+        const parentCat = cascadeRelations[activeCat]
         if (parentCat && !parentValue) { toast.error(`Please select a parent ${formatCategoryLabel(parentCat)}`); return }
         setOptSaving(true)
         const isCity = activeCat === "event_city"
@@ -369,18 +437,68 @@ function MasterOptionsContent() {
         fetchOptions()
     }
 
-    const addNewCategory = () => {
+    const addNewCategory = async () => {
         const baseKey = newCatName.trim().toLowerCase().replace(/\s+/g, "_")
         if (!baseKey) { toast.error("Category name is required"); return }
         const key = newCatModule ? `custom_${newCatModule}__${baseKey}` : baseKey
         if (SYSTEM_MANAGED_CATEGORIES.includes(key)) { toast.error("This category is managed by the system"); return }
         if (categories.includes(key)) { toast.error("Category already exists"); return }
+
+        // If a parent category is selected, save the cascade relation
+        if (newCatParent) {
+            const newRelations = { ...cascadeRelations, [key]: newCatParent }
+            await saveCascadeRelations(newRelations)
+        }
+
+        // Auto-create form_schema so the field appears in Form Layout
+        const fieldName = newCatName.trim()
+        const parentDepKey = newCatParent
+            ? (newCatParent.startsWith("custom_") ? newCatParent.replace(/^custom_[a-z]+__/, "") : newCatParent)
+            : null
+        const { error: schemaErr } = await supabase.from("form_schemas").insert({
+            module_name: newCatModule,
+            field_name: fieldName,
+            field_key: baseKey,
+            field_type: "dropdown",
+            is_required: false,
+            options_category: key,
+            is_active: true,
+            sort_order: schemas.length,
+            parent_dependency: parentDepKey,
+            company_id: companyId,
+        })
+        if (schemaErr) toast.error(`Category created but form field failed: ${schemaErr.message}`)
+
         setNewCatOpen(false)
         setNewCatName("")
+        setNewCatParent("")
         setSelectedCategory(key)
         setEditingOpt(null)
         setOptForm({ label: "", value: "" })
         setOptDialogOpen(true)
+        fetchSchemas()
+    }
+
+    // ── Save cascade relations to DB ──
+    const saveCascadeRelations = async (relations: Record<string, string>) => {
+        const jsonValue = JSON.stringify(relations)
+        const existing = options.find(o => o.option_type === "system_setting" && o.label === "cascade_relations")
+        if (existing) {
+            const { error } = await supabase.from("master_options").update({ value: jsonValue }).eq("id", existing.id)
+            if (error) { toast.error(error.message); return }
+        } else {
+            const { error } = await supabase.from("master_options").insert({
+                option_type: "system_setting",
+                label: "cascade_relations",
+                value: jsonValue,
+                company_id: companyId,
+                is_active: true,
+            })
+            if (error) { toast.error(error.message); return }
+        }
+        setCascadeRelations(relations)
+        invalidateCascadeCache()
+        fetchOptions()
     }
 
     const openEditCategory = () => {
@@ -391,29 +509,61 @@ function MasterOptionsContent() {
             setEditCatName(m[2].replace(/_/g, " "))
         } else {
             setEditCatName(selectedCategory.replace(/_/g, " "))
+            // Detect module from CATEGORY_GROUPS
+            const mod = Object.entries(CATEGORY_GROUPS).find(([, cats]) => cats.includes(selectedCategory))
+            setEditCatModule(mod ? mod[0].toLowerCase() : "leads")
         }
+        // Load current cascade parent
+        setEditCatParent(cascadeRelations[selectedCategory] ?? "")
         setEditCatOpen(true)
     }
 
     const saveEditCategory = async () => {
         if (!selectedCategory) return
-        const baseKey = editCatName.trim().toLowerCase().replace(/\s+/g, "_")
-        if (!baseKey) { toast.error("Category name is required"); return }
-        const newKey = `custom_${editCatModule}__${baseKey}`
-        if (newKey === selectedCategory) { setEditCatOpen(false); return }
-        if (categories.includes(newKey)) { toast.error("A category with this name already exists"); return }
-        
         setEditCatLoading(true)
-        const { error: err1 } = await supabase.from("master_options").update({ option_type: newKey }).eq("option_type", selectedCategory)
-        const { error: err2 } = await supabase.from("form_schemas").update({ options_category: newKey }).eq("options_category", selectedCategory)
+
+        // ── 1. Handle cascade relation change ──
+        const currentParent = cascadeRelations[selectedCategory] ?? ""
+        if (editCatParent !== currentParent) {
+            const newRelations = { ...cascadeRelations }
+            if (editCatParent) {
+                newRelations[selectedCategory] = editCatParent
+            } else {
+                delete newRelations[selectedCategory]
+            }
+            await saveCascadeRelations(newRelations)
+        }
+
+        // ── 2. Handle category rename (custom categories only) ──
+        if (selectedCategory.startsWith("custom_")) {
+            const baseKey = editCatName.trim().toLowerCase().replace(/\s+/g, "_")
+            if (!baseKey) { toast.error("Category name is required"); setEditCatLoading(false); return }
+            const newKey = `custom_${editCatModule}__${baseKey}`
+            if (newKey !== selectedCategory) {
+                if (categories.includes(newKey)) { toast.error("A category with this name already exists"); setEditCatLoading(false); return }
+                const { error: err1 } = await supabase.from("master_options").update({ option_type: newKey }).eq("option_type", selectedCategory)
+                const { error: err2 } = await supabase.from("form_schemas").update({ options_category: newKey }).eq("options_category", selectedCategory)
+                if (err1) { toast.error(err1.message); setEditCatLoading(false); return }
+                if (err2) { toast.error(err2.message); setEditCatLoading(false); return }
+                // Update cascade relations if the key changed
+                const updatedRelations = { ...cascadeRelations }
+                // If this category was a child, update the key
+                if (updatedRelations[selectedCategory]) {
+                    updatedRelations[newKey] = updatedRelations[selectedCategory]
+                    delete updatedRelations[selectedCategory]
+                }
+                // If this category was a parent, update children's references
+                for (const [child, parent] of Object.entries(updatedRelations)) {
+                    if (parent === selectedCategory) updatedRelations[child] = newKey
+                }
+                await saveCascadeRelations(updatedRelations)
+                setSelectedCategory(newKey)
+            }
+        }
+
         setEditCatLoading(false)
-        
-        if (err1) { toast.error(err1.message); return }
-        if (err2) { toast.error(err2.message); return }
-        
-        toast.success("Category updated successfully")
+        toast.success("Category updated")
         setEditCatOpen(false)
-        setSelectedCategory(newKey)
         fetchOptions()
         fetchSchemas()
     }
@@ -437,7 +587,7 @@ function MasterOptionsContent() {
     // ── Bulk Add ──
     const saveBulk = async () => {
         if (!selectedCategory) { toast.error("No category selected"); return }
-        const parentCat = CATEGORY_RELATIONS[selectedCategory]
+        const parentCat = cascadeRelations[selectedCategory]
         if (parentCat && !bulkParentValue) { toast.error(`Please select a parent ${formatCategoryLabel(parentCat)}`); return }
         const lines = bulkText.split("\n").map((l) => l.trim()).filter((l) => l.length > 0)
         if (lines.length === 0) { toast.error("No options to import"); return }
@@ -454,6 +604,29 @@ function MasterOptionsContent() {
         if (error) toast.error(error.message)
         else toast.success(`${lines.length} option${lines.length !== 1 ? "s" : ""} imported`)
         setBulkSaving(false); setBulkOpen(false); setBulkText(""); setBulkParentValue(""); fetchOptions()
+    }
+
+    // ── Bulk Reassign Parent ──
+    const openBulkReassign = () => {
+        setBulkReassignParent("")
+        setBulkReassignSelected(new Set())
+        setBulkReassignOpen(true)
+    }
+
+    const handleBulkReassign = async () => {
+        if (!bulkReassignParent) { toast.error("Please select a parent value"); return }
+        if (bulkReassignSelected.size === 0) { toast.error("Please select at least one option"); return }
+        setBulkReassignSaving(true)
+        const ids = [...bulkReassignSelected]
+        const { error } = await supabase
+            .from("master_options")
+            .update({ parent_value: bulkReassignParent })
+            .in("id", ids)
+        if (error) toast.error(error.message)
+        else toast.success(`${ids.length} option${ids.length !== 1 ? "s" : ""} reassigned to "${bulkReassignParent}"`)
+        setBulkReassignSaving(false)
+        setBulkReassignOpen(false)
+        fetchOptions()
     }
 
     // ── System Settings ──
@@ -527,7 +700,7 @@ function MasterOptionsContent() {
             toast.error("Please select an options category for the dropdown"); return
         }
         setSchemaSaving(true)
-        const payload = {
+        const payload: Record<string, unknown> = {
             module_name: schemaForm.module_name,
             field_name: schemaForm.field_name.trim(),
             field_key: toFieldKey(schemaForm.field_key),
@@ -536,7 +709,6 @@ function MasterOptionsContent() {
             options_category: schemaForm.field_type === "dropdown" ? schemaForm.options_category || null : null,
             sort_order: schemaForm.sort_order,
             parent_dependency: schemaForm.parent_dependency || null,
-            tab_placement: schemaForm.tab_placement || "custom",
             company_id: companyId,
         }
         if (editingSchema) {
@@ -570,24 +742,24 @@ function MasterOptionsContent() {
         <PermissionGate resource="master_options" action="update" fallback={
             <div className="p-8 text-center text-muted-foreground">You don&apos;t have permission to manage options.</div>
         }>
-            <div className="flex flex-col h-[calc(100vh-2rem)] w-full overflow-hidden p-6 lg:p-8">
-                <div className="flex-none pb-4">
-                    <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-                        <ListChecks className="h-6 w-6 text-primary" /> Master Options &amp; Custom Fields
-                    </h1>
-                    <p className="text-sm text-muted-foreground mt-1">Manage dropdown values and dynamic form fields.</p>
-                </div>
+            <div className="flex flex-col w-full min-h-screen">
+                <SettingsPageHeader
+                    title="Master Options & Custom Fields"
+                    subtitle="Manage dropdown values and dynamic form fields."
+                    breadcrumbs={[{ label: "Master Options" }]}
+                />
 
-                <Tabs value={activeTab} onValueChange={handleTabChange} className="flex-1 flex flex-col min-h-0">
+                <Tabs value={activeTab} onValueChange={handleTabChange} className="flex-1 flex flex-col min-h-0 px-6">
                     <TabsList className="w-max flex-none">
-                        <TabsTrigger value="options">Dropdown Options</TabsTrigger>
+                        <TabsTrigger value="options">Lead Values</TabsTrigger>
                         <TabsTrigger value="fields">Custom Fields</TabsTrigger>
+                        <TabsTrigger value="segments">Segments</TabsTrigger>
                         <TabsTrigger value="layout">Form Layout</TabsTrigger>
                         <TabsTrigger value="settings">System Rules</TabsTrigger>
                     </TabsList>
 
                     {/* ═══════════ TAB 1: DROPDOWN OPTIONS ═══════════ */}
-                    <TabsContent value="options" className="flex-1 flex flex-col overflow-hidden mt-6 data-[state=inactive]:hidden min-h-0">
+                    <TabsContent value="options" className="flex flex-col overflow-hidden mt-6 data-[state=inactive]:hidden" style={{ height: 'calc(100vh - 220px)' }}>
                         {optLoading ? (
                             <div className="flex justify-center py-16"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
                         ) : (
@@ -619,6 +791,7 @@ function MasterOptionsContent() {
                                             const renderCatButton = (cat: string) => {
                                                 const activeCount = allGrouped[cat]?.filter(o => o.is_active).length ?? 0
                                                 const inactiveCount = (allGrouped[cat]?.length ?? 0) - activeCount
+                                                const isCascade = cascadeCategories.has(cat)
                                                 return (
                                                 <button
                                                     key={cat}
@@ -631,7 +804,10 @@ function MasterOptionsContent() {
                                                     )}
                                                 >
                                                     <span className="flex items-center gap-2 truncate">
-                                                        <Tag className="h-3.5 w-3.5 flex-none" />
+                                                        {isCascade
+                                                            ? <GitBranch className="h-3.5 w-3.5 flex-none" />
+                                                            : <Tag className="h-3.5 w-3.5 flex-none" />
+                                                        }
                                                         <span className="truncate">{formatCategoryLabel(cat)}</span>
                                                     </span>
                                                     <span className={cn(
@@ -681,7 +857,7 @@ function MasterOptionsContent() {
                                         })()}
                                     </nav>
                                     <div className="flex-none pt-4 border-t mt-2">
-                                        <Button variant="ghost" size="sm" className="w-full justify-start text-muted-foreground" onClick={() => { setNewCatName(""); setNewCatModule("leads"); setNewCatOpen(true) }}>
+                                        <Button variant="ghost" size="sm" className="w-full justify-start text-muted-foreground" onClick={() => { setNewCatName(""); setNewCatModule("leads"); setNewCatParent(""); setNewCatOpen(true) }}>
                                             <FolderPlus className="h-3.5 w-3.5 mr-2" /> Add New Category
                                         </Button>
                                     </div>
@@ -690,17 +866,44 @@ function MasterOptionsContent() {
                                 {/* RIGHT: Options Detail */}
                                 <div className="col-span-9 h-full flex flex-col pl-2 min-h-0">
                                     {selectedCategory ? (
+                                        <>
+                                        {/* Cascading Tree View — shown when a cascade category is selected and tree mode is on */}
+                                        {cascadeCategories.has(selectedCategory) && showCascadeTree && Object.keys(activeCascadeChain).length > 0 ? (
+                                            <Card className="flex flex-col max-h-full overflow-hidden min-h-0 border-muted">
+                                                <CardHeader className="flex flex-row items-center justify-between pb-3 flex-none border-b bg-muted/10">
+                                                    <div className="flex items-center gap-2">
+                                                        <CardTitle className="text-base">Classification Cascade</CardTitle>
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        <Button size="sm" variant="outline" onClick={() => setShowCascadeTree(false)} className="h-8 text-xs">
+                                                            <ListChecks className="h-3.5 w-3.5 mr-1.5" /> List View
+                                                        </Button>
+                                                    </div>
+                                                </CardHeader>
+                                                <CardContent className="p-4 overflow-y-auto flex-1 min-h-0">
+                                                    <CascadingTreeManager
+                                                        options={options}
+                                                        companyId={companyId}
+                                                        onRefresh={fetchOptions}
+                                                        cascadeRelations={activeCascadeChain}
+                                                    />
+                                                </CardContent>
+                                            </Card>
+                                        ) : (
                                         <Card className="flex flex-col max-h-full overflow-hidden min-h-0 border-muted">
                                             <CardHeader className="flex flex-row items-center justify-between pb-3 flex-none border-b bg-muted/10">
                                                 <div className="flex items-center gap-2">
                                                     <CardTitle className="text-base">{formatCategoryLabel(selectedCategory)}</CardTitle>
-                                                    {selectedCategory.startsWith("custom_") && (
-                                                        <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground" onClick={openEditCategory}>
-                                                            <Pencil className="h-3 w-3" />
-                                                        </Button>
-                                                    )}
+                                                    <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground" onClick={openEditCategory} title="Edit category settings">
+                                                        <Pencil className="h-3 w-3" />
+                                                    </Button>
                                                 </div>
                                                 <div className="flex items-center gap-2">
+                                                    {cascadeCategories.has(selectedCategory) && (
+                                                        <Button size="sm" variant="outline" onClick={() => setShowCascadeTree(true)} className="h-8 text-xs">
+                                                            <GitBranch className="h-3.5 w-3.5 mr-1.5" /> Tree View
+                                                        </Button>
+                                                    )}
                                                     <div className="relative">
                                                         <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
                                                         <Input
@@ -718,6 +921,11 @@ function MasterOptionsContent() {
                                                     <Button size="sm" variant="outline" onClick={() => { setBulkText(""); setBulkParentValue(""); setBulkOpen(true) }}>
                                                         <Upload className="h-3.5 w-3.5 mr-1.5" /> Bulk Add
                                                     </Button>
+                                                    {cascadeRelations[selectedCategory] && (
+                                                        <Button size="sm" variant="outline" onClick={openBulkReassign} className="h-8 text-xs">
+                                                            <GitBranch className="h-3.5 w-3.5 mr-1.5" /> Assign Parent
+                                                        </Button>
+                                                    )}
                                                     <Button size="sm" onClick={openAddOpt}>
                                                         <Plus className="h-3.5 w-3.5 mr-1.5" /> Add Option
                                                     </Button>
@@ -738,8 +946,8 @@ function MasterOptionsContent() {
                                                         >
                                                         <SortableContext items={paginatedItems.map(o => o.id)} strategy={verticalListSortingStrategy}>
                                                         <Table>
-                                                            <TableHeader className="sticky top-0 bg-background/95 backdrop-blur z-10 shadow-sm">
-                                                                <TableRow className="bg-muted/30 hover:bg-muted/30">
+                                                            <TableHeader>
+                                                                <TableRow>
                                                                 <TableHead className="h-12 px-4 w-10"><GripVertical className="h-3.5 w-3.5 text-muted-foreground/40" /></TableHead>
                                                                 <TableHead className="h-12 px-4">
                                                                     <button type="button" className="flex items-center gap-1 hover:text-foreground" onClick={() => toggleSort("label")}>
@@ -747,10 +955,10 @@ function MasterOptionsContent() {
                                                                         {sortConfig?.key === "label" ? (sortConfig.direction === "asc" ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />) : null}
                                                                     </button>
                                                                 </TableHead>
-                                                                {CATEGORY_RELATIONS[selectedCategory] && (
+                                                                {cascadeRelations[selectedCategory] && (
                                                                     <TableHead className="h-12 px-4">
                                                                         <button type="button" className="flex items-center gap-1 hover:text-foreground" onClick={() => toggleSort("parent")}>
-                                                                            Parent ({formatCategoryLabel(CATEGORY_RELATIONS[selectedCategory])})
+                                                                            Parent ({formatCategoryLabel(cascadeRelations[selectedCategory])})
                                                                             {sortConfig?.key === "parent" ? (sortConfig.direction === "asc" ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />) : null}
                                                                         </button>
                                                                     </TableHead>
@@ -764,7 +972,7 @@ function MasterOptionsContent() {
                                                                 <SortableOptionRow
                                                                     key={o.id}
                                                                     option={o}
-                                                                    showParent={!!CATEGORY_RELATIONS[selectedCategory!]}
+                                                                    showParent={!!cascadeRelations[selectedCategory!]}
                                                                     showInactive={showInactive}
                                                                     canDrag={!searchQuery && !sortConfig}
                                                                     onEdit={() => openEditOpt(o)}
@@ -814,6 +1022,8 @@ function MasterOptionsContent() {
                                                 )}
                                             </CardContent>
                                         </Card>
+                                        )}
+                                        </>
                                     ) : (
                                         <div className="flex items-center justify-center h-48 text-muted-foreground text-sm">
                                             Select a category from the left or create a new one.
@@ -825,7 +1035,7 @@ function MasterOptionsContent() {
                     </TabsContent>
 
                     {/* ═══════════ TAB 2: CUSTOM FIELDS ═══════════ */}
-                    <TabsContent value="fields" className="flex flex-col flex-1 overflow-hidden mt-6 data-[state=inactive]:hidden min-h-0">
+                    <TabsContent value="fields" className="flex flex-col mt-6 data-[state=inactive]:hidden pb-8">
                         <div className="flex items-center justify-between flex-none mb-4">
                             <p className="text-sm text-muted-foreground">
                                 {schemas.length} custom field{schemas.length !== 1 ? "s" : ""} defined
@@ -844,7 +1054,7 @@ function MasterOptionsContent() {
                         ) : (
                             <div className="border rounded-lg overflow-y-auto flex-1 mb-8 shadow-sm">
                                 <Table>
-                                    <TableHeader className="sticky top-0 bg-muted/80 backdrop-blur z-10">
+                                    <TableHeader>
                                         <TableRow>
                                             <TableHead>Module</TableHead>
                                             <TableHead>Field Name</TableHead>
@@ -858,7 +1068,7 @@ function MasterOptionsContent() {
                                     </TableHeader>
                                     <TableBody>
                                         {schemas.map((s) => (
-                                            <TableRow key={s.id} className={cn("hover:bg-muted/40", !s.is_active && "opacity-50")}>
+                                            <TableRow key={s.id} className={cn(!s.is_active && "opacity-50")}>
                                                 <TableCell>
                                                     <span className="text-xs px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-700 border border-blue-500/20 capitalize">
                                                         {s.module_name}
@@ -907,7 +1117,7 @@ function MasterOptionsContent() {
                     </TabsContent>
 
                     {/* ═══════════ TAB 3: FORM LAYOUT ═══════════ */}
-                    <TabsContent value="layout" className="flex flex-col flex-1 overflow-y-auto mt-6 data-[state=inactive]:hidden">
+                    <TabsContent value="layout" className="flex flex-col mt-6 data-[state=inactive]:hidden pb-8">
                         <div className="w-full">
                             <Card className="shadow-sm">
                                 <CardHeader className="bg-muted/10 border-b">
@@ -922,7 +1132,7 @@ function MasterOptionsContent() {
                     </TabsContent>
 
                     {/* ═══════════ TAB 4: SYSTEM SETTINGS ═══════════ */}
-                    <TabsContent value="settings" className="flex flex-col flex-1 overflow-y-auto mt-6 data-[state=inactive]:hidden">
+                    <TabsContent value="settings" className="flex flex-col mt-6 data-[state=inactive]:hidden pb-8">
                         <div className="max-w-3xl">
                             <Card className="shadow-sm">
                                 <CardHeader className="bg-muted/10 border-b">
@@ -958,6 +1168,22 @@ function MasterOptionsContent() {
                             </Card>
                         </div>
                     </TabsContent>
+
+                    {/* ═══════════ TAB 5: SEGMENTS ═══════════ */}
+                    <TabsContent value="segments" className="flex flex-col mt-6 data-[state=inactive]:hidden pb-8">
+                        <div className="max-w-4xl">
+                            <Card className="shadow-sm">
+                                <CardHeader className="bg-muted/10 border-b">
+                                    <CardTitle className="text-base">Segments & Dimensions</CardTitle>
+                                    <CardDescription>Define custom segments by grouping lead field values.</CardDescription>
+                                </CardHeader>
+                                <CardContent className="p-6">
+                                    <SegmentSettings />
+                                </CardContent>
+                            </Card>
+                        </div>
+                    </TabsContent>
+
                 </Tabs>
 
                 {/* ═══════════ DIALOGS ═══════════ */}
@@ -991,7 +1217,7 @@ function MasterOptionsContent() {
                             )}
                             {(() => {
                                 const activeCat = editingOpt?.option_type ?? selectedCategory ?? ""
-                                const parentCat = CATEGORY_RELATIONS[activeCat]
+                                const parentCat = cascadeRelations[activeCat]
                                 if (!parentCat) return null
                                 const parentOptions = options.filter((o) => o.option_type === parentCat && o.is_active)
                                 return (
@@ -1043,10 +1269,10 @@ function MasterOptionsContent() {
 
                 {/* New Category Dialog */}
                 <Dialog open={newCatOpen} onOpenChange={setNewCatOpen}>
-                    <DialogContent className="sm:max-w-[380px]">
+                    <DialogContent className="sm:max-w-[420px]">
                         <DialogHeader>
                             <DialogTitle>New Category</DialogTitle>
-                            <DialogDescription>Create a new option category. The key will be auto-formatted (lowercase, underscores).</DialogDescription>
+                            <DialogDescription>Create a new option category. Optionally link it to a parent category for cascading dropdowns.</DialogDescription>
                         </DialogHeader>
                         <div className="space-y-4 py-2">
                             <div className="space-y-2">
@@ -1074,6 +1300,25 @@ function MasterOptionsContent() {
                                     </p>
                                 )}
                             </div>
+                            {/* Parent Category for Cascading */}
+                            <div className="space-y-2 rounded-lg border border-dashed border-blue-300 bg-blue-50/50 p-4">
+                                <Label className="flex items-center gap-1.5 text-blue-700">
+                                    <GitBranch className="h-3.5 w-3.5" />
+                                    Cascading Parent (optional)
+                                </Label>
+                                <Select value={newCatParent || "__none"} onValueChange={(v) => setNewCatParent(v === "__none" ? "" : v)}>
+                                    <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="No parent — standalone category" /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="__none">No parent — standalone category</SelectItem>
+                                        {categories.filter(c => !SYSTEM_MANAGED_CATEGORIES.includes(c)).map(c => (
+                                            <SelectItem key={c} value={c}>{formatCategoryLabel(c)}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                <p className="text-[11px] text-blue-600/70">
+                                    If set, options in this category will require a parent value. In the lead form, this dropdown will filter based on the parent selection.
+                                </p>
+                            </div>
                         </div>
                         <DialogFooter>
                             <Button variant="outline" onClick={() => setNewCatOpen(false)}>Cancel</Button>
@@ -1084,41 +1329,72 @@ function MasterOptionsContent() {
 
                 {/* Edit Category Dialog */}
                 <Dialog open={editCatOpen} onOpenChange={setEditCatOpen}>
-                    <DialogContent className="sm:max-w-[380px]">
+                    <DialogContent className="sm:max-w-[420px]">
                         <DialogHeader>
-                            <DialogTitle>Edit Category</DialogTitle>
-                            <DialogDescription>Modify or reassign module for this custom category.</DialogDescription>
+                            <DialogTitle>Edit Category: {selectedCategory ? formatCategoryLabel(selectedCategory) : ""}</DialogTitle>
+                            <DialogDescription>Configure cascading parent and category settings.</DialogDescription>
                         </DialogHeader>
                         <div className="space-y-4 py-2">
-                            <div className="space-y-2">
-                                <Label>Assign to Module</Label>
-                                <Select value={editCatModule} onValueChange={setEditCatModule}>
-                                    <SelectTrigger><SelectValue /></SelectTrigger>
+                            {/* Only show module/name editing for custom categories */}
+                            {selectedCategory?.startsWith("custom_") && (
+                                <>
+                                    <div className="space-y-2">
+                                        <Label>Assign to Module</Label>
+                                        <Select value={editCatModule} onValueChange={setEditCatModule}>
+                                            <SelectTrigger><SelectValue /></SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="leads">Leads</SelectItem>
+                                                <SelectItem value="contacts">Contacts</SelectItem>
+                                                <SelectItem value="companies">Companies</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label>Category Name</Label>
+                                        <Input
+                                            value={editCatName}
+                                            onChange={(e) => setEditCatName(e.target.value)}
+                                            placeholder="e.g. Lead Source"
+                                            onKeyDown={(e) => { if (e.key === "Enter") saveEditCategory() }}
+                                        />
+                                        {editCatName.trim() && (
+                                            <p className="text-xs text-muted-foreground">
+                                                New Key: <span className="font-mono">custom_{editCatModule}__{editCatName.trim().toLowerCase().replace(/\s+/g, "_")}</span>
+                                            </p>
+                                        )}
+                                    </div>
+                                </>
+                            )}
+
+                            {/* Cascading Parent — available for ALL categories */}
+                            <div className="space-y-2 rounded-lg border border-dashed border-blue-300 bg-blue-50/50 p-4">
+                                <Label className="flex items-center gap-1.5 text-blue-700">
+                                    <GitBranch className="h-3.5 w-3.5" />
+                                    Cascading Parent
+                                </Label>
+                                <Select value={editCatParent || "__none"} onValueChange={(v) => setEditCatParent(v === "__none" ? "" : v)}>
+                                    <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="No parent — standalone category" /></SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="leads">Leads</SelectItem>
-                                        <SelectItem value="contacts">Contacts</SelectItem>
-                                        <SelectItem value="companies">Companies</SelectItem>
+                                        <SelectItem value="__none">No parent — standalone category</SelectItem>
+                                        {categories
+                                            .filter(c => !SYSTEM_MANAGED_CATEGORIES.includes(c) && c !== selectedCategory)
+                                            .map(c => (
+                                                <SelectItem key={c} value={c}>{formatCategoryLabel(c)}</SelectItem>
+                                            ))}
                                     </SelectContent>
                                 </Select>
-                            </div>
-                            <div className="space-y-2">
-                                <Label>Category Name</Label>
-                                <Input
-                                    value={editCatName}
-                                    onChange={(e) => setEditCatName(e.target.value)}
-                                    placeholder="e.g. Lead Source"
-                                    onKeyDown={(e) => { if (e.key === "Enter") saveEditCategory() }}
-                                />
-                                {editCatName.trim() && (
-                                    <p className="text-xs text-muted-foreground">
-                                        New Key: <span className="font-mono">custom_{editCatModule}__{editCatName.trim().toLowerCase().replace(/\s+/g, "_")}</span>
-                                    </p>
-                                )}
+                                <p className="text-[11px] text-blue-600/70">
+                                    {editCatParent
+                                        ? `Options in "${formatCategoryLabel(selectedCategory ?? "")}" will be filtered based on the selected "${formatCategoryLabel(editCatParent)}" value. You can assign parent values to each option after saving.`
+                                        : "No cascading — this category is standalone."}
+                                </p>
                             </div>
                         </div>
                         <DialogFooter className="flex items-center sm:justify-between">
-                            <Button type="button" variant="destructive" onClick={() => setDeleteCatConfirmOpen(true)} disabled={editCatLoading} className="mr-auto">Delete</Button>
-                            <div className="flex gap-2">
+                            {selectedCategory?.startsWith("custom_") && (
+                                <Button type="button" variant="destructive" onClick={() => setDeleteCatConfirmOpen(true)} disabled={editCatLoading} className="mr-auto">Delete</Button>
+                            )}
+                            <div className="flex gap-2 ml-auto">
                                 <Button variant="outline" onClick={() => setEditCatOpen(false)} disabled={editCatLoading}>Cancel</Button>
                                 <Button onClick={saveEditCategory} disabled={editCatLoading}>
                                     {editCatLoading && <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />}
@@ -1159,7 +1435,7 @@ function MasterOptionsContent() {
                         </DialogHeader>
                         <div className="space-y-2 py-2">
                             {(() => {
-                                const parentCat = selectedCategory ? CATEGORY_RELATIONS[selectedCategory] : undefined
+                                const parentCat = selectedCategory ? cascadeRelations[selectedCategory] : undefined
                                 if (!parentCat) return null
                                 const parentOptions = options.filter((o) => o.option_type === parentCat && o.is_active)
                                 return (
@@ -1197,6 +1473,90 @@ function MasterOptionsContent() {
                             <Button onClick={saveBulk} disabled={bulkSaving || !bulkText.trim()}>
                                 {bulkSaving && <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />}
                                 Import
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+
+                {/* Bulk Reassign Parent Dialog */}
+                <Dialog open={bulkReassignOpen} onOpenChange={setBulkReassignOpen}>
+                    <DialogContent className="sm:max-w-[560px] max-h-[80vh] flex flex-col">
+                        <DialogHeader>
+                            <DialogTitle>Assign Parent Values</DialogTitle>
+                            <DialogDescription>
+                                Select options from &quot;{selectedCategory ? formatCategoryLabel(selectedCategory) : ""}&quot; and assign them to a
+                                {" "}{selectedCategory && cascadeRelations[selectedCategory] ? formatCategoryLabel(cascadeRelations[selectedCategory]) : "parent"} value.
+                            </DialogDescription>
+                        </DialogHeader>
+                        <div className="space-y-4 py-2 flex-1 min-h-0 flex flex-col">
+                            {/* Parent value selector */}
+                            <div className="space-y-2 flex-none">
+                                <Label>Assign to: {selectedCategory && cascadeRelations[selectedCategory] ? formatCategoryLabel(cascadeRelations[selectedCategory]) : "Parent"} *</Label>
+                                <Select value={bulkReassignParent || undefined} onValueChange={setBulkReassignParent}>
+                                    <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Select parent value..." /></SelectTrigger>
+                                    <SelectContent>
+                                        {selectedCategory && cascadeRelations[selectedCategory] && (
+                                            options
+                                                .filter(o => o.option_type === cascadeRelations[selectedCategory] && o.is_active)
+                                                .map(o => (<SelectItem key={o.id} value={o.value}>{o.label}</SelectItem>))
+                                        )}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
+                            {/* Options checklist */}
+                            <div className="flex-none flex items-center justify-between">
+                                <Label className="text-sm">Select options to assign ({bulkReassignSelected.size} selected)</Label>
+                                <div className="flex gap-2">
+                                    <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => {
+                                        const unassigned = activeItems.filter(o => !o.parent_value)
+                                        setBulkReassignSelected(new Set(unassigned.map(o => o.id)))
+                                    }}>Select Unassigned</Button>
+                                    <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setBulkReassignSelected(new Set(activeItems.map(o => o.id)))}>Select All</Button>
+                                    <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setBulkReassignSelected(new Set())}>Clear</Button>
+                                </div>
+                            </div>
+                            <div className="border rounded-lg overflow-y-auto flex-1 min-h-0">
+                                {activeItems.length === 0 ? (
+                                    <div className="text-center py-8 text-muted-foreground text-sm">No options in this category.</div>
+                                ) : (
+                                    <div className="divide-y">
+                                        {activeItems.map(o => (
+                                            <label key={o.id} className="flex items-center gap-3 px-3 py-2 hover:bg-muted/30 cursor-pointer">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={bulkReassignSelected.has(o.id)}
+                                                    onChange={(e) => {
+                                                        setBulkReassignSelected(prev => {
+                                                            const next = new Set(prev)
+                                                            e.target.checked ? next.add(o.id) : next.delete(o.id)
+                                                            return next
+                                                        })
+                                                    }}
+                                                    className="h-4 w-4 rounded border-gray-300"
+                                                />
+                                                <span className="text-sm flex-1">{o.label}</span>
+                                                {o.parent_value && (
+                                                    <span className="text-[11px] text-muted-foreground px-1.5 py-0.5 rounded bg-muted">
+                                                        {o.parent_value}
+                                                    </span>
+                                                )}
+                                                {!o.parent_value && (
+                                                    <span className="text-[11px] text-amber-600 px-1.5 py-0.5 rounded bg-amber-50">
+                                                        unassigned
+                                                    </span>
+                                                )}
+                                            </label>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                        <DialogFooter>
+                            <Button variant="outline" onClick={() => setBulkReassignOpen(false)}>Cancel</Button>
+                            <Button onClick={handleBulkReassign} disabled={bulkReassignSaving || !bulkReassignParent || bulkReassignSelected.size === 0}>
+                                {bulkReassignSaving && <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />}
+                                Assign {bulkReassignSelected.size} Option{bulkReassignSelected.size !== 1 ? "s" : ""}
                             </Button>
                         </DialogFooter>
                     </DialogContent>

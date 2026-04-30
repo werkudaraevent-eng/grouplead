@@ -24,7 +24,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import {
     AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { Users, Search, Mail, Phone, Building2, Briefcase, Loader2, Plus, ArrowUpDown, Pencil, Linkedin, MoreHorizontal, Trash2, Columns, Download, Upload, Instagram, Twitter, Facebook, Globe, Link2, ChevronUp, ChevronDown } from "lucide-react"
+import { Users, Search, Mail, Phone, Building2, Briefcase, Loader2, Plus, ArrowUpDown, Pencil, Linkedin, MoreHorizontal, Trash2, Columns, Download, Upload, Instagram, Twitter, Facebook, Globe, Link2, ChevronUp, ChevronDown, GripVertical, Eye, EyeOff, RotateCcw } from "lucide-react"
 import { AddContactModal } from "@/features/contacts/components/add-contact-modal"
 import { ImportContactsModal } from "@/features/contacts/components/import-contacts-modal"
 import { PermissionGate } from "@/features/users/components/permission-gate"
@@ -338,12 +338,12 @@ export default function ContactsPage() {
     }
 
     return (
-        <div className="w-full h-[calc(100vh-64px)] sm:h-full max-w-[1600px] mx-auto px-4 sm:px-6 py-6 bg-slate-50 flex flex-col overflow-hidden">
-            <div className="mb-6 shrink-0">
-                <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Contacts Directory</h1>
-                <p className="text-sm text-slate-500 mt-1">Manage your client contacts, vendors, and associates.</p>
+        <div className="w-full h-[calc(100vh-64px)] sm:h-full py-6 flex flex-col overflow-hidden">
+            <div className="mb-6 shrink-0 px-4 sm:px-6 lg:px-8">
+                <h1 className="text-2xl font-extrabold text-foreground tracking-tight">Contacts Directory</h1>
+                <p className="text-sm text-muted-foreground mt-1">Manage your client contacts, vendors, and associates.</p>
             </div>
-            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-6 shrink-0">
+            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 pb-4 mb-0 shrink-0 px-4 sm:px-6 lg:px-8 border-b border-border">
                 <div className="flex flex-1 items-center gap-3 w-full lg:w-auto overflow-x-auto pb-2 lg:pb-0">
                     <div className="relative w-[280px] shrink-0">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
@@ -372,33 +372,46 @@ export default function ContactsPage() {
                     <Popover>
                         <PopoverTrigger asChild>
                             <Button variant="outline" size="sm" className="h-9 px-3 gap-2 bg-white text-[13px]">
-                                <Columns className="w-4 h-4 text-slate-500" /> Columns
+                                <Columns className="w-4 h-4 text-slate-500" /> Columns <span className="text-[11px] text-slate-400 font-normal">{activeCols.length}/{columns.length}</span>
                             </Button>
                         </PopoverTrigger>
-                        <PopoverContent align="end" className="w-64 p-0">
+                        <PopoverContent align="end" className="w-72 p-0">
                             <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
-                                <div>
-                                    <p className="text-[13px] font-semibold text-slate-900">Manage Columns</p>
-                                    <p className="text-[11px] text-slate-500 mt-0.5">Show or reorder columns</p>
-                                </div>
+                                <p className="text-[14px] font-semibold text-slate-900">Columns</p>
+                                <button onClick={() => { setColumns(DEFAULT_COLUMNS); localStorage.removeItem("contacts_cols_order") }} className="text-[12px] text-blue-600 hover:text-blue-700 flex items-center gap-1 font-medium">
+                                    <RotateCcw className="h-3 w-3" /> Reset All
+                                </button>
                             </div>
-                            <div className="max-h-[300px] overflow-y-auto p-1.5 flex flex-col gap-0.5">
+                            <p className="px-4 pt-2 pb-1 text-[11px] text-slate-400">Drag to reorder • Click eye to toggle</p>
+                            <div className="max-h-[360px] overflow-y-auto px-2 pb-2 flex flex-col gap-0.5">
                                 {columns.map((col, idx) => (
-                                    <div key={col.id} className="flex items-center justify-between px-2.5 py-1.5 hover:bg-slate-50 rounded-md group">
-                                        <div className="flex items-center gap-3">
-                                            <Checkbox checked={col.visible} onCheckedChange={(v) => toggleColumn(col.id, !!v)} />
-                                            <span className="text-[13px] text-slate-700">{col.label}</span>
+                                    <div key={col.id} className="flex items-center justify-between pl-1 pr-2 py-2 hover:bg-slate-50 rounded-md group cursor-grab active:cursor-grabbing"
+                                        draggable
+                                        onDragStart={(e) => { e.dataTransfer.setData("colIdx", idx.toString()); e.dataTransfer.effectAllowed = "move" }}
+                                        onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = "move" }}
+                                        onDrop={(e) => {
+                                            e.preventDefault();
+                                            const fromIdx = parseInt(e.dataTransfer.getData("colIdx"));
+                                            if (fromIdx === idx) return;
+                                            const next = [...columns];
+                                            const [moved] = next.splice(fromIdx, 1);
+                                            next.splice(idx, 0, moved);
+                                            setColumns(next);
+                                            localStorage.setItem("contacts_cols_order", JSON.stringify(next));
+                                        }}
+                                    >
+                                        <div className="flex items-center gap-2">
+                                            <GripVertical className="h-4 w-4 text-slate-300 group-hover:text-slate-400 shrink-0" />
+                                            <span className={`text-[13px] ${col.visible ? 'text-slate-800 font-medium' : 'text-slate-400 line-through'}`}>{col.label}</span>
                                         </div>
-                                        <div className="flex items-center space-x-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <Button variant="ghost" size="icon" className="h-6 w-6 text-slate-400 hover:text-slate-900" disabled={idx === 0} onClick={() => moveColumn(idx, -1)}>
-                                                <ChevronUp className="h-3 w-3" />
-                                            </Button>
-                                            <Button variant="ghost" size="icon" className="h-6 w-6 text-slate-400 hover:text-slate-900" disabled={idx === columns.length - 1} onClick={() => moveColumn(idx, 1)}>
-                                                <ChevronDown className="h-3 w-3" />
-                                            </Button>
-                                        </div>
+                                        <button onClick={(e) => { e.stopPropagation(); toggleColumn(col.id, !col.visible) }} className="shrink-0 p-1 rounded hover:bg-slate-100 transition-colors">
+                                            {col.visible ? <Eye className="h-4 w-4 text-emerald-500" /> : <EyeOff className="h-4 w-4 text-slate-300" />}
+                                        </button>
                                     </div>
                                 ))}
+                            </div>
+                            <div className="px-4 py-2 border-t border-slate-100 text-center">
+                                <span className="text-[11px] text-blue-500 font-medium">{activeCols.length} of {columns.length} columns visible</span>
                             </div>
                         </PopoverContent>
                     </Popover>
@@ -424,7 +437,7 @@ export default function ContactsPage() {
 
             {/* Bulk Action Banner */}
             {selectedIds.size > 0 && (
-                <div className="mb-4 p-3 bg-blue-50 border border-blue-200 text-blue-700 text-[13px] rounded-lg flex items-center justify-between animate-in fade-in slide-in-from-top-4">
+                <div className="mb-4 mx-4 sm:mx-6 p-3 bg-blue-50 border border-blue-200 text-blue-700 text-[13px] rounded-lg flex items-center justify-between animate-in fade-in slide-in-from-top-4">
                     <span><strong>{selectedIds.size}</strong> contacts selected.</span>
                     <div className="flex gap-2">
                         <Button variant="ghost" size="sm" onClick={() => setSelectedIds(new Set())} className="h-8 hover:bg-blue-100 text-blue-700">Cancel</Button>
@@ -442,7 +455,7 @@ export default function ContactsPage() {
                     <Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" />
                 </div>
             ) : contacts.length === 0 ? (
-                <div className="flex flex-col items-center justify-center p-12 text-center border-2 border-dashed border-slate-200 rounded-xl bg-slate-50/50">
+                <div className="flex flex-col items-center justify-center p-12 text-center border-2 border-dashed border-slate-200 rounded-xl bg-slate-50/50 mx-4 sm:mx-6">
                     <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-sm border border-slate-100 mb-4">
                         <Users className="h-6 w-6 text-slate-400" />
                     </div>
@@ -457,19 +470,19 @@ export default function ContactsPage() {
                     </PermissionGate>
                 </div>
             ) : (
-                <div className="bg-white border border-slate-200 shadow-sm rounded-xl overflow-hidden flex flex-col min-h-0 flex-1 relative z-0">
+                <div className="bg-[#FAFAFA] overflow-hidden flex flex-col min-h-0 flex-1 relative z-0">
                     <div className="overflow-auto flex-1">
                         <Table className="w-full">
-                            <TableHeader className="bg-slate-50 sticky top-0 z-30 shadow-[0_1px_0_0_#e2e8f0]">
-                                <TableRow className="hover:bg-transparent">
-                                    <TableHead className="h-10 px-4 min-w-[40px] max-w-[40px] w-[40px] text-center align-middle sticky left-0 bg-slate-50 z-40 shadow-[1px_0_0_0_#e2e8f0]">
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead className="h-10 px-4 min-w-[40px] max-w-[40px] w-[40px] text-center align-middle sticky left-0 bg-[#FAFAFA] z-40 shadow-[1px_0_0_0_#e2e8f0]">
                                         <Checkbox 
                                             checked={paginatedData.length > 0 && selectedIds.size === paginatedData.length}
                                             onCheckedChange={toggleSelectAll}
                                             aria-label="Select all current page"
                                         />
                                     </TableHead>
-                                    <TableHead className="h-10 px-2 min-w-[40px] max-w-[40px] w-[40px] text-center align-middle text-[11px] font-semibold text-slate-500 uppercase sticky left-[40px] bg-slate-50 z-40 shadow-[1px_0_0_0_#e2e8f0]">
+                                    <TableHead className="h-10 px-2 min-w-[40px] max-w-[40px] w-[40px] text-center align-middle text-[11px] font-semibold text-slate-500 uppercase sticky left-[40px] bg-[#FAFAFA] z-40 shadow-[1px_0_0_0_#e2e8f0]">
                                         No.
                                     </TableHead>
                                     {activeCols.map((col, index) => {
@@ -478,21 +491,18 @@ export default function ContactsPage() {
                                         const leftPos = index === 0 ? 80 : (index === 1 ? 80 + activeCols[0].width : undefined);
                                         const stickyShadow = isLastSticky ? 'inset -1px 0 0 0 #cbd5e1, 5px 0 10px -2px rgba(0,0,0,0.08)' : 'inset -1px 0 0 0 #e2e8f0';
                                         const style = isSticky ? { left: `${leftPos}px`, minWidth: `${col.width}px`, maxWidth: `${col.width}px`, width: `${col.width}px`, boxShadow: stickyShadow } : { minWidth: `${col.width}px`, maxWidth: `${col.width}px`, width: `${col.width}px` };
-                                        const className = `h-10 px-4 align-middle text-[11px] font-semibold tracking-wider text-slate-500 uppercase ${isSticky ? 'sticky bg-slate-50 z-40' : ''}`;
-                                        const isSortable = ["full_name", "company", "job_title", "email", "phone"].includes(col.id);
+                                        const className = `h-10 px-4 align-middle text-[11px] font-semibold tracking-wider text-slate-500 uppercase ${isSticky ? 'sticky bg-[#FAFAFA] z-40' : ''}`;
                                         const sortKey = col.id === "company" ? "client_company" : col.id;
                                         
                                         return (
                                             <TableHead key={col.id} className={className} style={style}>
-                                                {isSortable ? (
-                                                    <button onClick={() => handleSort(sortKey)} className="flex items-center gap-1.5 hover:text-slate-900 transition-colors">
-                                                        {col.label} <ArrowUpDown className="w-3 h-3 opacity-40 shrink-0" />
-                                                    </button>
-                                                ) : col.label}
+                                                <button onClick={() => handleSort(sortKey)} className="flex items-center gap-1.5 hover:text-slate-900 transition-colors uppercase">
+                                                    {col.label} <ArrowUpDown className="w-3 h-3 opacity-40 shrink-0" />
+                                                </button>
                                             </TableHead>
                                         );
                                     })}
-                                    <TableHead className="h-10 px-4 align-middle min-w-[60px] max-w-[60px] w-[60px] sticky right-0 bg-slate-50 z-40 shadow-[-1px_0_0_0_#e2e8f0]" />
+                                    <TableHead className="h-10 px-4 align-middle min-w-[60px] max-w-[60px] w-[60px] sticky right-0 bg-[#FAFAFA] z-40 shadow-[-1px_0_0_0_#e2e8f0]" />
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -510,16 +520,16 @@ export default function ContactsPage() {
                                         <TableRow
                                             key={contact.id}
                                             onClick={() => router.push(`/contacts/${contact.id}`)}
-                                            className={`${selectedIds.has(contact.id) ? "bg-blue-50/50 hover:bg-blue-50/80" : "hover:bg-slate-50"} border-b border-slate-100 transition-colors cursor-pointer group`}
+                                            className={`${selectedIds.has(contact.id) ? "" : ""} transition-colors cursor-pointer group`}
                                         >
-                                            <TableCell className={`px-4 py-2 text-center align-middle sticky left-0 z-20 shadow-[1px_0_0_0_#e2e8f0] transition-colors ${selectedIds.has(contact.id) ? "bg-[#f1f6fd] group-hover:bg-[#e8f1fb]" : "bg-white group-hover:bg-slate-50"}`} onClick={(e) => e.stopPropagation()}>
+                                            <TableCell className={`px-4 py-2 text-center align-middle sticky left-0 z-20 shadow-[1px_0_0_0_#e2e8f0] transition-colors ${selectedIds.has(contact.id) ? "bg-[#E0F2FE] group-hover:bg-[#d0e8fc]" : "bg-white group-hover:bg-[#F0F9FF]"}`} onClick={(e) => e.stopPropagation()}>
                                                 <Checkbox 
                                                     checked={selectedIds.has(contact.id)}
                                                     onCheckedChange={() => toggleSelect(contact.id)}
                                                     aria-label={`Select ${contact.full_name}`}
                                                 />
                                             </TableCell>
-                                            <TableCell className={`px-2 py-2 text-center align-middle text-[12px] text-slate-400 font-medium sticky left-[40px] z-20 shadow-[1px_0_0_0_#e2e8f0] transition-colors ${selectedIds.has(contact.id) ? "bg-[#f1f6fd] group-hover:bg-[#e8f1fb]" : "bg-white group-hover:bg-slate-50"}`}>
+                                            <TableCell className={`px-2 py-2 text-center align-middle text-[12px] text-slate-400 font-medium sticky left-[40px] z-20 shadow-[1px_0_0_0_#e2e8f0] transition-colors ${selectedIds.has(contact.id) ? "bg-[#E0F2FE] group-hover:bg-[#d0e8fc]" : "bg-white group-hover:bg-[#F0F9FF]"}`}>
                                                 {(currentPage - 1) * itemsPerPage + idx + 1}
                                             </TableCell>
                                             
@@ -529,8 +539,8 @@ export default function ContactsPage() {
                                                 const leftPos = index === 0 ? 80 : (index === 1 ? 80 + activeCols[0].width : undefined);
                                                 const isSelected = selectedIds.has(contact.id);
                                                 const stickyShadow = isLastSticky ? 'inset -1px 0 0 0 #cbd5e1, 5px 0 10px -2px rgba(0,0,0,0.08)' : 'inset -1px 0 0 0 #e2e8f0';
-                                                const style: React.CSSProperties = isSticky ? { left: `${leftPos}px`, minWidth: `${col.width}px`, maxWidth: `${col.width}px`, width: `${col.width}px`, boxShadow: stickyShadow, backgroundColor: isSelected ? '#f1f6fd' : '#ffffff' } : { minWidth: `${col.width}px`, maxWidth: `${col.width}px`, width: `${col.width}px` };
-                                                const stickyClass = isSticky ? `sticky z-20 transition-colors` : 'text-slate-500';
+                                                const style: React.CSSProperties = isSticky ? { left: `${leftPos}px`, minWidth: `${col.width}px`, maxWidth: `${col.width}px`, width: `${col.width}px`, boxShadow: stickyShadow } : { minWidth: `${col.width}px`, maxWidth: `${col.width}px`, width: `${col.width}px` };
+                                                const stickyClass = isSticky ? `sticky z-20 transition-colors ${isSelected ? 'bg-[#E0F2FE] group-hover:bg-[#d0e8fc]' : 'bg-white group-hover:bg-[#F0F9FF]'}` : 'text-slate-500';
                                                 const className = `px-4 py-2 align-middle text-[13px] truncate ${stickyClass}`;
                                         
                                                 return (
@@ -540,7 +550,7 @@ export default function ContactsPage() {
                                                 );
                                             })}
 
-                                            <TableCell className={`px-4 py-2 align-middle text-right sticky right-0 z-20 shadow-[-1px_0_0_0_#e2e8f0] transition-colors ${selectedIds.has(contact.id) ? "bg-[#f1f6fd] group-hover:bg-[#e8f1fb]" : "bg-white group-hover:bg-slate-50"}`} onClick={(e) => e.stopPropagation()}>
+                                            <TableCell className={`px-4 py-2 align-middle text-right sticky right-0 z-20 shadow-[-1px_0_0_0_#e2e8f0] transition-colors ${selectedIds.has(contact.id) ? "bg-[#E0F2FE] group-hover:bg-[#d0e8fc]" : "bg-white group-hover:bg-[#F0F9FF]"}`} onClick={(e) => e.stopPropagation()}>
                                                 <DropdownMenu>
                                                     <DropdownMenuTrigger asChild>
                                                         <Button variant="ghost" className="h-7 w-7 p-0 hover:bg-slate-200">
@@ -569,7 +579,7 @@ export default function ContactsPage() {
                         </Table>
                     </div>
                     {/* Pagination Footer */}
-                    <div className="flex flex-col sm:flex-row items-center justify-between px-4 py-3 border-t border-slate-200 bg-slate-50/50 gap-4 sm:gap-0 mt-auto">
+                    <div className="flex flex-col sm:flex-row items-center justify-between px-4 py-3 border-t border-[#E5E7EB] bg-[#FAFAFA] gap-4 sm:gap-0 mt-auto">
                         <div className="text-[13px] text-slate-500 font-medium">
                             Showing <span className="text-slate-900 font-semibold">{filteredData.length === 0 ? 0 : ((currentPage - 1) * itemsPerPage) + 1}</span> to <span className="text-slate-900 font-semibold">{Math.min(currentPage * itemsPerPage, filteredData.length)}</span> of <span className="text-slate-900 font-semibold">{filteredData.length}</span> entries
                         </div>

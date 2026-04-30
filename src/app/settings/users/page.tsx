@@ -17,6 +17,7 @@ import { Label } from "@/components/ui/label"
 import {
     ShieldCheck, Plus, Loader2, Search, Mail, MoreHorizontal, UserCog, Target, KeyRound,
 } from "lucide-react"
+import { SettingsPageHeader } from "@/components/layout/settings-page-header"
 import { PermissionGate } from "@/features/users/components/permission-gate"
 import { Profile } from "@/types"
 import { EditUserSheet } from "@/features/users/components/edit-user-modal"
@@ -86,19 +87,19 @@ export default function UserManagementPage() {
     const getInitials = (name: string | null) => name ? name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2) : "?"
 
     return (
-        <div className="p-6 lg:p-8 space-y-6 w-full">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div>
-                    <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-                        <ShieldCheck className="h-6 w-6 text-primary" /> User Management
-                    </h1>
-                    <p className="text-sm text-muted-foreground mt-1">Manage team hierarchy, roles, and sales quotas.</p>
-                </div>
-                <PermissionGate resource="members" action="create">
-                    <Button size="sm" onClick={() => setInviteOpen(true)}><Plus className="h-3.5 w-3.5 mr-1.5" /> Create User</Button>
-                </PermissionGate>
-            </div>
+        <div className="space-y-6 w-full">
+            <SettingsPageHeader
+                title="User Management"
+                subtitle="Manage team hierarchy, roles, and sales quotas."
+                breadcrumbs={[{ label: "Users" }]}
+                actions={
+                    <PermissionGate resource="members" action="create">
+                        <Button size="sm" onClick={() => setInviteOpen(true)}><Plus className="h-3.5 w-3.5 mr-1.5" /> Create User</Button>
+                    </PermissionGate>
+                }
+            />
 
+            <div className="px-6 lg:px-8 pb-6 space-y-6">
             <div className="relative max-w-sm">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input placeholder="Search by name, email, role..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 h-9" />
@@ -107,7 +108,7 @@ export default function UserManagementPage() {
             <div className="border rounded-xl bg-card overflow-hidden">
                 <Table>
                     <TableHeader>
-                        <TableRow className="bg-muted/30">
+                        <TableRow>
                             <TableHead className="w-[250px]">User</TableHead>
                             <TableHead>Role</TableHead>
                             <TableHead>Business Unit</TableHead>
@@ -204,6 +205,8 @@ export default function UserManagementPage() {
                         })}
                     </TableBody>
                 </Table>
+            </div>
+
             </div>
 
             {/* Edit Profile Sheet */}

@@ -71,17 +71,17 @@ function SelectContent({
         sideOffset={sideOffset}
         {...props}
       >
-        <SelectScrollUpButton />
+        {position !== "popper" && <SelectScrollUpButton />}
         <SelectPrimitive.Viewport
           className={cn(
-            "p-1",
+            "p-1 custom-scrollbar",
             position === "popper" &&
-              "h-[var(--radix-select-content-available-height)] max-h-72 w-full min-w-[var(--radix-select-trigger-width)] overflow-y-auto"
+              "h-[var(--radix-select-content-available-height)] max-h-[300px] w-full min-w-[var(--radix-select-trigger-width)] overflow-y-auto"
           )}
         >
           {children}
         </SelectPrimitive.Viewport>
-        <SelectScrollDownButton />
+        {position !== "popper" && <SelectScrollDownButton />}
       </SelectPrimitive.Content>
     </SelectPrimitive.Portal>
   )

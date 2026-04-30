@@ -6,7 +6,7 @@ import {
 } from "recharts"
 import { resolveStageColor } from "@/features/leads/lib/stage-color"
 import { useHasMounted } from "@/hooks/use-has-mounted"
-import { SectionCard, SectionTitle, SectionSub, CHART_COLORS, formatPct, formatSignedPct, EllipsisTick, TOOLTIP_STYLE } from "./shared"
+import { SectionCard, SectionTitle, SectionSub, CHART_COLORS, formatPct, formatSignedPct, EllipsisTick, TOOLTIP_STYLE, WidgetSkeleton } from "./shared"
 
 interface PipelineStageData {
     id: string
@@ -57,7 +57,7 @@ export function PipelineWidget({ data, comparisonLabel }: PipelineWidgetProps) {
         <SectionCard>
             <SectionTitle>Pipeline Stages</SectionTitle>
             <SectionSub>Lead distribution by stage</SectionSub>
-            <div className="thin-scrollbar" style={{ flex: 1, minHeight: 80, overflowY: "auto", overflowX: "hidden" }}>
+            <div className="thin-scrollbar flex-1 min-h-[80px] overflow-y-auto overflow-x-hidden">
                 {hasMounted ? (
                     <div style={{ width: "100%", height: Math.max(chartData.length * 32, 80), minHeight: "100%" }}>
                         <ResponsiveContainer width="100%" height="100%">
@@ -80,7 +80,7 @@ export function PipelineWidget({ data, comparisonLabel }: PipelineWidgetProps) {
                                     cursor={{ fill: "rgba(0,0,0,.03)" }}
                                 />
                                 <Bar dataKey="count" radius={[0, 4, 4, 0]} barSize={14}>
-                                    {chartData.map((entry, i) => (
+                                    {chartData.map((entry) => (
                                         <Cell key={entry.id} fill={entry._color} />
                                     ))}
                                     <LabelList dataKey="count" position="right" style={{ fontSize: 9, fontWeight: 600, fill: "#64748b" }} />
@@ -89,12 +89,7 @@ export function PipelineWidget({ data, comparisonLabel }: PipelineWidgetProps) {
                         </ResponsiveContainer>
                     </div>
                 ) : (
-                    <div style={{
-                        height: "100%",
-                        borderRadius: 8,
-                        background: "linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%)",
-                        border: "1px solid #eef2f7",
-                    }} />
+                    <WidgetSkeleton />
                 )}
             </div>
         </SectionCard>

@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Table Component — Developer Handoff</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#F3F4F6;--white:#fff;--border:#E5E7EB;--border-light:#F3F4F6;
+  --t1:#111827;--t2:#6B7280;--t3:#9CA3AF;
+  --accent:#0EA5E9;--accent-bg:#E0F2FE;
+  --green:#059669;--green-bg:#ECFDF5;
+  --r:8px;
+}
+body{font-family:'Plus Jakarta Sans',sans-serif;background:#F8F9FB;color:var(--t1);-webkit-font-smoothing:antialiased}
+.page{max-width:960px;margin:0 auto;padding:40px 24px 80px}
+
+/* Header */
+.page-title{font-size:26px;font-weight:800;color:var(--t1);margin-bottom:6px}
+.page-sub{font-size:14px;color:var(--t2);margin-bottom:36px;line-height:1.6}
+.chip{display:inline-flex;align-items:center;gap:5px;background:var(--green-bg);color:var(--green);font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;margin-left:8px;vertical-align:middle}
+
+/* Section */
+.section{margin-bottom:48px}
+.section-label{font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--t3);margin-bottom:16px;padding-bottom:10px;border-bottom:1px solid var(--border)}
+.section-title{font-size:17px;font-weight:800;color:var(--t1);margin-bottom:4px}
+.section-desc{font-size:13px;color:var(--t2);margin-bottom:20px;line-height:1.6}
+
+/* Token grid */
+.token-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-bottom:24px}
+.token-card{background:#fff;border:1px solid var(--border);border-radius:var(--r);padding:14px 16px}
+.token-name{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--accent);margin-bottom:4px}
+.token-val{font-size:13px;font-weight:700;color:var(--t1);margin-bottom:4px}
+.token-use{font-size:11.5px;color:var(--t2)}
+.swatch{width:100%;height:6px;border-radius:3px;margin-top:8px}
+
+/* Code block */
+.code-wrap{position:relative;margin-bottom:16px}
+pre{background:#0E1117;color:#E5E7EB;border-radius:var(--r);padding:20px 22px;font-family:'JetBrains Mono',monospace;font-size:12.5px;line-height:1.65;overflow-x:auto;border:1px solid #1F2937}
+.copy-btn{position:absolute;top:10px;right:10px;background:#1F2937;color:#9CA3AF;border:1px solid #374151;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s}
+.copy-btn:hover{background:#374151;color:#E5E7EB}
+.copy-btn.copied{background:#059669;color:#fff;border-color:#059669}
+.kw{color:#C792EA}.str{color:#C3E88D}.cm{color:#546E7A;font-style:italic}
+.prop{color:#82AAFF}.val{color:#F78C6C}.tag{color:#F07178}.attr{color:#FFCB6B}
+
+/* Live preview */
+.preview-wrap{background:#fff;border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:24px;box-shadow:0 1px 4px rgba(0,0,0,.05)}
+.preview-label{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--t3);background:#FAFAFA;padding:8px 16px;border-bottom:1px solid var(--border)}
+
+/* ── TABLE COMPONENT (the actual component CSS) ── */
+.tbl-toolbar{padding:12px 16px;display:flex;align-items:center;gap:9px;border-bottom:1px solid var(--border)}
+.tbl-search{display:flex;align-items:center;gap:7px;background:var(--bg);border:1.5px solid var(--border);border-radius:var(--r);padding:6px 12px;min-width:200px}
+.tbl-search input{background:none;border:none;outline:none;font-size:13px;color:var(--t1);font-family:inherit;width:100%}
+.tbl-search input::placeholder{color:var(--t3)}
+.tbl-spacer{flex:1}
+.tbl-btn{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:var(--r);font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s;border:1.5px solid var(--border);background:#fff;color:var(--t2)}
+.tbl-btn:hover{background:var(--bg);color:var(--t1)}
+.tbl-btn-primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+.tbl-btn-primary:hover{background:#0284C7;border-color:#0284C7}
+
+.tbl-scroll{overflow:auto;max-height:360px}
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-thumb{background:#D1D5DB;border-radius:4px}
+::-webkit-scrollbar-track{background:transparent}
+
+table.data-table{width:100%;border-collapse:collapse}
+table.data-table thead{position:sticky;top:0;z-index:1}
+table.data-table th{padding:10px 16px;font-size:11px;font-weight:700;color:var(--t2);text-align:left;background:#FAFAFA;border-bottom:1.5px solid var(--border);white-space:nowrap;cursor:pointer;letter-spacing:.05em;text-transform:uppercase;user-select:none;transition:background .1s}
+table.data-table th:hover{background:#F3F4F6;color:var(--t1)}
+table.data-table th.sorted{color:var(--accent)}
+table.data-table td{padding:10px 16px;font-size:13px;color:var(--t1);border-bottom:1px solid var(--border-light);transition:background .1s}
+table.data-table tr:last-child td{border-bottom:none}
+table.data-table tr:hover td{background:#F0F9FF}
+table.data-table .col-no{width:52px;font-size:12px;color:var(--t3);text-align:center}
+table.data-table .col-action{width:48px;text-align:center}
+
+.av{display:inline-flex;align-items:center;justify-content:center;border-radius:50%;font-weight:800;color:#fff;flex-shrink:0}
+.owner-cell{display:flex;align-items:center;gap:8px}
+.owner-name{font-size:12.5px;color:var(--t2)}
+.name-cell{display:flex;align-items:center;gap:8px}
+.name-text{font-weight:700;font-size:13px;color:var(--t1)}
+.badge{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:6px;font-size:11.5px;font-weight:600}
+.badge-pub{background:var(--accent-bg);color:var(--accent)}
+.badge-priv{background:#F3F4F6;color:#374151}
+.email-link{color:var(--accent);font-size:12px}
+.phone-text{font-size:12.5px;font-variant-numeric:tabular-nums}
+.muted{color:var(--t3)}
+.icon-btn{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:6px;cursor:pointer;color:var(--t3);background:transparent;border:none;transition:all .15s}
+.icon-btn:hover{background:var(--bg);color:var(--t1)}
+
+.tbl-footer{padding:11px 16px;display:flex;align-items:center;justify-content:space-between;font-size:12.5px;color:var(--t2);border-top:1px solid var(--border);background:#FAFAFA}
+.tbl-footer strong{color:var(--t1)}
+.pg-controls{display:flex;align-items:center;gap:8px}
+.pg-btn{padding:5px 12px;border-radius:6px;font-size:12px;font-weight:600;border:1.5px solid var(--border);background:#fff;color:var(--t1);cursor:pointer;font-family:inherit;transition:background .15s}
+.pg-btn:hover:not(:disabled){background:var(--bg)}
+.pg-btn:disabled{opacity:.4;cursor:not-allowed}
+select.pg-select{border:1.5px solid var(--border);border-radius:6px;padding:4px 8px;font-size:12px;background:#fff;color:var(--t1);font-family:inherit}
+
+/* Spec table */
+.spec-table{width:100%;border-collapse:collapse;font-size:13px}
+.spec-table th{padding:8px 14px;background:#FAFAFA;border:1px solid var(--border);font-size:11px;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:.05em;text-align:left}
+.spec-table td{padding:9px 14px;border:1px solid var(--border);color:var(--t1)}
+.spec-table tr:nth-child(even) td{background:#FAFAFA}
+.spec-table code{font-family:'JetBrains Mono',monospace;font-size:11.5px;background:#F3F4F6;padding:1px 5px;border-radius:4px;color:var(--accent)}
+
+/* Prompt box */
+.prompt-box{background:#0E1117;border:1px solid #1F2937;border-radius:var(--r);padding:20px 22px;margin-bottom:16px;position:relative}
+.prompt-text{font-size:13px;color:#D1D5DB;line-height:1.75;white-space:pre-wrap;font-family:'JetBrains Mono',monospace}
+.prompt-highlight{color:#FFCB6B}
+.prompt-var{color:#C3E88D}
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="page-title">Data Table Component <span class="chip">✓ Production Ready</span></div>
+  <div class="page-sub">Design spec, CSS tokens, HTML structure, dan agent prompt untuk mereplikasi tabel Companies & Contacts dari Lead Tracker prototype. Berikan file ini ke agent IDE Anda untuk implementasi yang konsisten.</div>
+
+  <!-- ── DESIGN TOKENS ── -->
+  <div class="section">
+    <div class="section-label">01 — Design Tokens</div>
+    <div class="section-desc">Paste token-token berikut ke dalam CSS variables global project Anda (`:root` atau theme file).</div>
+    <div class="token-grid">
+      <div class="token-card"><div class="token-name">--tbl-bg</div><div class="token-val">#FAFAFA</div><div class="token-use">Header & footer background</div><div class="swatch" style="background:#FAFAFA;border:1px solid #E5E7EB"></div></div>
+      <div class="token-card"><div class="token-name">--tbl-row-hover</div><div class="token-val">#F0F9FF</div><div class="token-use">Row hover (matches accent)</div><div class="swatch" style="background:#F0F9FF"></div></div>
+      <div class="token-card"><div class="token-name">--tbl-border</div><div class="token-val">#E5E7EB</div><div class="token-use">Header border, card border</div><div class="swatch" style="background:#E5E7EB"></div></div>
+      <div class="token-card"><div class="token-name">--tbl-border-light</div><div class="token-val">#F3F4F6</div><div class="token-use">Row separator</div><div class="swatch" style="background:#F3F4F6;border:1px solid #E5E7EB"></div></div>
+      <div class="token-card"><div class="token-name">--tbl-th-size</div><div class="token-val">11px / 700</div><div class="token-use">Header: size + weight</div></div>
+      <div class="token-card"><div class="token-name">--tbl-td-size</div><div class="token-val">13px / 400</div><div class="token-use">Cell: size + weight</div></div>
+      <div class="token-card"><div class="token-name">--tbl-cell-pad</div><div class="token-val">10px 16px</div><div class="token-use">th & td padding</div></div>
+      <div class="token-card"><div class="token-name">--tbl-radius</div><div class="token-val">12px</div><div class="token-use">Outer container radius</div></div>
+    </div>
+
+    <div class="code-wrap">
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+      <pre><span class="cm">/* Paste ke :root atau theme file Anda */</span>
+<span class="prop">:root</span> {
+  <span class="attr">--color-bg</span>:          <span class="str">#F3F4F6</span>;
+  <span class="attr">--color-white</span>:       <span class="str">#FFFFFF</span>;
+  <span class="attr">--color-border</span>:      <span class="str">#E5E7EB</span>;
+  <span class="attr">--color-border-light</span>:<span class="str">#F3F4F6</span>;
+  <span class="attr">--color-text-primary</span>:<span class="str">#111827</span>;
+  <span class="attr">--color-text-muted</span>:  <span class="str">#6B7280</span>;
+  <span class="attr">--color-text-faint</span>:  <span class="str">#9CA3AF</span>;
+  <span class="attr">--color-accent</span>:      <span class="str">#0EA5E9</span>;  <span class="cm">/* ganti sesuai brand */</span>
+  <span class="attr">--color-accent-bg</span>:   <span class="str">#E0F2FE</span>;
+  <span class="attr">--font-main</span>:        <span class="str">'Plus Jakarta Sans', sans-serif</span>;
+  <span class="attr">--font-mono</span>:        <span class="str">'JetBrains Mono', monospace</span>;
+}</pre>
+    </div>
+  </div>
+
+  <!-- ── LIVE PREVIEW ── -->
+  <div class="section">
+    <div class="section-label">02 — Live Preview</div>
+    <div class="section-desc">Tampilan aktual komponen tabel. Coba hover pada row dan klik header kolom.</div>
+    <div class="preview-wrap">
+      <div class="preview-label">Companies Table · Preview</div>
+      <div class="tbl-toolbar">
+        <div class="tbl-search">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 19a8 8 0 100-16 8 8 0 000 16zM21 21l-4.35-4.35"/></svg>
+          <input placeholder="Search companies…">
+        </div>
+        <div class="tbl-spacer"></div>
+        <button class="tbl-btn">⊞ Columns</button>
+        <button class="tbl-btn">↓ Export</button>
+        <button class="tbl-btn tbl-btn-primary">+ Add Company</button>
+      </div>
+      <div class="tbl-scroll">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th class="col-no">NO.</th>
+              <th class="sorted">Owner ↕</th>
+              <th>Company Name ↕</th>
+              <th>Sector ↕</th>
+              <th>Line Industry</th>
+              <th>Phone</th>
+              <th class="col-action"></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="col-no">1</td>
+              <td><div class="owner-cell"><div class="av" style="width:26px;height:26px;background:#6366F1;font-size:10px">HS</div><span class="owner-name">Hanung Sastria</span></div></td>
+              <td><div class="name-cell"><div class="av" style="width:26px;height:26px;background:#6366F1;font-size:10px">9D</div><span class="name-text">9 DOTS CONSULTING</span></div></td>
+              <td><span class="badge badge-priv">Private</span></td>
+              <td class="muted">Consultant</td>
+              <td class="muted">—</td>
+              <td class="col-action"><button class="icon-btn">···</button></td>
+            </tr>
+            <tr>
+              <td class="col-no">2</td>
+              <td><div class="owner-cell"><div class="av" style="width:26px;height:26px;background:#6366F1;font-size:10px">HS</div><span class="owner-name">Hanung Sastria</span></div></td>
+              <td><div class="name-cell"><div class="av" style="width:26px;height:26px;background:#8B5CF6;font-size:10px">AF</div><span class="name-text">ACCESS PARTNERSHIP</span></div></td>
+              <td><span class="badge badge-priv">Private</span></td>
+              <td class="muted">Consultant</td>
+              <td class="muted">—</td>
+              <td class="col-action"><button class="icon-btn">···</button></td>
+            </tr>
+            <tr>
+              <td class="col-no">3</td>
+              <td><div class="owner-cell"><div class="av" style="width:26px;height:26px;background:#EC4899;font-size:10px">KD</div><span class="owner-name">Kensrie Diah</span></div></td>
+              <td><div class="name-cell"><div class="av" style="width:26px;height:26px;background:#10B981;font-size:10px">AC</div><span class="name-text">ASEAN CENTRE FOR ENERGY</span></div></td>
+              <td><span class="badge badge-pub">Public</span></td>
+              <td class="muted">IGO</td>
+              <td class="muted">—</td>
+              <td class="col-action"><button class="icon-btn">···</button></td>
+            </tr>
+            <tr>
+              <td class="col-no">4</td>
+              <td><div class="owner-cell"><div class="av" style="width:26px;height:26px;background:#6366F1;font-size:10px">HS</div><span class="owner-name">Hanung Sastria</span></div></td>
+              <td><div class="name-cell"><div class="av" style="width:26px;height:26px;background:#F59E0B;font-size:10px">AD</div><span class="name-text">ASTRA DAIHATSU MOTOR</span></div></td>
+              <td><span class="badge badge-priv">Private</span></td>
+              <td class="muted">Automotive</td>
+              <td class="muted">—</td>
+              <td class="col-action"><button class="icon-btn">···</button></td>
+            </tr>
+            <tr>
+              <td class="col-no">5</td>
+              <td><div class="owner-cell"><div class="av" style="width:26px;height:26px;background:#6366F1;font-size:10px">HS</div><span class="owner-name">Hanung Sastria</span></div></td>
+              <td><div class="name-cell"><div class="av" style="width:26px;height:26px;background:#8B5CF6;font-size:10px">AF</div><span class="name-text">ASEAN FOUNDATION</span></div></td>
+              <td><span class="badge badge-pub">Public</span></td>
+              <td class="muted">IGO</td>
+              <td class="muted">—</td>
+              <td class="col-action"><button class="icon-btn">···</button></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="tbl-footer">
+        <span>Showing <strong>1–5</strong> of <strong>90</strong> entries</span>
+        <div class="pg-controls">
+          <span>Rows per page:</span>
+          <select class="pg-select"><option>20</option><option>50</option><option>100</option></select>
+          <button class="pg-btn" disabled>← Previous</button>
+          <button class="pg-btn">Next →</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── CSS ── -->
+  <div class="section">
+    <div class="section-label">03 — CSS Lengkap</div>
+    <div class="section-desc">Copy CSS ini ke stylesheet Anda. Semua class-name berprefiks <code style="font-family:monospace;background:#F3F4F6;padding:1px 5px;border-radius:4px">.tbl-</code> agar tidak konflik.</div>
+    <div class="code-wrap">
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+      <pre><span class="cm">/* ── TABLE COMPONENT STYLES ─────────────────────────── */</span>
+
+<span class="cm">/* Wrapper card */</span>
+<span class="prop">.tbl-card</span> {
+  background: <span class="str">#fff</span>;
+  border: <span class="str">1px solid var(--color-border)</span>;
+  border-radius: <span class="str">12px</span>;
+  overflow: <span class="str">hidden</span>;
+  box-shadow: <span class="str">0 1px 3px rgba(0,0,0,.06)</span>;
+}
+
+<span class="cm">/* Toolbar */</span>
+<span class="prop">.tbl-toolbar</span> {
+  padding: <span class="str">12px 16px</span>;
+  display: <span class="str">flex</span>;
+  align-items: <span class="str">center</span>;
+  gap: <span class="str">9px</span>;
+  border-bottom: <span class="str">1px solid var(--color-border)</span>;
+}
+<span class="prop">.tbl-search</span> {
+  display: <span class="str">flex</span>;
+  align-items: <span class="str">center</span>;
+  gap: <span class="str">7px</span>;
+  background: <span class="str">var(--color-bg)</span>;
+  border: <span class="str">1.5px solid var(--color-border)</span>;
+  border-radius: <span class="str">8px</span>;
+  padding: <span class="str">6px 12px</span>;
+  min-width: <span class="str">200px</span>;
+}
+<span class="prop">.tbl-search input</span> {
+  background: <span class="str">none</span>;
+  border: <span class="str">none</span>;
+  outline: <span class="str">none</span>;
+  font-size: <span class="str">13px</span>;
+  color: <span class="str">var(--color-text-primary)</span>;
+  font-family: <span class="str">inherit</span>;
+  width: <span class="str">100%</span>;
+}
+<span class="prop">.tbl-search input::placeholder</span> { color: <span class="str">var(--color-text-faint)</span>; }
+
+<span class="cm">/* Scroll container (optional max-height) */</span>
+<span class="prop">.tbl-scroll</span> { overflow: <span class="str">auto</span>; }
+
+<span class="cm">/* Table */</span>
+<span class="prop">table.data-table</span> { width: <span class="str">100%</span>; border-collapse: <span class="str">collapse</span>; }
+<span class="prop">table.data-table thead</span> { position: <span class="str">sticky</span>; top: <span class="str">0</span>; z-index: <span class="str">1</span>; }
+
+<span class="cm">/* Header cells */</span>
+<span class="prop">table.data-table th</span> {
+  padding: <span class="str">10px 16px</span>;
+  font-size: <span class="str">11px</span>;
+  font-weight: <span class="str">700</span>;
+  color: <span class="str">var(--color-text-muted)</span>;
+  text-align: <span class="str">left</span>;
+  background: <span class="str">#FAFAFA</span>;
+  border-bottom: <span class="str">1.5px solid var(--color-border)</span>;
+  white-space: <span class="str">nowrap</span>;
+  cursor: <span class="str">pointer</span>;
+  letter-spacing: <span class="str">.05em</span>;
+  text-transform: <span class="str">uppercase</span>;
+  user-select: <span class="str">none</span>;
+  transition: <span class="str">background .1s</span>;
+}
+<span class="prop">table.data-table th:hover</span> {
+  background: <span class="str">#F3F4F6</span>;
+  color: <span class="str">var(--color-text-primary)</span>;
+}
+<span class="prop">table.data-table th.sorted</span> { color: <span class="str">var(--color-accent)</span>; }
+
+<span class="cm">/* Data cells */</span>
+<span class="prop">table.data-table td</span> {
+  padding: <span class="str">10px 16px</span>;
+  font-size: <span class="str">13px</span>;
+  color: <span class="str">var(--color-text-primary)</span>;
+  border-bottom: <span class="str">1px solid #F3F4F6</span>;
+  transition: <span class="str">background .1s</span>;
+}
+<span class="prop">table.data-table tr:last-child td</span> { border-bottom: <span class="str">none</span>; }
+<span class="prop">table.data-table tr:hover td</span> { background: <span class="str">#F0F9FF</span>; } <span class="cm">/* match accent tint */</span>
+
+<span class="cm">/* Avatar chip */</span>
+<span class="prop">.tbl-av</span> {
+  display: <span class="str">inline-flex</span>;
+  align-items: <span class="str">center</span>;
+  justify-content: <span class="str">center</span>;
+  width: <span class="str">26px</span>; height: <span class="str">26px</span>;
+  border-radius: <span class="str">50%</span>;
+  font-size: <span class="str">10px</span>;
+  font-weight: <span class="str">800</span>;
+  color: <span class="str">#fff</span>;
+  flex-shrink: <span class="str">0</span>;
+}
+
+<span class="cm">/* Sector badges */</span>
+<span class="prop">.tbl-badge</span> {
+  display: <span class="str">inline-flex</span>;
+  align-items: <span class="str">center</span>;
+  padding: <span class="str">2px 8px</span>;
+  border-radius: <span class="str">6px</span>;
+  font-size: <span class="str">11.5px</span>;
+  font-weight: <span class="str">600</span>;
+}
+<span class="prop">.tbl-badge--pub</span>  { background: <span class="str">var(--color-accent-bg)</span>; color: <span class="str">var(--color-accent)</span>; }
+<span class="prop">.tbl-badge--priv</span> { background: <span class="str">#F3F4F6</span>; color: <span class="str">#374151</span>; }
+
+<span class="cm">/* Footer */</span>
+<span class="prop">.tbl-footer</span> {
+  padding: <span class="str">11px 16px</span>;
+  display: <span class="str">flex</span>;
+  align-items: <span class="str">center</span>;
+  justify-content: <span class="str">space-between</span>;
+  font-size: <span class="str">12.5px</span>;
+  color: <span class="str">var(--color-text-muted)</span>;
+  border-top: <span class="str">1px solid var(--color-border)</span>;
+  background: <span class="str">#FAFAFA</span>;
+}
+<span class="prop">.tbl-pg-btn</span> {
+  padding: <span class="str">5px 12px</span>;
+  border-radius: <span class="str">6px</span>;
+  font-size: <span class="str">12px</span>;
+  font-weight: <span class="str">600</span>;
+  border: <span class="str">1.5px solid var(--color-border)</span>;
+  background: <span class="str">#fff</span>;
+  cursor: <span class="str">pointer</span>;
+}
+<span class="prop">.tbl-pg-btn:hover:not(:disabled)</span> { background: <span class="str">var(--color-bg)</span>; }
+<span class="prop">.tbl-pg-btn:disabled</span> { opacity: <span class="str">.4</span>; cursor: <span class="str">not-allowed</span>; }</pre>
+    </div>
+  </div>
+
+  <!-- ── ANATOMY ── -->
+  <div class="section">
+    <div class="section-label">04 — Anatomy & Specs</div>
+    <table class="spec-table">
+      <thead>
+        <tr><th>Element</th><th>Property</th><th>Value</th><th>Notes</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><strong>Outer container</strong></td><td>border-radius</td><td><code>12px</code></td><td>Konsisten dengan card lain</td></tr>
+        <tr><td><strong>Toolbar</strong></td><td>padding</td><td><code>12px 16px</code></td><td>Gap antar item: <code>9px</code></td></tr>
+        <tr><td><strong>Search input</strong></td><td>border</td><td><code>1.5px solid #E5E7EB</code></td><td>Border lebih tebal dari standard 1px</td></tr>
+        <tr><td><strong>TH (header)</strong></td><td>font-size</td><td><code>11px / 700 / uppercase</code></td><td>letter-spacing: <code>.05em</code></td></tr>
+        <tr><td><strong>TH padding</strong></td><td>padding</td><td><code>10px 16px</code></td><td>Sama dengan TD</td></tr>
+        <tr><td><strong>TH border</strong></td><td>border-bottom</td><td><code>1.5px</code> (lebih tebal)</td><td>Memisahkan header dari data</td></tr>
+        <tr><td><strong>TD (cell)</strong></td><td>font-size</td><td><code>13px / 400</code></td><td>font-weight 600-700 untuk nama</td></tr>
+        <tr><td><strong>Row separator</strong></td><td>border-bottom</td><td><code>1px solid #F3F4F6</code></td><td>Sangat subtle, bukan <code>#E5E7EB</code></td></tr>
+        <tr><td><strong>Row hover</strong></td><td>background</td><td><code>#F0F9FF</code></td><td>Tint dari accent color (sky blue)</td></tr>
+        <tr><td><strong>Avatar chip</strong></td><td>size</td><td><code>26×26px</code>, radius <code>50%</code></td><td>font-size: <code>10px</code>, font-weight: <code>800</code></td></tr>
+        <tr><td><strong>Sector badge</strong></td><td>padding</td><td><code>2px 8px</code>, radius <code>6px</code></td><td>Bukan <code>20px</code> (pill) — pakai <code>6px</code></td></tr>
+        <tr><td><strong>Footer</strong></td><td>font-size</td><td><code>12.5px</code></td><td>background <code>#FAFAFA</code> (match header)</td></tr>
+        <tr><td><strong>Pagination btn</strong></td><td>border</td><td><code>1.5px solid #E5E7EB</code></td><td>border-radius: <code>6px</code></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ── AGENT PROMPT ── -->
+  <div class="section">
+    <div class="section-label">05 — Agent Prompt (Copy & Paste ke IDE)</div>
+    <div class="section-desc">Prompt siap pakai untuk Claude, Cursor, Copilot, atau agent IDE lainnya. Ganti bagian dalam <code style="font-family:monospace;background:#F3F4F6;padding:1px 5px;border-radius:4px">[...]</code> sesuai kebutuhan.</div>
+
+    <div class="code-wrap">
+      <button class="copy-btn" onclick="copyCode(this)">Copy Prompt</button>
+      <pre class="prompt-text"><span class="prompt-highlight">Buat komponen data table dengan spec berikut:</span>
+
+<span class="prompt-highlight">STACK:</span> <span class="prompt-var">[React / Vue / HTML+CSS — pilih salah satu]</span>
+
+<span class="prompt-highlight">DESAIN (wajib diikuti persis):</span>
+- Font: Plus Jakarta Sans (Google Fonts), fallback sans-serif
+- Outer container: border-radius 12px, border 1px solid #E5E7EB, overflow hidden
+- Toolbar: padding 12px 16px, flex row, gap 9px, border-bottom 1px #E5E7EB
+  - Search input: bg #F3F4F6, border 1.5px solid #E5E7EB, border-radius 8px,
+    padding 6px 12px, icon di kiri, placeholder warna #9CA3AF
+  - Action buttons di kanan (Columns, Export, Import, Add):
+    border 1.5px solid #E5E7EB, border-radius 8px, font-size 12.5px, font-weight 600
+  - Primary button (Add): bg #0EA5E9, text white, hover bg #0284C7
+
+- Header (TH):
+  - font-size 11px, font-weight 700, text-transform uppercase, letter-spacing .05em
+  - color #6B7280, background #FAFAFA
+  - border-bottom 1.5px solid #E5E7EB (lebih tebal dari row separator)
+  - padding 10px 16px, cursor pointer, user-select none
+  - hover: background #F3F4F6, color #111827
+  - sorted state: color #0EA5E9
+
+- Data cells (TD):
+  - font-size 13px, padding 10px 16px, color #111827
+  - border-bottom 1px solid #F3F4F6 (BUKAN #E5E7EB — harus lebih subtle)
+  - last row: border-bottom none
+
+- Row hover: background #F0F9FF (semua TD di row itu)
+- Transition pada background: .1s ease
+
+- Avatar chip: 26x26px, border-radius 50%, font-size 10px, font-weight 800,
+  warna bg per user (buat mapping warna dari nama/initial), text white
+
+- Sector/type badge:
+  - Public: bg #E0F2FE, color #0EA5E9
+  - Private: bg #F3F4F6, color #374151
+  - padding 2px 8px, border-radius 6px (BUKAN pill), font-size 11.5px, font-weight 600
+
+- Email: warna accent #0EA5E9, font-size 12px
+- Phone: font-variant-numeric tabular-nums, font-size 12.5px
+- Muted/empty cells: warna #9CA3AF, tampilkan "—"
+
+- Footer:
+  - padding 11px 16px, flex space-between, font-size 12.5px, color #6B7280
+  - border-top 1px solid #E5E7EB, background #FAFAFA
+  - Kiri: "Showing X–Y of Z entries" (X-Y dan Z dalam tag strong, color #111827)
+  - Kanan: "Rows per page" select + Previous/Next buttons
+  - Pagination buttons: border 1.5px solid #E5E7EB, border-radius 6px,
+    font-size 12px, font-weight 600, disabled state: opacity .4
+
+<span class="prompt-highlight">KOLOM untuk Companies table:</span>
+NO. | Owner (avatar+nama) | Company Name (avatar+nama bold) | Sector (badge) | Line Industry | Phone | ··· (action menu)
+
+<span class="prompt-highlight">KOLOM untuk Contacts table:</span>
+NO. | Owner (avatar+nama) | Contact Name (avatar+nama bold) | Company | Job Title | Email (accent color) | Phone (monospace) | ··· (action menu)
+
+<span class="prompt-highlight">BEHAVIOR:</span>
+- Search: filter real-time dari sisi client
+- Sort: klik TH toggle asc/desc, tampilkan ↕ di header
+- Pagination: client-side, 20 rows default
+- Row click: emit event / callback ke parent
+- Action button (···): dropdown menu (Edit, Delete)
+
+<span class="prompt-highlight">DATA:</span> <span class="prompt-var">[Ganti dengan struktur data Anda, atau terima sebagai props/API]</span>
+
+<span class="prompt-highlight">JANGAN:</span>
+- Jangan gunakan library tabel pihak ketiga (DataTables, AG Grid, etc.)
+- Jangan tambahkan shadow pada individual rows
+- Jangan gunakan border-radius pada TH/TD
+- Jangan hard-code warna — gunakan CSS variables</pre>
+    </div>
+  </div>
+
+  <!-- ── QUICK REF ── -->
+  <div class="section">
+    <div class="section-label">06 — Quick Reference Card</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+      <div style="background:#fff;border:1px solid var(--border);border-radius:10px;padding:18px">
+        <div style="font-size:13px;font-weight:700;margin-bottom:12px;color:var(--t1)">✅ Do</div>
+        <ul style="font-size:12.5px;color:var(--t2);line-height:2;list-style:none">
+          <li>✓ Row separator <code style="font-size:11px;background:#F3F4F6;padding:1px 4px;border-radius:3px">#F3F4F6</code> (sangat subtle)</li>
+          <li>✓ Header border <code style="font-size:11px;background:#F3F4F6;padding:1px 4px;border-radius:3px">1.5px</code> (lebih tebal)</li>
+          <li>✓ Hover tint dari accent color</li>
+          <li>✓ Avatar warna unik per user</li>
+          <li>✓ Phone number = tabular-nums</li>
+          <li>✓ Sticky header saat scroll</li>
+          <li>✓ Footer background match header</li>
+          <li>✓ TH uppercase + letter-spacing</li>
+        </ul>
+      </div>
+      <div style="background:#fff;border:1px solid var(--border);border-radius:10px;padding:18px">
+        <div style="font-size:13px;font-weight:700;margin-bottom:12px;color:var(--t1)">❌ Don't</div>
+        <ul style="font-size:12.5px;color:var(--t2);line-height:2;list-style:none">
+          <li>✗ Jangan tampilkan nomor HP sebagai scientific notation</li>
+          <li>✗ Jangan pakai border pada semua sisi TD</li>
+          <li>✗ Jangan alternating row colors (zebra stripe)</li>
+          <li>✗ Jangan shadow per row</li>
+          <li>✗ Jangan hardcode warna avatar</li>
+          <li>✗ Jangan pill (radius 20px) untuk sector badge</li>
+          <li>✗ Jangan font-size < 11px di mana pun</li>
+          <li>✗ Jangan semua kolom lebar sama</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+function copyCode(btn) {
+  const pre = btn.parentElement.querySelector('pre');
+  navigator.clipboard.writeText(pre.innerText).then(() => {
+    btn.textContent = 'Copied!';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 2000);
+  });
+}
+</script>
+</body>
+</html>

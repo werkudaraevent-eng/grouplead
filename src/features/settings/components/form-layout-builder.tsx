@@ -55,14 +55,14 @@ export type LayoutItemsMap = Record<string, string[]>
 
 export const DEFAULT_LAYOUTS: Record<string, LayoutItemsMap> = {
     leads: {
-        project: ["native:project_name", "native:pipeline_stage_id", "native:category", "native:grade_lead", "native:client_company_id", "native:contact_id", "native:pic_sales_id", "native:lead_source", "native:referral_source", "native:target_close_date"],
+        project: ["native:project_name", "native:pipeline_stage_id", "native:category", "native:grade_lead", "native:client_company_id", "native:account_status", "native:contact_id", "native:pic_sales_id", "native:lead_source", "native:referral_source", "native:target_close_date"],
         event: ["native:event_dates", "native:month_event", "native:pax_count", "native:event_format", "native:destinations", "native:virtual_platform"],
         classification: ["native:main_stream", "native:stream_type", "native:business_purpose", "native:area"],
         financial: ["native:estimated_value"],
         hidden: ["native:lost_reason", "native:lost_reason_details"]
     },
     companies: {
-        identity: ["native:name", "native:parent_id", "native:sector", "native:line_industry", "native:owner_id"],
+        identity: ["native:name", "native:parent_id", "native:sector", "native:line_industry", "native:account_status", "native:owner_id"],
         contact: ["native:street_address", "native:city", "native:postal_code", "native:country", "native:phone", "native:website"],
         hidden: []
     },

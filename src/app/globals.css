@@ -248,3 +248,9 @@
 .tiptap-readonly p { margin: 0.25em 0; }
 .tiptap-readonly a { color: #2563eb; text-decoration: underline; cursor: pointer; }
 .tiptap-readonly a:hover { color: #1d4ed8; }
+
+/* Prevent sidebar flash: apply dark bg before React hydrates */
+html.sidebar-dark-mode aside[data-sidebar] {
+  background-color: #1a1f2e !important;
+  border-color: #2a3040 !important;
+}

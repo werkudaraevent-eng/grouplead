@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Loader2, Save, UserCircle, KeyRound, Shield, Mail } from "lucide-react"
+import { SettingsPageHeader } from "@/components/layout/settings-page-header"
 
 /* ─── Schemas ────────────────────────────────────────────────────────────── */
 const profileSchema = z.object({
@@ -121,16 +122,14 @@ export default function MyProfilePage() {
     }
 
     return (
-        <div className="p-6 lg:p-8 max-w-2xl space-y-6">
-            <div>
-                <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-                    <UserCircle className="h-6 w-6 text-primary" /> My Profile
-                </h1>
-                <p className="text-sm text-muted-foreground mt-1">
-                    Manage your personal information and security settings.
-                </p>
-            </div>
+        <div className="max-w-2xl space-y-6">
+            <SettingsPageHeader
+                title="Profile Settings"
+                subtitle="Manage your personal information and security settings."
+                breadcrumbs={[{ label: "Profile" }]}
+            />
 
+            <div className="px-6 lg:px-8 pb-6 max-w-2xl space-y-6">
             {/* ─── Read-only System Info ─────────────────────────────────── */}
             <Card>
                 <CardHeader>
@@ -229,6 +228,7 @@ export default function MyProfilePage() {
                     </Form>
                 </CardContent>
             </Card>
+            </div>
         </div>
     )
 }

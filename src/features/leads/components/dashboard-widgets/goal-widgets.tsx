@@ -6,7 +6,8 @@ import { useGoalData } from "@/features/goals/hooks/use-goal-data"
 import { useCompany } from "@/contexts/company-context"
 import { useCurrency } from "@/contexts/currency-context"
 import { calculateAttainmentV2 } from "@/features/goals/lib/attainment-calculator"
-import { SectionCard, SectionTitle, SectionSub, EmptyState } from "./shared"
+import { SectionCard, SectionTitle, SectionSub } from "./shared"
+import { EmptyState } from "@/components/shared/empty-state"
 import { TrendingUp, Target, ArrowDown, ArrowUp, Building2, PieChart as PieChartIcon, BarChart3 } from "lucide-react"
 import { useHasMounted } from "@/hooks/use-has-mounted"
 import {
@@ -33,18 +34,19 @@ import type { GoalV2, LeadAttainmentInput } from "@/types/goals"
 function NoGoalData({ message }: { message?: string }) {
   return (
     <EmptyState
-      message={message || "No active goal configured"}
-      cta="Configure Goals"
-      href="/settings"
+      icon={Target}
+      title={message || "No active goal configured"}
+      description="Set up goals in settings to track progress"
+      size="sm"
     />
   )
 }
 
 function LoadingDot() {
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "12px 0" }}>
-      <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#cbd5e1" }} />
-      <span style={{ fontSize: 11, color: "#94a3b8" }}>Loading…</span>
+    <div className="flex items-center gap-1.5 py-3">
+      <div className="w-1.5 h-1.5 rounded-full bg-slate-300" />
+      <span className="text-[11px] text-muted-foreground">Loading…</span>
     </div>
   )
 }

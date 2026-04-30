@@ -1,8 +1,8 @@
 "use client"
 
-import { useState, useEffect } from "react"
 import { Badge } from "./shared"
 import { InfoIcon } from "@/components/ui/tooltip"
+import { cn } from "@/lib/utils"
 
 export interface SingleKPIProps {
     label: string
@@ -17,68 +17,54 @@ export interface SingleKPIProps {
 }
 
 export function SingleKPIWidget({ label, value, prefix = "", suffix = "", vsTarget, vsPrev, accent, icon: Icon, tooltip }: SingleKPIProps) {
-    const [vis, setVis] = useState(false)
-    const [hov, setHov] = useState(false)
-    useEffect(() => { const t = setTimeout(() => setVis(true), 80); return () => clearTimeout(t) }, [])
-
     return (
         <div
-            onMouseEnter={() => setHov(true)}
-            onMouseLeave={() => setHov(false)}
+            className={cn(
+                "group bg-card rounded-xl border shadow-[0_1px_2px_rgba(0,0,0,.03)]",
+                "px-3.5 pt-2.5 pb-2 flex flex-col gap-1 min-w-0",
+                "relative overflow-visible cursor-default h-full box-border",
+                "transition-all duration-200 ease-out",
+                "hover:-translate-y-0.5 hover:shadow-md",
+                "animate-in fade-in slide-in-from-bottom-2 duration-300 fill-mode-both",
+            )}
             style={{
-                background: "#fff", borderRadius: 12,
-                padding: "10px 14px 8px",
-                border: `1px solid ${hov ? accent + "35" : "#e8ecf1"}`,
-                opacity: vis ? 1 : 0,
-                transform: vis ? (hov ? "translateY(-2px)" : "translateY(0)") : "translateY(8px)",
-                transition: "all .25s ease",
-                display: "flex", flexDirection: "column" as const, gap: 4, minWidth: 0,
-                position: "relative" as const, overflow: "visible", cursor: "default",
-                height: "100%", boxSizing: "border-box" as const,
-                boxShadow: hov
-                    ? `0 6px 20px ${accent}10, 0 1px 4px rgba(0,0,0,.04)`
-                    : "0 1px 2px rgba(0,0,0,.03)",
+                // accent-colored hover border needs dynamic color
+                borderColor: undefined,
             }}
+            onMouseEnter={(e) => e.currentTarget.style.borderColor = accent + "35"}
+            onMouseLeave={(e) => e.currentTarget.style.borderColor = ""}
         >
             {/* Accent top bar */}
-            <div style={{
-                position: "absolute", top: 0, left: 0, right: 0, height: 2.5,
-                background: `linear-gradient(90deg, ${accent}, ${accent}66)`,
-                borderRadius: "10px 10px 0 0",
-                opacity: hov ? 1 : 0.5, transition: "opacity .2s",
-            }} />
+            <div
+                className="absolute top-0 left-0 right-0 h-[2.5px] rounded-t-[10px] opacity-50 group-hover:opacity-100 transition-opacity duration-200"
+                style={{ background: `linear-gradient(90deg, ${accent}, ${accent}66)` }}
+            />
 
             {/* Label + icon */}
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                    <span style={{ fontSize: 10.5, fontWeight: 600, color: "#94a3b8", letterSpacing: ".15px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{label}</span>
+            <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1">
+                    <span className="text-[10.5px] font-semibold text-muted-foreground tracking-wide truncate">{label}</span>
                     {tooltip && <InfoIcon tooltip={tooltip} position="top" />}
                 </div>
-                <span style={{
-                    width: 22, height: 22, borderRadius: 6,
-                    background: accent + "0c",
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    color: accent, flexShrink: 0,
-                }}>
-                    <Icon style={{ width: 12, height: 12 }} strokeWidth={2.5} />
+                <span
+                    className="w-[22px] h-[22px] rounded-md flex items-center justify-center shrink-0"
+                    style={{ background: accent + "0c", color: accent }}
+                >
+                    <Icon className="w-3 h-3" strokeWidth={2.5} />
                 </span>
             </div>
 
             {/* Value */}
-            <div style={{
-                fontSize: 22, fontWeight: 800, color: "#0f172a",
-                letterSpacing: "-0.5px", lineHeight: 1,
-                whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
-            }}>
+            <div className="text-[22px] font-extrabold text-foreground tracking-tight leading-none truncate">
                 {prefix}{value}{suffix}
             </div>
 
             {/* Badges */}
-            <div style={{ display: "flex", gap: 3, flexWrap: "wrap" as const, marginTop: 2, minHeight: 20 }}>
+            <div className="flex gap-0.5 flex-wrap mt-0.5 min-h-[20px]">
                 {vsTarget !== null && <Badge value={vsTarget} label="target" />}
                 {vsPrev !== null && <Badge value={vsPrev} label="YoY" />}
                 {vsTarget === null && vsPrev === null && (
-                    <span style={{ fontSize: 9, color: "#cbd5e1", fontStyle: "italic" }}>
+                    <span className="text-[9px] text-slate-300 italic">
                         No comparison data
                     </span>
                 )}

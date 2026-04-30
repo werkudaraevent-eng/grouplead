@@ -1,6 +1,6 @@
 "use client"
 
-import { CSSProperties } from "react"
+import { cn } from "@/lib/utils"
 
 // ─── DESIGN TOKENS ──────────────────────────────────────────────────────────
 export const ACCENT = {
@@ -22,17 +22,6 @@ export const MONTHS_SHORT = [
 ]
 
 // ─── FORMATTERS ─────────────────────────────────────────────────────────────
-/**
- * @deprecated Use `useCurrency()` hook from `@/contexts/currency-context` instead.
- * Kept as a fallback for non-hook contexts (e.g. server utilities).
- */
-export function formatCur(amount: number): string {
-    if (amount >= 1_000_000_000) return `Rp ${(amount / 1_000_000_000).toFixed(1)}B`
-    if (amount >= 1_000_000) return `Rp ${(amount / 1_000_000).toFixed(0)}M`
-    if (amount >= 1_000) return `Rp ${(amount / 1_000).toFixed(0)}K`
-    return `Rp ${amount.toLocaleString()}`
-}
-
 export function formatPct(value: number) {
     return `${value.toFixed(1)}%`
 }
@@ -48,44 +37,31 @@ export function getVsLastYearPct(current: number, previous: number) {
 }
 
 // ─── SHARED COMPONENTS ──────────────────────────────────────────────────────
-export function SectionCard({ children, style }: { children: React.ReactNode; style?: CSSProperties }) {
+export function SectionCard({ children, className }: { children: React.ReactNode; className?: string }) {
     return (
-        <div
-            className="thin-scrollbar"
-            style={{
-                background: "#fff", borderRadius: 12, padding: "16px 18px 14px",
-                border: "1px solid #e8ecf1", boxShadow: "0 1px 3px rgba(0,0,0,.04), 0 1px 2px rgba(0,0,0,.02)",
-                height: "100%", display: "flex", flexDirection: "column",
-                overflowY: "auto", overflowX: "hidden",
-                ...style,
-            }}
-        >
+        <div className={cn(
+            "bg-card rounded-xl border shadow-[0_1px_3px_rgba(0,0,0,.04),0_1px_2px_rgba(0,0,0,.02)]",
+            "px-[18px] pt-4 pb-3.5 h-full flex flex-col",
+            "overflow-y-auto overflow-x-hidden thin-scrollbar",
+            "animate-in fade-in duration-300 fill-mode-both",
+            className,
+        )}>
             {children}
         </div>
     )
 }
 
 export function SectionTitle({ children }: { children: React.ReactNode }) {
-    return <div style={{ fontSize: 13, fontWeight: 700, color: "#0f172a", marginBottom: 2, letterSpacing: "-0.2px" }}>{children}</div>
+    return <div className="text-[13px] font-bold text-foreground tracking-tight mb-0.5">{children}</div>
 }
 
 export function SectionSub({ children }: { children: React.ReactNode }) {
-    return <div style={{ fontSize: 11, color: "#94a3b8", marginBottom: 12 }}>{children}</div>
+    return <div className="text-[11px] text-muted-foreground mb-3">{children}</div>
 }
 
 export function InsightCallout({ icon, text }: { icon: string; text: string }) {
     return (
-        <div style={{
-            marginTop: 10, paddingTop: 8, borderLeft: "2px solid #e0e7ff",
-            paddingLeft: 10, fontSize: 10.5, color: "#64748b",
-            lineHeight: 1.5,
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            display: "-webkit-box",
-            WebkitLineClamp: 2,
-            WebkitBoxOrient: "vertical" as const,
-            flexShrink: 0,
-        }}>
+        <div className="mt-2.5 pt-2 border-l-2 border-primary/20 pl-2.5 text-[10.5px] text-muted-foreground leading-relaxed line-clamp-2 shrink-0">
             {icon} {text}
         </div>
     )
@@ -93,31 +69,29 @@ export function InsightCallout({ icon, text }: { icon: string; text: string }) {
 
 export function DarkTooltip({ active, payload, label, fmt }: any) {
     if (!active || !payload) return null
-    const _fmt = fmt ?? formatCur
+    const _fmt = fmt ?? ((v: number) => v.toLocaleString())
     const dataPoint = payload[0]?.payload
     const vsLastYear = dataPoint?.vsLastYear ?? null
     return (
-        <div style={{
-            ...TOOLTIP_STYLE,
-        }}>
-            <div style={{ fontWeight: 700, marginBottom: 1 }}>{label}</div>
+        <div className="bg-slate-900 text-white px-3 py-2 rounded-lg text-[11px] leading-relaxed shadow-[0_4px_16px_rgba(0,0,0,.25)] max-w-[260px]">
+            <div className="font-bold mb-px">{label}</div>
             {payload.map((p: any, i: number) => (
-                <div key={i} style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                    <div style={{ width: 6, height: 6, borderRadius: 2, background: p.color, flexShrink: 0 }} />
+                <div key={i} className="flex gap-1.5 items-center">
+                    <div className="w-1.5 h-1.5 rounded-sm shrink-0" style={{ background: p.color }} />
                     <span>{p.name}: {typeof p.value === 'number' && p.name !== 'Count' ? _fmt(p.value) : p.value}</span>
                 </div>
             ))}
             {payload[0]?.payload?.overUnder !== undefined && payload[0].payload.actual > 0 && (
-                <div style={{ marginTop: 2, opacity: 0.7 }}>
-                    vs Target: <span style={{ color: payload[0].payload.overUnder >= 0 ? "#6ee7b7" : "#fca5a5" }}>
+                <div className="mt-0.5 opacity-70">
+                    vs Target: <span className={payload[0].payload.overUnder >= 0 ? "text-emerald-300" : "text-red-300"}>
                         {payload[0].payload.overUnder > 0 ? "+" : ""}{payload[0].payload.overUnder.toFixed(1)}%
                     </span>
                 </div>
             )}
             {dataPoint?.prevYear !== undefined && (
-                <div style={{ marginTop: 2, opacity: 0.7 }}>
+                <div className="mt-0.5 opacity-70">
                     vs Last Year:{" "}
-                    <span style={{ color: vsLastYear === null ? "#cbd5e1" : vsLastYear >= 0 ? "#6ee7b7" : "#fca5a5" }}>
+                    <span className={vsLastYear === null ? "text-slate-300" : vsLastYear >= 0 ? "text-emerald-300" : "text-red-300"}>
                         {vsLastYear === null
                             ? (dataPoint.actual > 0 && dataPoint.prevYear === 0 ? "New" : "N/A")
                             : formatSignedPct(vsLastYear)}
@@ -129,94 +103,81 @@ export function DarkTooltip({ active, payload, label, fmt }: any) {
 }
 
 export function Badge({ value, label }: { value: number | null; label: string }) {
-    // Handle null values - show N/A
     if (value === null) {
         return (
-            <span style={{
-                display: "inline-flex", alignItems: "center", gap: 2,
-                fontSize: 10, fontWeight: 600, color: "#94a3b8",
-                background: "rgba(148,163,184,.07)",
-                padding: "1px 5px", borderRadius: 4, lineHeight: 1.5,
-            }}>
-                <span style={{ fontSize: 7 }}>—</span>
+            <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-muted-foreground bg-muted/50 px-1.5 py-px rounded leading-relaxed">
+                <span className="text-[7px]">—</span>
                 N/A {label}
             </span>
-  )
-}
+        )
+    }
 
     const pos = value >= 0
     return (
-        <span style={{
-            display: "inline-flex", alignItems: "center", gap: 2,
-            fontSize: 10, fontWeight: 600, color: pos ? "#10b981" : "#ef4444",
-            background: pos ? "rgba(16,185,129,.07)" : "rgba(239,68,68,.07)",
-            padding: "1px 5px", borderRadius: 4, lineHeight: 1.5,
-        }}>
-            <span style={{ fontSize: 7 }}>{pos ? "▲" : "▼"}</span>
+        <span className={cn(
+            "inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-px rounded leading-relaxed",
+            pos ? "text-emerald-500 bg-emerald-500/[0.07]" : "text-red-500 bg-red-500/[0.07]",
+        )}>
+            <span className="text-[7px]">{pos ? "▲" : "▼"}</span>
             {Math.abs(value).toFixed(1)}% {label}
         </span>
     )
 }
 
-// ─── MINI SELECT STYLE ──────────────────────────────────────────────────────
-export const TOOLTIP_STYLE: CSSProperties = {
+// ─── RECHARTS TOOLTIP STYLE (inline required by Recharts) ──────────────────
+export const TOOLTIP_STYLE: React.CSSProperties = {
     background: "#0f172a", color: "#fff", padding: "8px 11px", borderRadius: 8,
     fontSize: 11, lineHeight: 1.6, boxShadow: "0 4px 16px rgba(0,0,0,.25)",
     maxWidth: 260,
 }
 
-export const miniSelectStyle: CSSProperties = {
-    appearance: "none" as const, background: "#f4f5f7", border: "1px solid #e5e8ed", borderRadius: 5,
-    padding: "3px 20px 3px 8px", fontSize: 11, fontWeight: 600, color: "#0f172a",
-    cursor: "pointer", fontFamily: "inherit",
-    backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='9' height='9' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='2.5'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")`,
-    backgroundRepeat: "no-repeat", backgroundPosition: "right 5px center",
+// ─── MINI SELECT ───────────────────────────────────────────────────────────
+export function MiniSelect({ value, onChange, label, children, className }: {
+    value: string | number
+    onChange: (e: React.ChangeEvent<HTMLSelectElement>) => void
+    label?: string
+    children: React.ReactNode
+    className?: string
+}) {
+    return (
+        <div>
+            {label && <div className="text-[9px] font-semibold text-muted-foreground mb-0.5 tracking-wide">{label}</div>}
+            <select
+                value={value}
+                onChange={onChange}
+                className={cn(
+                    "appearance-none bg-muted border border-border rounded-[5px]",
+                    "px-2 pr-5 py-0.5 text-[11px] font-semibold text-foreground",
+                    "cursor-pointer font-[inherit]",
+                    "bg-[url('data:image/svg+xml,%3Csvg%20xmlns=%27http://www.w3.org/2000/svg%27%20width=%279%27%20height=%279%27%20viewBox=%270%200%2024%2024%27%20fill=%27none%27%20stroke=%27%239ca3af%27%20stroke-width=%272.5%27%3E%3Cpath%20d=%27M6%209l6%206%206-6%27/%3E%3C/svg%3E')]",
+                    "bg-no-repeat bg-[position:right_5px_center]",
+                    className,
+                )}
+            >
+                {children}
+            </select>
+        </div>
+    )
 }
 
-export function EmptyState({ icon, message, cta, href }: {
-  icon?: React.ReactNode
-  message: string
-  cta?: string
-  href?: string
-}) {
-  return (
-    <div style={{
-      display: "flex", flexDirection: "column", alignItems: "center",
-      justifyContent: "center", padding: "24px 16px", textAlign: "center",
-      height: "100%", minHeight: 120,
-    }}>
-      {icon && <div style={{ marginBottom: 8, opacity: 0.4 }}>{icon}</div>}
-      <div style={{ fontSize: 11, color: "#9ca3af", lineHeight: 1.5, maxWidth: 200 }}>
-        {message}
-      </div>
-      {cta && href && (
-        <a
-          href={href}
-          style={{
-            marginTop: 10, fontSize: 10, fontWeight: 600,
-            color: "#6366f1", textDecoration: "none",
-            padding: "4px 12px", border: "1px solid #e0e7ff",
-            borderRadius: 6, background: "#eef2ff",
-          }}
-        >
-          {cta}
-        </a>
-      )}
-    </div>
-  )
+// ─── LOADING PLACEHOLDER ───────────────────────────────────────────────────
+export function WidgetSkeleton() {
+    return (
+        <div className="h-full rounded-lg bg-gradient-to-b from-muted/60 to-muted animate-pulse border border-border/50" />
+    )
 }
 
 /** Shared Y-axis tick that truncates long labels with ellipsis */
 export function EllipsisTick({ x, y, payload, width = 100, fontSize = 10 }: any) {
-  const maxChars = Math.floor((width - 8) / (fontSize * 0.52))
-  const text = payload?.value ?? ""
-  const display = text.length > maxChars ? text.slice(0, maxChars - 1) + "\u2026" : text
-  return (
-    <g transform={`translate(${x},${y})`}>
-      <title>{text}</title>
-      <text x={-4} y={0} dy={4} textAnchor="end" fill="#64748b" fontSize={fontSize} fontWeight={500}>
-        {display}
-      </text>
-    </g>
-  )
+    const maxChars = Math.floor((width - 8) / (fontSize * 0.52))
+    const text = payload?.value ?? ""
+    const display = text.length > maxChars ? text.slice(0, maxChars - 1) + "…" : text
+    return (
+        <g transform={`translate(${x},${y})`}>
+            <title>{text}</title>
+            <text x={-4} y={0} dy={4} textAnchor="end" fill="#64748b" fontSize={fontSize} fontWeight={500}>
+                {display}
+            </text>
+        </g>
+    )
 }

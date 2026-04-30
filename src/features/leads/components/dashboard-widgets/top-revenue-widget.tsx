@@ -6,7 +6,7 @@ import {
 } from "recharts"
 import { useHasMounted } from "@/hooks/use-has-mounted"
 import { useCurrency } from "@/contexts/currency-context"
-import { SectionCard, SectionTitle, SectionSub, InsightCallout } from "./shared"
+import { SectionCard, SectionTitle, SectionSub, InsightCallout, TOOLTIP_STYLE, WidgetSkeleton } from "./shared"
 
 interface TopCompany {
     name: string
@@ -21,10 +21,7 @@ function RevenueTooltip({ active, payload, fmt }: any) {
     if (!active || !payload?.[0]) return null
     const d = payload[0].payload as TopCompany
     return (
-        <div style={{
-            background: "#0f172a", color: "#fff", padding: "8px 11px", borderRadius: 8,
-            fontSize: 11, lineHeight: 1.6, boxShadow: "0 4px 16px rgba(0,0,0,.25)",
-        }}>
+        <div style={{ ...TOOLTIP_STYLE }}>
             <div style={{ fontWeight: 700, marginBottom: 1 }}>{d.name}</div>
             <div>Revenue: {fmt(d.revenue)}</div>
         </div>
@@ -38,22 +35,20 @@ function RankedTick({ x, y, payload, visibleLines = 2 }: any) {
     const color = isTop3 ? "#6366f1" : "#64748b"
     const rankColor = isTop3 ? "#6366f1" : "#94a3b8"
 
-    // Split into max 2 lines of ~18 chars each
     const maxPerLine = 18
     let line1 = name
     let line2 = ""
 
     if (name.length > maxPerLine) {
-        // Try to break at a space near maxPerLine
         const breakIdx = name.lastIndexOf(" ", maxPerLine)
         if (breakIdx > 6) {
             line1 = name.slice(0, breakIdx)
             line2 = name.slice(breakIdx + 1)
             if (line2.length > maxPerLine) {
-                line2 = line2.slice(0, maxPerLine - 1) + "\u2026"
+                line2 = line2.slice(0, maxPerLine - 1) + "…"
             }
         } else {
-            line1 = name.slice(0, maxPerLine - 1) + "\u2026"
+            line1 = name.slice(0, maxPerLine - 1) + "…"
         }
     }
 
@@ -86,7 +81,7 @@ export function TopRevenueWidget({ data }: TopRevenueWidgetProps) {
         <SectionCard>
             <SectionTitle>Top Revenue Generators</SectionTitle>
             <SectionSub>Client companies by contribution</SectionSub>
-            <div className="thin-scrollbar" style={{ flex: 1, minHeight: 0, overflowY: "auto", overflowX: "hidden" }}>
+            <div className="thin-scrollbar flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
                 {hasMounted ? (
                     <div style={{ width: "100%", height: Math.max(data.length * 42, 80) }}>
                         <ResponsiveContainer width="100%" height="100%">
@@ -127,17 +122,12 @@ export function TopRevenueWidget({ data }: TopRevenueWidgetProps) {
                         </ResponsiveContainer>
                     </div>
                 ) : (
-                    <div style={{
-                        height: "100%",
-                        borderRadius: 8,
-                        background: "linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%)",
-                        border: "1px solid #eef2f7",
-                    }} />
+                    <WidgetSkeleton />
                 )}
             </div>
             {/* Summary footer */}
-            <div style={{ marginTop: 6, paddingTop: 6, borderTop: "1px solid #f1f5f9", fontSize: 10, color: "#94a3b8", flexShrink: 0 }}>
-                Total Won Revenue: <span style={{ fontWeight: 700, color: "#0f172a" }}>{fmt(totalRevenue)}</span> from {data.length} {data.length === 1 ? "company" : "companies"}
+            <div className="mt-1.5 pt-1.5 border-t border-border/50 text-[10px] text-muted-foreground shrink-0">
+                Total Won Revenue: <span className="font-bold text-foreground">{fmt(totalRevenue)}</span> from {data.length} {data.length === 1 ? "company" : "companies"}
             </div>
             {/* Insight */}
             {(() => {

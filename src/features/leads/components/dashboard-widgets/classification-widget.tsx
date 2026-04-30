@@ -1,7 +1,7 @@
 "use client"
 
 import { PieChart, Pie, Cell, Tooltip as RechartsTooltip, ResponsiveContainer } from "recharts"
-import { SectionCard, SectionTitle, SectionSub, InsightCallout, CHART_COLORS, miniSelectStyle } from "./shared"
+import { SectionCard, SectionTitle, SectionSub, InsightCallout, CHART_COLORS, TOOLTIP_STYLE, MiniSelect, WidgetSkeleton } from "./shared"
 import { useHasMounted } from "@/hooks/use-has-mounted"
 
 interface CatGradeItem {
@@ -19,10 +19,7 @@ function ClassificationTooltip({ active, payload }: any) {
     if (!active || !payload?.length) return null
     const { name, value, percent } = payload[0].payload
     return (
-        <div style={{
-            background: "#0f172a", color: "#fff", padding: "8px 12px", borderRadius: 8,
-            fontSize: 11, lineHeight: 1.6, boxShadow: "0 4px 16px rgba(0,0,0,.25)",
-        }}>
+        <div style={{ ...TOOLTIP_STYLE }}>
             <div style={{ fontWeight: 700, marginBottom: 4 }}>{name}</div>
             <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
                 <div style={{ width: 6, height: 6, borderRadius: 2, background: payload[0].payload.fill, flexShrink: 0 }} />
@@ -47,23 +44,25 @@ export function ClassificationWidget({ data, catToggle, setCatToggle }: Classifi
 
     return (
         <SectionCard>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+            <div className="flex justify-between items-center mb-1">
                 <SectionTitle>Lead Classification</SectionTitle>
-                <div>
-                    <div style={{ fontSize: 9, fontWeight: 600, color: "#94a3b8", marginBottom: 3, letterSpacing: "0.3px" }}>Group by</div>
-                    <select style={{ ...miniSelectStyle, fontSize: 10 }} value={catToggle} onChange={(e: any) => setCatToggle(e.target.value)}>
-                        <option value="category">Category</option>
-                        <option value="grade_lead">Grade</option>
-                        <option value="lead_source">Lead Source</option>
-                        <option value="business_purpose">Biz Purpose</option>
-                        <option value="sector">Sector</option>
-                    </select>
-                </div>
+                <MiniSelect
+                    label="Group by"
+                    value={catToggle}
+                    onChange={(e: any) => setCatToggle(e.target.value)}
+                    className="text-[10px]"
+                >
+                    <option value="category">Category</option>
+                    <option value="grade_lead">Grade</option>
+                    <option value="lead_source">Lead Source</option>
+                    <option value="business_purpose">Biz Purpose</option>
+                    <option value="sector">Sector</option>
+                </MiniSelect>
             </div>
             <SectionSub>Pipeline temperature breakdown</SectionSub>
 
-            {/* Donut chart — fills available vertical space */}
-            <div style={{ flex: 1, minHeight: 80, width: "100%" }}>
+            {/* Donut chart */}
+            <div className="flex-1 min-h-[80px] w-full">
                 {hasMounted ? (
                     <ResponsiveContainer width="100%" height="100%">
                         <PieChart>
@@ -86,31 +85,19 @@ export function ClassificationWidget({ data, catToggle, setCatToggle }: Classifi
                         </PieChart>
                     </ResponsiveContainer>
                 ) : (
-                    <div style={{
-                        height: "100%", borderRadius: 8,
-                        background: "linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%)",
-                        border: "1px solid #eef2f7",
-                    }} />
+                    <WidgetSkeleton />
                 )}
             </div>
 
-            {/* Legend — compact, below chart */}
-            <div className="thin-scrollbar" style={{
-                display: "flex", flexWrap: "wrap", gap: "4px 12px",
-                marginTop: 8, paddingTop: 8, borderTop: "1px solid #f1f5f9",
-                maxHeight: 72, overflowY: "auto", flexShrink: 0,
-            }}>
+            {/* Legend */}
+            <div className="thin-scrollbar flex flex-wrap gap-x-3 gap-y-1 mt-2 pt-2 border-t border-border/50 max-h-[72px] overflow-y-auto shrink-0">
                 {chartData.map((d) => {
                     const pct = totalCat > 0 ? (d.value / totalCat) * 100 : 0
                     return (
-                        <div key={d.name} style={{ display: "flex", alignItems: "center", gap: 4, minWidth: 0 }}>
-                            <div style={{ width: 7, height: 7, borderRadius: 2, background: d.fill, flexShrink: 0 }} />
-                            <span style={{ fontSize: 10, fontWeight: 600, color: "#334155", whiteSpace: "nowrap" }}>
-                                {d.name}
-                            </span>
-                            <span style={{ fontSize: 9, color: "#94a3b8", whiteSpace: "nowrap" }}>
-                                {d.value} ({pct.toFixed(0)}%)
-                            </span>
+                        <div key={d.name} className="flex items-center gap-1 min-w-0">
+                            <div className="w-[7px] h-[7px] rounded-sm shrink-0" style={{ background: d.fill }} />
+                            <span className="text-[10px] font-semibold text-slate-700 whitespace-nowrap">{d.name}</span>
+                            <span className="text-[9px] text-muted-foreground whitespace-nowrap">{d.value} ({pct.toFixed(0)}%)</span>
                         </div>
                     )
                 })}
