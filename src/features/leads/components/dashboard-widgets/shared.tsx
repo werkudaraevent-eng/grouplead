@@ -185,6 +185,32 @@ export function MiniSelect({ value, onChange, label, children, className }: {
     )
 }
 
+// ─── TOP N TOGGLE ──────────────────────────────────────────────────────────
+export function TopNToggle({ value, onChange, total }: { value: number; onChange: (n: number) => void; total: number }) {
+    const options = [5, 10]
+    if (total > 10) options.push(total)
+    // Don't show toggle if total <= 5
+    if (total <= 5) return null
+    return (
+        <div className="flex items-center gap-0.5 bg-muted/60 rounded-md p-0.5">
+            {options.map(n => (
+                <button
+                    key={n}
+                    onClick={() => onChange(n)}
+                    className={cn(
+                        "px-2 py-0.5 text-[9px] font-semibold rounded transition-all",
+                        value === n || (n === total && value >= total)
+                            ? "bg-white text-[#292D30] shadow-sm"
+                            : "text-muted-foreground hover:text-foreground"
+                    )}
+                >
+                    {n === total ? "All" : `Top ${n}`}
+                </button>
+            ))}
+        </div>
+    )
+}
+
 // ─── LOADING PLACEHOLDER ───────────────────────────────────────────────────
 export function WidgetSkeleton() {
     return (

@@ -1,7 +1,8 @@
 "use client"
 
+import { useState } from "react"
 import { useCurrency } from "@/contexts/currency-context"
-import { SectionCard, SectionTitle, SectionSub, InsightCallout } from "./shared"
+import { SectionCard, SectionTitle, SectionSub, InsightCallout, TopNToggle } from "./shared"
 
 interface TopCompany {
     name: string
@@ -14,9 +15,11 @@ interface TopRevenueWidgetProps {
 
 export function TopRevenueWidget({ data }: TopRevenueWidgetProps) {
     const { fmtAxis } = useCurrency()
+    const [topN, setTopN] = useState(10)
 
     const totalRevenue = data.reduce((s, c) => s + c.revenue, 0)
     const maxRevenue = data.length > 0 ? data[0].revenue : 1
+    const visibleData = data.slice(0, topN)
 
     return (
         <SectionCard>
@@ -25,18 +28,21 @@ export function TopRevenueWidget({ data }: TopRevenueWidgetProps) {
                     <SectionTitle>Top Revenue Generators</SectionTitle>
                     <SectionSub>Client companies by contribution</SectionSub>
                 </div>
-                {totalRevenue > 0 && (
-                    <div className="text-right shrink-0">
-                        <div className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Total won</div>
-                        <div className="text-[15px] font-bold tabular-nums tracking-tight text-[#292D30]">
-                            {fmtAxis(totalRevenue)}
+                <div className="flex items-center gap-2">
+                    <TopNToggle value={topN} onChange={setTopN} total={data.length} />
+                    {totalRevenue > 0 && (
+                        <div className="text-right shrink-0">
+                            <div className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Total won</div>
+                            <div className="text-[15px] font-bold tabular-nums tracking-tight text-[#292D30]">
+                                {fmtAxis(totalRevenue)}
+                            </div>
                         </div>
-                    </div>
-                )}
+                    )}
+                </div>
             </div>
 
             <div className="flex-1 overflow-y-auto thin-scrollbar">
-                {data.map((company, idx) => {
+                {visibleData.map((company, idx) => {
                     const share = totalRevenue > 0 ? (company.revenue / totalRevenue) * 100 : 0
                     const barWidth = maxRevenue > 0 ? (company.revenue / maxRevenue) * 100 : 0
                     const isTop3 = idx < 3
