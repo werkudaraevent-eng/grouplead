@@ -1,7 +1,8 @@
 "use client"
 
-import { useState } from "react"
+import { Suspense, useState } from "react"
 import { Sidebar } from "@/components/layout/sidebar"
+import { TopLoader } from "@/components/layout/top-loader"
 import { Sheet, SheetContent, SheetTitle, SheetDescription } from "@/components/ui/sheet"
 import { Button } from "@/components/ui/button"
 import { Menu } from "lucide-react"
@@ -35,6 +36,9 @@ export function MainLayout({ children, initialCompany, companies, currencySettin
             <PermissionsProvider>
                 <CurrencyProvider settings={currencySettings}>
                     <SidebarThemeProvider>
+                        <Suspense fallback={null}>
+                            <TopLoader />
+                        </Suspense>
                         <MainLayoutInner mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} userProfile={userProfile}>
                             {children}
                         </MainLayoutInner>
