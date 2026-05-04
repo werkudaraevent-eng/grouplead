@@ -324,33 +324,31 @@ export function EditUserSheet({ profile, open, onOpenChange, onSaved }: EditUser
                                     {(() => {
                                         const holdingCompanies = companies.filter(c => c.is_holding)
                                         const subsidiaryCompanies = companies.filter(c => !c.is_holding)
-                                        const renderCheckbox = (c: CompanyOption) => {
-                                            const isChecked = selectedCompanyIds.includes(c.id)
-                                            return (
-                                                <label
-                                                    key={c.id}
-                                                    className={`flex items-center gap-2.5 px-3 py-2 rounded-md cursor-pointer transition-all text-sm ${
-                                                        isChecked
-                                                            ? "bg-blue-50 border border-blue-200 text-blue-900 shadow-sm"
-                                                            : "bg-background border border-transparent hover:bg-muted"
-                                                    }`}
-                                                >
-                                                    <Checkbox
-                                                        checked={isChecked}
-                                                        onCheckedChange={(checked) => {
-                                                            if (checked) {
-                                                                setSelectedCompanyIds(prev => [...prev, c.id])
-                                                            } else {
-                                                                setSelectedCompanyIds(prev => prev.filter(id => id !== c.id))
-                                                            }
-                                                            form.setValue("full_name", form.getValues("full_name"), { shouldDirty: true })
-                                                        }}
-                                                        className="h-4 w-4 border-slate-300 data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
-                                                    />
-                                                    <span className="truncate font-medium">{c.name}</span>
-                                                </label>
-                                            )
+                                        const holdingIds = holdingCompanies.map(c => c.id)
+                                        const allSubIds = subsidiaryCompanies.map(c => c.id)
+                                        const hasHoldingSelected = holdingIds.some(id => selectedCompanyIds.includes(id))
+
+                                        const handleHoldingToggle = (holdingId: string, checked: boolean) => {
+                                            if (checked) {
+                                                // Holding checked → select holding + ALL subsidiaries
+                                                const allIds = [holdingId, ...allSubIds]
+                                                setSelectedCompanyIds(allIds)
+                                            } else {
+                                                // Holding unchecked → deselect everything
+                                                setSelectedCompanyIds([])
+                                            }
+                                            form.setValue("full_name", form.getValues("full_name"), { shouldDirty: true })
                                         }
+
+                                        const handleSubsidiaryToggle = (companyId: string, checked: boolean) => {
+                                            if (checked) {
+                                                setSelectedCompanyIds(prev => [...prev, companyId])
+                                            } else {
+                                                setSelectedCompanyIds(prev => prev.filter(id => id !== companyId))
+                                            }
+                                            form.setValue("full_name", form.getValues("full_name"), { shouldDirty: true })
+                                        }
+
                                         return (
                                             <div className="sm:col-span-2">
                                                 <FormLabel className="flex items-center gap-1.5 mb-2">
@@ -360,32 +358,80 @@ export function EditUserSheet({ profile, open, onOpenChange, onSaved }: EditUser
                                                     Select the companies this user should have access to. This defines their data scope.
                                                 </p>
                                                 <div className="flex flex-col gap-3 border rounded-xl p-3 bg-slate-50/50 max-h-72 overflow-y-auto">
-                                                    {/* Group Level (HQ) */}
+                                                    {/* Group Level (HQ) — acts as "select all" */}
                                                     {holdingCompanies.length > 0 && (
                                                         <div className="flex flex-col gap-2">
                                                             <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Group Level (HQ)</span>
-                                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                                                {holdingCompanies.map(renderCheckbox)}
-                                                            </div>
+                                                            {holdingCompanies.map(c => {
+                                                                const isChecked = selectedCompanyIds.includes(c.id)
+                                                                return (
+                                                                    <label
+                                                                        key={c.id}
+                                                                        className={`flex items-center gap-2.5 px-3 py-2.5 rounded-md cursor-pointer transition-all text-sm ${
+                                                                            isChecked
+                                                                                ? "bg-indigo-50 border border-indigo-200 text-indigo-900 shadow-sm"
+                                                                                : "bg-background border border-transparent hover:bg-muted"
+                                                                        }`}
+                                                                    >
+                                                                        <Checkbox
+                                                                            checked={isChecked}
+                                                                            onCheckedChange={(checked) => handleHoldingToggle(c.id, !!checked)}
+                                                                            className="h-4 w-4 border-slate-300 data-[state=checked]:bg-indigo-600 data-[state=checked]:border-indigo-600"
+                                                                        />
+                                                                        <span className="font-semibold">{c.name}</span>
+                                                                        <span className="text-[10px] text-muted-foreground ml-auto">Access all units</span>
+                                                                    </label>
+                                                                )
+                                                            })}
                                                         </div>
                                                     )}
                                                     {/* Divider */}
                                                     {holdingCompanies.length > 0 && subsidiaryCompanies.length > 0 && (
                                                         <div className="w-full h-px bg-border" />
                                                     )}
-                                                    {/* Subsidiary Units */}
+                                                    {/* Subsidiary Units — disabled when holding is selected */}
                                                     {subsidiaryCompanies.length > 0 && (
                                                         <div className="flex flex-col gap-2">
-                                                            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Subsidiary Units</span>
-                                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                                                {subsidiaryCompanies.map(renderCheckbox)}
+                                                            <div className="flex items-center justify-between">
+                                                                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Subsidiary Units</span>
+                                                                {hasHoldingSelected && (
+                                                                    <span className="text-[10px] text-indigo-500 font-medium">All included via Group</span>
+                                                                )}
+                                                            </div>
+                                                            <div className={`grid grid-cols-1 sm:grid-cols-2 gap-2 ${hasHoldingSelected ? "opacity-50 pointer-events-none" : ""}`}>
+                                                                {subsidiaryCompanies.map(c => {
+                                                                    const isChecked = selectedCompanyIds.includes(c.id)
+                                                                    return (
+                                                                        <label
+                                                                            key={c.id}
+                                                                            className={`flex items-center gap-2.5 px-3 py-2 rounded-md transition-all text-sm ${
+                                                                                hasHoldingSelected
+                                                                                    ? "bg-indigo-50/50 border border-indigo-100 text-indigo-800"
+                                                                                    : isChecked
+                                                                                        ? "bg-blue-50 border border-blue-200 text-blue-900 shadow-sm cursor-pointer"
+                                                                                        : "bg-background border border-transparent hover:bg-muted cursor-pointer"
+                                                                            }`}
+                                                                        >
+                                                                            <Checkbox
+                                                                                checked={isChecked || hasHoldingSelected}
+                                                                                disabled={hasHoldingSelected}
+                                                                                onCheckedChange={(checked) => handleSubsidiaryToggle(c.id, !!checked)}
+                                                                                className="h-4 w-4 border-slate-300 data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600 disabled:opacity-60"
+                                                                            />
+                                                                            <span className="truncate font-medium">{c.name}</span>
+                                                                        </label>
+                                                                    )
+                                                                })}
                                                             </div>
                                                         </div>
                                                     )}
                                                 </div>
                                                 {selectedCompanyIds.length > 0 && (
                                                     <p className="text-[0.7rem] text-muted-foreground mt-1.5">
-                                                        {selectedCompanyIds.length} compan{selectedCompanyIds.length === 1 ? 'y' : 'ies'} assigned
+                                                        {hasHoldingSelected
+                                                            ? "Full group access (all business units)"
+                                                            : `${selectedCompanyIds.length} compan${selectedCompanyIds.length === 1 ? 'y' : 'ies'} assigned`
+                                                        }
                                                     </p>
                                                 )}
                                             </div>
