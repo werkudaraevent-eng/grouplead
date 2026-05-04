@@ -16,6 +16,7 @@ import { createClient } from "@/utils/supabase/client"
 interface SidebarProps {
     onCollapse?: () => void
     isSheet?: boolean
+    serverProfile?: { full_name: string | null; role: string | null; avatar_url: string | null } | null
 }
 
 const mainNav = [
@@ -35,15 +36,18 @@ interface UserProfile {
     avatar_url: string | null
 }
 
-export function Sidebar({ onCollapse, isSheet = false }: SidebarProps) {
+export function Sidebar({ onCollapse, isSheet = false, serverProfile = null }: SidebarProps) {
     const pathname = usePathname()
     const router = useRouter()
-    const [profile, setProfile] = useState<UserProfile | null>(null)
+    // Use server-provided profile to avoid redundant client-side fetch
+    const [profile, setProfile] = useState<UserProfile | null>(serverProfile)
     const [loggingOut, setLoggingOut] = useState(false)
     const { can, loading: permsLoading } = usePermissions()
     const { isDarkPanel, togglePanel } = useSidebarTheme()
 
+    // Only fetch client-side if server didn't provide profile (fallback)
     useEffect(() => {
+        if (serverProfile) { setProfile(serverProfile); return }
         const supabase = createClient()
         const fetchProfile = async () => {
             const { data: { user } } = await supabase.auth.getUser()
@@ -56,7 +60,7 @@ export function Sidebar({ onCollapse, isSheet = false }: SidebarProps) {
             if (data) setProfile(data)
         }
         fetchProfile()
-    }, [])
+    }, [serverProfile])
 
     const handleLogout = async () => {
         setLoggingOut(true)

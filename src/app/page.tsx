@@ -12,16 +12,15 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
     const supabase = await createClient()
     const resolvedParams = await searchParams
 
-    const { data: { user } } = await supabase.auth.getUser()
+    // Parallel: auth + company (no dependency between them)
+    const [authResult, activeCompany] = await Promise.all([
+        supabase.auth.getUser(),
+        getActiveCompany().catch(() => null),
+    ])
 
-    let activeCompany: Awaited<ReturnType<typeof getActiveCompany>> = null
-    try {
-        activeCompany = await getActiveCompany()
-    } catch {
-        // Gracefully handle missing auth/company context
-    }
+    const user = authResult.data?.user
 
-    // Fetch available pipelines for the company
+    // Fetch pipelines (needs company_id for scoping)
     let pipelinesQuery = supabase.from('pipelines').select('id, name, is_default').order('created_at', { ascending: true })
     if (activeCompany?.id) {
         pipelinesQuery = pipelinesQuery.eq('company_id', activeCompany.id)
@@ -51,68 +50,53 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
         base.eq('pipeline_id', activePipelineId)
     }
 
+    // Parallel: leads + goals + custom widgets (all independent)
     let leads: Lead[] = []
-    let error: { message: string } | null = null
-    try {
-        const result = await scopedQuery(base, getScopedCompanyId(activeCompany))
-        leads = (result.data as Lead[]) || []
-        error = result.error
-    } catch (err) {
-        console.warn("[DashboardPage] Query failed:", err)
-        error = { message: String(err) }
-    }
-
-    // Fetch goal data for integration
+    let error: { message: string } | null = null as { message: string } | null
     let activeGoal: GoalV2 | null = null
     let goalNodes: GoalNode[] = []
     let userTargets: GoalUserTarget[] = []
     let goalSettings: GoalSettingsV2 | null = null
 
-    if (activeCompany?.id) {
-        const [goalRes, nodesRes, targetsRes, settingsRes] = await Promise.all([
-            supabase
-                .from('goals_v2')
-                .select('*')
-                .eq('company_id', activeCompany.id)
-                .eq('is_active', true)
-                .order('created_at', { ascending: false })
-                .limit(1)
-                .maybeSingle(),
-            supabase
-                .from('goal_nodes')
-                .select('*')
-                .eq('company_id', activeCompany.id)
-                .order('sort_order'),
-            supabase
-                .from('goal_user_targets')
-                .select('*')
-                .eq('company_id', activeCompany.id),
-            supabase
-                .from('goal_settings_v2')
-                .select('*')
-                .eq('company_id', activeCompany.id)
-                .maybeSingle()
-        ])
-
-        activeGoal = goalRes.data as GoalV2 | null
-        goalNodes = (nodesRes.data as GoalNode[]) || []
-        userTargets = (targetsRes.data as GoalUserTarget[]) || []
-        goalSettings = settingsRes.data as GoalSettingsV2 | null
-
-        // Filter nodes by active goal
-        if (activeGoal) {
-            const goalId = activeGoal.id
-            goalNodes = goalNodes.filter(n => n.goal_id === goalId)
-            userTargets = userTargets.filter(t => t.goal_id === goalId)
+    const leadsPromise = (async () => {
+        try {
+            const result = await scopedQuery(base, getScopedCompanyId(activeCompany))
+            leads = (result.data as Lead[]) || []
+            error = result.error
+        } catch (err: unknown) {
+            console.warn("[DashboardPage] Query failed:", err)
+            error = { message: String(err) }
         }
-    }
+    })()
 
-    // Fetch custom widgets for this user
-    const { data: customWidgets } = await supabase
+    const goalsPromise = activeCompany?.id
+        ? Promise.all([
+            supabase.from('goals_v2').select('*').eq('company_id', activeCompany.id).eq('is_active', true).order('created_at', { ascending: false }).limit(1).maybeSingle(),
+            supabase.from('goal_nodes').select('*').eq('company_id', activeCompany.id).order('sort_order'),
+            supabase.from('goal_user_targets').select('*').eq('company_id', activeCompany.id),
+            supabase.from('goal_settings_v2').select('*').eq('company_id', activeCompany.id).maybeSingle(),
+        ]).then(([goalRes, nodesRes, targetsRes, settingsRes]) => {
+            activeGoal = goalRes.data as GoalV2 | null
+            goalNodes = (nodesRes.data as GoalNode[]) || []
+            userTargets = (targetsRes.data as GoalUserTarget[]) || []
+            goalSettings = settingsRes.data as GoalSettingsV2 | null
+            if (activeGoal) {
+                const goalId = activeGoal.id
+                goalNodes = goalNodes.filter(n => n.goal_id === goalId)
+                userTargets = userTargets.filter(t => t.goal_id === goalId)
+            }
+        })
+        : Promise.resolve()
+
+    const widgetsPromise = supabase
         .from('custom_widgets')
         .select('*')
         .eq('user_id', user?.id ?? '')
         .order('created_at', { ascending: true })
+
+    // Execute all in parallel
+    const [,, widgetsResult] = await Promise.all([leadsPromise, goalsPromise, widgetsPromise])
+    const customWidgets = (widgetsResult as { data: CustomWidget[] | null }).data
 
     return (
         <>

@@ -13,14 +13,21 @@ import type { CompanyContext } from "@/types/company"
 import type { CurrencySettings } from "@/types/currency"
 import { DEFAULT_CURRENCY_SETTINGS } from "@/types/currency"
 
+export interface UserProfile {
+    full_name: string | null
+    role: string | null
+    avatar_url: string | null
+}
+
 interface MainLayoutProps {
     children: React.ReactNode
     initialCompany: CompanyContext | null
     companies: CompanyContext[]
     currencySettings?: CurrencySettings
+    userProfile?: UserProfile | null
 }
 
-export function MainLayout({ children, initialCompany, companies, currencySettings = DEFAULT_CURRENCY_SETTINGS }: MainLayoutProps) {
+export function MainLayout({ children, initialCompany, companies, currencySettings = DEFAULT_CURRENCY_SETTINGS, userProfile = null }: MainLayoutProps) {
     const [mobileOpen, setMobileOpen] = useState(false)
 
     return (
@@ -28,7 +35,7 @@ export function MainLayout({ children, initialCompany, companies, currencySettin
             <PermissionsProvider>
                 <CurrencyProvider settings={currencySettings}>
                     <SidebarThemeProvider>
-                        <MainLayoutInner mobileOpen={mobileOpen} setMobileOpen={setMobileOpen}>
+                        <MainLayoutInner mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} userProfile={userProfile}>
                             {children}
                         </MainLayoutInner>
                     </SidebarThemeProvider>
@@ -45,10 +52,12 @@ function MainLayoutInner({
     children,
     mobileOpen,
     setMobileOpen,
+    userProfile,
 }: {
     children: React.ReactNode
     mobileOpen: boolean
     setMobileOpen: (v: boolean) => void
+    userProfile?: UserProfile | null
 }) {
     const { isDarkPanel } = useSidebarTheme()
     const darkClass = isDarkPanel ? "sidebar-dark" : ""
@@ -59,13 +68,13 @@ function MainLayoutInner({
                 data-sidebar
                 className={`hidden lg:flex lg:w-[220px] lg:flex-col lg:border-r shrink-0 flex-none transition-colors duration-300 border-sidebar-border bg-sidebar ${darkClass}`}
             >
-                <Sidebar />
+                <Sidebar serverProfile={userProfile} />
             </aside>
             <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
                 <SheetContent side="left" className={`w-72 p-0 border-r-0 ${darkClass}`}>
                     <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
                     <SheetDescription className="sr-only">Main navigation sidebar for mobile devices.</SheetDescription>
-                    <Sidebar isSheet onCollapse={() => setMobileOpen(false)} />
+                    <Sidebar isSheet onCollapse={() => setMobileOpen(false)} serverProfile={userProfile} />
                 </SheetContent>
             </Sheet>
             <div className="flex-1 flex flex-col min-w-0 overflow-x-hidden">

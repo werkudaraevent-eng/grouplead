@@ -36,28 +36,41 @@ export default async function RootLayout({
   let initialCompany = null;
   let companies: Awaited<ReturnType<typeof getUserCompanies>> = [];
   let currencySettings: CurrencySettings = DEFAULT_CURRENCY_SETTINGS;
+  let userProfile: { full_name: string | null; role: string | null; avatar_url: string | null } | null = null;
 
   if (!isLoginPage) {
     try {
-      [initialCompany, companies] = await Promise.all([
+      const supabase = await createClient();
+
+      // Parallel fetch: company + companies + user profile (eliminates sidebar re-fetch)
+      const [activeResult, companiesResult, authResult] = await Promise.all([
         getActiveCompany(),
         getUserCompanies(),
+        supabase.auth.getUser(),
+      ]);
+      initialCompany = activeResult;
+      companies = companiesResult;
+
+      // Fetch profile + currency settings in parallel (both depend on prior results)
+      const userId = authResult.data?.user?.id;
+      const [profileResult, settingsResult] = await Promise.all([
+        userId
+          ? supabase.from("profiles").select("full_name, role, avatar_url").eq("id", userId).maybeSingle()
+          : Promise.resolve({ data: null }),
+        initialCompany?.id
+          ? supabase.from("company_settings").select("currency_format, currency_prefix").eq("company_id", initialCompany.id).maybeSingle()
+          : Promise.resolve({ data: null }),
       ]);
 
-      // Load currency settings for the active company
-      if (initialCompany?.id) {
-        const supabase = await createClient();
-        const { data } = await supabase
-          .from("company_settings")
-          .select("currency_format, currency_prefix")
-          .eq("company_id", initialCompany.id)
-          .maybeSingle();
-        if (data) {
-          currencySettings = {
-            currency_format: data.currency_format as CurrencySettings["currency_format"],
-            currency_prefix: data.currency_prefix as CurrencySettings["currency_prefix"],
-          };
-        }
+      if (profileResult.data) {
+        userProfile = profileResult.data as NonNullable<typeof userProfile>;
+      }
+      if (settingsResult.data) {
+        const data = settingsResult.data;
+        currencySettings = {
+          currency_format: data.currency_format as CurrencySettings["currency_format"],
+          currency_prefix: data.currency_prefix as CurrencySettings["currency_prefix"],
+        };
       }
     } catch (err) {
       console.warn("[RootLayout] Failed to load company context:", err);
@@ -80,7 +93,7 @@ export default async function RootLayout({
           Skip to content
         </a>
         {isLoginPage ? children : (
-          <MainLayout initialCompany={initialCompany} companies={companies} currencySettings={currencySettings}>
+          <MainLayout initialCompany={initialCompany} companies={companies} currencySettings={currencySettings} userProfile={userProfile}>
             {children}
           </MainLayout>
         )}

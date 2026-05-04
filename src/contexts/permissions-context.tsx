@@ -39,15 +39,17 @@ export function PermissionsProvider({ children }: { children: React.ReactNode })
       const { data: { user } } = await supabase.auth.getUser()
       if (!user?.id) { setPermissions([]); setUserType(null); setLoading(false); return }
 
-      // Global super_admin bypass via profiles.role
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('role, role_id')
-        .eq('id', user.id)
-        .maybeSingle()
+      // Parallel fetch: profile + membership (eliminates waterfall)
+      const [profileResult, membershipResult] = await Promise.all([
+        supabase.from('profiles').select('role, role_id').eq('id', user.id).maybeSingle(),
+        supabase.from('company_members').select('user_type').eq('user_id', user.id).eq('company_id', activeCompany.id).maybeSingle(),
+      ])
 
+      const profile = profileResult.data
+      const membership = membershipResult.data
       const globalRole = (profile?.role ?? '').toLowerCase().replace(/\s+/g, '_')
 
+      // Global super_admin bypass
       if (globalRole === 'super_admin') {
         setUserType('super_admin')
         setPermissions([])
@@ -55,25 +57,15 @@ export function PermissionsProvider({ children }: { children: React.ReactNode })
         return
       }
 
-      // Resolve the user's role_id (from profiles → roles table)
-      const roleId = profile?.role_id ?? null
-
-      if (!roleId) {
-        console.error(`[Permissions] No role_id set for user ${user.id}. Failing closed.`)
-        setPermissions([]); setUserType(globalRole || null); setLoading(false); return
-      }
-
-      // Also resolve user_type for backward compatibility (used by some legacy components)
-      const { data: membership } = await supabase
-        .from('company_members')
-        .select('user_type')
-        .eq('user_id', user.id)
-        .eq('company_id', activeCompany.id)
-        .maybeSingle()
-
       setUserType(membership?.user_type ?? globalRole ?? null)
 
-      // Fetch permissions by role_id + company_id (this is what the Permissions page writes to)
+      const roleId = profile?.role_id ?? null
+      if (!roleId) {
+        console.error(`[Permissions] No role_id set for user ${user.id}. Failing closed.`)
+        setPermissions([]); setLoading(false); return
+      }
+
+      // Fetch permissions by role_id + company_id
       const { data: perms } = await supabase
         .from('role_permissions')
         .select('*')
@@ -81,7 +73,6 @@ export function PermissionsProvider({ children }: { children: React.ReactNode })
         .eq('company_id', activeCompany.id)
 
       if (!perms || perms.length === 0) {
-        console.warn(`[Permissions] No role_permissions found for role_id=${roleId}, company_id=${activeCompany.id}. Trying user_type fallback.`)
         // Fallback: try legacy user_type-based lookup
         const resolvedUserType = membership?.user_type ?? globalRole
         if (resolvedUserType) {
