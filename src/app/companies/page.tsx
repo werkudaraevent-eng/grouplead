@@ -21,7 +21,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import {
     AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { Users, Search, Mail, Phone, Building2, Briefcase, Loader2, Plus, ArrowUpDown, Pencil, Linkedin, MoreHorizontal, Trash2, Columns, Download, Upload, Instagram, Twitter, Facebook, Globe, Link2, ChevronUp, ChevronDown, GripVertical, Eye, EyeOff, RotateCcw } from "lucide-react"
+import { Users, Search, Mail, Phone, Building2, Briefcase, Loader2, Plus, ArrowUpDown, Pencil, Linkedin, MoreHorizontal, Trash2, Columns, Download, Upload, Instagram, Twitter, Facebook, Globe, Link2, ChevronUp, ChevronDown, GripVertical, Eye, EyeOff, RotateCcw, X } from "lucide-react"
 import { AddCompanyModal } from "@/features/companies/components/add-company-modal"
 import { CompanyDetailSheet } from "@/features/companies/components/company-detail-sheet"
 import { AddContactModal } from "@/features/contacts/components/add-contact-modal"
@@ -76,6 +76,9 @@ export default function CompaniesPage() {
 
     // Data Table State
     const [searchQuery, setSearchQuery] = useState("")
+    const [filterIndustry, setFilterIndustry] = useState<string>("all")
+    const [filterLineIndustry, setFilterLineIndustry] = useState<string>("all")
+    const [filterOwner, setFilterOwner] = useState<string>("all")
     const [sortConfig, setSortConfig] = useState<{ key: string; direction: "asc" | "desc" } | null>(null)
     
     // Pagination State
@@ -140,9 +143,23 @@ export default function CompaniesPage() {
 
     useEffect(() => { fetchCompanies() }, [fetchCompanies])
 
+    // Derive unique values for filter dropdowns
+    const uniqueIndustries = useMemo(() => [...new Set(companies.map(c => c.industry).filter(Boolean))].sort() as string[], [companies])
+    const uniqueLineIndustries = useMemo(() => [...new Set(companies.map(c => c.line_industry).filter(Boolean))].sort() as string[], [companies])
+    const uniqueOwners = useMemo(() => [...new Set(companies.map(c => c.owner?.full_name).filter(Boolean))].sort() as string[], [companies])
+
+    const hasActiveFilters = filterIndustry !== "all" || filterLineIndustry !== "all" || filterOwner !== "all"
+    const clearFilters = () => { setFilterIndustry("all"); setFilterLineIndustry("all"); setFilterOwner("all") }
+
     const filteredData = useMemo(() => {
         return companies.filter((item) => {
+            // Dropdown filters
+            if (filterIndustry !== "all" && item.industry !== filterIndustry) return false
+            if (filterLineIndustry !== "all" && item.line_industry !== filterLineIndustry) return false
+            if (filterOwner !== "all" && item.owner?.full_name !== filterOwner) return false
+            // Text search
             const q = searchQuery.toLowerCase()
+            if (!q) return true
             return (
                 (item.name || "").toLowerCase().includes(q) ||
                 (item.industry || "").toLowerCase().includes(q) ||
@@ -152,7 +169,7 @@ export default function CompaniesPage() {
                 (item.owner?.full_name || "").toLowerCase().includes(q)
             )
         })
-    }, [companies, searchQuery])
+    }, [companies, searchQuery, filterIndustry, filterLineIndustry, filterOwner])
 
     const sortedData = useMemo(() => {
         return [...filteredData].sort((a: any, b: any) => {
@@ -177,7 +194,7 @@ export default function CompaniesPage() {
     }, [sortedData, currentPage, itemsPerPage])
 
     // Reset pagination when filters change
-    useEffect(() => { setCurrentPage(1) }, [searchQuery, itemsPerPage])
+    useEffect(() => { setCurrentPage(1) }, [searchQuery, itemsPerPage, filterIndustry, filterLineIndustry, filterOwner])
 
     const handleSort = (key: string) => {
         let direction: "asc" | "desc" = "asc"
@@ -330,16 +347,58 @@ export default function CompaniesPage() {
             </div>
             
             <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 pb-4 mb-0 shrink-0 px-4 sm:px-6 lg:px-8 border-b border-border">
-                <div className="flex flex-1 items-center gap-3 w-full lg:w-auto overflow-x-auto pb-2 lg:pb-0">
-                    <div className="relative w-[280px] shrink-0">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+                <div className="flex flex-1 items-center gap-2.5 w-full lg:w-auto overflow-x-auto pb-2 lg:pb-0">
+                    <div className="relative w-[220px] shrink-0">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/60 pointer-events-none" />
                         <Input
                             placeholder="Search companies..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="pl-9 h-9 w-full bg-white border-slate-200 hover:border-slate-300 focus-visible:ring-1 focus-visible:ring-slate-400 text-[13px] shadow-sm rounded-lg"
+                            className="pl-9 h-9 w-full bg-muted/40 border-transparent focus:border-border focus:bg-background transition-colors text-[13px] rounded-lg"
                         />
                     </div>
+
+                    {uniqueIndustries.length > 1 && (
+                        <Select value={filterIndustry} onValueChange={setFilterIndustry}>
+                            <SelectTrigger className="h-9 w-[150px] text-xs shrink-0">
+                                <SelectValue placeholder="Sector" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">All sectors</SelectItem>
+                                {uniqueIndustries.map(v => <SelectItem key={v} value={v}>{v}</SelectItem>)}
+                            </SelectContent>
+                        </Select>
+                    )}
+
+                    {uniqueLineIndustries.length > 1 && (
+                        <Select value={filterLineIndustry} onValueChange={setFilterLineIndustry}>
+                            <SelectTrigger className="h-9 w-[160px] text-xs shrink-0">
+                                <SelectValue placeholder="Line industry" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">All industries</SelectItem>
+                                {uniqueLineIndustries.map(v => <SelectItem key={v} value={v}>{v}</SelectItem>)}
+                            </SelectContent>
+                        </Select>
+                    )}
+
+                    {uniqueOwners.length > 1 && (
+                        <Select value={filterOwner} onValueChange={setFilterOwner}>
+                            <SelectTrigger className="h-9 w-[150px] text-xs shrink-0">
+                                <SelectValue placeholder="Owner" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">All owners</SelectItem>
+                                {uniqueOwners.map(v => <SelectItem key={v} value={v}>{v}</SelectItem>)}
+                            </SelectContent>
+                        </Select>
+                    )}
+
+                    {hasActiveFilters && (
+                        <Button variant="ghost" size="sm" onClick={clearFilters} className="h-9 text-xs text-muted-foreground hover:text-foreground gap-1 shrink-0">
+                            <X className="h-3 w-3" /> Clear
+                        </Button>
+                    )}
                 </div>
                 
                 <div className="flex items-center gap-2 w-full lg:w-auto shrink-0 justify-end">
