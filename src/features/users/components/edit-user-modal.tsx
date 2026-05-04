@@ -137,29 +137,46 @@ export function EditUserSheet({ profile, open, onOpenChange, onSaved }: EditUser
 
             if (error) throw error
 
+            // Strict RLS check: if no rows returned, the policy blocked the update
+            if (!data || data.length === 0) {
+                throw new Error("Update blocked by Row Level Security. You may not have permission to edit this user.")
+            }
+
             // Diff-based sync on company_members junction table
             const toRemove = initialCompanyIds.filter(id => !selectedCompanyIds.includes(id))
             const toAdd = selectedCompanyIds.filter(id => !initialCompanyIds.includes(id))
 
             if (toRemove.length > 0) {
-                await supabase.from("company_members").delete()
+                const { error: delErr } = await supabase.from("company_members").delete()
                     .eq("user_id", profile.id)
                     .in("company_id", toRemove)
+                if (delErr) {
+                    console.error("[EditUser] Failed to remove company memberships:", delErr)
+                    toast.error("Profile saved but failed to remove some business units")
+                }
             }
             if (toAdd.length > 0) {
-                await supabase.from("company_members").insert(
-                    toAdd.map(cid => ({
-                        company_id: cid,
-                        user_id: profile.id,
-                        user_type: roleText || "staff",
-                    }))
-                )
+                // user_type CHECK constraint: staff, leader, executive, admin, super_admin
+                const VALID_USER_TYPES = ["staff", "leader", "executive", "admin", "super_admin"]
+                const memberType = VALID_USER_TYPES.includes(roleText || "") ? roleText! : "staff"
+
+                const { error: insErr } = await supabase.from("company_members")
+                    .upsert(
+                        toAdd.map(cid => ({
+                            company_id: cid,
+                            user_id: profile.id,
+                            user_type: memberType,
+                        })),
+                        { onConflict: "company_id,user_id" }
+                    )
+                if (insErr) {
+                    console.error("[EditUser] Failed to add company memberships:", insErr)
+                    toast.error("Profile saved but failed to assign some business units")
+                }
             }
 
-            // Strict RLS check: if no rows returned, the policy blocked the update
-            if (!data || data.length === 0) {
-                throw new Error("Update blocked by Row Level Security. You may not have permission to edit this user.")
-            }
+            // Update initial state so subsequent saves diff correctly
+            setInitialCompanyIds([...selectedCompanyIds])
 
             toast.success(values.is_active ? "Profile updated successfully" : "User deactivated & profile updated")
             form.reset()
