@@ -24,9 +24,9 @@ interface SalesPerfWidgetProps {
 function getBarColor(rep: SalesRep): string {
     if (rep.target <= 0) return "#94a3b8"
     const pct = (rep.actual / rep.target) * 100
-    if (pct >= 100) return "#10b981"
-    if (pct >= 70) return "#6366f1"
-    return "#ef4444"
+    if (pct >= 100) return "#6EBDA1"
+    if (pct >= 70) return "#02378D"
+    return "#ED6F22"
 }
 
 function SalesPerfTooltip({ active, payload, fmt }: any) {
@@ -123,7 +123,7 @@ export function SalesPerfWidget({ data }: SalesPerfWidgetProps) {
             </div>
             {/* Legend */}
             <div className="flex gap-2.5 mt-1.5 pt-1.5 border-t border-border/50 shrink-0">
-                {[{ color: "#10b981", label: "Above Target" }, { color: "#6366f1", label: "On Track" }, { color: "#ef4444", label: "Below Target" }].map(l => (
+                {[{ color: "#6EBDA1", label: "Above Target" }, { color: "#02378D", label: "On Track" }, { color: "#ED6F22", label: "Below Target" }].map(l => (
                     <div key={l.label} className="flex items-center gap-1 text-[9px] text-muted-foreground">
                         <div className="w-1.5 h-1.5 rounded-sm" style={{ background: l.color }} />{l.label}
                     </div>

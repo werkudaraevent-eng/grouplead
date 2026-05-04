@@ -8,7 +8,7 @@ import { usePathname, useSearchParams } from "next/navigation"
  * Pure CSS animation — no external dependencies.
  * Shows during Next.js page transitions (route changes).
  */
-export function TopLoader({ color = "#6366f1" }: { color?: string }) {
+export function TopLoader({ color = "#02378D" }: { color?: string }) {
     const pathname = usePathname()
     const searchParams = useSearchParams()
     const [progress, setProgress] = useState(0)

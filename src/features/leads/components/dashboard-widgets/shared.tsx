@@ -3,17 +3,31 @@
 import { cn } from "@/lib/utils"
 
 // ─── DESIGN TOKENS ──────────────────────────────────────────────────────────
+// ─── Werkudara Brand Palette ────────────────────────────────────────────────
+const W = {
+    P1: "#02378D", // deep navy (primary)
+    P2: "#2069B4", // medium blue
+    P3: "#00A1E9", // bright cyan
+    P4: "#5EC5F2", // sky blue
+    P5: "#C3E6F5", // ice blue
+    S1: "#ED6F22", // orange (warning/CTA)
+    S2: "#F9BB46", // gold (attention)
+    S3: "#6EBDA1", // sage green (success)
+    S4: "#292D30", // charcoal
+    S5: "#EFEFEF", // light gray
+} as const
+
 export const ACCENT = {
-    leads: "#6366f1",
-    revenue: "#0ea5e9",
-    winrate: "#10b981",
-    conversion: "#8b5cf6",
-    dealsize: "#f59e0b",
+    leads: W.P1,
+    revenue: W.P3,
+    winrate: W.S3,
+    conversion: W.P2,
+    dealsize: W.S2,
 }
 
 export const CHART_COLORS = [
-    '#6366f1', '#8b5cf6', '#10b981', '#f59e0b', '#ef4444',
-    '#ec4899', '#0ea5e9', '#14b8a6', '#f43f5e', '#06b6d4',
+    W.P1, W.P2, W.S3, W.S2, W.S1,
+    W.P3, W.P4, '#14b8a6', W.P5, '#06b6d4',
 ]
 
 export const MONTHS_SHORT = [

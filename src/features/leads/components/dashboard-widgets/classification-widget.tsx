@@ -33,7 +33,7 @@ function ClassificationTooltip({ active, payload }: any) {
 export function ClassificationWidget({ data, catToggle, setCatToggle }: ClassificationWidgetProps) {
     const hasMounted = useHasMounted()
     const totalCat = data.reduce((s, d) => s + d.value, 0)
-    const tempColors: Record<string, string> = { "Hot": "#ef4444", "Warm": "#f59e0b", "Cold": "#6366f1", "A": "#ef4444", "B": "#f59e0b", "C": "#6366f1" }
+    const tempColors: Record<string, string> = { "Hot": "#ED6F22", "Warm": "#F9BB46", "Cold": "#02378D", "A": "#ED6F22", "B": "#F9BB46", "C": "#02378D" }
     const getColor = (name: string, idx: number) => tempColors[name] || CHART_COLORS[(idx + 3) % CHART_COLORS.length]
 
     const chartData = data.map((d, i) => ({

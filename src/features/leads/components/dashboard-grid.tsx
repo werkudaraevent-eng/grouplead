@@ -324,11 +324,11 @@ export function DashboardGrid({ children, widgetIds, customWidgets = [], onCreat
                     disabled={saving}
                     style={{
                         display: "flex", alignItems: "center", gap: 4,
-                        background: "#6366f1", border: "1px solid #6366f1", borderRadius: 7,
+                        background: "#02378D", border: "1px solid #02378D", borderRadius: 7,
                         padding: "5px 10px", fontSize: 11, fontWeight: 600, color: "#fff",
                         cursor: saving ? "default" : "pointer",
                         fontFamily: "inherit",
-                        boxShadow: "0 1px 4px rgba(99,102,241,.15)",
+                        boxShadow: "0 1px 4px rgba(2,55,141,.15)",
                         opacity: saving ? 0.5 : 1,
                     }}
                 >
@@ -375,10 +375,10 @@ export function DashboardGrid({ children, widgetIds, customWidgets = [], onCreat
                     disabled={saving}
                     style={{
                         display: "flex", alignItems: "center", gap: 4,
-                        background: "#6366f1", border: "1px solid #6366f1", borderRadius: 7,
+                        background: "#02378D", border: "1px solid #02378D", borderRadius: 7,
                         padding: "5px 12px", fontSize: 11, fontWeight: 600, color: "#fff",
                         cursor: "pointer", fontFamily: "inherit",
-                        boxShadow: "0 1px 4px rgba(99,102,241,.25)",
+                        boxShadow: "0 1px 4px rgba(2,55,141,.25)",
                         opacity: saving ? 0.7 : 1,
                     }}
                 >
@@ -391,7 +391,7 @@ export function DashboardGrid({ children, widgetIds, customWidgets = [], onCreat
                 style={{
                     display: "flex", alignItems: "center", gap: 6,
                     background: "#fff", border: "1px solid #e5e8ed", borderRadius: 7,
-                    padding: "5px 12px", fontSize: 11, fontWeight: 600, color: "#6366f1",
+                    padding: "5px 12px", fontSize: 11, fontWeight: 600, color: "#02378D",
                     cursor: "pointer", fontFamily: "inherit",
                     boxShadow: "0 1px 2px rgba(0,0,0,.03)",
                 }}
@@ -424,7 +424,7 @@ export function DashboardGrid({ children, widgetIds, customWidgets = [], onCreat
                 <div style={{ padding: 24, display: "flex", justifyContent: "center" }}>
                     <div style={{
                         width: 24, height: 24, border: "2.5px solid #e5e8ed",
-                        borderTopColor: "#6366f1", borderRadius: "50%",
+                        borderTopColor: "#02378D", borderRadius: "50%",
                         animation: "spin 0.8s linear infinite",
                     }} />
                     <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
@@ -559,7 +559,7 @@ export function DashboardGrid({ children, widgetIds, customWidgets = [], onCreat
                                                             style={{
                                                                 display: "flex", alignItems: "center", justifyContent: "center",
                                                                 width: 20, height: 20,
-                                                                background: "rgba(99,102,241,.85)",
+                                                                background: "rgba(2,55,141,.85)",
                                                                 color: "#fff", border: "none", borderRadius: 5,
                                                                 cursor: "pointer", pointerEvents: "auto",
                                                                 boxShadow: "0 1px 3px rgba(0,0,0,.15)",
@@ -651,12 +651,12 @@ export function DashboardGrid({ children, widgetIds, customWidgets = [], onCreat
                             padding: "16px 20px", borderBottom: "1px solid #e5e8ed",
                         }}>
                             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                                <LayoutGrid style={{ width: 16, height: 16, color: "#6366f1" }} />
+                                <LayoutGrid style={{ width: 16, height: 16, color: "#02378D" }} />
                                 <span style={{ fontSize: 14, fontWeight: 700, color: "#0f172a" }}>
                                     Add Widgets
                                 </span>
                                 <span style={{
-                                    fontSize: 10, fontWeight: 600, color: "#6366f1",
+                                    fontSize: 10, fontWeight: 600, color: "#02378D",
                                     background: "#eef2ff", padding: "2px 6px", borderRadius: 4,
                                 }}>
                                     {hiddenWidgets.size} available
@@ -696,7 +696,7 @@ export function DashboardGrid({ children, widgetIds, customWidgets = [], onCreat
                                         textAlign: "left",
                                     }}
                                     onMouseEnter={(e) => {
-                                        e.currentTarget.style.borderColor = "#6366f1"
+                                        e.currentTarget.style.borderColor = "#02378D"
                                         e.currentTarget.style.background = "#eef2ff"
                                     }}
                                     onMouseLeave={(e) => {
@@ -710,7 +710,7 @@ export function DashboardGrid({ children, widgetIds, customWidgets = [], onCreat
                                         display: "flex", alignItems: "center", justifyContent: "center",
                                         flexShrink: 0,
                                     }}>
-                                        <Plus style={{ width: 14, height: 14, color: "#6366f1" }} />
+                                        <Plus style={{ width: 14, height: 14, color: "#02378D" }} />
                                     </div>
                                     <div>
                                         <div style={{ fontSize: 11, fontWeight: 600, color: "#1e293b" }}>

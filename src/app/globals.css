@@ -49,25 +49,25 @@
 
 :root {
   --radius: 0.625rem;
-  /* ── Banani Enterprise Palette ── */
-  --background: #fafbfc;
-  --foreground: #0b1320;
+  /* ── Werkudara Group Brand Palette ── */
+  --background: #EFEFEF;
+  --foreground: #292D30;
   --card: #ffffff;
-  --card-foreground: #0b1320;
+  --card-foreground: #292D30;
   --popover: #ffffff;
-  --popover-foreground: #0b1320;
-  --primary: #235ee7;
+  --popover-foreground: #292D30;
+  --primary: #02378D;
   --primary-foreground: #ffffff;
-  --secondary: #f2f6fb;
-  --secondary-foreground: #0b1320;
+  --secondary: #C3E6F5;
+  --secondary-foreground: #02378D;
   --muted: #f4f6f8;
   --muted-foreground: #8a95a1;
-  --accent: #f4c04d;
+  --accent: #F9BB46;
   --accent-foreground: #3b2b00;
-  --destructive: #9b1e1e;
+  --destructive: #ED6F22;
   --border: rgba(0, 0, 0, 0.08);
   --input: #ffffff;
-  --ring: #235ee7;
+  --ring: #02378D;
   --chart-1: oklch(0.646 0.222 41.116);
   --chart-2: oklch(0.6 0.118 184.704);
   --chart-3: oklch(0.398 0.07 227.392);
@@ -75,29 +75,29 @@
   --chart-5: oklch(0.769 0.188 70.08);
   --sidebar: #ffffff;
   --sidebar-foreground: #5b6a73;
-  --sidebar-primary: #eef4ff;
-  --sidebar-primary-foreground: #235ee7;
+  --sidebar-primary: #e8f1fd;
+  --sidebar-primary-foreground: #02378D;
   --sidebar-accent: #f2f6fb;
-  --sidebar-accent-foreground: #0b1320;
+  --sidebar-accent-foreground: #292D30;
   --sidebar-border: rgba(0, 0, 0, 0.08);
-  --sidebar-ring: #235ee7;
+  --sidebar-ring: #02378D;
   /* ── Semantic Colors ── */
-  --success: #e6f7ee;
-  --success-foreground: #0f7a4a;
-  --warning: #fff9ec;
+  --success: #e8f5ef;
+  --success-foreground: #3d7a5c;
+  --warning: #fef8ec;
   --warning-foreground: #7a5900;
 }
 
 /* ── Dark Sidebar Panel (Bigin-style) ── */
 .sidebar-dark {
-  --sidebar: #1a1f2e;
+  --sidebar: #292D30;
   --sidebar-foreground: #c8cdd5;
   --sidebar-primary: rgba(255, 255, 255, 0.08);
-  --sidebar-primary-foreground: #7db4ff;
+  --sidebar-primary-foreground: #5EC5F2;
   --sidebar-accent: rgba(255, 255, 255, 0.06);
   --sidebar-accent-foreground: #e2e6ec;
   --sidebar-border: rgba(255, 255, 255, 0.08);
-  --sidebar-ring: #7db4ff;
+  --sidebar-ring: #5EC5F2;
 }
 
 .dark {

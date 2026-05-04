@@ -33,7 +33,7 @@ function SourceTooltip({ active, payload }: any) {
 export function LeadSourceWidget({ data }: LeadSourceWidgetProps) {
     const hasMounted = useHasMounted()
     const totalLeads = data.reduce((s, d) => s + d.value, 0)
-    const sourceColors: Record<string, string> = { "Referral": "#6366f1", "Event Partnership": "#8b5cf6", "Direct Request": "#0ea5e9", "Cold Call": "#f59e0b", "Repeat Client": "#10b981" }
+    const sourceColors: Record<string, string> = { "Referral": "#02378D", "Event Partnership": "#2069B4", "Direct Request": "#00A1E9", "Cold Call": "#F9BB46", "Repeat Client": "#6EBDA1" }
 
     const chartData = data.map((d, i) => ({
         ...d,

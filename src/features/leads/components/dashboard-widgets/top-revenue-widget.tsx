@@ -32,8 +32,8 @@ function RankedTick({ x, y, payload, visibleLines = 2 }: any) {
     const index: number = payload.index
     const name: string = payload.value ?? ""
     const isTop3 = index < 3
-    const color = isTop3 ? "#6366f1" : "#64748b"
-    const rankColor = isTop3 ? "#6366f1" : "#94a3b8"
+    const color = isTop3 ? "#02378D" : "#64748b"
+    const rankColor = isTop3 ? "#02378D" : "#94a3b8"
 
     const maxPerLine = 18
     let line1 = name
@@ -113,7 +113,7 @@ export function TopRevenueWidget({ data }: TopRevenueWidgetProps) {
                                     {data.map((entry) => (
                                         <Cell
                                             key={entry.name}
-                                            fill={entry.name === "Unknown Company" ? "#e2e5ea" : "#6366f1"}
+                                            fill={entry.name === "Unknown Company" ? "#e2e5ea" : "#02378D"}
                                         />
                                     ))}
                                     <LabelList dataKey="revenue" position="right" formatter={((v: unknown) => fmt(Number(v))) as (label: unknown) => string} style={{ fontSize: 9, fontWeight: 600, fill: "#64748b" }} />

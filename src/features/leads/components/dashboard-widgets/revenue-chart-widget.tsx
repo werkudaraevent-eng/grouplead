@@ -67,10 +67,10 @@ export function RevenueChartWidget({ data, trendYear, setTrendYear, availableYea
                             <YAxis yAxisId="left" tickFormatter={fmtAxis} axisLine={false} tickLine={false} tick={{ fontSize: 9, fill: '#94a3b8', fontWeight: 500 }} dx={-5} width={55} />
                             <RechartsTooltip content={<DarkTooltip fmt={fmt} />} />
                             <Legend wrapperStyle={{ paddingTop: '6px', fontSize: '9.5px', fontWeight: 500 }} />
-                            <Bar yAxisId="left" dataKey="actual" name={`Actual ${trendYear}`} barSize={20} fill="#6366f1" radius={[3, 3, 0, 0]}>
+                            <Bar yAxisId="left" dataKey="actual" name={`Actual ${trendYear}`} barSize={20} fill="#02378D" radius={[3, 3, 0, 0]}>
                                 <LabelList dataKey="actual" position="top" formatter={((v: unknown) => fmt(Number(v))) as (label: unknown) => string} style={{ fontSize: 9, fontWeight: 600, fill: "#64748b" }} />
                             </Bar>
-                            <Bar yAxisId="left" dataKey="prevYear" name={`Last Year`} barSize={12} fill="#ddd6fe" radius={[3, 3, 0, 0]} />
+                            <Bar yAxisId="left" dataKey="prevYear" name={`Last Year`} barSize={12} fill="#C3E6F5" radius={[3, 3, 0, 0]} />
                             <Line yAxisId="left" type="step" dataKey="target" name="Target" stroke="#c0c7d2" strokeWidth={1.5} strokeDasharray="4 4" dot={false} />
                         </ComposedChart>
                     </ResponsiveContainer>

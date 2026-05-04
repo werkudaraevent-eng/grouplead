@@ -86,7 +86,7 @@ export function GoalAttainmentWidget() {
   const mounted = useHasMounted()
   const pct = data.target > 0 ? (data.attainment / data.target) * 100 : 0
   const clampedPct = Math.min(pct, 100)
-  const fillColor = pct >= 100 ? "#10b981" : pct >= 70 ? "#0ea5e9" : "#f59e0b"
+  const fillColor = pct >= 100 ? "#6EBDA1" : pct >= 70 ? "#00A1E9" : "#F9BB46"
 
   const chartData = [{ name: "Attainment", value: clampedPct, fill: fillColor }]
 
@@ -159,8 +159,8 @@ export function GoalForecastWidget() {
   const mounted = useHasMounted()
 
   const chartData = [
-    { name: "Raw Pipeline", value: data.forecastRaw, fill: "#0ea5e9" },
-    { name: "Weighted Forecast", value: data.forecastWeighted, fill: "#6366f1" },
+    { name: "Raw Pipeline", value: data.forecastRaw, fill: "#00A1E9" },
+    { name: "Weighted Forecast", value: data.forecastWeighted, fill: "#02378D" },
   ]
 
   return (
@@ -196,11 +196,11 @@ export function GoalForecastWidget() {
           <div style={{ display: "flex", justifyContent: "space-around", marginTop: 4, flexShrink: 0 }}>
             <div style={{ textAlign: "center" }}>
               <div style={{ fontSize: 9, color: "#94a3b8" }}>Raw Pipeline</div>
-              <div style={{ fontSize: 12, fontWeight: 700, color: "#0ea5e9" }}>{fmt(data.forecastRaw)}</div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "#00A1E9" }}>{fmt(data.forecastRaw)}</div>
             </div>
             <div style={{ textAlign: "center" }}>
               <div style={{ fontSize: 9, color: "#94a3b8" }}>Weighted</div>
-              <div style={{ fontSize: 12, fontWeight: 700, color: "#6366f1" }}>{fmt(data.forecastWeighted)}</div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "#02378D" }}>{fmt(data.forecastWeighted)}</div>
             </div>
           </div>
         </div>
@@ -224,12 +224,12 @@ export function GoalVarianceWidget() {
     {
       name: "Gap to Target",
       value: -gapAttainment, // negative when shortfall, positive when surplus
-      fill: gapAttainment > 0 ? "#ef4444" : "#10b981",
+      fill: gapAttainment > 0 ? "#ED6F22" : "#6EBDA1",
     },
     {
       name: "Gap with Forecast",
       value: -gapWithForecast,
-      fill: gapWithForecast > 0 ? "#ef4444" : "#10b981",
+      fill: gapWithForecast > 0 ? "#ED6F22" : "#6EBDA1",
     },
   ]
 
@@ -267,9 +267,9 @@ export function GoalVarianceWidget() {
           <div style={{ display: "flex", justifyContent: "space-around", marginTop: 4, flexShrink: 0 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
               {gapAttainment > 0 ? (
-                <ArrowDown style={{ width: 10, height: 10, color: "#ef4444" }} />
+                <ArrowDown style={{ width: 10, height: 10, color: "#ED6F22" }} />
               ) : (
-                <ArrowUp style={{ width: 10, height: 10, color: "#10b981" }} />
+                <ArrowUp style={{ width: 10, height: 10, color: "#6EBDA1" }} />
               )}
               <span style={{ fontSize: 9, color: "#94a3b8" }}>
                 {fmt(Math.abs(gapAttainment))} {gapAttainment > 0 ? "below" : "above"}
@@ -277,9 +277,9 @@ export function GoalVarianceWidget() {
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
               {gapWithForecast > 0 ? (
-                <ArrowDown style={{ width: 10, height: 10, color: "#ef4444" }} />
+                <ArrowDown style={{ width: 10, height: 10, color: "#ED6F22" }} />
               ) : (
-                <ArrowUp style={{ width: 10, height: 10, color: "#10b981" }} />
+                <ArrowUp style={{ width: 10, height: 10, color: "#6EBDA1" }} />
               )}
               <span style={{ fontSize: 9, color: "#94a3b8" }}>
                 {fmt(Math.abs(gapWithForecast))} {gapWithForecast > 0 ? "shortfall" : "surplus"}
@@ -294,7 +294,7 @@ export function GoalVarianceWidget() {
 
 // ─── 4. Goal Company Breakdown Widget ───────────────────────────────────────
 
-const COLORS = ["#6366f1", "#0ea5e9", "#10b981", "#f59e0b", "#ef4444", "#ec4899", "#14b8a6", "#8b5cf6"]
+const COLORS = ["#02378D", "#00A1E9", "#6EBDA1", "#F9BB46", "#ED6F22", "#5EC5F2", "#14b8a6", "#2069B4"]
 
 interface BreakdownRow { id: string; name: string; wonRevenue: number; target: number }
 

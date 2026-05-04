@@ -78,7 +78,7 @@ function ChartPlaceholder() {
 // ─── KPI Renderer (matches SingleKPIWidget design) ─────────────────────────
 function KPIRenderer({ widget, data }: CustomWidgetRendererProps) {
   const { fmt } = useCurrency()
-  const accentColor = widget.config.color || '#6366f1'
+  const accentColor = widget.config.color || '#02378D'
   return (
     <div
       style={{
