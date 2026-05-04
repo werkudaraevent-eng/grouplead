@@ -15,13 +15,13 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import {
-    ShieldCheck, Plus, Loader2, Search, Mail, MoreHorizontal, UserCog, Target, KeyRound,
+    ShieldCheck, Plus, Loader2, Search, Mail, MoreHorizontal, UserCog, KeyRound, Filter, X,
 } from "lucide-react"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { SettingsPageHeader } from "@/components/layout/settings-page-header"
 import { PermissionGate } from "@/features/users/components/permission-gate"
 import { Profile } from "@/types"
 import { EditUserSheet } from "@/features/users/components/edit-user-modal"
-import { TargetManagementModal } from "@/features/users/components/target-management-modal"
 import { CreateUserModal } from "@/features/users/components/create-user-modal"
 import { adminResetUserPassword } from "@/app/actions/auth-actions"
 import { toast } from "sonner"
@@ -57,11 +57,12 @@ export default function UserManagementPage() {
     const [profiles, setProfiles] = useState<Profile[]>([])
     const [loading, setLoading] = useState(true)
     const [search, setSearch] = useState("")
+    const [filterRole, setFilterRole] = useState<string>("all")
+    const [filterStatus, setFilterStatus] = useState<string>("all")
+    const [filterBU, setFilterBU] = useState<string>("all")
     const [inviteOpen, setInviteOpen] = useState(false)
     const [editProfile, setEditProfile] = useState<Profile | null>(null)
     const [editOpen, setEditOpen] = useState(false)
-    const [targetProfile, setTargetProfile] = useState<Profile | null>(null)
-    const [targetOpen, setTargetOpen] = useState(false)
     const [resetProfile, setResetProfile] = useState<Profile | null>(null)
     const [newPassword, setNewPassword] = useState("")
     const [resetting, setResetting] = useState(false)
@@ -94,13 +95,32 @@ export default function UserManagementPage() {
 
     useEffect(() => { fetchProfiles() }, [fetchProfiles])
 
+    // Derive unique roles and business units for filter dropdowns
+    const uniqueRoles = [...new Set(profiles.map(p => typeof p.role === "string" ? p.role : "").filter(Boolean))].sort()
+    const uniqueBUs = [...new Set(profiles.flatMap(p => p.company_memberships?.map(cm => cm.company?.name).filter(Boolean) || []))].sort() as string[]
+
     const filtered = profiles.filter((p) => {
-        const q = search.toLowerCase()
         const roleStr = typeof p.role === "string" ? p.role : ""
+        // Role filter
+        if (filterRole !== "all" && roleStr !== filterRole) return false
+        // Status filter
+        if (filterStatus === "active" && p.is_active === false) return false
+        if (filterStatus === "inactive" && p.is_active !== false) return false
+        // Business unit filter
+        if (filterBU !== "all") {
+            const memberOf = p.company_memberships?.some(cm => cm.company?.name === filterBU)
+            if (!memberOf) return false
+        }
+        // Text search
+        const q = search.toLowerCase()
+        if (!q) return true
         const companyStr = p.company_memberships?.map(cm => cm.company?.name).join(" ") || ""
-        return !q || (p.full_name || "").toLowerCase().includes(q) || (p.email || "").toLowerCase().includes(q)
+        return (p.full_name || "").toLowerCase().includes(q) || (p.email || "").toLowerCase().includes(q)
             || roleStr.toLowerCase().includes(q) || companyStr.toLowerCase().includes(q)
     })
+
+    const hasActiveFilters = filterRole !== "all" || filterStatus !== "all" || filterBU !== "all"
+    const clearFilters = () => { setFilterRole("all"); setFilterStatus("all"); setFilterBU("all") }
 
     const getInitials = (name: string | null) => name ? name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2) : "?"
 
@@ -119,22 +139,73 @@ export default function UserManagementPage() {
 
             <div className="px-6 lg:px-8 pb-8 space-y-5">
 
-            {/* Search + count */}
-            <div className="flex items-center justify-between gap-4">
-                <div className="relative max-w-xs flex-1">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/60" />
-                    <Input
-                        placeholder="Search users..."
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                        className="pl-9 h-9 bg-muted/40 border-transparent focus:border-border focus:bg-background transition-colors"
-                    />
+            {/* Search + Filters */}
+            <div className="space-y-3">
+                <div className="flex items-center gap-3 flex-wrap">
+                    <div className="relative max-w-xs flex-1 min-w-[200px]">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/60" />
+                        <Input
+                            placeholder="Search users..."
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                            className="pl-9 h-9 bg-muted/40 border-transparent focus:border-border focus:bg-background transition-colors"
+                        />
+                    </div>
+
+                    <Select value={filterRole} onValueChange={setFilterRole}>
+                        <SelectTrigger className="h-9 w-[140px] text-xs">
+                            <Filter className="h-3 w-3 mr-1.5 text-muted-foreground" />
+                            <SelectValue placeholder="Role" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">All roles</SelectItem>
+                            {uniqueRoles.map(r => (
+                                <SelectItem key={r} value={r}>
+                                    {ROLE_CONFIG[r]?.label || r}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+
+                    <Select value={filterStatus} onValueChange={setFilterStatus}>
+                        <SelectTrigger className="h-9 w-[130px] text-xs">
+                            <SelectValue placeholder="Status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">All status</SelectItem>
+                            <SelectItem value="active">Active</SelectItem>
+                            <SelectItem value="inactive">Inactive</SelectItem>
+                        </SelectContent>
+                    </Select>
+
+                    {uniqueBUs.length > 1 && (
+                        <Select value={filterBU} onValueChange={setFilterBU}>
+                            <SelectTrigger className="h-9 w-[180px] text-xs">
+                                <SelectValue placeholder="Business unit" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">All business units</SelectItem>
+                                {uniqueBUs.map(bu => (
+                                    <SelectItem key={bu} value={bu}>{bu}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    )}
+
+                    {hasActiveFilters && (
+                        <Button variant="ghost" size="sm" onClick={clearFilters} className="h-9 text-xs text-muted-foreground hover:text-foreground gap-1">
+                            <X className="h-3 w-3" /> Clear filters
+                        </Button>
+                    )}
+
+                    <div className="ml-auto">
+                        {!loading && (
+                            <span className="text-xs text-muted-foreground tabular-nums">
+                                {filtered.length} of {profiles.length} {profiles.length === 1 ? "user" : "users"}
+                            </span>
+                        )}
+                    </div>
                 </div>
-                {!loading && (
-                    <span className="text-xs text-muted-foreground tabular-nums shrink-0">
-                        {filtered.length} {filtered.length === 1 ? "user" : "users"}
-                    </span>
-                )}
             </div>
 
             {/* Table */}
@@ -277,9 +348,6 @@ export default function UserManagementPage() {
                                                 <DropdownMenuItem onClick={() => { setEditProfile(p); setEditOpen(true) }}>
                                                     <UserCog className="h-3.5 w-3.5 mr-2" /> Edit profile
                                                 </DropdownMenuItem>
-                                                <DropdownMenuItem onClick={() => { setTargetProfile(p); setTargetOpen(true) }}>
-                                                    <Target className="h-3.5 w-3.5 mr-2" /> Manage quota
-                                                </DropdownMenuItem>
                                                 <DropdownMenuSeparator />
                                                 <DropdownMenuItem onClick={() => { setResetProfile(p); setNewPassword("") }}>
                                                     <KeyRound className="h-3.5 w-3.5 mr-2" /> Reset password
@@ -298,9 +366,6 @@ export default function UserManagementPage() {
 
             {/* Edit Profile Sheet */}
             <EditUserSheet profile={editProfile} open={editOpen} onOpenChange={setEditOpen} onSaved={fetchProfiles} />
-
-            {/* Quota Modal */}
-            <TargetManagementModal profile={targetProfile} open={targetOpen} onOpenChange={setTargetOpen} />
 
             {/* Create User Modal */}
             <CreateUserModal open={inviteOpen} onOpenChange={setInviteOpen} onCreated={fetchProfiles} />
