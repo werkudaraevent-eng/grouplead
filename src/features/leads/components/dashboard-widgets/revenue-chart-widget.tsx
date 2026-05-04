@@ -77,10 +77,11 @@ export function RevenueChartWidget({ data, trendYear, setTrendYear, availableYea
                 </div>
             </div>
 
-            {/* YTD attainment strip */}
+            {/* YTD attainment — subtle inline strip */}
             {ytdTarget > 0 && (
-                <div className="flex items-center gap-3 mb-2 px-1">
-                    <div className="flex-1 h-[5px] bg-[#f0f0f0] rounded-full overflow-hidden">
+                <div className="flex items-center gap-2.5 mb-1.5">
+                    <span className="text-[9px] font-medium text-muted-foreground shrink-0 uppercase tracking-wider">YTD</span>
+                    <div className="flex-1 h-[3px] bg-[#f0f0f0] rounded-full overflow-hidden">
                         <div
                             className="h-full rounded-full"
                             style={{
@@ -91,7 +92,7 @@ export function RevenueChartWidget({ data, trendYear, setTrendYear, availableYea
                         />
                     </div>
                     <span className="text-[10px] font-bold tabular-nums shrink-0" style={{ color: ytdOnTrack ? "#6EBDA1" : ytdPct >= 50 ? "#292D30" : "#ED6F22" }}>
-                        YTD {ytdPct.toFixed(0)}%
+                        {fmtAxis(ytdActual)} / {fmtAxis(ytdTarget)} ({ytdPct.toFixed(0)}%)
                     </span>
                 </div>
             )}
