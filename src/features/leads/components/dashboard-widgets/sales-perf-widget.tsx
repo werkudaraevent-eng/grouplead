@@ -1,13 +1,8 @@
 "use client"
 
-import {
-    BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip,
-    ResponsiveContainer, Cell, LabelList,
-} from "recharts"
-import { useHasMounted } from "@/hooks/use-has-mounted"
 import { useCurrency } from "@/contexts/currency-context"
-import { SectionCard, SectionTitle, SectionSub, InsightCallout, EllipsisTick, TOOLTIP_STYLE, WidgetSkeleton } from "./shared"
-import { EmptyState, NoTargetBadge } from "@/components/shared/empty-state"
+import { SectionCard, SectionTitle, SectionSub, InsightCallout } from "./shared"
+import { EmptyState } from "@/components/shared/empty-state"
 import { Users } from "lucide-react"
 
 interface SalesRep {
@@ -21,48 +16,20 @@ interface SalesPerfWidgetProps {
     data: SalesRep[]
 }
 
-function getBarColor(rep: SalesRep): string {
-    if (rep.target <= 0) return "#94a3b8"
-    const pct = (rep.actual / rep.target) * 100
+function getColor(pct: number, hasTarget: boolean): string {
+    if (!hasTarget) return "#94a3b8"
     if (pct >= 100) return "#6EBDA1"
     if (pct >= 70) return "#02378D"
     return "#ED6F22"
 }
 
-function SalesPerfTooltip({ active, payload, fmt }: any) {
-    if (!active || !payload?.[0]) return null
-    const d = payload[0].payload as SalesRep
-    const hasTarget = d.target > 0
-    const pct = hasTarget ? (d.actual / d.target) * 100 : 0
-    return (
-        <div style={{ ...TOOLTIP_STYLE }}>
-            <div style={{ fontWeight: 700, marginBottom: 1 }}>{d.name}</div>
-            <div>Actual: {fmt(d.actual)}</div>
-            {hasTarget ? (
-                <>
-                    <div>Target: {fmt(d.target)}</div>
-                    <div style={{
-                        fontWeight: 600,
-                        color: pct >= 100 ? "#6ee7b7" : pct >= 70 ? "#a5b4fc" : "#fca5a5",
-                    }}>
-                        Achievement: {pct.toFixed(0)}%
-                    </div>
-                </>
-            ) : (
-                <div style={{ opacity: 0.7 }}>No target set</div>
-            )}
-        </div>
-    )
-}
-
 export function SalesPerfWidget({ data }: SalesPerfWidgetProps) {
-    const { fmt, fmtAxis } = useCurrency()
-    const hasMounted = useHasMounted()
+    const { fmtAxis } = useCurrency()
 
     if (data.length === 0) {
         return (
             <SectionCard>
-                <SectionTitle>Sales Performance vs Target</SectionTitle>
+                <SectionTitle>Sales Performance</SectionTitle>
                 <SectionSub>Revenue achievement per sales rep</SectionSub>
                 <EmptyState
                     icon={Users}
@@ -74,70 +41,94 @@ export function SalesPerfWidget({ data }: SalesPerfWidgetProps) {
         )
     }
 
+    // Sort by achievement descending
+    const sorted = [...data].sort((a, b) => {
+        const pctA = a.target > 0 ? a.actual / a.target : -1
+        const pctB = b.target > 0 ? b.actual / b.target : -1
+        return pctB - pctA
+    })
+
+    const teamActual = data.reduce((s, r) => s + r.actual, 0)
+    const teamTarget = data.reduce((s, r) => s + r.target, 0)
+    const teamPct = teamTarget > 0 ? (teamActual / teamTarget) * 100 : 0
+
     return (
         <SectionCard>
-            <SectionTitle>Sales Performance vs Target</SectionTitle>
-            <SectionSub>Revenue achievement per sales rep</SectionSub>
-            <div className="thin-scrollbar flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
-                {hasMounted ? (
-                    <div style={{ width: "100%", height: Math.max(data.length * 40, 80) }}>
-                        <ResponsiveContainer width="100%" height="100%">
-                            <BarChart
-                                data={data}
-                                layout="vertical"
-                                margin={{ top: 0, right: 12, left: 0, bottom: 0 }}
-                                maxBarSize={14}
-                            >
-                                <XAxis
-                                    type="number"
-                                    axisLine={false}
-                                    tickLine={false}
-                                    tickFormatter={fmtAxis}
-                                    tick={{ fontSize: 9, fill: "#b0b8c8", fontWeight: 500 }}
-                                />
-                                <YAxis
-                                    type="category"
-                                    dataKey="name"
-                                    axisLine={false}
-                                    tickLine={false}
-                                    tick={<EllipsisTick width={120} fontSize={10} />}
-                                    width={120}
-                                />
-                                <RechartsTooltip
-                                    content={<SalesPerfTooltip fmt={fmt} />}
-                                    cursor={{ fill: "rgba(99,102,241,0.04)" }}
-                                />
-                                <Bar dataKey="target" name="Target" fill="#e2e8f0" radius={[0, 3, 3, 0]} barSize={12} />
-                                <Bar dataKey="actual" name="Actual" radius={[0, 3, 3, 0]} barSize={12}>
-                                    {data.map((rep) => (
-                                        <Cell key={rep.name} fill={getBarColor(rep)} />
-                                    ))}
-                                    <LabelList dataKey="actual" position="right" formatter={((v: unknown) => fmt(Number(v))) as (label: unknown) => string} style={{ fontSize: 9, fontWeight: 600, fill: "#64748b" }} />
-                                </Bar>
-                            </BarChart>
-                        </ResponsiveContainer>
+            <div className="flex items-start justify-between mb-1">
+                <div>
+                    <SectionTitle>Sales Performance</SectionTitle>
+                    <SectionSub>Revenue achievement per sales rep</SectionSub>
+                </div>
+                {teamTarget > 0 && (
+                    <div className="text-right shrink-0">
+                        <div className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Team avg</div>
+                        <div className="text-[17px] font-bold tabular-nums tracking-tight" style={{ color: getColor(teamPct, true) }}>
+                            {teamPct.toFixed(0)}%
+                        </div>
                     </div>
-                ) : (
-                    <WidgetSkeleton />
                 )}
             </div>
+
+            <div className="flex-1 overflow-y-auto thin-scrollbar space-y-0.5">
+                {sorted.map((rep) => {
+                    const hasTarget = rep.target > 0
+                    const pct = hasTarget ? (rep.actual / rep.target) * 100 : 0
+                    const color = getColor(pct, hasTarget)
+                    const barWidth = hasTarget ? Math.min(pct, 100) : 0
+
+                    return (
+                        <div key={rep.name} className="group py-[6px] px-1 rounded hover:bg-muted/30 transition-colors">
+                            {/* Name + percentage */}
+                            <div className="flex items-baseline justify-between mb-1">
+                                <span className="text-[11.5px] font-medium text-[#292D30] truncate mr-2" title={rep.name}>
+                                    {rep.name}
+                                </span>
+                                <div className="flex items-baseline gap-1.5 shrink-0 tabular-nums">
+                                    {hasTarget ? (
+                                        <>
+                                            <span className="text-[12px] font-bold" style={{ color }}>{pct.toFixed(0)}%</span>
+                                            <span className="text-[9px] text-muted-foreground">{fmtAxis(rep.actual)} / {fmtAxis(rep.target)}</span>
+                                        </>
+                                    ) : (
+                                        <span className="text-[10px] text-muted-foreground/50">No target</span>
+                                    )}
+                                </div>
+                            </div>
+                            {/* Progress bar */}
+                            <div className="h-[6px] bg-[#f0f0f0] rounded-full overflow-hidden">
+                                <div
+                                    className="h-full rounded-full"
+                                    style={{
+                                        width: `${barWidth}%`,
+                                        backgroundColor: color,
+                                        opacity: 0.85,
+                                        transition: "width 500ms cubic-bezier(0.23,1,0.32,1)",
+                                    }}
+                                />
+                            </div>
+                        </div>
+                    )
+                })}
+            </div>
+
             {/* Legend */}
-            <div className="flex gap-2.5 mt-1.5 pt-1.5 border-t border-border/50 shrink-0">
-                {[{ color: "#6EBDA1", label: "Above Target" }, { color: "#02378D", label: "On Track" }, { color: "#ED6F22", label: "Below Target" }].map(l => (
+            <div className="flex gap-3 mt-2 pt-1.5 border-t border-border/50 shrink-0">
+                {[{ color: "#6EBDA1", label: "Above" }, { color: "#02378D", label: "On Track" }, { color: "#ED6F22", label: "Below" }].map(l => (
                     <div key={l.label} className="flex items-center gap-1 text-[9px] text-muted-foreground">
-                        <div className="w-1.5 h-1.5 rounded-sm" style={{ background: l.color }} />{l.label}
+                        <div className="w-1.5 h-1.5 rounded-full" style={{ background: l.color }} />{l.label}
                     </div>
                 ))}
             </div>
+
             {/* Insight callout */}
             {(() => {
                 const noTargets = data.filter(r => r.target <= 0).length
-                if (noTargets > 0) return <InsightCallout icon="⚠" text={`${noTargets} sales rep${noTargets > 1 ? 's' : ''} without targets — set targets in goal settings`} />
+                if (noTargets > 0) return <InsightCallout type="warning" text={`${noTargets} sales rep${noTargets > 1 ? 's' : ''} without targets — set targets in goal settings`} />
 
                 const lowPerf = data.find(r => r.target > 0 && (r.actual / r.target) < 0.5)
-                if (lowPerf) return <InsightCallout icon="⚠" text={`${lowPerf.name} at ${((lowPerf.actual / lowPerf.target) * 100).toFixed(0)}% — schedule performance review`} />
+                if (lowPerf) return <InsightCallout type="warning" text={`${lowPerf.name} at ${((lowPerf.actual / lowPerf.target) * 100).toFixed(0)}% — needs attention`} />
 
-                if (data.every(r => r.target <= 0 || (r.actual / r.target) >= 0.8)) return <InsightCallout icon="💡" text="Team on track — consider raising targets" />
+                if (data.every(r => r.target <= 0 || (r.actual / r.target) >= 0.8)) return <InsightCallout type="success" text="Team on track — consider raising targets" />
                 return null
             })()}
         </SectionCard>

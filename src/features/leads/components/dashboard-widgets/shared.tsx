@@ -73,10 +73,21 @@ export function SectionSub({ children }: { children: React.ReactNode }) {
     return <div className="text-[11px] text-muted-foreground mb-3">{children}</div>
 }
 
-export function InsightCallout({ icon, text }: { icon: string; text: string }) {
+export function InsightCallout({ type = "info", text }: { icon?: string; type?: "warning" | "info" | "success"; text: string }) {
+    const styles = {
+        warning: "border-[#ED6F22]/40 bg-[#ED6F22]/[0.03]",
+        info: "border-[#00A1E9]/30 bg-[#00A1E9]/[0.03]",
+        success: "border-[#6EBDA1]/40 bg-[#6EBDA1]/[0.03]",
+    }
+    const dotColor = {
+        warning: "bg-[#ED6F22]",
+        info: "bg-[#00A1E9]",
+        success: "bg-[#6EBDA1]",
+    }
     return (
-        <div className="mt-2.5 pt-2 border-l-2 border-primary/20 pl-2.5 text-[10.5px] text-muted-foreground leading-relaxed line-clamp-2 shrink-0">
-            {icon} {text}
+        <div className={cn("mt-2 px-2.5 py-1.5 border-l-2 rounded-r text-[10.5px] text-muted-foreground leading-relaxed line-clamp-2 shrink-0 flex items-start gap-1.5", styles[type])}>
+            <div className={cn("w-1.5 h-1.5 rounded-full mt-[4px] shrink-0", dotColor[type])} />
+            {text}
         </div>
     )
 }
