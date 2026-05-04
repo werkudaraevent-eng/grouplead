@@ -1,8 +1,7 @@
 "use client"
 
-import { useState } from "react"
 import { useCurrency } from "@/contexts/currency-context"
-import { SectionCard, SectionTitle, SectionSub, InsightCallout, TopNToggle } from "./shared"
+import { SectionCard, SectionTitle, SectionSub, InsightCallout } from "./shared"
 import { EmptyState } from "@/components/shared/empty-state"
 import { Users } from "lucide-react"
 
@@ -26,7 +25,6 @@ function getColor(pct: number, hasTarget: boolean): string {
 
 export function SalesPerfWidget({ data }: SalesPerfWidgetProps) {
     const { fmtAxis } = useCurrency()
-    const [topN, setTopN] = useState(10)
 
     if (data.length === 0) {
         return (
@@ -61,8 +59,6 @@ export function SalesPerfWidget({ data }: SalesPerfWidgetProps) {
                     <SectionTitle>Sales Performance</SectionTitle>
                     <SectionSub>Revenue achievement per sales rep</SectionSub>
                 </div>
-                <div className="flex items-center gap-2">
-                    <TopNToggle value={topN} onChange={setTopN} total={sorted.length} />
                 {teamTarget > 0 && (
                     <div className="text-right shrink-0">
                         <div className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Team avg</div>
@@ -71,11 +67,10 @@ export function SalesPerfWidget({ data }: SalesPerfWidgetProps) {
                         </div>
                     </div>
                 )}
-                </div>
             </div>
 
             <div className="flex-1 overflow-y-auto thin-scrollbar space-y-0.5">
-                {sorted.slice(0, topN).map((rep) => {
+                {sorted.map((rep) => {
                     const hasTarget = rep.target > 0
                     const pct = hasTarget ? (rep.actual / rep.target) * 100 : 0
                     const color = getColor(pct, hasTarget)
