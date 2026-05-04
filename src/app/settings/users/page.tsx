@@ -1,6 +1,7 @@
 "use client"
 
-import { useEffect, useState, useCallback } from "react"
+import { useEffect, useState, useCallback, useMemo } from "react"
+import { useSearchParams, useRouter } from "next/navigation"
 import { createClient } from "@/utils/supabase/client"
 import { Button } from "@/components/ui/button"
 import {
@@ -55,12 +56,16 @@ const getAvatarColor = (name: string | null) => {
 }
 
 export default function UserManagementPage() {
+    const searchParams = useSearchParams()
+    const router = useRouter()
+    const initialBU = searchParams.get("bu") || "all"
+
     const [profiles, setProfiles] = useState<Profile[]>([])
     const [loading, setLoading] = useState(true)
     const [search, setSearch] = useState("")
     const [filterRole, setFilterRole] = useState<string>("all")
     const [filterStatus, setFilterStatus] = useState<string>("all")
-    const [filterBU, setFilterBU] = useState<string>("all")
+    const [filterBU, setFilterBU] = useState<string>(initialBU)
     const [inviteOpen, setInviteOpen] = useState(false)
     const [editProfile, setEditProfile] = useState<Profile | null>(null)
     const [editOpen, setEditOpen] = useState(false)
@@ -117,6 +122,18 @@ export default function UserManagementPage() {
     }, [])
 
     useEffect(() => { fetchProfiles() }, [fetchProfiles])
+
+    // Sync BU filter to URL (enables deep-linking from Company Management)
+    useEffect(() => {
+        const currentBU = searchParams.get("bu") || "all"
+        if (filterBU !== currentBU) {
+            const params = new URLSearchParams(searchParams.toString())
+            if (filterBU === "all") params.delete("bu")
+            else params.set("bu", filterBU)
+            const qs = params.toString()
+            router.replace(`/settings/users${qs ? `?${qs}` : ""}`, { scroll: false })
+        }
+    }, [filterBU]) // eslint-disable-line react-hooks/exhaustive-deps
 
     // Derive unique roles and business units for filter dropdowns
     const uniqueRoles = [...new Set(profiles.map(p => typeof p.role === "string" ? p.role : "").filter(Boolean))].sort()

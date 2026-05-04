@@ -163,7 +163,7 @@ export default function CompanyManagementPage() {
                 <TableRow
                   key={company.id}
                   className="group transition-colors hover:bg-muted/20 cursor-pointer"
-                  onClick={() => router.push(`/settings/companies/${company.slug}/members`)}
+                  onClick={() => router.push(`/settings/users?bu=${encodeURIComponent(company.name)}`)}
                 >
                   {/* Company */}
                   <TableCell className="py-3">
@@ -213,7 +213,7 @@ export default function CompanyManagementPage() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="w-44">
-                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); router.push(`/settings/companies/${company.slug}/members`) }}>
+                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); router.push(`/settings/users?bu=${encodeURIComponent(company.name)}`) }}>
                           <Users className="h-3.5 w-3.5 mr-2" /> View members
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setEditCompany(company); setEditOpen(true) }}>
