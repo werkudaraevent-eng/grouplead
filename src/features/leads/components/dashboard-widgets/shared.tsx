@@ -185,11 +185,11 @@ export function WidgetSkeleton() {
 export function EllipsisTick({ x, y, payload, width = 100, fontSize = 10 }: any) {
     const maxChars = Math.floor((width - 8) / (fontSize * 0.52))
     const text = payload?.value ?? ""
-    const display = text.length > maxChars ? text.slice(0, maxChars - 1) + "…" : text
+    const display = text.length > maxChars ? text.slice(0, maxChars - 1) + "\u2026" : text
     return (
         <g transform={`translate(${x},${y})`}>
             <title>{text}</title>
-            <text x={-4} y={0} dy={4} textAnchor="end" fill="#64748b" fontSize={fontSize} fontWeight={500}>
+            <text x={-4} y={0} dy={4} textAnchor="end" fill="#292D30" fontSize={fontSize} fontWeight={500}>
                 {display}
             </text>
         </g>

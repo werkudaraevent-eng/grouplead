@@ -53,18 +53,40 @@ export function PipelineWidget({ data, comparisonLabel }: PipelineWidgetProps) {
         _color: resolveStageColor(d.color, CHART_COLORS[i % CHART_COLORS.length]),
     }))
 
+    // Calculate win rate for summary
+    const totalLeads = data.reduce((s, d) => s + d.count, 0)
+    const wonCount = data.find(d => d.name.toLowerCase().includes("won"))?.count || 0
+    const lostCount = data.filter(d => {
+        const n = d.name.toLowerCase()
+        return n.includes("lost") || n.includes("turndown") || n.includes("cancelled") || n.includes("postponed")
+    }).reduce((s, d) => s + d.count, 0)
+    const closedTotal = wonCount + lostCount
+    const winRate = closedTotal > 0 ? (wonCount / closedTotal) * 100 : 0
+
     return (
         <SectionCard>
-            <SectionTitle>Pipeline Stages</SectionTitle>
-            <SectionSub>Lead distribution by stage</SectionSub>
+            <div className="flex items-start justify-between mb-1">
+                <div>
+                    <SectionTitle>Pipeline Stages</SectionTitle>
+                    <SectionSub>Lead distribution by stage</SectionSub>
+                </div>
+                {closedTotal > 0 && (
+                    <div className="text-right shrink-0">
+                        <div className="text-[11px] text-muted-foreground">Win rate</div>
+                        <div className="text-[15px] font-bold tabular-nums" style={{ color: winRate >= 50 ? "#6EBDA1" : winRate >= 30 ? "#292D30" : "#ED6F22" }}>
+                            {winRate.toFixed(1)}%
+                        </div>
+                    </div>
+                )}
+            </div>
             <div className="thin-scrollbar flex-1 min-h-[80px] overflow-y-auto overflow-x-hidden">
                 {hasMounted ? (
-                    <div style={{ width: "100%", height: Math.max(chartData.length * 32, 80), minHeight: "100%" }}>
+                    <div style={{ width: "100%", height: Math.max(chartData.length * 34, 80), minHeight: "100%" }}>
                         <ResponsiveContainer width="100%" height="100%">
                             <BarChart
                                 data={chartData}
                                 layout="vertical"
-                                margin={{ top: 4, right: 12, left: 0, bottom: 4 }}
+                                margin={{ top: 4, right: 16, left: 0, bottom: 4 }}
                             >
                                 <XAxis type="number" axisLine={false} tickLine={false} tick={{ fontSize: 9, fill: "#94a3b8", fontWeight: 500 }} />
                                 <YAxis
@@ -72,18 +94,18 @@ export function PipelineWidget({ data, comparisonLabel }: PipelineWidgetProps) {
                                     dataKey="name"
                                     axisLine={false}
                                     tickLine={false}
-                                    tick={<EllipsisTick width={110} fontSize={10} />}
-                                    width={110}
+                                    tick={<EllipsisTick width={150} fontSize={11} />}
+                                    width={150}
                                 />
                                 <RechartsTooltip
                                     content={<PipelineTooltip comparisonLabel={comparisonLabel} />}
                                     cursor={{ fill: "rgba(0,0,0,.03)" }}
                                 />
-                                <Bar dataKey="count" radius={[0, 4, 4, 0]} barSize={14}>
+                                <Bar dataKey="count" radius={[0, 4, 4, 0]} barSize={16}>
                                     {chartData.map((entry) => (
                                         <Cell key={entry.id} fill={entry._color} />
                                     ))}
-                                    <LabelList dataKey="count" position="right" style={{ fontSize: 9, fontWeight: 600, fill: "#64748b" }} />
+                                    <LabelList dataKey="count" position="right" style={{ fontSize: 10, fontWeight: 700, fill: "#292D30" }} />
                                 </Bar>
                             </BarChart>
                         </ResponsiveContainer>

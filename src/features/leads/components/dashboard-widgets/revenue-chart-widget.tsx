@@ -61,17 +61,17 @@ export function RevenueChartWidget({ data, trendYear, setTrendYear, availableYea
             <div className="flex-1 min-h-0 w-full">
                 {hasMounted ? (
                     <ResponsiveContainer width="100%" height="100%">
-                        <ComposedChart data={data} margin={{ top: 15, right: 12, left: 0, bottom: 4 }}>
+                        <ComposedChart data={data} margin={{ top: 20, right: 12, left: 0, bottom: 4 }}>
                             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f3f5" />
-                            <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fontSize: 9, fill: '#94a3b8', fontWeight: 500 }} dy={8} />
+                            <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#64748b', fontWeight: 500 }} dy={8} />
                             <YAxis yAxisId="left" tickFormatter={fmtAxis} axisLine={false} tickLine={false} tick={{ fontSize: 9, fill: '#94a3b8', fontWeight: 500 }} dx={-5} width={55} />
                             <RechartsTooltip content={<DarkTooltip fmt={fmt} />} />
-                            <Legend wrapperStyle={{ paddingTop: '6px', fontSize: '9.5px', fontWeight: 500 }} />
+                            <Legend wrapperStyle={{ paddingTop: '8px', fontSize: '10px', fontWeight: 600 }} />
                             <Bar yAxisId="left" dataKey="actual" name={`Actual ${trendYear}`} barSize={20} fill="#02378D" radius={[3, 3, 0, 0]}>
-                                <LabelList dataKey="actual" position="top" formatter={((v: unknown) => fmt(Number(v))) as (label: unknown) => string} style={{ fontSize: 9, fontWeight: 600, fill: "#64748b" }} />
+                                <LabelList dataKey="actual" position="top" formatter={((v: unknown) => fmtAxis(Number(v))) as (label: unknown) => string} style={{ fontSize: 9, fontWeight: 600, fill: "#292D30" }} />
                             </Bar>
-                            <Bar yAxisId="left" dataKey="prevYear" name={`Last Year`} barSize={12} fill="#C3E6F5" radius={[3, 3, 0, 0]} />
-                            <Line yAxisId="left" type="step" dataKey="target" name="Target" stroke="#c0c7d2" strokeWidth={1.5} strokeDasharray="4 4" dot={false} />
+                            <Bar yAxisId="left" dataKey="prevYear" name={`Last Year`} barSize={14} fill="#5EC5F2" radius={[3, 3, 0, 0]} />
+                            <Line yAxisId="left" type="step" dataKey="target" name="Target" stroke="#F9BB46" strokeWidth={2} strokeDasharray="6 4" dot={false} />
                         </ComposedChart>
                     </ResponsiveContainer>
                 ) : (
