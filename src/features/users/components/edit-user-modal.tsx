@@ -24,7 +24,7 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Loader2, Save, UserCog, Building2 } from "lucide-react"
+import { Loader2, Save, UserCog, Building2, X } from "lucide-react"
 import { Profile } from "@/types"
 import type { Role } from "@/types/company"
 
@@ -202,6 +202,7 @@ export function EditUserSheet({ profile, open, onOpenChange, onSaved }: EditUser
             <SheetContent
                 className="w-full sm:max-w-2xl p-0 flex flex-col"
                 side="right"
+                showCloseButton={false}
                 onInteractOutside={(e) => { e.preventDefault(); handleAttemptClose() }}
                 onEscapeKeyDown={(e) => { e.preventDefault(); handleAttemptClose() }}
             >
@@ -210,14 +211,25 @@ export function EditUserSheet({ profile, open, onOpenChange, onSaved }: EditUser
                     <SheetTitle className="flex items-center gap-2 text-lg">
                         <UserCog className="h-5 w-5" /> Edit User Profile
                     </SheetTitle>
-                    <div className="flex items-center gap-2.5">
-                        <span className={`text-xs font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full border ${isActive ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-red-50 text-red-700 border-red-200"}`}>
-                            {isActive ? "Active" : "Inactive"}
-                        </span>
-                        <Switch
-                            checked={isActive}
-                            onCheckedChange={(val) => form.setValue("is_active", val, { shouldDirty: true })}
-                        />
+                    <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2 border rounded-lg px-2.5 py-1.5">
+                            <span className={`text-[11px] font-medium ${isActive ? "text-emerald-600" : "text-red-500"}`}>
+                                {isActive ? "Active" : "Inactive"}
+                            </span>
+                            <Switch
+                                checked={isActive}
+                                onCheckedChange={(val) => form.setValue("is_active", val, { shouldDirty: true })}
+                                className="scale-90"
+                            />
+                        </div>
+                        <button
+                            type="button"
+                            onClick={handleAttemptClose}
+                            className="rounded-md p-1.5 text-muted-foreground/60 hover:text-foreground hover:bg-muted transition-colors"
+                        >
+                            <X className="h-4 w-4" />
+                            <span className="sr-only">Close</span>
+                        </button>
                     </div>
                 </SheetHeader>
 
@@ -330,7 +342,7 @@ export function EditUserSheet({ profile, open, onOpenChange, onSaved }: EditUser
                                                 <p className="text-[0.7rem] text-muted-foreground mb-3">
                                                     Select the companies this user should have access to. This defines their data scope.
                                                 </p>
-                                                <div className="flex flex-col gap-3 border rounded-xl p-3 bg-slate-50/50 max-h-56 overflow-y-auto">
+                                                <div className="flex flex-col gap-3 border rounded-xl p-3 bg-slate-50/50 max-h-72 overflow-y-auto">
                                                     {/* Group Level (HQ) */}
                                                     {holdingCompanies.length > 0 && (
                                                         <div className="flex flex-col gap-2">
