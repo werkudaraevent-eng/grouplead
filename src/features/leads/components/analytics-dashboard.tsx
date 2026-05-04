@@ -504,13 +504,22 @@ export function AnalyticsDashboard({
     const salesData = useMemo(() => {
         const reps: Record<string, { name: string, actual: number, target: number, userId?: string, hasRealTarget: boolean }> = {}
 
-        // Build actual revenue per sales (period-filtered)
+        // Seed all sales users from leads data (pic_sales)
         periodLeads.forEach(l => {
             const stage = (l.pipeline_stage?.name || "").toLowerCase()
             const pic = l.pic_sales_profile?.full_name || "Unassigned"
             const picId = l.pic_sales_id || "unassigned"
             if (!reps[picId]) reps[picId] = { name: pic, actual: 0, target: 0, userId: picId, hasRealTarget: false }
             if (stage.includes("won")) reps[picId].actual += (l.actual_value ?? l.estimated_value ?? 0)
+        })
+
+        // Also seed sales from ALL leads (not just period-filtered) to catch reps with no current-period leads
+        leads.forEach(l => {
+            const pic = l.pic_sales_profile?.full_name
+            const picId = l.pic_sales_id
+            if (picId && pic && !reps[picId]) {
+                reps[picId] = { name: pic, actual: 0, target: 0, userId: picId, hasRealTarget: false }
+            }
         })
 
         // Apply real targets from userTargets if available
@@ -581,8 +590,8 @@ export function AnalyticsDashboard({
         return Object.values(reps)
             .filter(r => r.userId !== "unassigned") // Remove unassigned
             .sort((a, b) => b.actual - a.actual)
-            .slice(0, 10)
-    }, [periodLeads, userTargets, goalNodes, activeGoal])
+            .slice(0, 15)
+    }, [leads, periodLeads, userTargets, goalNodes, activeGoal])
 
     const topComps = useMemo(() => {
         const comps: Record<string, number> = {}
