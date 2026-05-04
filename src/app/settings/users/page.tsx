@@ -27,12 +27,30 @@ import { adminResetUserPassword } from "@/app/actions/auth-actions"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 
-const ROLE_BADGES: Record<string, { label: string; class: string }> = {
-    super_admin: { label: "Super Admin", class: "bg-red-100 text-red-700 border-red-200" },
-    admin: { label: "Admin", class: "bg-purple-100 text-purple-700 border-purple-200" },
-    executive: { label: "Executive", class: "bg-blue-100 text-blue-700 border-blue-200" },
-    leader: { label: "Leader", class: "bg-emerald-100 text-emerald-700 border-emerald-200" },
-    staff: { label: "Staff", class: "bg-amber-100 text-amber-700 border-amber-200" },
+const ROLE_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
+    super_admin: { label: "Super Admin", color: "text-red-600", bg: "bg-red-50" },
+    admin: { label: "Admin", color: "text-violet-600", bg: "bg-violet-50" },
+    executive: { label: "Executive", color: "text-blue-600", bg: "bg-blue-50" },
+    leader: { label: "Leader", color: "text-emerald-600", bg: "bg-emerald-50" },
+    sales: { label: "Sales", color: "text-amber-600", bg: "bg-amber-50" },
+    staff: { label: "Staff", color: "text-slate-500", bg: "bg-slate-50" },
+}
+
+/** Avatar color based on name hash — consistent per user */
+const AVATAR_COLORS = [
+    "bg-indigo-100 text-indigo-700",
+    "bg-sky-100 text-sky-700",
+    "bg-emerald-100 text-emerald-700",
+    "bg-amber-100 text-amber-700",
+    "bg-rose-100 text-rose-700",
+    "bg-violet-100 text-violet-700",
+    "bg-teal-100 text-teal-700",
+    "bg-orange-100 text-orange-700",
+]
+const getAvatarColor = (name: string | null) => {
+    if (!name) return AVATAR_COLORS[0]
+    const hash = name.split("").reduce((a, c) => a + c.charCodeAt(0), 0)
+    return AVATAR_COLORS[hash % AVATAR_COLORS.length]
 }
 
 export default function UserManagementPage() {
@@ -99,103 +117,172 @@ export default function UserManagementPage() {
                 }
             />
 
-            <div className="px-6 lg:px-8 pb-6 space-y-6">
-            <div className="relative max-w-sm">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input placeholder="Search by name, email, role..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 h-9" />
+            <div className="px-6 lg:px-8 pb-8 space-y-5">
+
+            {/* Search + count */}
+            <div className="flex items-center justify-between gap-4">
+                <div className="relative max-w-xs flex-1">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/60" />
+                    <Input
+                        placeholder="Search users..."
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                        className="pl-9 h-9 bg-muted/40 border-transparent focus:border-border focus:bg-background transition-colors"
+                    />
+                </div>
+                {!loading && (
+                    <span className="text-xs text-muted-foreground tabular-nums shrink-0">
+                        {filtered.length} {filtered.length === 1 ? "user" : "users"}
+                    </span>
+                )}
             </div>
 
-            <div className="border rounded-xl bg-card overflow-hidden">
+            {/* Table */}
+            <div className="border rounded-xl bg-card overflow-hidden shadow-sm">
                 <Table>
                     <TableHeader>
-                        <TableRow>
-                            <TableHead className="w-[250px]">User</TableHead>
-                            <TableHead>Role</TableHead>
-                            <TableHead>Business Unit</TableHead>
-                            <TableHead>Reports To</TableHead>
-                            <TableHead>Status</TableHead>
-                            <TableHead className="w-[60px] text-right">Actions</TableHead>
+                        <TableRow className="bg-muted/30 hover:bg-muted/30">
+                            <TableHead className="w-[280px] font-semibold text-xs">User</TableHead>
+                            <TableHead className="font-semibold text-xs w-[120px]">Role</TableHead>
+                            <TableHead className="font-semibold text-xs">Business unit</TableHead>
+                            <TableHead className="font-semibold text-xs w-[160px]">Reports to</TableHead>
+                            <TableHead className="font-semibold text-xs w-[80px]">Status</TableHead>
+                            <TableHead className="w-[52px]" />
                         </TableRow>
                     </TableHeader>
                     <TableBody>
                         {loading && (
-                            <TableRow><TableCell colSpan={6} className="text-center py-12"><Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" /></TableCell></TableRow>
+                            <TableRow>
+                                <TableCell colSpan={6} className="py-16">
+                                    <div className="flex flex-col items-center gap-2">
+                                        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground/50" />
+                                        <span className="text-xs text-muted-foreground">Loading users...</span>
+                                    </div>
+                                </TableCell>
+                            </TableRow>
                         )}
                         {!loading && filtered.length === 0 && (
-                            <TableRow><TableCell colSpan={6} className="text-center py-12 text-muted-foreground">No users found.</TableCell></TableRow>
+                            <TableRow>
+                                <TableCell colSpan={6} className="py-16">
+                                    <div className="flex flex-col items-center gap-1.5">
+                                        <Search className="h-5 w-5 text-muted-foreground/40" />
+                                        <span className="text-sm text-muted-foreground">No users found</span>
+                                        {search && <span className="text-xs text-muted-foreground/60">Try a different search term</span>}
+                                    </div>
+                                </TableCell>
+                            </TableRow>
                         )}
                         {filtered.map((p) => {
                             const roleKey = typeof p.role === "string" ? p.role : ""
-                            const badge = ROLE_BADGES[roleKey] || { label: roleKey || "Unknown", class: "bg-gray-100 text-gray-600" }
+                            const role = ROLE_CONFIG[roleKey] || { label: roleKey || "—", color: "text-muted-foreground", bg: "bg-muted" }
                             const inactive = p.is_active === false
+                            const companies = p.company_memberships?.filter(cm => cm.company?.name) || []
+                            const reportsToName = p.reports_to ? profiles.find((u) => u.id === p.reports_to)?.full_name : null
+
                             return (
-                                <TableRow key={p.id} className={cn(
-                                    "hover:bg-muted/30 transition-colors",
-                                    inactive && "opacity-50"
-                                )}>
-                                    <TableCell>
+                                <TableRow
+                                    key={p.id}
+                                    className={cn(
+                                        "group transition-colors",
+                                        inactive ? "opacity-40" : "hover:bg-muted/20"
+                                    )}
+                                >
+                                    {/* User */}
+                                    <TableCell className="py-3">
                                         <div className="flex items-center gap-3">
                                             <div className={cn(
-                                                "w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold shrink-0",
-                                                inactive ? "bg-muted text-muted-foreground" : "bg-primary/10 text-primary"
-                                            )}>{getInitials(p.full_name)}</div>
+                                                "w-8 h-8 rounded-lg flex items-center justify-center text-[11px] font-bold shrink-0 transition-transform group-hover:scale-105",
+                                                inactive ? "bg-muted text-muted-foreground" : getAvatarColor(p.full_name)
+                                            )}>
+                                                {getInitials(p.full_name)}
+                                            </div>
                                             <div className="min-w-0">
-                                                <p className="font-semibold text-sm truncate">{p.full_name || "—"}</p>
-                                                <p className="text-xs text-muted-foreground truncate flex items-center gap-1"><Mail className="h-3 w-3 shrink-0" />{p.email || "—"}</p>
+                                                <p className="font-medium text-[13px] leading-tight truncate">{p.full_name || "Unnamed"}</p>
+                                                <p className="text-[11px] text-muted-foreground/70 truncate mt-0.5">{p.email}</p>
                                             </div>
                                         </div>
                                     </TableCell>
-                                    <TableCell>
-                                        <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-full border ${badge.class}`}>
-                                            {badge.label}
+
+                                    {/* Role — fixed: no more clipping */}
+                                    <TableCell className="py-3">
+                                        <span className={cn(
+                                            "inline-flex items-center gap-1 text-[11px] font-semibold leading-none px-2 py-1.5 rounded-md whitespace-nowrap",
+                                            role.bg, role.color
+                                        )}>
+                                            {roleKey === "super_admin" && <ShieldCheck className="h-3 w-3 shrink-0" />}
+                                            {role.label}
                                         </span>
                                     </TableCell>
-                                    <TableCell>
-                                        <div className="flex flex-wrap gap-1">
-                                            {(p.company_memberships && p.company_memberships.length > 0)
-                                                ? p.company_memberships.map((cm) => (
-                                                    <span key={cm.company_id} className="text-xs px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
-                                                        {cm.company?.name || "—"}
+
+                                    {/* Business Unit — compact with overflow */}
+                                    <TableCell className="py-3">
+                                        {companies.length > 0 ? (
+                                            <div className="flex items-center gap-1 flex-wrap">
+                                                {companies.slice(0, 3).map((cm) => (
+                                                    <span
+                                                        key={cm.company_id}
+                                                        className="text-[11px] font-medium text-muted-foreground bg-muted/60 px-1.5 py-0.5 rounded"
+                                                    >
+                                                        {cm.company?.name}
                                                     </span>
-                                                ))
-                                                : <span className="text-sm text-muted-foreground">—</span>
-                                            }
+                                                ))}
+                                                {companies.length > 3 && (
+                                                    <span className="text-[10px] font-medium text-muted-foreground/60 px-1">
+                                                        +{companies.length - 3}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        ) : (
+                                            <span className="text-[11px] text-muted-foreground/40">Not assigned</span>
+                                        )}
+                                    </TableCell>
+
+                                    {/* Reports To */}
+                                    <TableCell className="py-3">
+                                        {reportsToName ? (
+                                            <span className="text-[13px]">{reportsToName}</span>
+                                        ) : (
+                                            <span className="text-[11px] text-muted-foreground/40">—</span>
+                                        )}
+                                    </TableCell>
+
+                                    {/* Status — dot indicator instead of loud badge */}
+                                    <TableCell className="py-3">
+                                        <div className="flex items-center gap-1.5">
+                                            <div className={cn(
+                                                "w-1.5 h-1.5 rounded-full shrink-0",
+                                                inactive ? "bg-red-400" : "bg-emerald-500"
+                                            )} />
+                                            <span className={cn(
+                                                "text-[11px] font-medium",
+                                                inactive ? "text-red-500" : "text-muted-foreground"
+                                            )}>
+                                                {inactive ? "Inactive" : "Active"}
+                                            </span>
                                         </div>
                                     </TableCell>
-                                    <TableCell>
-                                        <span className="text-sm">
-                                            {p.reports_to
-                                                ? profiles.find((u) => u.id === p.reports_to)?.full_name || "—"
-                                                : "—"}
-                                        </span>
-                                    </TableCell>
-                                    <TableCell>
-                                        <span className={cn(
-                                            "text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-full border",
-                                            inactive
-                                                ? "bg-red-50 text-red-600 border-red-200"
-                                                : "bg-emerald-50 text-emerald-700 border-emerald-200"
-                                        )}>
-                                            {inactive ? "Inactive" : "Active"}
-                                        </span>
-                                    </TableCell>
-                                    <TableCell className="text-right">
+
+                                    {/* Actions */}
+                                    <TableCell className="py-3">
                                         <DropdownMenu>
                                             <DropdownMenuTrigger asChild>
-                                                <Button variant="ghost" className="h-8 w-8 p-0"><MoreHorizontal className="h-4 w-4" /></Button>
+                                                <Button
+                                                    variant="ghost"
+                                                    className="h-7 w-7 p-0 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity"
+                                                >
+                                                    <MoreHorizontal className="h-4 w-4" />
+                                                </Button>
                                             </DropdownMenuTrigger>
-                                            <DropdownMenuContent align="end">
-                                                <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                                <DropdownMenuSeparator />
+                                            <DropdownMenuContent align="end" className="w-48">
                                                 <DropdownMenuItem onClick={() => { setEditProfile(p); setEditOpen(true) }}>
-                                                    <UserCog className="h-3.5 w-3.5 mr-2" /> Edit Profile
+                                                    <UserCog className="h-3.5 w-3.5 mr-2" /> Edit profile
                                                 </DropdownMenuItem>
                                                 <DropdownMenuItem onClick={() => { setTargetProfile(p); setTargetOpen(true) }}>
-                                                    <Target className="h-3.5 w-3.5 mr-2" /> Manage Quota
+                                                    <Target className="h-3.5 w-3.5 mr-2" /> Manage quota
                                                 </DropdownMenuItem>
                                                 <DropdownMenuSeparator />
                                                 <DropdownMenuItem onClick={() => { setResetProfile(p); setNewPassword("") }}>
-                                                    <KeyRound className="h-3.5 w-3.5 mr-2" /> Reset Password
+                                                    <KeyRound className="h-3.5 w-3.5 mr-2" /> Reset password
                                                 </DropdownMenuItem>
                                             </DropdownMenuContent>
                                         </DropdownMenu>
