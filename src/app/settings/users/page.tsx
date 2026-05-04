@@ -86,7 +86,7 @@ export default function UserManagementPage() {
         setLoading(true)
         const { data, error } = await supabase
             .from("profiles")
-            .select("*, assigned_role:roles(name), company_memberships:company_members(company_id, user_type, company:companies(id, name))")
+            .select("*, assigned_role:roles(name), company_memberships:company_members(company_id, user_type, company:companies(id, name, is_holding))")
             .order("full_name", { ascending: true })
         if (error) console.error("Error fetching profiles:", error)
         else setProfiles((data as Profile[]) || [])
@@ -285,27 +285,40 @@ export default function UserManagementPage() {
                                         </span>
                                     </TableCell>
 
-                                    {/* Business Unit — compact with overflow */}
+                                    {/* Business Unit — if holding present, just show "All units" */}
                                     <TableCell className="py-3">
-                                        {companies.length > 0 ? (
-                                            <div className="flex items-center gap-1 flex-wrap">
-                                                {companies.slice(0, 3).map((cm) => (
-                                                    <span
-                                                        key={cm.company_id}
-                                                        className="text-[11px] font-medium text-muted-foreground bg-muted/60 px-1.5 py-0.5 rounded"
-                                                    >
-                                                        {cm.company?.name}
+                                        {(() => {
+                                            const hasHolding = companies.some(cm => (cm.company as { is_holding?: boolean })?.is_holding)
+                                            if (companies.length === 0) {
+                                                return <span className="text-[11px] text-muted-foreground/40">Not assigned</span>
+                                            }
+                                            if (hasHolding) {
+                                                return (
+                                                    <span className="inline-flex items-center gap-1 text-[11px] font-medium text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">
+                                                        All units
                                                     </span>
-                                                ))}
-                                                {companies.length > 3 && (
-                                                    <span className="text-[10px] font-medium text-muted-foreground/60 px-1">
-                                                        +{companies.length - 3}
-                                                    </span>
-                                                )}
-                                            </div>
-                                        ) : (
-                                            <span className="text-[11px] text-muted-foreground/40">Not assigned</span>
-                                        )}
+                                                )
+                                            }
+                                            // No holding — show individual subsidiaries
+                                            const subs = companies.filter(cm => !(cm.company as { is_holding?: boolean })?.is_holding)
+                                            return (
+                                                <div className="flex items-center gap-1 flex-wrap">
+                                                    {subs.slice(0, 2).map((cm) => (
+                                                        <span
+                                                            key={cm.company_id}
+                                                            className="text-[11px] font-medium text-muted-foreground bg-muted/60 px-1.5 py-0.5 rounded"
+                                                        >
+                                                            {cm.company?.name}
+                                                        </span>
+                                                    ))}
+                                                    {subs.length > 2 && (
+                                                        <span className="text-[10px] font-medium text-muted-foreground/60 px-1">
+                                                            +{subs.length - 2}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            )
+                                        })()}
                                     </TableCell>
 
                                     {/* Reports To */}
