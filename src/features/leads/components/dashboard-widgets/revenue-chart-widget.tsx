@@ -62,11 +62,11 @@ export function RevenueChartWidget({ data, trendYear, setTrendYear, availableYea
                         <option value="closed_won">Closed Won Date</option>
                     </MiniSelect>
                     <MiniSelect
-                        label="Showing"
+                        label="Compare to"
                         value={trendYear}
                         onChange={e => setTrendYear(Number(e.target.value))}
                     >
-                        {availableYears.map(y => <option key={y} value={y}>{y} vs {y - 1}</option>)}
+                        {availableYears.map(y => <option key={y} value={y}>{y - 1}</option>)}
                     </MiniSelect>
                 </div>
             </div>
