@@ -15,7 +15,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import {
-    ShieldCheck, Plus, Loader2, Search, Mail, MoreHorizontal, UserCog, KeyRound, Filter, X,
+    ShieldCheck, Plus, Loader2, Search, Mail, MoreHorizontal, UserCog, KeyRound, Filter, X, UserX, Trash2,
 } from "lucide-react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { SettingsPageHeader } from "@/components/layout/settings-page-header"
@@ -24,6 +24,7 @@ import { Profile } from "@/types"
 import { EditUserSheet } from "@/features/users/components/edit-user-modal"
 import { CreateUserModal } from "@/features/users/components/create-user-modal"
 import { adminResetUserPassword } from "@/app/actions/auth-actions"
+import { deactivateUserAction, deleteUserAction } from "@/app/actions/user-actions"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 
@@ -66,6 +67,9 @@ export default function UserManagementPage() {
     const [resetProfile, setResetProfile] = useState<Profile | null>(null)
     const [newPassword, setNewPassword] = useState("")
     const [resetting, setResetting] = useState(false)
+    const [deleteProfile, setDeleteProfile] = useState<Profile | null>(null)
+    const [deleteMode, setDeleteMode] = useState<"deactivate" | "delete">("deactivate")
+    const [deleting, setDeleting] = useState(false)
     const supabase = createClient()
 
     const handleAdminPasswordReset = async () => {
@@ -80,6 +84,25 @@ export default function UserManagementPage() {
             toast.error(result.error || "Failed to reset password")
         }
         setResetting(false)
+    }
+
+    const handleDeleteUser = async () => {
+        if (!deleteProfile) return
+        setDeleting(true)
+        const result = deleteMode === "delete"
+            ? await deleteUserAction(deleteProfile.id)
+            : await deactivateUserAction(deleteProfile.id)
+        if (result.success) {
+            toast.success(deleteMode === "delete"
+                ? `${deleteProfile.full_name || "User"} permanently deleted`
+                : `${deleteProfile.full_name || "User"} deactivated`
+            )
+            setDeleteProfile(null)
+            fetchProfiles()
+        } else {
+            toast.error(result.error || "Operation failed")
+        }
+        setDeleting(false)
     }
 
     const fetchProfiles = useCallback(async () => {
@@ -361,9 +384,23 @@ export default function UserManagementPage() {
                                                 <DropdownMenuItem onClick={() => { setEditProfile(p); setEditOpen(true) }}>
                                                     <UserCog className="h-3.5 w-3.5 mr-2" /> Edit profile
                                                 </DropdownMenuItem>
-                                                <DropdownMenuSeparator />
                                                 <DropdownMenuItem onClick={() => { setResetProfile(p); setNewPassword("") }}>
                                                     <KeyRound className="h-3.5 w-3.5 mr-2" /> Reset password
+                                                </DropdownMenuItem>
+                                                <DropdownMenuSeparator />
+                                                {p.is_active !== false && (
+                                                    <DropdownMenuItem
+                                                        onClick={() => { setDeleteProfile(p); setDeleteMode("deactivate") }}
+                                                        className="text-amber-600 focus:text-amber-600"
+                                                    >
+                                                        <UserX className="h-3.5 w-3.5 mr-2" /> Deactivate
+                                                    </DropdownMenuItem>
+                                                )}
+                                                <DropdownMenuItem
+                                                    onClick={() => { setDeleteProfile(p); setDeleteMode("delete") }}
+                                                    className="text-red-600 focus:text-red-600"
+                                                >
+                                                    <Trash2 className="h-3.5 w-3.5 mr-2" /> Delete permanently
                                                 </DropdownMenuItem>
                                             </DropdownMenuContent>
                                         </DropdownMenu>
@@ -415,6 +452,38 @@ export default function UserManagementPage() {
                         >
                             {resetting ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <KeyRound className="h-4 w-4 mr-1.5" />}
                             Reset Password
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Delete / Deactivate Confirmation Dialog */}
+            <Dialog open={!!deleteProfile} onOpenChange={(open) => { if (!open) setDeleteProfile(null) }}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            {deleteMode === "delete"
+                                ? <><Trash2 className="h-5 w-5 text-red-500" /> Delete user</>
+                                : <><UserX className="h-5 w-5 text-amber-500" /> Deactivate user</>
+                            }
+                        </DialogTitle>
+                        <DialogDescription>
+                            {deleteMode === "delete" ? (
+                                <>This will <strong>permanently delete</strong> <strong>{deleteProfile?.full_name || deleteProfile?.email}</strong> and remove all their data including auth credentials. This cannot be undone.</>
+                            ) : (
+                                <>This will deactivate <strong>{deleteProfile?.full_name || deleteProfile?.email}</strong>. They will no longer be able to log in, but their data will be preserved. You can reactivate them later.</>
+                            )}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setDeleteProfile(null)} disabled={deleting}>Cancel</Button>
+                        <Button
+                            variant={deleteMode === "delete" ? "destructive" : "default"}
+                            onClick={handleDeleteUser}
+                            disabled={deleting}
+                        >
+                            {deleting && <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />}
+                            {deleteMode === "delete" ? "Delete permanently" : "Deactivate"}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

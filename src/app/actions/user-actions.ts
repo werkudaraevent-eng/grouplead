@@ -108,3 +108,32 @@ export async function deactivateUserAction(
         }
     }
 }
+
+export async function deleteUserAction(
+    userId: string
+): Promise<ActionResult> {
+    try {
+        const supabase = createServiceClient()
+
+        // Hard delete: remove from Supabase Auth (cascades to profiles via trigger/FK)
+        const { error: authError } = await supabase.auth.admin.deleteUser(userId)
+
+        if (authError) {
+            return { success: false, error: authError.message }
+        }
+
+        // Clean up profile row if it wasn't cascade-deleted
+        await supabase.from("profiles").delete().eq("id", userId)
+
+        // Clean up company memberships
+        await supabase.from("company_members").delete().eq("user_id", userId)
+
+        revalidatePath("/settings/users")
+        return { success: true }
+    } catch (err) {
+        return {
+            success: false,
+            error: err instanceof Error ? err.message : "Unknown error",
+        }
+    }
+}
