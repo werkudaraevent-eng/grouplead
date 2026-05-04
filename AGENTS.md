@@ -21,14 +21,15 @@ LeadEngine — internal CRM for Werkudara Group. Next.js 16 App Router + React 1
 
 ```bash
 npm run dev          # local dev server (port 3000)
-npm run build        # production build (TS errors ignored via next.config.ts)
+npm run build        # production build
 npm run lint         # eslint (flat config, next core-web-vitals + typescript)
-npx vitest run       # all tests
+npm run typecheck    # tsc --noEmit (strict type checking)
+npm test             # vitest run (all unit tests)
 npx vitest run src/features/goals/lib/__tests__/rollup-engine.test.ts  # single test file
 ```
 
-- **No CI workflows exist.** No pre-commit hooks. No deploy pipeline in the repo.
-- `next.config.ts` sets `typescript.ignoreBuildErrors: true` — the build will succeed even with TS errors. Run `npx tsc --noEmit` separately to catch type issues.
+- **CI workflow** in `.github/workflows/ci.yml` runs type check, lint, unit tests, and production build on push/PR to main/develop.
+- No pre-commit hooks. No deploy pipeline in the repo.
 - Vitest uses `environment: 'node'` with `globals: true`. The `@/` alias resolves to `./src`.
 
 ## Architecture

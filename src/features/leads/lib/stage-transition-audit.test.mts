@@ -1,7 +1,7 @@
 import test from "node:test"
 import assert from "node:assert/strict"
 
-import { buildStageTransitionAuditEntries } from "./stage-transition-audit.ts"
+import { buildStageTransitionAuditEntries } from "./stage-transition-audit.js"
 
 test("buildStageTransitionAuditEntries creates both stage history and timeline activity", () => {
     const result = buildStageTransitionAuditEntries({

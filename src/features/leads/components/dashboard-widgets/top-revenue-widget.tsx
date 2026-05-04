@@ -116,7 +116,7 @@ export function TopRevenueWidget({ data }: TopRevenueWidgetProps) {
                                             fill={entry.name === "Unknown Company" ? "#e2e5ea" : "#6366f1"}
                                         />
                                     ))}
-                                    <LabelList dataKey="revenue" position="right" formatter={fmt} style={{ fontSize: 9, fontWeight: 600, fill: "#64748b" }} />
+                                    <LabelList dataKey="revenue" position="right" formatter={((v: unknown) => fmt(Number(v))) as (label: unknown) => string} style={{ fontSize: 9, fontWeight: 600, fill: "#64748b" }} />
                                 </Bar>
                             </BarChart>
                         </ResponsiveContainer>

@@ -1,7 +1,7 @@
 import test from "node:test"
 import assert from "node:assert/strict"
 
-import { buildDashboardStageSeries } from "./dashboard-stage-series.ts"
+import { buildDashboardStageSeries } from "./dashboard-stage-series.js"
 
 test("buildDashboardStageSeries follows pipeline stage order, keeps empty stages, and computes shares", () => {
     const stages = [

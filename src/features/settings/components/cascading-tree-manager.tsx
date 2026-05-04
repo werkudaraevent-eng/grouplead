@@ -196,7 +196,7 @@ export function CascadingTreeManager({ options, companyId, onRefresh, cascadeRel
             return opt && opt.parent_value === pickerParentValue
         })
 
-        const promises: Promise<unknown>[] = []
+        const promises: PromiseLike<unknown>[] = []
         if (toAssign.length > 0) {
             promises.push(supabase.from("master_options").update({ parent_value: pickerParentValue }).in("id", toAssign))
         }

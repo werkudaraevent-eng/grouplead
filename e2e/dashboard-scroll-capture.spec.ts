@@ -117,7 +117,7 @@ test('Capture via element screenshots', async ({ page }) => {
     const mainDims = await mainContent.evaluate(el => ({
       scrollHeight: el.scrollHeight,
       clientHeight: el.clientHeight,
-      offsetHeight: el.offsetHeight,
+      offsetHeight: (el as HTMLElement).offsetHeight,
     }))
     console.log('=== MAIN ELEMENT DIMS ===')
     console.log(JSON.stringify(mainDims, null, 2))

@@ -34,7 +34,7 @@ export interface GoalV2 {
   period_end: string | null
 }
 
-export type GoalV2Insert = Omit<GoalV2, 'id' | 'created_at' | 'updated_at'>
+export type GoalV2Insert = Omit<GoalV2, 'id' | 'created_at' | 'updated_at' | 'slug'> & { slug?: string }
 export type GoalV2Update = Partial<Omit<GoalV2Insert, 'company_id'>>
 
 export interface SegmentMappingEntry {

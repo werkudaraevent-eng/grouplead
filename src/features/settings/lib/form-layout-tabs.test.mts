@@ -6,7 +6,7 @@ import {
     createTabId,
     getFirstVisibleTabId,
     getVisibleTabEntries,
-} from "./form-layout-tabs.ts"
+} from "./form-layout-tabs.js"
 
 test("buildLayoutStateSnapshot keeps tab settings in persisted state", () => {
     const items = {

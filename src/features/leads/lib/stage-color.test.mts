@@ -1,7 +1,7 @@
 import test from "node:test"
 import assert from "node:assert/strict"
 
-import { resolveStageColor, toRgba } from "./stage-color.ts"
+import { resolveStageColor, toRgba } from "./stage-color.js"
 
 test("resolveStageColor maps pipeline color tokens to hex values", () => {
     assert.equal(resolveStageColor("blue"), "#6366f1")

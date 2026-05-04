@@ -101,8 +101,9 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
 
         // Filter nodes by active goal
         if (activeGoal) {
-            goalNodes = goalNodes.filter(n => n.goal_id === activeGoal.id)
-            userTargets = userTargets.filter(t => t.goal_id === activeGoal.id)
+            const goalId = activeGoal.id
+            goalNodes = goalNodes.filter(n => n.goal_id === goalId)
+            userTargets = userTargets.filter(t => t.goal_id === goalId)
         }
     }
 

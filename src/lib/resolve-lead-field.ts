@@ -30,7 +30,7 @@ const CLIENT_COMPANY_FIELDS = new Set([
  */
 export function resolveLeadField(lead: Lead, field: string): string | null {
   // Level 1: direct lead field
-  const direct = (lead as Record<string, unknown>)[field]
+  const direct = (lead as unknown as Record<string, unknown>)[field]
   if (direct != null && direct !== '') return String(direct)
 
   // Level 2: client_company relation

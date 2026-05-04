@@ -112,7 +112,7 @@ export function SalesPerfWidget({ data }: SalesPerfWidgetProps) {
                                     {data.map((rep) => (
                                         <Cell key={rep.name} fill={getBarColor(rep)} />
                                     ))}
-                                    <LabelList dataKey="actual" position="right" formatter={fmt} style={{ fontSize: 9, fontWeight: 600, fill: "#64748b" }} />
+                                    <LabelList dataKey="actual" position="right" formatter={((v: unknown) => fmt(Number(v))) as (label: unknown) => string} style={{ fontSize: 9, fontWeight: 600, fill: "#64748b" }} />
                                 </Bar>
                             </BarChart>
                         </ResponsiveContainer>

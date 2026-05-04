@@ -1,5 +1,8 @@
-"use client";
 // @ts-nocheck
+"use client";
+/* TODO: Remove @ts-nocheck and fix 59 type errors in this file.
+   Main issues: untyped parameters (any), null vs number state, untyped reduce accumulators.
+   Tracked as tech-debt — this file needs a refactor into smaller typed components. */
 import type { GoalV2 } from '@/types/goals';
 
 import { useState, useRef, useEffect, useCallback } from "react";

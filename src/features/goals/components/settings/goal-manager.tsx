@@ -90,6 +90,8 @@ export function GoalManager({ onDataChange }: { onDataChange?: () => void } = {}
       breakdown_targets: {},
       monthly_weights: null,
       created_by: null,
+      period_start: null,
+      period_end: null,
     })
     setCreating(false)
     if (result.success) {

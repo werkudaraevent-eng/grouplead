@@ -72,7 +72,7 @@ function buildSumTree(node: SimpleNode, level: number, id: string): TreeNodeData
 // Arbitrary for a tree with up to 3 levels
 const treeArb: fc.Arbitrary<SimpleNode> = fc.letrec((tie) => ({
   node: fc.oneof(
-    { depthFactor: 0.5 },
+    { depthIdentifier: 'node' },
     leafArb,
     fc.record({
       wonRevenue: fc.float({ min: 0, max: 1_000_000, noNaN: true }),

@@ -1,7 +1,7 @@
 import test from "node:test"
 import assert from "node:assert/strict"
 
-import { splitDashboardLeadsByPeriod } from "./dashboard-period.ts"
+import { splitDashboardLeadsByPeriod } from "./dashboard-period.js"
 
 test("splitDashboardLeadsByPeriod returns current quarter and same quarter last year", () => {
     const now = new Date("2026-04-13T10:00:00.000Z")
