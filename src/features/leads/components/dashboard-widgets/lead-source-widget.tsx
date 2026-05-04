@@ -1,10 +1,6 @@
 "use client"
 
-import {
-    BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer, Cell, LabelList,
-} from "recharts"
-import { SectionCard, SectionTitle, SectionSub, InsightCallout, CHART_COLORS, TOOLTIP_STYLE, EllipsisTick, WidgetSkeleton } from "./shared"
-import { useHasMounted } from "@/hooks/use-has-mounted"
+import { SectionCard, SectionTitle, SectionSub, InsightCallout } from "./shared"
 
 interface SourceItem {
     name: string
@@ -15,73 +11,67 @@ interface LeadSourceWidgetProps {
     data: SourceItem[]
 }
 
-function SourceTooltip({ active, payload }: any) {
-    if (!active || !payload?.length) return null
-    const d = payload[0].payload
-    return (
-        <div style={{ ...TOOLTIP_STYLE }}>
-            <div style={{ fontWeight: 700, marginBottom: 1 }}>{d.name}</div>
-            <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                <div style={{ width: 6, height: 6, borderRadius: 2, background: d.fill, flexShrink: 0 }} />
-                <span>Count: {d.value}</span>
-            </div>
-            <div style={{ opacity: 0.7 }}>{d.pctLabel}</div>
-        </div>
-    )
-}
-
 export function LeadSourceWidget({ data }: LeadSourceWidgetProps) {
-    const hasMounted = useHasMounted()
-    const totalLeads = data.reduce((s, d) => s + d.value, 0)
-    const sourceColors: Record<string, string> = { "Referral": "#02378D", "Event Partnership": "#2069B4", "Direct Request": "#00A1E9", "Cold Call": "#F9BB46", "Repeat Client": "#6EBDA1" }
-
-    const chartData = data.map((d, i) => ({
-        ...d,
-        fill: sourceColors[d.name] || CHART_COLORS[i % CHART_COLORS.length],
-        pctLabel: totalLeads > 0 ? `${((d.value / totalLeads) * 100).toFixed(1)}%` : "0%",
-    }))
+    const total = data.reduce((s, d) => s + d.value, 0)
+    const maxVal = Math.max(...data.map(d => d.value), 1)
 
     return (
         <SectionCard>
-            <SectionTitle>Lead Source</SectionTitle>
-            <SectionSub>Origin channel distribution</SectionSub>
-
-            <div className="text-[9px] text-muted-foreground text-right mb-1">Total: {totalLeads}</div>
-
-            <div className="thin-scrollbar flex-1 min-h-[80px] overflow-y-auto overflow-x-hidden">
-                {hasMounted ? (
-                    <div style={{ width: "100%", height: Math.max(chartData.length * 32, 80), minHeight: "100%" }}>
-                        <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={chartData} layout="vertical" margin={{ top: 4, right: 12, left: 0, bottom: 4 }}>
-                                <XAxis type="number" axisLine={false} tickLine={false} tick={{ fontSize: 9, fill: "#b0b8c8", fontWeight: 500 }} />
-                                <YAxis
-                                    type="category"
-                                    dataKey="name"
-                                    axisLine={false}
-                                    tickLine={false}
-                                    tick={<EllipsisTick width={100} fontSize={10} />}
-                                    width={100}
-                                />
-                                <RechartsTooltip content={<SourceTooltip />} cursor={{ fill: "rgba(0,0,0,.03)" }} />
-                                <Bar dataKey="value" radius={[0, 4, 4, 0]} barSize={14}>
-                                    {chartData.map((d, i) => (
-                                        <Cell key={i} fill={d.fill} />
-                                    ))}
-                                    <LabelList dataKey="value" position="right" style={{ fontSize: 9, fontWeight: 600, fill: "#64748b" }} />
-                                </Bar>
-                            </BarChart>
-                        </ResponsiveContainer>
+            <div className="flex items-start justify-between mb-1">
+                <div>
+                    <SectionTitle>Lead Source</SectionTitle>
+                    <SectionSub>Origin channel distribution</SectionSub>
+                </div>
+                {total > 0 && (
+                    <div className="text-right shrink-0">
+                        <div className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Total</div>
+                        <div className="text-[15px] font-bold tabular-nums tracking-tight text-[#292D30]">{total}</div>
                     </div>
-                ) : (
-                    <WidgetSkeleton />
                 )}
+            </div>
+
+            <div className="flex-1 overflow-y-auto thin-scrollbar space-y-0.5">
+                {data.map((d, i) => {
+                    const pct = total > 0 ? (d.value / total) * 100 : 0
+                    const barWidth = maxVal > 0 ? (d.value / maxVal) * 100 : 0
+                    // Single color (navy) with decreasing opacity for ranking effect
+                    const opacity = Math.max(0.3, 1 - (i * 0.08))
+
+                    return (
+                        <div key={d.name} className="py-[5px] px-1 rounded hover:bg-muted/30 transition-colors">
+                            <div className="flex items-baseline justify-between mb-1">
+                                <span className="text-[11.5px] font-medium text-[#292D30] truncate mr-2">{d.name}</span>
+                                <div className="flex items-baseline gap-1.5 shrink-0 tabular-nums">
+                                    <span className="text-[12px] font-bold text-[#292D30]">{d.value}</span>
+                                    <span className="text-[9px] text-muted-foreground">{pct.toFixed(0)}%</span>
+                                </div>
+                            </div>
+                            <div className="h-[5px] bg-[#f0f0f0] rounded-full overflow-hidden">
+                                <div
+                                    className="h-full rounded-full"
+                                    style={{
+                                        width: `${barWidth}%`,
+                                        backgroundColor: "#02378D",
+                                        opacity,
+                                        transition: "width 500ms cubic-bezier(0.23,1,0.32,1)",
+                                    }}
+                                />
+                            </div>
+                        </div>
+                    )
+                })}
+            </div>
+
+            {/* Footer */}
+            <div className="mt-1.5 pt-1.5 border-t border-border/50 text-[10px] text-muted-foreground shrink-0">
+                {data.length} channels tracked
             </div>
 
             {/* Insight */}
             {data.length > 0 && (() => {
-                const topPct = totalLeads > 0 ? (data[0].value / totalLeads) * 100 : 0
+                const topPct = total > 0 ? (data[0].value / total) * 100 : 0
                 const extra = topPct > 60 ? " — consider diversifying" : ""
-                return <InsightCallout icon="💡" text={`${data[0].name} is your top source at ${topPct.toFixed(0)}%${extra}`} />
+                return <InsightCallout type="info" text={`${data[0].name} is your top source at ${topPct.toFixed(0)}%${extra}`} />
             })()}
         </SectionCard>
     )

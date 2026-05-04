@@ -1,10 +1,6 @@
 "use client"
 
-import {
-    BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer, Cell, LabelList,
-} from "recharts"
-import { SectionCard, SectionTitle, SectionSub, InsightCallout, CHART_COLORS, TOOLTIP_STYLE, MiniSelect, EllipsisTick, WidgetSkeleton } from "./shared"
-import { useHasMounted } from "@/hooks/use-has-mounted"
+import { SectionCard, SectionTitle, SectionSub, InsightCallout, CHART_COLORS, MiniSelect } from "./shared"
 
 interface StreamItem {
     name: string
@@ -17,43 +13,21 @@ interface StreamWidgetProps {
     setStreamToggle: (v: string) => void
 }
 
-function StreamTooltip({ active, payload }: any) {
-    if (!active || !payload?.length) return null
-    const d = payload[0].payload
-    return (
-        <div style={{ ...TOOLTIP_STYLE }}>
-            <div style={{ fontWeight: 700, marginBottom: 1 }}>{d.name}</div>
-            <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                <div style={{ width: 6, height: 6, borderRadius: 2, background: d.fill, flexShrink: 0 }} />
-                <span>Count: {d.value}</span>
-            </div>
-            <div style={{ opacity: 0.7 }}>{d.pctLabel}</div>
-        </div>
-    )
-}
-
 export function StreamWidget({ data, streamToggle, setStreamToggle }: StreamWidgetProps) {
-    const hasMounted = useHasMounted()
-    const totalStream = data.reduce((s, d) => s + d.value, 0)
-
-    const chartData = data.map((d, i) => {
-        const isUnspecified = d.name === "Unspecified"
-        return {
-            ...d,
-            fill: isUnspecified ? "#d1d5db" : CHART_COLORS[i % CHART_COLORS.length],
-            isUnspecified,
-            pctLabel: totalStream > 0 ? `${((d.value / totalStream) * 100).toFixed(1)}%` : "0%",
-        }
-    })
+    const total = data.reduce((s, d) => s + d.value, 0)
+    const maxVal = Math.max(...data.map(d => d.value), 1)
 
     return (
         <SectionCard>
-            <div className="flex justify-between items-center mb-px">
-                <SectionTitle>Stream Alignment</SectionTitle>
+            <div className="flex justify-between items-start mb-1">
+                <div>
+                    <SectionTitle>Stream Alignment</SectionTitle>
+                    <SectionSub>Business alignment distribution</SectionSub>
+                </div>
                 <MiniSelect
                     label="Group by"
                     value={streamToggle}
-                    onChange={(e: any) => setStreamToggle(e.target.value)}
+                    onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setStreamToggle(e.target.value)}
                     className="text-[10px]"
                 >
                     <option value="main_stream">Main Stream</option>
@@ -64,49 +38,51 @@ export function StreamWidget({ data, streamToggle, setStreamToggle }: StreamWidg
                     <option value="nationality">Nationality</option>
                 </MiniSelect>
             </div>
-            <SectionSub>Business alignment distribution</SectionSub>
 
-            <div className="thin-scrollbar flex-1 min-h-[80px] overflow-y-auto overflow-x-hidden">
-                {hasMounted ? (
-                    <div style={{ width: "100%", height: Math.max(chartData.length * 32, 80), minHeight: "100%" }}>
-                        <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={chartData} layout="vertical" margin={{ top: 4, right: 12, left: 0, bottom: 4 }}>
-                                <XAxis type="number" axisLine={false} tickLine={false} tick={{ fontSize: 9, fill: "#b0b8c8", fontWeight: 500 }} />
-                                <YAxis
-                                    type="category"
-                                    dataKey="name"
-                                    axisLine={false}
-                                    tickLine={false}
-                                    tick={<EllipsisTick width={100} fontSize={10} />}
-                                    width={100}
+            <div className="flex-1 overflow-y-auto thin-scrollbar space-y-0.5">
+                {data.map((d, i) => {
+                    const pct = total > 0 ? (d.value / total) * 100 : 0
+                    const barWidth = maxVal > 0 ? (d.value / maxVal) * 100 : 0
+                    const isUnspecified = d.name === "Unspecified"
+                    const color = isUnspecified ? "#d1d5db" : CHART_COLORS[i % CHART_COLORS.length]
+
+                    return (
+                        <div key={d.name} className="py-[5px] px-1 rounded hover:bg-muted/30 transition-colors">
+                            <div className="flex items-baseline justify-between mb-1">
+                                <span className={`text-[11.5px] font-medium truncate mr-2 ${isUnspecified ? "text-muted-foreground italic" : "text-[#292D30]"}`}>
+                                    {d.name}
+                                </span>
+                                <div className="flex items-baseline gap-1.5 shrink-0 tabular-nums">
+                                    <span className="text-[12px] font-bold text-[#292D30]">{d.value}</span>
+                                    <span className="text-[9px] text-muted-foreground">{pct.toFixed(0)}%</span>
+                                </div>
+                            </div>
+                            <div className="h-[5px] bg-[#f0f0f0] rounded-full overflow-hidden">
+                                <div
+                                    className="h-full rounded-full"
+                                    style={{
+                                        width: `${barWidth}%`,
+                                        backgroundColor: color,
+                                        opacity: isUnspecified ? 0.5 : 0.8,
+                                        transition: "width 500ms cubic-bezier(0.23,1,0.32,1)",
+                                    }}
                                 />
-                                <RechartsTooltip content={<StreamTooltip />} cursor={{ fill: "rgba(0,0,0,.03)" }} />
-                                <Bar dataKey="value" radius={[0, 4, 4, 0]} barSize={14}>
-                                    {chartData.map((d, i) => (
-                                        <Cell
-                                            key={i}
-                                            fill={d.fill}
-                                            fillOpacity={d.isUnspecified ? 0.5 : 1}
-                                            strokeDasharray={d.isUnspecified ? "4 2" : undefined}
-                                            stroke={d.isUnspecified ? "#9ca3af" : undefined}
-                                            strokeWidth={d.isUnspecified ? 1 : 0}
-                                        />
-                                    ))}
-                                    <LabelList dataKey="value" position="right" style={{ fontSize: 9, fontWeight: 600, fill: "#64748b" }} />
-                                </Bar>
-                            </BarChart>
-                        </ResponsiveContainer>
-                    </div>
-                ) : (
-                    <WidgetSkeleton />
-                )}
+                            </div>
+                        </div>
+                    )
+                })}
+            </div>
+
+            {/* Footer */}
+            <div className="mt-1.5 pt-1.5 border-t border-border/50 text-[10px] text-muted-foreground shrink-0">
+                {total} total leads
             </div>
 
             {/* Insight */}
             {data.length > 0 && (() => {
-                const unspecPct = totalStream > 0 ? ((data.find(d => d.name === "Unspecified")?.value || 0) / totalStream) * 100 : 0
-                if (unspecPct > 20) return <InsightCallout icon="⚠" text={`${unspecPct.toFixed(0)}% leads unspecified — improve data capture`} />
-                return <InsightCallout icon="💡" text={`${data[0].name} leads the pipeline — align sales capacity`} />
+                const unspecPct = total > 0 ? ((data.find(d => d.name === "Unspecified")?.value || 0) / total) * 100 : 0
+                if (unspecPct > 20) return <InsightCallout type="warning" text={`${unspecPct.toFixed(0)}% leads unspecified — improve data capture`} />
+                return <InsightCallout type="info" text={`${data[0].name} leads the pipeline — align sales capacity`} />
             })()}
         </SectionCard>
     )
