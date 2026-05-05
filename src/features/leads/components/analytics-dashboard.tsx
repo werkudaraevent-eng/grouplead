@@ -701,6 +701,10 @@ export function AnalyticsDashboard({
         },
     ]
 
+    const isCustomPeriod = periodStr === "custom"
+    const isDefaultPeriod = periodStr === "this_quarter"
+    const handleResetPeriod = () => { setPeriodStr("this_quarter"); setCustomStart(""); setCustomEnd("") }
+
     return (
         <>
             {/* ─── STICKY HEADER ─── */}
@@ -708,80 +712,90 @@ export function AnalyticsDashboard({
                 id="dashboard-sticky-header"
                 style={{
                     position: "sticky", top: 0, zIndex: 20,
-                    height: 64,
+                    height: 56,
                     display: "flex", justifyContent: "space-between", alignItems: "center",
                     padding: "0 24px",
-                    background: scrolled ? "rgba(255,255,255,.95)" : "#fff",
-                    backdropFilter: scrolled ? "blur(12px)" : "none",
-                    WebkitBackdropFilter: scrolled ? "blur(12px)" : "none",
-                    borderBottom: `1px solid ${scrolled ? "#e5e8ed" : "transparent"}`,
-                    transition: "all .3s cubic-bezier(0.4, 0, 0.2, 1)",
-                    boxShadow: scrolled ? "0 1px 3px rgba(0,0,0,.04)" : "none",
+                    background: scrolled ? "rgba(255,255,255,.97)" : "#fff",
+                    backdropFilter: scrolled ? "blur(8px)" : "none",
+                    WebkitBackdropFilter: scrolled ? "blur(8px)" : "none",
+                    borderBottom: "1px solid #f0f0f0",
+                    transition: "all .2s cubic-bezier(0.23, 1, 0.32, 1)",
                 }}
             >
-                <div style={{ position: "relative" }}>
+                {/* Left: Title */}
+                <div>
                     <h1 style={{
-                        fontSize: scrolled ? 16 : 20, fontWeight: 800, color: "#0f1729",
-                        letterSpacing: "-0.4px", lineHeight: 1.2, margin: 0,
-                        transition: "font-size .3s cubic-bezier(0.4, 0, 0.2, 1)",
+                        fontSize: 16, fontWeight: 700, color: "#292D30",
+                        letterSpacing: "-0.3px", lineHeight: 1.2, margin: 0,
                     }}>
                         Performance Dashboard
                     </h1>
-                    <p style={{
-                        fontSize: 11.5, color: "#8892a4", marginTop: 2, margin: 0,
-                        opacity: scrolled ? 0 : 1,
-                        transform: scrolled ? "translateY(-4px)" : "translateY(0)",
-                        transition: "opacity .3s ease, transform .3s ease",
-                        position: "absolute", left: 0, top: "100%",
-                        whiteSpace: "nowrap",
-                        pointerEvents: scrolled ? "none" : "auto",
-                    }}>
-                        Real-time sales analytics & goal tracking
-                    </p>
                 </div>
-                <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+
+                {/* Right: Filters + Edit */}
+                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                    {/* Period selector */}
                     <select value={periodStr} onChange={e => setPeriodStr(e.target.value)} style={{
-                        appearance: "none" as const, background: "#fff", border: "1px solid #e5e8ed", borderRadius: 7,
-                        padding: "7px 32px 7px 12px", fontSize: 12, fontWeight: 600, color: "#0f1729",
+                        appearance: "none" as const, background: "#f8f9fb", border: "1px solid transparent", borderRadius: 6,
+                        padding: "6px 28px 6px 10px", fontSize: 12, fontWeight: 600, color: "#292D30",
                         cursor: "pointer", fontFamily: "inherit",
                         backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='2.5'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")`,
-                        backgroundRepeat: "no-repeat", backgroundPosition: "right 10px center",
-                        boxShadow: "0 1px 2px rgba(0,0,0,.04)",
-                        transition: "all .2s ease",
+                        backgroundRepeat: "no-repeat", backgroundPosition: "right 8px center",
+                        transition: "all .15s ease",
                     }}>
                         <option value="this_month">This Month</option>
                         <option value="this_quarter">This Quarter</option>
                         <option value="this_year">This Year</option>
                         <option value="all_time">All Time</option>
-                        <option value="custom">Custom Range...</option>
+                        <option value="custom">Custom Range</option>
                     </select>
-                    {periodStr === "custom" && (
-                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+
+                    {/* Custom date inputs */}
+                    {isCustomPeriod && (
+                        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
                             <input
                                 type="date"
                                 value={customStart}
                                 onChange={e => setCustomStart(e.target.value)}
                                 style={{
-                                    background: "#fff", border: "1px solid #e5e8ed", borderRadius: 7,
-                                    padding: "5px 10px", fontSize: 11, fontWeight: 500, color: "#0f1729",
-                                    fontFamily: "inherit", boxShadow: "0 1px 2px rgba(0,0,0,.04)",
+                                    background: "#f8f9fb", border: "1px solid transparent", borderRadius: 6,
+                                    padding: "5px 8px", fontSize: 11, fontWeight: 500, color: "#292D30",
+                                    fontFamily: "inherit",
                                 }}
                             />
-                            <span style={{ fontSize: 10, color: "#94a3b8" }}>to</span>
+                            <span style={{ fontSize: 9, color: "#94a3b8", fontWeight: 500 }}>—</span>
                             <input
                                 type="date"
                                 value={customEnd}
                                 onChange={e => setCustomEnd(e.target.value)}
                                 style={{
-                                    background: "#fff", border: "1px solid #e5e8ed", borderRadius: 7,
-                                    padding: "5px 10px", fontSize: 11, fontWeight: 500, color: "#0f1729",
-                                    fontFamily: "inherit", boxShadow: "0 1px 2px rgba(0,0,0,.04)",
+                                    background: "#f8f9fb", border: "1px solid transparent", borderRadius: 6,
+                                    padding: "5px 8px", fontSize: 11, fontWeight: 500, color: "#292D30",
+                                    fontFamily: "inherit",
                                 }}
                             />
                         </div>
                     )}
-                    {/* ─── Grid Edit Controls (portaled by DashboardGrid) ─── */}
-                    <div id="dashboard-edit-controls" style={{ display: "flex", alignItems: "center", borderLeft: "1px solid #e5e8ed", paddingLeft: 10, marginLeft: 2 }} />
+
+                    {/* Clear filter */}
+                    {!isDefaultPeriod && (
+                        <button
+                            onClick={handleResetPeriod}
+                            style={{
+                                background: "none", border: "none", cursor: "pointer",
+                                fontSize: 10, fontWeight: 600, color: "#94a3b8",
+                                padding: "4px 6px", borderRadius: 4, fontFamily: "inherit",
+                                transition: "color .15s ease",
+                            }}
+                            onMouseEnter={e => (e.currentTarget.style.color = "#292D30")}
+                            onMouseLeave={e => (e.currentTarget.style.color = "#94a3b8")}
+                        >
+                            Reset
+                        </button>
+                    )}
+
+                    {/* Separator + Edit controls */}
+                    <div id="dashboard-edit-controls" style={{ display: "flex", alignItems: "center", borderLeft: "1px solid #f0f0f0", paddingLeft: 8, marginLeft: 2 }} />
                 </div>
             </div>
 
