@@ -347,7 +347,7 @@ export function LeadDetailPage({ lead, prevLeadId, nextLeadId, lastModifiedBy = 
                     </div>
 
                     {/* Row 2: Compact Line Stepper */}
-                    <div className={`transition-all duration-300 ease-in-out border-slate-100 ${isScrolled ? 'h-0 opacity-0 overflow-hidden' : 'h-16 opacity-100 mt-3 pt-3 border-t'}`}>
+                    <div className={`transition-all duration-300 ease-in-out border-slate-100 ${isScrolled ? 'h-0 opacity-0 overflow-hidden' : 'h-12 opacity-100 mt-2 pt-2 border-t'}`}>
                         {stages.length > 0 && (
                             <div className="flex items-center w-full px-2">
                                 {stages.map((stage, idx) => {
@@ -363,10 +363,10 @@ export function LeadDetailPage({ lead, prevLeadId, nextLeadId, lastModifiedBy = 
                                             {/* Stage Node */}
                                             {isCurrent ? (
                                                 <div
-                                                    className={`relative flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-full text-white shadow-sm shrink-0 min-w-0 max-w-[140px] md:max-w-[180px] ${activeColorClass}`}
+                                                    className={`relative flex items-center justify-center gap-1 px-2.5 py-1 rounded-full text-white shrink-0 min-w-0 max-w-[140px] md:max-w-[180px] ${activeColorClass}`}
                                                     title="Current Pipeline Stage"
                                                 >
-                                                    <span className="text-[12px] font-semibold tracking-wide truncate">{stage.name}</span>
+                                                    <span className="text-[11px] font-semibold truncate">{stage.name}</span>
                                                     {/* Terminal Icon Below */}
                                                     {(isStageWon || isStageLost) && (
                                                         <div className="absolute top-9 left-1/2 -translate-x-1/2">
@@ -381,9 +381,9 @@ export function LeadDetailPage({ lead, prevLeadId, nextLeadId, lastModifiedBy = 
                                                 <button
                                                     onClick={() => handleStageClick(stage)}
                                                     disabled={movingStage}
-                                                    className={`w-7 h-7 rounded-full flex flex-col items-center justify-center text-white shrink-0 transition-colors shadow-sm relative group cursor-pointer disabled:cursor-not-allowed ${activeColorClass}`}
+                                                    className={`w-5 h-5 rounded-full flex flex-col items-center justify-center text-white shrink-0 transition-colors relative group cursor-pointer disabled:cursor-not-allowed ${activeColorClass}`}
                                                 >
-                                                    <Check className="h-4 w-4" />
+                                                    <Check className="h-3 w-3" />
                                                     <div className="absolute top-10 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-slate-900 text-white text-[11px] px-2 py-1 rounded shadow-md pointer-events-none z-50">
                                                         {stage.name}
                                                     </div>
@@ -446,9 +446,9 @@ export function LeadDetailPage({ lead, prevLeadId, nextLeadId, lastModifiedBy = 
                 >
 
                     {/* Card 1: Deal Information */}
-                    <div className="bg-white border border-slate-200 rounded-xl shadow-sm flex flex-col overflow-hidden shrink-0">
-                        <div className="px-5 py-4 border-b border-slate-100 flex justify-between items-center">
-                            <h3 className="font-semibold text-[14px] text-slate-900">Deal Information</h3>
+                    <div className="bg-white border border-slate-200/80 rounded-lg flex flex-col overflow-hidden shrink-0">
+                        <div className="px-4 py-3 border-b border-slate-100 flex justify-between items-center">
+                            <h3 className="font-semibold text-[13px] text-[#292D30]">Deal Information</h3>
                             <PermissionGate resource="leads" action="update">
                                 <button
                                     onClick={() => setEditOpen(true)}
@@ -459,13 +459,13 @@ export function LeadDetailPage({ lead, prevLeadId, nextLeadId, lastModifiedBy = 
                                 </button>
                             </PermissionGate>
                         </div>
-                        <div className="p-5 flex flex-col gap-3.5">
+                        <div className="px-4 py-3 flex flex-col gap-0.5">
                             {lead.company?.name && (
-                                <div className="flex items-center justify-between gap-2">
-                                    <span className="text-[12px] text-slate-400 flex items-center gap-1.5 shrink-0">
-                                        <Building2 className="h-3 w-3" /> Subsidiary
+                                <div className="flex items-center justify-between gap-3 py-[3px]">
+                                    <span className="text-[11px] text-slate-400 flex items-center gap-1.5 shrink-0">
+                                        <Building2 className="h-3 w-3 text-slate-300" /> Subsidiary
                                     </span>
-                                    <span className="text-[12px] font-semibold bg-blue-50 text-blue-700 px-2.5 py-0.5 rounded-md">
+                                    <span className="text-[11px] font-semibold text-[#02378D]">
                                         {lead.company.name}
                                     </span>
                                 </div>

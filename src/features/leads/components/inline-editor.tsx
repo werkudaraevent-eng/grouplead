@@ -256,17 +256,15 @@ export function InlineEditor({
             ) : (
                 <button
                     onClick={() => setIsEditing(true)}
-                    className="flex items-center gap-4 py-5 px-4 rounded-lg border border-dashed border-slate-200 hover:border-blue-300 hover:bg-blue-50/30 transition-all w-full text-left cursor-pointer group/empty"
+                    className="flex items-center gap-3 py-3 px-3.5 rounded-md border border-dashed border-slate-200 hover:border-[#02378D]/30 hover:bg-[#02378D]/[0.02] transition-all w-full text-left cursor-pointer group/empty"
                 >
-                    <div className="w-10 h-10 bg-slate-50 rounded-full border border-dashed border-slate-300 flex items-center justify-center shrink-0 text-slate-400 group-hover/empty:border-blue-400 group-hover/empty:text-blue-500 group-hover/empty:bg-blue-50 transition-colors">
-                        <Plus className="h-4 w-4" />
-                    </div>
+                    <Plus className="h-3.5 w-3.5 text-slate-300 group-hover/empty:text-[#02378D] transition-colors shrink-0" />
                     <div>
-                        <span className="font-medium text-[13px] text-slate-600 group-hover/empty:text-blue-600 transition-colors">
+                        <span className="text-[12px] font-medium text-slate-500 group-hover/empty:text-[#02378D] transition-colors">
                             {emptyTitle || "Click to add"}
                         </span>
                         {emptyDescription && (
-                            <p className="text-[12px] text-slate-400 mt-0.5">{emptyDescription}</p>
+                            <p className="text-[11px] text-slate-400 mt-px">{emptyDescription}</p>
                         )}
                     </div>
                 </button>
