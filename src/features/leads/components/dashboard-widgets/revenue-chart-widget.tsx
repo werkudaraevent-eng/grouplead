@@ -44,11 +44,15 @@ export function RevenueChartWidget({ data, trendYear, setTrendYear, availableYea
     const { fmt, fmtAxis } = useCurrency()
     const basisLabel = revenueBasis === "revenue_recognition" ? "Revenue Recognition Month" : "Closed Won Date"
 
-    // YTD summary
+    // YTD summary — compare against elapsed target (not full year)
+    const currentMonth = new Date().getMonth() // 0-indexed
     const ytdActual = data.reduce((s, d) => s + d.actual, 0)
     const ytdTarget = data.reduce((s, d) => s + d.target, 0)
+    // Elapsed target = sum of targets for months that have passed
+    const ytdElapsedTarget = data.slice(0, currentMonth + 1).reduce((s, d) => s + d.target, 0)
     const ytdPct = ytdTarget > 0 ? (ytdActual / ytdTarget) * 100 : 0
-    const ytdOnTrack = ytdPct >= 100
+    const ytdElapsedPct = ytdElapsedTarget > 0 ? (ytdActual / ytdElapsedTarget) * 100 : 0
+    const ytdOnTrack = ytdElapsedPct >= 80 // "on track" if >=80% of elapsed target
 
     return (
         <SectionCard className="self-stretch">
@@ -77,21 +81,26 @@ export function RevenueChartWidget({ data, trendYear, setTrendYear, availableYea
                 </div>
             </div>
 
-            {/* YTD attainment — subtle inline strip */}
+            {/* YTD attainment — shows progress vs elapsed target for context */}
             {ytdTarget > 0 && (
                 <div className="flex items-center gap-2.5 mb-1.5">
                     <span className="text-[9px] font-medium text-muted-foreground shrink-0 uppercase tracking-wider">YTD</span>
-                    <div className="flex-1 h-[3px] bg-[#f0f0f0] rounded-full overflow-hidden">
+                    <div className="flex-1 h-[3px] bg-[#f0f0f0] rounded-full overflow-hidden relative">
+                        {/* Elapsed time marker — shows how far through the year we are */}
+                        <div
+                            className="absolute top-0 h-full w-px bg-[#292D30]/20"
+                            style={{ left: `${((currentMonth + 1) / 12) * 100}%` }}
+                        />
                         <div
                             className="h-full rounded-full"
                             style={{
                                 width: `${Math.min(ytdPct, 100)}%`,
-                                backgroundColor: ytdOnTrack ? "#6EBDA1" : ytdPct >= 50 ? "#F9BB46" : "#ED6F22",
+                                backgroundColor: ytdOnTrack ? "#6EBDA1" : ytdElapsedPct >= 50 ? "#F9BB46" : "#ED6F22",
                                 transition: "width 600ms cubic-bezier(0.23,1,0.32,1)",
                             }}
                         />
                     </div>
-                    <span className="text-[10px] font-bold tabular-nums shrink-0" style={{ color: ytdOnTrack ? "#6EBDA1" : ytdPct >= 50 ? "#292D30" : "#ED6F22" }}>
+                    <span className="text-[10px] font-bold tabular-nums shrink-0" style={{ color: ytdOnTrack ? "#6EBDA1" : ytdElapsedPct >= 50 ? "#292D30" : "#ED6F22" }}>
                         {fmtAxis(ytdActual)} / {fmtAxis(ytdTarget)} ({ytdPct.toFixed(0)}%)
                     </span>
                 </div>
@@ -120,10 +129,10 @@ export function RevenueChartWidget({ data, trendYear, setTrendYear, availableYea
                                         />
                                     )
                                 })}
-                                <LabelList dataKey="actual" position="top" formatter={((v: unknown) => { const n = Number(v); return n > 0 ? fmtAxis(n) : '' }) as (label: unknown) => string} style={{ fontSize: 9, fontWeight: 600, fill: "#292D30" }} />
+                                <LabelList dataKey="actual" position="top" formatter={((v: unknown) => { const n = Number(v); return n > 0 ? axisOnly(n) : '' }) as (label: unknown) => string} style={{ fontSize: 8, fontWeight: 600, fill: "#292D30" }} />
                             </Bar>
-                            {/* Last year bars — secondary */}
-                            <Bar yAxisId="left" dataKey="prevYear" name={`Last Year`} fill="#5EC5F2" radius={[3, 3, 0, 0]} opacity={0.5} />
+                            {/* Last year bars — secondary, no labels to avoid clutter */}
+                            <Bar yAxisId="left" dataKey="prevYear" name={`Last Year`} fill="#5EC5F2" radius={[3, 3, 0, 0]} opacity={0.45} />
                         </ComposedChart>
                     </ResponsiveContainer>
                 ) : (

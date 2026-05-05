@@ -7,7 +7,7 @@ import { formatCurrency as formatCurrencyDefault } from "@/lib/format-currency"
 
 // ── Badge helper ──
 const Badge = ({ children, className }: { children: React.ReactNode; className?: string }) => (
-    <span className={`inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-semibold tracking-wider uppercase whitespace-nowrap max-w-[120px] truncate ${className ?? "bg-slate-100 text-slate-600"}`}>
+    <span className={`inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-medium whitespace-nowrap max-w-[140px] truncate ${className ?? "bg-slate-100 text-slate-600"}`}>
         {children}
     </span>
 )
@@ -17,7 +17,7 @@ function SortableHeader({ column, label }: { column: any; label: string }) {
     const sorted = column.getIsSorted()
     return (
         <button
-            className="flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wider text-slate-500 hover:text-slate-900 transition-colors group"
+            className="flex items-center gap-1 text-[11px] font-semibold text-slate-500 hover:text-slate-900 transition-colors group"
             onClick={() => column.toggleSorting(sorted === "asc")}
         >
             {label}

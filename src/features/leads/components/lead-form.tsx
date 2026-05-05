@@ -63,7 +63,7 @@ const addLeadSchema = z.object({
     lead_source: z.string().nullable().optional(),
     referral_source: z.string().nullable().optional(),
     pic_sales_id: z.string().nullable().optional(),
-    target_close_date: z.string().min(1, "Target close date is required"),
+    target_close_date: z.string().nullable().optional(),
     closed_won_date: z.string().optional().or(z.literal("")),
     closed_lost_date: z.string().optional().or(z.literal("")),
     estimated_value: z.coerce.number().nullable().optional(),
@@ -250,7 +250,12 @@ export function LeadForm({ onSuccess, onClose, pipelineId, defaultStageId, initi
         fetchSchemas()
     }, [supabase, companies])
 
-    const dynamicSchema = getDynamicSchema(requiredOverrides)
+    // For editing existing leads: only enforce project_name as required
+    // Historical/imported leads often have incomplete data — don't block saves
+    const effectiveRequired = isEditing
+        ? requiredOverrides.filter(id => id === "native:project_name")
+        : requiredOverrides
+    const dynamicSchema = getDynamicSchema(effectiveRequired)
     const visibleTabs = getVisibleTabIds(layoutConfig, tabSettings)
     const resolvedActiveTab = visibleTabs.includes(activeTab) ? activeTab : (visibleTabs[0] || activeTab)
     const form = useForm<AddLeadValues>({

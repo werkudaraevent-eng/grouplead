@@ -639,6 +639,58 @@ export function AnalyticsDashboard({
         return Object.entries(m).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value)
     }, [periodLeads, streamToggle])
 
+    // ─── SPARKLINE DATA (monthly micro-trends) ────────────────────
+    const sparklines = useMemo(() => {
+        // Build monthly buckets from periodLeads based on created_at date
+        const monthlyLeads = Array.from({ length: 12 }, () => [] as typeof periodLeads)
+        const monthlyWon = Array.from({ length: 12 }, () => ({ count: 0, revenue: 0, totalClosed: 0 }))
+        const monthlyPipeline = Array(12).fill(0)
+
+        periodLeads.forEach(l => {
+            const d = new Date(l.created_at)
+            if (isNaN(d.getTime())) return
+            const m = d.getMonth()
+            monthlyLeads[m].push(l)
+
+            const stage = (l.pipeline_stage?.name || "").toLowerCase()
+            if (stage.includes("won")) {
+                monthlyWon[m].count++
+                monthlyWon[m].revenue += (l.actual_value ?? l.estimated_value ?? 0)
+                monthlyWon[m].totalClosed++
+            } else if (stage.includes("lost") || stage.includes("cancel")) {
+                monthlyWon[m].totalClosed++
+            } else {
+                monthlyPipeline[m] += (l.estimated_value ?? 0)
+            }
+        })
+
+        // Only include months up to current month (avoid trailing zeros)
+        const now = new Date()
+        const maxMonth = now.getMonth() // 0-indexed
+        const slice = (arr: number[]) => {
+            const s = arr.slice(0, maxMonth + 1)
+            // Need at least 2 points for a sparkline
+            return s.length >= 2 ? s : undefined
+        }
+
+        const leads = slice(monthlyLeads.map(b => b.length))
+        const revenue = slice(monthlyWon.map(b => b.revenue))
+        const winRate = slice(monthlyWon.map(b => {
+            const total = b.totalClosed
+            return total > 0 ? (b.count / total) * 100 : 0
+        }))
+        const conversion = slice(monthlyLeads.map((b, i) => {
+            const total = b.length
+            return total > 0 ? (monthlyWon[i].count / total) * 100 : 0
+        }))
+        const avgDeal = slice(monthlyWon.map(b => {
+            return b.count > 0 ? b.revenue / b.count : 0
+        }))
+        const pipeline = slice(monthlyPipeline)
+
+        return { leads, revenue, winRate, conversion, avgDeal, pipeline }
+    }, [periodLeads])
+
     // ─── KPI DEFINITIONS ────────────────────────────────────────────
     const kpis = [
         {
@@ -648,7 +700,8 @@ export function AnalyticsDashboard({
             vsPrev: goalMetrics.inquiryYoy,
             accent: ACCENT.leads,
             icon: Briefcase,
-            tooltip: "Total number of leads in the system"
+            tooltip: "Total number of leads in the system",
+            sparkline: sparklines.leads,
         },
         {
             label: "Won Revenue",
@@ -657,7 +710,8 @@ export function AnalyticsDashboard({
             vsPrev: goalMetrics.revYoy,
             accent: ACCENT.revenue,
             icon: Trophy,
-            tooltip: `Total revenue from closed won deals: ${fmt(stats.totalRevenue)}`
+            tooltip: `Total revenue from closed won deals: ${fmt(stats.totalRevenue)}`,
+            sparkline: sparklines.revenue,
         },
         {
             label: "Deal Win Rate",
@@ -667,7 +721,8 @@ export function AnalyticsDashboard({
             vsPrev: goalMetrics.winYoy,
             accent: ACCENT.winrate,
             icon: CheckSquare,
-            tooltip: "Percentage of closed deals that were won (won / total closed)"
+            tooltip: "Percentage of closed deals that were won (won / total closed)",
+            sparkline: sparklines.winRate,
         },
         {
             label: "Lead Conversion",
@@ -679,7 +734,8 @@ export function AnalyticsDashboard({
             icon: RefreshCw,
             tooltip: goalSettings?.conversion_target_pct
                 ? `Lead-to-deal conversion rate. Target: ${goalSettings.conversion_target_pct}% · Actual: ${stats.conversionRate.toFixed(1)}% · Gap: ${(stats.conversionRate - goalSettings.conversion_target_pct) > 0 ? "+" : ""}${(stats.conversionRate - goalSettings.conversion_target_pct).toFixed(1)} pts`
-                : "Percentage of leads that converted to won deals"
+                : "Percentage of leads that converted to won deals",
+            sparkline: sparklines.conversion,
         },
         {
             label: "Avg Deal Size",
@@ -688,7 +744,8 @@ export function AnalyticsDashboard({
             vsPrev: goalMetrics.avgYoy,
             accent: ACCENT.dealsize,
             icon: TrendingUp,
-            tooltip: `Average revenue per won deal: ${fmt(stats.avgSize)}`
+            tooltip: `Average revenue per won deal: ${fmt(stats.avgSize)}`,
+            sparkline: sparklines.avgDeal,
         },
         {
             label: "Pipeline Value",
@@ -697,7 +754,8 @@ export function AnalyticsDashboard({
             vsPrev: null,
             accent: "#00A1E9",
             icon: Layers,
-            tooltip: `Total estimated value of leads in active stages: ${fmt(stats.pipelineValue)}`
+            tooltip: `Total estimated value of leads in active stages: ${fmt(stats.pipelineValue)}`,
+            sparkline: sparklines.pipeline,
         },
     ]
 

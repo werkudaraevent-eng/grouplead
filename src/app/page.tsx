@@ -41,12 +41,17 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
         pipelineStages = (pipelineStagesData as PipelineStage[]) || []
     }
 
+    // Fetch leads from active pipeline + all other pipelines (for YoY comparison)
+    // Dashboard needs historical data from other pipelines to compute YoY metrics
+    const allPipelineIds = pipelines.map(p => p.id)
     const base = supabase
         .from('leads')
         .select('*, client_company:client_companies!client_company_id(name, line_industry, area, account_status, industry), contact:contacts!contact_id(full_name, email, phone), pipeline_stage:pipeline_stages!pipeline_stage_id(name, color), pic_sales_profile:profiles!pic_sales_id(full_name)')
         .order('updated_at', { ascending: false })
 
-    if (activePipelineId) {
+    if (allPipelineIds.length > 0) {
+        base.in('pipeline_id', allPipelineIds)
+    } else if (activePipelineId) {
         base.eq('pipeline_id', activePipelineId)
     }
 

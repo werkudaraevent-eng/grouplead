@@ -550,18 +550,18 @@ export function LeadKanban({
                         return (
                             <div
                                 key={stage.id}
-                                className={`group/stage bg-slate-50/80 border border-slate-200 rounded-xl flex flex-col w-[280px] min-w-[280px] shrink-0 h-full max-h-full overflow-hidden relative`}
+                                className={`group/stage bg-slate-50/50 border border-slate-200/80 rounded-lg flex flex-col w-[272px] min-w-[272px] shrink-0 h-full max-h-full overflow-hidden relative`}
                             >
                                 {/* Column Header */}
-                                <div className="p-3.5 shrink-0 bg-white border-b border-slate-100 rounded-t-[10px] shadow-[0_4px_12px_-8px_rgba(0,0,0,0.08)] relative z-10">
-                                    <div className="flex items-start justify-between gap-3 mb-3">
-                                        <div className="flex items-center gap-2 mt-0.5 flex-1 min-w-0">
-                                            <div className={`w-2 h-2 rounded-full ${accentBg} shrink-0`} />
+                                <div className="px-3 py-2.5 shrink-0 bg-white border-b border-slate-100 rounded-t-lg relative z-10">
+                                    <div className="flex items-start justify-between gap-2 mb-1.5">
+                                        <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                                            <div className={`w-1.5 h-1.5 rounded-full ${accentBg} shrink-0`} />
                                             {renameStageId === stage.id ? (
                                                 <input
                                                     autoFocus
                                                     defaultValue={renameValue}
-                                                    className="font-bold text-[13.5px] leading-snug text-slate-800 bg-transparent border-b border-blue-400 outline-none w-full py-0.5"
+                                                    className="font-semibold text-[12px] leading-snug text-slate-800 bg-transparent border-b border-blue-400 outline-none w-full py-0.5"
                                                     onBlur={(e) => handleRenameStage(stage.id, e.target.value)}
                                                     onKeyDown={(e) => {
                                                         if (e.key === 'Enter') handleRenameStage(stage.id, (e.target as HTMLInputElement).value)
@@ -569,7 +569,7 @@ export function LeadKanban({
                                                     }}
                                                 />
                                             ) : (
-                                                <h3 className="font-bold text-[13.5px] leading-snug text-slate-800 line-clamp-2">
+                                                <h3 className="font-semibold text-[12px] leading-snug text-[#292D30] line-clamp-1">
                                                     {stage.name}
                                                 </h3>
                                             )}
@@ -601,14 +601,14 @@ export function LeadKanban({
                                             </DropdownMenuContent>
                                         </DropdownMenu>
                                     </div>
-                                    <div className="flex items-center justify-between mt-1 px-0.5">
-                                        <div className="text-[12px] font-medium text-slate-500">
-                                            {stage.leads.length} Leads
-                                        </div>
+                                    <div className="flex items-center justify-between mt-0.5">
+                                        <span className="text-[10.5px] font-medium text-slate-400">
+                                            {stage.leads.length} leads
+                                        </span>
                                         {totalRevenue > 0 && (
-                                            <div className="text-[12px] font-semibold text-slate-700 tracking-tight">
+                                            <span className="text-[10.5px] font-semibold text-slate-500 tabular-nums">
                                                 {formatCompact(totalRevenue)}
-                                            </div>
+                                            </span>
                                         )}
                                     </div>
                                 </div>
@@ -723,8 +723,8 @@ function DroppableColumn({ stageId, isEmpty, children }: { stageId: string; isEm
     return (
         <div
             ref={setNodeRef}
-            className={`flex-1 overflow-y-auto p-2.5 flex flex-col gap-2.5 pb-4 thin-scrollbar rounded-b-lg transition-colors ${
-                isOver ? "bg-blue-50/50" : ""
+            className={`flex-1 overflow-y-auto px-2 py-2 flex flex-col gap-[6px] pb-4 thin-scrollbar rounded-b-lg transition-colors ${
+                isOver ? "bg-blue-50/40" : ""
             }`}
         >
             {isEmpty && !isOver && (
@@ -865,7 +865,7 @@ function KanbanCard({
     onToggleSelect?: (leadId: string, checked: boolean) => void
     config: KanbanCardConfig
 }) {
-    const { fmt } = useCurrency()
+    const { fmtAxis } = useCurrency()
     const picName = lead.pic_sales_profile?.full_name
     const amName = lead.account_manager_profile?.full_name
 
@@ -883,28 +883,17 @@ function KanbanCard({
     const showAm = config.metrics.includes('account_manager')
     const showManualId = config.metrics.includes('manual_id')
 
-    const hasAnyMetricInfo = showEstimatedValue || showCloseDate || showManualId
-    const hasFooter = hasAnyMetricInfo || showPic || showAm
+    const hasAnyBadge = (showSubsidiary && lead.company?.name) || (showGrade && lead.grade_lead) || (showCategory && lead.category)
+    const hasFooter = showEstimatedValue || showCloseDate || showPic || showAm || showManualId
 
-    // Target Close Date Color Indicator logic
-    let dateColorClass = "text-slate-400"
-    let iconColorClass = "text-slate-300"
+    // Target Close Date urgency
+    let dateUrgency: "overdue" | "soon" | "normal" = "normal"
     if (showCloseDate && lead.target_close_date) {
-        const today = new Date()
-        today.setHours(0, 0, 0, 0)
-        const target = new Date(lead.target_close_date)
-        target.setHours(0, 0, 0, 0)
-        
-        const diffTime = target.getTime() - today.getTime()
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
-        
-        if (diffDays < 0) {
-            dateColorClass = "text-red-600 font-bold"
-            iconColorClass = "text-red-500"
-        } else if (diffDays <= 3) {
-            dateColorClass = "text-amber-600 font-bold"
-            iconColorClass = "text-amber-500"
-        }
+        const today = new Date(); today.setHours(0, 0, 0, 0)
+        const target = new Date(lead.target_close_date); target.setHours(0, 0, 0, 0)
+        const diffDays = Math.ceil((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+        if (diffDays < 0) dateUrgency = "overdue"
+        else if (diffDays <= 3) dateUrgency = "soon"
     }
 
     return (
@@ -912,164 +901,136 @@ function KanbanCard({
             onClick={onClick}
             role="button"
             tabIndex={0}
-            className={`group/card w-full text-left bg-white rounded-xl p-3 flex flex-col gap-2.5 cursor-grab transition-all duration-200 relative ${
+            className={`group/card w-full text-left bg-white rounded-lg cursor-grab transition-all duration-150 ease-out relative ${
                 isDragging
-                    ? "shadow-xl ring-2 ring-blue-400/30 rotate-[2deg] border border-blue-300 scale-[1.02] z-50"
+                    ? "shadow-lg ring-2 ring-[#02378D]/20 rotate-[1.5deg] scale-[1.02] z-50 border border-[#02378D]/30"
                     : isSelected
-                        ? "border border-blue-500 ring-1 ring-blue-500 shadow-md bg-blue-50/10"
-                        : "border border-slate-200/80 shadow-sm hover:border-slate-300 hover:shadow-md"
+                        ? "border border-[#02378D] ring-1 ring-[#02378D]/30 shadow-sm"
+                        : "border border-slate-200/70 hover:border-slate-300 hover:shadow-[0_2px_8px_rgba(0,0,0,.06)]"
             }`}
         >
-            {/* ── Row 1: Header — Project Name + Actions ────────── */}
-            <div className="flex items-start justify-between gap-2">
-                <div className="flex flex-col gap-1 flex-1 min-w-0 pr-1">
-                    <h4 className="font-semibold text-[13px] text-slate-800 leading-snug line-clamp-2 break-words">
-                        {lead.project_name || "Untitled Project"}
-                    </h4>
-                    <span className="text-[11px] font-medium text-slate-500 line-clamp-1">
-                        {lead.client_company?.name || "Unknown Company"}
-                    </span>
-                </div>
-                <div className="flex items-center gap-0.5 shrink-0 -mt-1 -mr-1">
-                    {/* Checkbox */}
-                    <div
-                        className={`transition-opacity ${isSelected ? 'opacity-100' : 'opacity-0 group-hover/card:opacity-100'}`}
-                        onClick={(e) => e.stopPropagation()}
-                        onPointerDown={(e) => e.stopPropagation()}
-                    >
+            {/* ── Main content area ── */}
+            <div className="px-2.5 pt-2 pb-2">
+                {/* Header row: Project name + context menu */}
+                <div className="flex items-start justify-between gap-1.5">
+                    <div className="flex-1 min-w-0">
+                        <h4 className="font-semibold text-[12.5px] text-[#292D30] leading-tight line-clamp-1">
+                            {lead.project_name || "Untitled"}
+                        </h4>
+                        <span className="text-[10.5px] text-slate-500 line-clamp-1 mt-px">
+                            {lead.client_company?.name}
+                        </span>
+                    </div>
+                    {/* Actions — appear on hover */}
+                    <div className="flex items-center shrink-0 -mt-0.5 -mr-0.5 opacity-0 group-hover/card:opacity-100 transition-opacity">
                         {onToggleSelect && (
-                            <Checkbox
-                                checked={isSelected}
-                                onCheckedChange={(checked) => onToggleSelect(lead.id.toString(), checked as boolean)}
-                                className="h-4 w-4 border-slate-300 data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600 mr-1"
-                            />
-                        )}
-                    </div>
-                    {/* Context Menu */}
-                    <div
-                        className={`transition-opacity ${isSelected ? 'opacity-100' : 'opacity-0 group-hover/card:opacity-100'}`}
-                        onClick={(e) => e.stopPropagation()}
-                        onPointerDown={(e) => e.stopPropagation()}
-                    >
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <button
-                                    type="button"
-                                    className="h-6 w-6 inline-flex items-center justify-center rounded hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
-                                >
-                                    <MoreHorizontal className="h-3.5 w-3.5" />
-                                </button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-40">
-                                {onQuickEdit && (
-                                    <DropdownMenuItem onClick={onQuickEdit} className="text-xs">
-                                        <Edit2 className="w-3.5 h-3.5 mr-2" /> Quick Edit
-                                    </DropdownMenuItem>
-                                )}
-                                {onDeleteLead && (
-                                    <DropdownMenuItem
-                                        onClick={onDeleteLead}
-                                        className="text-red-600 focus:text-red-700 focus:bg-red-50 text-xs"
-                                    >
-                                        <Trash2 className="w-3.5 h-3.5 mr-2" /> Delete
-                                    </DropdownMenuItem>
-                                )}
-                            </DropdownMenuContent>
-                        </DropdownMenu>
-                    </div>
-                </div>
-            </div>
-
-            {/* ── Row 2: Badges ──────── */}
-            {config.badges.length > 0 && (
-                <div className="flex flex-wrap items-center gap-1 min-h-[16px]">
-                    {showSubsidiary && lead.company?.name && (
-                        <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold tracking-wider uppercase bg-slate-100 text-slate-600">
-                            {lead.company.name}
-                        </span>
-                    )}
-                    {showGrade && lead.grade_lead && (
-                        <span className={`px-1.5 py-0.5 rounded text-[9px] font-semibold tracking-wider uppercase ${getGradeColor(lead.grade_lead)}`}>
-                            {lead.grade_lead.replace(/Grade /i, '')}
-                        </span>
-                    )}
-                    {showCategory && lead.category && (
-                        <span className={`px-1.5 py-0.5 rounded text-[9px] font-semibold tracking-wider uppercase ${
-                            lead.category.toLowerCase().includes('hot') ? 'bg-rose-50 text-rose-600' :
-                            lead.category.toLowerCase().includes('warm') ? 'bg-amber-50 text-amber-600' :
-                            'bg-blue-50 text-blue-600'
-                        }`}>
-                            {lead.category.toLowerCase()}
-                        </span>
-                    )}
-                    {showSource && lead.lead_source && (
-                        <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-cyan-50/80 text-cyan-700 border border-cyan-100/60">
-                            {lead.lead_source}
-                        </span>
-                    )}
-                    {showMainStream && lead.main_stream && (
-                        <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-slate-100/80 text-slate-600 border border-slate-200/60">
-                            {lead.main_stream}
-                        </span>
-                    )}
-                    {showEventFormat && lead.event_format && (
-                        <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-indigo-50/80 text-indigo-700 border border-indigo-100/60">
-                            {lead.event_format}
-                        </span>
-                    )}
-                </div>
-            )}
-
-            {/* ── Row 3: Footer — Value + Date + PIC Avatar  */}
-            {hasFooter && (
-                <div className="flex items-end justify-between pt-2.5 mt-auto border-t border-slate-100">
-                    <div className="flex flex-row items-center gap-3">
-                        {showEstimatedValue && lead.estimated_value && (
-                            <span className="font-bold text-[13px] text-slate-800 tracking-tight">
-                                {fmt(lead.estimated_value)}
-                            </span>
-                        )}
-                        {showCloseDate && lead.target_close_date && (
-                            <div className={`flex items-center gap-1.5 text-[10px] font-medium ${dateColorClass}`}>
-                                <CalendarDays className={`w-3 h-3 ${iconColorClass}`} />
-                                {new Date(lead.target_close_date).toLocaleDateString("en-GB", {
-                                    day: "numeric", month: "short"
-                                })}
+                            <div onClick={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()}>
+                                <Checkbox
+                                    checked={isSelected}
+                                    onCheckedChange={(checked) => onToggleSelect(lead.id.toString(), checked as boolean)}
+                                    className="h-3.5 w-3.5 border-slate-300 data-[state=checked]:bg-[#02378D] data-[state=checked]:border-[#02378D]"
+                                />
                             </div>
                         )}
+                        <div onClick={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()}>
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <button type="button" className="h-5 w-5 inline-flex items-center justify-center rounded text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors">
+                                        <MoreHorizontal className="h-3 w-3" />
+                                    </button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="w-36">
+                                    {onQuickEdit && (
+                                        <DropdownMenuItem onClick={onQuickEdit} className="text-xs">
+                                            <Edit2 className="w-3 h-3 mr-2" /> Edit
+                                        </DropdownMenuItem>
+                                    )}
+                                    {onDeleteLead && (
+                                        <DropdownMenuItem onClick={onDeleteLead} className="text-red-600 focus:text-red-700 focus:bg-red-50 text-xs">
+                                            <Trash2 className="w-3 h-3 mr-2" /> Delete
+                                        </DropdownMenuItem>
+                                    )}
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Badges — compact, no uppercase, muted colors */}
+                {hasAnyBadge && (
+                    <div className="flex flex-wrap items-center gap-1 mt-1.5">
+                        {showSubsidiary && lead.company?.name && (
+                            <span className="px-1.5 py-px rounded text-[9.5px] font-medium bg-slate-100 text-slate-500">
+                                {lead.company.name}
+                            </span>
+                        )}
+                        {showGrade && lead.grade_lead && (
+                            <span className={`px-1.5 py-px rounded text-[9.5px] font-medium ${getGradeColor(lead.grade_lead)}`}>
+                                {lead.grade_lead}
+                            </span>
+                        )}
+                        {showCategory && lead.category && (
+                            <span className={`px-1.5 py-px rounded text-[9.5px] font-medium ${
+                                lead.category.toLowerCase().includes('hot') ? 'bg-rose-50 text-rose-600' :
+                                lead.category.toLowerCase().includes('warm') ? 'bg-amber-50 text-amber-600' :
+                                'bg-slate-50 text-slate-600'
+                            }`}>
+                                {lead.category}
+                            </span>
+                        )}
+                        {showSource && lead.lead_source && (
+                            <span className="px-1.5 py-px rounded text-[9.5px] font-medium bg-slate-50 text-slate-500">
+                                {lead.lead_source}
+                            </span>
+                        )}
+                        {showMainStream && lead.main_stream && (
+                            <span className="px-1.5 py-px rounded text-[9.5px] font-medium bg-slate-50 text-slate-500">
+                                {lead.main_stream}
+                            </span>
+                        )}
+                        {showEventFormat && lead.event_format && (
+                            <span className="px-1.5 py-px rounded text-[9.5px] font-medium bg-slate-50 text-slate-500">
+                                {lead.event_format}
+                            </span>
+                        )}
+                    </div>
+                )}
+            </div>
+
+            {/* ── Footer — value, date, avatar — separated by subtle border ── */}
+            {hasFooter && (
+                <div className="flex items-center justify-between px-2.5 py-1.5 border-t border-slate-100 bg-slate-50/30">
+                    <div className="flex items-center gap-2 min-w-0">
+                        {showEstimatedValue && lead.estimated_value ? (
+                            <span className="font-bold text-[12px] text-[#292D30] tabular-nums tracking-tight">
+                                {fmtAxis(lead.estimated_value)}
+                            </span>
+                        ) : null}
+                        {showCloseDate && lead.target_close_date && (
+                            <span className={`text-[10px] tabular-nums ${
+                                dateUrgency === "overdue" ? "text-red-600 font-semibold" :
+                                dateUrgency === "soon" ? "text-amber-600 font-semibold" :
+                                "text-slate-400"
+                            }`}>
+                                {new Date(lead.target_close_date).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
+                            </span>
+                        )}
                         {showManualId && lead.manual_id && (
-                            <span className="font-mono text-[10px] text-slate-400">
+                            <span className="font-mono text-[9px] text-slate-300">
                                 {lead.manual_id}
                             </span>
                         )}
                     </div>
-                    
-                    <div className="flex items-center gap-1 shrink-0 -mr-0.5">
-                        {showAm && (
-                            amName ? (
-                                <div className="flex items-center gap-1.5" title={`Account Manager: ${amName}`}>
-                                    <div className="w-5 h-5 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-[8px] font-bold text-white shadow-sm ring-1 ring-white">
-                                        {getInitials(amName)}
-                                    </div>
-                                </div>
-                            ) : (
-                                <div title="No Account Manager" className="w-5 h-5 rounded-full bg-slate-100 flex items-center justify-center ring-1 ring-white">
-                                    <User className="h-2.5 w-2.5 text-slate-300" />
-                                </div>
-                            )
+                    <div className="flex items-center gap-0.5 shrink-0">
+                        {showAm && amName && (
+                            <div title={amName} className="w-[18px] h-[18px] rounded-full bg-[#6EBDA1] flex items-center justify-center text-[7px] font-bold text-white ring-1 ring-white">
+                                {getInitials(amName)}
+                            </div>
                         )}
-                        {showPic && (
-                            picName ? (
-                                <div className="flex items-center gap-1.5" title={`Sales PIC: ${picName}`}>
-                                    <div className="w-5 h-5 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-[8px] font-bold text-white shadow-sm ring-1 ring-white">
-                                        {getInitials(picName)}
-                                    </div>
-                                </div>
-                            ) : (
-                                <div title="No Sales PIC" className="w-5 h-5 rounded-full bg-slate-100 flex items-center justify-center ring-1 ring-white">
-                                    <User className="h-2.5 w-2.5 text-slate-300" />
-                                </div>
-                            )
+                        {showPic && picName && (
+                            <div title={picName} className="w-[18px] h-[18px] rounded-full bg-[#02378D] flex items-center justify-center text-[7px] font-bold text-white ring-1 ring-white">
+                                {getInitials(picName)}
+                            </div>
                         )}
                     </div>
                 </div>

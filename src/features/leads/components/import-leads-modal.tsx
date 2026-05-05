@@ -1,8 +1,9 @@
 "use client"
 
-import { useCallback, useMemo, useState, useRef, useTransition } from "react"
+import { useCallback, useEffect, useMemo, useState, useRef, useTransition } from "react"
 import { useCompany } from "@/contexts/company-context"
-import { importLeadsAction } from "@/app/actions/lead-actions"
+import { importLeadsAction, importHistoricalLeadsAction } from "@/app/actions/lead-actions"
+import { createClient } from "@/utils/supabase/client"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import * as XLSX from "xlsx"
@@ -64,6 +65,15 @@ const SYSTEM_FIELDS = [
     { key: "remark", label: "Remark", required: false, group: "Notes", example: "" },
 ]
 
+// ── Additional fields for historical import ──
+const HISTORICAL_FIELDS = [
+    { key: "created_at", label: "Created Date", required: true, group: "Historical", example: "2024-03-15" },
+    { key: "actual_value", label: "Actual Value (Revenue)", required: false, group: "Historical", example: "175000000" },
+    { key: "closed_won_date", label: "Closed Won Date", required: false, group: "Historical", example: "2024-04-20" },
+    { key: "closed_lost_date", label: "Closed Lost Date", required: false, group: "Historical", example: "2024-05-10" },
+    { key: "lost_reason", label: "Lost Reason", required: false, group: "Historical", example: "Budget constraints" },
+]
+
 type ParsedRow = Record<string, string>
 type ColumnMapping = Record<string, string> // systemFieldKey -> excelColumnHeader
 type RowValidation = { row: number; field: string; message: string; level: "error" | "warning" }
@@ -88,6 +98,21 @@ export function ImportLeadsModal({ open, onOpenChange, pipelineId, onSuccess }: 
     const [columnMapping, setColumnMapping] = useState<ColumnMapping>({})
     const [validations, setValidations] = useState<RowValidation[]>([])
     const [importResult, setImportResult] = useState<{ success: number; failed: number; errors: string[] }>({ success: 0, failed: 0, errors: [] })
+    const [isHistorical, setIsHistorical] = useState(false)
+    const [historicalPipelineId, setHistoricalPipelineId] = useState<string>("")
+    const [pipelines, setPipelines] = useState<{ id: string; name: string }[]>([])
+
+    // Fetch pipelines for historical mode selector
+    useEffect(() => {
+        if (!isHistorical) return
+        const supabase = createClient()
+        supabase.from("pipelines").select("id, name").order("created_at", { ascending: true })
+            .then(({ data }) => { if (data) setPipelines(data) })
+    }, [isHistorical])
+
+    // Active fields depend on mode — memoized to prevent re-render cascades
+    const COMBINED_FIELDS = useMemo(() => [...SYSTEM_FIELDS, ...HISTORICAL_FIELDS], [])
+    const activeFields = isHistorical ? COMBINED_FIELDS : SYSTEM_FIELDS
 
     const resetState = useCallback(() => {
         setStep(1)
@@ -97,6 +122,8 @@ export function ImportLeadsModal({ open, onOpenChange, pipelineId, onSuccess }: 
         setColumnMapping({})
         setValidations([])
         setImportResult({ success: 0, failed: 0, errors: [] })
+        setIsHistorical(false)
+        setHistoricalPipelineId("")
     }, [])
 
     const handleClose = useCallback(() => {
@@ -106,22 +133,23 @@ export function ImportLeadsModal({ open, onOpenChange, pipelineId, onSuccess }: 
 
     // ── Download XLSX Template ──
     const downloadTemplate = useCallback(() => {
-        const headers = SYSTEM_FIELDS.map((c) => c.label)
-        const exampleRow = SYSTEM_FIELDS.map((c) => c.example)
+        const headers = activeFields.map((c) => c.label)
+        const exampleRow = activeFields.map((c) => c.example)
         const ws = XLSX.utils.aoa_to_sheet([headers, exampleRow])
-        ws["!cols"] = SYSTEM_FIELDS.map((c) => ({
+        ws["!cols"] = activeFields.map((c) => ({
             wch: Math.max(c.label.length, c.example.length, 18)
         }))
         const wb = XLSX.utils.book_new()
-        XLSX.utils.book_append_sheet(wb, ws, "Lead Import Template")
-        XLSX.writeFile(wb, "lead_import_template.xlsx")
+        const sheetName = isHistorical ? "Historical Import Template" : "Lead Import Template"
+        XLSX.utils.book_append_sheet(wb, ws, sheetName)
+        XLSX.writeFile(wb, isHistorical ? "historical_lead_import_template.xlsx" : "lead_import_template.xlsx")
         toast.success("Template downloaded!")
-    }, [])
+    }, [activeFields, isHistorical])
 
     // ── Auto-map headers to system fields ──
     const autoMapHeaders = useCallback((rawHeaders: string[]): ColumnMapping => {
         const mapping: ColumnMapping = {}
-        for (const field of SYSTEM_FIELDS) {
+        for (const field of activeFields) {
             let found = rawHeaders.find((h) => h === field.label)
             if (!found) found = rawHeaders.find((h) => h.toLowerCase() === field.label.toLowerCase())
             if (!found) found = rawHeaders.find((h) => h.toLowerCase() === field.key.toLowerCase())
@@ -163,16 +191,32 @@ export function ImportLeadsModal({ open, onOpenChange, pipelineId, onSuccess }: 
             if (!found && field.key === "general_brief") {
                 found = rawHeaders.find((h) => /brief|general.*brief/i.test(h))
             }
+            // Historical fields
+            if (!found && field.key === "created_at") {
+                found = rawHeaders.find((h) => /created.*date|tanggal.*buat|date.*created|inquiry.*date/i.test(h))
+            }
+            if (!found && field.key === "actual_value") {
+                found = rawHeaders.find((h) => /actual.*value|actual.*revenue|revenue|nilai.*aktual/i.test(h))
+            }
+            if (!found && field.key === "closed_won_date") {
+                found = rawHeaders.find((h) => /closed.*won|won.*date|tanggal.*won/i.test(h))
+            }
+            if (!found && field.key === "closed_lost_date") {
+                found = rawHeaders.find((h) => /closed.*lost|lost.*date|tanggal.*lost/i.test(h))
+            }
+            if (!found && field.key === "lost_reason") {
+                found = rawHeaders.find((h) => /lost.*reason|alasan.*lost|reason/i.test(h))
+            }
             if (found) mapping[field.key] = found
         }
         return mapping
-    }, [])
+    }, [activeFields])
 
     // ── Validate parsed data based on mapping ──
     const validateData = useCallback((rows: ParsedRow[], mapping: ColumnMapping): RowValidation[] => {
         const errors: RowValidation[] = []
         rows.forEach((row, idx) => {
-            for (const field of SYSTEM_FIELDS.filter((f) => f.required)) {
+            for (const field of activeFields.filter((f) => f.required)) {
                 const header = mapping[field.key]
                 const value = header ? row[header] : ""
                 if (!value || !String(value).trim()) {
@@ -187,7 +231,7 @@ export function ImportLeadsModal({ open, onOpenChange, pipelineId, onSuccess }: 
                 if (value && String(value).trim()) {
                     const d = new Date(value)
                     if (isNaN(d.getTime())) {
-                        const field = SYSTEM_FIELDS.find((f) => f.key === df)
+                        const field = activeFields.find((f) => f.key === df)
                         errors.push({ row: idx + 1, field: field?.label || df, message: `Invalid date format (use YYYY-MM-DD)`, level: "error" })
                     }
                 }
@@ -202,18 +246,32 @@ export function ImportLeadsModal({ open, onOpenChange, pipelineId, onSuccess }: 
                 }
             }
             // Validate numbers
-            for (const nf of ["estimated_value", "pax_count"]) {
+            for (const nf of ["estimated_value", "actual_value", "pax_count"]) {
                 const header = mapping[nf]
                 const val = header ? row[header] : ""
                 if (val && String(val).trim() && isNaN(Number(String(val).replace(/[,.\s]/g, "")))) {
-                    const field = SYSTEM_FIELDS.find((f) => f.key === nf)
+                    const field = activeFields.find((f) => f.key === nf)
                     errors.push({ row: idx + 1, field: field?.label || nf, message: "Must be a number", level: "error" })
+                }
+            }
+            // Validate historical date fields
+            if (isHistorical) {
+                for (const df of ["created_at", "closed_won_date", "closed_lost_date"]) {
+                    const header = mapping[df]
+                    const val = header ? row[header] : ""
+                    if (val && String(val).trim()) {
+                        const d = new Date(val)
+                        if (isNaN(d.getTime())) {
+                            const field = activeFields.find((f) => f.key === df)
+                            errors.push({ row: idx + 1, field: field?.label || df, message: "Invalid date format (use YYYY-MM-DD)", level: "error" })
+                        }
+                    }
                 }
             }
 
         })
         return errors
-    }, [])
+    }, [activeFields, isHistorical])
 
     // ── Parse XLSX file ──
     const parseXLSX = useCallback((buffer: ArrayBuffer): { headers: string[]; rows: ParsedRow[] } => {
@@ -233,6 +291,11 @@ export function ImportLeadsModal({ open, onOpenChange, pipelineId, onSuccess }: 
 
     // ── Handle File ──
     const processFile = useCallback((file: File) => {
+        // Block upload if historical mode but no pipeline selected
+        if (isHistorical && !historicalPipelineId) {
+            toast.error("Please select a target pipeline first")
+            return
+        }
         const validExtensions = [".xlsx", ".xls"]
         const ext = file.name.substring(file.name.lastIndexOf(".")).toLowerCase()
         if (!validExtensions.includes(ext)) {
@@ -255,7 +318,7 @@ export function ImportLeadsModal({ open, onOpenChange, pipelineId, onSuccess }: 
             setStep(2)
         }
         reader.readAsArrayBuffer(file)
-    }, [parseXLSX, autoMapHeaders])
+    }, [parseXLSX, autoMapHeaders, isHistorical, historicalPipelineId])
 
     const handleDrop = useCallback((e: React.DragEvent) => {
         e.preventDefault()
@@ -282,7 +345,7 @@ export function ImportLeadsModal({ open, onOpenChange, pipelineId, onSuccess }: 
     }, [])
 
     const mappedCount = Object.keys(columnMapping).length
-    const unmappedRequired = SYSTEM_FIELDS.filter((f) => f.required && !columnMapping[f.key])
+    const unmappedRequired = activeFields.filter((f) => f.required && !columnMapping[f.key])
 
     // ── Proceed from mapping to preview ──
     const proceedToPreview = useCallback(() => {
@@ -302,7 +365,7 @@ export function ImportLeadsModal({ open, onOpenChange, pipelineId, onSuccess }: 
                 const mapped: Record<string, unknown> = {}
                 for (const [fieldKey, excelHeader] of Object.entries(columnMapping)) {
                     let val: unknown = row[excelHeader]?.trim() || null
-                    if (fieldKey === "estimated_value" && val) {
+                    if ((fieldKey === "estimated_value" || fieldKey === "actual_value") && val) {
                         val = Number(String(val).replace(/[,.\s]/g, ""))
                     }
                     if (fieldKey === "pax_count" && val) {
@@ -311,11 +374,18 @@ export function ImportLeadsModal({ open, onOpenChange, pipelineId, onSuccess }: 
 
                     mapped[fieldKey] = val
                 }
-                mapped.pipeline_id = pipelineId || null
+                // Standard import: use current pipeline. Historical: use user-selected pipeline
+                if (isHistorical) {
+                    mapped.pipeline_id = historicalPipelineId || null
+                } else {
+                    mapped.pipeline_id = pipelineId || null
+                }
                 return mapped
             })
 
-            const result = await importLeadsAction(rows)
+            const result = isHistorical
+                ? await importHistoricalLeadsAction(rows)
+                : await importLeadsAction(rows)
             setImportResult(result)
             setStep(4)
 
@@ -328,7 +398,7 @@ export function ImportLeadsModal({ open, onOpenChange, pipelineId, onSuccess }: 
                 toast.error(`${result.failed} lead(s) failed to import`)
             }
         })
-    }, [columnMapping, parsedData, pipelineId, startTransition, onSuccess, router])
+    }, [columnMapping, parsedData, pipelineId, historicalPipelineId, startTransition, onSuccess, router, isHistorical])
 
     // Headers already used in mapping
     const usedHeaders = useMemo(() => new Set(Object.values(columnMapping)), [columnMapping])
@@ -336,12 +406,12 @@ export function ImportLeadsModal({ open, onOpenChange, pipelineId, onSuccess }: 
     // Group system fields by category
     const fieldGroups = useMemo(() => {
         const groups: Record<string, typeof SYSTEM_FIELDS> = {}
-        for (const f of SYSTEM_FIELDS) {
+        for (const f of activeFields) {
             if (!groups[f.group]) groups[f.group] = []
             groups[f.group].push(f)
         }
         return groups
-    }, [])
+    }, [activeFields])
 
     return (
         <Dialog open={open} onOpenChange={(v) => { if (!v) handleClose(); else onOpenChange(v) }}>
@@ -383,6 +453,56 @@ export function ImportLeadsModal({ open, onOpenChange, pipelineId, onSuccess }: 
                     {/* ═══ STEP 1: Upload ═══ */}
                     {step === 1 && (
                         <div className="space-y-5">
+                            {/* Import Mode Toggle */}
+                            <div className="flex items-center gap-2 p-3 rounded-lg border border-slate-200 bg-slate-50/50">
+                                <button
+                                    type="button"
+                                    onClick={() => setIsHistorical(false)}
+                                    className={`flex-1 px-3 py-2 rounded-md text-xs font-semibold transition-all ${!isHistorical ? 'bg-white shadow-sm text-slate-800 border border-slate-200' : 'text-slate-500 hover:text-slate-700'}`}
+                                >
+                                    Standard Import
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setIsHistorical(true)}
+                                    className={`flex-1 px-3 py-2 rounded-md text-xs font-semibold transition-all ${isHistorical ? 'bg-white shadow-sm text-amber-800 border border-amber-200' : 'text-slate-500 hover:text-slate-700'}`}
+                                >
+                                    📅 Historical Data
+                                </button>
+                            </div>
+
+                            {isHistorical && (
+                                <div className="space-y-3">
+                                    <div className="flex items-start gap-2.5 p-3 rounded-lg bg-amber-50/70 border border-amber-200/50 text-xs text-amber-800">
+                                        <AlertTriangle className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
+                                        <div>
+                                            <p className="font-semibold">Historical Import Mode</p>
+                                            <p className="mt-0.5 text-amber-700">
+                                                Import leads from previous years with custom dates. The <strong>Created Date</strong> column is required.
+                                                Select the target pipeline where historical data should be stored (e.g. &quot;Pipeline 2025&quot;).
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    {/* Pipeline selector for historical data */}
+                                    <div className="flex items-center gap-3 p-3 rounded-lg border border-amber-200/50 bg-white">
+                                        <div className="text-xs font-semibold text-slate-700 shrink-0">Target Pipeline:</div>
+                                        <Select value={historicalPipelineId} onValueChange={setHistoricalPipelineId}>
+                                            <SelectTrigger className="h-8 text-xs flex-1">
+                                                <SelectValue placeholder="Select pipeline for historical data..." />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {pipelines.map((p) => (
+                                                    <SelectItem key={p.id} value={p.id}>
+                                                        {p.name}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                </div>
+                            )}
+
                             {/* Drag & Drop Zone */}
                             <div
                                 onDragOver={(e) => e.preventDefault()}
@@ -452,7 +572,7 @@ export function ImportLeadsModal({ open, onOpenChange, pipelineId, onSuccess }: 
                             <div className="flex items-center gap-3 p-3 rounded-lg bg-blue-50/70 border border-blue-200/50">
                                 <Link2 className="h-4 w-4 text-blue-500 shrink-0" />
                                 <div className="text-xs">
-                                    <span className="font-semibold text-blue-800">{mappedCount} of {SYSTEM_FIELDS.length}</span>
+                                    <span className="font-semibold text-blue-800">{mappedCount} of {activeFields.length}</span>
                                     <span className="text-blue-600"> fields mapped from </span>
                                     <span className="font-semibold text-blue-800">{excelHeaders.length} Excel columns</span>
                                 </div>
@@ -536,7 +656,7 @@ export function ImportLeadsModal({ open, onOpenChange, pipelineId, onSuccess }: 
                         <div className="space-y-4">
                             <div className="grid grid-cols-4 gap-3">
                                 <StatCard label="Rows" value={parsedData.length} icon={<FileSpreadsheet className="h-3.5 w-3.5" />} color="blue" />
-                                <StatCard label="Mapped" value={`${mappedCount}/${SYSTEM_FIELDS.length}`} icon={<CheckCircle2 className="h-3.5 w-3.5" />} color="emerald" />
+                                <StatCard label="Mapped" value={`${mappedCount}/${activeFields.length}`} icon={<CheckCircle2 className="h-3.5 w-3.5" />} color="emerald" />
                                 <StatCard label="Errors" value={errorCount} icon={<XCircle className="h-3.5 w-3.5" />} color={errorCount > 0 ? "red" : "emerald"} />
                                 <StatCard label="Warnings" value={warningCount} icon={<AlertTriangle className="h-3.5 w-3.5" />} color={warningCount > 0 ? "amber" : "emerald"} />
                             </div>
@@ -572,7 +692,7 @@ export function ImportLeadsModal({ open, onOpenChange, pipelineId, onSuccess }: 
                                             <tr className="bg-slate-50/50">
                                                 <th className="px-3 py-2 text-left font-medium text-slate-500 border-b">#</th>
                                                 {Object.entries(columnMapping).slice(0, 8).map(([fieldKey]) => {
-                                                    const field = SYSTEM_FIELDS.find((f) => f.key === fieldKey)
+                                                    const field = activeFields.find((f) => f.key === fieldKey)
                                                     return (
                                                         <th key={fieldKey} className="px-3 py-2 text-left font-medium text-slate-500 border-b whitespace-nowrap">
                                                             {field?.label || fieldKey}
@@ -589,7 +709,7 @@ export function ImportLeadsModal({ open, onOpenChange, pipelineId, onSuccess }: 
                                                         <td className="px-3 py-2 text-slate-400 font-mono">{idx + 1}</td>
                                                         {Object.entries(columnMapping).slice(0, 8).map(([fieldKey, excelHeader]) => {
                                                             const hasError = rowErrors.some((e) => {
-                                                                const f = SYSTEM_FIELDS.find((sf) => sf.label === e.field)
+                                                                const f = activeFields.find((sf) => sf.label === e.field)
                                                                 return f?.key === fieldKey
                                                             })
                                                             return (

@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache"
 import { createClient } from "@/utils/supabase/server"
+import { createServiceClient } from "@/utils/supabase/service"
 import { smartCaseRow } from "@/utils/smart-title-case"
 import { parseSmartEventDates } from "@/utils/smart-date-parser"
 import { buildStageTransitionAuditEntries } from "@/features/leads/lib/stage-transition-audit"
@@ -604,6 +605,334 @@ export async function importLeadsAction(
                         user_id: user?.id ?? null,
                         action_type: "Create",
                         description: "Lead created via Import"
+                    })
+                }
+            }
+        } catch (err) {
+            failed++
+            errors.push(`Row ${i + 1}: ${err instanceof Error ? err.message : "Unknown error"}`)
+        }
+    }
+
+    revalidatePath("/", "layout")
+    revalidatePath("/leads")
+    return { success, failed, errors }
+}
+
+// ── Historical sanitize — allows created_at for backdating ──
+function sanitizeHistoricalPayload(data: Record<string, unknown>): Record<string, unknown> {
+    const clean: Record<string, unknown> = {}
+    for (const [key, val] of Object.entries(data)) {
+        if (val === undefined) continue
+        if (RELATIONAL_KEYS.has(key)) continue
+        // Allow created_at for historical import (skip id, updated_at, manual_id)
+        if (key === "id" || key === "updated_at" || key === "manual_id") continue
+        // Allow created_at explicitly
+        if (key === "created_at") {
+            clean[key] = val === "" ? null : val
+            continue
+        }
+        if (!LEADS_COLUMNS.has(key)) continue
+        clean[key] = val === "" ? null : val
+    }
+    return clean
+}
+
+/**
+ * Import historical leads with custom created_at dates.
+ * Uses service client (admin) to bypass the DEFAULT NOW() on created_at.
+ * Same logic as importLeadsAction but allows backdating.
+ */
+export async function importHistoricalLeadsAction(
+    rows: Record<string, unknown>[]
+): Promise<ImportResult> {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    const adminClient = createServiceClient()
+
+    let success = 0
+    let failed = 0
+    const errors: string[] = []
+
+    // Pre-fetch lookup tables (same as standard import)
+    const { data: allCompanies } = await supabase
+        .from("client_companies")
+        .select("id, name")
+        .order("name")
+
+    const { data: allContacts } = await supabase
+        .from("contacts")
+        .select("id, full_name, client_company_id")
+        .order("full_name")
+
+    const { data: allProfiles } = await supabase
+        .from("profiles")
+        .select("id, full_name")
+        .order("full_name")
+
+    const { data: allSubsidiaries } = await supabase
+        .from("companies")
+        .select("id, name, slug")
+        .order("name")
+
+    const { data: allStages } = await supabase
+        .from("pipeline_stages")
+        .select("id, name, pipeline_id")
+        .order("sort_order")
+
+    const { data: allMasterOptions } = await supabase
+        .from("master_options")
+        .select("option_type, value")
+        .eq("is_active", true)
+
+    // Build lookup maps
+    const companyMap = new Map<string, string>()
+    for (const c of allCompanies ?? []) companyMap.set(c.name.toLowerCase().trim(), c.id)
+
+    const contactMap = new Map<string, { id: string; client_company_id: string | null }>()
+    for (const c of allContacts ?? []) contactMap.set(c.full_name.toLowerCase().trim(), { id: c.id, client_company_id: c.client_company_id })
+
+    const profileMap = new Map<string, string>()
+    for (const p of allProfiles ?? []) { if (p.full_name) profileMap.set(p.full_name.toLowerCase().trim(), p.id) }
+
+    const subsidiaryMap = new Map<string, string>()
+    for (const s of allSubsidiaries ?? []) {
+        subsidiaryMap.set(s.name.toLowerCase().trim(), s.id)
+        subsidiaryMap.set(s.slug.toLowerCase().trim(), s.id)
+    }
+
+    const stageMap = new Map<string, string>()
+    for (const s of allStages ?? []) {
+        stageMap.set(`${s.name.toLowerCase().trim()}|${s.pipeline_id}`, s.id)
+        if (!stageMap.has(s.name.toLowerCase().trim())) stageMap.set(s.name.toLowerCase().trim(), s.id)
+    }
+
+    const optionMap = new Map<string, string>()
+    for (const opt of allMasterOptions ?? []) {
+        if (opt?.value) optionMap.set(`${opt.option_type}|${opt.value.toLowerCase().trim()}`, opt.value)
+    }
+
+    const stageCache = new Map<string, string>()
+
+    for (let i = 0; i < rows.length; i++) {
+        try {
+            const raw = smartCaseRow({ ...rows[i] }) as Record<string, unknown>
+
+            // ── Validate created_at (required for historical) ──
+            const createdAtRaw = raw.created_at as string | undefined
+            if (!createdAtRaw || !String(createdAtRaw).trim()) {
+                failed++
+                errors.push(`Row ${i + 1}: Created Date is required for historical import`)
+                continue
+            }
+            const createdAtDate = new Date(String(createdAtRaw).trim())
+            if (isNaN(createdAtDate.getTime())) {
+                failed++
+                errors.push(`Row ${i + 1}: Invalid Created Date "${createdAtRaw}" — use YYYY-MM-DD format`)
+                continue
+            }
+            // Store as ISO string
+            raw.created_at = createdAtDate.toISOString()
+
+            // ── Resolve Subsidiary ──
+            const subsidiaryName = raw.subsidiary_name as string | undefined
+            if (subsidiaryName && String(subsidiaryName).trim()) {
+                const subId = subsidiaryMap.get(String(subsidiaryName).toLowerCase().trim())
+                if (subId) {
+                    raw.company_id = subId
+                } else {
+                    failed++
+                    errors.push(`Row ${i + 1}: Subsidiary "${subsidiaryName}" not found — lead skipped`)
+                    continue
+                }
+            }
+            delete raw.subsidiary_name
+
+            // ── Resolve Pipeline Stage ──
+            // Historical leads go into the user-selected pipeline (passed as pipeline_id in row data)
+            const stageName = raw.pipeline_stage_name as string | undefined
+            if (stageName && String(stageName).trim()) {
+                const sNameKey = String(stageName).toLowerCase().trim()
+                const pipeId = raw.pipeline_id as string | undefined
+                const scopedKey = pipeId ? `${sNameKey}|${pipeId}` : null
+                const stageId = (scopedKey ? stageMap.get(scopedKey) : null) || stageMap.get(sNameKey)
+                if (stageId) raw.pipeline_stage_id = stageId
+            } else {
+                // Auto-determine stage from closed dates
+                if (raw.closed_won_date) {
+                    const wonStageId = stageMap.get("closed won")
+                    if (wonStageId) raw.pipeline_stage_id = wonStageId
+                } else if (raw.closed_lost_date) {
+                    const lostStageId = stageMap.get("closed lost") || stageMap.get("closed turndown")
+                    if (lostStageId) raw.pipeline_stage_id = lostStageId
+                }
+            }
+            delete raw.pipeline_stage_name
+
+            // ── Resolve Client Company (auto-create) ──
+            const clientCompanyName = raw.client_company_name as string | undefined
+            if (clientCompanyName && String(clientCompanyName).trim()) {
+                const nameKey = String(clientCompanyName).toLowerCase().trim()
+                let companyId = companyMap.get(nameKey)
+                if (!companyId) {
+                    const { data: newCompany, error: compErr } = await adminClient
+                        .from("client_companies")
+                        .insert({ name: String(clientCompanyName).trim() })
+                        .select("id")
+                        .single()
+                    if (newCompany && !compErr) {
+                        companyId = newCompany.id
+                        companyMap.set(nameKey, newCompany.id)
+                    }
+                }
+                if (companyId) raw.client_company_id = companyId
+            }
+            delete raw.client_company_name
+
+            // ── Resolve Contact (auto-create) ──
+            const contactName = raw.contact_name as string | undefined
+            if (contactName && String(contactName).trim()) {
+                const nameKey = String(contactName).toLowerCase().trim()
+                const contact = contactMap.get(nameKey)
+                if (contact) {
+                    raw.contact_id = contact.id
+                    if (!raw.client_company_id && contact.client_company_id) raw.client_company_id = contact.client_company_id
+                } else {
+                    const contactPayload: Record<string, unknown> = { full_name: String(contactName).trim() }
+                    if (raw.client_company_id) contactPayload.client_company_id = raw.client_company_id
+                    const { data: newContact, error: cErr } = await adminClient
+                        .from("contacts")
+                        .insert(contactPayload)
+                        .select("id")
+                        .single()
+                    if (newContact && !cErr) {
+                        raw.contact_id = newContact.id
+                        contactMap.set(nameKey, { id: newContact.id, client_company_id: (raw.client_company_id as string) || null })
+                    }
+                }
+            }
+            delete raw.contact_name
+
+            // ── Resolve PIC Sales ──
+            const picSalesName = raw.pic_sales_name as string | undefined
+            if (picSalesName && String(picSalesName).trim()) {
+                const profileId = profileMap.get(String(picSalesName).toLowerCase().trim())
+                if (profileId) raw.pic_sales_id = profileId
+            }
+            delete raw.pic_sales_name
+
+            // ── Validate Taxonomic Fields ──
+            const taxonomicFields = ["category", "grade_lead", "lead_source", "main_stream", "stream_type", "business_purpose", "event_format", "area"]
+            for (const field of taxonomicFields) {
+                if (raw[field] && typeof raw[field] === "string") {
+                    const val = (raw[field] as string).trim()
+                    if (val) {
+                        const exactMatch = optionMap.get(`${field}|${val.toLowerCase()}`)
+                        if (exactMatch) {
+                            raw[field] = exactMatch
+                        } else {
+                            throw new Error(`Invalid ${field.replace("_", " ")} "${val}" — must match an available option.`)
+                        }
+                    }
+                }
+            }
+
+            // ── Destinations ──
+            const destCity = raw.destination_city as string | undefined
+            const destVenue = raw.destination_venue as string | undefined
+            if (destCity && String(destCity).trim()) {
+                raw.destinations = [{ city: String(destCity).trim(), venue: destVenue ? String(destVenue).trim() : "" }]
+            }
+            delete raw.destination_city
+            delete raw.destination_venue
+
+            // ── Smart parse event_dates ──
+            const eventDatesRaw = raw.event_dates as string | undefined
+            if (eventDatesRaw && typeof eventDatesRaw === "string" && eventDatesRaw.trim()) {
+                const dates = parseSmartEventDates(eventDatesRaw)
+                if (dates.length > 0) {
+                    raw.event_dates = dates
+                    if (!raw.event_date_start) raw.event_date_start = dates[0]
+                    if (!raw.event_date_end) raw.event_date_end = dates[dates.length - 1]
+                    if (!raw.month_event) {
+                        const monthNames = ["January","February","March","April","May","June","July","August","September","October","November","December"]
+                        const firstDate = new Date(dates[0])
+                        raw.month_event = `${monthNames[firstDate.getMonth()]} ${firstDate.getFullYear()}`
+                    }
+                } else {
+                    delete raw.event_dates
+                }
+            }
+
+            // ── Parse closed dates ──
+            if (raw.closed_won_date && typeof raw.closed_won_date === "string") {
+                const d = new Date(raw.closed_won_date)
+                if (!isNaN(d.getTime())) raw.closed_won_date = d.toISOString().split("T")[0]
+                else delete raw.closed_won_date
+            }
+            if (raw.closed_lost_date && typeof raw.closed_lost_date === "string") {
+                const d = new Date(raw.closed_lost_date)
+                if (!isNaN(d.getTime())) raw.closed_lost_date = d.toISOString().split("T")[0]
+                else delete raw.closed_lost_date
+            }
+
+            // ── Convert actual_value to number ──
+            if (raw.actual_value && typeof raw.actual_value === "string") {
+                raw.actual_value = Number(String(raw.actual_value).replace(/[,.\s]/g, ""))
+            }
+
+            const payload = sanitizeHistoricalPayload(raw)
+
+            // Assign default closed stage if no stage was resolved
+            // Scoped to the target pipeline if pipeline_id is set
+            if (!payload.pipeline_stage_id && payload.pipeline_id) {
+                const pipeKey = `__closed_won__|${payload.pipeline_id}`
+                if (!stageCache.has(pipeKey)) {
+                    const { data: wonStage } = await supabase
+                        .from("pipeline_stages")
+                        .select("id")
+                        .eq("pipeline_id", payload.pipeline_id as string)
+                        .ilike("name", "%closed won%")
+                        .limit(1)
+                        .single()
+                    if (wonStage) stageCache.set(pipeKey, wonStage.id)
+                }
+                const closedWonStage = stageCache.get(pipeKey)
+                if (closedWonStage) payload.pipeline_stage_id = closedWonStage
+            }
+            // Fallback: first stage of the pipeline
+            if (!payload.pipeline_stage_id && payload.pipeline_id) {
+                const fallbackKey = `__first__|${payload.pipeline_id}`
+                if (!stageCache.has(fallbackKey)) {
+                    const { data: firstStage } = await supabase
+                        .from("pipeline_stages")
+                        .select("id")
+                        .eq("pipeline_id", payload.pipeline_id as string)
+                        .order("sort_order", { ascending: true })
+                        .limit(1)
+                        .single()
+                    if (firstStage) stageCache.set(fallbackKey, firstStage.id)
+                }
+                const fallbackStage = stageCache.get(fallbackKey)
+                if (fallbackStage) payload.pipeline_stage_id = fallbackStage
+            }
+
+            // Use admin client to insert with custom created_at
+            const { data: insertedData, error } = await adminClient
+                .from("leads")
+                .insert(payload)
+                .select("id")
+            if (error) {
+                failed++
+                errors.push(`Row ${i + 1}: ${error.message}`)
+            } else {
+                success++
+                if (insertedData?.[0]?.id) {
+                    await adminClient.from("lead_activities").insert({
+                        lead_id: insertedData[0].id,
+                        user_id: user?.id ?? null,
+                        action_type: "Create",
+                        description: `Lead created via Historical Import (original date: ${createdAtDate.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })})`
                     })
                 }
             }
