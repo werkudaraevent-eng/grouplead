@@ -459,7 +459,7 @@ export function LeadDetailPage({ lead, prevLeadId, nextLeadId, lastModifiedBy = 
                                 </button>
                             </PermissionGate>
                         </div>
-                        <div className="px-4 py-3 flex flex-col gap-0.5">
+                        <div className="px-4 py-3.5 flex flex-col gap-2">
                             {lead.company?.name && (
                                 <div className="flex items-center justify-between gap-3 py-[3px]">
                                     <span className="text-[11px] text-slate-400 flex items-center gap-1.5 shrink-0">
@@ -793,16 +793,16 @@ function KVRow({
     highlight?: boolean
 }) {
     return (
-        <div className="flex items-center justify-between gap-2">
-            <span className="text-[12px] text-slate-400 flex items-center gap-1.5 shrink-0">
-                <Icon className="h-3 w-3" /> {label}
+        <div className="flex items-center justify-between gap-3">
+            <span className="text-[11.5px] text-slate-400 flex items-center gap-1.5 shrink-0">
+                <Icon className="h-3 w-3 text-slate-300" /> {label}
             </span>
             {highlight && value ? (
-                <span className="text-[12px] font-bold bg-amber-100 text-amber-800 px-2 py-0.5 rounded">
+                <span className="text-[11.5px] font-semibold bg-slate-100 text-slate-700 px-2 py-0.5 rounded-md">
                     {value}
                 </span>
             ) : (
-                <span className={`text-[13px] font-medium text-right truncate ${value && value !== '—' ? 'text-slate-800' : 'text-slate-300'}`}>
+                <span className={`text-[12px] font-medium text-right truncate ${value && value !== '—' ? 'text-[#292D30]' : 'text-slate-300'}`}>
                     {value || "—"}
                 </span>
             )}
