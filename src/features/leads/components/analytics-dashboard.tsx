@@ -8,7 +8,7 @@ import { GoalDataProvider } from "@/features/goals/contexts/goal-data-context"
 import { EmptyState } from "@/components/shared/empty-state"
 import { buildDashboardStageSeries } from "@/features/leads/lib/dashboard-stage-series"
 import { splitDashboardLeadsByPeriod } from "@/features/leads/lib/dashboard-period"
-import { Briefcase, Trophy, CheckSquare, RefreshCw, TrendingUp, Calendar } from "lucide-react"
+import { Briefcase, Trophy, CheckSquare, RefreshCw, TrendingUp, Calendar, Layers } from "lucide-react"
 import { useCurrency } from "@/contexts/currency-context"
 import { ACCENT, MONTHS_SHORT, getVsLastYearPct } from "./dashboard-widgets/shared"
 import { WIDGET_IDS } from "@/features/leads/lib/dashboard-layout"
@@ -78,13 +78,20 @@ export function AnalyticsDashboard({
     const currentYear = new Date().getFullYear()
     const [hasMounted, setHasMounted] = useState(false)
     const [periodStr, setPeriodStr] = useState("this_quarter")
+    const [customStart, setCustomStart] = useState("")
+    const [customEnd, setCustomEnd] = useState("")
     const [catToggle, setCatToggle] = useState<string>('category')
     const [streamToggle, setStreamToggle] = useState<string>('main_stream')
     const [trendYear, setTrendYear] = useState(currentYear)
     const [revenueBasis, setRevenueBasis] = useState<RevenueBasis>("revenue_recognition")
     const [scrolled, setScrolled] = useState(false)
     const scrollRef = useRef<HTMLElement | null>(null)
-    const periodLeadBuckets = useMemo(() => splitDashboardLeadsByPeriod(leads, periodStr as "this_month" | "this_quarter" | "this_year" | "all_time" | "custom"), [leads, periodStr])
+    const periodLeadBuckets = useMemo(() => splitDashboardLeadsByPeriod(
+        leads,
+        periodStr as "this_month" | "this_quarter" | "this_year" | "all_time" | "custom",
+        new Date(),
+        periodStr === "custom" && customStart && customEnd ? { start: customStart, end: customEnd } : undefined
+    ), [leads, periodStr, customStart, customEnd])
     const periodLeads = periodLeadBuckets.current
     const previousPeriodLeads = periodLeadBuckets.previous
     const stageComparisonLabel = useMemo(() => getStageComparisonLabel(periodStr), [periodStr])
@@ -245,7 +252,16 @@ export function AnalyticsDashboard({
         const conversionRate = totalInquiry > 0 ? (closedWonCount / totalInquiry) * 100 : 0
         const avgSize = closedWonCount > 0 ? totalRevenue / closedWonCount : 0
 
-        return { totalInquiry, totalRevenue, winRate, conversionRate, avgSize, closedWonCount }
+        // Pipeline value: estimated value of leads in active (non-closed) stages
+        let pipelineValue = 0
+        periodLeads.forEach(l => {
+            const stage = (l.pipeline_stage?.name || "").toLowerCase()
+            if (!stage.includes("won") && !stage.includes("lost") && !stage.includes("cancel") && !stage.includes("turndown") && !stage.includes("postponed")) {
+                pipelineValue += (l.estimated_value ?? 0)
+            }
+        })
+
+        return { totalInquiry, totalRevenue, winRate, conversionRate, avgSize, closedWonCount, pipelineValue }
     }, [periodLeads])
 
     // ─── PERIOD COMPARISON METRICS ──────────────────────────────────
@@ -674,6 +690,15 @@ export function AnalyticsDashboard({
             icon: TrendingUp,
             tooltip: `Average revenue per won deal: ${fmt(stats.avgSize)}`
         },
+        {
+            label: "Pipeline Value",
+            value: fmtAxis(stats.pipelineValue),
+            vsTarget: null,
+            vsPrev: null,
+            accent: "#00A1E9",
+            icon: Layers,
+            tooltip: `Total estimated value of leads in active stages: ${fmt(stats.pipelineValue)}`
+        },
     ]
 
     return (
@@ -731,14 +756,29 @@ export function AnalyticsDashboard({
                         <option value="custom">Custom Range...</option>
                     </select>
                     {periodStr === "custom" && (
-                        <button style={{
-                            display: "flex", alignItems: "center", gap: 6, background: "#fff", border: "1px solid #e5e8ed",
-                            borderRadius: 7, padding: "6px 12px", fontSize: 11.5, fontWeight: 600, color: "#0f1729",
-                            cursor: "pointer", fontFamily: "inherit", boxShadow: "0 1px 2px rgba(0,0,0,.04)",
-                            transition: "all .2s ease",
-                        }}>
-                            <Calendar style={{ width: 14, height: 14 }} /> Select Dates
-                        </button>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                            <input
+                                type="date"
+                                value={customStart}
+                                onChange={e => setCustomStart(e.target.value)}
+                                style={{
+                                    background: "#fff", border: "1px solid #e5e8ed", borderRadius: 7,
+                                    padding: "5px 10px", fontSize: 11, fontWeight: 500, color: "#0f1729",
+                                    fontFamily: "inherit", boxShadow: "0 1px 2px rgba(0,0,0,.04)",
+                                }}
+                            />
+                            <span style={{ fontSize: 10, color: "#94a3b8" }}>to</span>
+                            <input
+                                type="date"
+                                value={customEnd}
+                                onChange={e => setCustomEnd(e.target.value)}
+                                style={{
+                                    background: "#fff", border: "1px solid #e5e8ed", borderRadius: 7,
+                                    padding: "5px 10px", fontSize: 11, fontWeight: 500, color: "#0f1729",
+                                    fontFamily: "inherit", boxShadow: "0 1px 2px rgba(0,0,0,.04)",
+                                }}
+                            />
+                        </div>
                     )}
                     {/* ─── Grid Edit Controls (portaled by DashboardGrid) ─── */}
                     <div id="dashboard-edit-controls" style={{ display: "flex", alignItems: "center", borderLeft: "1px solid #e5e8ed", paddingLeft: 10, marginLeft: 2 }} />
@@ -755,12 +795,13 @@ export function AnalyticsDashboard({
                     onDeleteCustomWidget={handleDeleteCustomWidget}
                 >
                     {/* Order MUST match WIDGET_IDS array */}
-                    {/* 5 individual KPI cards */}
+                    {/* 6 individual KPI cards */}
                     <SingleKPIWidget {...kpis[0]} />
                     <SingleKPIWidget {...kpis[1]} />
                     <SingleKPIWidget {...kpis[2]} />
                     <SingleKPIWidget {...kpis[3]} />
                     <SingleKPIWidget {...kpis[4]} />
+                    <SingleKPIWidget {...kpis[5]} />
                     {/* Chart widgets */}
                     <RevenueChartWidget
                         data={monthlyRev}

@@ -8,6 +8,7 @@ export const WIDGET_IDS = [
   "kpi-deal-win-rate",
   "kpi-lead-conversion",
   "kpi-avg-deal-size",
+  "kpi-pipeline-value",
   "revenue-chart",
   "pipeline",
   "sales-perf",
@@ -32,6 +33,7 @@ export const WIDGET_LABELS: Record<WidgetId, string> = {
   "kpi-deal-win-rate": "Deal Win Rate",
   "kpi-lead-conversion": "Lead Conversion",
   "kpi-avg-deal-size": "Avg Deal Size",
+  "kpi-pipeline-value": "Pipeline Value",
   "revenue-chart": "Monthly Revenue vs Target",
   "pipeline": "Pipeline Stages",
   "sales-perf": "Sales Performance",
@@ -84,12 +86,13 @@ export function getDefaultLayout(): Layout {
   // No overlaps. Every row boundary is clean.
 
   return [
-    // ── Row 0: KPI Cards ── h:2 = 110px
-    { i: "kpi-total-leads",    x: 0, y: 0, w: 2, h: 2, minW: 2, minH: 2, maxW: 4, maxH: 3 },
-    { i: "kpi-won-revenue",    x: 2, y: 0, w: 3, h: 2, minW: 2, minH: 2, maxW: 4, maxH: 3 },
-    { i: "kpi-deal-win-rate",  x: 5, y: 0, w: 2, h: 2, minW: 2, minH: 2, maxW: 4, maxH: 3 },
-    { i: "kpi-lead-conversion",x: 7, y: 0, w: 2, h: 2, minW: 2, minH: 2, maxW: 4, maxH: 3 },
-    { i: "kpi-avg-deal-size",  x: 9, y: 0, w: 3, h: 2, minW: 2, minH: 2, maxW: 4, maxH: 3 },
+    // ── Row 0: KPI Cards ── h:2 = 110px, 6 cards × 2 cols = 12
+    { i: "kpi-total-leads",    x: 0,  y: 0, w: 2, h: 2, minW: 2, minH: 2, maxW: 4, maxH: 3 },
+    { i: "kpi-won-revenue",    x: 2,  y: 0, w: 2, h: 2, minW: 2, minH: 2, maxW: 4, maxH: 3 },
+    { i: "kpi-deal-win-rate",  x: 4,  y: 0, w: 2, h: 2, minW: 2, minH: 2, maxW: 4, maxH: 3 },
+    { i: "kpi-lead-conversion",x: 6,  y: 0, w: 2, h: 2, minW: 2, minH: 2, maxW: 4, maxH: 3 },
+    { i: "kpi-avg-deal-size",  x: 8,  y: 0, w: 2, h: 2, minW: 2, minH: 2, maxW: 4, maxH: 3 },
+    { i: "kpi-pipeline-value", x: 10, y: 0, w: 2, h: 2, minW: 2, minH: 2, maxW: 4, maxH: 3 },
 
     // ── Row 1: Primary Charts ── both h:7 = 410px, same height, no overlap
     { i: "revenue-chart",      x: 0, y: 2, w: 8, h: 7, minW: 4, minH: 4, maxH: 12 },

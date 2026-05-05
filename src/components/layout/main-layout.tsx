@@ -93,7 +93,7 @@ function MainLayoutInner({
                         <span className="font-bold text-sm">Werkudara Group</span>
                     </div>
                 </div>
-                <main id="main-content" className="flex-1 overflow-y-auto bg-muted/30">{children}</main>
+                <main id="main-content" className="flex-1 overflow-y-auto bg-muted/30 thin-scrollbar">{children}</main>
             </div>
         </div>
     )

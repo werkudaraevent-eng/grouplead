@@ -26,7 +26,7 @@ function addYears(date: Date, years: number) {
     return new Date(date.getFullYear() + years, date.getMonth(), date.getDate())
 }
 
-function getPeriodRanges(period: DashboardPeriod, now: Date): { current: DateRange; previous: DateRange } {
+function getPeriodRanges(period: DashboardPeriod, now: Date, customRange?: { start: string; end: string }): { current: DateRange; previous: DateRange } {
     if (period === "this_month") {
         const start = startOfMonth(now)
         return {
@@ -52,6 +52,19 @@ function getPeriodRanges(period: DashboardPeriod, now: Date): { current: DateRan
         }
     }
 
+    // Custom range with explicit dates
+    if (period === "custom" && customRange?.start && customRange?.end) {
+        const start = new Date(customRange.start)
+        const end = new Date(customRange.end)
+        end.setDate(end.getDate() + 1) // Include end date
+        const durationMs = end.getTime() - start.getTime()
+        return {
+            current: { start, end },
+            previous: { start: new Date(start.getTime() - durationMs), end: start },
+        }
+    }
+
+    // all_time or custom without dates
     const previousYearStart = new Date(now.getFullYear() - 1, 0, 1)
     const previousYearEnd = new Date(now.getFullYear(), 0, 1)
     return {
@@ -67,9 +80,10 @@ function isWithinRange(value: Date, range: DateRange) {
 export function splitDashboardLeadsByPeriod<T extends LeadWithCreatedAt>(
     leads: T[],
     period: DashboardPeriod,
-    now = new Date()
+    now = new Date(),
+    customRange?: { start: string; end: string }
 ) {
-    const ranges = getPeriodRanges(period, now)
+    const ranges = getPeriodRanges(period, now, customRange)
     const current: T[] = []
     const previous: T[] = []
 
