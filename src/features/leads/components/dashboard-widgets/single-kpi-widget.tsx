@@ -64,8 +64,8 @@ export function SingleKPIWidget({ label, value, prefix = "", suffix = "", vsTarg
                 {vsTarget !== null && <Badge value={vsTarget} label="target" />}
                 {vsPrev !== null && <Badge value={vsPrev} label="YoY" />}
                 {vsTarget === null && vsPrev === null && (
-                    <span className="text-[9px] text-slate-300 italic">
-                        No comparison data
+                    <span className="text-[9px] text-muted-foreground/40">
+                        No prior period data
                     </span>
                 )}
             </div>

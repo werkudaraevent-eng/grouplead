@@ -74,7 +74,7 @@ export function AnalyticsDashboard({
     const pathname = usePathname()
     const searchParams = useSearchParams()
     const { activeCompany } = useCompany()
-    const { fmt } = useCurrency()
+    const { fmt, fmtAxis } = useCurrency()
     const currentYear = new Date().getFullYear()
     const [hasMounted, setHasMounted] = useState(false)
     const [periodStr, setPeriodStr] = useState("this_quarter")
@@ -636,12 +636,12 @@ export function AnalyticsDashboard({
         },
         {
             label: "Won Revenue",
-            value: fmt(stats.totalRevenue),
+            value: fmtAxis(stats.totalRevenue),
             vsTarget: goalMetrics.revTgt,
             vsPrev: goalMetrics.revYoy,
             accent: ACCENT.revenue,
             icon: Trophy,
-            tooltip: "Total revenue from closed won deals"
+            tooltip: `Total revenue from closed won deals: ${fmt(stats.totalRevenue)}`
         },
         {
             label: "Deal Win Rate",
@@ -667,12 +667,12 @@ export function AnalyticsDashboard({
         },
         {
             label: "Avg Deal Size",
-            value: fmt(stats.avgSize),
+            value: fmtAxis(stats.avgSize),
             vsTarget: goalMetrics.avgTgt,
             vsPrev: goalMetrics.avgYoy,
             accent: ACCENT.dealsize,
             icon: TrendingUp,
-            tooltip: "Average revenue per won deal"
+            tooltip: `Average revenue per won deal: ${fmt(stats.avgSize)}`
         },
     ]
 
