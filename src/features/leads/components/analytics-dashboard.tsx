@@ -712,24 +712,34 @@ export function AnalyticsDashboard({
                 id="dashboard-sticky-header"
                 style={{
                     position: "sticky", top: 0, zIndex: 20,
-                    height: 56,
+                    height: scrolled ? 52 : 64,
                     display: "flex", justifyContent: "space-between", alignItems: "center",
                     padding: "0 24px",
                     background: scrolled ? "rgba(255,255,255,.97)" : "#fff",
                     backdropFilter: scrolled ? "blur(8px)" : "none",
                     WebkitBackdropFilter: scrolled ? "blur(8px)" : "none",
                     borderBottom: "1px solid #f0f0f0",
-                    transition: "all .2s cubic-bezier(0.23, 1, 0.32, 1)",
+                    transition: "all .25s cubic-bezier(0.23, 1, 0.32, 1)",
                 }}
             >
-                {/* Left: Title */}
-                <div>
+                {/* Left: Title + subtitle */}
+                <div style={{ position: "relative" }}>
                     <h1 style={{
-                        fontSize: 16, fontWeight: 700, color: "#292D30",
+                        fontSize: scrolled ? 15 : 17, fontWeight: 700, color: "#292D30",
                         letterSpacing: "-0.3px", lineHeight: 1.2, margin: 0,
+                        transition: "font-size .25s cubic-bezier(0.23, 1, 0.32, 1)",
                     }}>
                         Performance Dashboard
                     </h1>
+                    <p style={{
+                        fontSize: 11, color: "#94a3b8", margin: 0, marginTop: 1,
+                        opacity: scrolled ? 0 : 1,
+                        transform: scrolled ? "translateY(-2px)" : "translateY(0)",
+                        transition: "opacity .2s ease, transform .2s ease",
+                        pointerEvents: scrolled ? "none" : "auto",
+                    }}>
+                        Real-time sales analytics &amp; goal tracking
+                    </p>
                 </div>
 
                 {/* Right: Filters + Edit */}
