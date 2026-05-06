@@ -461,11 +461,11 @@ export function LeadDetailPage({ lead, prevLeadId, nextLeadId, lastModifiedBy = 
                         </div>
                         <div className="px-4 py-3.5 flex flex-col gap-2">
                             {lead.company?.name && (
-                                <div className="flex items-center justify-between gap-3 py-[3px]">
+                                <div className="flex items-center justify-between gap-3">
                                     <span className="text-[11px] text-slate-400 flex items-center gap-1.5 shrink-0">
                                         <Building2 className="h-3 w-3 text-slate-300" /> Subsidiary
                                     </span>
-                                    <span className="text-[11px] font-semibold text-[#02378D]">
+                                    <span className="text-[12px] font-semibold text-[#02378D]">
                                         {lead.company.name}
                                     </span>
                                 </div>
@@ -794,11 +794,11 @@ function KVRow({
 }) {
     return (
         <div className="flex items-center justify-between gap-3">
-            <span className="text-[11.5px] text-slate-400 flex items-center gap-1.5 shrink-0">
+            <span className="text-[11px] text-slate-400 flex items-center gap-1.5 shrink-0">
                 <Icon className="h-3 w-3 text-slate-300" /> {label}
             </span>
             {highlight && value ? (
-                <span className="text-[11.5px] font-semibold bg-slate-100 text-slate-700 px-2 py-0.5 rounded-md">
+                <span className="text-[11px] font-semibold bg-slate-100 text-slate-700 px-2 py-0.5 rounded-md">
                     {value}
                 </span>
             ) : (
