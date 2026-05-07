@@ -11,9 +11,10 @@ import {
     Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
-import { Loader2, Save, UserCircle, KeyRound, Shield, Mail } from "lucide-react"
+import { Loader2, Save, UserCircle, KeyRound, Shield, Mail, Camera } from "lucide-react"
 import { SettingsPageHeader } from "@/components/layout/settings-page-header"
 
 /* ─── Schemas ────────────────────────────────────────────────────────────── */
@@ -21,6 +22,7 @@ const profileSchema = z.object({
     full_name: z.string().min(1, "Name is required"),
     phone: z.string().optional().or(z.literal("")),
     job_title: z.string().optional().or(z.literal("")),
+    bio: z.string().optional().or(z.literal("")),
 })
 type ProfileValues = z.infer<typeof profileSchema>
 
@@ -38,13 +40,16 @@ export default function MyProfilePage() {
     const [loading, setLoading] = useState(true)
     const [savingProfile, setSavingProfile] = useState(false)
     const [savingPassword, setSavingPassword] = useState(false)
+    const [uploadingAvatar, setUploadingAvatar] = useState(false)
     const [email, setEmail] = useState("")
     const [roleName, setRoleName] = useState("")
+    const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
+    const [userId, setUserId] = useState<string>("")
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const profileForm = useForm<ProfileValues>({
         resolver: zodResolver(profileSchema) as any,
-        defaultValues: { full_name: "", phone: "", job_title: "" },
+        defaultValues: { full_name: "", phone: "", job_title: "", bio: "" },
     })
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -60,10 +65,11 @@ export default function MyProfilePage() {
             if (!user) return
 
             setEmail(user.email || "")
+            setUserId(user.id)
 
             const { data: profile } = await supabase
                 .from("profiles")
-                .select("full_name, phone, job_title, role, assigned_role:roles(name)")
+                .select("full_name, phone, job_title, bio, avatar_url, role, assigned_role:roles(name)")
                 .eq("id", user.id)
                 .single()
 
@@ -72,7 +78,9 @@ export default function MyProfilePage() {
                     full_name: profile.full_name ?? "",
                     phone: profile.phone ?? "",
                     job_title: profile.job_title ?? "",
+                    bio: profile.bio ?? "",
                 })
+                setAvatarUrl(profile.avatar_url)
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 const ar = (profile as any).assigned_role
                 setRoleName(ar?.name || profile.role || "Unknown")
@@ -92,6 +100,7 @@ export default function MyProfilePage() {
             full_name: values.full_name.trim(),
             phone: values.phone?.trim() || null,
             job_title: values.job_title?.trim() || null,
+            bio: values.bio?.trim() || null,
         }).eq("id", user.id)
 
         if (error) toast.error(error.message)
@@ -130,6 +139,65 @@ export default function MyProfilePage() {
             />
 
             <div className="px-6 lg:px-8 pb-6 max-w-2xl space-y-6">
+            {/* ─── Avatar ────────────────────────────────────────────────── */}
+            <Card>
+                <CardContent className="pt-6">
+                    <div className="flex items-center gap-5">
+                        <div className="relative group">
+                            {avatarUrl ? (
+                                <img
+                                    src={avatarUrl}
+                                    alt="Profile"
+                                    className="w-20 h-20 rounded-full object-cover border-2 border-slate-200"
+                                />
+                            ) : (
+                                <div className="w-20 h-20 rounded-full bg-slate-100 border-2 border-slate-200 flex items-center justify-center">
+                                    <UserCircle className="h-10 w-10 text-slate-300" />
+                                </div>
+                            )}
+                            <label className="absolute inset-0 flex items-center justify-center rounded-full bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+                                {uploadingAvatar ? (
+                                    <Loader2 className="h-5 w-5 text-white animate-spin" />
+                                ) : (
+                                    <Camera className="h-5 w-5 text-white" />
+                                )}
+                                <input
+                                    type="file"
+                                    accept="image/*"
+                                    className="hidden"
+                                    onChange={async (e) => {
+                                        const file = e.target.files?.[0]
+                                        if (!file || !userId) return
+                                        setUploadingAvatar(true)
+                                        const ext = file.name.split(".").pop()
+                                        const path = `avatars/${userId}.${ext}`
+                                        const { error: uploadErr } = await supabase.storage
+                                            .from("avatars")
+                                            .upload(path, file, { upsert: true })
+                                        if (uploadErr) {
+                                            toast.error("Upload failed: " + uploadErr.message)
+                                            setUploadingAvatar(false)
+                                            return
+                                        }
+                                        const { data: urlData } = supabase.storage.from("avatars").getPublicUrl(path)
+                                        const publicUrl = urlData.publicUrl + "?t=" + Date.now()
+                                        await supabase.from("profiles").update({ avatar_url: publicUrl }).eq("id", userId)
+                                        setAvatarUrl(publicUrl)
+                                        toast.success("Avatar updated")
+                                        setUploadingAvatar(false)
+                                    }}
+                                />
+                            </label>
+                        </div>
+                        <div>
+                            <p className="font-semibold text-[14px] text-slate-800">{profileForm.watch("full_name") || "Your Name"}</p>
+                            <p className="text-[12px] text-slate-500">{email}</p>
+                            <p className="text-[11px] text-slate-400 mt-1">Click photo to upload new avatar</p>
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
+
             {/* ─── Read-only System Info ─────────────────────────────────── */}
             <Card>
                 <CardHeader>
@@ -182,6 +250,18 @@ export default function MyProfilePage() {
                                     </FormItem>
                                 )} />
                             </div>
+                            <FormField control={profileForm.control} name="bio" render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Bio</FormLabel>
+                                    <FormControl>
+                                        <Textarea
+                                            placeholder="A short description about yourself..."
+                                            className="resize-none h-20"
+                                            {...field}
+                                        />
+                                    </FormControl>
+                                </FormItem>
+                            )} />
                             <div className="flex justify-end">
                                 <Button type="submit" disabled={savingProfile}>
                                     {savingProfile ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Save className="h-4 w-4 mr-1.5" />}

@@ -5,7 +5,7 @@ import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import {
     LayoutDashboard, KanbanSquare, Building2, Users,
-    LogOut, ChevronLeft, Settings, Loader2, Moon, Sun,
+    LogOut, ChevronLeft, Settings, Loader2, Moon, Sun, History,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { CompanySwitcher } from "@/components/layout/company-switcher"
@@ -24,6 +24,7 @@ const mainNav = [
     { href: "/leads", label: "Pipeline", icon: KanbanSquare, module: "leads" },
     { href: "/companies", label: "Companies", icon: Building2, module: "companies" },
     { href: "/contacts", label: "Contacts", icon: Users, module: "contacts" },
+    { href: "/history", label: "History", icon: History, module: null },
 ]
 
 const adminNav = [
