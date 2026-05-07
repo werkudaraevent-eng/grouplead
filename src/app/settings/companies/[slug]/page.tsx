@@ -109,29 +109,35 @@ export default function CompanyDetailPage() {
     const memberCount = 0 // Could fetch from company_members if needed
 
     return (
-        <div className="space-y-0">
-            <SettingsPageHeader
-                title={company.name}
-                subtitle={company.is_holding ? "Holding Company" : "Subsidiary"}
-                breadcrumbs={[{ label: "Companies", href: "/settings/companies" }, { label: company.name }]}
-            />
+        <div>
+            {/* Breadcrumb only — no redundant title */}
+            <div className="px-6 pt-4 pb-2">
+                <nav className="flex items-center gap-1.5 text-[12px] text-slate-400">
+                    <Link href="/settings" className="hover:text-slate-600 transition-colors">Settings</Link>
+                    <span>/</span>
+                    <Link href="/settings/companies" className="hover:text-slate-600 transition-colors">Companies</Link>
+                    <span>/</span>
+                    <span className="text-[#292D30] font-medium">{company.name}</span>
+                </nav>
+            </div>
 
-            <div className="px-6 lg:px-8 pb-8">
-                {/* ─── Logo + Name row ─── */}
-                <div className="flex items-center gap-5 py-6 border-b border-slate-100">
+            {/* ─── Main content ─── */}
+            <div className="px-6 lg:px-8 pb-8 max-w-2xl">
+                {/* Company header: logo + name + meta */}
+                <div className="flex items-center gap-5 py-5">
                     <div className="relative group shrink-0">
                         {logoUrl ? (
                             <img
                                 src={logoUrl}
                                 alt={company.name}
-                                className="w-16 h-16 rounded-lg object-contain border border-slate-200 bg-white p-1"
+                                className="w-14 h-14 rounded-lg object-contain border border-slate-200 bg-white p-1"
                             />
                         ) : (
-                            <div className="w-16 h-16 rounded-lg bg-slate-50 border border-slate-200 flex items-center justify-center">
-                                <Building2 className="h-6 w-6 text-slate-300" />
+                            <div className="w-14 h-14 rounded-lg bg-slate-50 border border-dashed border-slate-200 flex items-center justify-center">
+                                <Building2 className="h-5 w-5 text-slate-300" />
                             </div>
                         )}
-                        <label className="absolute inset-0 flex items-center justify-center rounded-lg bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+                        <label className="absolute inset-0 flex items-center justify-center rounded-lg bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
                             {uploadingLogo ? (
                                 <Loader2 className="h-4 w-4 text-white animate-spin" />
                             ) : (
@@ -150,34 +156,68 @@ export default function CompanyDetailPage() {
                     </div>
                     <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
+                            <h1 className="text-[18px] font-bold text-[#292D30] tracking-tight">{company.name}</h1>
+                            <span className="text-[10px] font-medium text-slate-400 bg-slate-100 px-2 py-0.5 rounded">
+                                {company.is_holding ? "Holding" : "Subsidiary"}
+                            </span>
+                        </div>
+                        <p className="text-[11px] text-slate-400 mt-0.5 font-mono">{company.slug}</p>
+                    </div>
+                </div>
+
+                {/* ─── Settings sections ─── */}
+                <div className="border-t border-slate-100 divide-y divide-slate-100">
+                    {/* Name */}
+                    <div className="py-4 flex items-center justify-between gap-4">
+                        <div className="shrink-0">
+                            <p className="text-[12px] font-medium text-[#292D30]">Company Name</p>
+                            <p className="text-[11px] text-slate-400 mt-0.5">Display name across the platform</p>
+                        </div>
+                        <div className="flex items-center gap-2">
                             <Input
                                 value={name}
                                 onChange={(e) => setName(e.target.value)}
-                                className="text-[15px] font-semibold border-transparent hover:border-slate-200 focus:border-slate-300 h-9 px-2 max-w-xs bg-transparent"
+                                className="h-8 text-[12px] w-[220px]"
                             />
                             {name.trim() !== company.name && (
-                                <Button onClick={handleSave} disabled={saving} size="sm" className="h-7 text-[11px] bg-[#02378D] hover:bg-[#02378D]/90">
+                                <Button onClick={handleSave} disabled={saving} size="sm" className="h-8 text-[11px] bg-[#02378D] hover:bg-[#02378D]/90 px-3">
                                     {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : "Save"}
                                 </Button>
                             )}
                         </div>
-                        <div className="flex items-center gap-3 mt-1 text-[11px] text-slate-400">
-                            <span>{company.is_holding ? "Holding" : "Subsidiary"}</span>
-                            <span className="text-slate-200">·</span>
-                            <span className="font-mono">{company.slug}</span>
-                            <span className="text-slate-200">·</span>
-                            <span>Created {new Date(company.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</span>
-                        </div>
                     </div>
-                </div>
 
-                {/* ─── Actions ─── */}
-                <div className="py-5">
-                    <Link href={`/settings/users?bu=${encodeURIComponent(company.name)}`}>
-                        <Button variant="outline" size="sm" className="text-[12px] h-8">
-                            <Users className="h-3.5 w-3.5 mr-1.5" /> View Members
-                        </Button>
-                    </Link>
+                    {/* Slug */}
+                    <div className="py-4 flex items-center justify-between gap-4">
+                        <div>
+                            <p className="text-[12px] font-medium text-[#292D30]">Slug</p>
+                            <p className="text-[11px] text-slate-400 mt-0.5">URL-safe identifier</p>
+                        </div>
+                        <span className="text-[12px] font-mono text-slate-500">{company.slug}</span>
+                    </div>
+
+                    {/* Created */}
+                    <div className="py-4 flex items-center justify-between gap-4">
+                        <div>
+                            <p className="text-[12px] font-medium text-[#292D30]">Created</p>
+                        </div>
+                        <span className="text-[12px] text-slate-500">
+                            {new Date(company.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}
+                        </span>
+                    </div>
+
+                    {/* Members */}
+                    <div className="py-4 flex items-center justify-between gap-4">
+                        <div>
+                            <p className="text-[12px] font-medium text-[#292D30]">Members</p>
+                            <p className="text-[11px] text-slate-400 mt-0.5">Users assigned to this company</p>
+                        </div>
+                        <Link href={`/settings/users?bu=${encodeURIComponent(company.name)}`}>
+                            <Button variant="outline" size="sm" className="h-7 text-[11px]">
+                                <Users className="h-3 w-3 mr-1.5" /> View
+                            </Button>
+                        </Link>
+                    </div>
                 </div>
             </div>
         </div>
