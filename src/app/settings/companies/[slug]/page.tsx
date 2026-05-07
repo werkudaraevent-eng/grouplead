@@ -110,23 +110,19 @@ export default function CompanyDetailPage() {
 
     return (
         <div className="flex flex-col h-full overflow-hidden">
-            {/* ─── Topbar with breadcrumb ─── */}
-            <div className="px-6 h-14 flex items-center justify-between border-b border-slate-200 bg-white shrink-0">
-                <nav className="flex items-center gap-1.5 text-[13px]">
-                    <Link href="/settings" className="text-slate-400 hover:text-slate-600 font-medium transition-colors">Settings</Link>
-                    <span className="text-slate-300">/</span>
-                    <Link href="/settings/companies" className="text-slate-400 hover:text-slate-600 font-medium transition-colors">Companies</Link>
-                    <span className="text-slate-300">/</span>
-                    <span className="text-[#292D30] font-semibold">{company.name}</span>
-                </nav>
-                <div className="flex items-center gap-2">
+            {/* ─── Sticky Header (same as other settings pages) ─── */}
+            <SettingsPageHeader
+                title={company.name}
+                subtitle={`Manage settings for ${company.is_holding ? "holding company" : "subsidiary"} ${company.name}.`}
+                breadcrumbs={[{ label: "Companies", href: "/settings/companies" }, { label: company.name }]}
+                actions={
                     <Link href={`/settings/users?bu=${encodeURIComponent(company.name)}`}>
                         <Button variant="outline" size="sm" className="h-8 text-[12px]">
                             <Users className="h-3.5 w-3.5 mr-1.5" /> Members
                         </Button>
                     </Link>
-                </div>
-            </div>
+                }
+            />
 
             {/* ─── Scrollable content ─── */}
             <div className="flex-1 overflow-y-auto">
