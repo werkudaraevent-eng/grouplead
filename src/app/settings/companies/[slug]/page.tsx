@@ -67,10 +67,10 @@ export default function CompanyDetailPage() {
         if (!company) return
         setUploadingLogo(true)
         const ext = file.name.split(".").pop()
-        const path = `company-logos/${company.id}.${ext}`
+        const path = `${company.id}.${ext}`
 
         const { error: uploadErr } = await supabase.storage
-            .from("avatars")
+            .from("company logo")
             .upload(path, file, { upsert: true })
 
         if (uploadErr) {
@@ -79,7 +79,7 @@ export default function CompanyDetailPage() {
             return
         }
 
-        const { data: urlData } = supabase.storage.from("avatars").getPublicUrl(path)
+        const { data: urlData } = supabase.storage.from("company logo").getPublicUrl(path)
         const publicUrl = urlData.publicUrl + "?t=" + Date.now()
 
         const { error: updateErr } = await supabase
