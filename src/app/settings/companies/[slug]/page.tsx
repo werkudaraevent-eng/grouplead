@@ -8,8 +8,9 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { SettingsPageHeader } from "@/components/layout/settings-page-header"
+import { CompanyForm } from "@/features/companies/components/company-form"
 import {
-    Building2, Globe, Camera, Loader2, Save, Users, ArrowLeft,
+    Building2, Globe, Camera, Loader2, Save, Users, ArrowLeft, Pencil,
 } from "lucide-react"
 import Link from "next/link"
 import type { Company } from "@/types/company"
@@ -24,6 +25,7 @@ export default function CompanyDetailPage() {
     const [loading, setLoading] = useState(true)
     const [saving, setSaving] = useState(false)
     const [uploadingLogo, setUploadingLogo] = useState(false)
+    const [editOpen, setEditOpen] = useState(false)
 
     // Editable fields
     const [name, setName] = useState("")
@@ -116,11 +118,16 @@ export default function CompanyDetailPage() {
                 subtitle={`Manage settings for ${company.is_holding ? "holding company" : "subsidiary"} ${company.name}.`}
                 breadcrumbs={[{ label: "Companies", href: "/settings/companies" }, { label: company.name }]}
                 actions={
-                    <Link href={`/settings/users?bu=${encodeURIComponent(company.name)}`}>
-                        <Button variant="outline" size="sm" className="h-8 text-[12px]">
-                            <Users className="h-3.5 w-3.5 mr-1.5" /> Members
+                    <div className="flex items-center gap-2">
+                        <Link href={`/settings/users?bu=${encodeURIComponent(company.name)}`}>
+                            <Button variant="outline" size="sm" className="h-8 text-[12px]">
+                                <Users className="h-3.5 w-3.5 mr-1.5" /> Members
+                            </Button>
+                        </Link>
+                        <Button onClick={() => setEditOpen(true)} size="sm" className="h-8 text-[12px] bg-[#02378D] hover:bg-[#02378D]/90">
+                            <Pencil className="h-3.5 w-3.5 mr-1.5" /> Edit
                         </Button>
-                    </Link>
+                    </div>
                 }
             />
 
@@ -253,6 +260,16 @@ export default function CompanyDetailPage() {
 
                 </div>
             </div>
+
+            {/* Edit Sheet (same as company list page) */}
+            <CompanyForm
+                open={editOpen}
+                onOpenChange={setEditOpen}
+                company={company}
+                onSuccess={() => {
+                    fetchCompany() // Refresh data after edit
+                }}
+            />
         </div>
     )
 }
