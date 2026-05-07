@@ -116,92 +116,68 @@ export default function CompanyDetailPage() {
                 breadcrumbs={[{ label: "Companies", href: "/settings/companies" }, { label: company.name }]}
             />
 
-            <div className="px-6 lg:px-8 pb-8 max-w-3xl">
-                {/* ─── Company Identity ─── */}
-                <div className="py-6 border-b border-slate-200">
-                    <h3 className="text-[13px] font-semibold text-[#292D30] mb-4">Company Identity</h3>
-                    <div className="flex items-start gap-6">
-                        {/* Logo */}
-                        <div className="relative group shrink-0">
-                            {logoUrl ? (
-                                <img
-                                    src={logoUrl}
-                                    alt={company.name}
-                                    className="w-20 h-20 rounded-xl object-contain border border-slate-200 bg-white p-1.5"
-                                />
+            <div className="px-6 lg:px-8 pb-8">
+                {/* ─── Logo + Name row ─── */}
+                <div className="flex items-center gap-5 py-6 border-b border-slate-100">
+                    <div className="relative group shrink-0">
+                        {logoUrl ? (
+                            <img
+                                src={logoUrl}
+                                alt={company.name}
+                                className="w-16 h-16 rounded-lg object-contain border border-slate-200 bg-white p-1"
+                            />
+                        ) : (
+                            <div className="w-16 h-16 rounded-lg bg-slate-50 border border-slate-200 flex items-center justify-center">
+                                <Building2 className="h-6 w-6 text-slate-300" />
+                            </div>
+                        )}
+                        <label className="absolute inset-0 flex items-center justify-center rounded-lg bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+                            {uploadingLogo ? (
+                                <Loader2 className="h-4 w-4 text-white animate-spin" />
                             ) : (
-                                <div className="w-20 h-20 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center">
-                                    <Building2 className="h-8 w-8 text-slate-300" />
-                                </div>
+                                <Camera className="h-4 w-4 text-white" />
                             )}
-                            <label className="absolute inset-0 flex items-center justify-center rounded-xl bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
-                                {uploadingLogo ? (
-                                    <Loader2 className="h-5 w-5 text-white animate-spin" />
-                                ) : (
-                                    <Camera className="h-5 w-5 text-white" />
-                                )}
-                                <input
-                                    type="file"
-                                    accept="image/*"
-                                    className="hidden"
-                                    onChange={(e) => {
-                                        const file = e.target.files?.[0]
-                                        if (file) handleLogoUpload(file)
-                                    }}
-                                />
-                            </label>
-                        </div>
-
-                        {/* Info */}
-                        <div className="flex-1 space-y-4">
-                            <div className="space-y-1.5">
-                                <Label className="text-[11px] text-slate-400">Company Name</Label>
-                                <Input
-                                    value={name}
-                                    onChange={(e) => setName(e.target.value)}
-                                    className="max-w-sm"
-                                />
-                            </div>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-1.5">
-                                    <Label className="text-[11px] text-slate-400">Slug</Label>
-                                    <Input value={company.slug} disabled className="bg-muted/50 text-muted-foreground cursor-not-allowed" />
-                                </div>
-                                <div className="space-y-1.5">
-                                    <Label className="text-[11px] text-slate-400">Type</Label>
-                                    <Input value={company.is_holding ? "Holding" : "Subsidiary"} disabled className="bg-muted/50 text-muted-foreground cursor-not-allowed" />
-                                </div>
-                            </div>
-                            <div className="flex items-center gap-3 pt-2">
-                                <Button onClick={handleSave} disabled={saving || name.trim() === company.name} size="sm">
-                                    {saving ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Save className="h-3.5 w-3.5 mr-1.5" />}
-                                    Save Changes
+                            <input
+                                type="file"
+                                accept="image/*"
+                                className="hidden"
+                                onChange={(e) => {
+                                    const file = e.target.files?.[0]
+                                    if (file) handleLogoUpload(file)
+                                }}
+                            />
+                        </label>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                            <Input
+                                value={name}
+                                onChange={(e) => setName(e.target.value)}
+                                className="text-[15px] font-semibold border-transparent hover:border-slate-200 focus:border-slate-300 h-9 px-2 max-w-xs bg-transparent"
+                            />
+                            {name.trim() !== company.name && (
+                                <Button onClick={handleSave} disabled={saving} size="sm" className="h-7 text-[11px] bg-[#02378D] hover:bg-[#02378D]/90">
+                                    {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : "Save"}
                                 </Button>
-                                <Link href={`/settings/users?bu=${encodeURIComponent(company.name)}`}>
-                                    <Button variant="outline" size="sm">
-                                        <Users className="h-3.5 w-3.5 mr-1.5" /> View Members
-                                    </Button>
-                                </Link>
-                            </div>
+                            )}
+                        </div>
+                        <div className="flex items-center gap-3 mt-1 text-[11px] text-slate-400">
+                            <span>{company.is_holding ? "Holding" : "Subsidiary"}</span>
+                            <span className="text-slate-200">·</span>
+                            <span className="font-mono">{company.slug}</span>
+                            <span className="text-slate-200">·</span>
+                            <span>Created {new Date(company.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</span>
                         </div>
                     </div>
                 </div>
 
-                {/* ─── Quick Info ─── */}
-                <div className="py-6">
-                    <h3 className="text-[13px] font-semibold text-[#292D30] mb-3">Details</h3>
-                    <div className="grid grid-cols-2 gap-y-3 text-[12px]">
-                        <div>
-                            <span className="text-slate-400">Created</span>
-                            <p className="font-medium text-[#292D30] mt-0.5">
-                                {new Date(company.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}
-                            </p>
-                        </div>
-                        <div>
-                            <span className="text-slate-400">Company ID</span>
-                            <p className="font-mono font-medium text-slate-500 mt-0.5 text-[11px]">{company.id}</p>
-                        </div>
-                    </div>
+                {/* ─── Actions ─── */}
+                <div className="py-5">
+                    <Link href={`/settings/users?bu=${encodeURIComponent(company.name)}`}>
+                        <Button variant="outline" size="sm" className="text-[12px] h-8">
+                            <Users className="h-3.5 w-3.5 mr-1.5" /> View Members
+                        </Button>
+                    </Link>
                 </div>
             </div>
         </div>
