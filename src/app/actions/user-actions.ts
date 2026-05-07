@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache"
 import { createServiceClient } from "@/utils/supabase/service"
+import { logAuditEvent } from "@/app/actions/audit-actions"
 import type { ActionResult } from "@/types"
 
 interface ProvisionUserData {
@@ -60,6 +61,16 @@ export async function provisionUserAction(
             }
         }
 
+        // Audit log
+        logAuditEvent({
+            action: "create",
+            resource_type: "user",
+            resource_id: authData.user.id,
+            resource_name: data.full_name,
+            description: `provisioned user "${data.full_name}" (${data.email})`,
+            metadata: { role: data.role, department: data.department },
+        })
+
         revalidatePath("/settings/users")
         return { success: true, data: { userId: authData.user.id } }
     } catch (err) {
@@ -98,6 +109,14 @@ export async function deactivateUserAction(
                 error: `Auth banned but profile update failed: ${profileError.message}`,
             }
         }
+
+        // Audit log
+        logAuditEvent({
+            action: "user_management",
+            resource_type: "user",
+            resource_id: userId,
+            description: `deactivated user account`,
+        })
 
         revalidatePath("/settings/users")
         return { success: true }

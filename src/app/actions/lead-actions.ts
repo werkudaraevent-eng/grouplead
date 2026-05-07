@@ -6,6 +6,7 @@ import { createServiceClient } from "@/utils/supabase/service"
 import { smartCaseRow } from "@/utils/smart-title-case"
 import { parseSmartEventDates } from "@/utils/smart-date-parser"
 import { buildStageTransitionAuditEntries } from "@/features/leads/lib/stage-transition-audit"
+import { logAuditEvent } from "@/app/actions/audit-actions"
 import type { ActionResult } from "@/types"
 
 // ── Column Whitelist: ONLY these keys are physical columns on the `leads` table ──
@@ -88,6 +89,15 @@ export async function createLeadAction(
             user_id: user?.id ?? null,
             action_type: "Create",
             description: "Lead created",
+        })
+
+        // Audit log
+        logAuditEvent({
+            action: "create",
+            resource_type: "lead",
+            resource_id: String(newLead.id),
+            resource_name: (payload.project_name as string) || "Untitled",
+            description: `created lead "${payload.project_name || 'Untitled'}"`,
         })
 
         revalidatePath("/", "layout")
@@ -184,6 +194,16 @@ export async function updateLeadAction(
             .eq("id", leadId)
 
         if (error) return { success: false, error: error.message }
+
+        // Audit log
+        logAuditEvent({
+            action: "update",
+            resource_type: "lead",
+            resource_id: String(leadId),
+            resource_name: currentLead?.project_name || "",
+            description: `updated lead "${currentLead?.project_name || leadId}"`,
+            metadata: { fields: Object.keys(payload) },
+        })
 
         revalidatePath("/", "layout")
         revalidatePath("/leads")
@@ -290,6 +310,17 @@ export async function updatePipelineStageAction(
 
         if (activityError) return { success: false, error: activityError.message }
 
+        // Audit log
+        const prevStage = (leadRow.pipeline_stage as unknown as { name: string } | null)?.name ?? "Unknown"
+        logAuditEvent({
+            action: "stage_change",
+            resource_type: "lead",
+            resource_id: String(leadId),
+            resource_name: "",
+            description: `moved lead from "${prevStage}" to "${stageRow.name}"`,
+            metadata: { from: prevStage, to: stageRow.name },
+        })
+
         revalidatePath("/", "layout")
         revalidatePath("/leads")
         revalidatePath(`/leads/${leadId}`)
@@ -308,12 +339,28 @@ export async function deleteLeadAction(
     try {
         const supabase = await createClient()
 
+        // Get lead name before deleting
+        const { data: leadData } = await supabase
+            .from("leads")
+            .select("project_name")
+            .eq("id", leadId)
+            .single()
+
         const { error } = await supabase
             .from("leads")
             .delete()
             .eq("id", leadId)
 
         if (error) return { success: false, error: error.message }
+
+        // Audit log
+        logAuditEvent({
+            action: "delete",
+            resource_type: "lead",
+            resource_id: String(leadId),
+            resource_name: leadData?.project_name || "",
+            description: `deleted lead "${leadData?.project_name || leadId}"`,
+        })
 
         revalidatePath("/", "layout")
         revalidatePath("/leads")
@@ -612,6 +659,16 @@ export async function importLeadsAction(
             failed++
             errors.push(`Row ${i + 1}: ${err instanceof Error ? err.message : "Unknown error"}`)
         }
+    }
+
+    // Audit log
+    if (success > 0) {
+        logAuditEvent({
+            action: "import",
+            resource_type: "lead",
+            description: `imported ${success} lead(s)${failed > 0 ? ` (${failed} failed)` : ''}`,
+            metadata: { success, failed, total: rows.length },
+        })
     }
 
     revalidatePath("/", "layout")
@@ -940,6 +997,16 @@ export async function importHistoricalLeadsAction(
             failed++
             errors.push(`Row ${i + 1}: ${err instanceof Error ? err.message : "Unknown error"}`)
         }
+    }
+
+    // Audit log
+    if (success > 0) {
+        logAuditEvent({
+            action: "import",
+            resource_type: "lead",
+            description: `imported ${success} historical lead(s)${failed > 0 ? ` (${failed} failed)` : ''}`,
+            metadata: { success, failed, total: rows.length, type: "historical" },
+        })
     }
 
     revalidatePath("/", "layout")
