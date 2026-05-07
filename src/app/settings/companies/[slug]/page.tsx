@@ -109,115 +109,152 @@ export default function CompanyDetailPage() {
     const memberCount = 0 // Could fetch from company_members if needed
 
     return (
-        <div>
-            {/* Breadcrumb only — no redundant title */}
-            <div className="px-6 pt-4 pb-2">
-                <nav className="flex items-center gap-1.5 text-[12px] text-slate-400">
-                    <Link href="/settings" className="hover:text-slate-600 transition-colors">Settings</Link>
-                    <span>/</span>
-                    <Link href="/settings/companies" className="hover:text-slate-600 transition-colors">Companies</Link>
-                    <span>/</span>
-                    <span className="text-[#292D30] font-medium">{company.name}</span>
+        <div className="flex flex-col h-full overflow-hidden">
+            {/* ─── Topbar with breadcrumb ─── */}
+            <div className="px-6 h-14 flex items-center justify-between border-b border-slate-200 bg-white shrink-0">
+                <nav className="flex items-center gap-1.5 text-[13px]">
+                    <Link href="/settings" className="text-slate-400 hover:text-slate-600 font-medium transition-colors">Settings</Link>
+                    <span className="text-slate-300">/</span>
+                    <Link href="/settings/companies" className="text-slate-400 hover:text-slate-600 font-medium transition-colors">Companies</Link>
+                    <span className="text-slate-300">/</span>
+                    <span className="text-[#292D30] font-semibold">{company.name}</span>
                 </nav>
+                <div className="flex items-center gap-2">
+                    <Link href={`/settings/users?bu=${encodeURIComponent(company.name)}`}>
+                        <Button variant="outline" size="sm" className="h-8 text-[12px]">
+                            <Users className="h-3.5 w-3.5 mr-1.5" /> Members
+                        </Button>
+                    </Link>
+                </div>
             </div>
 
-            {/* ─── Main content ─── */}
-            <div className="px-6 lg:px-8 pb-8 max-w-2xl">
-                {/* Company header: logo + name + meta */}
-                <div className="flex items-center gap-5 py-5">
-                    <div className="relative group shrink-0">
-                        {logoUrl ? (
-                            <img
-                                src={logoUrl}
-                                alt={company.name}
-                                className="w-14 h-14 rounded-lg object-contain border border-slate-200 bg-white p-1"
-                            />
-                        ) : (
-                            <div className="w-14 h-14 rounded-lg bg-slate-50 border border-dashed border-slate-200 flex items-center justify-center">
-                                <Building2 className="h-5 w-5 text-slate-300" />
+            {/* ─── Scrollable content ─── */}
+            <div className="flex-1 overflow-y-auto">
+                <div className="max-w-[960px] mx-auto px-8 py-6">
+
+                    {/* ─── Hero Card ─── */}
+                    <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden mb-5">
+                        {/* Banner gradient */}
+                        <div className="h-20 bg-gradient-to-r from-[#02378D] via-[#2069B4] to-[#00A1E9] relative">
+                            <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_50%,rgba(255,255,255,.15)_0%,transparent_50%)]" />
+                        </div>
+                        {/* Hero body */}
+                        <div className="px-6 pb-5 flex items-end gap-5 -mt-8 relative z-10">
+                            {/* Logo */}
+                            <div className="relative group shrink-0">
+                                {logoUrl ? (
+                                    <img
+                                        src={logoUrl}
+                                        alt={company.name}
+                                        className="w-[72px] h-[72px] rounded-2xl object-contain border-[3px] border-white bg-white shadow-md"
+                                    />
+                                ) : (
+                                    <div className="w-[72px] h-[72px] rounded-2xl bg-white border-[3px] border-white shadow-md flex items-center justify-center">
+                                        <Building2 className="h-7 w-7 text-[#02378D]" />
+                                    </div>
+                                )}
+                                <label className="absolute inset-0 flex items-center justify-center rounded-2xl bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+                                    {uploadingLogo ? (
+                                        <Loader2 className="h-5 w-5 text-white animate-spin" />
+                                    ) : (
+                                        <Camera className="h-5 w-5 text-white" />
+                                    )}
+                                    <input
+                                        type="file"
+                                        accept="image/*"
+                                        className="hidden"
+                                        onChange={(e) => {
+                                            const file = e.target.files?.[0]
+                                            if (file) handleLogoUpload(file)
+                                        }}
+                                    />
+                                </label>
                             </div>
-                        )}
-                        <label className="absolute inset-0 flex items-center justify-center rounded-lg bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
-                            {uploadingLogo ? (
-                                <Loader2 className="h-4 w-4 text-white animate-spin" />
-                            ) : (
-                                <Camera className="h-4 w-4 text-white" />
-                            )}
-                            <input
-                                type="file"
-                                accept="image/*"
-                                className="hidden"
-                                onChange={(e) => {
-                                    const file = e.target.files?.[0]
-                                    if (file) handleLogoUpload(file)
-                                }}
-                            />
-                        </label>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                            <h1 className="text-[18px] font-bold text-[#292D30] tracking-tight">{company.name}</h1>
-                            <span className="text-[10px] font-medium text-slate-400 bg-slate-100 px-2 py-0.5 rounded">
-                                {company.is_holding ? "Holding" : "Subsidiary"}
-                            </span>
-                        </div>
-                        <p className="text-[11px] text-slate-400 mt-0.5 font-mono">{company.slug}</p>
-                    </div>
-                </div>
-
-                {/* ─── Settings sections ─── */}
-                <div className="border-t border-slate-100 divide-y divide-slate-100">
-                    {/* Name */}
-                    <div className="py-4 flex items-center justify-between gap-4">
-                        <div className="shrink-0">
-                            <p className="text-[12px] font-medium text-[#292D30]">Company Name</p>
-                            <p className="text-[11px] text-slate-400 mt-0.5">Display name across the platform</p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <Input
-                                value={name}
-                                onChange={(e) => setName(e.target.value)}
-                                className="h-8 text-[12px] w-[220px]"
-                            />
-                            {name.trim() !== company.name && (
-                                <Button onClick={handleSave} disabled={saving} size="sm" className="h-8 text-[11px] bg-[#02378D] hover:bg-[#02378D]/90 px-3">
-                                    {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : "Save"}
-                                </Button>
-                            )}
+                            {/* Meta */}
+                            <div className="flex-1 min-w-0 pb-1">
+                                <div className="flex items-center gap-2.5 mb-1">
+                                    <h1 className="text-[20px] font-bold text-[#292D30] tracking-tight">{company.name}</h1>
+                                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#02378D]/10 text-[#02378D]">
+                                        {company.is_holding ? "Holding" : "Subsidiary"}
+                                    </span>
+                                </div>
+                                <div className="flex items-center gap-4 text-[12px] text-slate-500">
+                                    <span className="flex items-center gap-1.5">
+                                        <Globe className="h-3 w-3 text-slate-400" />
+                                        <code className="bg-slate-100 px-1.5 py-px rounded text-[11px] font-mono font-medium text-[#292D30]">{company.slug}</code>
+                                    </span>
+                                    <span className="flex items-center gap-1.5">
+                                        <ArrowLeft className="h-3 w-3 text-slate-400 rotate-180" />
+                                        Created {new Date(company.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
+                                    </span>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
-                    {/* Slug */}
-                    <div className="py-4 flex items-center justify-between gap-4">
-                        <div>
-                            <p className="text-[12px] font-medium text-[#292D30]">Slug</p>
-                            <p className="text-[11px] text-slate-400 mt-0.5">URL-safe identifier</p>
+                    {/* ─── Settings Card ─── */}
+                    <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+                        <div className="px-5 py-3.5 border-b border-slate-100 flex items-center gap-2">
+                            <Building2 className="h-4 w-4 text-slate-400" />
+                            <h3 className="text-[13px] font-semibold text-[#292D30]">Company Settings</h3>
                         </div>
-                        <span className="text-[12px] font-mono text-slate-500">{company.slug}</span>
+                        <div className="divide-y divide-slate-100">
+                            {/* Company Name */}
+                            <div className="grid grid-cols-[200px_1fr] gap-8 px-5 py-4 items-center">
+                                <div>
+                                    <p className="text-[13px] font-semibold text-[#292D30]">Company Name</p>
+                                    <p className="text-[11px] text-slate-400 mt-0.5">Display name across the platform</p>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <Input
+                                        value={name}
+                                        onChange={(e) => setName(e.target.value)}
+                                        className="h-9 text-[13px] max-w-xs"
+                                    />
+                                    {name.trim() !== company.name && (
+                                        <Button onClick={handleSave} disabled={saving} size="sm" className="h-9 bg-[#02378D] hover:bg-[#02378D]/90 text-[12px] px-4">
+                                            {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <><Save className="h-3.5 w-3.5 mr-1.5" />Save</>}
+                                        </Button>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Slug */}
+                            <div className="grid grid-cols-[200px_1fr] gap-8 px-5 py-4 items-center">
+                                <div>
+                                    <p className="text-[13px] font-semibold text-[#292D30]">Slug</p>
+                                    <p className="text-[11px] text-slate-400 mt-0.5">URL-safe identifier for links and exports</p>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <code className="bg-slate-50 border border-slate-200 rounded-md px-3 py-2 text-[12px] font-mono text-slate-600">
+                                        {company.slug}
+                                    </code>
+                                </div>
+                            </div>
+
+                            {/* Type */}
+                            <div className="grid grid-cols-[200px_1fr] gap-8 px-5 py-4 items-center">
+                                <div>
+                                    <p className="text-[13px] font-semibold text-[#292D30]">Type</p>
+                                    <p className="text-[11px] text-slate-400 mt-0.5">Company classification in the hierarchy</p>
+                                </div>
+                                <span className="text-[13px] text-slate-600 font-medium">
+                                    {company.is_holding ? "Holding Company" : "Subsidiary"}
+                                </span>
+                            </div>
+
+                            {/* Created */}
+                            <div className="grid grid-cols-[200px_1fr] gap-8 px-5 py-4 items-center">
+                                <div>
+                                    <p className="text-[13px] font-semibold text-[#292D30]">Created</p>
+                                </div>
+                                <span className="text-[13px] text-slate-600">
+                                    {new Date(company.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}
+                                </span>
+                            </div>
+                        </div>
                     </div>
 
-                    {/* Created */}
-                    <div className="py-4 flex items-center justify-between gap-4">
-                        <div>
-                            <p className="text-[12px] font-medium text-[#292D30]">Created</p>
-                        </div>
-                        <span className="text-[12px] text-slate-500">
-                            {new Date(company.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}
-                        </span>
-                    </div>
-
-                    {/* Members */}
-                    <div className="py-4 flex items-center justify-between gap-4">
-                        <div>
-                            <p className="text-[12px] font-medium text-[#292D30]">Members</p>
-                            <p className="text-[11px] text-slate-400 mt-0.5">Users assigned to this company</p>
-                        </div>
-                        <Link href={`/settings/users?bu=${encodeURIComponent(company.name)}`}>
-                            <Button variant="outline" size="sm" className="h-7 text-[11px]">
-                                <Users className="h-3 w-3 mr-1.5" /> View
-                            </Button>
-                        </Link>
-                    </div>
                 </div>
             </div>
         </div>
