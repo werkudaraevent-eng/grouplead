@@ -394,6 +394,7 @@ export function DashboardGrid({ children, widgetIds, customWidgets = [], onCreat
                     padding: "5px 12px", fontSize: 11, fontWeight: 600, color: "#02378D",
                     cursor: "pointer", fontFamily: "inherit",
                     boxShadow: "0 1px 2px rgba(0,0,0,.03)",
+                    whiteSpace: "nowrap",
                 }}
             >
                 <Pencil style={{ width: 12, height: 12 }} /> Edit Dashboard
@@ -512,9 +513,9 @@ export function DashboardGrid({ children, widgetIds, customWidgets = [], onCreat
                                     <div style={{
                                         height: "100%",
                                         position: "relative",
-                                        overflow: "hidden",
+                                        overflow: isEditing ? "hidden" : "visible",
                                         transition: "all .15s ease",
-                                        borderRadius: isSelected ? 4 : 6,
+                                        borderRadius: isEditing ? (isSelected ? 4 : 6) : 0,
                                         ...(isSelected ? {
                                             border: "2px dashed #4285f4",
                                         } : isEditing ? {

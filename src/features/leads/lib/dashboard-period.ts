@@ -1,5 +1,9 @@
-type LeadWithCreatedAt = {
+type LeadWithDates = {
     created_at?: string | null
+    month_event?: string | null
+    event_date_end?: string | null
+    event_date_start?: string | null
+    closed_won_date?: string | null
 }
 
 type DashboardPeriod = "this_month" | "this_quarter" | "this_year" | "all_time" | "custom"
@@ -7,6 +11,55 @@ type DashboardPeriod = "this_month" | "this_quarter" | "this_year" | "all_time" 
 type DateRange = {
     start: Date
     end: Date
+}
+
+/**
+ * Resolve the revenue recognition date for a lead.
+ * Priority: month_event → event_date_end → event_date_start → closed_won_date → created_at
+ */
+const MONTH_MAP: Record<string, number> = {
+    january: 0, february: 1, march: 2, april: 3, may: 4, june: 5,
+    july: 6, august: 7, september: 8, october: 9, november: 10, december: 11,
+}
+
+export function getRevenueDate(lead: LeadWithDates): Date | null {
+    // 1. month_event: "April 2026" → first day of that month
+    if (lead.month_event && typeof lead.month_event === "string") {
+        const parts = lead.month_event.trim().split(/\s+/)
+        if (parts.length === 2) {
+            const monthIdx = MONTH_MAP[parts[0].toLowerCase()]
+            const year = parseInt(parts[1], 10)
+            if (monthIdx !== undefined && !isNaN(year)) {
+                return new Date(year, monthIdx, 1)
+            }
+        }
+    }
+
+    // 2. event_date_end
+    if (lead.event_date_end) {
+        const d = new Date(lead.event_date_end)
+        if (!isNaN(d.getTime())) return d
+    }
+
+    // 3. event_date_start
+    if (lead.event_date_start) {
+        const d = new Date(lead.event_date_start)
+        if (!isNaN(d.getTime())) return d
+    }
+
+    // 4. closed_won_date
+    if (lead.closed_won_date) {
+        const d = new Date(lead.closed_won_date)
+        if (!isNaN(d.getTime())) return d
+    }
+
+    // 5. Fallback: created_at
+    if (lead.created_at) {
+        const d = new Date(lead.created_at)
+        if (!isNaN(d.getTime())) return d
+    }
+
+    return null
 }
 
 function startOfMonth(date: Date) {
@@ -77,7 +130,7 @@ function isWithinRange(value: Date, range: DateRange) {
     return value >= range.start && value < range.end
 }
 
-export function splitDashboardLeadsByPeriod<T extends LeadWithCreatedAt>(
+export function splitDashboardLeadsByPeriod<T extends LeadWithDates>(
     leads: T[],
     period: DashboardPeriod,
     now = new Date(),
@@ -88,12 +141,11 @@ export function splitDashboardLeadsByPeriod<T extends LeadWithCreatedAt>(
     const previous: T[] = []
 
     for (const lead of leads) {
-        if (!lead.created_at) continue
-        const createdAt = new Date(lead.created_at)
-        if (Number.isNaN(createdAt.getTime())) continue
+        const revenueDate = getRevenueDate(lead)
+        if (!revenueDate) continue
 
-        if (isWithinRange(createdAt, ranges.current)) current.push(lead)
-        if (isWithinRange(createdAt, ranges.previous)) previous.push(lead)
+        if (isWithinRange(revenueDate, ranges.current)) current.push(lead)
+        if (isWithinRange(revenueDate, ranges.previous)) previous.push(lead)
     }
 
     return { current, previous }

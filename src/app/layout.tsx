@@ -22,6 +22,10 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "LeadEngine - Corporate Lead Management",
   description: "Workflow-driven lead and SLA management system",
+  icons: {
+    icon: "/icon.svg",
+    apple: "/apple-icon.svg",
+  },
 };
 
 export default async function RootLayout({

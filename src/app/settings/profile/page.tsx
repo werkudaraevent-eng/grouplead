@@ -131,14 +131,14 @@ export default function MyProfilePage() {
     }
 
     return (
-        <div className="max-w-2xl space-y-6">
+        <div className="space-y-6">
             <SettingsPageHeader
                 title="Profile Settings"
                 subtitle="Manage your personal information and security settings."
                 breadcrumbs={[{ label: "Profile" }]}
             />
 
-            <div className="px-6 lg:px-8 pb-6 max-w-2xl space-y-6">
+            <div className="px-6 lg:px-8 pb-6 max-w-3xl space-y-6">
             {/* ─── Avatar ────────────────────────────────────────────────── */}
             <Card>
                 <CardContent className="pt-6">

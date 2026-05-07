@@ -17,7 +17,7 @@ interface SalesPerfWidgetProps {
 }
 
 function getColor(pct: number, hasTarget: boolean): string {
-    if (!hasTarget) return "#94a3b8"
+    if (!hasTarget) return "#02378D"
     if (pct >= 100) return "#6EBDA1"
     if (pct >= 70) return "#02378D"
     return "#ED6F22"
@@ -41,16 +41,16 @@ export function SalesPerfWidget({ data }: SalesPerfWidgetProps) {
         )
     }
 
-    // Sort by achievement descending
-    const sorted = [...data].sort((a, b) => {
-        const pctA = a.target > 0 ? a.actual / a.target : -1
-        const pctB = b.target > 0 ? b.actual / b.target : -1
-        return pctB - pctA
-    })
+    // Split into tracked (with target) and untracked (no target)
+    const tracked = data.filter(r => r.target > 0).sort((a, b) => (b.actual / b.target) - (a.actual / a.target))
+    const untracked = data.filter(r => r.target <= 0 && r.actual > 0).sort((a, b) => b.actual - a.actual)
 
-    const teamActual = data.reduce((s, r) => s + r.actual, 0)
-    const teamTarget = data.reduce((s, r) => s + r.target, 0)
+    const teamActual = tracked.reduce((s, r) => s + r.actual, 0)
+    const teamTarget = tracked.reduce((s, r) => s + r.target, 0)
     const teamPct = teamTarget > 0 ? (teamActual / teamTarget) * 100 : 0
+
+    // For untracked reps, bar is relative to the highest untracked actual
+    const maxUntracked = untracked[0]?.actual || 1
 
     return (
         <SectionCard>
@@ -70,31 +70,23 @@ export function SalesPerfWidget({ data }: SalesPerfWidgetProps) {
             </div>
 
             <div className="flex-1 overflow-y-auto thin-scrollbar space-y-0.5">
-                {sorted.map((rep) => {
-                    const hasTarget = rep.target > 0
-                    const pct = hasTarget ? (rep.actual / rep.target) * 100 : 0
-                    const color = getColor(pct, hasTarget)
-                    const barWidth = hasTarget ? Math.min(pct, 100) : 0
+                {/* ─── Tracked reps (with target) ─── */}
+                {tracked.map((rep) => {
+                    const pct = (rep.actual / rep.target) * 100
+                    const color = getColor(pct, true)
+                    const barWidth = Math.min(pct, 100)
 
                     return (
                         <div key={rep.name} className="group py-[6px] px-1 rounded hover:bg-muted/30 transition-colors">
-                            {/* Name + percentage */}
                             <div className="flex items-baseline justify-between mb-1">
                                 <span className="text-[11.5px] font-medium text-[#292D30] truncate mr-2" title={rep.name}>
                                     {rep.name}
                                 </span>
                                 <div className="flex items-baseline gap-1.5 shrink-0 tabular-nums">
-                                    {hasTarget ? (
-                                        <>
-                                            <span className="text-[12px] font-bold" style={{ color }}>{pct.toFixed(0)}%</span>
-                                            <span className="text-[9px] text-muted-foreground">{fmtAxis(rep.actual)} / {fmtAxis(rep.target)}</span>
-                                        </>
-                                    ) : (
-                                        <span className="text-[10px] text-muted-foreground/50">No target</span>
-                                    )}
+                                    <span className="text-[12px] font-bold" style={{ color }}>{pct.toFixed(0)}%</span>
+                                    <span className="text-[9px] text-muted-foreground">{fmtAxis(rep.actual)} / {fmtAxis(rep.target)}</span>
                                 </div>
                             </div>
-                            {/* Progress bar */}
                             <div className="h-[6px] bg-[#f0f0f0] rounded-full overflow-hidden">
                                 <div
                                     className="h-full rounded-full"
@@ -109,26 +101,67 @@ export function SalesPerfWidget({ data }: SalesPerfWidgetProps) {
                         </div>
                     )
                 })}
+
+                {/* ─── Untracked reps (no target) ─── */}
+                {untracked.length > 0 && (
+                    <>
+                        {tracked.length > 0 && (
+                            <div className="flex items-center gap-2 pt-2 pb-1 px-1">
+                                <div className="h-px flex-1 bg-border/60" />
+                                <span className="text-[9px] text-muted-foreground/70 uppercase tracking-wider font-medium">No Target Set</span>
+                                <div className="h-px flex-1 bg-border/60" />
+                            </div>
+                        )}
+                        {untracked.map((rep) => {
+                            const barWidth = (rep.actual / maxUntracked) * 60 // Cap at 60% width to visually de-emphasize
+
+                            return (
+                                <div key={rep.name} className="group py-[6px] px-1 rounded hover:bg-muted/30 transition-colors opacity-70">
+                                    <div className="flex items-baseline justify-between mb-1">
+                                        <span className="text-[11.5px] font-medium text-[#292D30]/70 truncate mr-2" title={rep.name}>
+                                            {rep.name}
+                                        </span>
+                                        <div className="flex items-baseline gap-1.5 shrink-0 tabular-nums">
+                                            <span className="text-[12px] font-semibold text-[#292D30]/70">{fmtAxis(rep.actual)}</span>
+                                            <span className="text-[9px] text-muted-foreground/40 italic">untracked</span>
+                                        </div>
+                                    </div>
+                                    <div className="h-[5px] bg-[#f0f0f0]/60 rounded-full overflow-hidden">
+                                        <div
+                                            className="h-full rounded-full"
+                                            style={{
+                                                width: `${barWidth}%`,
+                                                backgroundColor: "#94a3b8",
+                                                opacity: 0.5,
+                                                transition: "width 500ms cubic-bezier(0.23,1,0.32,1)",
+                                            }}
+                                        />
+                                    </div>
+                                </div>
+                            )
+                        })}
+                    </>
+                )}
             </div>
 
             {/* Legend */}
             <div className="flex gap-3 mt-2 pt-1.5 border-t border-border/50 shrink-0">
-                {[{ color: "#6EBDA1", label: "Above" }, { color: "#02378D", label: "On Track" }, { color: "#ED6F22", label: "Below" }].map(l => (
+                {[{ color: "#6EBDA1", label: "Above" }, { color: "#02378D", label: "On Track" }, { color: "#ED6F22", label: "Below" }, { color: "#94a3b8", label: "Untracked" }].map(l => (
                     <div key={l.label} className="flex items-center gap-1 text-[9px] text-muted-foreground">
-                        <div className="w-1.5 h-1.5 rounded-full" style={{ background: l.color }} />{l.label}
+                        <div className="w-1.5 h-1.5 rounded-full" style={{ background: l.color, opacity: l.label === "Untracked" ? 0.5 : 1 }} />{l.label}
                     </div>
                 ))}
             </div>
 
             {/* Insight callout */}
             {(() => {
-                const noTargets = data.filter(r => r.target <= 0).length
+                const noTargets = untracked.length
                 if (noTargets > 0) return <InsightCallout type="warning" text={`${noTargets} sales rep${noTargets > 1 ? 's' : ''} without targets — set targets in goal settings`} />
 
-                const lowPerf = data.find(r => r.target > 0 && (r.actual / r.target) < 0.5)
+                const lowPerf = tracked.find(r => (r.actual / r.target) < 0.5)
                 if (lowPerf) return <InsightCallout type="warning" text={`${lowPerf.name} at ${((lowPerf.actual / lowPerf.target) * 100).toFixed(0)}% — needs attention`} />
 
-                if (data.every(r => r.target <= 0 || (r.actual / r.target) >= 0.8)) return <InsightCallout type="success" text="Team on track — consider raising targets" />
+                if (tracked.every(r => (r.actual / r.target) >= 0.8)) return <InsightCallout type="success" text="Team on track — consider raising targets" />
                 return null
             })()}
         </SectionCard>

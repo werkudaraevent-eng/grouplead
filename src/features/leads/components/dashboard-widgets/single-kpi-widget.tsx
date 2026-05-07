@@ -90,19 +90,15 @@ function BreathingDot({ status }: { status: "positive" | "neutral" | "negative" 
     )
 }
 
-export function SingleKPIWidget({ label, value, prefix = "", suffix = "", vsTarget, vsPrev, tooltip, sparkline }: SingleKPIProps) {
+export function SingleKPIWidget({ label, value, prefix = "", suffix = "", vsTarget, vsPrev, accent, icon: Icon, tooltip, sparkline }: SingleKPIProps) {
     const hasBadge = vsTarget !== null || vsPrev !== null
 
-    // Determine overall status — drives severity border, badge color, sparkline color
-    // Only assign status when there's actual comparison data
+    // Determine overall status — drives badge color, sparkline color
     const status: "positive" | "neutral" | "negative" = vsTarget !== null
         ? (vsTarget >= 0 ? "positive" : vsTarget >= -20 ? "neutral" : "negative")
         : (vsPrev !== null
             ? (vsPrev >= 0 ? "positive" : vsPrev >= -20 ? "neutral" : "negative")
             : "neutral")
-
-    // Only show severity border when card has comparison data to communicate
-    const showSeverity = hasBadge
 
     return (
         <div
@@ -110,29 +106,26 @@ export function SingleKPIWidget({ label, value, prefix = "", suffix = "", vsTarg
                 "group relative bg-card rounded-xl min-w-0 overflow-hidden",
                 "px-3.5 pt-3 pb-2.5 flex flex-col justify-between",
                 "cursor-default h-full box-border",
+                "shadow-[0_4px_12px_rgba(0,0,0,.06),0_1px_3px_rgba(0,0,0,.04)]",
                 "transition-all duration-200 ease-[cubic-bezier(0.23,1,0.32,1)]",
-                // Border base
-                "border border-border/60",
-                // Severity left-border — only when there's data to communicate
-                showSeverity && "border-l-[2.5px]",
-                showSeverity && status === "positive" && "border-l-[#6EBDA1]",
-                showSeverity && status === "negative" && "border-l-[#ED6F22]",
-                showSeverity && status === "neutral" && "border-l-border/60",
-                // Subtle bg tint for critical
-                showSeverity && status === "negative" && "bg-[#ED6F22]/[0.02]",
+                "border-0",
                 // Hover
-                "hover:border-border hover:shadow-[0_2px_8px_rgba(0,0,0,.04)]",
-                showSeverity && status === "positive" && "hover:border-l-[#6EBDA1]",
-                showSeverity && status === "negative" && "hover:border-l-[#ED6F22]",
+                "hover:shadow-[0_6px_16px_rgba(0,0,0,.08),0_2px_6px_rgba(0,0,0,.04)]",
+                "hover:-translate-y-[1px]",
             )}
             title={tooltip}
         >
-            {/* Top row: Label + breathing dot */}
+            {/* Top row: Label + Icon */}
             <div className="flex items-center justify-between gap-1 mb-1">
                 <span className="text-[10.5px] font-medium text-muted-foreground tracking-wide truncate">
                     {label}
                 </span>
-                <BreathingDot status={status} />
+                <div
+                    className="flex items-center justify-center w-7 h-7 rounded-lg shrink-0 opacity-80 group-hover:opacity-100 transition-opacity"
+                    style={{ backgroundColor: `${accent}14` }}
+                >
+                    <Icon className="w-3.5 h-3.5" style={{ color: accent }} />
+                </div>
             </div>
 
             {/* Value — the hero (never truncated, full width) */}

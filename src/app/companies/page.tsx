@@ -323,7 +323,7 @@ export default function CompaniesPage() {
     }
 
     return (
-        <div className="w-full h-[calc(100vh-64px)] sm:h-full py-6 flex flex-col overflow-hidden">
+        <div className="w-full h-[calc(100vh-64px)] sm:h-full pt-6 flex flex-col overflow-hidden">
             <div className="mb-6 shrink-0 px-4 sm:px-6 lg:px-8">
                 <h1 className="text-2xl font-extrabold text-foreground tracking-tight">Companies</h1>
                 <p className="text-sm text-muted-foreground mt-1">Manage your client organizations and their details.</p>

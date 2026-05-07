@@ -1,6 +1,6 @@
 "use client"
 
-import { Suspense, useState } from "react"
+import { Suspense, useEffect, useState } from "react"
 import { Sidebar } from "@/components/layout/sidebar"
 import { TopLoader } from "@/components/layout/top-loader"
 import { Sheet, SheetContent, SheetTitle, SheetDescription } from "@/components/ui/sheet"
@@ -65,14 +65,28 @@ function MainLayoutInner({
 }) {
     const { isDarkPanel } = useSidebarTheme()
     const darkClass = isDarkPanel ? "sidebar-dark" : ""
+    const [collapsed, setCollapsed] = useState(false)
+
+    useEffect(() => {
+        const stored = localStorage.getItem("sidebar-collapsed")
+        if (stored === "true") setCollapsed(true)
+    }, [])
+
+    const toggleCollapse = () => {
+        setCollapsed(prev => {
+            const next = !prev
+            localStorage.setItem("sidebar-collapsed", String(next))
+            return next
+        })
+    }
 
     return (
         <div className="flex h-screen overflow-hidden">
             <aside
                 data-sidebar
-                className={`hidden lg:flex lg:w-[220px] lg:flex-col lg:border-r shrink-0 flex-none transition-colors duration-300 border-sidebar-border bg-sidebar ${darkClass}`}
+                className={`hidden lg:flex lg:flex-col lg:border-r shrink-0 flex-none transition-all duration-200 ease-in-out border-sidebar-border bg-sidebar ${darkClass} ${collapsed ? "lg:w-[60px]" : "lg:w-[220px]"}`}
             >
-                <Sidebar serverProfile={userProfile} />
+                <Sidebar serverProfile={userProfile} collapsed={collapsed} onToggleCollapse={toggleCollapse} />
             </aside>
             <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
                 <SheetContent side="left" className={`w-72 p-0 border-r-0 ${darkClass}`}>
@@ -81,7 +95,7 @@ function MainLayoutInner({
                     <Sidebar isSheet onCollapse={() => setMobileOpen(false)} serverProfile={userProfile} />
                 </SheetContent>
             </Sheet>
-            <div className="flex-1 flex flex-col min-w-0 overflow-x-hidden">
+            <div className="flex-1 flex flex-col min-w-0 overflow-x-auto">
                 <div className="lg:hidden flex items-center h-14 px-4 border-b bg-background/95 backdrop-blur shrink-0">
                     <Button variant="ghost" size="icon" onClick={() => setMobileOpen(true)} className="h-9 w-9 mr-3" aria-label="Open navigation menu">
                         <Menu className="h-5 w-5" />
@@ -93,7 +107,7 @@ function MainLayoutInner({
                         <span className="font-bold text-sm">Werkudara Group</span>
                     </div>
                 </div>
-                <main id="main-content" className="flex-1 overflow-y-auto bg-muted/30 thin-scrollbar">{children}</main>
+                <main id="main-content" className="flex-1 overflow-y-auto overflow-x-auto bg-muted/30 thin-scrollbar min-w-[900px]">{children}</main>
             </div>
         </div>
     )

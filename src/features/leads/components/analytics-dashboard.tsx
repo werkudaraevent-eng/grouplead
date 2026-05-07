@@ -7,7 +7,7 @@ import type { GoalV2, GoalNode, GoalUserTarget, GoalSettingsV2 } from "@/types/g
 import { GoalDataProvider } from "@/features/goals/contexts/goal-data-context"
 import { EmptyState } from "@/components/shared/empty-state"
 import { buildDashboardStageSeries } from "@/features/leads/lib/dashboard-stage-series"
-import { splitDashboardLeadsByPeriod } from "@/features/leads/lib/dashboard-period"
+import { splitDashboardLeadsByPeriod, getRevenueDate } from "@/features/leads/lib/dashboard-period"
 import { Briefcase, Trophy, CheckSquare, RefreshCw, TrendingUp, Calendar, Layers } from "lucide-react"
 import { useCurrency } from "@/contexts/currency-context"
 import { ACCENT, MONTHS_SHORT, getVsLastYearPct } from "./dashboard-widgets/shared"
@@ -35,6 +35,7 @@ import type { CustomWidget } from "@/types/custom-widget"
 import { aggregateLeads } from "@/features/leads/lib/aggregate-leads"
 import { CustomWidgetRenderer } from "./dashboard-widgets/custom-widget-renderer"
 import { WidgetConfiguratorModal } from "./dashboard-widgets/widget-configurator-modal"
+import { DashboardAIToolbar } from "./dashboard-widgets/dashboard-ai-toolbar"
 import type { CustomWidgetInput } from "@/types/custom-widget"
 import { createClient } from "@/utils/supabase/client"
 import { useCompany } from "@/contexts/company-context"
@@ -73,10 +74,11 @@ export function AnalyticsDashboard({
     const router = useRouter()
     const pathname = usePathname()
     const searchParams = useSearchParams()
-    const { activeCompany } = useCompany()
+    const { activeCompany, companies, isHoldingView } = useCompany()
     const { fmt, fmtAxis } = useCurrency()
     const currentYear = new Date().getFullYear()
     const [hasMounted, setHasMounted] = useState(false)
+    const [companyFilter, setCompanyFilter] = useState<string>("all")
     const [periodStr, setPeriodStr] = useState("this_quarter")
     const [customStart, setCustomStart] = useState("")
     const [customEnd, setCustomEnd] = useState("")
@@ -86,12 +88,18 @@ export function AnalyticsDashboard({
     const [revenueBasis, setRevenueBasis] = useState<RevenueBasis>("revenue_recognition")
     const [scrolled, setScrolled] = useState(false)
     const scrollRef = useRef<HTMLElement | null>(null)
+    // Company-filtered leads (for holding view)
+    const filteredLeads = useMemo(() => {
+        if (!isHoldingView || companyFilter === "all") return leads
+        return leads.filter(l => l.company_id === companyFilter)
+    }, [leads, isHoldingView, companyFilter])
+
     const periodLeadBuckets = useMemo(() => splitDashboardLeadsByPeriod(
-        leads,
+        filteredLeads,
         periodStr as "this_month" | "this_quarter" | "this_year" | "all_time" | "custom",
         new Date(),
         periodStr === "custom" && customStart && customEnd ? { start: customStart, end: customEnd } : undefined
-    ), [leads, periodStr, customStart, customEnd])
+    ), [filteredLeads, periodStr, customStart, customEnd])
     const periodLeads = periodLeadBuckets.current
     const previousPeriodLeads = periodLeadBuckets.previous
     const stageComparisonLabel = useMemo(() => getStageComparisonLabel(periodStr), [periodStr])
@@ -178,18 +186,8 @@ export function AnalyticsDashboard({
     const SCROLL_SHOW = 6
 
     useEffect(() => {
-        const findScrollParent = (el: HTMLElement | null): HTMLElement | null => {
-            while (el) {
-                const { overflow, overflowY } = getComputedStyle(el)
-                if (/(auto|scroll)/.test(overflow + overflowY)) return el
-                el = el.parentElement
-            }
-            return null
-        }
         const timer = setTimeout(() => {
-            const header = document.getElementById("dashboard-sticky-header")
-            if (!header) return
-            const parent = findScrollParent(header)
+            const parent = document.getElementById("dashboard-scroll-area")
             if (!parent) return
             scrollRef.current = parent
             let ticking = false
@@ -224,7 +222,11 @@ export function AnalyticsDashboard({
     }), [activeGoal, goalNodes, userTargets, goalSettings, periodLeads])
 
     const availableYears = useMemo(() => {
-        const years = new Set(leads.map(l => new Date(l.created_at).getFullYear()))
+        const years = new Set<number>()
+        leads.forEach(l => {
+            const d = getRevenueDate(l)
+            if (d) years.add(d.getFullYear())
+        })
         years.add(currentYear)
         return Array.from(years).sort((a, b) => b - a)
     }, [leads, currentYear])
@@ -338,7 +340,7 @@ export function AnalyticsDashboard({
 
     const monthlyRev = useMemo(() => {
         const data = MONTHS_SHORT.map(m => ({ month: m, actual: 0, target: 0, prevYear: 0, overUnder: 0, vsLastYear: null as number | null }))
-        leads.forEach(l => {
+        filteredLeads.forEach(l => {
             const stage = (l.pipeline_stage?.name || "").toLowerCase()
             if (!stage.includes("won")) return
 
@@ -511,7 +513,7 @@ export function AnalyticsDashboard({
             d.vsLastYear = getVsLastYearPct(d.actual, d.prevYear)
         })
         return data
-    }, [leads, trendYear, activeGoal, goalNodes, revenueBasis])
+    }, [filteredLeads, trendYear, activeGoal, goalNodes, revenueBasis])
 
     const stageData = useMemo(() => {
         return buildDashboardStageSeries(pipelineStages, periodLeadBuckets.current, periodLeadBuckets.previous)
@@ -520,21 +522,14 @@ export function AnalyticsDashboard({
     const salesData = useMemo(() => {
         const reps: Record<string, { name: string, actual: number, target: number, userId?: string, hasRealTarget: boolean }> = {}
 
-        // Seed all sales users from leads data (pic_sales)
+        // Calculate actual revenue per sales rep from won deals in selected period
         periodLeads.forEach(l => {
             const stage = (l.pipeline_stage?.name || "").toLowerCase()
             const pic = l.pic_sales_profile?.full_name || "Unassigned"
             const picId = l.pic_sales_id || "unassigned"
             if (!reps[picId]) reps[picId] = { name: pic, actual: 0, target: 0, userId: picId, hasRealTarget: false }
-            if (stage.includes("won")) reps[picId].actual += (l.actual_value ?? l.estimated_value ?? 0)
-        })
-
-        // Also seed sales from ALL leads (not just period-filtered) to catch reps with no current-period leads
-        leads.forEach(l => {
-            const pic = l.pic_sales_profile?.full_name
-            const picId = l.pic_sales_id
-            if (picId && pic && !reps[picId]) {
-                reps[picId] = { name: pic, actual: 0, target: 0, userId: picId, hasRealTarget: false }
+            if (stage.includes("won")) {
+                reps[picId].actual += (l.actual_value ?? l.estimated_value ?? 0)
             }
         })
 
@@ -607,7 +602,7 @@ export function AnalyticsDashboard({
             .filter(r => r.userId !== "unassigned") // Remove unassigned
             .sort((a, b) => b.actual - a.actual)
             .slice(0, 15)
-    }, [leads, periodLeads, userTargets, goalNodes, activeGoal])
+    }, [periodLeads, userTargets, goalNodes, activeGoal])
 
     const topComps = useMemo(() => {
         const comps: Record<string, number> = {}
@@ -641,14 +636,14 @@ export function AnalyticsDashboard({
 
     // ─── SPARKLINE DATA (monthly micro-trends) ────────────────────
     const sparklines = useMemo(() => {
-        // Build monthly buckets from periodLeads based on created_at date
+        // Build monthly buckets from periodLeads based on revenue date
         const monthlyLeads = Array.from({ length: 12 }, () => [] as typeof periodLeads)
         const monthlyWon = Array.from({ length: 12 }, () => ({ count: 0, revenue: 0, totalClosed: 0 }))
         const monthlyPipeline = Array(12).fill(0)
 
         periodLeads.forEach(l => {
-            const d = new Date(l.created_at)
-            if (isNaN(d.getTime())) return
+            const d = getRevenueDate(l)
+            if (!d) return
             const m = d.getMonth()
             monthlyLeads[m].push(l)
 
@@ -759,41 +754,55 @@ export function AnalyticsDashboard({
         },
     ]
 
+    // Memoized AI context data — stable reference prevents child remounts
+    const aiContextData = useMemo(() => ({
+        period: periodStr,
+        stats,
+        goalMetrics,
+        activeGoal: activeGoal ? { name: activeGoal.name, target: activeGoal.target_amount } : null,
+        pipelineStages: pipelineStages.map(s => s.name),
+        totalLeads: periodLeads.length,
+        previousPeriodLeads: previousPeriodLeads.length,
+        monthlyRevenue: monthlyRev.map(m => ({ month: m.month, actual: m.actual, target: m.target, prevYear: m.prevYear })),
+        salesPerformance: salesData.slice(0, 10).map(s => ({ name: s.name, actual: s.actual, target: s.target })),
+        topCompanies: topComps.slice(0, 8),
+        leadSources: sourceData.slice(0, 8),
+        stageDistribution: stageData.map(s => ({ name: s.name, current: s.current, previous: s.previous })),
+    }), [periodStr, stats, goalMetrics, activeGoal, pipelineStages, periodLeads.length, previousPeriodLeads.length, monthlyRev, salesData, topComps, sourceData, stageData])
+
     const isCustomPeriod = periodStr === "custom"
-    const isDefaultPeriod = periodStr === "this_quarter"
-    const handleResetPeriod = () => { setPeriodStr("this_quarter"); setCustomStart(""); setCustomEnd("") }
+    const isDefaultPeriod = periodStr === "this_quarter" && companyFilter === "all"
+    const handleResetPeriod = () => { setPeriodStr("this_quarter"); setCustomStart(""); setCustomEnd(""); setCompanyFilter("all") }
 
     return (
-        <>
-            {/* ─── STICKY HEADER ─── */}
+        <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
+            {/* ─── FIXED HEADER (outside scroll) ─── */}
             <div
                 id="dashboard-sticky-header"
                 style={{
-                    position: "sticky", top: 0, zIndex: 20,
-                    height: scrolled ? 52 : 64,
+                    flexShrink: 0, zIndex: 20,
+                    height: 56,
                     display: "flex", justifyContent: "space-between", alignItems: "center",
                     padding: "0 24px",
-                    background: scrolled ? "rgba(255,255,255,.97)" : "#fff",
-                    backdropFilter: scrolled ? "blur(8px)" : "none",
-                    WebkitBackdropFilter: scrolled ? "blur(8px)" : "none",
+                    background: "#fff",
                     borderBottom: "1px solid #f0f0f0",
-                    transition: "all .25s cubic-bezier(0.23, 1, 0.32, 1)",
                 }}
             >
                 {/* Left: Title + subtitle */}
-                <div style={{ position: "relative" }}>
+                <div style={{ position: "relative", minWidth: 0, flexShrink: 1, overflow: "hidden" }}>
                     <h1 style={{
-                        fontSize: scrolled ? 15 : 17, fontWeight: 700, color: "#292D30",
+                        fontSize: 16, fontWeight: 700, color: "#292D30",
                         letterSpacing: "-0.3px", lineHeight: 1.2, margin: 0,
-                        transition: "font-size .25s cubic-bezier(0.23, 1, 0.32, 1)",
+                        whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
                     }}>
                         Performance Dashboard
                     </h1>
                     <p style={{
                         fontSize: 11, color: "#94a3b8", margin: 0, marginTop: 1,
+                        whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
                         opacity: scrolled ? 0 : 1,
-                        transform: scrolled ? "translateY(-2px)" : "translateY(0)",
-                        transition: "opacity .2s ease, transform .2s ease",
+                        maxHeight: scrolled ? 0 : 16,
+                        transition: "opacity .2s ease, max-height .2s ease",
                         pointerEvents: scrolled ? "none" : "auto",
                     }}>
                         Real-time sales analytics &amp; goal tracking
@@ -801,10 +810,29 @@ export function AnalyticsDashboard({
                 </div>
 
                 {/* Right: Filters + Edit */}
-                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <div style={{ display: "flex", gap: 8, alignItems: "center", flexShrink: 0 }}>
+                    {/* Company filter (holding view only) */}
+                    {isHoldingView && companies.length > 1 && (
+                        <select value={companyFilter} onChange={e => setCompanyFilter(e.target.value)} style={{
+                            appearance: "none" as const, backgroundColor: companyFilter !== "all" ? "#EEF2FF" : "#f8f9fb",
+                            border: companyFilter !== "all" ? "1px solid #C7D2FE" : "1px solid transparent", borderRadius: 6,
+                            padding: "6px 28px 6px 10px", fontSize: 12, fontWeight: 600,
+                            color: companyFilter !== "all" ? "#02378D" : "#292D30",
+                            cursor: "pointer", fontFamily: "inherit",
+                            backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='2.5'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")`,
+                            backgroundRepeat: "no-repeat", backgroundPosition: "right 8px center",
+                            transition: "all .15s ease",
+                        }}>
+                            <option value="all">All Companies</option>
+                            {companies.filter(c => !c.isHolding).map(c => (
+                                <option key={c.id} value={c.id}>{c.name}</option>
+                            ))}
+                        </select>
+                    )}
+
                     {/* Period selector */}
                     <select value={periodStr} onChange={e => setPeriodStr(e.target.value)} style={{
-                        appearance: "none" as const, background: "#f8f9fb", border: "1px solid transparent", borderRadius: 6,
+                        appearance: "none" as const, backgroundColor: "#f8f9fb", border: "1px solid transparent", borderRadius: 6,
                         padding: "6px 28px 6px 10px", fontSize: 12, fontWeight: 600, color: "#292D30",
                         cursor: "pointer", fontFamily: "inherit",
                         backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='2.5'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")`,
@@ -862,13 +890,19 @@ export function AnalyticsDashboard({
                         </button>
                     )}
 
+                    {/* AI Toolbar */}
+                    <div style={{ borderLeft: "1px solid #f0f0f0", paddingLeft: 8, marginLeft: 2 }}>
+                        <DashboardAIToolbar dashboardData={aiContextData} />
+                    </div>
+
                     {/* Separator + Edit controls */}
                     <div id="dashboard-edit-controls" style={{ display: "flex", alignItems: "center", borderLeft: "1px solid #f0f0f0", paddingLeft: 8, marginLeft: 2 }} />
                 </div>
             </div>
 
-            {/* ─── CONTENT WITH GRID ─── */}
-            <div style={{ padding: "20px 24px 24px", background: "#f8fafc", minHeight: "100%", overflowX: "clip", overflowY: "visible", boxSizing: "border-box", width: "100%", minWidth: 0 }}>
+            {/* ─── SCROLLABLE CONTENT (scrollbar starts below header) ─── */}
+            <div id="dashboard-scroll-area" className="thin-scrollbar" style={{ flex: 1, overflowY: "auto", overflowX: "clip" }}>
+            <div id="dashboard-content" style={{ padding: "20px 24px 24px", background: "#eaeff5", minHeight: "100%", overflowX: "clip", overflowY: "visible", boxSizing: "border-box", width: "100%", minWidth: 0 }}>
                 <DashboardGrid
                     widgetIds={[...WIDGET_IDS]}
                     customWidgets={customWidgetsList}
@@ -940,6 +974,7 @@ export function AnalyticsDashboard({
                     />
                 )}
             </div>
-        </>
+            </div>
+        </div>
     )
 }

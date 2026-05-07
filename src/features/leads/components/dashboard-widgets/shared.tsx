@@ -54,7 +54,7 @@ export function getVsLastYearPct(current: number, previous: number) {
 export function SectionCard({ children, className }: { children: React.ReactNode; className?: string }) {
     return (
         <div className={cn(
-            "bg-card rounded-xl border shadow-[0_1px_3px_rgba(0,0,0,.04),0_1px_2px_rgba(0,0,0,.02)]",
+            "bg-card rounded-xl border-0 shadow-[0_4px_12px_rgba(0,0,0,.06),0_1px_3px_rgba(0,0,0,.04)]",
             "px-[18px] pt-4 pb-3.5 h-full flex flex-col",
             "overflow-y-auto overflow-x-hidden thin-scrollbar",
             "animate-in fade-in duration-300 fill-mode-both",

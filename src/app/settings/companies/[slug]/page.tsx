@@ -7,10 +7,10 @@ import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Switch } from "@/components/ui/switch"
 import { SettingsPageHeader } from "@/components/layout/settings-page-header"
-import { CompanyForm } from "@/features/companies/components/company-form"
 import {
-    Building2, Globe, Camera, Loader2, Save, Users, ArrowLeft, Pencil,
+    Building2, Globe, Camera, Loader2, Save, Users, ArrowLeft,
 } from "lucide-react"
 import Link from "next/link"
 import type { Company } from "@/types/company"
@@ -25,10 +25,11 @@ export default function CompanyDetailPage() {
     const [loading, setLoading] = useState(true)
     const [saving, setSaving] = useState(false)
     const [uploadingLogo, setUploadingLogo] = useState(false)
-    const [editOpen, setEditOpen] = useState(false)
 
     // Editable fields
     const [name, setName] = useState("")
+    const [editSlug, setEditSlug] = useState("")
+    const [isHolding, setIsHolding] = useState(false)
     const [logoUrl, setLogoUrl] = useState<string | null>(null)
 
     const fetchCompany = useCallback(async () => {
@@ -46,6 +47,8 @@ export default function CompanyDetailPage() {
         }
         setCompany(data as Company)
         setName(data.name)
+        setEditSlug(data.slug)
+        setIsHolding(data.is_holding ?? false)
         setLogoUrl(data.logo_url)
         setLoading(false)
     }, [slug, supabase, router])
@@ -55,15 +58,38 @@ export default function CompanyDetailPage() {
     const handleSave = async () => {
         if (!company) return
         setSaving(true)
+        const updates: Record<string, unknown> = {}
+        if (name.trim() !== company.name) updates.name = name.trim()
+        if (editSlug.trim() !== company.slug) updates.slug = editSlug.trim().toLowerCase()
+        if (isHolding !== (company.is_holding ?? false)) updates.is_holding = isHolding
+
+        if (Object.keys(updates).length === 0) {
+            setSaving(false)
+            return
+        }
+
         const { error } = await supabase
             .from("companies")
-            .update({ name: name.trim() })
+            .update(updates)
             .eq("id", company.id)
 
-        if (error) toast.error(error.message)
-        else toast.success("Company updated")
+        if (error) {
+            toast.error(error.message)
+        } else {
+            toast.success("Company updated")
+            // If slug changed, redirect to new slug
+            if (updates.slug && updates.slug !== slug) {
+                router.replace(`/settings/companies/${updates.slug}`)
+            } else {
+                fetchCompany()
+            }
+        }
         setSaving(false)
     }
+
+    const hasChanges = name.trim() !== (company?.name ?? "") ||
+        editSlug.trim().toLowerCase() !== (company?.slug ?? "") ||
+        isHolding !== (company?.is_holding ?? false)
 
     const handleLogoUpload = async (file: File) => {
         if (!company) return
@@ -118,16 +144,11 @@ export default function CompanyDetailPage() {
                 subtitle={`Manage settings for ${company.is_holding ? "holding company" : "subsidiary"} ${company.name}.`}
                 breadcrumbs={[{ label: "Companies", href: "/settings/companies" }, { label: company.name }]}
                 actions={
-                    <div className="flex items-center gap-2">
-                        <Link href={`/settings/users?bu=${encodeURIComponent(company.name)}`}>
-                            <Button variant="outline" size="sm" className="h-8 text-[12px]">
-                                <Users className="h-3.5 w-3.5 mr-1.5" /> Members
-                            </Button>
-                        </Link>
-                        <Button onClick={() => setEditOpen(true)} size="sm" className="h-8 text-[12px] bg-[#02378D] hover:bg-[#02378D]/90">
-                            <Pencil className="h-3.5 w-3.5 mr-1.5" /> Edit
+                    <Link href={`/settings/users?bu=${encodeURIComponent(company.name)}`}>
+                        <Button variant="outline" size="sm" className="h-8 text-[12px]">
+                            <Users className="h-3.5 w-3.5 mr-1.5" /> Members
                         </Button>
-                    </div>
+                    </Link>
                 }
             />
 
@@ -138,13 +159,13 @@ export default function CompanyDetailPage() {
                     {/* ─── Hero Card ─── */}
                     <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden mb-5">
                         {/* Banner gradient */}
-                        <div className="h-20 bg-gradient-to-r from-[#02378D] via-[#2069B4] to-[#00A1E9] relative">
+                        <div className="h-20 bg-gradient-to-r from-[#02378D] via-[#2069B4] to-[#00A1E9] relative rounded-t-xl">
                             <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_50%,rgba(255,255,255,.15)_0%,transparent_50%)]" />
                         </div>
-                        {/* Hero body */}
-                        <div className="px-6 pb-5 flex items-end gap-5 -mt-8 relative z-10">
-                            {/* Logo */}
-                            <div className="relative group shrink-0">
+                        {/* Hero body — below banner, white background */}
+                        <div className="px-6 pb-5 pt-5 flex items-center gap-5 relative">
+                            {/* Logo — overlaps banner */}
+                            <div className="relative group shrink-0 -mt-14">
                                 {logoUrl ? (
                                     <img
                                         src={logoUrl}
@@ -174,7 +195,7 @@ export default function CompanyDetailPage() {
                                 </label>
                             </div>
                             {/* Meta */}
-                            <div className="flex-1 min-w-0 pb-1">
+                            <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-2.5 mb-1">
                                     <h1 className="text-[20px] font-bold text-[#292D30] tracking-tight">{company.name}</h1>
                                     <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#02378D]/10 text-[#02378D]">
@@ -208,18 +229,11 @@ export default function CompanyDetailPage() {
                                     <p className="text-[13px] font-semibold text-[#292D30]">Company Name</p>
                                     <p className="text-[11px] text-slate-400 mt-0.5">Display name across the platform</p>
                                 </div>
-                                <div className="flex items-center gap-2">
-                                    <Input
-                                        value={name}
-                                        onChange={(e) => setName(e.target.value)}
-                                        className="h-9 text-[13px] max-w-xs"
-                                    />
-                                    {name.trim() !== company.name && (
-                                        <Button onClick={handleSave} disabled={saving} size="sm" className="h-9 bg-[#02378D] hover:bg-[#02378D]/90 text-[12px] px-4">
-                                            {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <><Save className="h-3.5 w-3.5 mr-1.5" />Save</>}
-                                        </Button>
-                                    )}
-                                </div>
+                                <Input
+                                    value={name}
+                                    onChange={(e) => setName(e.target.value)}
+                                    className="h-9 text-[13px] max-w-xs"
+                                />
                             </div>
 
                             {/* Slug */}
@@ -228,22 +242,28 @@ export default function CompanyDetailPage() {
                                     <p className="text-[13px] font-semibold text-[#292D30]">Slug</p>
                                     <p className="text-[11px] text-slate-400 mt-0.5">URL-safe identifier for links and exports</p>
                                 </div>
-                                <div className="flex items-center gap-2">
-                                    <code className="bg-slate-50 border border-slate-200 rounded-md px-3 py-2 text-[12px] font-mono text-slate-600">
-                                        {company.slug}
-                                    </code>
-                                </div>
+                                <Input
+                                    value={editSlug}
+                                    onChange={(e) => setEditSlug(e.target.value.replace(/[^a-z0-9-]/g, ""))}
+                                    className="h-9 text-[13px] max-w-xs font-mono"
+                                />
                             </div>
 
                             {/* Type */}
                             <div className="grid grid-cols-[200px_1fr] gap-8 px-5 py-4 items-center">
                                 <div>
-                                    <p className="text-[13px] font-semibold text-[#292D30]">Type</p>
-                                    <p className="text-[11px] text-slate-400 mt-0.5">Company classification in the hierarchy</p>
+                                    <p className="text-[13px] font-semibold text-[#292D30]">Holding Company</p>
+                                    <p className="text-[11px] text-slate-400 mt-0.5">Holding companies have access to all subsidiary data</p>
                                 </div>
-                                <span className="text-[13px] text-slate-600 font-medium">
-                                    {company.is_holding ? "Holding Company" : "Subsidiary"}
-                                </span>
+                                <div className="flex items-center gap-3">
+                                    <Switch
+                                        checked={isHolding}
+                                        onCheckedChange={setIsHolding}
+                                    />
+                                    <span className="text-[13px] text-slate-600 font-medium">
+                                        {isHolding ? "Holding" : "Subsidiary"}
+                                    </span>
+                                </div>
                             </div>
 
                             {/* Created */}
@@ -255,21 +275,21 @@ export default function CompanyDetailPage() {
                                     {new Date(company.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}
                                 </span>
                             </div>
+
+                            {/* Save button */}
+                            {hasChanges && (
+                                <div className="px-5 py-4 flex justify-end">
+                                    <Button onClick={handleSave} disabled={saving} size="sm" className="h-9 bg-[#02378D] hover:bg-[#02378D]/90 text-[12px] px-5">
+                                        {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <><Save className="h-3.5 w-3.5 mr-1.5" />Save Changes</>}
+                                    </Button>
+                                </div>
+                            )}
                         </div>
                     </div>
 
                 </div>
             </div>
 
-            {/* Edit Sheet (same as company list page) */}
-            <CompanyForm
-                open={editOpen}
-                onOpenChange={setEditOpen}
-                company={company}
-                onSuccess={() => {
-                    fetchCompany() // Refresh data after edit
-                }}
-            />
         </div>
     )
 }

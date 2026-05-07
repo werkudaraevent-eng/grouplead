@@ -180,7 +180,7 @@
 
 /* Kanban column thin scrollbar (Bigin-style) */
 .thin-scrollbar::-webkit-scrollbar {
-  width: 4px;
+  width: 5px;
 }
 .thin-scrollbar::-webkit-scrollbar-track {
   background: transparent;
@@ -249,8 +249,14 @@
 .tiptap-readonly a { color: #2563eb; text-decoration: underline; cursor: pointer; }
 .tiptap-readonly a:hover { color: #1d4ed8; }
 
-/* Prevent sidebar flash: apply dark bg before React hydrates */
-html.sidebar-dark-mode aside[data-sidebar] {
-  background-color: #1a1f2e !important;
-  border-color: #2a3040 !important;
+/* Prevent sidebar flash: apply dark CSS vars at root level before React hydrates */
+html.sidebar-dark-mode {
+  --sidebar: #292D30;
+  --sidebar-foreground: #c8cdd5;
+  --sidebar-primary: rgba(255, 255, 255, 0.08);
+  --sidebar-primary-foreground: #5EC5F2;
+  --sidebar-accent: rgba(255, 255, 255, 0.06);
+  --sidebar-accent-foreground: #e2e6ec;
+  --sidebar-border: rgba(255, 255, 255, 0.08);
+  --sidebar-ring: #5EC5F2;
 }
