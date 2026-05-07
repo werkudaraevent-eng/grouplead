@@ -60,31 +60,34 @@ export function PermissionsProvider({ children }: { children: React.ReactNode })
       setUserType(membership?.user_type ?? globalRole ?? null)
 
       const roleId = profile?.role_id ?? null
-      if (!roleId) {
-        console.error(`[Permissions] No role_id set for user ${user.id}. Failing closed.`)
-        setPermissions([]); setLoading(false); return
+
+      // Try role_id-based permissions first
+      if (roleId) {
+        const { data: perms } = await supabase
+          .from('role_permissions')
+          .select('*')
+          .eq('role_id', roleId)
+          .eq('company_id', activeCompany.id)
+
+        if (perms && perms.length > 0) {
+          setPermissions(perms)
+          setLoading(false)
+          return
+        }
       }
 
-      // Fetch permissions by role_id + company_id
-      const { data: perms } = await supabase
-        .from('role_permissions')
-        .select('*')
-        .eq('role_id', roleId)
-        .eq('company_id', activeCompany.id)
-
-      if (!perms || perms.length === 0) {
-        // Fallback: try legacy user_type-based lookup
-        const resolvedUserType = membership?.user_type ?? globalRole
-        if (resolvedUserType) {
-          const { data: legacyPerms } = await supabase
-            .from('role_permissions')
-            .select('*')
-            .eq('user_type', resolvedUserType)
-            .eq('company_id', activeCompany.id)
-          setPermissions(legacyPerms ?? [])
-        }
+      // Fallback: user_type-based lookup (covers sales users without role_id)
+      const resolvedUserType = membership?.user_type ?? globalRole
+      if (resolvedUserType) {
+        const { data: legacyPerms } = await supabase
+          .from('role_permissions')
+          .select('*')
+          .eq('user_type', resolvedUserType)
+          .eq('company_id', activeCompany.id)
+        setPermissions(legacyPerms ?? [])
       } else {
-        setPermissions(perms)
+        console.warn(`[Permissions] No role_id or user_type for user ${user.id}. No permissions granted.`)
+        setPermissions([])
       }
 
       setLoading(false)
