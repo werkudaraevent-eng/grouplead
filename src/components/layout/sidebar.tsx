@@ -183,13 +183,15 @@ export function Sidebar({ onCollapse, isSheet = false, serverProfile = null }: S
                 </button>
 
                 <div className="flex items-center gap-3 px-2 py-2 rounded-lg transition-colors hover:bg-sidebar-accent/50">
-                    <div className="w-9 h-9 rounded-full bg-sidebar-accent text-sidebar-accent-foreground flex items-center justify-center text-sm font-bold shrink-0">
-                        {getInitials(profile?.full_name ?? null)}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold truncate leading-tight text-sidebar-accent-foreground">{profile?.full_name || "Loading..."}</p>
-                        <p className="text-[11px] truncate text-sidebar-foreground/50">{getRoleLabel(profile?.role ?? null)}</p>
-                    </div>
+                    <Link href="/settings/profile" onClick={isSheet ? onCollapse : undefined} className="flex items-center gap-3 flex-1 min-w-0">
+                        <div className="w-9 h-9 rounded-full bg-sidebar-accent text-sidebar-accent-foreground flex items-center justify-center text-sm font-bold shrink-0">
+                            {getInitials(profile?.full_name ?? null)}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold truncate leading-tight text-sidebar-accent-foreground">{profile?.full_name || "Loading..."}</p>
+                            <p className="text-[11px] truncate text-sidebar-foreground/50">{getRoleLabel(profile?.role ?? null)}</p>
+                        </div>
+                    </Link>
                     <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-sidebar-foreground/30 hover:text-sidebar-foreground hover:bg-sidebar-accent" onClick={handleLogout} disabled={loggingOut} aria-label="Sign out">
                         {loggingOut ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogOut className="h-4 w-4" />}
                     </Button>
