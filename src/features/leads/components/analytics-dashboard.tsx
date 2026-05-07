@@ -767,7 +767,7 @@ export function AnalyticsDashboard({
         salesPerformance: salesData.slice(0, 10).map(s => ({ name: s.name, actual: s.actual, target: s.target })),
         topCompanies: topComps.slice(0, 8),
         leadSources: sourceData.slice(0, 8),
-        stageDistribution: stageData.map(s => ({ name: s.name, current: s.current, previous: s.previous })),
+        stageDistribution: stageData.map(s => ({ name: s.name, current: s.count, previous: s.previousCount })),
     }), [periodStr, stats, goalMetrics, activeGoal, pipelineStages, periodLeads.length, previousPeriodLeads.length, monthlyRev, salesData, topComps, sourceData, stageData])
 
     const isCustomPeriod = periodStr === "custom"
