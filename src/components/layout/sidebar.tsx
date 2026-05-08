@@ -5,10 +5,10 @@ import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import {
     LayoutDashboard, KanbanSquare, Building2, Users,
-    LogOut, ChevronLeft, Settings, Loader2, Moon, Sun, History,
+    LogOut, ChevronLeft, ChevronsLeft, Settings, Loader2, Moon, Sun, History,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { CompanySwitcher } from "@/components/layout/company-switcher"
+import { CompanySwitcherHeader } from "@/components/layout/company-switcher"
 import { usePermissions } from "@/contexts/permissions-context"
 import { useSidebarTheme } from "@/contexts/sidebar-theme-context"
 import { createClient } from "@/utils/supabase/client"
@@ -98,7 +98,8 @@ export function Sidebar({ onCollapse, isSheet = false, collapsed = false, onTogg
             }
         })
 
-    const showAdminNav = permsLoading || can('users', 'read') || can('master_options', 'read')
+    // Settings visible for admin/executive only — sales (leader) has members.read=false
+    const showAdminNav = permsLoading || can('members', 'read')
 
     const menuItemClasses = (isActive: boolean) =>
         `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-semibold transition-all duration-150 ${
@@ -113,19 +114,38 @@ export function Sidebar({ onCollapse, isSheet = false, collapsed = false, onTogg
         }`
 
     return (
-        <div className="flex flex-col h-full transition-colors duration-300 bg-sidebar text-sidebar-foreground">
-            <div className={`flex items-center h-16 border-b shrink-0 border-sidebar-border ${collapsed ? "justify-center px-2" : "justify-between px-5"}`}>
-                <Link href="/" className={`flex items-center gap-2.5 group ${collapsed ? "justify-center" : ""}`}>
-                    <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center shrink-0">
-                        <span className="text-white font-bold text-sm">W</span>
-                    </div>
-                    {!collapsed && (
-                        <div className="flex flex-col">
-                            <span className="font-bold text-sm tracking-tight leading-none text-sidebar-accent-foreground">Werkudara</span>
-                            <span className="text-[10px] font-medium tracking-wider uppercase text-sidebar-foreground/50">Group Lead</span>
+        <div className="group/sidebar flex flex-col h-full transition-colors duration-300 bg-sidebar text-sidebar-foreground relative">
+            <div className={`flex items-center h-14 shrink-0 border-b border-sidebar-border ${collapsed ? "justify-center px-2" : "justify-between px-3"}`}>
+                {/* Header: Logo + Company Switcher integrated (Notion/Linear style) */}
+                {!collapsed ? (
+                    <CompanySwitcherHeader />
+                ) : (
+                    <Link href="/" className="flex items-center justify-center group-hover/sidebar:opacity-0 transition-opacity duration-150">
+                        <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center shrink-0">
+                            <span className="text-white font-bold text-sm">W</span>
                         </div>
-                    )}
-                </Link>
+                    </Link>
+                )}
+                {/* Collapse button — appears on sidebar hover */}
+                {onToggleCollapse && !isSheet && !collapsed && (
+                    <button
+                        onClick={onToggleCollapse}
+                        className="h-7 w-7 rounded-md flex items-center justify-center transition-all duration-150 text-sidebar-foreground/50 hover:text-sidebar-foreground hover:bg-sidebar-accent opacity-0 group-hover/sidebar:opacity-100"
+                        title="Collapse sidebar"
+                    >
+                        <ChevronsLeft className="h-[16px] w-[16px]" />
+                    </button>
+                )}
+                {/* Expand button — replaces logo on hover when collapsed */}
+                {onToggleCollapse && !isSheet && collapsed && (
+                    <button
+                        onClick={onToggleCollapse}
+                        className="absolute inset-x-0 top-0 h-14 flex items-center justify-center transition-opacity duration-150 text-sidebar-foreground/70 hover:text-sidebar-foreground opacity-0 group-hover/sidebar:opacity-100"
+                        title="Expand sidebar"
+                    >
+                        <ChevronsLeft className="h-[18px] w-[18px] rotate-180" />
+                    </button>
+                )}
                 {isSheet && onCollapse && (
                     <Button variant="ghost" size="icon" onClick={onCollapse} className="h-8 w-8 text-sidebar-foreground/50 hover:text-sidebar-foreground" aria-label="Close sidebar">
                         <ChevronLeft className="h-4 w-4" />
@@ -133,13 +153,7 @@ export function Sidebar({ onCollapse, isSheet = false, collapsed = false, onTogg
                 )}
             </div>
 
-            {!collapsed && (
-                <div className="px-3 py-2">
-                    <CompanySwitcher />
-                </div>
-            )}
-
-            <nav aria-label="Main navigation" className={`flex-1 py-4 space-y-1 overflow-y-auto ${collapsed ? "px-1.5" : "px-3"}`}>
+            <nav aria-label="Main navigation" className={`flex-1 py-4 space-y-1 overflow-y-auto sidebar-scrollbar ${collapsed ? "px-1.5" : "px-3"}`}>
                 {!collapsed && <p className="px-3 mb-2 text-[11px] font-bold uppercase tracking-widest text-sidebar-foreground/70">Menu</p>}
                 {visibleMainNav.map((item) => {
                     const isActive = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href))
@@ -227,18 +241,8 @@ export function Sidebar({ onCollapse, isSheet = false, collapsed = false, onTogg
                     </div>
                 )}
 
-                {/* Collapse toggle button */}
-                {onToggleCollapse && (
-                    <button
-                        onClick={onToggleCollapse}
-                        className="w-full flex items-center justify-center gap-2 px-3 py-1.5 rounded-lg text-[11px] font-medium text-sidebar-foreground/50 hover:text-sidebar-foreground hover:bg-sidebar-accent transition-all"
-                        title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-                    >
-                        <ChevronLeft className={`h-3.5 w-3.5 transition-transform duration-200 ${collapsed ? "rotate-180" : ""}`} />
-                        {!collapsed && <span>Collapse</span>}
-                    </button>
-                )}
             </div>
+
         </div>
     )
 }
