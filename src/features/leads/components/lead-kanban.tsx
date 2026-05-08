@@ -541,7 +541,7 @@ export function LeadKanban({
                 onDragCancel={handleDragCancel}
             >
                 <div className="flex-1 overflow-x-auto overflow-y-hidden min-h-0 w-full kanban-horizontal-scroll pb-6">
-                    <div className="flex h-full w-max items-start gap-4 px-1 relative">
+                    <div className="flex h-full w-max items-start gap-3 px-0.5 relative">
                     {grouped.map((stage) => {
                         const accentBg = BG_COLOR_MAP[stage.color] || BG_COLOR_MAP.gray
                         const totalRevenue = stage.leads.reduce((sum, l) => sum + (l.estimated_value || 0), 0)
@@ -553,10 +553,10 @@ export function LeadKanban({
                                 className={`group/stage bg-slate-50/50 border border-slate-200/80 rounded-lg flex flex-col w-[272px] min-w-[272px] shrink-0 h-full max-h-full overflow-hidden relative`}
                             >
                                 {/* Column Header */}
-                                <div className="px-3 py-2.5 shrink-0 bg-white border-b border-slate-100 rounded-t-lg relative z-10">
-                                    <div className="flex items-start justify-between gap-2 mb-1.5">
+                                <div className="px-3 py-2 shrink-0 bg-white border-b border-slate-100 rounded-t-lg relative z-10">
+                                    <div className="flex items-center justify-between gap-2 mb-1">
                                         <div className="flex items-center gap-1.5 flex-1 min-w-0">
-                                            <div className={`w-1.5 h-1.5 rounded-full ${accentBg} shrink-0`} />
+                                            <div className={`w-2 h-2 rounded-full ${accentBg} shrink-0`} />
                                             {renameStageId === stage.id ? (
                                                 <input
                                                     autoFocus
@@ -569,15 +569,15 @@ export function LeadKanban({
                                                     }}
                                                 />
                                             ) : (
-                                                <h3 className="font-semibold text-[12px] leading-snug text-[#292D30] line-clamp-1">
+                                                <h3 className="font-semibold text-[12px] leading-none text-slate-700 line-clamp-1">
                                                     {stage.name}
                                                 </h3>
                                             )}
                                         </div>
                                         <DropdownMenu>
                                             <DropdownMenuTrigger asChild>
-                                                <button type="button" className="p-1 -mr-1 -mt-1 rounded-md border border-transparent hover:bg-slate-50 hover:border-slate-200 text-slate-400 hover:text-slate-700 transition-all shrink-0">
-                                                    <MoreHorizontal className="h-4 w-4" />
+                                                <button type="button" className="p-0.5 -mr-0.5 rounded border border-transparent hover:bg-slate-50 hover:border-slate-200 text-slate-400 hover:text-slate-600 transition-all shrink-0 opacity-0 group-hover/stage:opacity-100">
+                                                    <MoreHorizontal className="h-3.5 w-3.5" />
                                                 </button>
                                             </DropdownMenuTrigger>
                                             <DropdownMenuContent align="end" className="w-44">
@@ -601,12 +601,12 @@ export function LeadKanban({
                                             </DropdownMenuContent>
                                         </DropdownMenu>
                                     </div>
-                                    <div className="flex items-center justify-between mt-0.5">
-                                        <span className="text-[10.5px] font-medium text-slate-400">
-                                            {stage.leads.length} leads
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-[10px] font-medium text-slate-400">
+                                            {stage.leads.length}
                                         </span>
                                         {totalRevenue > 0 && (
-                                            <span className="text-[10.5px] font-semibold text-slate-500 tabular-nums">
+                                            <span className="text-[10px] font-medium text-slate-400 tabular-nums">
                                                 {formatCompact(totalRevenue)}
                                             </span>
                                         )}
@@ -723,7 +723,7 @@ function DroppableColumn({ stageId, isEmpty, children }: { stageId: string; isEm
     return (
         <div
             ref={setNodeRef}
-            className={`flex-1 overflow-y-auto px-2 py-2 flex flex-col gap-[6px] pb-4 thin-scrollbar rounded-b-lg transition-colors ${
+            className={`flex-1 overflow-y-auto px-2.5 py-2.5 flex flex-col gap-2.5 pb-4 thin-scrollbar rounded-b-lg transition-colors ${
                 isOver ? "bg-blue-50/40" : ""
             }`}
         >
@@ -903,21 +903,21 @@ function KanbanCard({
             tabIndex={0}
             className={`group/card w-full text-left bg-white rounded-lg cursor-grab transition-all duration-150 ease-out relative ${
                 isDragging
-                    ? "shadow-lg ring-2 ring-[#02378D]/20 rotate-[1.5deg] scale-[1.02] z-50 border border-[#02378D]/30"
+                    ? "shadow-xl ring-2 ring-[#02378D]/20 rotate-[1deg] scale-[1.02] z-50 border border-[#02378D]/30"
                     : isSelected
                         ? "border border-[#02378D] ring-1 ring-[#02378D]/30 shadow-sm"
-                        : "border border-slate-200/70 hover:border-slate-300 hover:shadow-[0_2px_8px_rgba(0,0,0,.06)]"
+                        : "border border-slate-200/80 shadow-[0_1px_2px_rgba(0,0,0,.03)] hover:border-slate-300 hover:shadow-[0_2px_8px_rgba(0,0,0,.06)]"
             }`}
         >
             {/* ── Main content area ── */}
-            <div className="px-2.5 pt-2 pb-2">
+            <div className="px-3 pt-2.5 pb-2">
                 {/* Header row: Project name + context menu */}
-                <div className="flex items-start justify-between gap-1.5">
+                <div className="flex items-start justify-between gap-2">
                     <div className="flex-1 min-w-0">
-                        <h4 className="font-semibold text-[12.5px] text-[#292D30] leading-tight line-clamp-1">
+                        <h4 className="font-medium text-[12px] text-slate-800 leading-snug line-clamp-2">
                             {lead.project_name || "Untitled"}
                         </h4>
-                        <span className="text-[10.5px] text-slate-500 line-clamp-1 mt-px">
+                        <span className="text-[11px] text-slate-400 line-clamp-1 mt-0.5">
                             {lead.client_company?.name}
                         </span>
                     </div>
@@ -956,40 +956,40 @@ function KanbanCard({
                     </div>
                 </div>
 
-                {/* Badges — compact, no uppercase, muted colors */}
+                {/* Badges — clean, readable, muted tones */}
                 {hasAnyBadge && (
-                    <div className="flex flex-wrap items-center gap-1 mt-1.5">
+                    <div className="flex flex-wrap items-center gap-1 mt-2">
                         {showSubsidiary && lead.company?.name && (
-                            <span className="px-1.5 py-px rounded text-[9.5px] font-medium bg-slate-100 text-slate-500">
+                            <span className="px-1.5 py-px rounded text-[10px] font-medium bg-slate-100 text-slate-500">
                                 {lead.company.name}
                             </span>
                         )}
                         {showGrade && lead.grade_lead && (
-                            <span className={`px-1.5 py-px rounded text-[9.5px] font-medium ${getGradeColor(lead.grade_lead)}`}>
+                            <span className={`px-1.5 py-px rounded text-[10px] font-medium ${getGradeColor(lead.grade_lead)}`}>
                                 {lead.grade_lead}
                             </span>
                         )}
                         {showCategory && lead.category && (
-                            <span className={`px-1.5 py-px rounded text-[9.5px] font-medium ${
+                            <span className={`px-1.5 py-px rounded text-[10px] font-medium ${
                                 lead.category.toLowerCase().includes('hot') ? 'bg-rose-50 text-rose-600' :
                                 lead.category.toLowerCase().includes('warm') ? 'bg-amber-50 text-amber-600' :
-                                'bg-slate-50 text-slate-600'
+                                'bg-slate-100 text-slate-500'
                             }`}>
                                 {lead.category}
                             </span>
                         )}
                         {showSource && lead.lead_source && (
-                            <span className="px-1.5 py-px rounded text-[9.5px] font-medium bg-slate-50 text-slate-500">
+                            <span className="px-1.5 py-px rounded text-[10px] font-medium bg-slate-100 text-slate-500">
                                 {lead.lead_source}
                             </span>
                         )}
                         {showMainStream && lead.main_stream && (
-                            <span className="px-1.5 py-px rounded text-[9.5px] font-medium bg-slate-50 text-slate-500">
+                            <span className="px-1.5 py-px rounded text-[10px] font-medium bg-slate-100 text-slate-500">
                                 {lead.main_stream}
                             </span>
                         )}
                         {showEventFormat && lead.event_format && (
-                            <span className="px-1.5 py-px rounded text-[9.5px] font-medium bg-slate-50 text-slate-500">
+                            <span className="px-1.5 py-px rounded text-[10px] font-medium bg-slate-100 text-slate-500">
                                 {lead.event_format}
                             </span>
                         )}
@@ -997,41 +997,48 @@ function KanbanCard({
                 )}
             </div>
 
-            {/* ── Footer — value, date, avatar — separated by subtle border ── */}
+            {/* ── Footer — value + meta ── */}
             {hasFooter && (
-                <div className="flex items-center justify-between px-2.5 py-1.5 border-t border-slate-100 bg-slate-50/30">
-                    <div className="flex items-center gap-2 min-w-0">
-                        {showEstimatedValue && lead.estimated_value ? (
-                            <span className="font-bold text-[12px] text-[#292D30] tabular-nums tracking-tight">
-                                {fmtAxis(lead.estimated_value)}
-                            </span>
-                        ) : null}
-                        {showCloseDate && lead.target_close_date && (
-                            <span className={`text-[10px] tabular-nums ${
-                                dateUrgency === "overdue" ? "text-red-600 font-semibold" :
-                                dateUrgency === "soon" ? "text-amber-600 font-semibold" :
-                                "text-slate-400"
-                            }`}>
-                                {new Date(lead.target_close_date).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
-                            </span>
-                        )}
-                        {showManualId && lead.manual_id && (
-                            <span className="font-mono text-[9px] text-slate-300">
-                                {lead.manual_id}
-                            </span>
-                        )}
-                    </div>
-                    <div className="flex items-center gap-0.5 shrink-0">
-                        {showAm && amName && (
-                            <div title={amName} className="w-[18px] h-[18px] rounded-full bg-[#6EBDA1] flex items-center justify-center text-[7px] font-bold text-white ring-1 ring-white">
-                                {getInitials(amName)}
-                            </div>
-                        )}
-                        {showPic && picName && (
-                            <div title={picName} className="w-[18px] h-[18px] rounded-full bg-[#02378D] flex items-center justify-center text-[7px] font-bold text-white ring-1 ring-white">
-                                {getInitials(picName)}
-                            </div>
-                        )}
+                <div className="px-3 pt-1.5 pb-2 border-t border-slate-100/80 space-y-1">
+                    {/* Row 1: Value */}
+                    {showEstimatedValue && lead.estimated_value ? (
+                        <span className="block font-semibold text-[11.5px] text-slate-700 tabular-nums">
+                            {fmtAxis(lead.estimated_value)}
+                        </span>
+                    ) : null}
+                    {/* Row 2: Date + ID + Avatars — secondary meta */}
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2 min-w-0">
+                            {showCloseDate && lead.target_close_date && (
+                                <span className="inline-flex items-center gap-1 text-[10px] tabular-nums text-slate-400">
+                                    <span className={`inline-block w-1.5 h-1.5 rounded-full shrink-0 ${
+                                        dateUrgency === "overdue" ? "bg-red-500" :
+                                        dateUrgency === "soon" ? "bg-amber-400" :
+                                        "bg-slate-300"
+                                    }`} />
+                                    <span className={dateUrgency === "overdue" ? "text-red-600" : dateUrgency === "soon" ? "text-amber-600" : ""}>
+                                        {new Date(lead.target_close_date).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
+                                    </span>
+                                </span>
+                            )}
+                            {showManualId && lead.manual_id && (
+                                <span className="font-mono text-[9.5px] text-slate-300">
+                                    {lead.manual_id}
+                                </span>
+                            )}
+                        </div>
+                        <div className="flex items-center gap-1 shrink-0">
+                            {showAm && amName && (
+                                <div title={amName} className="w-5 h-5 rounded-full bg-[#6EBDA1] flex items-center justify-center text-[8px] font-bold text-white ring-[1.5px] ring-white">
+                                    {getInitials(amName)}
+                                </div>
+                            )}
+                            {showPic && picName && (
+                                <div title={picName} className="w-5 h-5 rounded-full bg-[#02378D] flex items-center justify-center text-[8px] font-bold text-white ring-[1.5px] ring-white">
+                                    {getInitials(picName)}
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
             )}

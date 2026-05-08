@@ -31,6 +31,7 @@ import {
 } from "lucide-react"
 import { PipelineFilters, PipelineFilterState, INITIAL_FILTER_STATE, ActiveFilterPills, applyFilters } from "@/features/leads/components/pipeline-filters"
 import { PipelineIconPicker, PipelineIcon, DEFAULT_PIPELINE_ICON } from "@/features/leads/components/pipeline-icon-picker"
+import { useResizablePanel } from "@/hooks/use-resizable-panel"
 import { useRouter } from "next/navigation"
 import { PermissionGate } from "@/features/users/components/permission-gate"
 import { Input } from "@/components/ui/input"
@@ -73,7 +74,13 @@ export function LeadDashboard() {
     const [creating, setCreating] = useState(false)
     const [deleteTarget, setDeleteTarget] = useState<Pipeline | null>(null)
     const [deleteTargetDealCount, setDeleteTargetDealCount] = useState<number>(0)
-    const [isSidebarOpen, setIsSidebarOpen] = useState(true)
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false)
+    const { width: pipelineWidth, isResizing: isPipelineResizing, handleMouseDown: handlePipelineResize } = useResizablePanel({
+        storageKey: "pipeline-sidebar-width",
+        defaultWidth: 180,
+        minWidth: 140,
+        maxWidth: 280,
+    })
     const [renameOpen, setRenameOpen] = useState(false)
     const [renameValue, setRenameValue] = useState("")
     const [renameIcon, setRenameIcon] = useState(DEFAULT_PIPELINE_ICON)
@@ -625,59 +632,74 @@ export function LeadDashboard() {
                 LEFT: Collapsible Pipeline Sidebar (Bigin-style)
             ═══════════════════════════════════════════════════════════ */}
             <div
-                className={`flex flex-col border-r border-border bg-background transition-all duration-300 ease-in-out shrink-0 flex-none relative ${
-                    isSidebarOpen ? 'w-[200px]' : 'w-[44px]'
-                }`}
+                className={`group/pipeline flex flex-col border-r border-border bg-background shrink-0 flex-none relative overflow-hidden ${
+                    isPipelineResizing ? "" : "transition-[width] duration-200 ease-out"
+                } ${!isSidebarOpen ? 'w-[44px]' : ''}`}
+                style={isSidebarOpen ? { width: `${pipelineWidth}px` } : undefined}
             >
                 {/* ── Collapsed State: Vertical strip ── */}
                 {!isSidebarOpen && (
                     <div className="flex flex-col items-center h-full w-full">
-                        {/* Vertical pipeline name (bottom-to-top, like Bigin) */}
                         <button
                             onClick={() => setIsSidebarOpen(true)}
-                            className="flex-1 flex flex-col items-center justify-center gap-4 w-full hover:bg-muted/50 transition-colors cursor-pointer group"
-                            title={`Expand sidebar · ${activePipeline?.name || 'Pipelines'}`}
+                            className="flex-1 flex flex-col items-center justify-center gap-3 w-full cursor-pointer group rounded-r-md transition-all duration-150 hover:bg-slate-100 active:bg-slate-200"
+                            title={`Expand · ${activePipeline?.name || 'Pipelines'}`}
                         >
                             <span
-                                className="text-[13px] font-bold text-slate-700 group-hover:text-slate-900 tracking-wider transition-colors whitespace-nowrap inline-block"
+                                className="text-[12px] font-semibold text-slate-500 group-hover:text-slate-800 tracking-wide transition-colors whitespace-nowrap inline-block"
                                 style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}
                             >
                                 {activePipeline?.name || 'Pipelines'}
                             </span>
-                            <PipelineIcon icon={activePipeline?.icon} className="h-4 w-4 text-slate-500 group-hover:text-slate-700 shrink-0 -rotate-90" />
+                            <ChevronsRight className="h-3.5 w-3.5 text-slate-400 group-hover:text-slate-700 shrink-0 transition-colors" />
                         </button>
-                        {/* Expand chevron at bottom */}
-                        <div className="border-t border-border w-full shrink-0">
-                            <button
-                                onClick={() => setIsSidebarOpen(true)}
-                                className="w-full flex items-center justify-center py-2.5 text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors"
-                                title="Expand sidebar"
-                            >
-                                <ChevronsRight className="h-4 w-4" />
-                            </button>
-                        </div>
+                    </div>
+                )}
+
+                {/* Resize handle — drag to resize pipeline sidebar */}
+                {isSidebarOpen && (
+                    <div
+                        onMouseDown={handlePipelineResize}
+                        className="absolute top-0 right-0 w-[3px] h-full cursor-col-resize z-40 group/resize hover:bg-primary/20 active:bg-primary/30 transition-colors"
+                        title="Drag to resize"
+                    >
+                        <div className="absolute top-1/2 -translate-y-1/2 left-1/2 -translate-x-1/2 w-[3px] h-8 rounded-full bg-transparent group-hover/resize:bg-primary/40 group-active/resize:bg-primary/60 transition-colors" />
                     </div>
                 )}
 
                 {/* ── Expanded State: Full sidebar ── */}
                 {isSidebarOpen && (
                     <>
-                {/* Sidebar Header */}
-                <div className="p-3 border-b border-border flex items-center justify-between whitespace-nowrap h-14 shrink-0">
-                    <div className="flex items-center gap-1.5">
-                        <GitBranch className="h-3.5 w-3.5 text-muted-foreground" />
-                        <h3 className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">
-                            Team Pipelines
-                        </h3>
+                {/* Sidebar Header — Notion pattern: title swaps to collapse on hover */}
+                <div className="group/pheader px-3 border-b border-border flex items-center justify-between whitespace-nowrap h-12 shrink-0">
+                    {/* Left: Title (default) / Collapse button (on hover) — they swap */}
+                    <div className="flex items-center gap-1.5 min-w-0 relative">
+                        {/* Default state: icon + label */}
+                        <div className="flex items-center gap-1.5 group-hover/pipeline:opacity-0 transition-opacity duration-150">
+                            <GitBranch className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                            <h3 className="font-semibold text-[11px] uppercase tracking-wider text-muted-foreground truncate">
+                                Pipelines
+                            </h3>
+                        </div>
+                        {/* Hover state: collapse button replaces title */}
+                        <button
+                            onClick={() => setIsSidebarOpen(false)}
+                            className="absolute inset-0 flex items-center gap-1.5 opacity-0 group-hover/pipeline:opacity-100 transition-opacity duration-150 text-muted-foreground hover:text-foreground"
+                            title="Collapse pipelines"
+                        >
+                            <ChevronsLeft className="h-4 w-4 shrink-0" />
+                            <span className="text-[11px] font-medium">Hide</span>
+                        </button>
                     </div>
+                    {/* Right: Create pipeline button — always visible */}
                     <PermissionGate resource="leads" action="create">
                         <Button
                             variant="ghost" size="sm"
-                            className="h-6 w-6 p-0 hover:bg-muted"
+                            className="h-7 w-7 p-0 hover:bg-muted shrink-0"
                             onClick={() => setCreateOpen(true)}
                             title="Create new pipeline"
                         >
-                            <Plus className="h-3.5 w-3.5" />
+                            <Plus className="h-4 w-4" />
                         </Button>
                     </PermissionGate>
                 </div>
@@ -827,17 +849,7 @@ export function LeadDashboard() {
                     )}
                 </div>
 
-                {/* Collapse chevron at bottom */}
-                <div className="border-t border-border shrink-0">
-                    <button
-                        onClick={() => setIsSidebarOpen(false)}
-                        className="w-full flex items-center justify-center gap-1.5 py-2.5 text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors text-[11px] font-medium"
-                        title="Collapse sidebar"
-                    >
-                        <ChevronsLeft className="h-3.5 w-3.5" />
-                        <span>Collapse</span>
-                    </button>
-                </div>
+
                     </>
                 )}
             </div>
@@ -875,37 +887,32 @@ export function LeadDashboard() {
                 )}
 
                 {/* ─── Strategic Header Bar ─────────────────────────── */}
-                <div className="px-6 border-b border-border bg-background shrink-0">
-                    {/* Row 1: Pipeline Info + Utilities */}
-                    <div className="flex flex-wrap items-center justify-between min-h-[56px] py-1.5 gap-x-4 gap-y-2 w-full">
-                        <div className="flex items-center gap-2 min-w-0 flex-1">
-
-                            <div className="min-w-0 flex-1">
-                                <h2 className="text-lg font-bold tracking-tight leading-tight truncate">
-                                    {activePipeline?.name || "Select a Pipeline"}
-                                </h2>
-                                <div className="flex items-center gap-2 overflow-hidden w-full">
-                                    <p className="text-[11px] text-muted-foreground leading-none whitespace-nowrap shrink-0">
-                                        {leadsLoading ? "Loading..." : `${filteredLeads.length} lead${filteredLeads.length !== 1 ? 's' : ''}${searchQuery ? ` (filtered)` : ''}`}
-                                    </p>
-                                    {isHoldingView && activePipeline?.company?.name && (
-                                        <span className="text-[10px] font-medium text-muted-foreground bg-secondary px-1.5 py-0.5 rounded-sm truncate">
-                                            {activePipeline.company.name}
-                                        </span>
-                                    )}
-                                </div>
-                            </div>
+                <div className="px-4 border-b border-border bg-background shrink-0">
+                    {/* Single-row compact toolbar (Linear/Attio style) */}
+                    <div className="flex items-center justify-between h-10 gap-x-3 w-full">
+                        <div className="flex items-center gap-2 min-w-0">
+                            <h2 className="text-[13px] font-semibold leading-none truncate text-foreground">
+                                {activePipeline?.name || "Select a Pipeline"}
+                            </h2>
+                            <span className="text-[11px] text-muted-foreground/70 tabular-nums whitespace-nowrap">
+                                {leadsLoading ? "…" : filteredLeads.length}
+                            </span>
+                            {isHoldingView && activePipeline?.company?.name && (
+                                <span className="text-[10px] font-medium text-muted-foreground bg-muted px-1.5 py-0.5 rounded truncate max-w-[120px]">
+                                    {activePipeline.company.name}
+                                </span>
+                            )}
                         </div>
 
-                        <div className="flex items-center gap-2 shrink-0 ml-auto pb-1 sm:pb-0 max-w-full overflow-visible">
-                            {/* Search Bar */}
+                        <div className="flex items-center gap-1.5 shrink-0 ml-auto max-w-full overflow-visible">
+                            {/* Search Bar — compact, matches card text scale */}
                             <div className="relative shrink-0">
-                                <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                                <Search className="w-3 h-3 absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground/60 pointer-events-none" />
                                 <Input
-                                    placeholder="Search deals..."
+                                    placeholder="Search..."
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
-                                    className="pl-8 h-8 w-[160px] sm:w-[200px] lg:w-[240px] text-sm bg-muted/40 border-border focus-visible:bg-background transition-colors"
+                                    className="pl-7 h-7 w-[140px] sm:w-[160px] lg:w-[180px] text-[11px] bg-muted/30 border-border/60 focus-visible:bg-background focus-visible:border-border focus-visible:w-[220px] transition-all placeholder:text-muted-foreground/50"
                                 />
                                 {searchQuery && (
                                     <button
@@ -921,8 +928,8 @@ export function LeadDashboard() {
                             {activePipeline && !isHoldingView && (
                                 <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
-                                        <Button variant="outline" size="sm" className="h-8 w-8 p-0">
-                                            <MoreHorizontal className="h-4 w-4" />
+                                        <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
+                                            <MoreHorizontal className="h-3.5 w-3.5" />
                                         </Button>
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent align="end" className="w-48">
@@ -952,31 +959,34 @@ export function LeadDashboard() {
                             )}
 
                             {/* View Toggle and Filters */}
-                            <div className="flex items-center gap-2 shrink-0">
+                            <div className="flex items-center gap-1 shrink-0">
                                 {/* Advanced Pipeline Filters */}
                                 <PipelineFilters leads={leads} filters={filters} setFilters={setFilters} />
 
                                 {/* Portal target for Kanban Card Settings */}
                                 {viewMode === 'kanban' && <div id="kanban-settings-portal" className="flex items-center shrink-0" />}
 
-                                <div className="flex items-center border rounded-lg p-0.5 bg-muted/50 shrink-0">
+                                {/* Icon-only view toggle (Linear/Notion style) */}
+                                <div className="flex items-center border rounded-md p-0.5 bg-muted/40 shrink-0">
                                     <button
                                         onClick={() => setViewMode('kanban')}
-                                        className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-all ${viewMode === 'kanban'
+                                        title="Kanban view"
+                                        className={`flex items-center justify-center w-6 h-6 rounded-sm transition-all ${viewMode === 'kanban'
                                             ? 'bg-background shadow-sm text-foreground'
                                             : 'text-muted-foreground hover:text-foreground'
                                             }`}
                                     >
-                                        <LayoutGrid className="h-3.5 w-3.5" /> Kanban
+                                        <LayoutGrid className="h-3.5 w-3.5" />
                                     </button>
                                     <button
                                         onClick={() => setViewMode('table')}
-                                        className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-all ${viewMode === 'table'
+                                        title="Table view"
+                                        className={`flex items-center justify-center w-6 h-6 rounded-sm transition-all ${viewMode === 'table'
                                             ? 'bg-background shadow-sm text-foreground'
                                             : 'text-muted-foreground hover:text-foreground'
                                             }`}
                                     >
-                                        <Table className="h-3.5 w-3.5" /> Table
+                                        <Table className="h-3.5 w-3.5" />
                                     </button>
                                 </div>
                             </div>
@@ -987,19 +997,19 @@ export function LeadDashboard() {
                                     <Button
                                         size="sm"
                                         disabled={!activePipeline}
-                                        className="h-8 rounded-r-none"
+                                        className="h-7 rounded-r-none text-xs px-2.5"
                                         onClick={() => setAddSheetOpen(true)}
                                     >
-                                        <Plus className="mr-1.5 h-3.5 w-3.5" /> New Lead
+                                        <Plus className="mr-1 h-3 w-3" /> New Lead
                                     </Button>
                                     <DropdownMenu>
                                         <DropdownMenuTrigger asChild>
                                             <Button
                                                 size="sm"
                                                 disabled={!activePipeline}
-                                                className="h-8 rounded-l-none border-l border-primary-foreground/20 px-1.5"
+                                                className="h-7 rounded-l-none border-l border-primary-foreground/20 px-1"
                                             >
-                                                <ChevronDown className="h-3.5 w-3.5" />
+                                                <ChevronDown className="h-3 w-3" />
                                             </Button>
                                         </DropdownMenuTrigger>
                                         <DropdownMenuContent align="end" className="w-48">
@@ -1028,7 +1038,7 @@ export function LeadDashboard() {
 
                 {/* ─── Board / Table Content ───────────────────────────── */}
                 <div className={`flex-1 overflow-x-auto overflow-y-hidden ${
-                    viewMode === 'kanban' ? 'pt-6 px-6 pb-4' : 'pt-1 pb-0 px-0'
+                    viewMode === 'kanban' ? 'pt-4 px-3 pb-3' : 'pt-1 pb-0 px-0'
                 }`}>
                     {!activePipeline ? (
                         <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
