@@ -344,8 +344,8 @@ export default function ContactsPage() {
                 <p className="text-sm text-muted-foreground mt-1">Manage your client contacts, vendors, and associates.</p>
             </div>
             <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 pb-4 mb-0 shrink-0 px-4 sm:px-6 lg:px-8 border-b border-border">
-                <div className="flex flex-1 items-center gap-3 w-full lg:w-auto overflow-x-auto pb-2 lg:pb-0">
-                    <div className="relative w-[280px] shrink-0">
+                <div className="flex flex-1 items-center gap-3 w-full lg:w-auto min-w-0">
+                    <div className="relative flex-1 min-w-[180px] max-w-[320px]">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
                         <Input
                             placeholder="Search contacts..."
@@ -356,7 +356,7 @@ export default function ContactsPage() {
                     </div>
                     
                     <Select value={selectedCompanyFilter} onValueChange={setSelectedCompanyFilter}>
-                        <SelectTrigger className="h-9 w-[220px] bg-white border-slate-200 text-[13px] shadow-sm shrink-0">
+                        <SelectTrigger className="h-9 flex-1 min-w-[160px] max-w-[240px] bg-white border-slate-200 text-[13px] shadow-sm">
                             <SelectValue placeholder="All Companies" />
                         </SelectTrigger>
                         <SelectContent>

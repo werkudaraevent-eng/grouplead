@@ -178,6 +178,43 @@
   scrollbar-color: var(--border) transparent;
 }
 
+/* Sidebar slim scrollbar — blends with dark panel */
+[data-sidebar] *::-webkit-scrollbar,
+.sidebar-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+[data-sidebar] *::-webkit-scrollbar-track,
+.sidebar-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+[data-sidebar] *::-webkit-scrollbar-thumb,
+.sidebar-scrollbar::-webkit-scrollbar-thumb {
+  background-color: transparent;
+  border-radius: 20px;
+}
+[data-sidebar]:hover *::-webkit-scrollbar-thumb,
+.sidebar-scrollbar:hover::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.18);
+}
+[data-sidebar] *::-webkit-scrollbar-thumb:hover,
+.sidebar-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(255, 255, 255, 0.3);
+}
+[data-sidebar] *::-webkit-scrollbar-button,
+.sidebar-scrollbar::-webkit-scrollbar-button {
+  display: none;
+  height: 0;
+}
+[data-sidebar] *,
+.sidebar-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+[data-sidebar]:hover *,
+.sidebar-scrollbar:hover {
+  scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+}
+
 /* Kanban column thin scrollbar (Bigin-style) */
 .thin-scrollbar::-webkit-scrollbar {
   width: 5px;

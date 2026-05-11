@@ -45,14 +45,14 @@ export function SettingsPageHeader({ title, subtitle, breadcrumbs, actions }: Se
             <div
                 ref={headerRef}
                 className={cn(
-                    "sticky top-0 z-40 bg-white px-6 transition-all duration-200",
-                    scrolled ? "py-3 border-b border-border shadow-sm" : "pt-5 pb-3 border-b border-transparent",
+                    "sticky top-0 z-40 bg-white px-4 sm:px-6 lg:px-8 transition-all duration-200",
+                    scrolled ? "py-3 border-b border-border shadow-sm" : "pt-6 pb-3 border-b border-transparent",
                 )}
             >
                 <div className="flex items-center justify-between">
                     <div>
                         <h1 className={cn(
-                            "font-extrabold text-slate-900 tracking-tight transition-all duration-200 m-0",
+                            "font-extrabold text-foreground tracking-tight transition-all duration-200 m-0",
                             scrolled ? "text-[17px]" : "text-2xl",
                         )}>
                             {title}
@@ -62,7 +62,7 @@ export function SettingsPageHeader({ title, subtitle, breadcrumbs, actions }: Se
                             scrolled ? "h-0 opacity-0 -translate-y-1" : "h-5 opacity-100 translate-y-0",
                         )}>
                             {subtitle && (
-                                <p className="text-xs text-slate-400 mt-0.5">{subtitle}</p>
+                                <p className="text-sm text-muted-foreground mt-1">{subtitle}</p>
                             )}
                         </div>
                     </div>
@@ -72,7 +72,7 @@ export function SettingsPageHeader({ title, subtitle, breadcrumbs, actions }: Se
 
             {/* Breadcrumb */}
             {allCrumbs.length > 1 && (
-                <nav className="px-6 pt-2 pb-4 flex items-center gap-1.5 text-[11.5px]">
+                <nav className="px-4 sm:px-6 lg:px-8 pt-2 pb-4 flex items-center gap-1.5 text-[11.5px]">
                     {allCrumbs.map((crumb, i) => (
                         <span key={i} className="flex items-center gap-1.5">
                             {i > 0 && <span className="text-slate-300">/</span>}

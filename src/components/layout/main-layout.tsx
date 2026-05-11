@@ -10,6 +10,7 @@ import { CompanyProvider } from "@/contexts/company-context"
 import { PermissionsProvider } from "@/contexts/permissions-context"
 import { SidebarThemeProvider } from "@/contexts/sidebar-theme-context"
 import { CurrencyProvider } from "@/contexts/currency-context"
+import { useResizablePanel } from "@/hooks/use-resizable-panel"
 import type { CompanyContext } from "@/types/company"
 import type { CurrencySettings } from "@/types/currency"
 import { DEFAULT_CURRENCY_SETTINGS } from "@/types/currency"
@@ -67,6 +68,13 @@ function MainLayoutInner({
     const darkClass = isDarkPanel ? "sidebar-dark" : ""
     const [collapsed, setCollapsed] = useState(false)
 
+    const { width: sidebarWidth, isResizing: isSidebarResizing, handleMouseDown: handleSidebarResize } = useResizablePanel({
+        storageKey: "sidebar-width",
+        defaultWidth: 220,
+        minWidth: 180,
+        maxWidth: 320,
+    })
+
     useEffect(() => {
         const stored = localStorage.getItem("sidebar-collapsed")
         if (stored === "true") setCollapsed(true)
@@ -84,9 +92,20 @@ function MainLayoutInner({
         <div className="flex h-screen overflow-hidden">
             <aside
                 data-sidebar
-                className={`hidden lg:flex lg:flex-col lg:border-r shrink-0 flex-none transition-all duration-200 ease-in-out border-sidebar-border bg-sidebar ${darkClass} ${collapsed ? "lg:w-[60px]" : "lg:w-[220px]"}`}
+                className={`hidden lg:flex lg:flex-col shrink-0 flex-none overflow-hidden bg-sidebar relative ${darkClass} ${isSidebarResizing ? "" : "transition-[width] duration-200 ease-out"} ${collapsed ? "lg:w-[60px]" : ""}`}
+                style={collapsed ? undefined : { width: `${sidebarWidth}px` }}
             >
                 <Sidebar serverProfile={userProfile} collapsed={collapsed} onToggleCollapse={toggleCollapse} />
+                {/* Resize handle */}
+                {!collapsed && (
+                    <div
+                        onMouseDown={handleSidebarResize}
+                        className="absolute top-0 right-0 w-[3px] h-full cursor-col-resize z-40 group/resize hover:bg-primary/20 active:bg-primary/30 transition-colors"
+                        title="Drag to resize"
+                    >
+                        <div className="absolute top-1/2 -translate-y-1/2 left-1/2 -translate-x-1/2 w-[3px] h-8 rounded-full bg-transparent group-hover/resize:bg-primary/40 group-active/resize:bg-primary/60 transition-colors" />
+                    </div>
+                )}
             </aside>
             <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
                 <SheetContent side="left" className={`w-72 p-0 border-r-0 ${darkClass}`}>

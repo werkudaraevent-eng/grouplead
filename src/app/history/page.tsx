@@ -118,29 +118,27 @@ export default function HistoryPage() {
     return (
         <div className="flex flex-col h-full">
             {/* Header */}
-            <div className="px-6 py-5 border-b border-slate-200 bg-white shrink-0">
-                <div className="flex items-center justify-between">
-                    <div>
-                        <h1 className="text-lg font-semibold text-[#292D30]">Activity History</h1>
-                        <p className="text-[12px] text-slate-500 mt-0.5">
-                            Audit trail of all actions across the system · {total} events
-                        </p>
-                    </div>
+            <div className="pt-6 shrink-0">
+                <div className="mb-6 px-4 sm:px-6 lg:px-8">
+                    <h1 className="text-2xl font-extrabold text-foreground tracking-tight">Activity History</h1>
+                    <p className="text-sm text-muted-foreground mt-1">
+                        Audit trail of all actions across the system · {total} events
+                    </p>
                 </div>
 
                 {/* Filters */}
-                <div className="flex items-center gap-2 mt-4">
-                    <div className="relative flex-1 max-w-xs">
-                        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+                <div className="flex items-center gap-3 pb-4 px-4 sm:px-6 lg:px-8 border-b border-border">
+                    <div className="relative flex-1 min-w-[180px] max-w-[320px]">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
                         <Input
                             placeholder="Search activity..."
                             value={searchInput}
                             onChange={(e) => setSearchInput(e.target.value)}
-                            className="pl-8 h-8 text-xs"
+                            className="pl-9 h-9 w-full bg-white border-slate-200 hover:border-slate-300 focus-visible:ring-1 focus-visible:ring-slate-400 text-[13px] shadow-sm rounded-lg"
                         />
                     </div>
                     <Select value={actionFilter} onValueChange={(v) => { setActionFilter(v === "all" ? "" : v); setPage(1) }}>
-                        <SelectTrigger className="h-8 w-[130px] text-xs">
+                        <SelectTrigger className="h-9 flex-1 min-w-[130px] max-w-[180px] bg-white border-slate-200 text-[13px] shadow-sm">
                             <SelectValue placeholder="All Actions" />
                         </SelectTrigger>
                         <SelectContent>
@@ -151,7 +149,7 @@ export default function HistoryPage() {
                         </SelectContent>
                     </Select>
                     <Select value={resourceFilter} onValueChange={(v) => { setResourceFilter(v === "all" ? "" : v); setPage(1) }}>
-                        <SelectTrigger className="h-8 w-[130px] text-xs">
+                        <SelectTrigger className="h-9 flex-1 min-w-[130px] max-w-[180px] bg-white border-slate-200 text-[13px] shadow-sm">
                             <SelectValue placeholder="All Resources" />
                         </SelectTrigger>
                         <SelectContent>
@@ -162,7 +160,7 @@ export default function HistoryPage() {
                         </SelectContent>
                     </Select>
                     <Select value={userFilter} onValueChange={(v) => { setUserFilter(v === "all" ? "" : v); setPage(1) }}>
-                        <SelectTrigger className="h-8 w-[150px] text-xs">
+                        <SelectTrigger className="h-9 flex-1 min-w-[150px] max-w-[220px] bg-white border-slate-200 text-[13px] shadow-sm">
                             <SelectValue placeholder="All Users" />
                         </SelectTrigger>
                         <SelectContent>
