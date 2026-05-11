@@ -91,6 +91,22 @@ export default async function RootLayout({
             }
           } catch(e) {}
         ` }} />
+        {/* Service Worker kill-switch — defensively unregister any SW that may
+            have been installed by a previous deploy, a preview environment, or
+            a legacy host (e.g. Netlify PWA preset). Prevents stale UI from
+            being served out of SW cache after the site moved hosts. */}
+        <script dangerouslySetInnerHTML={{ __html: `
+          if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.getRegistrations()
+              .then(function(regs) { for (var r of regs) { r.unregister(); } })
+              .catch(function(){});
+            if (window.caches && caches.keys) {
+              caches.keys().then(function(keys) {
+                for (var k of keys) { caches.delete(k); }
+              }).catch(function(){});
+            }
+          }
+        ` }} />
       </head>
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`} suppressHydrationWarning>
         <a href="#main-content" className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[100] focus:px-4 focus:py-2 focus:bg-primary focus:text-primary-foreground focus:rounded-lg focus:text-sm focus:font-semibold focus:shadow-lg">
