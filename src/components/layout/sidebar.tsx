@@ -86,7 +86,7 @@ export function Sidebar({ onCollapse, isSheet = false, collapsed = false, onTogg
     }
 
     const visibleMainNav = permsLoading
-        ? mainNav
+        ? []
         : mainNav.filter(item => {
             switch (item.label) {
                 case 'Dashboard':  return true
@@ -100,7 +100,8 @@ export function Sidebar({ onCollapse, isSheet = false, collapsed = false, onTogg
         })
 
     // Settings visible for admin/executive only — sales (leader) has members.read=false
-    const showAdminNav = permsLoading || can('members', 'read')
+    // Hide during load to prevent flash of unauthorized content (FOUC)
+    const showAdminNav = !permsLoading && can('members', 'read')
 
     const menuItemClasses = (isActive: boolean) =>
         `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-semibold transition-all duration-150 ${
@@ -156,7 +157,21 @@ export function Sidebar({ onCollapse, isSheet = false, collapsed = false, onTogg
 
             <nav aria-label="Main navigation" className={`flex-1 py-4 space-y-1 overflow-y-auto sidebar-scrollbar ${collapsed ? "px-1.5" : "px-3"}`}>
                 {!collapsed && <p className="px-3 mb-2 text-[11px] font-bold uppercase tracking-widest text-sidebar-foreground/70">Menu</p>}
-                {visibleMainNav.map((item) => {
+                {permsLoading ? (
+                    // Skeleton placeholders — prevents FOUC of unauthorized nav items
+                    <>
+                        {Array.from({ length: 5 }).map((_, i) => (
+                            <div
+                                key={i}
+                                className={collapsed
+                                    ? "h-9 w-9 mx-auto rounded-lg bg-sidebar-accent/40 animate-pulse"
+                                    : "h-9 rounded-lg bg-sidebar-accent/40 animate-pulse"
+                                }
+                            />
+                        ))}
+                    </>
+                ) : (
+                    visibleMainNav.map((item) => {
                     const isActive = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href))
                     return (
                         <Link
@@ -170,7 +185,8 @@ export function Sidebar({ onCollapse, isSheet = false, collapsed = false, onTogg
                             {!collapsed && <span>{item.label}</span>}
                         </Link>
                     )
-                })}
+                    })
+                )}
 
                 {showAdminNav && (
                     <>
