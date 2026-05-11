@@ -94,6 +94,7 @@ export function Sidebar({ onCollapse, isSheet = false, collapsed = false, onTogg
                 case 'Tasks':      return can('lead_tasks', 'read')
                 case 'Companies':  return can('companies', 'read')
                 case 'Contacts':   return can('contacts', 'read')
+                case 'History':    return true
                 default:           return false
             }
         })
