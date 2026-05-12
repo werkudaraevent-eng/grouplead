@@ -19,7 +19,8 @@ import {
     Mail, Phone, Globe, MapPin, Briefcase,
     LayoutTemplate, ClipboardList, MessageSquareDashed, Folder,
     Tags, Layers, History, MoreHorizontal,
-    ChevronLeft, ChevronRight, Trash2, GitMerge, Target, ChevronDown, ThumbsUp, ThumbsDown
+    ChevronLeft, ChevronRight, Trash2, GitMerge, Target, ChevronDown, ThumbsUp, ThumbsDown,
+    Download,
 } from "lucide-react"
 import { InlineEditor } from "@/features/leads/components/inline-editor"
 import { NotesTab } from "@/features/leads/components/notes-tab"
@@ -30,6 +31,7 @@ import { HeaderAssigneePopover } from "@/features/leads/components/header-assign
 import { TasksTab } from "@/features/leads/components/tasks-tab"
 import { TransitionPromptModal } from "@/features/leads/components/transition-prompt-modal"
 import { useCurrency } from "@/contexts/currency-context"
+import { exportLeadPdf } from "@/features/leads/lib/export-lead-pdf"
 interface LeadDetailPageProps {
     lead: Lead & { pipeline?: { name: string } | null }
     prevLeadId?: number | null
@@ -44,6 +46,7 @@ export function LeadDetailPage({ lead, prevLeadId, nextLeadId, lastModifiedBy = 
     const { fmt } = useCurrency()
     const [editOpen, setEditOpen] = useState(false)
     const [deleteConfirm, setDeleteConfirm] = useState(false)
+    const [exportingPdf, setExportingPdf] = useState(false)
 
     // ─── Stage Tracker state ─────────────────────────────
     const [stages, setStages] = useState<PipelineStage[]>([])
@@ -167,6 +170,64 @@ export function LeadDetailPage({ lead, prevLeadId, nextLeadId, lastModifiedBy = 
 
     const fmtDateTime = (d: string | null | undefined) =>
         d ? new Date(d).toLocaleString("en-GB", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "—"
+
+    // ─── PDF Export ──────────────────────────────────────
+    const handleExportPdf = async () => {
+        if (exportingPdf) return
+        setExportingPdf(true)
+        try {
+            // Fetch notes + activities in parallel for the export
+            const [notesRes, activitiesRes] = await Promise.all([
+                supabase
+                    .from("lead_notes")
+                    .select("id, content, author_name, created_at")
+                    .eq("lead_id", lead.id)
+                    .order("created_at", { ascending: false })
+                    .limit(30),
+                supabase
+                    .from("lead_activities")
+                    .select("id, action_type, description, field_name, old_value, new_value, created_at, profile:profiles(full_name)")
+                    .eq("lead_id", lead.id)
+                    .order("created_at", { ascending: false })
+                    .limit(30),
+            ])
+
+            const notes = (notesRes.data ?? []) as Array<{
+                id: string
+                content: string
+                author_name: string | null
+                created_at: string
+            }>
+
+            const activities = ((activitiesRes.data ?? []) as unknown as Array<{
+                id: string
+                action_type: string
+                description: string | null
+                field_name: string | null
+                old_value: string | null
+                new_value: string | null
+                created_at: string
+                profile?: { full_name: string | null } | null
+            }>).map(a => ({
+                ...a,
+                user_name: a.profile?.full_name ?? null,
+            }))
+
+            exportLeadPdf({
+                lead,
+                notes,
+                activities,
+                currencyFormat: (v: number) => fmt(v),
+                companyLabel: lead.company?.name || "Werkudara Group",
+            })
+
+            toast.success("PDF exported")
+        } catch (err) {
+            toast.error(`Export failed: ${err instanceof Error ? err.message : "Unknown error"}`)
+        } finally {
+            setExportingPdf(false)
+        }
+    }
 
     // ═══════════════════════════════════════════════════════
     //  RENDER
@@ -314,6 +375,14 @@ export function LeadDetailPage({ lead, prevLeadId, nextLeadId, lastModifiedBy = 
                                         </button>
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent align="end" className="w-48">
+                                        <DropdownMenuItem
+                                            className="cursor-pointer"
+                                            disabled={exportingPdf}
+                                            onClick={handleExportPdf}
+                                        >
+                                            <Download className="h-4 w-4 mr-2" />
+                                            {exportingPdf ? "Exporting..." : "Export PDF"}
+                                        </DropdownMenuItem>
                                         <DropdownMenuItem
                                             className="text-red-600 focus:bg-red-50 focus:text-red-700 cursor-pointer"
                                             onClick={async () => {
