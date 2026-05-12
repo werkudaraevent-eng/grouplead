@@ -220,7 +220,20 @@ export function LeadDashboard() {
                 break
             case 'manual':
             default:
-                // Keep existing order from fetch (kanban_sort_order DESC, created_at DESC)
+                // Sort by kanban_sort_order DESC (falls back to created_at DESC).
+                // Client-side sort is required so optimistic DnD updates stay
+                // in sync — after a drag, parent state keeps the fetched array
+                // order but row values change; we must re-sort to reflect them.
+                sorted.sort((a, b) => {
+                    const sa = a.kanban_sort_order
+                    const sb = b.kanban_sort_order
+                    if (sa != null && sb != null && sa !== sb) return sb - sa
+                    if (sa != null && sb == null) return -1
+                    if (sa == null && sb != null) return 1
+                    const ta = a.created_at ? new Date(a.created_at).getTime() : 0
+                    const tb = b.created_at ? new Date(b.created_at).getTime() : 0
+                    return tb - ta
+                })
                 break
         }
 
