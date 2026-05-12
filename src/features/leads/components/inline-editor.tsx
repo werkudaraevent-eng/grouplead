@@ -219,6 +219,20 @@ export function InlineEditor({
         setIsEditing(false)
     }
 
+    // ── Auto-save on click outside (Notion/Linear pattern) ────────────
+    // Returns true if save was triggered, false otherwise
+    const handleSaveOrClose = async () => {
+        const html = editorContentRef.current
+        const stripped = html.replace(/<[^>]*>/g, '').trim()
+        const saveValue = stripped ? html : null
+        const isDirty = saveValue !== (initialValue || null)
+        if (isDirty) {
+            await handleSave()
+        } else {
+            setIsEditing(false)
+        }
+    }
+
     // ── EDIT MODE ─────────────────────────────────────────────
     if (isEditing) {
         return (
@@ -229,6 +243,13 @@ export function InlineEditor({
                 onContentChange={(html) => { editorContentRef.current = html }}
                 onSave={handleSave}
                 onCancel={handleCancel}
+                onBlurSave={handleSaveOrClose}
+                hasUnsavedChanges={() => {
+                    const html = editorContentRef.current
+                    const stripped = html.replace(/<[^>]*>/g, '').trim()
+                    const saveValue = stripped ? html : null
+                    return saveValue !== (initialValue || null)
+                }}
             />
         )
     }
@@ -282,6 +303,8 @@ function TiptapEditMode({
     onContentChange,
     onSave,
     onCancel,
+    onBlurSave,
+    hasUnsavedChanges,
 }: {
     initialValue: string
     placeholder: string
@@ -289,7 +312,12 @@ function TiptapEditMode({
     onContentChange: (html: string) => void
     onSave: () => void
     onCancel: () => void
+    onBlurSave: () => void
+    hasUnsavedChanges: () => boolean
 }) {
+    const containerRef = useRef<HTMLDivElement>(null)
+    const [showDiscardConfirm, setShowDiscardConfirm] = useState(false)
+
     const editor = useEditor({
         immediatelyRender: false,
         extensions: [
@@ -316,7 +344,11 @@ function TiptapEditMode({
                 }
                 if (event.key === 'Escape') {
                     event.preventDefault()
-                    onCancel()
+                    if (hasUnsavedChanges()) {
+                        setShowDiscardConfirm(true)
+                    } else {
+                        onCancel()
+                    }
                     return true
                 }
                 return false
@@ -328,6 +360,25 @@ function TiptapEditMode({
         autofocus: 'end',
     })
 
+    // Click-outside handler — auto-save (Notion/Linear pattern)
+    useEffect(() => {
+        const handleMouseDown = (e: MouseEvent) => {
+            const target = e.target as Node | null
+            if (!target || !containerRef.current) return
+            if (containerRef.current.contains(target)) return
+            // Skip if clicking inside a dropdown/popover/dialog that's mounted in portal
+            const portalRoots = document.querySelectorAll('[data-radix-popper-content-wrapper], [role="dialog"], [role="menu"]')
+            for (const root of portalRoots) {
+                if (root.contains(target)) return
+            }
+            // Don't save while already saving or discard dialog open
+            if (isSaving || showDiscardConfirm) return
+            onBlurSave()
+        }
+        document.addEventListener('mousedown', handleMouseDown)
+        return () => document.removeEventListener('mousedown', handleMouseDown)
+    }, [onBlurSave, isSaving, showDiscardConfirm])
+
     // Cleanup
     useEffect(() => {
         return () => { editor?.destroy() }
@@ -336,21 +387,36 @@ function TiptapEditMode({
     if (!editor) return null
 
     return (
-        <div className="animate-in fade-in duration-200 rounded-lg border border-blue-200 shadow-sm overflow-hidden bg-white">
+        <div ref={containerRef} className="animate-in fade-in duration-200 rounded-lg border border-blue-200 shadow-sm overflow-hidden bg-white relative">
             <EditorToolbar editor={editor} />
             <EditorContent editor={editor} />
             <div className="flex items-center justify-between px-3 py-2.5 border-t border-slate-100 bg-slate-50/60">
-                <p className="text-[10px] text-slate-400 select-none">
-                    <kbd className="px-1 py-0.5 bg-white border border-slate-200 rounded text-[9px] font-mono">Ctrl+Enter</kbd>{" "}save
-                    {" · "}
-                    <kbd className="px-1 py-0.5 bg-white border border-slate-200 rounded text-[9px] font-mono">Esc</kbd>{" "}cancel
+                <p className="text-[10px] text-slate-400 select-none flex items-center gap-2">
+                    {isSaving ? (
+                        <span className="inline-flex items-center gap-1 text-blue-600">
+                            <Loader2 className="h-3 w-3 animate-spin" /> Saving…
+                        </span>
+                    ) : (
+                        <>
+                            <span>Click outside to save</span>
+                            <span className="text-slate-300">·</span>
+                            <kbd className="px-1 py-0.5 bg-white border border-slate-200 rounded text-[9px] font-mono">Esc</kbd>
+                            <span>to discard</span>
+                        </>
+                    )}
                 </p>
                 <div className="flex gap-2">
                     <Button
                         variant="ghost"
                         size="sm"
                         className="h-7 text-xs px-2.5 text-slate-500 hover:text-slate-700"
-                        onClick={onCancel}
+                        onClick={() => {
+                            if (hasUnsavedChanges()) {
+                                setShowDiscardConfirm(true)
+                            } else {
+                                onCancel()
+                            }
+                        }}
                         disabled={isSaving}
                     >
                         <X className="h-3 w-3 mr-1" /> Cancel
@@ -369,6 +435,36 @@ function TiptapEditMode({
                     </Button>
                 </div>
             </div>
+
+            {/* Inline discard confirmation overlay */}
+            {showDiscardConfirm && (
+                <div className="absolute inset-0 bg-white/95 backdrop-blur-sm flex items-center justify-center z-10 animate-in fade-in duration-150">
+                    <div className="bg-white border border-slate-200 rounded-lg shadow-lg px-5 py-4 max-w-[320px] text-center">
+                        <p className="text-[13px] font-semibold text-slate-800 mb-1">Discard changes?</p>
+                        <p className="text-[11.5px] text-slate-500 mb-3">Your edits will be lost.</p>
+                        <div className="flex gap-2 justify-center">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-7 text-xs px-3"
+                                onClick={() => setShowDiscardConfirm(false)}
+                            >
+                                Keep editing
+                            </Button>
+                            <Button
+                                size="sm"
+                                className="h-7 text-xs px-3 bg-red-600 hover:bg-red-700 text-white"
+                                onClick={() => {
+                                    setShowDiscardConfirm(false)
+                                    onCancel()
+                                }}
+                            >
+                                Discard
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     )
 }
