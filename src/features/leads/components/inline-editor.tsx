@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef, useEffect, useCallback, useLayoutEffect } from "react"
+import { useState, useRef, useEffect, useCallback } from "react"
 import { createClient } from "@/utils/supabase/client"
 import { Button } from "@/components/ui/button"
 import { toast } from "sonner"
@@ -9,7 +9,7 @@ import { updateLeadFieldAction } from "@/app/actions/lead-actions"
 import {
     Pencil, Check, X, Loader2, Plus,
     Bold, Italic, Underline as UnderlineIcon, List, ListOrdered,
-    Heading2, Undo2, Redo2, Link2, ChevronDown, ChevronUp,
+    Heading2, Undo2, Redo2, Link2,
 } from "lucide-react"
 
 import { useEditor, EditorContent, type Editor } from "@tiptap/react"
@@ -233,10 +233,21 @@ export function InlineEditor({
     return (
         <div className="group relative">
             {hasValue ? (
-                <ReadModeContent
-                    htmlValue={htmlValue}
-                    onEdit={() => setIsEditing(true)}
-                />
+                <>
+                    {/* Edit button — floating top-right, hover reveal (Attio/Notion pattern) */}
+                    <button
+                        onClick={() => setIsEditing(true)}
+                        className="absolute top-0 right-0 z-10 opacity-0 group-hover:opacity-100 transition-opacity inline-flex items-center gap-1.5 text-[11px] text-slate-500 bg-white/90 backdrop-blur border border-slate-200 rounded-md px-2 py-1 font-medium shadow-sm hover:text-blue-600 hover:border-blue-300 cursor-pointer"
+                    >
+                        <Pencil className="h-3 w-3" /> Edit
+                    </button>
+
+                    {/* Rendered HTML — full natural flow, comfortable typography */}
+                    <div
+                        className="tiptap-readonly text-[14px] text-slate-700 leading-[1.75] select-text pr-16"
+                        dangerouslySetInnerHTML={{ __html: htmlValue }}
+                    />
+                </>
             ) : (
                 <button
                     onClick={() => setIsEditing(true)}
@@ -253,88 +264,6 @@ export function InlineEditor({
                     </div>
                 </button>
             )}
-        </div>
-    )
-}
-
-// ─── Read-mode content with collapse/expand for long text ─────
-// Pattern: Notion, Linear, Attio — preview ~240px height with gradient fade,
-// then "Show full" reveals everything. Reading width capped at 760px.
-const COLLAPSED_MAX_HEIGHT = 240 // px
-
-function ReadModeContent({ htmlValue, onEdit }: { htmlValue: string; onEdit: () => void }) {
-    const contentRef = useRef<HTMLDivElement>(null)
-    const [isExpanded, setIsExpanded] = useState(false)
-    const [needsCollapse, setNeedsCollapse] = useState(false)
-
-    // Measure content after render — decide if we need collapse/expand UI
-    useLayoutEffect(() => {
-        if (!contentRef.current) return
-        const el = contentRef.current
-        // Temporarily unset maxHeight so we can measure true height
-        const prev = el.style.maxHeight
-        el.style.maxHeight = "none"
-        const full = el.scrollHeight
-        el.style.maxHeight = prev
-        setNeedsCollapse(full > COLLAPSED_MAX_HEIGHT + 40) // +40 to avoid flicker when almost equal
-    }, [htmlValue])
-
-    const showCollapsed = needsCollapse && !isExpanded
-
-    return (
-        <div>
-            {/* Header row with Edit — always visible, predictable location */}
-            <div className="flex items-center justify-end mb-2 h-6">
-                <button
-                    onClick={onEdit}
-                    className="opacity-0 group-hover:opacity-100 inline-flex items-center gap-1.5 text-[11px] text-slate-500 bg-white border border-slate-200 rounded-md px-2.5 py-1 font-medium shadow-sm hover:text-blue-600 hover:border-blue-300 transition-all cursor-pointer"
-                >
-                    <Pencil className="h-3 w-3" /> Edit
-                </button>
-            </div>
-
-            {/* Reading-width content wrapper */}
-            <div className="max-w-[760px]">
-                <div className="relative">
-                    <div
-                        ref={contentRef}
-                        className="tiptap-readonly text-[14px] text-slate-700 leading-[1.75] select-text transition-[max-height] duration-200 ease-out overflow-hidden"
-                        style={{
-                            maxHeight: showCollapsed ? `${COLLAPSED_MAX_HEIGHT}px` : undefined,
-                        }}
-                        dangerouslySetInnerHTML={{ __html: htmlValue }}
-                    />
-
-                    {/* Gradient fade-out when collapsed */}
-                    {showCollapsed && (
-                        <div
-                            className="pointer-events-none absolute inset-x-0 bottom-0 h-16"
-                            style={{
-                                background:
-                                    "linear-gradient(to bottom, rgba(255,255,255,0) 0%, rgba(255,255,255,0.85) 60%, rgba(255,255,255,1) 100%)",
-                            }}
-                        />
-                    )}
-                </div>
-
-                {/* Expand / Collapse toggle — only when content overflows */}
-                {needsCollapse && (
-                    <button
-                        onClick={() => setIsExpanded((v) => !v)}
-                        className="mt-2 inline-flex items-center gap-1.5 text-[12px] font-medium text-blue-600 hover:text-blue-700 transition-colors"
-                    >
-                        {isExpanded ? (
-                            <>
-                                <ChevronUp className="h-3.5 w-3.5" /> Show less
-                            </>
-                        ) : (
-                            <>
-                                <ChevronDown className="h-3.5 w-3.5" /> Show full content
-                            </>
-                        )}
-                    </button>
-                )}
-            </div>
         </div>
     )
 }
