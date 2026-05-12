@@ -40,6 +40,11 @@ import type { CustomWidgetInput } from "@/types/custom-widget"
 import { createClient } from "@/utils/supabase/client"
 import { useCompany } from "@/contexts/company-context"
 import { resolveLeadField, resolveCompanyName } from "@/lib/resolve-lead-field"
+import { useDashboardViews } from "@/features/leads/hooks/use-dashboard-views"
+import { DashboardViewSwitcher } from "./dashboard-view-switcher"
+import type { DashboardFiltersSnapshot } from "@/types/dashboard-view"
+import type { LayoutItem } from "react-grid-layout"
+import type { WidgetId } from "@/features/leads/lib/dashboard-layout"
 
 // ─── Helper ─────────────────────────────────────────────────────────────────
 function getStageComparisonLabel(period: string) {
@@ -88,6 +93,115 @@ export function AnalyticsDashboard({
     const [revenueBasis, setRevenueBasis] = useState<RevenueBasis>("revenue_recognition")
     const [scrolled, setScrolled] = useState(false)
     const scrollRef = useRef<HTMLElement | null>(null)
+
+    // ─── Dashboard views (saved layouts + filters) ────────────────────────
+    const views = useDashboardViews()
+    const [isDashboardEditing, setIsDashboardEditing] = useState(false)
+    // Grid owns the live (possibly unsaved) layout while the user edits.
+    // We receive it back through a ref on the persist callback. For the
+    // "unsaved changes" indicator and Save flow, we also mirror the latest
+    // layout from the grid into state via onPersistLayout.
+    const pendingGridRef = useRef<{ layout: LayoutItem[]; hidden: WidgetId[] } | null>(null)
+
+    // Track when filters have drifted from the active view's saved snapshot.
+    const activeViewFilters = views.activeView?.filters ?? null
+    const currentFiltersSnapshot: DashboardFiltersSnapshot = useMemo(() => ({
+        period: periodStr,
+        customStart,
+        customEnd,
+        companyFilter,
+        revenueBasis,
+        catToggle,
+        streamToggle,
+        trendYear,
+    }), [periodStr, customStart, customEnd, companyFilter, revenueBasis, catToggle, streamToggle, trendYear])
+
+    // Seed filter state from active view (only on view switch, not on every render).
+    const seededViewIdRef = useRef<string | null>(null)
+    useEffect(() => {
+        const v = views.activeView
+        if (!v) return
+        if (seededViewIdRef.current === v.id) return
+        seededViewIdRef.current = v.id
+        const f = v.filters ?? {}
+        if (typeof f.period === "string") setPeriodStr(f.period)
+        if (typeof f.customStart === "string") setCustomStart(f.customStart)
+        if (typeof f.customEnd === "string") setCustomEnd(f.customEnd)
+        if (typeof f.companyFilter === "string") setCompanyFilter(f.companyFilter)
+        if (typeof f.revenueBasis === "string") setRevenueBasis(f.revenueBasis as RevenueBasis)
+        if (typeof f.catToggle === "string") setCatToggle(f.catToggle)
+        if (typeof f.streamToggle === "string") setStreamToggle(f.streamToggle)
+        if (typeof f.trendYear === "number") setTrendYear(f.trendYear)
+    }, [views.activeView])
+
+    const filtersEqualSnapshot = useCallback(
+        (a: DashboardFiltersSnapshot | null, b: DashboardFiltersSnapshot): boolean => {
+            if (!a) return false
+            return (
+                (a.period ?? "this_quarter") === (b.period ?? "this_quarter") &&
+                (a.customStart ?? "") === (b.customStart ?? "") &&
+                (a.customEnd ?? "") === (b.customEnd ?? "") &&
+                (a.companyFilter ?? "all") === (b.companyFilter ?? "all") &&
+                (a.revenueBasis ?? "revenue_recognition") === (b.revenueBasis ?? "revenue_recognition") &&
+                (a.catToggle ?? "category") === (b.catToggle ?? "category") &&
+                (a.streamToggle ?? "main_stream") === (b.streamToggle ?? "main_stream") &&
+                (a.trendYear ?? 0) === (b.trendYear ?? 0)
+            )
+        },
+        [],
+    )
+
+    const hasUnsavedFilterChanges = useMemo(() => {
+        if (!views.activeView) return false
+        return !filtersEqualSnapshot(activeViewFilters, currentFiltersSnapshot)
+    }, [views.activeView, activeViewFilters, currentFiltersSnapshot, filtersEqualSnapshot])
+
+    const handlePersistLayout = useCallback(
+        async (layout: LayoutItem[], hidden: WidgetId[]) => {
+            pendingGridRef.current = { layout, hidden }
+            const target = views.activeView
+            if (!target) return
+            await views.updateView({
+                id: target.id,
+                name: target.name,
+                layout_data: layout,
+                hidden_widgets: hidden,
+                filters: currentFiltersSnapshot,
+            })
+        },
+        [views, currentFiltersSnapshot],
+    )
+
+    // Save-current handler exposed to the switcher menu ("Save changes to this view").
+    const handleSaveCurrentView = useCallback(async () => {
+        const target = views.activeView
+        if (!target) return
+        const pending = pendingGridRef.current
+        await views.updateView({
+            id: target.id,
+            name: target.name,
+            layout_data: pending?.layout ?? target.layout_data,
+            hidden_widgets: pending?.hidden ?? target.hidden_widgets,
+            filters: currentFiltersSnapshot,
+        })
+    }, [views, currentFiltersSnapshot])
+
+    // Save-as-new handler exposed to the switcher menu.
+    const handleSaveAsNewView = useCallback(
+        async (name: string) => {
+            const current = views.activeView
+            const pending = pendingGridRef.current
+            await views.createView({
+                name,
+                layout_data: pending?.layout ?? current?.layout_data ?? [],
+                hidden_widgets: pending?.hidden ?? current?.hidden_widgets ?? [],
+                filters: currentFiltersSnapshot,
+                is_default: false,
+            })
+        },
+        [views, currentFiltersSnapshot],
+    )
+
     // Company-filtered leads (for holding view)
     const filteredLeads = useMemo(() => {
         if (!isHoldingView || companyFilter === "all") return leads
@@ -895,6 +1009,24 @@ export function AnalyticsDashboard({
                         <DashboardAIToolbar dashboardData={aiContextData} />
                     </div>
 
+                    {/* Saved-view switcher — always rendered in header (independent of grid load state). */}
+                    <div style={{ display: "flex", alignItems: "center", borderLeft: "1px solid #f0f0f0", paddingLeft: 8, marginLeft: 2 }}>
+                        <DashboardViewSwitcher
+                            views={views.views}
+                            activeView={views.activeView}
+                            loading={views.loading}
+                            hasUnsavedChanges={hasUnsavedFilterChanges}
+                            isEditMode={isDashboardEditing}
+                            onSelectView={(id) => views.setActiveViewId(id)}
+                            onSaveCurrent={handleSaveCurrentView}
+                            onSaveAsNew={handleSaveAsNewView}
+                            onRename={(id, name) => views.renameView(id, name)}
+                            onSetDefault={(id) => views.setDefault(id)}
+                            onDuplicate={(id) => views.duplicateView(id)}
+                            onDelete={(id) => views.deleteView(id)}
+                        />
+                    </div>
+
                     {/* Separator + Edit controls */}
                     <div id="dashboard-edit-controls" style={{ display: "flex", alignItems: "center", borderLeft: "1px solid #f0f0f0", paddingLeft: 8, marginLeft: 2 }} />
                 </div>
@@ -909,6 +1041,11 @@ export function AnalyticsDashboard({
                     onCreateCustomWidget={() => { setEditingWidget(null); setShowConfigurator(true) }}
                     onEditCustomWidget={(w) => { setEditingWidget(w); setShowConfigurator(true) }}
                     onDeleteCustomWidget={handleDeleteCustomWidget}
+                    initialLayout={views.activeView?.layout_data ?? []}
+                    initialHiddenWidgets={views.activeView?.hidden_widgets ?? []}
+                    viewKey={views.activeView?.id ?? "none"}
+                    onPersistLayout={handlePersistLayout}
+                    onEditModeChange={setIsDashboardEditing}
                 >
                     {/* Order MUST match WIDGET_IDS array */}
                     {/* 6 individual KPI cards */}

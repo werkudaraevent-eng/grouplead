@@ -7,21 +7,12 @@ import { Pencil, Check, X, RotateCcw, GripVertical, Plus, LayoutGrid } from "luc
 import {
     getDefaultLayout,
     DEFAULT_HIDDEN_WIDGETS,
-    WIDGET_IDS,
     GRID_COLS,
     GRID_ROW_HEIGHT,
     WIDGET_LABELS,
     type WidgetId,
-    saveLayoutToLocal,
-    loadLayoutFromLocal,
-    clearLocalLayout,
-    saveLayoutToSupabase,
-    loadLayoutFromSupabase,
-    resetLayoutInSupabase,
-    saveHiddenToLocal,
-    loadHiddenFromLocal,
-    clearHiddenLocal,
 } from "@/features/leads/lib/dashboard-layout"
+import type { CustomWidget } from "@/types/custom-widget"
 
 import "react-grid-layout/css/styles.css"
 import "react-resizable/css/styles.css"
@@ -32,13 +23,41 @@ const ALL_RESIZE_HANDLES = ["n", "s", "e", "w", "ne", "nw", "se", "sw"] as const
 interface DashboardGridProps {
     children: React.ReactNode
     widgetIds: WidgetId[]
-    customWidgets?: { id: string; title: string }[]
+    customWidgets?: CustomWidget[]
     onCreateCustomWidget?: () => void
-    onEditCustomWidget?: (widget: any) => void
+    onEditCustomWidget?: (widget: CustomWidget) => void
     onDeleteCustomWidget?: (widgetId: string) => void
+    /**
+     * View-aware integration (optional for backward compat).
+     * Parent owns the persisted layout/hidden state for the active view.
+     * When provided, the grid becomes controlled and bubbles changes up.
+     */
+    initialLayout?: LayoutItem[]
+    initialHiddenWidgets?: WidgetId[]
+    /** Opaque key to force re-seeding from props when active view changes. */
+    viewKey?: string
+    /** Called when the user clicks "Save" in edit mode. */
+    onPersistLayout?: (layout: LayoutItem[], hiddenWidgets: WidgetId[]) => Promise<void> | void
+    /** Called when user enters/exits edit mode (so parent can block view switching). */
+    onEditModeChange?: (isEditing: boolean) => void
+    /** Extra controls to render alongside Edit/Save buttons (e.g. view switcher). */
+    extraHeaderControls?: React.ReactNode
 }
 
-export function DashboardGrid({ children, widgetIds, customWidgets = [], onCreateCustomWidget, onEditCustomWidget, onDeleteCustomWidget }: DashboardGridProps) {
+export function DashboardGrid({
+    children,
+    widgetIds,
+    customWidgets = [],
+    onCreateCustomWidget,
+    onEditCustomWidget,
+    onDeleteCustomWidget,
+    initialLayout,
+    initialHiddenWidgets,
+    viewKey,
+    onPersistLayout,
+    onEditModeChange,
+    extraHeaderControls,
+}: DashboardGridProps) {
     const [isEditing, setIsEditing] = useState(false)
     const [layout, setLayout] = useState<LayoutItem[]>([...getDefaultLayout()])
     const [loaded, setLoaded] = useState(false)
@@ -92,73 +111,37 @@ export function DashboardGrid({ children, widgetIds, customWidgets = [], onCreat
         }
     }, [])
 
-    // Validate that a saved layout contains all current widget IDs
-    const isLayoutValid = useCallback((saved: any): boolean => {
-        const layoutItems = Array.isArray(saved) ? saved : (saved?.lg || Object.values(saved)[0])
-        if (!layoutItems || !Array.isArray(layoutItems)) return false
-        const savedIds = new Set(layoutItems.map((item: any) => item.i))
-        return WIDGET_IDS.every(id => savedIds.has(id))
+    // Merge saved layout with defaults: keep saved positions for widgets that
+    // are still present, fill any missing widgets from the current defaults.
+    // This lets us adopt new widgets without invalidating older saved layouts.
+    const mergeWithDefaults = useCallback((saved: LayoutItem[] | null | undefined): LayoutItem[] => {
+        const defaults = getDefaultLayout()
+        if (!saved || saved.length === 0) return [...defaults]
+        const savedById = new Map(saved.map(item => [item.i, item]))
+        return defaults.map(def => savedById.get(def.i) ?? def).concat(
+            // Preserve any custom widget layouts (not in defaults) from saved.
+            saved.filter(item => !defaults.some(d => d.i === item.i)),
+        )
     }, [])
 
-    // Load saved layout on mount
+    // Seed layout/hidden from the active view whenever it changes.
+    // `viewKey` changes when the parent switches to a different view, forcing a
+    // fresh re-seed even if the layout arrays happen to share a reference.
     useEffect(() => {
-        let cancelled = false
-        async function load() {
-            // Try Supabase first
-            try {
-                const remote = await loadLayoutFromSupabase()
-                console.log('[DashboardGrid:load] Supabase result:', JSON.stringify({
-                    hasLayout: !!remote.layout,
-                    itemCount: remote.layout?.length ?? 0,
-                    valid: remote.layout ? isLayoutValid(remote.layout) : false,
-                    hasHidden: !!remote.hiddenWidgets,
-                    sample: remote.layout?.[0] ? `${remote.layout[0].i}: w=${remote.layout[0].w}` : 'none',
-                }))
-                if (!cancelled && remote.layout && isLayoutValid(remote.layout)) {
-                    setLayout([...remote.layout])
-                    saveLayoutToLocal(remote.layout)
-                    if (remote.hiddenWidgets) {
-                        setHiddenWidgets(new Set(remote.hiddenWidgets))
-                        saveHiddenToLocal(remote.hiddenWidgets)
-                    }
-                    setLoaded(true)
-                    return
-                }
-            } catch (err) {
-                console.warn('[DashboardGrid:load] Supabase error:', err)
-            }
-
-            // Try localStorage
-            const local = loadLayoutFromLocal()
-            console.log('[DashboardGrid:load] localStorage result:', JSON.stringify({
-                hasLayout: !!local,
-                itemCount: local?.length ?? 0,
-                valid: local ? isLayoutValid(local) : false,
-            }))
-            if (!cancelled && local && isLayoutValid(local)) {
-                setLayout([...local])
-                const localHidden = loadHiddenFromLocal()
-                if (localHidden) setHiddenWidgets(new Set(localHidden))
-                setLoaded(true)
-                return
-            }
-
-            // Fall back to defaults
-            if (!cancelled) {
-                console.log('[DashboardGrid:load] Using defaults')
-                const defaults = getDefaultLayout()
-                setLayout([...defaults])
-                setHiddenWidgets(new Set(DEFAULT_HIDDEN_WIDGETS))
-                saveLayoutToLocal(defaults)
-                saveHiddenToLocal([...DEFAULT_HIDDEN_WIDGETS])
-                saveLayoutToSupabase(defaults, [...DEFAULT_HIDDEN_WIDGETS])
-                setLoaded(true)
-            }
+        if (initialLayout !== undefined || initialHiddenWidgets !== undefined) {
+            const nextLayout = mergeWithDefaults(initialLayout)
+            setLayout(nextLayout)
+            setHiddenWidgets(new Set(initialHiddenWidgets ?? []))
+            setLoaded(true)
+            return
         }
-        load()
-        return () => { cancelled = true }
+        // Legacy fallback: when the grid is rendered without view props,
+        // use built-in defaults. Real persistence flows through the parent now.
+        setLayout([...getDefaultLayout()])
+        setHiddenWidgets(new Set(DEFAULT_HIDDEN_WIDGETS))
+        setLoaded(true)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [])
+    }, [viewKey])
 
     // Ensure custom widgets have layout entries
     useEffect(() => {
@@ -196,23 +179,25 @@ export function DashboardGrid({ children, widgetIds, customWidgets = [], onCreat
         preEditLayoutRef.current = JSON.parse(JSON.stringify(layout))
         preEditHiddenRef.current = new Set(hiddenWidgets)
         setIsEditing(true)
-    }, [layout, hiddenWidgets])
+        onEditModeChange?.(true)
+    }, [layout, hiddenWidgets, onEditModeChange])
 
     const handleSave = useCallback(async () => {
         setSaving(true)
         const hiddenArray = [...hiddenWidgets] as WidgetId[]
-        const kpi = layout.find(item => item.i === 'kpi-won-revenue')
-        console.log('[DashboardGrid] Saving layout:', layout.length, 'items. kpi-won-revenue:', kpi ? `w=${kpi.w} h=${kpi.h}` : 'not found')
-        saveLayoutToLocal(layout)
-        saveHiddenToLocal(hiddenArray)
-        const saved = await saveLayoutToSupabase(layout, hiddenArray)
-        console.log('[DashboardGrid] Supabase save result:', saved)
-        setSaving(false)
-        setIsEditing(false)
-        setSelectedWidget(null)
-        preEditLayoutRef.current = null
-        preEditHiddenRef.current = null
-    }, [layout, hiddenWidgets])
+        try {
+            if (onPersistLayout) {
+                await onPersistLayout(layout, hiddenArray)
+            }
+        } finally {
+            setSaving(false)
+            setIsEditing(false)
+            setSelectedWidget(null)
+            preEditLayoutRef.current = null
+            preEditHiddenRef.current = null
+            onEditModeChange?.(false)
+        }
+    }, [layout, hiddenWidgets, onPersistLayout, onEditModeChange])
 
     const handleCancel = useCallback(() => {
         if (preEditLayoutRef.current) {
@@ -226,22 +211,16 @@ export function DashboardGrid({ children, widgetIds, customWidgets = [], onCreat
         setSelectedWidget(null)
         preEditLayoutRef.current = null
         preEditHiddenRef.current = null
-    }, [])
+        onEditModeChange?.(false)
+    }, [onEditModeChange])
 
     const handleReset = useCallback(async () => {
+        // Reset the in-memory edit buffer to built-in defaults. Persistence
+        // happens only when the user clicks Save, which keeps cancel safe.
         const defaults = getDefaultLayout()
-        const defaultHidden = new Set(DEFAULT_HIDDEN_WIDGETS)
         setLayout([...defaults])
-        setHiddenWidgets(defaultHidden)
+        setHiddenWidgets(new Set(DEFAULT_HIDDEN_WIDGETS))
         setShowGallery(false)
-        clearLocalLayout()
-        clearHiddenLocal()
-        setSaving(true)
-        await resetLayoutInSupabase()
-        saveLayoutToLocal(defaults)
-        saveHiddenToLocal([...DEFAULT_HIDDEN_WIDGETS])
-        await saveLayoutToSupabase(defaults, [...DEFAULT_HIDDEN_WIDGETS])
-        setSaving(false)
     }, [])
 
     const handleRemoveWidget = useCallback((id: WidgetId) => {
@@ -386,19 +365,23 @@ export function DashboardGrid({ children, widgetIds, customWidgets = [], onCreat
                 </button>
             </div>
         ) : (
-            <button
-                onClick={handleStartEdit}
-                style={{
-                    display: "flex", alignItems: "center", gap: 6,
-                    background: "#fff", border: "1px solid #e5e8ed", borderRadius: 7,
-                    padding: "5px 12px", fontSize: 11, fontWeight: 600, color: "#02378D",
-                    cursor: "pointer", fontFamily: "inherit",
-                    boxShadow: "0 1px 2px rgba(0,0,0,.03)",
-                    whiteSpace: "nowrap",
-                }}
-            >
-                <Pencil style={{ width: 12, height: 12 }} /> Edit Dashboard
-            </button>
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                {/* Parent-injected controls (e.g. saved-view switcher). */}
+                {extraHeaderControls}
+                <button
+                    onClick={handleStartEdit}
+                    style={{
+                        display: "flex", alignItems: "center", gap: 6,
+                        background: "#fff", border: "1px solid #e5e8ed", borderRadius: 7,
+                        padding: "5px 12px", fontSize: 11, fontWeight: 600, color: "#02378D",
+                        cursor: "pointer", fontFamily: "inherit",
+                        boxShadow: "0 1px 2px rgba(0,0,0,.03)",
+                        whiteSpace: "nowrap",
+                    }}
+                >
+                    <Pencil style={{ width: 12, height: 12 }} /> Edit Dashboard
+                </button>
+            </div>
         )
     ) : null
 
