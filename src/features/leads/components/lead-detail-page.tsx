@@ -330,7 +330,28 @@ export function LeadDetailPage({ lead, prevLeadId, nextLeadId, lastModifiedBy = 
                             <div className="w-px h-5 bg-slate-200 block" />
 
                             <div className="flex items-center gap-2">
-                                {/* Activated 3-Dot Menu */}
+                                <Button
+                                    onClick={handleExportPdf}
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-9 border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:text-slate-900"
+                                >
+                                    <Download className="h-3.5 w-3.5 mr-1.5" />
+                                    Export PDF
+                                </Button>
+
+                                <PermissionGate resource="leads" action="update">
+                                    <Button
+                                        onClick={() => setEditOpen(true)}
+                                        size="sm"
+                                        className="h-9 bg-slate-900 hover:bg-slate-800 text-white"
+                                    >
+                                        <Pencil className="h-3.5 w-3.5 mr-1.5" />
+                                        Edit Details
+                                    </Button>
+                                </PermissionGate>
+
+                                {/* Overflow only for destructive/rare actions */}
                                 <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
                                         <button className="w-9 h-9 flex items-center justify-center rounded-lg border border-slate-200 text-slate-400 hover:text-slate-700 hover:bg-slate-50 transition-colors">
@@ -338,13 +359,6 @@ export function LeadDetailPage({ lead, prevLeadId, nextLeadId, lastModifiedBy = 
                                         </button>
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent align="end" className="w-48">
-                                        <DropdownMenuItem
-                                            className="cursor-pointer"
-                                            onClick={handleExportPdf}
-                                        >
-                                            <Download className="h-4 w-4 mr-2" />
-                                            Export PDF
-                                        </DropdownMenuItem>
                                         <DropdownMenuItem
                                             className="text-red-600 focus:bg-red-50 focus:text-red-700 cursor-pointer"
                                             onClick={async () => {
@@ -363,16 +377,6 @@ export function LeadDetailPage({ lead, prevLeadId, nextLeadId, lastModifiedBy = 
                                         </DropdownMenuItem>
                                     </DropdownMenuContent>
                                 </DropdownMenu>
-                                <PermissionGate resource="leads" action="update">
-                                    <Button
-                                        onClick={() => setEditOpen(true)}
-                                        size="sm"
-                                        className="h-9 bg-slate-900 hover:bg-slate-800 text-white"
-                                    >
-                                        <Pencil className="h-3.5 w-3.5 mr-1.5" />
-                                        Edit Details
-                                    </Button>
-                                </PermissionGate>
                             </div>
                         </div>
                     </div>
