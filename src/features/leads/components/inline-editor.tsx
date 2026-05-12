@@ -5,6 +5,7 @@ import { createClient } from "@/utils/supabase/client"
 import { Button } from "@/components/ui/button"
 import { toast } from "sonner"
 import { useRouter } from "next/navigation"
+import { updateLeadFieldAction } from "@/app/actions/lead-actions"
 import {
     Pencil, Check, X, Loader2, Plus,
     Bold, Italic, Underline as UnderlineIcon, List, ListOrdered,
@@ -174,35 +175,9 @@ export function InlineEditor({
         }
         setIsSaving(true)
         try {
-            const updatePayload = { [fieldPath]: saveValue }
-            const { error: updateError } = await supabase
-                .from("leads")
-                .update(updatePayload)
-                .eq("id", leadId)
-                .select()
-                .single()
-
-            if (updateError) throw updateError
-
-            // Audit trail (non-blocking)
-            const oldSnippet = (initialValue || "").replace(/<[^>]*>/g, '').slice(0, 120)
-            const newSnippet = (saveValue || "").replace(/<[^>]*>/g, '').slice(0, 120)
-            const { data: { user } } = await supabase.auth.getUser()
-
-            supabase
-                .from("lead_activities")
-                .insert({
-                    lead_id: leadId,
-                    user_id: user?.id || null,
-                    action_type: "field_update",
-                    field_name: fieldPath,
-                    description: `Updated ${label}`,
-                    old_value: oldSnippet || null,
-                    new_value: newSnippet || null,
-                })
-                .then(({ error: logError }) => {
-                    if (logError) console.error("Audit log failed:", logError)
-                })
+            // Use server action — writes to leads + lead_activities + global audit_logs
+            const result = await updateLeadFieldAction(leadId, fieldPath, saveValue, label)
+            if (!result.success) throw new Error(result.error)
 
             toast.success(`${label} saved`)
             setIsEditing(false)

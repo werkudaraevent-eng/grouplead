@@ -1029,3 +1029,79 @@ export async function importHistoricalLeadsAction(
     revalidatePath("/leads")
     return { success, failed, errors }
 }
+
+/**
+ * Update a single rich-text field on a lead (general_brief, production_sow,
+ * special_remarks) with full audit trail. Used by the inline editor.
+ */
+export async function updateLeadFieldAction(
+    leadId: number,
+    fieldPath: string,
+    value: string | null,
+    label: string
+): Promise<ActionResult<{ id: number }>> {
+    try {
+        // Whitelist: only allow editable rich-text fields
+        const ALLOWED_FIELDS = new Set(["general_brief", "production_sow", "special_remarks", "description", "remark"])
+        if (!ALLOWED_FIELDS.has(fieldPath)) {
+            return { success: false, error: `Field '${fieldPath}' is not allowed` }
+        }
+
+        const supabase = await createClient()
+
+        // Fetch old value + lead context for audit
+        const { data: existing, error: fetchError } = await supabase
+            .from("leads")
+            .select(`${fieldPath}, project_name`)
+            .eq("id", leadId)
+            .single()
+
+        if (fetchError) return { success: false, error: fetchError.message }
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const oldValue = (existing as any)?.[fieldPath] as string | null
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const projectName = (existing as any)?.project_name as string | null
+
+        // Update lead
+        const { error: updateError } = await supabase
+            .from("leads")
+            .update({ [fieldPath]: value, updated_at: new Date().toISOString() })
+            .eq("id", leadId)
+
+        if (updateError) return { success: false, error: updateError.message }
+
+        // Local timeline (lead_activities) — visible in lead detail Timeline tab
+        const { data: { user } } = await supabase.auth.getUser()
+        const oldSnippet = (oldValue || "").replace(/<[^>]*>/g, '').slice(0, 120)
+        const newSnippet = (value || "").replace(/<[^>]*>/g, '').slice(0, 120)
+
+        await supabase.from("lead_activities").insert({
+            lead_id: leadId,
+            user_id: user?.id ?? null,
+            action_type: "field_update",
+            field_name: fieldPath,
+            description: `Updated ${label}`,
+            old_value: oldSnippet || null,
+            new_value: newSnippet || null,
+        })
+
+        // Global audit log — visible in /history page
+        await logAuditEvent({
+            action: "update",
+            resource_type: "lead",
+            resource_id: String(leadId),
+            resource_name: projectName || "Untitled",
+            description: `updated ${label} on lead "${projectName || 'Untitled'}"`,
+            metadata: { field: fieldPath },
+        })
+
+        revalidatePath(`/leads/${leadId}`)
+        return { success: true, data: { id: leadId } }
+    } catch (err) {
+        return {
+            success: false,
+            error: err instanceof Error ? err.message : "Unknown error",
+        }
+    }
+}
