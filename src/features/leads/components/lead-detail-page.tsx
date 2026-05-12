@@ -32,6 +32,7 @@ import { TasksTab } from "@/features/leads/components/tasks-tab"
 import { TransitionPromptModal } from "@/features/leads/components/transition-prompt-modal"
 import { useCurrency } from "@/contexts/currency-context"
 import { exportLeadPdf } from "@/features/leads/lib/export-lead-pdf"
+import { useLeadTabUnread } from "@/features/leads/lib/use-lead-tab-unread"
 interface LeadDetailPageProps {
     lead: Lead & { pipeline?: { name: string } | null }
     prevLeadId?: number | null
@@ -47,6 +48,23 @@ export function LeadDetailPage({ lead, prevLeadId, nextLeadId, lastModifiedBy = 
     const [editOpen, setEditOpen] = useState(false)
     const [deleteConfirm, setDeleteConfirm] = useState(false)
     const [exportingPdf, setExportingPdf] = useState(false)
+
+    // Active tab + unread badge tracking (polls every 60s, paused when tab hidden)
+    const [activeTab, setActiveTab] = useState<string>("scope")
+    const { unread, markViewed } = useLeadTabUnread(lead.id)
+
+    // Mark "scope" as viewed on initial load (it's the default tab)
+    useEffect(() => {
+        if (lead.id) markViewed("scope")
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [lead.id])
+
+    const handleTabChange = (value: string) => {
+        setActiveTab(value)
+        if (value === "scope" || value === "notes" || value === "timeline" || value === "tasks") {
+            markViewed(value)
+        }
+    }
 
     // ─── Stage Tracker state ─────────────────────────────
     const [stages, setStages] = useState<PipelineStage[]>([])
@@ -709,14 +727,14 @@ export function LeadDetailPage({ lead, prevLeadId, nextLeadId, lastModifiedBy = 
                     className="flex-1 min-w-0 h-full flex flex-col overflow-y-auto custom-scrollbar relative"
                     onScroll={handleScroll}
                 >
-                    <Tabs defaultValue="scope" className="flex flex-col h-fit pb-12 pr-2">
+                    <Tabs value={activeTab} onValueChange={handleTabChange} className="flex flex-col h-fit pb-12 pr-2">
                         {/* Tab Bar — no box, no gap, fully opaque */}
                         <TabsList className="w-full justify-start rounded-none! bg-white! gap-0! p-0! h-auto! shrink-0 shadow-none! sticky top-0 z-30 border-b border-slate-200">
-                            <TabBtn value="scope" icon={BookOpen} label="Scope & Brief" />
-                            <TabBtn value="notes" icon={FileText} label="Notes" />
-                            <TabBtn value="timeline" icon={Clock} label="Timeline" />
+                            <TabBtn value="scope" icon={BookOpen} label="Scope & Brief" hasBadge={unread.scope} />
+                            <TabBtn value="notes" icon={FileText} label="Notes" hasBadge={unread.notes} />
+                            <TabBtn value="timeline" icon={Clock} label="Timeline" hasBadge={unread.timeline} />
                             <TabBtn value="files" icon={Folder} label="Files" />
-                            <TabBtn value="tasks" icon={CheckSquare} label="Tasks" />
+                            <TabBtn value="tasks" icon={CheckSquare} label="Tasks" hasBadge={unread.tasks} />
                         </TabsList>
 
                         {/* ── SCOPE & BRIEF ── */}
@@ -829,7 +847,7 @@ export function LeadDetailPage({ lead, prevLeadId, nextLeadId, lastModifiedBy = 
 // ═══════════════════════════════════════════════════════════════
 
 /** Tab button — fully custom underline, solid bg, zero leak */
-function TabBtn({ value, icon: Icon, label }: { value: string; icon: typeof Clock; label: string }) {
+function TabBtn({ value, icon: Icon, label, hasBadge }: { value: string; icon: typeof Clock; label: string; hasBadge?: boolean }) {
     return (
         <TabsTrigger
             value={value}
@@ -840,11 +858,18 @@ function TabBtn({ value, icon: Icon, label }: { value: string; icon: typeof Cloc
                 " bg-white! data-[state=active]:bg-white!" +
                 " focus:ring-0! focus-visible:ring-0! focus-visible:ring-offset-0! focus-visible:outline-none!" +
                 " after:bg-blue-600! after:h-[2.5px]! after:bottom-0! after:rounded-full!" +
-                " data-[state=active]:after:opacity-100!"
+                " data-[state=active]:after:opacity-100!" +
+                " relative"
             }
         >
             <Icon className="h-3.5 w-3.5 mr-1.5 shrink-0" />
             {label}
+            {hasBadge && (
+                <span
+                    className="absolute top-1.5 right-1.5 h-1.5 w-1.5 rounded-full bg-red-500 ring-2 ring-white"
+                    aria-label="new updates"
+                />
+            )}
         </TabsTrigger>
     )
 }
