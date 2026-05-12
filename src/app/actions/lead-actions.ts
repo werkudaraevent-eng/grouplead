@@ -75,6 +75,22 @@ export async function createLeadAction(
             }
         }
 
+        // Assign kanban_sort_order if not provided — place above current top
+        // of the target stage so newly created leads always appear on top.
+        // This beats the DB default (epoch now) which drifts below
+        // previously-dragged cards.
+        if (payload.kanban_sort_order == null && payload.pipeline_stage_id) {
+            const { data: topLead } = await supabase
+                .from("leads")
+                .select("kanban_sort_order")
+                .eq("pipeline_stage_id", payload.pipeline_stage_id as string)
+                .order("kanban_sort_order", { ascending: false, nullsFirst: false })
+                .limit(1)
+                .maybeSingle()
+            const currentMax = topLead?.kanban_sort_order ?? Date.now() / 1000
+            payload.kanban_sort_order = Number(currentMax) + 1000
+        }
+
         const { data: newLead, error } = await supabase
             .from("leads")
             .insert(payload)

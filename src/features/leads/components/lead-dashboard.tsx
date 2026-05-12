@@ -27,7 +27,8 @@ import {
     Copy, ListTree, ChevronRight, Pencil, X, Lock, Eye,
     Search, SlidersHorizontal, ChevronDown, ChevronUp,
     Archive, RotateCcw, Settings2, ArchiveRestore, Upload,
-    ChevronsLeft, ChevronsRight, TrendingUp,
+    ChevronsLeft, ChevronsRight, TrendingUp, ArrowUpDown,
+    Check, Clock, CalendarClock, DollarSign, GripVertical,
 } from "lucide-react"
 import { PipelineFilters, PipelineFilterState, INITIAL_FILTER_STATE, ActiveFilterPills, applyFilters } from "@/features/leads/components/pipeline-filters"
 import { PipelineIconPicker, PipelineIcon, DEFAULT_PIPELINE_ICON } from "@/features/leads/components/pipeline-icon-picker"
@@ -127,6 +128,36 @@ export function LeadDashboard() {
     const [searchQuery, setSearchQuery] = useState("")
     const [filters, setFilters] = useState<PipelineFilterState>(INITIAL_FILTER_STATE)
 
+    // ─── Kanban sort preference (persisted per user) ────────────────
+    type KanbanSort = 'manual' | 'newest' | 'oldest' | 'close_date' | 'value_desc' | 'updated'
+    const [kanbanSort, setKanbanSort] = useState<KanbanSort>('newest')
+
+    // Load sort preference from profile.ui_preferences on mount
+    useEffect(() => {
+        const loadSortPref = async () => {
+            const { data: authData } = await supabase.auth.getUser()
+            if (!authData?.user) return
+            const { data: profile } = await supabase.from('profiles').select('ui_preferences').eq('id', authData.user.id).single()
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const uiPrefs = profile?.ui_preferences as any
+            if (uiPrefs?.kanban_sort && typeof uiPrefs.kanban_sort === 'string') {
+                setKanbanSort(uiPrefs.kanban_sort as KanbanSort)
+            }
+        }
+        loadSortPref()
+    }, [supabase])
+
+    const handleSortChange = async (next: KanbanSort) => {
+        setKanbanSort(next)
+        const { data: authData } = await supabase.auth.getUser()
+        if (!authData?.user) return
+        const { data: profile } = await supabase.from('profiles').select('ui_preferences').eq('id', authData.user.id).single()
+        const current = typeof profile?.ui_preferences === 'object' && profile?.ui_preferences ? profile.ui_preferences : {}
+        await supabase.from('profiles').update({
+            ui_preferences: { ...current, kanban_sort: next }
+        }).eq('id', authData.user.id)
+    }
+
     // ─── Filtered leads (client-side) ────────────────────────────────
     const filteredLeads = useMemo(() => {
         let result = leads
@@ -153,8 +184,48 @@ export function LeadDashboard() {
         // Apply dynamic filter rules
         result = applyFilters(result, filters)
 
-        return result
-    }, [leads, searchQuery, filters])
+        // Apply sort order
+        const sorted = [...result]
+        switch (kanbanSort) {
+            case 'newest':
+                sorted.sort((a, b) => {
+                    const ta = a.created_at ? new Date(a.created_at).getTime() : 0
+                    const tb = b.created_at ? new Date(b.created_at).getTime() : 0
+                    return tb - ta
+                })
+                break
+            case 'oldest':
+                sorted.sort((a, b) => {
+                    const ta = a.created_at ? new Date(a.created_at).getTime() : 0
+                    const tb = b.created_at ? new Date(b.created_at).getTime() : 0
+                    return ta - tb
+                })
+                break
+            case 'close_date':
+                sorted.sort((a, b) => {
+                    const da = a.target_close_date ? new Date(a.target_close_date).getTime() : Number.POSITIVE_INFINITY
+                    const db = b.target_close_date ? new Date(b.target_close_date).getTime() : Number.POSITIVE_INFINITY
+                    return da - db
+                })
+                break
+            case 'value_desc':
+                sorted.sort((a, b) => (b.estimated_value ?? 0) - (a.estimated_value ?? 0))
+                break
+            case 'updated':
+                sorted.sort((a, b) => {
+                    const ta = a.updated_at ? new Date(a.updated_at).getTime() : 0
+                    const tb = b.updated_at ? new Date(b.updated_at).getTime() : 0
+                    return tb - ta
+                })
+                break
+            case 'manual':
+            default:
+                // Keep existing order from fetch (kanban_sort_order DESC, created_at DESC)
+                break
+        }
+
+        return sorted
+    }, [leads, searchQuery, filters, kanbanSort])
 
     const handleToggleSelect = (leadId: string, isChecked: boolean) => {
         if (isChecked) {
@@ -963,6 +1034,57 @@ export function LeadDashboard() {
                                 {/* Advanced Pipeline Filters */}
                                 <PipelineFilters leads={leads} filters={filters} setFilters={setFilters} />
 
+                                {/* Kanban Sort Dropdown (only in kanban view) */}
+                                {viewMode === 'kanban' && (
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                className="h-7 px-2 gap-1.5 text-[11px] font-normal border-border/60"
+                                                title="Sort order"
+                                            >
+                                                <ArrowUpDown className="h-3 w-3 text-muted-foreground" />
+                                                <span className="text-foreground">
+                                                    {kanbanSort === 'manual' && 'Manual'}
+                                                    {kanbanSort === 'newest' && 'Newest'}
+                                                    {kanbanSort === 'oldest' && 'Oldest'}
+                                                    {kanbanSort === 'close_date' && 'Close date'}
+                                                    {kanbanSort === 'value_desc' && 'Value'}
+                                                    {kanbanSort === 'updated' && 'Last updated'}
+                                                </span>
+                                            </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end" className="w-56">
+                                            {([
+                                                { key: 'newest', label: 'Newest first', icon: Clock, desc: 'Recently created on top' },
+                                                { key: 'oldest', label: 'Oldest first', icon: Clock, desc: 'Oldest on top' },
+                                                { key: 'close_date', label: 'Close date', icon: CalendarClock, desc: 'Earliest due first' },
+                                                { key: 'value_desc', label: 'Highest value', icon: DollarSign, desc: 'Largest deals first' },
+                                                { key: 'updated', label: 'Last updated', icon: RotateCcw, desc: 'Recent activity' },
+                                                { key: 'manual', label: 'Manual order', icon: GripVertical, desc: 'Drag & drop' },
+                                            ] as const).map((opt) => {
+                                                const Icon = opt.icon
+                                                const active = kanbanSort === opt.key
+                                                return (
+                                                    <DropdownMenuItem
+                                                        key={opt.key}
+                                                        onClick={() => handleSortChange(opt.key as KanbanSort)}
+                                                        className="flex items-start gap-2.5 py-2"
+                                                    >
+                                                        <Icon className="h-3.5 w-3.5 mt-0.5 text-muted-foreground shrink-0" />
+                                                        <div className="flex-1 min-w-0">
+                                                            <div className="text-[12px] font-medium text-foreground">{opt.label}</div>
+                                                            <div className="text-[10.5px] text-muted-foreground">{opt.desc}</div>
+                                                        </div>
+                                                        {active && <Check className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />}
+                                                    </DropdownMenuItem>
+                                                )
+                                            })}
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
+                                )}
+
                                 {/* Portal target for Kanban Card Settings */}
                                 {viewMode === 'kanban' && <div id="kanban-settings-portal" className="flex items-center shrink-0" />}
 
@@ -1058,6 +1180,7 @@ export function LeadDashboard() {
                             selectedIds={selectedLeadIds}
                             onToggleSelect={handleToggleSelect}
                             onLeadStageChange={handleLeadStageChange}
+                            dndEnabled={kanbanSort === 'manual'}
                             onAddLead={(stageId) => {
                                 setAddSheetDefaultStageId(stageId)
                                 setAddSheetOpen(true)

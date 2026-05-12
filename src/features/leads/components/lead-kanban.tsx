@@ -91,6 +91,8 @@ interface LeadKanbanProps {
     onToggleSelect: (leadId: string, checked: boolean) => void
     onLeadStageChange?: (leadId: number, stageId: string, stageName: string, stageColor: string, updates?: Record<string, any>) => void
     onAddLead?: (stageId: string) => void
+    /** When false, disables reordering within a column (but stage transitions still work) */
+    dndEnabled?: boolean
 }
 
 export function LeadKanban({
@@ -103,6 +105,7 @@ export function LeadKanban({
     onToggleSelect,
     onLeadStageChange,
     onAddLead,
+    dndEnabled = true,
 }: LeadKanbanProps) {
     const { fmt: formatCompact } = useCurrency()
     const [stages, setStages] = useState<PipelineStage[]>(FALLBACK_STAGES)
@@ -626,6 +629,7 @@ export function LeadKanban({
                                                 isSelected={selectedIds.includes(lead.id.toString())}
                                                 onToggleSelect={onToggleSelect}
                                                 config={config}
+                                                dndEnabled={dndEnabled}
                                             />
                                         ))}
                                     </DroppableColumn>
@@ -749,6 +753,7 @@ function SortableCard({
     isSelected,
     onToggleSelect,
     config,
+    dndEnabled = true,
 }: {
     lead: Lead
     onClick: () => void
@@ -757,6 +762,7 @@ function SortableCard({
     isSelected?: boolean
     onToggleSelect?: (leadId: string, checked: boolean) => void
     config: KanbanCardConfig
+    dndEnabled?: boolean
 }) {
     const {
         attributes,
@@ -765,7 +771,7 @@ function SortableCard({
         transform,
         transition,
         isDragging,
-    } = useSortable({ id: lead.id.toString() })
+    } = useSortable({ id: lead.id.toString(), disabled: !dndEnabled })
 
     const style = {
         transform: CSS.Transform.toString(transform),
@@ -794,12 +800,14 @@ function SortableCard({
     return (
         <div
             ref={setNodeRef}
-            style={style}
+            style={{ ...style, cursor: dndEnabled ? undefined : 'pointer' }}
             {...attributes}
             {...listeners}
             onPointerDown={(e) => {
-                // Call dnd-kit listener first
-                listeners?.onPointerDown?.(e as unknown as React.PointerEvent<Element>)
+                // Call dnd-kit listener first (only if enabled)
+                if (dndEnabled) {
+                    listeners?.onPointerDown?.(e as unknown as React.PointerEvent<Element>)
+                }
                 handlePointerDown(e)
             }}
             onPointerUp={handlePointerUp}
