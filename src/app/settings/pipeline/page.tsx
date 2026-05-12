@@ -1,10 +1,10 @@
 "use client"
 
-import { useEffect, useState, useCallback } from "react"
+import { useEffect, useState, useCallback, type ReactNode } from "react"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/utils/supabase/client"
 import type { PipelineStage, Pipeline } from "@/types/index"
-import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core'
+import { DndContext, closestCenter, PointerSensor, useDroppable, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core'
 import { arrayMove, SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { flushSync } from 'react-dom'
@@ -282,23 +282,119 @@ export default function PipelineOverviewPage() {
     // ─── DnD ─────────────────────────────────────────────────
     const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
 
-    const handleDragEnd = async (event: DragEndEvent, pipelineId: string, stageType: 'open' | 'closed') => {
+    const inferClosedStatus = (name: string): 'won' | 'lost' => {
+        const n = name.toLowerCase()
+        return n.includes('won') || n.includes('success') ? 'won' : 'lost'
+    }
+
+    const getZoneId = (pipelineId: string, stageType: 'open' | 'closed') => `${pipelineId}:${stageType}`
+
+    const handleDragEnd = async (event: DragEndEvent, pipelineId: string) => {
         const { active, over } = event
-        if (!over || active.id === over.id) return
-        const pStages = allStages.filter(s => s.pipeline_id === pipelineId && s.stage_type === stageType).sort((a, b) => a.sort_order - b.sort_order)
-        const oldIndex = pStages.findIndex(s => s.id === active.id)
-        const newIndex = pStages.findIndex(s => s.id === over.id)
-        if (oldIndex === -1 || newIndex === -1) return
-        const rearranged = arrayMove(pStages, oldIndex, newIndex)
+        if (!over) return
+
+        const activeStage = allStages.find(s => s.id === active.id && s.pipeline_id === pipelineId)
+        if (!activeStage) return
+
+        const overId = String(over.id)
+        const overStage = allStages.find(s => s.id === over.id && s.pipeline_id === pipelineId)
+
+        let targetType: 'open' | 'closed' | null = null
+        if (overId === getZoneId(pipelineId, 'open')) targetType = 'open'
+        else if (overId === getZoneId(pipelineId, 'closed')) targetType = 'closed'
+        else if (overStage) targetType = overStage.stage_type
+
+        if (!targetType) return
+
+        const sourceType = activeStage.stage_type
+        const sourceList = allStages
+            .filter(s => s.pipeline_id === pipelineId && s.stage_type === sourceType)
+            .sort((a, b) => a.sort_order - b.sort_order)
+        const targetList = allStages
+            .filter(s => s.pipeline_id === pipelineId && s.stage_type === targetType)
+            .sort((a, b) => a.sort_order - b.sort_order)
+
+        const oldIndex = sourceList.findIndex(s => s.id === active.id)
+        if (oldIndex === -1) return
+
+        // Same group: regular reorder within that group.
+        if (sourceType === targetType) {
+            const newIndex = targetList.findIndex(s => s.id === over.id)
+            if (newIndex === -1 || oldIndex === newIndex) return
+            const rearranged = arrayMove(targetList, oldIndex, newIndex)
+            const newStages = [...allStages]
+            rearranged.forEach((stg, idx) => {
+                const indexAll = newStages.findIndex(s => s.id === stg.id)
+                if (indexAll > -1) newStages[indexAll] = { ...newStages[indexAll], sort_order: idx + 1 }
+            })
+            flushSync(() => setAllStages(newStages))
+            for (let i = 0; i < rearranged.length; i++) {
+                await supabase.from("pipeline_stages").update({ sort_order: i + 1 }).eq("id", rearranged[i].id)
+            }
+            return
+        }
+
+        // Cross group: move open ⇄ closed, update stage_type + closed_status + color,
+        // then normalize sort_order within both affected groups.
+        const targetIndex = overStage
+            ? Math.max(0, targetList.findIndex(s => s.id === overStage.id))
+            : targetList.length
+        const sourceAfter = sourceList.filter(s => s.id !== activeStage.id)
+        const movedClosedStatus = targetType === 'closed' ? inferClosedStatus(activeStage.name) : null
+        const movedStage: PipelineStage = {
+            ...activeStage,
+            stage_type: targetType,
+            closed_status: movedClosedStatus,
+            color: targetType === 'closed'
+                ? (movedClosedStatus === 'won' ? 'emerald' : 'red')
+                : (activeStage.color === 'red' || activeStage.color === 'emerald' ? 'blue' : activeStage.color),
+        }
+        const targetAfter = [...targetList]
+        targetAfter.splice(targetIndex < 0 ? targetAfter.length : targetIndex, 0, movedStage)
+
         const newStages = [...allStages]
-        rearranged.forEach((stg, idx) => {
+        sourceAfter.forEach((stg, idx) => {
             const indexAll = newStages.findIndex(s => s.id === stg.id)
             if (indexAll > -1) newStages[indexAll] = { ...newStages[indexAll], sort_order: idx + 1 }
         })
+        targetAfter.forEach((stg, idx) => {
+            const indexAll = newStages.findIndex(s => s.id === stg.id)
+            if (indexAll > -1) newStages[indexAll] = { ...newStages[indexAll], ...stg, sort_order: idx + 1 }
+        })
         flushSync(() => setAllStages(newStages))
-        for (let i = 0; i < rearranged.length; i++) {
-            await supabase.from("pipeline_stages").update({ sort_order: i + 1 }).eq("id", rearranged[i].id)
+
+        const { error: typeError } = await supabase
+            .from("pipeline_stages")
+            .update({
+                stage_type: targetType,
+                closed_status: movedClosedStatus,
+                color: movedStage.color,
+            })
+            .eq("id", activeStage.id)
+
+        if (typeError) {
+            toast.error("Failed to move stage type")
+            loadData()
+            return
         }
+
+        for (let i = 0; i < sourceAfter.length; i++) {
+            await supabase.from("pipeline_stages").update({ sort_order: i + 1 }).eq("id", sourceAfter[i].id)
+        }
+        for (let i = 0; i < targetAfter.length; i++) {
+            await supabase.from("pipeline_stages").update({ sort_order: i + 1 }).eq("id", targetAfter[i].id)
+        }
+
+        toast.success(`Moved "${activeStage.name}" to ${targetType === 'closed' ? 'Closed' : 'Open'} Stages`)
+    }
+
+    const StageDropZone = ({ pipelineId, stageType, children }: { pipelineId: string; stageType: 'open' | 'closed'; children: ReactNode }) => {
+        const { setNodeRef, isOver } = useDroppable({ id: getZoneId(pipelineId, stageType) })
+        return (
+            <div ref={setNodeRef} className={`flex flex-col min-h-[34px] transition-colors ${isOver ? 'bg-indigo-50/60' : ''}`}>
+                {children}
+            </div>
+        )
     }
 
     // ─── Sortable Stage Row ──────────────────────────────────
@@ -464,31 +560,41 @@ export default function PipelineOverviewPage() {
                                         </div>
                                     </div>
 
-                                    {/* Open Stages */}
-                                    <div className="flex flex-col border-t border-[#e5e8ed]">
-                                        <div className="px-3.5 pt-3 pb-1 text-[9.5px] font-[700] uppercase tracking-[1px] text-[#94a3b8]">Open Stages</div>
-                                        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={e => handleDragEnd(e, pipeline.id, 'open')}>
+                                    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={e => handleDragEnd(e, pipeline.id)}>
+                                        {/* Open Stages */}
+                                        <div className="flex flex-col border-t border-[#e5e8ed]">
+                                            <div className="px-3.5 pt-3 pb-1 text-[9.5px] font-[700] uppercase tracking-[1px] text-[#94a3b8]">Open Stages</div>
                                             <SortableContext items={open.map(x => x.id)} strategy={verticalListSortingStrategy}>
-                                                <div className="flex flex-col">{open.map(stage => <SortableStage key={stage.id} stage={stage} />)}</div>
+                                                <StageDropZone pipelineId={pipeline.id} stageType="open">
+                                                    {open.length === 0 ? (
+                                                        <div className="px-3.5 py-2 text-[11px] text-slate-400 italic">Drop stages here to make them open</div>
+                                                    ) : (
+                                                        open.map(stage => <SortableStage key={stage.id} stage={stage} />)
+                                                    )}
+                                                </StageDropZone>
                                             </SortableContext>
-                                        </DndContext>
-                                        <div className="px-3.5 py-1.5 border-t border-[#f1f3f5]">
-                                            <button onClick={() => openAddStage(pipeline.id, 'open')} className="text-[11.5px] font-[500] text-[#6366f1] hover:bg-[#eef2ff] px-2 py-1 rounded transition-colors">+ Add Stage</button>
+                                            <div className="px-3.5 py-1.5 border-t border-[#f1f3f5]">
+                                                <button onClick={() => openAddStage(pipeline.id, 'open')} className="text-[11.5px] font-[500] text-[#6366f1] hover:bg-[#eef2ff] px-2 py-1 rounded transition-colors">+ Add Stage</button>
+                                            </div>
                                         </div>
-                                    </div>
 
-                                    {/* Closed Stages */}
-                                    <div className="flex flex-col border-t border-[#e5e8ed]">
-                                        <div className="px-3.5 pt-3 pb-1 text-[9.5px] font-[700] uppercase tracking-[1px] text-[#94a3b8]">Closed Stages</div>
-                                        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={e => handleDragEnd(e, pipeline.id, 'closed')}>
+                                        {/* Closed Stages */}
+                                        <div className="flex flex-col border-t border-[#e5e8ed]">
+                                            <div className="px-3.5 pt-3 pb-1 text-[9.5px] font-[700] uppercase tracking-[1px] text-[#94a3b8]">Closed Stages</div>
                                             <SortableContext items={closed.map(x => x.id)} strategy={verticalListSortingStrategy}>
-                                                <div className="flex flex-col">{closed.map(stage => <SortableStage key={stage.id} stage={stage} />)}</div>
+                                                <StageDropZone pipelineId={pipeline.id} stageType="closed">
+                                                    {closed.length === 0 ? (
+                                                        <div className="px-3.5 py-2 text-[11px] text-slate-400 italic">Drop stages here to make them closed</div>
+                                                    ) : (
+                                                        closed.map(stage => <SortableStage key={stage.id} stage={stage} />)
+                                                    )}
+                                                </StageDropZone>
                                             </SortableContext>
-                                        </DndContext>
-                                        <div className="px-3.5 py-1.5 border-t border-[#f1f3f5]">
-                                            <button onClick={() => openAddStage(pipeline.id, 'closed')} className="text-[11.5px] font-[500] text-[#6366f1] hover:bg-[#eef2ff] px-2 py-1 rounded transition-colors">+ Add Stage</button>
+                                            <div className="px-3.5 py-1.5 border-t border-[#f1f3f5]">
+                                                <button onClick={() => openAddStage(pipeline.id, 'closed')} className="text-[11.5px] font-[500] text-[#6366f1] hover:bg-[#eef2ff] px-2 py-1 rounded transition-colors">+ Add Stage</button>
+                                            </div>
                                         </div>
-                                    </div>
+                                    </DndContext>
 
                                     <div className="flex-1" />
 
