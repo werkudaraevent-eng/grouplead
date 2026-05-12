@@ -28,31 +28,40 @@ export interface ExportLeadPDFOptions {
     companyLabel?: string
 }
 
-// ─── Theme constants (matches app brand) ──────────────────────
-const COLORS = {
-    brand: [2, 55, 141] as const,      // #02378D
-    text: [26, 29, 31] as const,       // #1a1d1f
-    muted: [100, 116, 139] as const,   // slate-500
-    light: [148, 163, 184] as const,   // slate-400
-    border: [226, 232, 240] as const,  // slate-200
-    bgSoft: [248, 250, 252] as const,  // slate-50
+// ─── Theme (matches app brand; pure RGB tuples) ───────────────
+const RGB = {
+    brand: [2, 55, 141] as const,       // #02378D
+    brandSoft: [238, 243, 253] as const,
+    ink: [26, 29, 31] as const,         // primary text
+    text: [51, 65, 85] as const,        // slate-700
+    muted: [100, 116, 139] as const,    // slate-500
+    light: [148, 163, 184] as const,    // slate-400
+    line: [226, 232, 240] as const,     // slate-200
+    lineSoft: [241, 245, 249] as const, // slate-100
+    fill: [248, 250, 252] as const,     // slate-50
+    success: [16, 185, 129] as const,
+    danger: [239, 68, 68] as const,
+    warn: [245, 158, 11] as const,
+    white: [255, 255, 255] as const,
 }
 
-const FONT = {
-    heading: 16,
-    sectionTitle: 11,
-    label: 9,
-    value: 10,
-    small: 8,
-    micro: 7,
+const FS = {
+    docTitle: 9,
+    hero: 18,
+    sectionTitle: 10,
+    fieldLabel: 7.5,
+    fieldValue: 9.5,
+    body: 9.5,
+    meta: 7.5,
+    footer: 7,
 }
 
 const PAGE = {
-    marginX: 15,
-    marginTop: 18,
-    marginBottom: 20,
-    lineHeight: 4.5,
-    sectionGap: 6,
+    mx: 14,
+    mBottom: 16,
+    cellH: 11,
+    lineH: 4.3,
+    sectionGap: 5,
 }
 
 // ─── Helpers ──────────────────────────────────────────────────
@@ -63,6 +72,7 @@ function stripHtml(html: string | null | undefined): string {
         .replace(/<\/p>/gi, "\n")
         .replace(/<\/li>/gi, "\n")
         .replace(/<li[^>]*>/gi, "• ")
+        .replace(/<\/h[1-6]>/gi, "\n")
         .replace(/<[^>]+>/g, "")
         .replace(/&nbsp;/g, " ")
         .replace(/&amp;/g, "&")
@@ -77,11 +87,7 @@ function stripHtml(html: string | null | undefined): string {
 function formatDate(v: string | null | undefined): string {
     if (!v) return "—"
     try {
-        return new Date(v).toLocaleDateString("en-GB", {
-            day: "numeric",
-            month: "short",
-            year: "numeric",
-        })
+        return new Date(v).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })
     } catch {
         return v
     }
@@ -101,332 +107,420 @@ function formatDateTime(v: string | null | undefined): string {
     }
 }
 
+function stageAccent(name: string | null | undefined): readonly [number, number, number] {
+    const n = (name || "").toLowerCase()
+    if (n.includes("won")) return RGB.success
+    if (["lost", "cancel", "postpone", "turndown"].some(k => n.includes(k))) return RGB.danger
+    if (["proposal", "negot"].some(k => n.includes(k))) return RGB.warn
+    return RGB.brand
+}
+
+// Typed alias so conditional spreads into setTextColor/setFillColor keep tuple shape
+type RGB3 = readonly [number, number, number]
+
 // ─── Main exporter ────────────────────────────────────────────
 export function exportLeadPdf(opts: ExportLeadPDFOptions): void {
     const { lead, notes = [], activities = [], currencyFormat, companyLabel = "Werkudara Group" } = opts
-
     const fmt = currencyFormat ?? ((v: number) => `IDR ${v.toLocaleString("id-ID")}`)
 
-    const doc = new jsPDF({ unit: "mm", format: "a4" })
+    const doc = new jsPDF({ unit: "mm", format: "a4", compress: true })
     const pageW = doc.internal.pageSize.getWidth()
     const pageH = doc.internal.pageSize.getHeight()
-    const contentW = pageW - PAGE.marginX * 2
+    const contentW = pageW - PAGE.mx * 2
 
-    let y = PAGE.marginTop
+    let y = 0
     let pageNum = 1
 
-    // ── Helpers that close over `doc` and `y` ──
-    const ensureSpace = (needed: number) => {
-        if (y + needed > pageH - PAGE.marginBottom) {
-            addFooter()
+    // ─── Page chrome helpers ─────────────────────────────────
+    const drawHeader = () => {
+        doc.setFillColor(...RGB.brand)
+        doc.rect(0, 0, pageW, 10, "F")
+        doc.setFont("helvetica", "bold")
+        doc.setFontSize(FS.docTitle)
+        doc.setTextColor(...RGB.white)
+        doc.text("LEAD SUMMARY", PAGE.mx, 6.5)
+        doc.setFont("helvetica", "normal")
+        doc.setFontSize(FS.meta)
+        doc.text(companyLabel, pageW - PAGE.mx, 6.5, { align: "right" })
+    }
+
+    const drawFooter = () => {
+        doc.setDrawColor(...RGB.line)
+        doc.setLineWidth(0.2)
+        doc.line(PAGE.mx, pageH - 12, pageW - PAGE.mx, pageH - 12)
+        doc.setFont("helvetica", "normal")
+        doc.setFontSize(FS.footer)
+        doc.setTextColor(...RGB.light)
+        const generated = new Date().toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })
+        doc.text(`Generated ${generated} · LeadEngine · Lead #${lead.id}`, PAGE.mx, pageH - 7)
+        doc.text(`Page ${pageNum}`, pageW - PAGE.mx, pageH - 7, { align: "right" })
+    }
+
+    const ensure = (needed: number) => {
+        if (y + needed > pageH - PAGE.mBottom - 8) {
+            drawFooter()
             doc.addPage()
             pageNum++
-            y = PAGE.marginTop
+            drawHeader()
+            y = 14
         }
     }
 
-    const addFooter = () => {
-        doc.setFont("helvetica", "normal")
-        doc.setFontSize(FONT.micro)
-        doc.setTextColor(...COLORS.light)
-        doc.text(
-            `Generated by LeadEngine · ${companyLabel} · ${new Date().toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}`,
-            PAGE.marginX,
-            pageH - 8
-        )
-        doc.text(`Page ${pageNum}`, pageW - PAGE.marginX, pageH - 8, { align: "right" })
+    // ─── Page 1 header ───────────────────────────────────────
+    drawHeader()
+    y = 14
+
+    // Hero project name
+    const projectName = lead.project_name || "Untitled Lead"
+    doc.setFont("helvetica", "bold")
+    doc.setFontSize(FS.hero)
+    doc.setTextColor(...RGB.ink)
+    const projectLines = doc.splitTextToSize(projectName, contentW - 40)
+    projectLines.forEach((line: string) => {
+        doc.text(line, PAGE.mx, y + 6)
+        y += 6.5
+    })
+    y += 2
+
+    // Stamp row (stage + grade + category)
+    const stampY = y
+    let stampX = PAGE.mx
+
+    const drawStamp = (label: string, rgb: readonly [number, number, number]) => {
+        const padX = 3
+        doc.setFont("helvetica", "bold")
+        doc.setFontSize(FS.meta)
+        const w = doc.getTextWidth(label) + padX * 2
+        doc.setFillColor(rgb[0], rgb[1], rgb[2])
+        doc.setDrawColor(rgb[0], rgb[1], rgb[2])
+        doc.roundedRect(stampX, stampY - 3.8, w, 5.6, 1, 1, "F")
+        doc.setTextColor(...RGB.white)
+        doc.text(label, stampX + padX, stampY)
+        stampX += w + 3
     }
 
-    // ── Document Header (top band) ──
-    doc.setFillColor(...COLORS.brand)
-    doc.rect(0, 0, pageW, 11, "F")
-    doc.setFont("helvetica", "bold")
-    doc.setFontSize(10)
-    doc.setTextColor(255, 255, 255)
-    doc.text("LEAD SUMMARY", PAGE.marginX, 7.2)
-    doc.setFont("helvetica", "normal")
-    doc.setFontSize(8)
-    doc.text(companyLabel, pageW - PAGE.marginX, 7.2, { align: "right" })
+    if (lead.pipeline_stage?.name) drawStamp(lead.pipeline_stage.name.toUpperCase(), stageAccent(lead.pipeline_stage.name))
+    if (lead.grade_lead) drawStamp(`GRADE ${lead.grade_lead}`, RGB.brand)
+    if (lead.category) drawStamp(lead.category.toUpperCase(), RGB.muted)
+    y += 5
 
-    y = PAGE.marginTop
-
-    // ── Project Header ──
-    doc.setFont("helvetica", "bold")
-    doc.setFontSize(FONT.heading)
-    doc.setTextColor(...COLORS.text)
-    const titleLines = doc.splitTextToSize(lead.project_name || "Untitled Lead", contentW)
-    titleLines.forEach((line: string) => {
-        doc.text(line, PAGE.marginX, y)
-        y += 6
-    })
-
-    // Subtitle row — pipeline · stage · grade
-    const subtitleParts: string[] = []
-    if (lead.pipeline?.name) subtitleParts.push(lead.pipeline.name)
-    if (lead.pipeline_stage?.name) subtitleParts.push(lead.pipeline_stage.name)
-    if (lead.grade_lead) subtitleParts.push(`Grade ${lead.grade_lead}`)
-    if (lead.category) subtitleParts.push(lead.category)
-    if (subtitleParts.length) {
+    if (lead.pipeline?.name) {
         doc.setFont("helvetica", "normal")
-        doc.setFontSize(FONT.small)
-        doc.setTextColor(...COLORS.muted)
-        doc.text(subtitleParts.join("  ·  "), PAGE.marginX, y)
-        y += 6
+        doc.setFontSize(FS.meta)
+        doc.setTextColor(...RGB.muted)
+        doc.text(`Pipeline: ${lead.pipeline.name}`, PAGE.mx, y)
+        y += 5
     }
 
     // Divider
-    doc.setDrawColor(...COLORS.border)
-    doc.setLineWidth(0.2)
-    doc.line(PAGE.marginX, y, pageW - PAGE.marginX, y)
-    y += 6
+    doc.setDrawColor(...RGB.line)
+    doc.setLineWidth(0.3)
+    doc.line(PAGE.mx, y, pageW - PAGE.mx, y)
+    y += 5
 
-    // ── Section renderer ──
+    // ─── Section header (underlined title + accent line) ─────
     const section = (title: string) => {
-        ensureSpace(14)
+        ensure(10)
         doc.setFont("helvetica", "bold")
-        doc.setFontSize(FONT.sectionTitle)
-        doc.setTextColor(...COLORS.brand)
-        // Accent bar
-        doc.setFillColor(...COLORS.brand)
-        doc.rect(PAGE.marginX, y - 3.5, 1.2, 4.5, "F")
-        doc.text(title, PAGE.marginX + 3, y)
-        y += PAGE.sectionGap
+        doc.setFontSize(FS.sectionTitle)
+        doc.setTextColor(...RGB.brand)
+        const titleText = title.toUpperCase()
+        doc.text(titleText, PAGE.mx, y)
+        const titleW = doc.getTextWidth(titleText)
+        doc.setDrawColor(...RGB.brand)
+        doc.setLineWidth(0.6)
+        doc.line(PAGE.mx, y + 1.5, PAGE.mx + titleW, y + 1.5)
+        doc.setDrawColor(...RGB.lineSoft)
+        doc.setLineWidth(0.3)
+        doc.line(PAGE.mx + titleW + 2, y + 1.5, pageW - PAGE.mx, y + 1.5)
+        y += PAGE.sectionGap + 2
     }
 
-    // Two-column field row
-    const fieldRow = (
-        pairs: Array<{ label: string; value: string }>,
-    ) => {
-        const colW = contentW / 2
-        for (let i = 0; i < pairs.length; i += 2) {
-            const left = pairs[i]
-            const right = pairs[i + 1]
+    // ─── Form-filled field cell ──────────────────────────────
+    const drawFieldCell = (x: number, cellY: number, w: number, label: string, value: string, rowIdx: number) => {
+        const fill = rowIdx % 2 === 0 ? RGB.fill : RGB.white
+        doc.setFillColor(fill[0], fill[1], fill[2])
+        doc.setDrawColor(...RGB.line)
+        doc.setLineWidth(0.15)
+        doc.roundedRect(x, cellY, w, PAGE.cellH, 0.8, 0.8, "FD")
 
-            const leftValLines = left ? doc.splitTextToSize(left.value || "—", colW - 4) : []
-            const rightValLines = right ? doc.splitTextToSize(right.value || "—", colW - 4) : []
-            const rowHeight = Math.max(leftValLines.length, rightValLines.length) * PAGE.lineHeight + 2.5
-            ensureSpace(rowHeight + 3)
+        doc.setFont("helvetica", "bold")
+        doc.setFontSize(FS.fieldLabel)
+        doc.setTextColor(...RGB.muted)
+        doc.text(label.toUpperCase(), x + 2.5, cellY + 3.3)
 
-            // Labels
-            doc.setFont("helvetica", "bold")
-            doc.setFontSize(FONT.label)
-            doc.setTextColor(...COLORS.muted)
-            if (left) doc.text(left.label.toUpperCase(), PAGE.marginX, y)
-            if (right) doc.text(right.label.toUpperCase(), PAGE.marginX + colW, y)
-            y += 4
-
-            // Values
-            doc.setFont("helvetica", "normal")
-            doc.setFontSize(FONT.value)
-            doc.setTextColor(...COLORS.text)
-            if (leftValLines.length) {
-                leftValLines.forEach((line: string, idx: number) => {
-                    doc.text(line, PAGE.marginX, y + idx * PAGE.lineHeight)
-                })
-            }
-            if (rightValLines.length) {
-                rightValLines.forEach((line: string, idx: number) => {
-                    doc.text(line, PAGE.marginX + colW, y + idx * PAGE.lineHeight)
-                })
-            }
-            y += Math.max(leftValLines.length, rightValLines.length) * PAGE.lineHeight + 3
-        }
+        const displayVal = value || "—"
+        const isEmpty = !value || value === "—"
+        doc.setFont("helvetica", isEmpty ? "normal" : "bold")
+        doc.setFontSize(FS.fieldValue)
+        const valueColor: RGB3 = isEmpty ? RGB.light : RGB.ink
+        doc.setTextColor(...valueColor)
+        const truncated = doc.splitTextToSize(displayVal, w - 5)
+        const line = Array.isArray(truncated) ? truncated[0] : truncated
+        doc.text(line, x + 2.5, cellY + 8)
     }
 
-    // Long text block (for brief, SOW, remarks)
-    const longText = (text: string) => {
-        if (!text) {
-            doc.setFont("helvetica", "italic")
-            doc.setFontSize(FONT.small)
-            doc.setTextColor(...COLORS.light)
-            ensureSpace(6)
-            doc.text("(empty)", PAGE.marginX, y)
-            y += 5
-            return
+    const grid = (pairs: Array<{ label: string; value: string }>, cols: 2 | 3 = 2) => {
+        const gapX = 2
+        const colW = (contentW - gapX * (cols - 1)) / cols
+        for (let i = 0; i < pairs.length; i += cols) {
+            ensure(PAGE.cellH + 1)
+            for (let c = 0; c < cols; c++) {
+                const p = pairs[i + c]
+                if (!p) break
+                const x = PAGE.mx + c * (colW + gapX)
+                drawFieldCell(x, y, colW, p.label, p.value, Math.floor(i / cols))
+            }
+            y += PAGE.cellH + 1
         }
-        doc.setFont("helvetica", "normal")
-        doc.setFontSize(FONT.value)
-        doc.setTextColor(...COLORS.text)
-        const lines = doc.splitTextToSize(text, contentW)
-        lines.forEach((line: string) => {
-            ensureSpace(PAGE.lineHeight + 1)
-            doc.text(line, PAGE.marginX, y)
-            y += PAGE.lineHeight
-        })
         y += 2
     }
 
-    // ── DEAL INFORMATION ──
+    // ─── Long-text panel (brief/SOW/remarks) ────────────────
+    const panel = (text: string) => {
+        const content = text && text.trim() ? text : "(empty)"
+        const isEmpty = !text || !text.trim()
+
+        doc.setFont("helvetica", isEmpty ? "italic" : "normal")
+        doc.setFontSize(FS.body)
+        const panelColor: RGB3 = isEmpty ? RGB.light : RGB.text
+        doc.setTextColor(...panelColor)
+        const lines = doc.splitTextToSize(content, contentW - 6)
+        const blockH = lines.length * PAGE.lineH + 5
+
+        ensure(blockH)
+
+        doc.setFillColor(...RGB.fill)
+        doc.setDrawColor(...RGB.lineSoft)
+        doc.setLineWidth(0.15)
+        doc.roundedRect(PAGE.mx, y, contentW, blockH, 1, 1, "FD")
+        doc.setFillColor(...RGB.brand)
+        doc.rect(PAGE.mx, y, 1, blockH, "F")
+
+        let textY = y + 4.2
+        lines.forEach((line: string) => {
+            doc.text(line, PAGE.mx + 4, textY)
+            textY += PAGE.lineH
+        })
+        y += blockH + 3
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    //  SECTIONS
+    // ═══════════════════════════════════════════════════════════
+
     section("Deal Information")
-    fieldRow([
-        { label: "Subsidiary", value: lead.company?.name ?? "—" },
-        { label: "Amount", value: lead.estimated_value != null ? fmt(lead.estimated_value) : "—" },
+    grid([
+        { label: "Subsidiary", value: lead.company?.name ?? "" },
+        { label: "Amount", value: lead.estimated_value != null ? fmt(lead.estimated_value) : "" },
         { label: "Close Date", value: formatDate(lead.target_close_date) },
-        { label: "PIC Sales", value: lead.pic_sales_profile?.full_name ?? "—" },
-        { label: "Account Manager", value: lead.account_manager_profile?.full_name ?? "—" },
-        { label: "Lead Source", value: lead.lead_source ?? "—" },
-        { label: "Main Stream", value: lead.main_stream ?? "—" },
-        { label: "Stream Type", value: lead.stream_type ?? "—" },
-        { label: "Business Purpose", value: lead.business_purpose ?? "—" },
-        { label: "Event Format", value: lead.event_format ?? "—" },
-    ])
+        { label: "PIC Sales", value: lead.pic_sales_profile?.full_name ?? "" },
+        { label: "Account Manager", value: lead.account_manager_profile?.full_name ?? "" },
+        { label: "Lead Source", value: lead.lead_source ?? "" },
+        { label: "Main Stream", value: lead.main_stream ?? "" },
+        { label: "Stream Type", value: lead.stream_type ?? "" },
+        { label: "Business Purpose", value: lead.business_purpose ?? "" },
+        { label: "Event Format", value: lead.event_format ?? "" },
+    ], 2)
 
-    // ── CLIENT & CONTACT ──
     section("Client & Contact")
-    fieldRow([
-        { label: "Client Company", value: lead.client_company?.name ?? "—" },
-        { label: "Contact Person", value: lead.contact?.full_name ?? "—" },
-        { label: "Email", value: lead.contact?.email ?? "—" },
-        { label: "Phone", value: lead.contact?.phone ?? "—" },
-    ])
+    grid([
+        { label: "Client Company", value: lead.client_company?.name ?? "" },
+        { label: "Contact Person", value: lead.contact?.full_name ?? "" },
+        { label: "Email", value: lead.contact?.email ?? "" },
+        { label: "Phone", value: lead.contact?.phone ?? "" },
+    ], 2)
 
-    // ── EVENT DETAILS ──
-    const hasEventData = lead.event_date_start || lead.event_date_end || (lead.event_dates && lead.event_dates.length) || lead.pax_count || (lead.destinations && lead.destinations.length)
-    if (hasEventData) {
+    // Event Details
+    const hasEvent =
+        lead.event_date_start ||
+        lead.event_date_end ||
+        (lead.event_dates && lead.event_dates.length) ||
+        lead.pax_count != null ||
+        (lead.destinations && lead.destinations.length) ||
+        lead.virtual_platform
+
+    if (hasEvent) {
         section("Event Details")
-        const datePairs: Array<{ label: string; value: string }> = []
+        const eventPairs: Array<{ label: string; value: string }> = []
         if (lead.event_date_start || lead.event_date_end) {
-            datePairs.push({ label: "Event Start", value: formatDate(lead.event_date_start) })
-            datePairs.push({ label: "Event End", value: formatDate(lead.event_date_end) })
+            eventPairs.push({ label: "Event Start", value: formatDate(lead.event_date_start) })
+            eventPairs.push({ label: "Event End", value: formatDate(lead.event_date_end) })
         }
         if (lead.event_dates && lead.event_dates.length) {
-            datePairs.push({ label: "Event Dates", value: lead.event_dates.map(d => formatDate(d)).join(", ") })
+            eventPairs.push({
+                label: "Event Dates",
+                value: lead.event_dates.map(d => formatDate(d)).join(", "),
+            })
         }
-        if (lead.pax_count != null) datePairs.push({ label: "Pax Count", value: String(lead.pax_count) })
-        if (lead.virtual_platform) datePairs.push({ label: "Virtual Platform", value: lead.virtual_platform })
-        if (datePairs.length) fieldRow(datePairs)
+        if (lead.pax_count != null) eventPairs.push({ label: "Pax Count", value: String(lead.pax_count) })
+        if (lead.virtual_platform) eventPairs.push({ label: "Virtual Platform", value: lead.virtual_platform })
+        if (eventPairs.length) grid(eventPairs, 2)
 
         if (lead.destinations && lead.destinations.length) {
-            ensureSpace(8)
+            ensure(8 + lead.destinations.length * 6)
+            // Table header
+            doc.setFillColor(...RGB.brandSoft)
+            doc.setDrawColor(...RGB.line)
+            doc.setLineWidth(0.15)
+            doc.roundedRect(PAGE.mx, y, contentW, 6, 0.8, 0.8, "FD")
             doc.setFont("helvetica", "bold")
-            doc.setFontSize(FONT.label)
-            doc.setTextColor(...COLORS.muted)
-            doc.text("DESTINATIONS", PAGE.marginX, y)
-            y += 4
-            doc.setFont("helvetica", "normal")
-            doc.setFontSize(FONT.value)
-            doc.setTextColor(...COLORS.text)
-            lead.destinations.forEach((d) => {
-                const line = d.venue ? `• ${d.city} — ${d.venue}` : `• ${d.city}`
-                ensureSpace(PAGE.lineHeight + 1)
-                doc.text(line, PAGE.marginX, y)
-                y += PAGE.lineHeight
+            doc.setFontSize(FS.fieldLabel)
+            doc.setTextColor(...RGB.brand)
+            doc.text("CITY", PAGE.mx + 2.5, y + 4)
+            doc.text("VENUE", PAGE.mx + contentW / 2, y + 4)
+            y += 6.5
+            lead.destinations.forEach((d, idx) => {
+                ensure(6)
+                const fill = idx % 2 === 0 ? RGB.white : RGB.fill
+                doc.setFillColor(fill[0], fill[1], fill[2])
+                doc.rect(PAGE.mx, y, contentW, 5.5, "F")
+                doc.setDrawColor(...RGB.lineSoft)
+                doc.setLineWidth(0.1)
+                doc.line(PAGE.mx, y + 5.5, PAGE.mx + contentW, y + 5.5)
+                doc.setFont("helvetica", "normal")
+                doc.setFontSize(FS.body)
+                doc.setTextColor(...RGB.ink)
+                doc.text(d.city || "—", PAGE.mx + 2.5, y + 3.8)
+                doc.text(d.venue || "—", PAGE.mx + contentW / 2, y + 3.8)
+                y += 5.5
             })
-            y += 2
+            y += 3
         }
     }
 
-    // ── LOST/WON CONTEXT ──
+    // Outcome
     if (lead.closed_won_date || lead.closed_lost_date || lead.lost_reason) {
         section("Outcome")
         const outcomePairs: Array<{ label: string; value: string }> = []
         if (lead.closed_won_date) outcomePairs.push({ label: "Closed Won", value: formatDate(lead.closed_won_date) })
         if (lead.closed_lost_date) outcomePairs.push({ label: "Closed Lost", value: formatDate(lead.closed_lost_date) })
         if (lead.lost_reason) outcomePairs.push({ label: "Lost Reason", value: lead.lost_reason })
-        if (outcomePairs.length) fieldRow(outcomePairs)
+        if (outcomePairs.length) grid(outcomePairs, 2)
         if (lead.lost_reason_details) {
-            ensureSpace(6)
+            ensure(6)
             doc.setFont("helvetica", "bold")
-            doc.setFontSize(FONT.label)
-            doc.setTextColor(...COLORS.muted)
-            doc.text("LOST REASON DETAILS", PAGE.marginX, y)
+            doc.setFontSize(FS.fieldLabel)
+            doc.setTextColor(...RGB.muted)
+            doc.text("LOST REASON DETAILS", PAGE.mx, y)
             y += 4
-            longText(lead.lost_reason_details)
+            panel(lead.lost_reason_details)
         }
     }
 
-    // ── GENERAL BRIEF ──
     section("General Brief & Inquiry")
-    longText(stripHtml(lead.general_brief))
+    panel(stripHtml(lead.general_brief))
 
-    // ── PRODUCTION SOW ──
     section("Production SOW & Equipment")
-    longText(stripHtml(lead.production_sow))
+    panel(stripHtml(lead.production_sow))
 
-    // ── SPECIAL REMARKS ──
     section("Special Remarks")
-    longText(stripHtml(lead.special_remarks))
+    panel(stripHtml(lead.special_remarks))
 
-    // ── NOTES (recent 10) ──
+    // Notes
     if (notes.length > 0) {
-        section(`Notes (${notes.length > 10 ? `latest 10 of ${notes.length}` : notes.length})`)
-        notes.slice(0, 10).forEach((n) => {
-            ensureSpace(12)
-            // Author + date
-            doc.setFont("helvetica", "bold")
-            doc.setFontSize(FONT.small)
-            doc.setTextColor(...COLORS.text)
-            doc.text(n.author_name || "Unknown", PAGE.marginX, y)
-            doc.setFont("helvetica", "normal")
-            doc.setTextColor(...COLORS.light)
-            doc.text(formatDateTime(n.created_at), pageW - PAGE.marginX, y, { align: "right" })
-            y += 4
-            // Content
+        const count = notes.length
+        const shown = Math.min(count, 10)
+        section(`Notes (${shown === count ? count : `latest ${shown} of ${count}`})`)
+        notes.slice(0, 10).forEach((n, idx) => {
             const content = stripHtml(n.content)
-            if (content) {
-                doc.setFontSize(FONT.value)
-                doc.setTextColor(...COLORS.text)
-                const lines = doc.splitTextToSize(content, contentW)
-                lines.forEach((line: string) => {
-                    ensureSpace(PAGE.lineHeight + 1)
-                    doc.text(line, PAGE.marginX, y)
-                    y += PAGE.lineHeight
-                })
-            }
-            y += 3
+            const lines = doc.splitTextToSize(content || "(empty)", contentW - 6)
+            const blockH = lines.length * PAGE.lineH + 10
+            ensure(blockH)
+
+            const fill = idx % 2 === 0 ? RGB.fill : RGB.white
+            doc.setFillColor(fill[0], fill[1], fill[2])
+            doc.setDrawColor(...RGB.line)
+            doc.setLineWidth(0.15)
+            doc.roundedRect(PAGE.mx, y, contentW, blockH, 1, 1, "FD")
+
+            doc.setFont("helvetica", "bold")
+            doc.setFontSize(FS.fieldLabel + 0.5)
+            doc.setTextColor(...RGB.ink)
+            doc.text(n.author_name || "Unknown", PAGE.mx + 3, y + 4)
+            doc.setFont("helvetica", "normal")
+            doc.setFontSize(FS.footer)
+            doc.setTextColor(...RGB.light)
+            doc.text(formatDateTime(n.created_at), pageW - PAGE.mx - 3, y + 4, { align: "right" })
+
+            doc.setDrawColor(...RGB.lineSoft)
+            doc.setLineWidth(0.1)
+            doc.line(PAGE.mx + 2, y + 5.8, pageW - PAGE.mx - 2, y + 5.8)
+
+            doc.setFont("helvetica", content ? "normal" : "italic")
+            doc.setFontSize(FS.body)
+            const noteColor: RGB3 = content ? RGB.text : RGB.light
+            doc.setTextColor(...noteColor)
+            let textY = y + 9.2
+            lines.forEach((line: string) => {
+                doc.text(line, PAGE.mx + 3, textY)
+                textY += PAGE.lineH
+            })
+            y += blockH + 2
         })
     }
 
-    // ── ACTIVITY TIMELINE (recent 10) ──
+    // Activity Timeline
     if (activities.length > 0) {
-        section(`Activity Timeline (${activities.length > 10 ? `latest 10 of ${activities.length}` : activities.length})`)
+        const count = activities.length
+        const shown = Math.min(count, 10)
+        section(`Activity Timeline (${shown === count ? count : `latest ${shown} of ${count}`})`)
+
         activities.slice(0, 10).forEach((a) => {
-            ensureSpace(7)
             const description = a.description || a.action_type
             const userName = a.user_name || "System"
+            const lineText = `${userName} — ${description}`
+            const lines = doc.splitTextToSize(lineText, contentW - 8)
+            const blockH = lines.length * PAGE.lineH + 4.5
+
+            ensure(blockH)
+
+            doc.setFillColor(...RGB.brand)
+            doc.circle(PAGE.mx + 1.5, y + 2, 0.9, "F")
 
             doc.setFont("helvetica", "normal")
-            doc.setFontSize(FONT.value)
-            doc.setTextColor(...COLORS.text)
-            // Bullet
-            doc.setFillColor(...COLORS.brand)
-            doc.circle(PAGE.marginX + 1, y - 1.2, 0.8, "F")
-
-            const bodyText = `${userName} · ${description}`
-            const lines = doc.splitTextToSize(bodyText, contentW - 6)
+            doc.setFontSize(FS.body)
+            doc.setTextColor(...RGB.ink)
             lines.forEach((line: string, idx: number) => {
-                doc.text(line, PAGE.marginX + 4, y + idx * PAGE.lineHeight)
+                doc.text(line, PAGE.mx + 5, y + 2.5 + idx * PAGE.lineH)
             })
-            y += lines.length * PAGE.lineHeight
 
-            doc.setFont("helvetica", "normal")
-            doc.setFontSize(FONT.micro)
-            doc.setTextColor(...COLORS.light)
-            doc.text(formatDateTime(a.created_at), PAGE.marginX + 4, y)
-            y += 5
+            doc.setFontSize(FS.footer)
+            doc.setTextColor(...RGB.light)
+            doc.text(formatDateTime(a.created_at), PAGE.mx + 5, y + 2.5 + lines.length * PAGE.lineH)
+            y += blockH + 1
         })
     }
 
-    // ── METADATA FOOTER (last page) ──
-    ensureSpace(14)
+    // Metadata footer block
+    ensure(16)
     y += 2
-    doc.setDrawColor(...COLORS.border)
-    doc.line(PAGE.marginX, y, pageW - PAGE.marginX, y)
+    doc.setDrawColor(...RGB.line)
+    doc.setLineWidth(0.3)
+    doc.line(PAGE.mx, y, pageW - PAGE.mx, y)
     y += 4
-    doc.setFont("helvetica", "normal")
-    doc.setFontSize(FONT.micro)
-    doc.setTextColor(...COLORS.light)
-    const metaPairs = [
-        lead.created_at ? `Created: ${formatDateTime(lead.created_at)}` : null,
-        lead.updated_at ? `Updated: ${formatDateTime(lead.updated_at)}` : null,
-        `Lead ID: ${lead.id}`,
-    ].filter(Boolean)
-    doc.text(metaPairs.join("  ·  "), PAGE.marginX, y)
 
-    // Footer on current page
-    addFooter()
+    const metaColW = contentW / 3
+    const metaItems = [
+        { label: "LEAD ID", value: `#${lead.id}` },
+        { label: "CREATED", value: lead.created_at ? formatDateTime(lead.created_at) : "—" },
+        { label: "LAST UPDATED", value: lead.updated_at ? formatDateTime(lead.updated_at) : "—" },
+    ]
+    metaItems.forEach((m, i) => {
+        const x = PAGE.mx + i * metaColW
+        doc.setFont("helvetica", "bold")
+        doc.setFontSize(FS.fieldLabel)
+        doc.setTextColor(...RGB.muted)
+        doc.text(m.label, x, y)
+        doc.setFont("helvetica", "normal")
+        doc.setFontSize(FS.meta)
+        doc.setTextColor(...RGB.ink)
+        doc.text(m.value, x, y + 4)
+    })
+    y += 10
 
-    // ── Save ──
+    drawFooter()
+
     const safeName = (lead.project_name || "lead")
         .replace(/[^\w\s-]/g, "")
         .replace(/\s+/g, "-")
