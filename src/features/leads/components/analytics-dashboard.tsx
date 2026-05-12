@@ -1046,6 +1046,7 @@ export function AnalyticsDashboard({
                     viewKey={views.activeView?.id ?? "none"}
                     onPersistLayout={handlePersistLayout}
                     onEditModeChange={setIsDashboardEditing}
+                    activeViewName={views.activeView?.name}
                 >
                     {/* Order MUST match WIDGET_IDS array */}
                     {/* 6 individual KPI cards */}

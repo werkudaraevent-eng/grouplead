@@ -42,6 +42,8 @@ interface DashboardGridProps {
     onEditModeChange?: (isEditing: boolean) => void
     /** Extra controls to render alongside Edit/Save buttons (e.g. view switcher). */
     extraHeaderControls?: React.ReactNode
+    /** Name of the currently active view, for the Save button label. */
+    activeViewName?: string
 }
 
 export function DashboardGrid({
@@ -57,6 +59,7 @@ export function DashboardGrid({
     onPersistLayout,
     onEditModeChange,
     extraHeaderControls,
+    activeViewName,
 }: DashboardGridProps) {
     const [isEditing, setIsEditing] = useState(false)
     const [layout, setLayout] = useState<LayoutItem[]>([...getDefaultLayout()])
@@ -143,25 +146,13 @@ export function DashboardGrid({
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [viewKey])
 
-    // Ensure custom widgets have layout entries
-    useEffect(() => {
-        if (!loaded || customIds.length === 0) return
-        const layoutIds = new Set(layout.map(item => item.i))
-        const missing = customIds.filter(id => !layoutIds.has(id))
-        if (missing.length === 0) return
-
-        const maxY = layout.reduce((max, item) => Math.max(max, item.y + item.h), 0)
-        const newItems = missing.map((id, idx) => ({
-            i: id,
-            x: (idx * 4) % 12,
-            y: maxY + Math.floor((idx * 4) / 12) * 5,
-            w: 4,
-            h: 5,
-            minW: 3,
-            minH: 3,
-        }))
-        setLayout(prev => [...prev, ...newItems])
-    }, [loaded, customIds, layout])
+    // IMPORTANT: Custom widgets are NOT auto-added to the layout anymore.
+    // Previously this leaked widgets across views: creating a custom widget
+    // in view A made it appear in view B because `customIds` is global per user
+    // and the effect mutated the in-memory layout of whatever view happened to
+    // be active. A custom widget is now part of a view only if its id has an
+    // entry in that view's saved `layout_data`. The parent coordinates adoption
+    // via `addWidgetToLayoutRef` below.
 
     const handleLayoutChange = useCallback((currentLayout: Layout) => {
         if (isEditing) {
@@ -223,26 +214,51 @@ export function DashboardGrid({
         setShowGallery(false)
     }, [])
 
-    const handleRemoveWidget = useCallback((id: WidgetId) => {
-        setHiddenWidgets(prev => {
-            const next = new Set(prev)
-            next.add(id)
-            return next
-        })
+    const handleRemoveWidget = useCallback((id: string) => {
+        // Built-in widgets: add to hidden set so layout slot is preserved.
+        // Custom widgets: strip their layout entry completely, so they become
+        // addable from the gallery again and disappear from the grid.
+        if (id.startsWith("custom-")) {
+            setLayout(prev => prev.filter(item => item.i !== id))
+        } else {
+            setHiddenWidgets(prev => {
+                const next = new Set(prev)
+                next.add(id as WidgetId)
+                return next
+            })
+        }
         setSelectedWidget(null)
     }, [])
 
-    const handleAddWidget = useCallback((id: WidgetId) => {
+    const handleAddWidget = useCallback((id: string) => {
+        // Compute next y below current layout for both branches.
+        const computeMaxY = (lay: LayoutItem[], exclude?: string) =>
+            lay.reduce((max, item) => {
+                if (exclude && item.i === exclude) return max
+                if (hiddenWidgets.has(item.i as WidgetId)) return max
+                return Math.max(max, item.y + item.h)
+            }, 0)
+
+        if (id.startsWith("custom-")) {
+            // Custom widget: insert a fresh layout entry at the bottom.
+            setLayout(prev => {
+                if (prev.some(item => item.i === id)) return prev
+                const maxY = computeMaxY(prev)
+                return [
+                    ...prev,
+                    { i: id, x: 0, y: maxY, w: 4, h: 5, minW: 3, minH: 3 },
+                ]
+            })
+            return
+        }
+
+        // Built-in widget: unhide and bring its layout entry to the bottom.
         setHiddenWidgets(prev => {
             const next = new Set(prev)
-            next.delete(id)
+            next.delete(id as WidgetId)
             return next
         })
-        // Add widget to bottom of current layout
-        const maxY = layout.reduce((max, item) => {
-            if (hiddenWidgets.has(item.i as WidgetId) && item.i !== id) return max
-            return Math.max(max, item.y + item.h)
-        }, 0)
+        const maxY = computeMaxY(layout, id)
         const defaultItem = getDefaultLayout().find(item => item.i === id)
         if (defaultItem) {
             setLayout(prev => prev.map(item =>
@@ -292,6 +308,16 @@ export function DashboardGrid({
         return layout.filter(item => !hiddenWidgets.has(item.i as WidgetId))
     }, [layout, hiddenWidgets, isEditing])
 
+    // Custom widgets that exist in the user's library but are not yet added
+    // to this view's layout. These show up in the "Add Widget" gallery so the
+    // user can pull them in per-view instead of them auto-appearing everywhere.
+    const addableCustomWidgets = useMemo(() => {
+        const layoutIds = new Set(layout.map(item => item.i))
+        return customWidgets.filter(cw => !layoutIds.has(`custom-${cw.id}`))
+    }, [customWidgets, layout])
+
+    const galleryCount = hiddenWidgets.size + addableCustomWidgets.length
+
     const isReady = loaded && width > 0
 
     // Build controls JSX — will be rendered by parent via renderControls callback
@@ -312,12 +338,12 @@ export function DashboardGrid({
                     }}
                 >
                     <Plus style={{ width: 12, height: 12 }} /> Add Widget
-                    {hiddenWidgets.size > 0 && (
+                    {galleryCount > 0 && (
                         <span style={{
                             background: "rgba(255,255,255,.25)", borderRadius: 4,
                             padding: "0 4px", fontSize: 9, marginLeft: 2,
                         }}>
-                            {hiddenWidgets.size}
+                            {galleryCount}
                         </span>
                     )}
                 </button>
@@ -352,6 +378,7 @@ export function DashboardGrid({
                 <button
                     onClick={handleSave}
                     disabled={saving}
+                    title={activeViewName ? `Saves to "${activeViewName}"` : "Save layout"}
                     style={{
                         display: "flex", alignItems: "center", gap: 4,
                         background: "#02378D", border: "1px solid #02378D", borderRadius: 7,
@@ -359,9 +386,17 @@ export function DashboardGrid({
                         cursor: "pointer", fontFamily: "inherit",
                         boxShadow: "0 1px 4px rgba(2,55,141,.25)",
                         opacity: saving ? 0.7 : 1,
+                        maxWidth: 220,
                     }}
                 >
-                    <Check style={{ width: 12, height: 12 }} /> {saving ? "Saving..." : "Save Layout"}
+                    <Check style={{ width: 12, height: 12, flexShrink: 0 }} />
+                    <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {saving
+                            ? "Saving…"
+                            : activeViewName
+                                ? `Save to "${activeViewName}"`
+                                : "Save Layout"}
+                    </span>
                 </button>
             </div>
         ) : (
@@ -426,6 +461,21 @@ export function DashboardGrid({
                         )
                 )}
 
+            {/* Edit-mode banner: tells the user which view they're currently editing */}
+            {isEditing && activeViewName && (
+                <div style={{
+                    display: "flex", alignItems: "center", gap: 8,
+                    padding: "8px 12px", marginBottom: 10,
+                    background: "#eef2ff", border: "1px solid #c7d2fe",
+                    borderRadius: 8, fontSize: 11, color: "#1e3a8a",
+                }}>
+                    <Pencil style={{ width: 12, height: 12, color: "#3730a3", flexShrink: 0 }} />
+                    <span>
+                        Editing <strong>{activeViewName}</strong>. Changes save to this view only.
+                    </span>
+                </div>
+            )}
+
             <div
                 style={{
                     position: "relative",
@@ -477,9 +527,16 @@ export function DashboardGrid({
                             const child = childArray[idx]
                             const isHidden = hiddenWidgets.has(id as WidgetId)
                             const isSelected = isEditing && selectedWidget === id
+                            const isCustom = id.startsWith("custom-")
+                            const hasLayoutEntry = layout.some(item => item.i === id)
 
                             // Hidden widgets are completely removed from the grid
                             if (isHidden) return null
+                            // Custom widgets not yet added to this view: skip render.
+                            // They still live in `customWidgets` (global per user) but
+                            // only appear on the grid when added explicitly via the
+                            // "Add Widget" gallery of the current view.
+                            if (isCustom && !hasLayoutEntry) return null
 
                             return (
                                 <div
@@ -643,7 +700,7 @@ export function DashboardGrid({
                                     fontSize: 10, fontWeight: 600, color: "#02378D",
                                     background: "#eef2ff", padding: "2px 6px", borderRadius: 4,
                                 }}>
-                                    {hiddenWidgets.size} available
+                                    {galleryCount} available
                                 </span>
                             </div>
                             <button
@@ -668,7 +725,7 @@ export function DashboardGrid({
                                     key={id}
                                     onClick={() => {
                                         handleAddWidget(id)
-                                        if (hiddenWidgets.size <= 1) setShowGallery(false)
+                                        if (galleryCount <= 1) setShowGallery(false)
                                     }}
                                     style={{
                                         display: "flex", alignItems: "center", gap: 10,
@@ -702,6 +759,50 @@ export function DashboardGrid({
                                         </div>
                                         <div style={{ fontSize: 9, color: "#94a3b8", marginTop: 1 }}>
                                             Click to add to dashboard
+                                        </div>
+                                    </div>
+                                </button>
+                            ))}
+                            {/* User's custom widgets not yet in this view */}
+                            {addableCustomWidgets.map(cw => (
+                                <button
+                                    key={`custom-${cw.id}`}
+                                    onClick={() => {
+                                        handleAddWidget(`custom-${cw.id}`)
+                                        if (galleryCount <= 1) setShowGallery(false)
+                                    }}
+                                    style={{
+                                        display: "flex", alignItems: "center", gap: 10,
+                                        padding: "12px 14px",
+                                        background: "#fffbeb", border: "1.5px solid #fde68a",
+                                        borderRadius: 8, cursor: "pointer",
+                                        fontFamily: "inherit",
+                                        transition: "all .15s",
+                                        textAlign: "left",
+                                    }}
+                                    onMouseEnter={(e) => {
+                                        e.currentTarget.style.borderColor = "#d97706"
+                                        e.currentTarget.style.background = "#fef3c7"
+                                    }}
+                                    onMouseLeave={(e) => {
+                                        e.currentTarget.style.borderColor = "#fde68a"
+                                        e.currentTarget.style.background = "#fffbeb"
+                                    }}
+                                >
+                                    <div style={{
+                                        width: 32, height: 32, borderRadius: 6,
+                                        background: "#fde68a",
+                                        display: "flex", alignItems: "center", justifyContent: "center",
+                                        flexShrink: 0,
+                                    }}>
+                                        <Plus style={{ width: 14, height: 14, color: "#b45309" }} />
+                                    </div>
+                                    <div>
+                                        <div style={{ fontSize: 11, fontWeight: 600, color: "#1e293b" }}>
+                                            {cw.title}
+                                        </div>
+                                        <div style={{ fontSize: 9, color: "#b45309", marginTop: 1 }}>
+                                            Custom widget · add to this view
                                         </div>
                                     </div>
                                 </button>
@@ -753,7 +854,7 @@ export function DashboardGrid({
                         </div>
 
                         {/* Modal Footer */}
-                        {hiddenWidgets.size === 0 && !onCreateCustomWidget && (
+                        {galleryCount === 0 && !onCreateCustomWidget && (
                             <div style={{
                                 padding: "20px", textAlign: "center",
                                 color: "#94a3b8", fontSize: 12,
