@@ -36,6 +36,9 @@ export default async function RootLayout({
   const headersList = await headers();
   const pathname = headersList.get("x-pathname") || "";
   const isLoginPage = pathname.startsWith("/login");
+  // Print routes render a standalone printable document — skip the app shell
+  const isPrintPage = /^\/leads\/[^/]+\/print/.test(pathname);
+  const standalone = isLoginPage || isPrintPage;
 
   let initialCompany = null;
   let companies: Awaited<ReturnType<typeof getUserCompanies>> = [];
@@ -45,8 +48,6 @@ export default async function RootLayout({
   if (!isLoginPage) {
     try {
       const supabase = await createClient();
-
-      // Parallel fetch: company + companies + user profile (eliminates sidebar re-fetch)
       const [activeResult, companiesResult, authResult] = await Promise.all([
         getActiveCompany(),
         getUserCompanies(),
@@ -112,7 +113,7 @@ export default async function RootLayout({
         <a href="#main-content" className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[100] focus:px-4 focus:py-2 focus:bg-primary focus:text-primary-foreground focus:rounded-lg focus:text-sm focus:font-semibold focus:shadow-lg">
           Skip to content
         </a>
-        {isLoginPage ? children : (
+        {standalone ? children : (
           <MainLayout initialCompany={initialCompany} companies={companies} currencySettings={currencySettings} userProfile={userProfile}>
             {children}
           </MainLayout>
