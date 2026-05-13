@@ -161,6 +161,12 @@ function BarRenderer({ widget, data }: CustomWidgetRendererProps) {
     fill: CHART_COLORS[i % CHART_COLORS.length],
   }))
 
+  // Compute domain explicitly: when the axis-only chart has Bar `hide`,
+  // Recharts skips dataMax computation and the axis renders empty. Sharing
+  // an identical numeric domain keeps top and bottom charts aligned.
+  const maxValue = chartData.reduce((m, d) => Math.max(m, d.value), 0) || 1
+  const xDomain: [number, number] = [0, maxValue]
+
   return (
     <SectionCard>
       <SectionTitle>{widget.title}</SectionTitle>
@@ -175,15 +181,15 @@ function BarRenderer({ widget, data }: CustomWidgetRendererProps) {
         // Sticky-axis pattern: scrollable bars on top, frozen X-axis below.
         // Recharts renders the entire chart (incl. axes) as one SVG, so a
         // single overflow:auto wrapper makes the axis scroll with the bars.
-        // We split into two BarCharts that share the same data — top one
-        // hides the X-axis, bottom one only renders it.
+        // We split into two BarCharts that share the same data and domain —
+        // top one hides the X-axis, bottom one only renders it.
         <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
           <div className="thin-scrollbar" style={{ flex: 1, minHeight: 0, overflowY: "auto", overflowX: "hidden" }}>
             {hasMounted ? (
               <div style={{ width: "100%", height: Math.max(chartData.length * 36, 80) }}>
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={chartData} layout="vertical" margin={{ top: 4, right: 12, left: 0, bottom: 0 }}>
-                    <XAxis type="number" hide domain={[0, 'dataMax']} />
+                    <XAxis type="number" hide domain={xDomain} />
                     <YAxis
                       type="category"
                       dataKey="label"
@@ -209,12 +215,30 @@ function BarRenderer({ widget, data }: CustomWidgetRendererProps) {
             )}
           </div>
           {hasMounted && (
-            <div style={{ width: "100%", height: 22, flexShrink: 0 }}>
+            <div
+              style={{
+                width: "100%",
+                height: 24,
+                flexShrink: 0,
+                borderTop: "1px solid #f1f5f9",
+                paddingTop: 2,
+                marginTop: 2,
+              }}
+            >
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chartData} layout="vertical" margin={{ top: 0, right: 12, left: 0, bottom: 0 }}>
-                  <XAxis type="number" axisLine={false} tickLine={false} tick={{ fontSize: 9, fill: "#b0b8c8", fontWeight: 500 }} domain={[0, 'dataMax']} />
-                  <YAxis type="category" dataKey="label" hide width={80} />
-                  <Bar dataKey="value" hide />
+                <BarChart
+                  data={[{ _: maxValue }]}
+                  layout="vertical"
+                  margin={{ top: 0, right: 12, left: 80, bottom: 0 }}
+                >
+                  <XAxis
+                    type="number"
+                    domain={xDomain}
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fontSize: 9, fill: "#94a3b8", fontWeight: 500 }}
+                  />
+                  <YAxis type="category" dataKey="_" hide />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -365,6 +389,9 @@ function ListRenderer({ widget, data }: CustomWidgetRendererProps) {
     tickLabel: `#${i + 1} ${g.label}`,
   }))
 
+  const maxValue = chartData.reduce((m, d) => Math.max(m, d.value), 0) || 1
+  const xDomain: [number, number] = [0, maxValue]
+
   return (
     <SectionCard>
       <SectionTitle>{widget.title}</SectionTitle>
@@ -383,7 +410,7 @@ function ListRenderer({ widget, data }: CustomWidgetRendererProps) {
               <div style={{ width: "100%", height: Math.max(chartData.length * 36, 80) }}>
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={chartData} layout="vertical" margin={{ top: 4, right: 12, left: 0, bottom: 0 }}>
-                    <XAxis type="number" hide domain={[0, 'dataMax']} />
+                    <XAxis type="number" hide domain={xDomain} />
                     <YAxis
                       type="category"
                       dataKey="tickLabel"
@@ -409,12 +436,30 @@ function ListRenderer({ widget, data }: CustomWidgetRendererProps) {
             )}
           </div>
           {hasMounted && (
-            <div style={{ width: "100%", height: 22, flexShrink: 0 }}>
+            <div
+              style={{
+                width: "100%",
+                height: 24,
+                flexShrink: 0,
+                borderTop: "1px solid #f1f5f9",
+                paddingTop: 2,
+                marginTop: 2,
+              }}
+            >
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chartData} layout="vertical" margin={{ top: 0, right: 12, left: 0, bottom: 0 }}>
-                  <XAxis type="number" axisLine={false} tickLine={false} tick={{ fontSize: 9, fill: "#b0b8c8", fontWeight: 500 }} domain={[0, 'dataMax']} />
-                  <YAxis type="category" dataKey="tickLabel" hide width={100} />
-                  <Bar dataKey="value" hide />
+                <BarChart
+                  data={[{ _: maxValue }]}
+                  layout="vertical"
+                  margin={{ top: 0, right: 12, left: 100, bottom: 0 }}
+                >
+                  <XAxis
+                    type="number"
+                    domain={xDomain}
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fontSize: 9, fill: "#94a3b8", fontWeight: 500 }}
+                  />
+                  <YAxis type="category" dataKey="_" hide />
                 </BarChart>
               </ResponsiveContainer>
             </div>

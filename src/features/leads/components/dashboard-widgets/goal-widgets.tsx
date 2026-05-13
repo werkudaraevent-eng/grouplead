@@ -357,14 +357,19 @@ export function GoalCompanyBreakdownWidget() {
       ) : (
         // Sticky X-axis: scrollable bars on top, frozen axis at the bottom.
         // A single overflow:auto over a Recharts BarChart makes the axis scroll
-        // with the bars because the entire chart is one SVG.
+        // with the bars because the entire chart is one SVG. Both charts share
+        // the same explicit numeric domain so tick positions stay aligned.
+        (() => {
+          const maxValue = rows.reduce((m, r) => Math.max(m, r.wonRevenue), 0) || 1
+          const xDomain: [number, number] = [0, maxValue]
+          return (
         <div style={{ flex: 1, width: "100%", minHeight: 0, display: "flex", flexDirection: "column" }}>
           <div className="thin-scrollbar" style={{ flex: 1, width: "100%", minHeight: 0, overflowY: "auto", overflowX: "hidden" }}>
             <div style={{ width: "100%", height: Math.max(rows.length * 36, 80) }}>
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={rows} layout="vertical" barCategoryGap="20%" margin={{ left: 0, right: 12, top: 4, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
-                  <XAxis type="number" hide domain={[0, 'dataMax']} />
+                  <XAxis type="number" hide domain={xDomain} />
                   <YAxis type="category" dataKey="name" tick={{ fontSize: 10, fill: "#64748b", fontWeight: 500 }} axisLine={false} tickLine={false} width={80} />
                   <Tooltip content={<GoalTooltip fmt={fmt} />} cursor={{ fill: "rgba(0,0,0,.04)" }} />
                   <Bar dataKey="wonRevenue" name="Revenue" radius={[0, 4, 4, 0]}>
@@ -376,16 +381,37 @@ export function GoalCompanyBreakdownWidget() {
               </ResponsiveContainer>
             </div>
           </div>
-          <div style={{ width: "100%", height: 22, flexShrink: 0 }}>
+          <div
+            style={{
+              width: "100%",
+              height: 24,
+              flexShrink: 0,
+              borderTop: "1px solid #f1f5f9",
+              paddingTop: 2,
+              marginTop: 2,
+            }}
+          >
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={rows} layout="vertical" margin={{ left: 0, right: 12, top: 0, bottom: 0 }}>
-                <XAxis type="number" tick={{ fontSize: 9, fill: "#94a3b8" }} axisLine={false} tickLine={false} tickFormatter={fmtAxis} domain={[0, 'dataMax']} />
-                <YAxis type="category" dataKey="name" hide width={80} />
-                <Bar dataKey="wonRevenue" hide />
+              <BarChart
+                data={[{ _: maxValue }]}
+                layout="vertical"
+                margin={{ left: 80, right: 12, top: 0, bottom: 0 }}
+              >
+                <XAxis
+                  type="number"
+                  domain={xDomain}
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fontSize: 9, fill: "#94a3b8" }}
+                  tickFormatter={fmtAxis}
+                />
+                <YAxis type="category" dataKey="_" hide />
               </BarChart>
             </ResponsiveContainer>
           </div>
         </div>
+          )
+        })()
       )}
     </SectionCard>
   )
