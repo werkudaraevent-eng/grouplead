@@ -102,6 +102,10 @@ export function AnalyticsDashboard({
     // "unsaved changes" indicator and Save flow, we also mirror the latest
     // layout from the grid into state via onPersistLayout.
     const pendingGridRef = useRef<{ layout: LayoutItem[]; hidden: WidgetId[] } | null>(null)
+    // Imperative handle injected by the grid: lets the parent insert a
+    // freshly-created custom widget into the grid's live layout without
+    // racing the seed effect or using stale DB state.
+    const addCustomWidgetRef = useRef<((id: string, width?: number, height?: number) => void) | null>(null)
 
     // Track when filters have drifted from the active view's saved snapshot.
     const activeViewFilters = views.activeView?.filters ?? null
@@ -281,38 +285,18 @@ export function AnalyticsDashboard({
 
             if (!error && data) {
                 setCustomWidgetsList(prev => [...prev, data])
-                // Auto-add the new widget into the active view's layout so it
-                // appears immediately. Without this the widget lives only in
-                // the user's library and shows up as an addable item in the
-                // gallery, which surprises users who expect instant rendering.
-                const target = views.activeView
-                if (target) {
-                    const existing = (pendingGridRef.current?.layout ?? target.layout_data) as LayoutItem[]
-                    const newId = `custom-${data.id}`
-                    if (!existing.some(item => item.i === newId)) {
-                        const maxY = existing.reduce((m, item) => Math.max(m, item.y + item.h), 0)
-                        const nextLayout: LayoutItem[] = [
-                            ...existing,
-                            { i: newId, x: 0, y: maxY, w: 4, h: 5, minW: 3, minH: 3 },
-                        ]
-                        pendingGridRef.current = {
-                            layout: nextLayout,
-                            hidden: (pendingGridRef.current?.hidden ?? target.hidden_widgets) as WidgetId[],
-                        }
-                        await views.updateView({
-                            id: target.id,
-                            name: target.name,
-                            layout_data: nextLayout,
-                            hidden_widgets: pendingGridRef.current.hidden,
-                            filters: currentFiltersSnapshot,
-                        })
-                    }
-                }
+                // Insert the widget into the grid's live in-memory layout
+                // through the imperative handle. Placement is computed from
+                // the user's current (possibly unsaved) layout rather than
+                // stale DB data, so it lands cleanly below the last widget
+                // with the configured 4x5 size. Persistence happens when the
+                // user clicks Save in edit mode.
+                addCustomWidgetRef.current?.(`custom-${data.id}`, 4, 5)
             }
         }
         setShowConfigurator(false)
         setEditingWidget(null)
-    }, [editingWidget, views, currentFiltersSnapshot])
+    }, [editingWidget])
 
     const handleDeleteCustomWidget = useCallback(async (widgetId: string) => {
         const supabase = createClient()
@@ -1074,6 +1058,7 @@ export function AnalyticsDashboard({
                     onPersistLayout={handlePersistLayout}
                     onEditModeChange={setIsDashboardEditing}
                     activeViewName={views.activeView?.name}
+                    addCustomWidgetRef={addCustomWidgetRef}
                 >
                     {/* Order MUST match WIDGET_IDS array */}
                     {/* 6 individual KPI cards */}

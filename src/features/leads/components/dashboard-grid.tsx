@@ -44,6 +44,15 @@ interface DashboardGridProps {
     extraHeaderControls?: React.ReactNode
     /** Name of the currently active view, for the Save button label. */
     activeViewName?: string
+    /**
+     * Imperative hook so the parent can add a freshly-created custom widget
+     * into the grid at a correct position without racing the seed effect.
+     * Parent passes a ref; grid assigns a function to `current` that accepts
+     * the widget id and places it at the bottom of the current in-memory
+     * layout. This avoids computing placement from stale view data while
+     * the user is mid-edit.
+     */
+    addCustomWidgetRef?: React.MutableRefObject<((id: string, width?: number, height?: number) => void) | null>
 }
 
 export function DashboardGrid({
@@ -60,6 +69,7 @@ export function DashboardGrid({
     onEditModeChange,
     extraHeaderControls,
     activeViewName,
+    addCustomWidgetRef,
 }: DashboardGridProps) {
     const [isEditing, setIsEditing] = useState(false)
     const [layout, setLayout] = useState<LayoutItem[]>([...getDefaultLayout()])
@@ -145,6 +155,23 @@ export function DashboardGrid({
         setLoaded(true)
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [viewKey])
+
+    // Adopt newly-added entries from the parent's view without wiping the
+    // user's in-progress edits. This handles the "create custom widget while
+    // editing" flow: parent persists the new widget into the active view's
+    // layout_data server-side and bumps `initialLayout`. We detect ids that
+    // are in initialLayout but missing locally, and merge them in at their
+    // authoritative positions. Existing entries are NOT overwritten so the
+    // user's drag/resize changes are preserved.
+    useEffect(() => {
+        if (!loaded || !initialLayout || initialLayout.length === 0) return
+        setLayout(prev => {
+            const prevIds = new Set(prev.map(item => item.i))
+            const additions = initialLayout.filter(item => !prevIds.has(item.i))
+            if (additions.length === 0) return prev
+            return [...prev, ...additions]
+        })
+    }, [initialLayout, loaded])
 
     // IMPORTANT: Custom widgets are NOT auto-added to the layout anymore.
     // Previously this leaked widgets across views: creating a custom widget
@@ -266,6 +293,30 @@ export function DashboardGrid({
             ))
         }
     }, [layout, hiddenWidgets])
+
+    // Expose an imperative add so the parent can insert a newly-created custom
+    // widget using the grid's own current layout (not stale DB state). This
+    // prevents the widget from stacking on top of existing widgets when the
+    // parent tries to compute placement mid-edit.
+    useEffect(() => {
+        if (!addCustomWidgetRef) return
+        addCustomWidgetRef.current = (id, width = 4, height = 5) => {
+            setLayout(prev => {
+                if (prev.some(item => item.i === id)) return prev
+                const maxY = prev.reduce((m, item) => {
+                    if (hiddenWidgets.has(item.i as WidgetId)) return m
+                    return Math.max(m, item.y + item.h)
+                }, 0)
+                return [
+                    ...prev,
+                    { i: id, x: 0, y: maxY, w: width, h: height, minW: 3, minH: 3 },
+                ]
+            })
+        }
+        return () => {
+            if (addCustomWidgetRef) addCustomWidgetRef.current = null
+        }
+    }, [addCustomWidgetRef, hiddenWidgets])
 
     // Grid overlay cells for edit mode — absolutely positioned to match react-grid-layout formula
     // MUST be before any early return to satisfy Rules of Hooks
