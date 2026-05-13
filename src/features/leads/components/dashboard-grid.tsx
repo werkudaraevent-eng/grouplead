@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback, useRef, useMemo } from "react"
+import { Children, useState, useEffect, useCallback, useRef, useMemo } from "react"
 import { createPortal } from "react-dom"
 import { GridLayout, type Layout, type LayoutItem } from "react-grid-layout"
 import { Pencil, Check, X, RotateCcw, GripVertical, Plus, LayoutGrid } from "lucide-react"
@@ -577,9 +577,16 @@ export function DashboardGrid({
                         }}
                         onLayoutChange={handleLayoutChange}
                     >
-                        {allWidgetIds.map((id, idx) => {
-                            const childArray = Array.isArray(children) ? children : [children]
-                            const child = childArray[idx]
+                        {(() => {
+                            // React treats expressions like {list.map(...)} as a
+                            // single child that is an array. If we simply index
+                            // `children[idx]` we will land on that nested array
+                            // and render every custom widget into one grid slot.
+                            // `Children.toArray` flattens nested arrays in order
+                            // so the positional mapping matches `allWidgetIds`.
+                            const flatChildren = Children.toArray(children)
+                            return allWidgetIds.map((id, idx) => {
+                                const child = flatChildren[idx]
                             const isHidden = hiddenWidgets.has(id as WidgetId)
                             const isSelected = isEditing && selectedWidget === id
                             const isCustom = id.startsWith("custom-")
@@ -718,7 +725,8 @@ export function DashboardGrid({
                                     </div>
                                 </div>
                             )
-                        })}
+                            })
+                        })()}
                     </GridLayout>
                 )}
                 
