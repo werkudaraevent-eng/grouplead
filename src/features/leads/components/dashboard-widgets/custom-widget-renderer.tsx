@@ -172,34 +172,52 @@ function BarRenderer({ widget, data }: CustomWidgetRendererProps) {
           No data
         </div>
       ) : (
-        <div className="thin-scrollbar" style={{ flex: 1, minHeight: 0, overflowY: "auto", overflowX: "hidden" }}>
-          {hasMounted ? (
-            <div style={{ width: "100%", height: Math.max(chartData.length * 36, 80) }}>
+        // Sticky-axis pattern: scrollable bars on top, frozen X-axis below.
+        // Recharts renders the entire chart (incl. axes) as one SVG, so a
+        // single overflow:auto wrapper makes the axis scroll with the bars.
+        // We split into two BarCharts that share the same data — top one
+        // hides the X-axis, bottom one only renders it.
+        <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
+          <div className="thin-scrollbar" style={{ flex: 1, minHeight: 0, overflowY: "auto", overflowX: "hidden" }}>
+            {hasMounted ? (
+              <div style={{ width: "100%", height: Math.max(chartData.length * 36, 80) }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={chartData} layout="vertical" margin={{ top: 4, right: 12, left: 0, bottom: 0 }}>
+                    <XAxis type="number" hide domain={[0, 'dataMax']} />
+                    <YAxis
+                      type="category"
+                      dataKey="label"
+                      axisLine={false}
+                      tickLine={false}
+                      tick={<EllipsisTick width={80} fontSize={10.5} />}
+                      width={80}
+                    />
+                    <RechartsTooltip
+                      content={<BarTooltip metricField={widget.metric_field} aggregation={widget.aggregation} fmt={fmt} />}
+                      cursor={{ fill: "rgba(0,0,0,.03)" }}
+                    />
+                    <Bar dataKey="value" radius={[0, 4, 4, 0]} barSize={14}>
+                      {chartData.map((d, i) => (
+                        <Cell key={i} fill={d.fill} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            ) : (
+              <ChartPlaceholder />
+            )}
+          </div>
+          {hasMounted && (
+            <div style={{ width: "100%", height: 22, flexShrink: 0 }}>
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chartData} layout="vertical" margin={{ top: 4, right: 12, left: 0, bottom: 4 }}>
-                  <XAxis type="number" axisLine={false} tickLine={false} tick={{ fontSize: 9, fill: "#b0b8c8", fontWeight: 500 }} />
-                  <YAxis
-                    type="category"
-                    dataKey="label"
-                    axisLine={false}
-                    tickLine={false}
-                    tick={<EllipsisTick width={80} fontSize={10.5} />}
-                    width={80}
-                  />
-                  <RechartsTooltip
-                    content={<BarTooltip metricField={widget.metric_field} aggregation={widget.aggregation} fmt={fmt} />}
-                    cursor={{ fill: "rgba(0,0,0,.03)" }}
-                  />
-                  <Bar dataKey="value" radius={[0, 4, 4, 0]} barSize={14}>
-                    {chartData.map((d, i) => (
-                      <Cell key={i} fill={d.fill} />
-                    ))}
-                  </Bar>
+                <BarChart data={chartData} layout="vertical" margin={{ top: 0, right: 12, left: 0, bottom: 0 }}>
+                  <XAxis type="number" axisLine={false} tickLine={false} tick={{ fontSize: 9, fill: "#b0b8c8", fontWeight: 500 }} domain={[0, 'dataMax']} />
+                  <YAxis type="category" dataKey="label" hide width={80} />
+                  <Bar dataKey="value" hide />
                 </BarChart>
               </ResponsiveContainer>
             </div>
-          ) : (
-            <ChartPlaceholder />
           )}
         </div>
       )}
@@ -358,34 +376,48 @@ function ListRenderer({ widget, data }: CustomWidgetRendererProps) {
           No data
         </div>
       ) : (
-        <div className="thin-scrollbar" style={{ flex: 1, minHeight: 0, overflowY: "auto", overflowX: "hidden" }}>
-          {hasMounted ? (
-            <div style={{ width: "100%", height: Math.max(chartData.length * 36, 80) }}>
+        // Sticky-axis pattern (see BarRenderer for rationale).
+        <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
+          <div className="thin-scrollbar" style={{ flex: 1, minHeight: 0, overflowY: "auto", overflowX: "hidden" }}>
+            {hasMounted ? (
+              <div style={{ width: "100%", height: Math.max(chartData.length * 36, 80) }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={chartData} layout="vertical" margin={{ top: 4, right: 12, left: 0, bottom: 0 }}>
+                    <XAxis type="number" hide domain={[0, 'dataMax']} />
+                    <YAxis
+                      type="category"
+                      dataKey="tickLabel"
+                      axisLine={false}
+                      tickLine={false}
+                      tick={<ListRankTick data={chartData} />}
+                      width={100}
+                    />
+                    <RechartsTooltip
+                      content={<ListTooltip metricField={widget.metric_field} aggregation={widget.aggregation} fmt={fmt} />}
+                      cursor={{ fill: "rgba(0,0,0,.03)" }}
+                    />
+                    <Bar dataKey="value" radius={[0, 4, 4, 0]} barSize={14}>
+                      {chartData.map((d, i) => (
+                        <Cell key={i} fill={d.fill} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            ) : (
+              <ChartPlaceholder />
+            )}
+          </div>
+          {hasMounted && (
+            <div style={{ width: "100%", height: 22, flexShrink: 0 }}>
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chartData} layout="vertical" margin={{ top: 4, right: 12, left: 0, bottom: 4 }}>
-                  <XAxis type="number" axisLine={false} tickLine={false} tick={{ fontSize: 9, fill: "#b0b8c8", fontWeight: 500 }} />
-                  <YAxis
-                    type="category"
-                    dataKey="tickLabel"
-                    axisLine={false}
-                    tickLine={false}
-                    tick={<ListRankTick data={chartData} />}
-                    width={100}
-                  />
-                  <RechartsTooltip
-                    content={<ListTooltip metricField={widget.metric_field} aggregation={widget.aggregation} fmt={fmt} />}
-                    cursor={{ fill: "rgba(0,0,0,.03)" }}
-                  />
-                  <Bar dataKey="value" radius={[0, 4, 4, 0]} barSize={14}>
-                    {chartData.map((d, i) => (
-                      <Cell key={i} fill={d.fill} />
-                    ))}
-                  </Bar>
+                <BarChart data={chartData} layout="vertical" margin={{ top: 0, right: 12, left: 0, bottom: 0 }}>
+                  <XAxis type="number" axisLine={false} tickLine={false} tick={{ fontSize: 9, fill: "#b0b8c8", fontWeight: 500 }} domain={[0, 'dataMax']} />
+                  <YAxis type="category" dataKey="tickLabel" hide width={100} />
+                  <Bar dataKey="value" hide />
                 </BarChart>
               </ResponsiveContainer>
             </div>
-          ) : (
-            <ChartPlaceholder />
           )}
         </div>
       )}

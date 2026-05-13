@@ -355,19 +355,33 @@ export function GoalCompanyBreakdownWidget() {
       ) : !mounted ? (
         <ChartPlaceholder />
       ) : (
-        <div className="thin-scrollbar" style={{ flex: 1, width: "100%", minHeight: 0, overflowY: "auto", overflowX: "hidden" }}>
-          <div style={{ width: "100%", height: Math.max(rows.length * 36, 80) }}>
+        // Sticky X-axis: scrollable bars on top, frozen axis at the bottom.
+        // A single overflow:auto over a Recharts BarChart makes the axis scroll
+        // with the bars because the entire chart is one SVG.
+        <div style={{ flex: 1, width: "100%", minHeight: 0, display: "flex", flexDirection: "column" }}>
+          <div className="thin-scrollbar" style={{ flex: 1, width: "100%", minHeight: 0, overflowY: "auto", overflowX: "hidden" }}>
+            <div style={{ width: "100%", height: Math.max(rows.length * 36, 80) }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={rows} layout="vertical" barCategoryGap="20%" margin={{ left: 0, right: 12, top: 4, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
+                  <XAxis type="number" hide domain={[0, 'dataMax']} />
+                  <YAxis type="category" dataKey="name" tick={{ fontSize: 10, fill: "#64748b", fontWeight: 500 }} axisLine={false} tickLine={false} width={80} />
+                  <Tooltip content={<GoalTooltip fmt={fmt} />} cursor={{ fill: "rgba(0,0,0,.04)" }} />
+                  <Bar dataKey="wonRevenue" name="Revenue" radius={[0, 4, 4, 0]}>
+                    {rows.map((_, i) => (
+                      <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+          <div style={{ width: "100%", height: 22, flexShrink: 0 }}>
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={rows} layout="vertical" barCategoryGap="20%" margin={{ left: 0, right: 12, top: 4, bottom: 4 }}>
-                <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
-                <XAxis type="number" tick={{ fontSize: 9, fill: "#94a3b8" }} axisLine={false} tickLine={false} tickFormatter={fmtAxis} />
-                <YAxis type="category" dataKey="name" tick={{ fontSize: 10, fill: "#64748b", fontWeight: 500 }} axisLine={false} tickLine={false} width={80} />
-                <Tooltip content={<GoalTooltip fmt={fmt} />} cursor={{ fill: "rgba(0,0,0,.04)" }} />
-                <Bar dataKey="wonRevenue" name="Revenue" radius={[0, 4, 4, 0]}>
-                  {rows.map((_, i) => (
-                    <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                  ))}
-                </Bar>
+              <BarChart data={rows} layout="vertical" margin={{ left: 0, right: 12, top: 0, bottom: 0 }}>
+                <XAxis type="number" tick={{ fontSize: 9, fill: "#94a3b8" }} axisLine={false} tickLine={false} tickFormatter={fmtAxis} domain={[0, 'dataMax']} />
+                <YAxis type="category" dataKey="name" hide width={80} />
+                <Bar dataKey="wonRevenue" hide />
               </BarChart>
             </ResponsiveContainer>
           </div>
