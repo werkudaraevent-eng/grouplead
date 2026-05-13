@@ -6,7 +6,7 @@ import { useGoalData } from "@/features/goals/hooks/use-goal-data"
 import { useCompany } from "@/contexts/company-context"
 import { useCurrency } from "@/contexts/currency-context"
 import { calculateAttainmentV2 } from "@/features/goals/lib/attainment-calculator"
-import { SectionCard, SectionTitle, SectionSub } from "./shared"
+import { SectionCard, SectionTitle, SectionSub, StickyAxis } from "./shared"
 import { EmptyState } from "@/components/shared/empty-state"
 import { TrendingUp, Target, ArrowDown, ArrowUp, Building2, PieChart as PieChartIcon, BarChart3 } from "lucide-react"
 import { useHasMounted } from "@/hooks/use-has-mounted"
@@ -356,9 +356,8 @@ export function GoalCompanyBreakdownWidget() {
         <ChartPlaceholder />
       ) : (
         // Sticky X-axis: scrollable bars on top, frozen axis at the bottom.
-        // A single overflow:auto over a Recharts BarChart makes the axis scroll
-        // with the bars because the entire chart is one SVG. Both charts share
-        // the same explicit numeric domain so tick positions stay aligned.
+        // The axis is rendered as plain HTML (StickyAxis) because Recharts
+        // collapses the numeric domain when the data Bar is marked `hide`.
         (() => {
           const maxValue = rows.reduce((m, r) => Math.max(m, r.wonRevenue), 0) || 1
           const xDomain: [number, number] = [0, maxValue]
@@ -381,34 +380,12 @@ export function GoalCompanyBreakdownWidget() {
               </ResponsiveContainer>
             </div>
           </div>
-          <div
-            style={{
-              width: "100%",
-              height: 24,
-              flexShrink: 0,
-              borderTop: "1px solid #f1f5f9",
-              paddingTop: 2,
-              marginTop: 2,
-            }}
-          >
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart
-                data={[{ _: maxValue }]}
-                layout="vertical"
-                margin={{ left: 80, right: 12, top: 0, bottom: 0 }}
-              >
-                <XAxis
-                  type="number"
-                  domain={xDomain}
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fontSize: 9, fill: "#94a3b8" }}
-                  tickFormatter={fmtAxis}
-                />
-                <YAxis type="category" dataKey="_" hide />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+          <StickyAxis
+            maxValue={maxValue}
+            paddingLeft={80}
+            paddingRight={12}
+            format={fmtAxis}
+          />
         </div>
           )
         })()

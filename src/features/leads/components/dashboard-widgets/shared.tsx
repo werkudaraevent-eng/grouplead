@@ -232,3 +232,87 @@ export function EllipsisTick({ x, y, payload, width = 100, fontSize = 10 }: any)
         </g>
     )
 }
+
+/**
+ * Sticky numeric x-axis rendered as plain HTML. Use below a scrollable
+ * horizontal bar chart so the value scale stays visible while bars scroll.
+ *
+ * Why not a second Recharts chart: when Bar is marked `hide`, Recharts
+ * skips the scale computation and the axis collapses to an empty domain,
+ * so ticks never render. Manual HTML ticks with linear interpolation give
+ * the same visual result without fighting the chart library.
+ *
+ * `paddingLeft` must match the YAxis `width` on the chart above so the
+ * "0" tick aligns with the left edge of the bars. `paddingRight` matches
+ * the chart's right margin.
+ */
+export function StickyAxis({
+    maxValue,
+    paddingLeft = 80,
+    paddingRight = 12,
+    tickCount = 5,
+    format,
+}: {
+    maxValue: number
+    paddingLeft?: number
+    paddingRight?: number
+    tickCount?: number
+    format: (value: number) => string
+}) {
+    // Evenly spaced ticks from 0..maxValue inclusive.
+    const ticks = Array.from({ length: tickCount }, (_, i) => (maxValue * i) / (tickCount - 1))
+    return (
+        <div
+            style={{
+                width: "100%",
+                height: 22,
+                flexShrink: 0,
+                borderTop: "1px solid #f1f5f9",
+                paddingTop: 4,
+                marginTop: 2,
+                position: "relative",
+                boxSizing: "border-box",
+            }}
+        >
+            <div
+                style={{
+                    position: "absolute",
+                    top: 4,
+                    left: paddingLeft,
+                    right: paddingRight,
+                    height: 14,
+                }}
+            >
+                {ticks.map((tick, i) => {
+                    const pct = (i / (tickCount - 1)) * 100
+                    // End ticks use edge-aligned transforms so they sit inside
+                    // the bar area instead of overflowing the container.
+                    const transform =
+                        i === 0
+                            ? "translateX(0)"
+                            : i === ticks.length - 1
+                                ? "translateX(-100%)"
+                                : "translateX(-50%)"
+                    return (
+                        <span
+                            key={i}
+                            style={{
+                                position: "absolute",
+                                left: `${pct}%`,
+                                transform,
+                                fontSize: 9,
+                                color: "#94a3b8",
+                                fontWeight: 500,
+                                whiteSpace: "nowrap",
+                                fontVariantNumeric: "tabular-nums",
+                                lineHeight: 1,
+                            }}
+                        >
+                            {format(tick)}
+                        </span>
+                    )
+                })}
+            </div>
+        </div>
+    )
+}

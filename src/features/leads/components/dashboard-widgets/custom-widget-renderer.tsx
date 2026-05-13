@@ -4,7 +4,7 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer, Cell,
   PieChart, Pie,
 } from "recharts"
-import { SectionCard, SectionTitle, CHART_COLORS, EllipsisTick } from "./shared"
+import { SectionCard, SectionTitle, CHART_COLORS, EllipsisTick, StickyAxis } from "./shared"
 import { useHasMounted } from "@/hooks/use-has-mounted"
 import { useCurrency } from "@/contexts/currency-context"
 
@@ -153,7 +153,7 @@ function BarTooltip({ active, payload, metricField, aggregation, fmt }: any) {
 }
 
 function BarRenderer({ widget, data }: CustomWidgetRendererProps) {
-  const { fmt } = useCurrency()
+  const { fmt, fmtAxis } = useCurrency()
   const hasMounted = useHasMounted()
 
   const chartData = data.groups.map((g, i) => ({
@@ -161,9 +161,9 @@ function BarRenderer({ widget, data }: CustomWidgetRendererProps) {
     fill: CHART_COLORS[i % CHART_COLORS.length],
   }))
 
-  // Compute domain explicitly: when the axis-only chart has Bar `hide`,
-  // Recharts skips dataMax computation and the axis renders empty. Sharing
-  // an identical numeric domain keeps top and bottom charts aligned.
+  // Explicit domain keeps top chart and plain-HTML axis below in sync. The
+  // previous "axis-only BarChart" trick broke because Recharts ignores
+  // `dataMax` when Bar is hidden, collapsing the scale to [0,0].
   const maxValue = chartData.reduce((m, d) => Math.max(m, d.value), 0) || 1
   const xDomain: [number, number] = [0, maxValue]
 
@@ -179,10 +179,8 @@ function BarRenderer({ widget, data }: CustomWidgetRendererProps) {
         </div>
       ) : (
         // Sticky-axis pattern: scrollable bars on top, frozen X-axis below.
-        // Recharts renders the entire chart (incl. axes) as one SVG, so a
-        // single overflow:auto wrapper makes the axis scroll with the bars.
-        // We split into two BarCharts that share the same data and domain —
-        // top one hides the X-axis, bottom one only renders it.
+        // Top chart: real Recharts BarChart with XAxis hidden.
+        // Bottom axis: plain HTML/flex, positioned to align with bar area.
         <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
           <div className="thin-scrollbar" style={{ flex: 1, minHeight: 0, overflowY: "auto", overflowX: "hidden" }}>
             {hasMounted ? (
@@ -215,33 +213,12 @@ function BarRenderer({ widget, data }: CustomWidgetRendererProps) {
             )}
           </div>
           {hasMounted && (
-            <div
-              style={{
-                width: "100%",
-                height: 24,
-                flexShrink: 0,
-                borderTop: "1px solid #f1f5f9",
-                paddingTop: 2,
-                marginTop: 2,
-              }}
-            >
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart
-                  data={[{ _: maxValue }]}
-                  layout="vertical"
-                  margin={{ top: 0, right: 12, left: 80, bottom: 0 }}
-                >
-                  <XAxis
-                    type="number"
-                    domain={xDomain}
-                    axisLine={false}
-                    tickLine={false}
-                    tick={{ fontSize: 9, fill: "#94a3b8", fontWeight: 500 }}
-                  />
-                  <YAxis type="category" dataKey="_" hide />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
+            <StickyAxis
+              maxValue={maxValue}
+              paddingLeft={80}
+              paddingRight={12}
+              format={(v) => formatValue(v, widget.metric_field, widget.aggregation, fmtAxis)}
+            />
           )}
         </div>
       )}
@@ -379,7 +356,7 @@ function ListRankTick({ x, y, payload, data, width = 100, fontSize = 10.5 }: any
 }
 
 function ListRenderer({ widget, data }: CustomWidgetRendererProps) {
-  const { fmt } = useCurrency()
+  const { fmt, fmtAxis } = useCurrency()
   const hasMounted = useHasMounted()
 
   const chartData = data.groups.map((g, i) => ({
@@ -436,33 +413,12 @@ function ListRenderer({ widget, data }: CustomWidgetRendererProps) {
             )}
           </div>
           {hasMounted && (
-            <div
-              style={{
-                width: "100%",
-                height: 24,
-                flexShrink: 0,
-                borderTop: "1px solid #f1f5f9",
-                paddingTop: 2,
-                marginTop: 2,
-              }}
-            >
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart
-                  data={[{ _: maxValue }]}
-                  layout="vertical"
-                  margin={{ top: 0, right: 12, left: 100, bottom: 0 }}
-                >
-                  <XAxis
-                    type="number"
-                    domain={xDomain}
-                    axisLine={false}
-                    tickLine={false}
-                    tick={{ fontSize: 9, fill: "#94a3b8", fontWeight: 500 }}
-                  />
-                  <YAxis type="category" dataKey="_" hide />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
+            <StickyAxis
+              maxValue={maxValue}
+              paddingLeft={100}
+              paddingRight={12}
+              format={(v) => formatValue(v, widget.metric_field, widget.aggregation, fmtAxis)}
+            />
           )}
         </div>
       )}
