@@ -276,7 +276,11 @@ export function DashboardGrid({
         // react-grid-layout formula: colWidth = (containerWidth - margin * (cols - 1)) / cols
         const colWidth = (width - margin * (cols - 1)) / cols
         const rowHeight = GRID_ROW_HEIGHT
-        const visibleRows = 25
+        // Extend the dashed backdrop past the last widget so there's always
+        // room to drag things lower. Floor: 25 rows (reasonable for an empty
+        // view). Otherwise: last widget bottom + 8 buffer rows.
+        const maxY = layout.reduce((m, item) => Math.max(m, item.y + item.h), 0)
+        const visibleRows = Math.max(25, maxY + 8)
 
         const cells = []
         for (let row = 0; row < visibleRows; row++) {
@@ -301,7 +305,7 @@ export function DashboardGrid({
             }
         }
         return cells
-    }, [isEditing, width])
+    }, [isEditing, width, layout])
 
     const activeLayout = useMemo(() => {
         if (isEditing) return layout
@@ -556,6 +560,10 @@ export function DashboardGrid({
                                         overflow: isEditing ? "hidden" : "visible",
                                         transition: "all .15s ease",
                                         borderRadius: isEditing ? (isSelected ? 4 : 6) : 0,
+                                        // Opaque background in edit mode so the dashed grid
+                                        // backdrop does not bleed through widgets whose own
+                                        // bodies are transparent (e.g. chart empty states).
+                                        ...(isEditing ? { background: "#ffffff" } : {}),
                                         ...(isSelected ? {
                                             border: "2px dashed #4285f4",
                                         } : isEditing ? {

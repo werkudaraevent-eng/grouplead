@@ -281,11 +281,38 @@ export function AnalyticsDashboard({
 
             if (!error && data) {
                 setCustomWidgetsList(prev => [...prev, data])
+                // Auto-add the new widget into the active view's layout so it
+                // appears immediately. Without this the widget lives only in
+                // the user's library and shows up as an addable item in the
+                // gallery, which surprises users who expect instant rendering.
+                const target = views.activeView
+                if (target) {
+                    const existing = (pendingGridRef.current?.layout ?? target.layout_data) as LayoutItem[]
+                    const newId = `custom-${data.id}`
+                    if (!existing.some(item => item.i === newId)) {
+                        const maxY = existing.reduce((m, item) => Math.max(m, item.y + item.h), 0)
+                        const nextLayout: LayoutItem[] = [
+                            ...existing,
+                            { i: newId, x: 0, y: maxY, w: 4, h: 5, minW: 3, minH: 3 },
+                        ]
+                        pendingGridRef.current = {
+                            layout: nextLayout,
+                            hidden: (pendingGridRef.current?.hidden ?? target.hidden_widgets) as WidgetId[],
+                        }
+                        await views.updateView({
+                            id: target.id,
+                            name: target.name,
+                            layout_data: nextLayout,
+                            hidden_widgets: pendingGridRef.current.hidden,
+                            filters: currentFiltersSnapshot,
+                        })
+                    }
+                }
             }
         }
         setShowConfigurator(false)
         setEditingWidget(null)
-    }, [editingWidget])
+    }, [editingWidget, views, currentFiltersSnapshot])
 
     const handleDeleteCustomWidget = useCallback(async (widgetId: string) => {
         const supabase = createClient()
