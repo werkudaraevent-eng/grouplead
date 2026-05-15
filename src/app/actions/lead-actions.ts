@@ -6,6 +6,7 @@ import { createServiceClient } from "@/utils/supabase/service"
 import { smartCaseRow } from "@/utils/smart-title-case"
 import { parseSmartEventDates } from "@/utils/smart-date-parser"
 import { buildStageTransitionAuditEntries } from "@/features/leads/lib/stage-transition-audit"
+import { computeAccountStatus } from "@/features/leads/lib/compute-account-status"
 import { logAuditEvent } from "@/app/actions/audit-actions"
 import type { ActionResult } from "@/types"
 
@@ -21,7 +22,8 @@ const LEADS_COLUMNS = new Set([
     "virtual_platform", "main_stream", "destinations", "pipeline_id",
     "custom_data", "general_brief", "production_sow", "special_remarks", "event_dates", "month_event",
     "kanban_sort_order", "lost_reason", "lost_reason_details",
-    "closed_won_date", "closed_lost_date"
+    "closed_won_date", "closed_lost_date",
+    "account_status", "account_status_source"
 ])
 
 // ── Blocklist: relational join objects that come from Supabase `.select('*, relation(…)')` ──
@@ -91,6 +93,25 @@ export async function createLeadAction(
             payload.kanban_sort_order = Number(currentMax) + 1000
         }
 
+        // Compute account_status if not provided. We mark the source as
+        // "computed" so the UI can show an "Auto-detected" hint and so a
+        // future recompute job can tell which rows were system-derived.
+        if (
+            (payload.account_status === undefined || payload.account_status === null) &&
+            payload.client_company_id
+        ) {
+            const computation = await computeAccountStatus(
+                supabase,
+                payload.client_company_id as string,
+            )
+            payload.account_status = computation.value
+            payload.account_status_source = "computed"
+        } else if (payload.account_status && !payload.account_status_source) {
+            // User explicitly set a value through the form — record it as
+            // manual so subsequent UI affordances reflect that.
+            payload.account_status_source = "manual"
+        }
+
         const { data: newLead, error } = await supabase
             .from("leads")
             .insert(payload)
@@ -134,6 +155,17 @@ export async function updateLeadAction(
     try {
         const supabase = await createClient()
         const payload = sanitizePayload(data)
+
+        // If the user touched account_status from a UI form, mark the source
+        // as "manual" so future recompute jobs leave their value alone.
+        // Callers that explicitly want to preserve a 'computed' source must
+        // pass account_status_source themselves.
+        if (
+            payload.account_status !== undefined &&
+            payload.account_status_source === undefined
+        ) {
+            payload.account_status_source = "manual"
+        }
 
         // ── Post-Win Adjustment Hook ──
         // Before applying updates to a Closed Won lead, check if any
