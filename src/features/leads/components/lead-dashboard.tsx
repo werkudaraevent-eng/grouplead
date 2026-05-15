@@ -33,6 +33,7 @@ import {
 import { PipelineFilters, PipelineFilterState, INITIAL_FILTER_STATE, ActiveFilterPills, applyFilters } from "@/features/leads/components/pipeline-filters"
 import { PipelineIconPicker, PipelineIcon, DEFAULT_PIPELINE_ICON } from "@/features/leads/components/pipeline-icon-picker"
 import { useResizablePanel } from "@/hooks/use-resizable-panel"
+import { usePersistentViewMode } from "@/hooks/use-persistent-view-mode"
 import { useRouter } from "next/navigation"
 import { PermissionGate } from "@/features/users/components/permission-gate"
 import { Input } from "@/components/ui/input"
@@ -55,6 +56,7 @@ import {
 } from "@/components/ui/alert-dialog"
 
 type ViewMode = 'table' | 'kanban'
+const VIEW_MODES = ['kanban', 'table'] as const satisfies readonly ViewMode[]
 
 export function LeadDashboard() {
     const { activeCompany, companies, isHoldingView } = useCompany()
@@ -143,7 +145,14 @@ export function LeadDashboard() {
     const [importOpen, setImportOpen] = useState(false)
     const [editLead, setEditLead] = useState<Lead | null>(null)
     const [editOpen, setEditOpen] = useState(false)
-    const [viewMode, setViewMode] = useState<ViewMode>('kanban')
+    // View mode persists across refreshes via URL (?view=table) and falls back
+    // to localStorage so the choice also survives navigating away and back.
+    const [viewMode, setViewMode] = usePersistentViewMode<ViewMode>({
+        storageKey: "leads.view_mode",
+        queryKey: "view",
+        allowed: VIEW_MODES,
+        defaultMode: "kanban",
+    })
 
     // Selection & deletion state
     const [selectedLeadIds, setSelectedLeadIds] = useState<string[]>([])
