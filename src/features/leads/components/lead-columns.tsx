@@ -1,9 +1,10 @@
 "use client"
 
 import { ColumnDef } from "@tanstack/react-table"
-import { Lead } from "@/types"
+import { Lead, PipelineStage, TransitionRule } from "@/types"
 import { ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react"
 import { formatCurrency as formatCurrencyDefault } from "@/lib/format-currency"
+import { StageCellEditor } from "@/features/leads/components/stage-cell-editor"
 
 // ── Badge helper ──
 const Badge = ({ children, className }: { children: React.ReactNode; className?: string }) => (
@@ -75,13 +76,33 @@ const fmtDate = (d: string | null | undefined) =>
 // ════════════════════════════════════════════════════════════
 
 /**
- * Returns column definitions for the leads table.
- * Accepts an optional `fmt` function for currency formatting.
- * When called without `fmt`, uses the default formatter.
+ * Optional context required to make the Stage column editable.
+ * When omitted, the Stage cell falls back to a static badge (legacy behavior).
  */
-export function getColumns(fmt?: (amount: number) => string): ColumnDef<Lead>[] {
+export interface LeadColumnsContext {
+    stages?: PipelineStage[]
+    transitionRules?: TransitionRule[]
+    onStageChanged?: (
+        leadId: number,
+        stage: PipelineStage,
+        leadUpdates?: Record<string, unknown>,
+    ) => void
+}
+
+/**
+ * Returns column definitions for the leads table.
+ * Accepts an optional `fmt` function for currency formatting and a context
+ * object with pipeline stages + transition rules to enable the inline
+ * stage editor in the Stage column.
+ */
+export function getColumns(
+    fmt?: (amount: number) => string,
+    ctx?: LeadColumnsContext,
+): ColumnDef<Lead>[] {
   const fmtCurrency = (v: number | null | undefined) =>
       v ? (fmt ?? formatCurrencyDefault)(v) : "—"
+
+  const stageEditorEnabled = !!(ctx?.stages && ctx.stages.length > 0)
 
   return [
     {
@@ -181,7 +202,18 @@ export function getColumns(fmt?: (amount: number) => string): ColumnDef<Lead>[] 
         header: ({ column }) => <SortableHeader column={column} label="Stage" />,
         accessorFn: (row) => row.pipeline_stage?.name ?? row.status ?? "",
         cell: ({ row }) => {
-            const val = (row.original.pipeline_stage?.name) || (row.original.status as string)
+            const lead = row.original
+            const val = lead.pipeline_stage?.name || (lead.status as string)
+            if (stageEditorEnabled) {
+                return (
+                    <StageCellEditor
+                        lead={lead}
+                        stages={ctx!.stages!}
+                        transitionRules={ctx!.transitionRules ?? []}
+                        onStageChanged={ctx!.onStageChanged}
+                    />
+                )
+            }
             if (!val) return <span className="text-slate-300">—</span>
             return <Badge className={getStatusStyle(val)}>{val}</Badge>
         },

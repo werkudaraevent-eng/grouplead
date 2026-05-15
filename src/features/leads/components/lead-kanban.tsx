@@ -49,6 +49,12 @@ import {
 } from "@/components/ui/popover"
 import { Settings2, Plus } from "lucide-react"
 import { TransitionPromptModal } from "./transition-prompt-modal"
+import { StageBackwardConfirmModal } from "./stage-backward-confirm-modal"
+import {
+    findMatchingTransitionRule,
+    isBackwardTransition,
+    ruleRequiresPrompt,
+} from "@/features/leads/lib/stage-transitions"
 
 export interface KanbanCardConfig {
     badges: string[]
@@ -123,6 +129,13 @@ export function LeadKanban({
         rule: TransitionRule;
         newSortOrder?: number;
     } | null>(null)
+    const [backwardPrompt, setBackwardPrompt] = useState<{
+        lead: Lead;
+        fromStage: PipelineStage;
+        toStage: PipelineStage;
+        newSortOrder: number;
+    } | null>(null)
+    const [backwardPending, setBackwardPending] = useState(false)
     const supabase = createClient()
 
     const sensors = useSensors(
@@ -356,6 +369,48 @@ export function LeadKanban({
         })
     }, [stages])
 
+    // Persist a stage transition to the server with optimistic-cleanup +
+    // toast feedback. Extracted so both the drag handler and the backward
+    // confirm flow share one execution path.
+    const executeStageTransition = useCallback(
+        async (
+            activeLeadId: number,
+            destinationStageId: string,
+            newSortOrder: number,
+            originalStageId: string,
+        ) => {
+            const destinationStage = stages.find((s) => s.id === destinationStageId)
+            const result = await updatePipelineStageAction(
+                activeLeadId,
+                destinationStageId,
+                newSortOrder,
+            )
+
+            if (!result.success) {
+                toast.error(`Failed to move lead: ${result.error}`)
+                setLeads(initialLeads)
+                return false
+            }
+
+            const stageName = destinationStage?.name || "stage"
+            if (originalStageId !== destinationStageId) {
+                toast.success(`Moved to ${stageName}`)
+            }
+
+            if (onLeadStageChange && destinationStage) {
+                onLeadStageChange(
+                    activeLeadId,
+                    destinationStage.id,
+                    destinationStage.name,
+                    destinationStage.color,
+                    { kanban_sort_order: newSortOrder },
+                )
+            }
+            return true
+        },
+        [stages, initialLeads, onLeadStageChange],
+    )
+
     const handleDragEnd = useCallback(async (event: DragEndEvent) => {
         const { active, over } = event
         setActiveId(null)
@@ -393,19 +448,34 @@ export function LeadKanban({
         }
 
         if (originalStageId !== destinationStageId) {
-            const matchedRule = transitionRules.find(r => 
-                (r.from_stage_id === originalStageId || r.from_stage_id === null) && 
-                r.to_stage_id === destinationStageId
+            const matchedRule = findMatchingTransitionRule(
+                transitionRules,
+                originalStageId,
+                destinationStageId,
             )
 
-            if (matchedRule && (matchedRule.required_fields.length > 0 || matchedRule.note_required || matchedRule.attachment_required)) {
+            if (ruleRequiresPrompt(matchedRule)) {
                 setLeads(initialLeads)
                 setTransitionPrompt({
                     lead: originalLead,
                     oldStageId: originalStageId,
                     newStageId: destinationStageId,
-                    rule: matchedRule,
+                    rule: matchedRule!,
                     newSortOrder
+                })
+                return
+            }
+
+            // Warn before letting the user move a lead backward in the pipeline.
+            const fromStage = stages.find((s) => s.id === originalStageId)
+            const toStage = stages.find((s) => s.id === destinationStageId)
+            if (fromStage && toStage && isBackwardTransition(fromStage, toStage)) {
+                setLeads(initialLeads)
+                setBackwardPrompt({
+                    lead: originalLead,
+                    fromStage,
+                    toStage,
+                    newSortOrder,
                 })
                 return
             }
@@ -415,29 +485,13 @@ export function LeadKanban({
             if (originalIndex === currentIndex) return // did not genuinely sort
         }
 
-        const destinationStage = stages.find((s) => s.id === destinationStageId)
-        const result = await updatePipelineStageAction(activeLeadId, destinationStageId, newSortOrder)
-        
-        if (!result.success) {
-            toast.error(`Failed to move lead: ${result.error}`)
-            setLeads(initialLeads)
-        } else {
-            const stageName = destinationStage?.name || "stage"
-            if (originalStageId !== destinationStageId) {
-                toast.success(`Moved to ${stageName}`)
-            }
-
-            if (onLeadStageChange && destinationStage) {
-                onLeadStageChange(
-                    activeLeadId,
-                    destinationStage.id,
-                    destinationStage.name,
-                    destinationStage.color,
-                    { kanban_sort_order: newSortOrder }
-                )
-            }
-        }
-    }, [leads, stages, initialLeads, onLeadStageChange, transitionRules])
+        await executeStageTransition(
+            activeLeadId,
+            destinationStageId,
+            newSortOrder,
+            originalStageId,
+        )
+    }, [leads, stages, initialLeads, transitionRules, executeStageTransition])
 
     const handleDragCancel = useCallback(() => {
         setActiveId(null)
@@ -687,6 +741,31 @@ export function LeadKanban({
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
+
+            <StageBackwardConfirmModal
+                open={!!backwardPrompt}
+                fromStageName={backwardPrompt?.fromStage.name ?? ""}
+                toStageName={backwardPrompt?.toStage.name ?? ""}
+                leadLabel={
+                    backwardPrompt?.lead.project_name ??
+                    backwardPrompt?.lead.client_company?.name ??
+                    undefined
+                }
+                loading={backwardPending}
+                onCancel={() => setBackwardPrompt(null)}
+                onConfirm={async () => {
+                    if (!backwardPrompt) return
+                    setBackwardPending(true)
+                    const ok = await executeStageTransition(
+                        backwardPrompt.lead.id,
+                        backwardPrompt.toStage.id,
+                        backwardPrompt.newSortOrder,
+                        backwardPrompt.fromStage.id,
+                    )
+                    setBackwardPending(false)
+                    if (ok) setBackwardPrompt(null)
+                }}
+            />
 
             <TransitionPromptModal 
                 prompt={transitionPrompt}

@@ -7,7 +7,7 @@ import { useCurrency } from "@/contexts/currency-context"
 import { LeadKanban } from "@/features/leads/components/lead-kanban"
 import { LeadForm } from "@/features/leads/components/lead-form"
 import { ImportLeadsModal } from "@/features/leads/components/import-leads-modal"
-import { Lead, Pipeline } from "@/types/index"
+import { Lead, Pipeline, PipelineStage, TransitionRule } from "@/types/index"
 import { Button } from "@/components/ui/button"
 import {
     Dialog,
@@ -62,9 +62,6 @@ export function LeadDashboard() {
     const supabase = createClient()
     const router = useRouter()
 
-    // Columns with currency formatting from context
-    const columns = useMemo(() => getColumns(fmt), [fmt])
-
     // Pipeline state
     const [pipelines, setPipelines] = useState<Pipeline[]>([])
     const [activePipeline, setActivePipeline] = useState<Pipeline | null>(null)
@@ -108,6 +105,37 @@ export function LeadDashboard() {
     // Lead state
     const [leads, setLeads] = useState<Lead[]>([])
     const [leadsLoading, setLeadsLoading] = useState(true)
+
+    // Pipeline stages + transition rules — used by the inline stage editor
+    // in the table cell as well as the kanban view.
+    const [pipelineStages, setPipelineStages] = useState<PipelineStage[]>([])
+    const [transitionRules, setTransitionRules] = useState<TransitionRule[]>([])
+
+    // Columns with currency formatting from context. Defined after state so
+    // the closure captures the live stages/rules values.
+    const columns = useMemo(
+        () =>
+            getColumns(fmt, {
+                stages: pipelineStages,
+                transitionRules,
+                onStageChanged: (leadId, stage, updates) => {
+                    setLeads((prev) =>
+                        prev.map((l) =>
+                            l.id === leadId
+                                ? {
+                                      ...l,
+                                      ...(updates ?? {}),
+                                      pipeline_stage_id: stage.id,
+                                      status: stage.name,
+                                      pipeline_stage: { name: stage.name, color: stage.color },
+                                  }
+                                : l,
+                        ),
+                    )
+                },
+            }),
+        [fmt, pipelineStages, transitionRules],
+    )
 
     // UI state — Sheet-based create & quick-edit
     const [addSheetOpen, setAddSheetOpen] = useState(false)
@@ -593,6 +621,38 @@ export function LeadDashboard() {
 
     useEffect(() => { fetchPipelines() }, [fetchPipelines])
     useEffect(() => { fetchLeads() }, [fetchLeads])
+
+    // ─── Fetch pipeline stages + transition rules for the active pipeline ──
+    // Mirrors the kanban's own fetch so the table and the kanban share the
+    // same source of truth for the inline stage editor.
+    useEffect(() => {
+        if (!activePipeline) {
+            setPipelineStages([])
+            setTransitionRules([])
+            return
+        }
+        let cancelled = false
+        const load = async () => {
+            const [{ data: stagesData }, { data: rulesData }] = await Promise.all([
+                supabase
+                    .from("pipeline_stages")
+                    .select("*")
+                    .eq("pipeline_id", activePipeline.id)
+                    .order("sort_order", { ascending: true }),
+                supabase
+                    .from("pipeline_transition_rules")
+                    .select("*")
+                    .eq("pipeline_id", activePipeline.id),
+            ])
+            if (cancelled) return
+            setPipelineStages((stagesData ?? []) as PipelineStage[])
+            setTransitionRules((rulesData ?? []) as TransitionRule[])
+        }
+        void load()
+        return () => {
+            cancelled = true
+        }
+    }, [activePipeline?.id, supabase])
 
     // ─── Pipeline CRUD ───────────────────────────────────────────────
     const handleCreatePipeline = async () => {
