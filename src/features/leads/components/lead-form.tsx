@@ -11,6 +11,7 @@ import { useCompany } from "@/contexts/company-context"
 import { usePermissions } from "@/contexts/permissions-context"
 import { createLeadAction, updateLeadAction } from "@/app/actions/lead-actions"
 import { useMasterOptions } from "@/hooks/use-master-options"
+import { computeAccountStatus } from "@/features/leads/lib/compute-account-status"
 import type { FormSchema, Lead } from "@/types"
 import { cn } from "@/lib/utils"
 import Link from "next/link"
@@ -89,10 +90,13 @@ const addLeadSchema = z.object({
     special_remarks: z.string().nullable().optional(),
     lost_reason: z.string().nullable().optional(),
     lost_reason_details: z.string().nullable().optional(),
+    account_status: z.string().nullable().optional(),
     custom_data: z.record(z.string(), z.unknown()).optional(),
 }) // removed date validation refine because MultiDatePicker inherently avoids invalid ranges
 
-const READONLY_FIELDS = new Set(["account_status"])
+// account_status used to be a derived read-only echo of the client company’s
+// status. It now lives on the lead itself, so it is fully user-editable.
+const READONLY_FIELDS = new Set<string>()
 
 const getDynamicSchema = (requiredIds: string[]) => {
     return addLeadSchema.superRefine((data, ctx) => {
@@ -146,6 +150,8 @@ export function LeadForm({ onSuccess, onClose, pipelineId, defaultStageId, initi
     const [activeTab, setActiveTab] = useState("project")
     const [isPending, startTransition] = useTransition()
     const [clientAccountStatus, setClientAccountStatus] = useState<string | null>(null)
+    const [accountStatusReason, setAccountStatusReason] = useState<string | null>(null)
+    const accountStatusSource = (initialData as Lead | null)?.account_status_source ?? null
     const supabase = createClient()
     const router = useRouter()
     const { activeCompany, isHoldingView, companies } = useCompany()
@@ -320,6 +326,7 @@ export function LeadForm({ onSuccess, onClose, pipelineId, defaultStageId, initi
             general_brief: initialData.general_brief || null,
             production_sow: initialData.production_sow || null,
             special_remarks: initialData.special_remarks || null,
+            account_status: initialData.account_status || null,
             custom_data: {},
         } : {
             project_name: "",
@@ -353,6 +360,7 @@ export function LeadForm({ onSuccess, onClose, pipelineId, defaultStageId, initi
             general_brief: null,
             production_sow: null,
             special_remarks: null,
+            account_status: null,
             custom_data: {},
         },
     })
@@ -415,6 +423,7 @@ export function LeadForm({ onSuccess, onClose, pipelineId, defaultStageId, initi
                 general_brief: initialData.general_brief || null,
                 production_sow: initialData.production_sow || null,
                 special_remarks: initialData.special_remarks || null,
+                account_status: initialData.account_status || null,
                 custom_data: {},
             })
             setCustomValues((initialData.custom_data as Record<string, unknown>) ?? {})
@@ -542,12 +551,34 @@ export function LeadForm({ onSuccess, onClose, pipelineId, defaultStageId, initi
     const watchedMainStream = useWatch({ control: form.control, name: "main_stream" })
     const watchedStreamType = useWatch({ control: form.control, name: "stream_type" })
 
-    // Fetch account_status when client company changes
+    // Fetch suggested account status for the selected client company. We
+    // surface this as a hint and as a quick-fill option — it never silently
+    // overwrites a value the user has already chosen on this lead.
     const watchedClientCompanyId = useWatch({ control: form.control, name: "client_company_id" })
     useEffect(() => {
-        if (!watchedClientCompanyId) { setClientAccountStatus(null); return }
-        supabase.from("client_companies").select("account_status").eq("id", watchedClientCompanyId).single()
-            .then(({ data }) => setClientAccountStatus(data?.account_status ?? null))
+        let cancelled = false
+        if (!watchedClientCompanyId) {
+            setClientAccountStatus(null)
+            setAccountStatusReason(null)
+            return
+        }
+        void (async () => {
+            const computation = await computeAccountStatus(supabase, watchedClientCompanyId)
+            if (cancelled) return
+            setClientAccountStatus(computation.value)
+            setAccountStatusReason(computation.reason)
+            // For brand-new leads with no manual choice yet, pre-fill the
+            // computed value so sales rarely needs to touch the field.
+            if (!isEditing) {
+                const current = form.getValues("account_status")
+                if (!current) {
+                    form.setValue("account_status", computation.value, { shouldDirty: false })
+                }
+            }
+        })()
+        return () => {
+            cancelled = true
+        }
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [watchedClientCompanyId])
 
@@ -803,24 +834,89 @@ export function LeadForm({ onSuccess, onClose, pipelineId, defaultStageId, initi
                                                         )} />
                                                     )
                                                 case "native:account_status": {
-                                                    const statusLabel = clientAccountStatus
-                                                        ? clientAccountStatus.charAt(0).toUpperCase() + clientAccountStatus.slice(1)
-                                                        : "—"
                                                     const statusColors: Record<string, string> = {
-                                                        new: "text-blue-700 bg-blue-50 border-blue-200",
-                                                        repeater: "text-emerald-700 bg-emerald-50 border-emerald-200",
-                                                        contracted: "text-violet-700 bg-violet-50 border-violet-200",
+                                                        new: "text-blue-700 bg-blue-50",
+                                                        repeater: "text-emerald-700 bg-emerald-50",
+                                                        contracted: "text-violet-700 bg-violet-50",
                                                     }
                                                     return (
-                                                        <div key={fieldId} className="space-y-2">
-                                                            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Account Status</label>
-                                                            <div className={cn(
-                                                                "flex h-9 w-full items-center rounded-md border px-3 text-sm",
-                                                                clientAccountStatus ? statusColors[clientAccountStatus] ?? "bg-muted/50 border-border text-muted-foreground" : "bg-muted/30 border-border text-muted-foreground"
-                                                            )}>
-                                                                {watchedClientCompanyId ? statusLabel : "Select company first"}
-                                                            </div>
-                                                        </div>
+                                                        <FormField
+                                                            key={fieldId}
+                                                            control={form.control}
+                                                            name="account_status"
+                                                            render={({ field }) => {
+                                                                const value = (field.value ?? "") as string
+                                                                const matchesSuggestion =
+                                                                    !!clientAccountStatus &&
+                                                                    value === clientAccountStatus
+                                                                const sourceLabel = (() => {
+                                                                    if (!isEditing) {
+                                                                        if (matchesSuggestion && accountStatusReason) {
+                                                                            return `Auto-detected · ${accountStatusReason}`
+                                                                        }
+                                                                        return null
+                                                                    }
+                                                                    if (accountStatusSource === "computed") {
+                                                                        return accountStatusReason
+                                                                            ? `Auto-detected · ${accountStatusReason}`
+                                                                            : "Auto-detected from history"
+                                                                    }
+                                                                    if (accountStatusSource === "manual") {
+                                                                        return "Manually set"
+                                                                    }
+                                                                    return null
+                                                                })()
+                                                                return (
+                                                                    <FormItem>
+                                                                        <FormLabel className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                                                                            {getLabelStr("Account Status", fieldId)}
+                                                                        </FormLabel>
+                                                                        <FormControl>
+                                                                            <Select
+                                                                                value={value}
+                                                                                onValueChange={(v) => field.onChange(v)}
+                                                                            >
+                                                                                <SelectTrigger
+                                                                                    className={cn(
+                                                                                        "h-9 text-sm",
+                                                                                        value && (statusColors[value] ?? ""),
+                                                                                    )}
+                                                                                >
+                                                                                    <SelectValue placeholder="Select account status" />
+                                                                                </SelectTrigger>
+                                                                                <SelectContent>
+                                                                                    <SelectItem value="new">New</SelectItem>
+                                                                                    <SelectItem value="repeater">Repeater</SelectItem>
+                                                                                    <SelectItem value="contracted">Contracted</SelectItem>
+                                                                                </SelectContent>
+                                                                            </Select>
+                                                                        </FormControl>
+                                                                        {sourceLabel && (
+                                                                            <p className="text-[11px] text-muted-foreground leading-snug">
+                                                                                {sourceLabel}
+                                                                                {clientAccountStatus &&
+                                                                                    !matchesSuggestion &&
+                                                                                    isEditing && (
+                                                                                        <button
+                                                                                            type="button"
+                                                                                            onClick={() =>
+                                                                                                form.setValue(
+                                                                                                    "account_status",
+                                                                                                    clientAccountStatus,
+                                                                                                    { shouldDirty: true },
+                                                                                                )
+                                                                                            }
+                                                                                            className="ml-1 underline-offset-2 hover:underline text-blue-600"
+                                                                                        >
+                                                                                            Use suggested ({clientAccountStatus})
+                                                                                        </button>
+                                                                                    )}
+                                                                            </p>
+                                                                        )}
+                                                                    </FormItem>
+                                                                )
+                                                            }}
+                                                        />
                                                     )
                                                 }
                                                 case "native:contact_id":
@@ -1050,32 +1146,6 @@ function TextField({ control, name, label, type = "text", className }: { control
                 <FormControl><Input type={type} className="h-9 text-sm" {...field} value={field.value ?? ""} /></FormControl>
             </FormItem>
         )} />
-    )
-}
-
-// ── Account Status Badge (fetches from client_company) ──
-function AccountStatusBadge({ companyId }: { companyId: string | null }) {
-    const [status, setStatus] = useState<string | null>(null)
-    const supabase = createClient()
-
-    useEffect(() => {
-        if (!companyId) { setStatus(null); return }
-        supabase.from("client_companies").select("account_status").eq("id", companyId).single()
-            .then(({ data }) => setStatus(data?.account_status ?? null))
-    }, [companyId, supabase])
-
-    if (!status) return null
-
-    const colors: Record<string, string> = {
-        new: "bg-blue-100 text-blue-700",
-        repeater: "bg-emerald-100 text-emerald-700",
-        contracted: "bg-violet-100 text-violet-700",
-    }
-
-    return (
-        <span className={cn("inline-flex items-center text-[10px] font-medium px-2 py-0.5 rounded-full mt-1 capitalize", colors[status] ?? "bg-muted text-muted-foreground")}>
-            {status}
-        </span>
     )
 }
 

@@ -7,7 +7,7 @@ import { useCurrency } from "@/contexts/currency-context"
 import { LeadKanban } from "@/features/leads/components/lead-kanban"
 import { LeadForm } from "@/features/leads/components/lead-form"
 import { ImportLeadsModal } from "@/features/leads/components/import-leads-modal"
-import { Lead, Pipeline } from "@/types/index"
+import { Lead, Pipeline, PipelineStage, TransitionRule } from "@/types/index"
 import { Button } from "@/components/ui/button"
 import {
     Dialog,
@@ -33,6 +33,7 @@ import {
 import { PipelineFilters, PipelineFilterState, INITIAL_FILTER_STATE, ActiveFilterPills, applyFilters } from "@/features/leads/components/pipeline-filters"
 import { PipelineIconPicker, PipelineIcon, DEFAULT_PIPELINE_ICON } from "@/features/leads/components/pipeline-icon-picker"
 import { useResizablePanel } from "@/hooks/use-resizable-panel"
+import { usePersistentViewMode } from "@/hooks/use-persistent-view-mode"
 import { useRouter } from "next/navigation"
 import { PermissionGate } from "@/features/users/components/permission-gate"
 import { Input } from "@/components/ui/input"
@@ -55,15 +56,13 @@ import {
 } from "@/components/ui/alert-dialog"
 
 type ViewMode = 'table' | 'kanban'
+const VIEW_MODES = ['kanban', 'table'] as const satisfies readonly ViewMode[]
 
 export function LeadDashboard() {
     const { activeCompany, companies, isHoldingView } = useCompany()
     const { fmt } = useCurrency()
     const supabase = createClient()
     const router = useRouter()
-
-    // Columns with currency formatting from context
-    const columns = useMemo(() => getColumns(fmt), [fmt])
 
     // Pipeline state
     const [pipelines, setPipelines] = useState<Pipeline[]>([])
@@ -109,13 +108,51 @@ export function LeadDashboard() {
     const [leads, setLeads] = useState<Lead[]>([])
     const [leadsLoading, setLeadsLoading] = useState(true)
 
+    // Pipeline stages + transition rules — used by the inline stage editor
+    // in the table cell as well as the kanban view.
+    const [pipelineStages, setPipelineStages] = useState<PipelineStage[]>([])
+    const [transitionRules, setTransitionRules] = useState<TransitionRule[]>([])
+
+    // Columns with currency formatting from context. Defined after state so
+    // the closure captures the live stages/rules values.
+    const columns = useMemo(
+        () =>
+            getColumns(fmt, {
+                stages: pipelineStages,
+                transitionRules,
+                onStageChanged: (leadId, stage, updates) => {
+                    setLeads((prev) =>
+                        prev.map((l) =>
+                            l.id === leadId
+                                ? {
+                                      ...l,
+                                      ...(updates ?? {}),
+                                      pipeline_stage_id: stage.id,
+                                      status: stage.name,
+                                      pipeline_stage: { name: stage.name, color: stage.color },
+                                  }
+                                : l,
+                        ),
+                    )
+                },
+            }),
+        [fmt, pipelineStages, transitionRules],
+    )
+
     // UI state — Sheet-based create & quick-edit
     const [addSheetOpen, setAddSheetOpen] = useState(false)
     const [addSheetDefaultStageId, setAddSheetDefaultStageId] = useState<string | undefined>()
     const [importOpen, setImportOpen] = useState(false)
     const [editLead, setEditLead] = useState<Lead | null>(null)
     const [editOpen, setEditOpen] = useState(false)
-    const [viewMode, setViewMode] = useState<ViewMode>('kanban')
+    // View mode persists across refreshes via URL (?view=table) and falls back
+    // to localStorage so the choice also survives navigating away and back.
+    const [viewMode, setViewMode] = usePersistentViewMode<ViewMode>({
+        storageKey: "leads.view_mode",
+        queryKey: "view",
+        allowed: VIEW_MODES,
+        defaultMode: "kanban",
+    })
 
     // Selection & deletion state
     const [selectedLeadIds, setSelectedLeadIds] = useState<string[]>([])
@@ -593,6 +630,38 @@ export function LeadDashboard() {
 
     useEffect(() => { fetchPipelines() }, [fetchPipelines])
     useEffect(() => { fetchLeads() }, [fetchLeads])
+
+    // ─── Fetch pipeline stages + transition rules for the active pipeline ──
+    // Mirrors the kanban's own fetch so the table and the kanban share the
+    // same source of truth for the inline stage editor.
+    useEffect(() => {
+        if (!activePipeline) {
+            setPipelineStages([])
+            setTransitionRules([])
+            return
+        }
+        let cancelled = false
+        const load = async () => {
+            const [{ data: stagesData }, { data: rulesData }] = await Promise.all([
+                supabase
+                    .from("pipeline_stages")
+                    .select("*")
+                    .eq("pipeline_id", activePipeline.id)
+                    .order("sort_order", { ascending: true }),
+                supabase
+                    .from("pipeline_transition_rules")
+                    .select("*")
+                    .eq("pipeline_id", activePipeline.id),
+            ])
+            if (cancelled) return
+            setPipelineStages((stagesData ?? []) as PipelineStage[])
+            setTransitionRules((rulesData ?? []) as TransitionRule[])
+        }
+        void load()
+        return () => {
+            cancelled = true
+        }
+    }, [activePipeline?.id, supabase])
 
     // ─── Pipeline CRUD ───────────────────────────────────────────────
     const handleCreatePipeline = async () => {
@@ -1204,7 +1273,7 @@ export function LeadDashboard() {
                             <DataTable
                                 columns={columns}
                                 data={filteredLeads}
-                                onRowClick={handleNavigateToLead}
+                                onRowClick={handleQuickEdit}
                                 defaultHiddenColumns={DEFAULT_HIDDEN_COLUMNS}
                                 enableRowSelection
                                 getRowId={(row) => String((row as Lead).id)}

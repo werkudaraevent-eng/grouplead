@@ -152,6 +152,10 @@ export interface Lead {
     lead_source: string | null;
     referral_source: string | null;
 
+    // Account relationship (per-lead, see migrations/20260515062000_add_account_status_to_leads.sql)
+    account_status: string | null;
+    account_status_source: 'computed' | 'manual' | null;
+
     // Event Details
     destinations: Array<{ city: string; venue?: string }> | null;
     pax_count: number | null;
