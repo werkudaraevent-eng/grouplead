@@ -2,7 +2,8 @@
 
 import { ColumnDef } from "@tanstack/react-table"
 import { Lead, PipelineStage, TransitionRule } from "@/types"
-import { ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react"
+import { ArrowUpDown, ArrowUp, ArrowDown, ExternalLink } from "lucide-react"
+import Link from "next/link"
 import { formatCurrency as formatCurrencyDefault } from "@/lib/format-currency"
 import { StageCellEditor } from "@/features/leads/components/stage-cell-editor"
 
@@ -146,10 +147,25 @@ export function getColumns(
         header: ({ column }) => <SortableHeader column={column} label="Project" />,
         cell: ({ row }) => {
             const val = row.getValue("project_name") as string
+            const leadId = row.original.id
             return (
-                <span className="text-[13px] text-slate-700 truncate block max-w-[180px]" title={val}>
-                    {val || "—"}
-                </span>
+                <div className="group/project flex items-center gap-1.5 max-w-[200px]">
+                    <span
+                        className="text-[13px] text-slate-700 truncate"
+                        title={val}
+                    >
+                        {val || "—"}
+                    </span>
+                    <Link
+                        href={`/leads/${leadId}`}
+                        onClick={(e) => e.stopPropagation()}
+                        className="shrink-0 opacity-0 group-hover/project:opacity-100 text-slate-400 hover:text-slate-700 transition-opacity"
+                        aria-label="Open lead detail page"
+                        title="Open detail page"
+                    >
+                        <ExternalLink className="h-3 w-3" />
+                    </Link>
+                </div>
             )
         },
     },
