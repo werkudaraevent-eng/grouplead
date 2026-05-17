@@ -118,7 +118,8 @@ export function AnalyticsDashboard({
         catToggle,
         streamToggle,
         trendYear,
-    }), [periodStr, customStart, customEnd, companyFilter, revenueBasis, catToggle, streamToggle, trendYear])
+        pipelineId: activePipelineId,
+    }), [periodStr, customStart, customEnd, companyFilter, revenueBasis, catToggle, streamToggle, trendYear, activePipelineId])
 
     // Seed filter state from active view (only on view switch, not on every render).
     const seededViewIdRef = useRef<string | null>(null)
@@ -136,7 +137,16 @@ export function AnalyticsDashboard({
         if (typeof f.catToggle === "string") setCatToggle(f.catToggle)
         if (typeof f.streamToggle === "string") setStreamToggle(f.streamToggle)
         if (typeof f.trendYear === "number") setTrendYear(f.trendYear)
-    }, [views.activeView])
+        // Pipeline lives in the URL (?pipeline=) so the server can fetch its
+        // stages on the next render. Push only when the saved view points to a
+        // different pipeline than what's currently in the URL to avoid a no-op
+        // navigation loop.
+        if (typeof f.pipelineId === "string" && f.pipelineId && f.pipelineId !== activePipelineId) {
+            const params = new URLSearchParams(searchParams.toString())
+            params.set("pipeline", f.pipelineId)
+            router.push(`${pathname}?${params.toString()}`)
+        }
+    }, [views.activeView, activePipelineId, pathname, router, searchParams])
 
     const filtersEqualSnapshot = useCallback(
         (a: DashboardFiltersSnapshot | null, b: DashboardFiltersSnapshot): boolean => {
@@ -149,7 +159,8 @@ export function AnalyticsDashboard({
                 (a.revenueBasis ?? "revenue_recognition") === (b.revenueBasis ?? "revenue_recognition") &&
                 (a.catToggle ?? "category") === (b.catToggle ?? "category") &&
                 (a.streamToggle ?? "main_stream") === (b.streamToggle ?? "main_stream") &&
-                (a.trendYear ?? 0) === (b.trendYear ?? 0)
+                (a.trendYear ?? 0) === (b.trendYear ?? 0) &&
+                (a.pipelineId ?? "") === (b.pipelineId ?? "")
             )
         },
         [],
@@ -936,6 +947,38 @@ export function AnalyticsDashboard({
 
                 {/* Right: Filters + Edit */}
                 <div style={{ display: "flex", gap: 8, alignItems: "center", flexShrink: 0 }}>
+                    {/* Pipeline selector — switches the dashboard's stage context.
+                        Updates `?pipeline=<id>` so the server re-fetches the right
+                        stages and YoY series for the chosen pipeline. */}
+                    {pipelines.length > 1 && (
+                        <select
+                            value={activePipelineId ?? ""}
+                            onChange={(e) => {
+                                const params = new URLSearchParams(searchParams.toString())
+                                params.set("pipeline", e.target.value)
+                                router.push(`${pathname}?${params.toString()}`)
+                            }}
+                            title="Switch pipeline context for stage-based widgets"
+                            style={{
+                                appearance: "none" as const,
+                                backgroundColor: "#f8f9fb",
+                                border: "1px solid transparent",
+                                borderRadius: 6,
+                                padding: "6px 28px 6px 10px",
+                                fontSize: 12, fontWeight: 600, color: "#292D30",
+                                cursor: "pointer", fontFamily: "inherit",
+                                backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='2.5'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")`,
+                                backgroundRepeat: "no-repeat",
+                                backgroundPosition: "right 8px center",
+                                transition: "all .15s ease",
+                            }}
+                        >
+                            {pipelines.map(p => (
+                                <option key={p.id} value={p.id}>{p.name}</option>
+                            ))}
+                        </select>
+                    )}
+
                     {/* Company filter (holding view only) */}
                     {isHoldingView && companies.length > 1 && (
                         <select value={companyFilter} onChange={e => setCompanyFilter(e.target.value)} style={{
@@ -1078,7 +1121,17 @@ export function AnalyticsDashboard({
                         revenueBasis={revenueBasis}
                         setRevenueBasis={setRevenueBasis}
                     />
-                    <PipelineWidget data={stageData} comparisonLabel={stageComparisonLabel} />
+                    <PipelineWidget
+                        data={stageData}
+                        comparisonLabel={stageComparisonLabel}
+                        pipelines={pipelines}
+                        activePipelineId={activePipelineId}
+                        onPipelineChange={(id) => {
+                            const params = new URLSearchParams(searchParams.toString())
+                            params.set("pipeline", id)
+                            router.push(`${pathname}?${params.toString()}`)
+                        }}
+                    />
                     <SalesPerfWidget data={salesData} />
                     <TopRevenueWidget data={topComps} />
                     <LeadSourceWidget data={sourceData} />

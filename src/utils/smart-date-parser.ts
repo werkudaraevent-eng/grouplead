@@ -22,6 +22,8 @@
  * ─────────────────────────────────────────────────────────────────
  */
 
+import { excelSerialToISO } from "./excel-date"
+
 const MONTH_MAP: Record<string, number> = {
     // English — full & abbreviated
     jan: 0, january: 0,
@@ -51,6 +53,7 @@ const MONTH_MAP: Record<string, number> = {
     desember: 11,
     // Indonesian abbreviated
     agt: 7,
+    agu: 7,
     okt: 9,
     des: 11,
 }
@@ -113,7 +116,8 @@ function generateDateRange(startYear: number, startMonth: number, startDay: numb
  */
 function expandDaySegments(daysPart: string): number[] {
     const days: number[] = []
-    const segments = daysPart.split(/,/).map(s => s.trim()).filter(Boolean)
+    // Split on `,` OR `/` so "2/3/4" and "13-15 / 27-29" both work.
+    const segments = daysPart.split(/[,\/]/).map(s => s.trim()).filter(Boolean)
 
     for (const seg of segments) {
         // Check for range: "3-5" or "3–5" or "3 - 5" or "1- 5"
@@ -156,6 +160,87 @@ export function parseSmartEventDates(input: string): string[] {
                 return toISO(d.getFullYear(), d.getMonth(), d.getDate())
             })
             .sort()
+    }
+
+    // ═══ Strategy 1b: Excel serial number (single value) ═══
+    // The XLSX library exports raw cell numbers when the cell is unformatted.
+    // 4-digit year literals ("2025", "2026") are explicitly rejected inside
+    // excelSerialToISO so they fall through to year-only handling below.
+    if (/^\d+(\.\d+)?$/.test(trimmed)) {
+        const iso = excelSerialToISO(trimmed)
+        if (iso) return [iso]
+    }
+
+    // ═══ Strategy 1c: Year-only ("2026" or "26") → whole year ═══
+    {
+        const yearOnlyMatch = trimmed.match(/^(\d{2}|\d{4})$/)
+        if (yearOnlyMatch) {
+            const year = resolveYear(yearOnlyMatch[1])
+            return generateDateRange(year, 0, 1, year, 11, 31)
+        }
+    }
+
+    // ═══ Strategy 1d: Fuzzy "End of/Early/Mid X" markers ═══
+    // Matches "End of Mar 2026", "Early Apr 2026", "End Feb / Early Mar 26".
+    // Each fuzzy phrase becomes a 7-day window so downstream consumers still
+    // get concrete dates instead of bailing out.
+    if (/\b(end|early|mid)\b/i.test(trimmed)) {
+        const yearMatch = trimmed.match(/(\d{2,4})\s*$/)
+        if (yearMatch) {
+            const year = resolveYear(yearMatch[1])
+            const fuzzyParts = trimmed.split(/\s*\/\s*/).map(s => s.trim()).filter(Boolean)
+            const dates: string[] = []
+            for (const part of fuzzyParts) {
+                const cleaned = part.replace(/\s*\d{2,4}\s*$/, "").trim()
+                const fm = cleaned.match(/\b(end|early|mid)\s*(?:of\s+)?([a-zA-Z]+)/i)
+                if (!fm) continue
+                const phase = fm[1].toLowerCase()
+                const month = findMonth(fm[2])
+                if (month === null) continue
+                const lastDay = new Date(year, month + 1, 0).getDate()
+                if (phase === "end") {
+                    for (let d = Math.max(1, lastDay - 6); d <= lastDay; d++) {
+                        dates.push(toISO(year, month, d))
+                    }
+                } else if (phase === "early") {
+                    for (let d = 1; d <= Math.min(7, lastDay); d++) {
+                        dates.push(toISO(year, month, d))
+                    }
+                } else {
+                    for (let d = 13; d <= Math.min(19, lastDay); d++) {
+                        dates.push(toISO(year, month, d))
+                    }
+                }
+            }
+            if (dates.length > 0) return [...new Set(dates)].sort()
+        }
+    }
+
+    // ═══ Strategy 1e: Month-range without days ("Apr - Jun 26", "Jul/Aug 26") ═══
+    {
+        const m = trimmed.match(/^([a-zA-Z]+)\s*[-–—\/]\s*([a-zA-Z]+)\s+(\d{2,4})$/)
+        if (m) {
+            const startMonth = findMonth(m[1])
+            const endMonth = findMonth(m[2])
+            const year = resolveYear(m[3])
+            if (startMonth !== null && endMonth !== null && startMonth <= endMonth) {
+                const lastDay = new Date(year, endMonth + 1, 0).getDate()
+                return generateDateRange(year, startMonth, 1, year, endMonth, lastDay)
+            }
+        }
+    }
+
+    // ═══ Strategy 1f: Month-only ("Mar 2026") → whole month ═══
+    {
+        const m = trimmed.match(/^([a-zA-Z]+)\s+(\d{2,4})$/)
+        if (m) {
+            const month = findMonth(m[1])
+            const year = resolveYear(m[2])
+            if (month !== null) {
+                const lastDay = new Date(year, month + 1, 0).getDate()
+                return generateDateRange(year, month, 1, year, month, lastDay)
+            }
+        }
     }
 
     // ═══ Strategy 2: Cross-month range ═══
@@ -219,8 +304,10 @@ export function parseSmartEventDates(input: string): string[] {
         const year = resolveYear(yearMatch[1])
         const withoutYear = trimmed.slice(0, yearMatch.index).trim()
 
-        // Split into month blocks: "3-5 Jan, 2-3 Feb" → ["3-5 Jan", "2-3 Feb"]
-        const monthBlockRegex = /([\d,\s\-–—]+)\s+([a-zA-Z]+)/g
+        // Split into month blocks: "3-5 Jan, 2-3 Feb" → ["3-5 Jan", "2-3 Feb"].
+        // Day character class includes `/` so "13 - 15 / 27 - 29 Jan" and
+        // "2/3/4 Feb" both work as a single block paired with one month.
+        const monthBlockRegex = /([\d,\/\s\-–—]+)\s+([a-zA-Z]+)/g
         const blocks: Array<{ days: number[]; month: number }> = []
         let blockMatch
 

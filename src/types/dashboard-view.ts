@@ -24,6 +24,8 @@ export interface DashboardFiltersSnapshot {
   streamToggle?: string
   /** Selected trend year for the revenue chart. */
   trendYear?: number
+  /** Active pipeline id for stage-based widgets (Pipeline Funnel etc.). */
+  pipelineId?: string
 }
 
 /**
