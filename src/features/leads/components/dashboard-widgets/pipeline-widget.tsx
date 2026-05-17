@@ -19,6 +19,13 @@ interface PipelineStageData {
 interface PipelineWidgetProps {
     data: PipelineStageData[]
     comparisonLabel: string
+    /** All pipelines available to the user. When provided alongside
+     *  activePipelineId/onPipelineChange, the widget renders an empty-state
+     *  CTA that suggests switching to another pipeline if the current one is
+     *  empty for the active period. */
+    pipelines?: { id: string; name: string }[]
+    activePipelineId?: string
+    onPipelineChange?: (pipelineId: string) => void
 }
 
 /** Classify stage as active, won, or lost */
@@ -29,11 +36,15 @@ function classifyStage(name: string): "active" | "won" | "lost" {
     return "active"
 }
 
-export function PipelineWidget({ data, comparisonLabel }: PipelineWidgetProps) {
+export function PipelineWidget({ data, comparisonLabel, pipelines = [], activePipelineId, onPipelineChange }: PipelineWidgetProps) {
     const [hoveredId, setHoveredId] = useState<string | null>(null)
 
     const totalLeads = data.reduce((s, d) => s + d.count, 0)
     const maxCount = Math.max(...data.map(d => d.count), 1)
+
+    const activePipelineName = pipelines.find(p => p.id === activePipelineId)?.name
+    const otherPipelines = pipelines.filter(p => p.id !== activePipelineId)
+    const showEmptyState = totalLeads === 0 && pipelines.length > 1 && !!onPipelineChange
 
     // Split into active pipeline vs closed outcomes
     const activeStages = data.filter(d => classifyStage(d.name) === "active")
@@ -115,7 +126,9 @@ export function PipelineWidget({ data, comparisonLabel }: PipelineWidgetProps) {
             <div className="flex items-start justify-between mb-2">
                 <div>
                     <SectionTitle>Pipeline Funnel</SectionTitle>
-                    <SectionSub>{totalLeads} total leads across {data.length} stages</SectionSub>
+                    <SectionSub>
+                        {activePipelineName ? `${activePipelineName} · ` : ""}{totalLeads} total leads across {data.length} stages
+                    </SectionSub>
                 </div>
                 {closedTotal > 0 && (
                     <div className="text-right shrink-0">
@@ -127,6 +140,27 @@ export function PipelineWidget({ data, comparisonLabel }: PipelineWidgetProps) {
                 )}
             </div>
 
+            {showEmptyState ? (
+                <div className="flex-1 flex flex-col items-center justify-center text-center px-4 py-6">
+                    <div className="text-[12px] font-semibold text-[#292D30] mb-1">
+                        No leads in {activePipelineName ?? "this pipeline"} for this period
+                    </div>
+                    <div className="text-[11px] text-muted-foreground mb-4 max-w-[280px]">
+                        Each pipeline has its own stages. Switch to another pipeline to see its funnel, or change the period.
+                    </div>
+                    <div className="flex flex-wrap gap-1.5 justify-center">
+                        {otherPipelines.map(p => (
+                            <button
+                                key={p.id}
+                                onClick={() => onPipelineChange?.(p.id)}
+                                className="text-[11px] font-semibold px-2.5 py-1 rounded-md bg-[#02378D] text-white hover:bg-[#012a6e] transition-colors"
+                            >
+                                Switch to {p.name}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            ) : (
             <div className="flex-1 overflow-y-auto thin-scrollbar">
                 {/* Active Pipeline */}
                 {activeStages.length > 0 && (
@@ -172,6 +206,7 @@ export function PipelineWidget({ data, comparisonLabel }: PipelineWidgetProps) {
                     </div>
                 )}
             </div>
+            )}
         </SectionCard>
     )
 }
