@@ -5,6 +5,7 @@ import { createClient } from "@/utils/supabase/server"
 import { createServiceClient } from "@/utils/supabase/service"
 import { smartCaseRow } from "@/utils/smart-title-case"
 import { parseSmartEventDates } from "@/utils/smart-date-parser"
+import { coerceDateToISO, normalizeTaxonomicValue, coerceNumber } from "@/features/leads/lib/import-normalize"
 import { buildStageTransitionAuditEntries } from "@/features/leads/lib/stage-transition-audit"
 import { computeAccountStatus } from "@/features/leads/lib/compute-account-status"
 import { logAuditEvent } from "@/app/actions/audit-actions"
@@ -489,14 +490,15 @@ export async function importLeadsAction(
         subsidiaryMap.set(s.slug.toLowerCase().trim(), s.id) // also match by slug
     }
 
-    // Build stage lookup: "stageName|pipelineId" → stageId
+    // Build stage lookup: "stageName|pipelineId" → stageId.
+    // IMPORTANT: pipeline-scoped only. We deliberately do NOT store a fallback
+    // entry without the pipeline scope — a stage with the same name in another
+    // pipeline must never satisfy a lookup for the target pipeline. Allowing
+    // that caused the 2026-05-17 bug where 140 historical leads imported into
+    // "Group Lead 2025" got assigned stage IDs from "Group Lead 2026".
     const stageMap = new Map<string, string>()
     for (const s of allStages ?? []) {
         stageMap.set(`${s.name.toLowerCase().trim()}|${s.pipeline_id}`, s.id)
-        // Also store without pipeline scope for general matching
-        if (!stageMap.has(s.name.toLowerCase().trim())) {
-            stageMap.set(s.name.toLowerCase().trim(), s.id)
-        }
     }
 
     // Build option map: "option_type|lowercase_value" -> "exact_value"
@@ -530,13 +532,15 @@ export async function importLeadsAction(
             delete raw.subsidiary_name
 
             // ── Resolve Pipeline Stage name → pipeline_stage_id ──
+            // Pipeline-scoped only. Never fall back to an unscoped match — a
+            // stage from a different pipeline would let DB writes succeed but
+            // produce cross-pipeline stage_id, which breaks kanban visibility
+            // and dashboard counts.
             const stageName = raw.pipeline_stage_name as string | undefined
             if (stageName && String(stageName).trim()) {
                 const sNameKey = String(stageName).toLowerCase().trim()
-                // Try pipeline-scoped match first, then general match
                 const pipelineId = raw.pipeline_id as string | undefined
-                const scopedKey = pipelineId ? `${sNameKey}|${pipelineId}` : null
-                const stageId = (scopedKey ? stageMap.get(scopedKey) : null) || stageMap.get(sNameKey)
+                const stageId = pipelineId ? stageMap.get(`${sNameKey}|${pipelineId}`) : undefined
                 if (stageId) {
                     raw.pipeline_stage_id = stageId
                 } else {
@@ -617,6 +621,9 @@ export async function importLeadsAction(
             delete raw.pic_sales_name
 
             // ── Validate and Auto-Correct Taxonomic Fields against Master Options ──
+            // Soft matching: exact → collapsed-whitespace → fuzzy (Dice).
+            // Mismatches no longer kill the row — we keep the raw value and
+            // surface a warning so the user can clean up master_options later.
             const taxonomicFields = [
                 "category", "grade_lead", "lead_source",
                 "main_stream", "stream_type", "business_purpose", "event_format",
@@ -624,16 +631,19 @@ export async function importLeadsAction(
             ]
             for (const field of taxonomicFields) {
                 if (raw[field] && typeof raw[field] === "string") {
-                    const val = (raw[field] as string).trim()
-                    if (val) {
-                        const exactMatch = optionMap.get(`${field}|${val.toLowerCase()}`)
-                        if (exactMatch) {
-                            raw[field] = exactMatch // Auto-correct to exactly match the DB
-                        } else {
-                            throw new Error(`Invalid ${field.replace("_", " ")} "${val}" — must exactly match an available option in settings.`)
-                        }
+                    const result = normalizeTaxonomicValue(field, raw[field] as string, optionMap)
+                    raw[field] = result.value
+                    if (result.warning) {
+                        errors.push(`Row ${i + 1}: ${result.warning}`)
                     }
                 }
+            }
+
+            // ── Coerce target_close_date (accepts Excel serials and ISO) ──
+            if (raw.target_close_date != null && raw.target_close_date !== "") {
+                const iso = coerceDateToISO(raw.target_close_date)
+                if (iso) raw.target_close_date = iso
+                else delete raw.target_close_date
             }
 
             // ── Convert destination_city / destination_venue → destinations JSONB ──
@@ -806,10 +816,13 @@ export async function importHistoricalLeadsAction(
         subsidiaryMap.set(s.slug.toLowerCase().trim(), s.id)
     }
 
+    // Pipeline-scoped only. Identical rationale as importLeadsAction — see
+    // comment there. The whole reason this action exists is historical
+    // imports go into a non-default pipeline, so unscoped lookups are
+    // exactly the wrong default here.
     const stageMap = new Map<string, string>()
     for (const s of allStages ?? []) {
         stageMap.set(`${s.name.toLowerCase().trim()}|${s.pipeline_id}`, s.id)
-        if (!stageMap.has(s.name.toLowerCase().trim())) stageMap.set(s.name.toLowerCase().trim(), s.id)
     }
 
     const optionMap = new Map<string, string>()
@@ -824,18 +837,20 @@ export async function importHistoricalLeadsAction(
             const raw = smartCaseRow({ ...rows[i] }) as Record<string, unknown>
 
             // ── Validate created_at (required for historical) ──
-            const createdAtRaw = raw.created_at as string | undefined
-            if (!createdAtRaw || !String(createdAtRaw).trim()) {
+            // Accept Excel serials, ISO strings, JS-parseable dates.
+            const createdAtRaw = raw.created_at as unknown
+            if (!createdAtRaw || (typeof createdAtRaw === "string" && !createdAtRaw.trim())) {
                 failed++
                 errors.push(`Row ${i + 1}: Created Date is required for historical import`)
                 continue
             }
-            const createdAtDate = new Date(String(createdAtRaw).trim())
-            if (isNaN(createdAtDate.getTime())) {
+            const createdAtISO = coerceDateToISO(createdAtRaw)
+            if (!createdAtISO) {
                 failed++
-                errors.push(`Row ${i + 1}: Invalid Created Date "${createdAtRaw}" — use YYYY-MM-DD format`)
+                errors.push(`Row ${i + 1}: Invalid Created Date "${String(createdAtRaw)}" — use YYYY-MM-DD format`)
                 continue
             }
+            const createdAtDate = new Date(createdAtISO)
             // Store as ISO string
             raw.created_at = createdAtDate.toISOString()
 
@@ -854,21 +869,24 @@ export async function importHistoricalLeadsAction(
             delete raw.subsidiary_name
 
             // ── Resolve Pipeline Stage ──
-            // Historical leads go into the user-selected pipeline (passed as pipeline_id in row data)
+            // Pipeline-scoped only. Auto-determination from closed dates also
+            // resolves within the lead's pipeline so we never write a
+            // stage_id that lives in a different pipeline.
+            const pipeId = raw.pipeline_id as string | undefined
             const stageName = raw.pipeline_stage_name as string | undefined
             if (stageName && String(stageName).trim()) {
                 const sNameKey = String(stageName).toLowerCase().trim()
-                const pipeId = raw.pipeline_id as string | undefined
-                const scopedKey = pipeId ? `${sNameKey}|${pipeId}` : null
-                const stageId = (scopedKey ? stageMap.get(scopedKey) : null) || stageMap.get(sNameKey)
+                const stageId = pipeId ? stageMap.get(`${sNameKey}|${pipeId}`) : undefined
                 if (stageId) raw.pipeline_stage_id = stageId
-            } else {
-                // Auto-determine stage from closed dates
+            } else if (pipeId) {
+                // Auto-determine stage from closed dates — scoped to the lead's pipeline
                 if (raw.closed_won_date) {
-                    const wonStageId = stageMap.get("closed won")
+                    const wonStageId = stageMap.get(`closed won|${pipeId}`)
                     if (wonStageId) raw.pipeline_stage_id = wonStageId
                 } else if (raw.closed_lost_date) {
-                    const lostStageId = stageMap.get("closed lost") || stageMap.get("closed turndown")
+                    const lostStageId =
+                        stageMap.get(`closed lost|${pipeId}`) ||
+                        stageMap.get(`closed turndown|${pipeId}`)
                     if (lostStageId) raw.pipeline_stage_id = lostStageId
                 }
             }
@@ -926,18 +944,14 @@ export async function importHistoricalLeadsAction(
             }
             delete raw.pic_sales_name
 
-            // ── Validate Taxonomic Fields ──
+            // ── Validate Taxonomic Fields (soft fuzzy match) ──
             const taxonomicFields = ["category", "grade_lead", "lead_source", "main_stream", "stream_type", "business_purpose", "event_format", "area"]
             for (const field of taxonomicFields) {
                 if (raw[field] && typeof raw[field] === "string") {
-                    const val = (raw[field] as string).trim()
-                    if (val) {
-                        const exactMatch = optionMap.get(`${field}|${val.toLowerCase()}`)
-                        if (exactMatch) {
-                            raw[field] = exactMatch
-                        } else {
-                            throw new Error(`Invalid ${field.replace("_", " ")} "${val}" — must match an available option.`)
-                        }
+                    const result = normalizeTaxonomicValue(field, raw[field] as string, optionMap)
+                    raw[field] = result.value
+                    if (result.warning) {
+                        errors.push(`Row ${i + 1}: ${result.warning}`)
                     }
                 }
             }
@@ -969,21 +983,23 @@ export async function importHistoricalLeadsAction(
                 }
             }
 
-            // ── Parse closed dates ──
-            if (raw.closed_won_date && typeof raw.closed_won_date === "string") {
-                const d = new Date(raw.closed_won_date)
-                if (!isNaN(d.getTime())) raw.closed_won_date = d.toISOString().split("T")[0]
+            // ── Parse closed dates (accepts Excel serials too) ──
+            if (raw.closed_won_date) {
+                const iso = coerceDateToISO(raw.closed_won_date)
+                if (iso) raw.closed_won_date = iso
                 else delete raw.closed_won_date
             }
-            if (raw.closed_lost_date && typeof raw.closed_lost_date === "string") {
-                const d = new Date(raw.closed_lost_date)
-                if (!isNaN(d.getTime())) raw.closed_lost_date = d.toISOString().split("T")[0]
+            if (raw.closed_lost_date) {
+                const iso = coerceDateToISO(raw.closed_lost_date)
+                if (iso) raw.closed_lost_date = iso
                 else delete raw.closed_lost_date
             }
 
-            // ── Convert actual_value to number ──
-            if (raw.actual_value && typeof raw.actual_value === "string") {
-                raw.actual_value = Number(String(raw.actual_value).replace(/[,.\s]/g, ""))
+            // ── Convert actual_value to number (handles "3.090.000") ──
+            if (raw.actual_value != null && raw.actual_value !== "") {
+                const n = coerceNumber(raw.actual_value)
+                if (n !== null) raw.actual_value = n
+                else delete raw.actual_value
             }
 
             const payload = sanitizeHistoricalPayload(raw)

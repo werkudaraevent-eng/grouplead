@@ -8,6 +8,17 @@ import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import * as XLSX from "xlsx"
 import { parseSmartEventDates } from "@/utils/smart-date-parser"
+import { excelSerialToISO } from "@/utils/excel-date"
+import { detectHeaderRow, buildHeaderAndRows } from "@/features/leads/lib/detect-header-row"
+import { resolveFieldByAlias, fuzzyMatchFieldKey } from "@/features/leads/lib/import-aliases"
+import { suggestStageMappings, type StageInfo } from "@/features/leads/lib/suggest-stage-mapping"
+import {
+    getStageMappings,
+    saveStageMappings,
+    listImportProfiles,
+    saveImportProfile,
+    type ImportProfileRow,
+} from "@/app/actions/import-profile-actions"
 
 import {
     Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
@@ -19,7 +30,7 @@ import {
 import {
     Upload, Download, FileSpreadsheet, CheckCircle2, XCircle,
     AlertTriangle, Loader2, ArrowRight, ArrowLeft, Link2, Link2Off,
-    Sparkles, RotateCcw,
+    Sparkles, RotateCcw, Save, Workflow, Plus, Trash2,
 } from "lucide-react"
 
 // ── System fields — aligned with Lead Form tabs ──
@@ -102,6 +113,19 @@ export function ImportLeadsModal({ open, onOpenChange, pipelineId, onSuccess }: 
     const [historicalPipelineId, setHistoricalPipelineId] = useState<string>("")
     const [pipelines, setPipelines] = useState<{ id: string; name: string }[]>([])
 
+    // Stage-mapping state. `stageMapping` translates spreadsheet STATUS-like
+    // values into actual pipeline_stages.id; `statusSourceField` records
+    // which Excel column we're reading those values from.
+    const [pipelineStages, setPipelineStages] = useState<StageInfo[]>([])
+    const [stageMapping, setStageMapping] = useState<Record<string, string>>({})
+    const [statusSourceField, setStatusSourceField] = useState<string | null>(null)
+    const [savedStageMappings, setSavedStageMappings] = useState<Record<string, string>>({})
+
+    // Import-profile state
+    const [importProfiles, setImportProfiles] = useState<ImportProfileRow[]>([])
+    const [profileName, setProfileName] = useState("")
+    const [savingProfile, setSavingProfile] = useState(false)
+
     // Fetch pipelines for historical mode selector
     useEffect(() => {
         if (!isHistorical) return
@@ -109,6 +133,55 @@ export function ImportLeadsModal({ open, onOpenChange, pipelineId, onSuccess }: 
         supabase.from("pipelines").select("id, name").order("created_at", { ascending: true })
             .then(({ data }) => { if (data) setPipelines(data) })
     }, [isHistorical])
+
+    // Determine which pipeline the import is targeting (changes between
+    // standard and historical mode). Used to fetch stages + saved mappings.
+    const targetPipelineId = isHistorical ? historicalPipelineId : pipelineId
+
+    // Load pipeline stages + saved stage mappings whenever the target
+    // pipeline changes. Stages drive the dropdown choices; saved mappings
+    // pre-fill the per-source-value selections.
+    useEffect(() => {
+        if (!open || !targetPipelineId) {
+            setPipelineStages([])
+            setSavedStageMappings({})
+            return
+        }
+        const supabase = createClient()
+        let cancelled = false
+        ;(async () => {
+            const [{ data: stagesData }, savedRes] = await Promise.all([
+                supabase
+                    .from("pipeline_stages")
+                    .select("id, name, sort_order, closed_status")
+                    .eq("pipeline_id", targetPipelineId)
+                    .order("sort_order", { ascending: true }),
+                getStageMappings(targetPipelineId),
+            ])
+            if (cancelled) return
+            setPipelineStages((stagesData ?? []) as StageInfo[])
+            if (savedRes.success && savedRes.data) {
+                const map: Record<string, string> = {}
+                for (const r of savedRes.data) {
+                    map[r.source_value] = r.target_stage_id
+                }
+                setSavedStageMappings(map)
+            }
+        })()
+        return () => { cancelled = true }
+    }, [open, targetPipelineId])
+
+    // Load saved import profiles when the modal opens.
+    useEffect(() => {
+        if (!open) return
+        let cancelled = false
+        ;(async () => {
+            const res = await listImportProfiles(targetPipelineId)
+            if (cancelled) return
+            if (res.success && res.data) setImportProfiles(res.data)
+        })()
+        return () => { cancelled = true }
+    }, [open, targetPipelineId])
 
     // Active fields depend on mode — memoized to prevent re-render cascades
     const COMBINED_FIELDS = useMemo(() => [...SYSTEM_FIELDS, ...HISTORICAL_FIELDS], [])
@@ -124,6 +197,9 @@ export function ImportLeadsModal({ open, onOpenChange, pipelineId, onSuccess }: 
         setImportResult({ success: 0, failed: 0, errors: [] })
         setIsHistorical(false)
         setHistoricalPipelineId("")
+        setStageMapping({})
+        setStatusSourceField(null)
+        setProfileName("")
     }, [])
 
     const handleClose = useCallback(() => {
@@ -147,68 +223,60 @@ export function ImportLeadsModal({ open, onOpenChange, pipelineId, onSuccess }: 
     }, [activeFields, isHistorical])
 
     // ── Auto-map headers to system fields ──
+    // 3-tier strategy:
+    //   1. Exact match against canonical alias dictionary (covers ~all
+    //      real-world header variants we've seen).
+    //   2. Direct comparison against system field label/key as a fallback.
+    //   3. Bigram-Dice fuzzy matching for typos / abbreviations.
     const autoMapHeaders = useCallback((rawHeaders: string[]): ColumnMapping => {
         const mapping: ColumnMapping = {}
-        for (const field of activeFields) {
-            let found = rawHeaders.find((h) => h === field.label)
-            if (!found) found = rawHeaders.find((h) => h.toLowerCase() === field.label.toLowerCase())
-            if (!found) found = rawHeaders.find((h) => h.toLowerCase() === field.key.toLowerCase())
-            if (!found) found = rawHeaders.find((h) => h.toLowerCase().replace(/[_ ]/g, '') === field.key.toLowerCase().replace(/_/g, ''))
-            // Smart partial matches
-            if (!found && field.key === "client_company_name") {
-                found = rawHeaders.find((h) => /client.*company|company.*name/i.test(h))
+        const usedHeadersLocal = new Set<string>()
+
+        // Index field keys for membership check; we only auto-map headers to
+        // fields that exist in the active set (standard vs historical).
+        const activeFieldKeys = new Set(activeFields.map((f) => f.key))
+
+        // ── Pass 1: Alias-dictionary exact match ──
+        for (const header of rawHeaders) {
+            const fieldKey = resolveFieldByAlias(header)
+            if (fieldKey && activeFieldKeys.has(fieldKey) && !mapping[fieldKey]) {
+                mapping[fieldKey] = header
+                usedHeadersLocal.add(header)
             }
-            if (!found && field.key === "contact_name") {
-                found = rawHeaders.find((h) => /contact.*person|contact.*name/i.test(h))
-            }
-            if (!found && field.key === "pic_sales_name") {
-                found = rawHeaders.find((h) => /sales|pic.*sales/i.test(h))
-            }
-            if (!found && field.key === "subsidiary_name") {
-                found = rawHeaders.find((h) => /subsidiary|business.*unit|subs|bu\b/i.test(h))
-            }
-            if (!found && field.key === "pipeline_stage_name") {
-                found = rawHeaders.find((h) => /stage|pipeline.*stage/i.test(h))
-            }
-            if (!found && field.key === "grade_lead") {
-                found = rawHeaders.find((h) => /grade|lead.*grade|hot.*cold.*warm/i.test(h))
-            }
-            if (!found && field.key === "event_dates") {
-                found = rawHeaders.find((h) => /event.*date|tanggal.*event|jadwal/i.test(h))
-            }
-            if (!found && field.key === "destination_city") {
-                found = rawHeaders.find((h) => /destination.*city|event.*city|kota/i.test(h))
-            }
-            if (!found && field.key === "destination_venue") {
-                found = rawHeaders.find((h) => /venue|tempat|lokasi/i.test(h))
-            }
-            if (!found && field.key === "production_sow") {
-                found = rawHeaders.find((h) => /production|sow|scope.*work/i.test(h))
-            }
-            if (!found && field.key === "special_remarks") {
-                found = rawHeaders.find((h) => /special.*remark|catatan.*khusus/i.test(h))
-            }
-            if (!found && field.key === "general_brief") {
-                found = rawHeaders.find((h) => /brief|general.*brief/i.test(h))
-            }
-            // Historical fields
-            if (!found && field.key === "created_at") {
-                found = rawHeaders.find((h) => /created.*date|tanggal.*buat|date.*created|inquiry.*date/i.test(h))
-            }
-            if (!found && field.key === "actual_value") {
-                found = rawHeaders.find((h) => /actual.*value|actual.*revenue|revenue|nilai.*aktual/i.test(h))
-            }
-            if (!found && field.key === "closed_won_date") {
-                found = rawHeaders.find((h) => /closed.*won|won.*date|tanggal.*won/i.test(h))
-            }
-            if (!found && field.key === "closed_lost_date") {
-                found = rawHeaders.find((h) => /closed.*lost|lost.*date|tanggal.*lost/i.test(h))
-            }
-            if (!found && field.key === "lost_reason") {
-                found = rawHeaders.find((h) => /lost.*reason|alasan.*lost|reason/i.test(h))
-            }
-            if (found) mapping[field.key] = found
         }
+
+        // ── Pass 2: Direct label/key match for fields still unmapped ──
+        for (const field of activeFields) {
+            if (mapping[field.key]) continue
+            const found =
+                rawHeaders.find((h) => h === field.label) ||
+                rawHeaders.find((h) => h.toLowerCase() === field.label.toLowerCase()) ||
+                rawHeaders.find((h) => h.toLowerCase() === field.key.toLowerCase()) ||
+                rawHeaders.find((h) =>
+                    h.toLowerCase().replace(/[_ ]/g, "") ===
+                    field.key.toLowerCase().replace(/_/g, ""),
+                )
+            if (found && !usedHeadersLocal.has(found)) {
+                mapping[field.key] = found
+                usedHeadersLocal.add(found)
+            }
+        }
+
+        // ── Pass 3: Fuzzy match (bigram-Dice) for remaining headers ──
+        // Only suggest if confidence is high — avoid spurious mappings.
+        for (const header of rawHeaders) {
+            if (usedHeadersLocal.has(header)) continue
+            const guess = fuzzyMatchFieldKey(header, 0.7)
+            if (
+                guess &&
+                activeFieldKeys.has(guess.fieldKey) &&
+                !mapping[guess.fieldKey]
+            ) {
+                mapping[guess.fieldKey] = header
+                usedHeadersLocal.add(header)
+            }
+        }
+
         return mapping
     }, [activeFields])
 
@@ -224,13 +292,17 @@ export function ImportLeadsModal({ open, onOpenChange, pipelineId, onSuccess }: 
                 }
             }
             // Validate date formats
+            // We accept ISO strings, JS-parseable strings, and Excel serial
+            // numbers (raw cells from unformatted spreadsheets).
             const singleDateFields = ["target_close_date"]
             for (const df of singleDateFields) {
                 const header = mapping[df]
                 const value = header ? row[header] : ""
                 if (value && String(value).trim()) {
-                    const d = new Date(value)
-                    if (isNaN(d.getTime())) {
+                    const trimmed = String(value).trim()
+                    const looksLikeSerial = excelSerialToISO(trimmed) !== null
+                    const d = new Date(trimmed)
+                    if (!looksLikeSerial && isNaN(d.getTime())) {
                         const field = activeFields.find((f) => f.key === df)
                         errors.push({ row: idx + 1, field: field?.label || df, message: `Invalid date format (use YYYY-MM-DD)`, level: "error" })
                     }
@@ -254,14 +326,16 @@ export function ImportLeadsModal({ open, onOpenChange, pipelineId, onSuccess }: 
                     errors.push({ row: idx + 1, field: field?.label || nf, message: "Must be a number", level: "error" })
                 }
             }
-            // Validate historical date fields
+            // Validate historical date fields — accept Excel serials too.
             if (isHistorical) {
                 for (const df of ["created_at", "closed_won_date", "closed_lost_date"]) {
                     const header = mapping[df]
                     const val = header ? row[header] : ""
                     if (val && String(val).trim()) {
-                        const d = new Date(val)
-                        if (isNaN(d.getTime())) {
+                        const trimmed = String(val).trim()
+                        const looksLikeSerial = excelSerialToISO(trimmed) !== null
+                        const d = new Date(trimmed)
+                        if (!looksLikeSerial && isNaN(d.getTime())) {
                             const field = activeFields.find((f) => f.key === df)
                             errors.push({ row: idx + 1, field: field?.label || df, message: "Invalid date format (use YYYY-MM-DD)", level: "error" })
                         }
@@ -274,19 +348,32 @@ export function ImportLeadsModal({ open, onOpenChange, pipelineId, onSuccess }: 
     }, [activeFields, isHistorical])
 
     // ── Parse XLSX file ──
-    const parseXLSX = useCallback((buffer: ArrayBuffer): { headers: string[]; rows: ParsedRow[] } => {
-        const workbook = XLSX.read(buffer, { type: "array", cellDates: true })
+    // Reads the first sheet, auto-detects which row contains headers (real-
+    // world sheets often have a banner row + a merged group row before the
+    // actual headers), and converts every cell to a string. Excel serial
+    // dates are kept as their numeric string form here — downstream parsers
+    // (`parseSmartEventDates`, `excelSerialToISO`) handle the conversion.
+    const parseXLSX = useCallback((buffer: ArrayBuffer): {
+        headers: string[];
+        rows: ParsedRow[];
+        headerRowIndex: number;
+    } => {
+        const workbook = XLSX.read(buffer, { type: "array", cellDates: false })
         const sheetName = workbook.SheetNames[0]
         const worksheet = workbook.Sheets[sheetName]
-        const jsonData = XLSX.utils.sheet_to_json<Record<string, unknown>>(worksheet, { raw: false, defval: "" })
-        if (jsonData.length === 0) return { headers: [], rows: [] }
-        const headers = Object.keys(jsonData[0])
-        const rows: ParsedRow[] = jsonData.map((row) => {
-            const mapped: ParsedRow = {}
-            headers.forEach((h) => { mapped[h] = String(row[h] ?? "") })
-            return mapped
+        // Use the raw 2D array form so we can choose the header row ourselves.
+        const raw = XLSX.utils.sheet_to_json<unknown[]>(worksheet, {
+            header: 1,
+            defval: "",
+            raw: true,
+            blankrows: false,
         })
-        return { headers, rows }
+        if (raw.length === 0) {
+            return { headers: [], rows: [], headerRowIndex: 0 }
+        }
+        const detection = detectHeaderRow(raw)
+        const { headers, rows } = buildHeaderAndRows(raw, detection)
+        return { headers, rows, headerRowIndex: detection.headerRowIndex }
     }, [])
 
     // ── Handle File ──
@@ -306,7 +393,7 @@ export function ImportLeadsModal({ open, onOpenChange, pipelineId, onSuccess }: 
         const reader = new FileReader()
         reader.onload = (e) => {
             const buffer = e.target?.result as ArrayBuffer
-            const { headers, rows } = parseXLSX(buffer)
+            const { headers, rows, headerRowIndex } = parseXLSX(buffer)
             if (rows.length === 0) {
                 toast.error("No data rows found in the file")
                 return
@@ -315,6 +402,11 @@ export function ImportLeadsModal({ open, onOpenChange, pipelineId, onSuccess }: 
             setParsedData(rows)
             const autoMap = autoMapHeaders(headers)
             setColumnMapping(autoMap)
+            if (headerRowIndex > 0) {
+                toast.success(
+                    `Detected headers on row ${headerRowIndex + 1}, skipped ${headerRowIndex} banner row(s).`,
+                )
+            }
             setStep(2)
         }
         reader.readAsArrayBuffer(file)
@@ -347,6 +439,125 @@ export function ImportLeadsModal({ open, onOpenChange, pipelineId, onSuccess }: 
     const mappedCount = Object.keys(columnMapping).length
     const unmappedRequired = activeFields.filter((f) => f.required && !columnMapping[f.key])
 
+    // ── Auto-detect the status source field + distinct values ──
+    // Whichever Excel column is mapped to `status` or `pipeline_stage_name`
+    // is treated as the source of stage values. We collect distinct,
+    // non-empty values from that column so we can show one row per value
+    // in the stage-mapping table.
+    const statusFieldHeader = useMemo(() => {
+        return columnMapping.status || columnMapping.pipeline_stage_name || null
+    }, [columnMapping])
+
+    const distinctStatusValues = useMemo(() => {
+        if (!statusFieldHeader) return []
+        const set = new Set<string>()
+        for (const row of parsedData) {
+            const v = row[statusFieldHeader]?.trim()
+            if (v) set.add(v)
+        }
+        return [...set].sort((a, b) => a.localeCompare(b))
+    }, [statusFieldHeader, parsedData])
+
+    // Pre-populate stage mapping when distinct values change. Priority:
+    //   1. Saved per-pipeline mappings (from import_stage_mappings DB).
+    //   2. Heuristic suggestions (suggestStageMappings).
+    // Anything the user manually changed is preserved.
+    useEffect(() => {
+        if (distinctStatusValues.length === 0) {
+            setStageMapping({})
+            setStatusSourceField(null)
+            return
+        }
+        setStatusSourceField(statusFieldHeader)
+        setStageMapping((prev) => {
+            const next: Record<string, string> = { ...prev }
+            const suggestions = suggestStageMappings(distinctStatusValues, pipelineStages)
+            for (const v of distinctStatusValues) {
+                if (next[v]) continue // user already chose
+                // Saved mapping takes precedence; lookup is case-sensitive against
+                // what's stored. Try the original casing then upper/lower variants.
+                const saved =
+                    savedStageMappings[v] ||
+                    savedStageMappings[v.toUpperCase()] ||
+                    savedStageMappings[v.toLowerCase()]
+                if (saved && pipelineStages.some((s) => s.id === saved)) {
+                    next[v] = saved
+                    continue
+                }
+                if (suggestions[v]) next[v] = suggestions[v]
+            }
+            return next
+        })
+    }, [distinctStatusValues, statusFieldHeader, pipelineStages, savedStageMappings])
+
+    // Apply a saved import profile: replaces column mapping (and stage mapping
+    // if the profile carries one) with the saved configuration.
+    const applyProfile = useCallback((profile: ImportProfileRow) => {
+        // Only keep mappings whose Excel header is actually present in the
+        // current file — otherwise the user sees orphaned dropdowns.
+        const cleanColMap: ColumnMapping = {}
+        for (const [fieldKey, header] of Object.entries(profile.column_mapping)) {
+            if (excelHeaders.includes(header)) cleanColMap[fieldKey] = header
+        }
+        setColumnMapping(cleanColMap)
+        if (profile.stage_mapping && Object.keys(profile.stage_mapping).length > 0) {
+            setStageMapping(profile.stage_mapping)
+        }
+        toast.success(`Applied profile "${profile.name}"`)
+    }, [excelHeaders])
+
+    // Save current configuration as a reusable profile.
+    const handleSaveProfile = useCallback(async () => {
+        if (!profileName.trim()) {
+            toast.error("Please give the profile a name first")
+            return
+        }
+        setSavingProfile(true)
+        try {
+            const res = await saveImportProfile({
+                name: profileName.trim(),
+                pipeline_id: targetPipelineId ?? null,
+                is_historical: isHistorical,
+                column_mapping: columnMapping,
+                stage_mapping: stageMapping,
+                status_source_field: statusSourceField,
+            })
+            if (res.success) {
+                toast.success(`Profile "${profileName}" saved — reuse it on future imports.`)
+                const list = await listImportProfiles(targetPipelineId)
+                if (list.success && list.data) setImportProfiles(list.data)
+                setProfileName("")
+            } else {
+                toast.error(res.error || "Failed to save profile")
+            }
+        } finally {
+            setSavingProfile(false)
+        }
+    }, [profileName, columnMapping, stageMapping, statusSourceField, isHistorical, targetPipelineId])
+
+    const updateStageMapping = useCallback((sourceValue: string, stageId: string) => {
+        setStageMapping((prev) => {
+            const next = { ...prev }
+            if (!stageId || stageId === "__none__") delete next[sourceValue]
+            else next[sourceValue] = stageId
+            return next
+        })
+    }, [])
+
+    // Inline cell edit: update a single cell in `parsedData` and re-run
+    // validation so the issue tab counts stay accurate.
+    const editCell = useCallback((rowIdx: number, header: string, value: string) => {
+        setParsedData((prev) => {
+            const next = prev.map((r, i) => i === rowIdx ? { ...r, [header]: value } : r)
+            // Re-validate using the next snapshot
+            setValidations(validateData(next, columnMapping))
+            return next
+        })
+    }, [validateData, columnMapping])
+
+    // Filter mode for validation issues + preview rows.
+    const [issueFilter, setIssueFilter] = useState<"all" | "errors" | "warnings">("all")
+
     // ── Proceed from mapping to preview ──
     const proceedToPreview = useCallback(() => {
         const errors = validateData(parsedData, columnMapping)
@@ -374,6 +585,22 @@ export function ImportLeadsModal({ open, onOpenChange, pipelineId, onSuccess }: 
 
                     mapped[fieldKey] = val
                 }
+
+                // ── Translate source status → pipeline_stage_id ──
+                // If the user mapped a STATUS-like column AND configured a
+                // stage mapping for that source value, write the stage_id
+                // directly so the server action skips name lookup.
+                if (statusSourceField) {
+                    const srcVal = row[statusSourceField]?.trim()
+                    if (srcVal && stageMapping[srcVal]) {
+                        mapped.pipeline_stage_id = stageMapping[srcVal]
+                        // Drop the legacy name-based field so the server
+                        // doesn't double-resolve and overwrite our stage_id.
+                        delete mapped.pipeline_stage_name
+                        delete mapped.status
+                    }
+                }
+
                 // Standard import: use current pipeline. Historical: use user-selected pipeline
                 if (isHistorical) {
                     mapped.pipeline_id = historicalPipelineId || null
@@ -382,6 +609,17 @@ export function ImportLeadsModal({ open, onOpenChange, pipelineId, onSuccess }: 
                 }
                 return mapped
             })
+
+            // Persist the user's stage mapping so the next import for this
+            // pipeline auto-applies it. Best-effort — we don't fail the
+            // import if this save fails.
+            if (targetPipelineId && Object.keys(stageMapping).length > 0) {
+                const entries = Object.entries(stageMapping).map(([sv, sid]) => ({
+                    source_value: sv,
+                    target_stage_id: sid,
+                }))
+                void saveStageMappings(targetPipelineId, entries)
+            }
 
             const result = isHistorical
                 ? await importHistoricalLeadsAction(rows)
@@ -398,7 +636,7 @@ export function ImportLeadsModal({ open, onOpenChange, pipelineId, onSuccess }: 
                 toast.error(`${result.failed} lead(s) failed to import`)
             }
         })
-    }, [columnMapping, parsedData, pipelineId, historicalPipelineId, startTransition, onSuccess, router, isHistorical])
+    }, [columnMapping, parsedData, pipelineId, historicalPipelineId, startTransition, onSuccess, router, isHistorical, stageMapping, statusSourceField, targetPipelineId])
 
     // Headers already used in mapping
     const usedHeaders = useMemo(() => new Set(Object.values(columnMapping)), [columnMapping])
@@ -499,6 +737,45 @@ export function ImportLeadsModal({ open, onOpenChange, pipelineId, onSuccess }: 
                                                 ))}
                                             </SelectContent>
                                         </Select>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Saved Import Profiles */}
+                            {/*
+                              Lists profiles previously saved by the user.
+                              Picking one pre-fills column + stage mapping so
+                              they can skip Step 2 entirely on recurring files.
+                            */}
+                            {importProfiles.length > 0 && (
+                                <div className="rounded-lg border border-purple-200/50 bg-purple-50/30 overflow-hidden">
+                                    <div className="px-3 py-2 bg-purple-50 border-b border-purple-200/50 flex items-center gap-2">
+                                        <Workflow className="h-3.5 w-3.5 text-purple-500" />
+                                        <span className="text-xs font-semibold text-purple-900">Saved Profiles</span>
+                                        <span className="text-[11px] text-purple-700">
+                                            — pick one to skip column mapping
+                                        </span>
+                                    </div>
+                                    <div className="max-h-32 overflow-y-auto divide-y divide-purple-100/70">
+                                        {importProfiles.map((p) => (
+                                            <button
+                                                key={p.id}
+                                                type="button"
+                                                onClick={() => applyProfile(p)}
+                                                className="w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-purple-50 transition-colors text-left"
+                                            >
+                                                <span className="font-semibold text-slate-700 truncate">{p.name}</span>
+                                                {p.is_historical && (
+                                                    <span className="text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 font-bold">
+                                                        Historical
+                                                    </span>
+                                                )}
+                                                <span className="text-muted-foreground ml-auto">
+                                                    {Object.keys(p.column_mapping).length} fields,
+                                                    {" "}{Object.keys(p.stage_mapping ?? {}).length} stages
+                                                </span>
+                                            </button>
+                                        ))}
                                     </div>
                                 </div>
                             )}
@@ -648,6 +925,118 @@ export function ImportLeadsModal({ open, onOpenChange, pipelineId, onSuccess }: 
                                     </div>
                                 ))}
                             </div>
+
+                            {/* ── Stage Mapping Panel ── */}
+                            {/*
+                              Activates when the file has a STATUS-like column
+                              and we know which pipeline stages to choose from.
+                              The mapping is auto-suggested but fully editable.
+                            */}
+                            {distinctStatusValues.length > 0 && pipelineStages.length > 0 && (
+                                <div className="rounded-lg border border-blue-200/70 bg-blue-50/30 overflow-hidden">
+                                    <div className="px-3 py-2.5 bg-blue-50 border-b border-blue-200/70 flex items-center gap-2">
+                                        <Workflow className="h-3.5 w-3.5 text-blue-500" />
+                                        <span className="text-xs font-semibold text-blue-900">
+                                            Stage Mapping
+                                        </span>
+                                        <span className="text-[11px] text-blue-700">
+                                            — translate "{statusSourceField}" values into pipeline stages
+                                        </span>
+                                    </div>
+                                    <div className="divide-y divide-blue-100/70">
+                                        {distinctStatusValues.map((value) => {
+                                            const currentStageId = stageMapping[value] || ""
+                                            const isSaved = !!savedStageMappings[value]
+                                            return (
+                                                <div key={value} className="flex items-center gap-3 px-3 py-2">
+                                                    <div className="flex items-center gap-2 w-[200px] shrink-0">
+                                                        <div className={`h-2 w-2 rounded-full shrink-0 ${
+                                                            currentStageId ? "bg-blue-500" : "bg-slate-300"
+                                                        }`} />
+                                                        <span className="text-xs font-medium text-slate-700 truncate" title={value}>
+                                                            {value}
+                                                        </span>
+                                                        {isSaved && (
+                                                            <span
+                                                                title="Saved from previous import"
+                                                                className="text-[9px] text-blue-500 font-bold"
+                                                            >
+                                                                ★
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    <ArrowRight className="h-3.5 w-3.5 text-slate-300 shrink-0" />
+                                                    <Select
+                                                        value={currentStageId || "__none__"}
+                                                        onValueChange={(v) => updateStageMapping(value, v)}
+                                                    >
+                                                        <SelectTrigger className={`h-8 text-xs flex-1 ${
+                                                            currentStageId ? "border-blue-200 bg-white" : ""
+                                                        }`}>
+                                                            <SelectValue placeholder="Select pipeline stage..." />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            <SelectItem value="__none__">
+                                                                <span className="text-muted-foreground">— Use default —</span>
+                                                            </SelectItem>
+                                                            {pipelineStages.map((s) => (
+                                                                <SelectItem key={s.id} value={s.id}>
+                                                                    <span className="flex items-center gap-1.5">
+                                                                        {s.closed_status === "won" && (
+                                                                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                                                                        )}
+                                                                        {s.closed_status === "lost" && (
+                                                                            <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
+                                                                        )}
+                                                                        {!s.closed_status && (
+                                                                            <span className="h-1.5 w-1.5 rounded-full bg-slate-400" />
+                                                                        )}
+                                                                        {s.name}
+                                                                    </span>
+                                                                </SelectItem>
+                                                            ))}
+                                                        </SelectContent>
+                                                    </Select>
+                                                </div>
+                                            )
+                                        })}
+                                    </div>
+                                    <div className="px-3 py-2 bg-blue-50/50 border-t border-blue-100/70 text-[11px] text-blue-700">
+                                        Mappings save automatically on import — next time these values are translated for you.
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* ── Save as Profile ── */}
+                            {/*
+                              After mapping, user can name the configuration to
+                              reuse on future imports. Profile-aware files (e.g.
+                              "Werkudara Recap 2026") become 1-click imports.
+                            */}
+                            <div className="rounded-lg border border-slate-200 bg-white p-3 flex items-center gap-2">
+                                <Save className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                                <input
+                                    type="text"
+                                    placeholder="Save this mapping as a profile (optional)..."
+                                    value={profileName}
+                                    onChange={(e) => setProfileName(e.target.value)}
+                                    className="text-xs flex-1 bg-transparent border-0 outline-none placeholder:text-slate-400"
+                                />
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={handleSaveProfile}
+                                    disabled={savingProfile || !profileName.trim()}
+                                    className="gap-1 h-7 text-[11px]"
+                                >
+                                    {savingProfile ? (
+                                        <Loader2 className="h-3 w-3 animate-spin" />
+                                    ) : (
+                                        <Plus className="h-3 w-3" />
+                                    )}
+                                    Save profile
+                                </Button>
+                            </div>
                         </div>
                     )}
 
@@ -663,28 +1052,54 @@ export function ImportLeadsModal({ open, onOpenChange, pipelineId, onSuccess }: 
 
                             {validations.length > 0 && (
                                 <div className="rounded-lg border border-slate-200 overflow-hidden">
-                                    <div className="px-3 py-2 bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-600">
-                                        Validation Issues ({validations.length})
+                                    <div className="px-3 py-2 bg-slate-50 border-b border-slate-200 flex items-center justify-between gap-2">
+                                        <span className="text-xs font-semibold text-slate-600">
+                                            Validation Issues ({validations.length})
+                                        </span>
+                                        <div className="flex items-center gap-1">
+                                            {(["all", "errors", "warnings"] as const).map((f) => (
+                                                <button
+                                                    key={f}
+                                                    type="button"
+                                                    onClick={() => setIssueFilter(f)}
+                                                    className={`px-2 py-0.5 text-[10px] font-semibold rounded transition-colors ${
+                                                        issueFilter === f
+                                                            ? "bg-slate-700 text-white"
+                                                            : "bg-white text-slate-500 hover:bg-slate-100"
+                                                    }`}
+                                                >
+                                                    {f === "all" ? "All" : f === "errors" ? `Errors (${errorCount})` : `Warnings (${warningCount})`}
+                                                </button>
+                                            ))}
+                                        </div>
                                     </div>
                                     <div className="max-h-40 overflow-y-auto divide-y divide-slate-100">
-                                        {validations.slice(0, 50).map((v, i) => (
-                                            <div key={i} className="flex items-center gap-2.5 px-3 py-2 text-xs">
-                                                {v.level === "error"
-                                                    ? <XCircle className="h-3.5 w-3.5 text-red-500 shrink-0" />
-                                                    : <AlertTriangle className="h-3.5 w-3.5 text-amber-500 shrink-0" />
-                                                }
-                                                <span className="text-muted-foreground">Row {v.row}</span>
-                                                <span className="font-medium text-slate-700">{v.field}</span>
-                                                <span className="text-muted-foreground">— {v.message}</span>
-                                            </div>
-                                        ))}
+                                        {validations
+                                            .filter((v) =>
+                                                issueFilter === "all" ||
+                                                (issueFilter === "errors" && v.level === "error") ||
+                                                (issueFilter === "warnings" && v.level === "warning"),
+                                            )
+                                            .slice(0, 50)
+                                            .map((v, i) => (
+                                                <div key={i} className="flex items-center gap-2.5 px-3 py-2 text-xs">
+                                                    {v.level === "error"
+                                                        ? <XCircle className="h-3.5 w-3.5 text-red-500 shrink-0" />
+                                                        : <AlertTriangle className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+                                                    }
+                                                    <span className="text-muted-foreground">Row {v.row}</span>
+                                                    <span className="font-medium text-slate-700">{v.field}</span>
+                                                    <span className="text-muted-foreground">— {v.message}</span>
+                                                </div>
+                                            ))}
                                     </div>
                                 </div>
                             )}
 
                             <div className="rounded-lg border border-slate-200 overflow-hidden">
-                                <div className="px-3 py-2 bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-600">
-                                    Data Preview (first 5 rows)
+                                <div className="px-3 py-2 bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-600 flex items-center gap-2">
+                                    <span>Data Preview (first 5 rows)</span>
+                                    <span className="text-[10px] text-muted-foreground font-normal">— click any cell to edit</span>
                                 </div>
                                 <div className="overflow-x-auto">
                                     <table className="w-full text-xs">
@@ -713,8 +1128,12 @@ export function ImportLeadsModal({ open, onOpenChange, pipelineId, onSuccess }: 
                                                                 return f?.key === fieldKey
                                                             })
                                                             return (
-                                                                <td key={fieldKey} className={`px-3 py-2 max-w-[160px] truncate ${hasError ? 'text-red-600 font-medium' : 'text-slate-700'}`}>
-                                                                    {row[excelHeader] || <span className="text-slate-300">—</span>}
+                                                                <td key={fieldKey} className={`max-w-[160px] ${hasError ? 'bg-red-50' : ''}`}>
+                                                                    <PreviewEditableCell
+                                                                        value={row[excelHeader] ?? ""}
+                                                                        onCommit={(v) => editCell(idx, excelHeader, v)}
+                                                                        hasError={hasError}
+                                                                    />
                                                                 </td>
                                                             )
                                                         })}
@@ -858,5 +1277,64 @@ function StatCard({ label, value, icon, color }: { label: string; value: string 
             <span className="text-lg font-bold">{value}</span>
             <span className="text-[10px] font-medium uppercase tracking-wider opacity-70">{label}</span>
         </div>
+    )
+}
+
+/**
+ * Inline editable cell for the Step 3 preview. Click to edit, Enter or
+ * blur to commit, Escape to cancel. Surfaces errors via red text.
+ */
+function PreviewEditableCell({
+    value,
+    onCommit,
+    hasError,
+}: {
+    value: string
+    onCommit: (next: string) => void
+    hasError: boolean
+}) {
+    const [editing, setEditing] = useState(false)
+    const [draft, setDraft] = useState(value)
+
+    // Sync draft if external value changes (e.g., re-validate after another edit).
+    useEffect(() => { setDraft(value) }, [value])
+
+    if (editing) {
+        return (
+            <input
+                autoFocus
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                onBlur={() => {
+                    if (draft !== value) onCommit(draft)
+                    setEditing(false)
+                }}
+                onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                        if (draft !== value) onCommit(draft)
+                        setEditing(false)
+                    } else if (e.key === "Escape") {
+                        setDraft(value)
+                        setEditing(false)
+                    }
+                }}
+                className={`w-full px-3 py-2 text-xs bg-white border ${
+                    hasError ? "border-red-300" : "border-blue-300"
+                } outline-none rounded-sm`}
+            />
+        )
+    }
+
+    return (
+        <button
+            type="button"
+            onClick={() => setEditing(true)}
+            className={`w-full text-left px-3 py-2 truncate hover:bg-blue-50/50 transition-colors ${
+                hasError ? "text-red-600 font-medium" : "text-slate-700"
+            }`}
+            title="Click to edit"
+        >
+            {value || <span className="text-slate-300">—</span>}
+        </button>
     )
 }
