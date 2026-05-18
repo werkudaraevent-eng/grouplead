@@ -1,6 +1,7 @@
-﻿import type { Metadata } from "next";
+import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { headers } from "next/headers";
+import { Analytics } from "@vercel/analytics/next";
 import { MainLayout } from "@/components/layout/main-layout";
 import { getActiveCompany, getUserCompanies } from "@/utils/company";
 import { createClient } from "@/utils/supabase/server";
@@ -119,6 +120,7 @@ export default async function RootLayout({
           </MainLayout>
         )}
         <Toaster richColors position="top-right" />
+        <Analytics />
       </body>
     </html>
   );
