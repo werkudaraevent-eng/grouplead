@@ -6,6 +6,7 @@ import { createServiceClient } from "@/utils/supabase/service"
 import { smartCaseRow } from "@/utils/smart-title-case"
 import { parseSmartEventDates } from "@/utils/smart-date-parser"
 import { coerceDateToISO, normalizeTaxonomicValue, coerceNumber } from "@/features/leads/lib/import-normalize"
+import { computeMonthEvent } from "@/features/leads/lib/compute-month-event"
 import { buildStageTransitionAuditEntries } from "@/features/leads/lib/stage-transition-audit"
 import { computeAccountStatus } from "@/features/leads/lib/compute-account-status"
 import { logAuditEvent } from "@/app/actions/audit-actions"
@@ -509,6 +510,19 @@ export async function importLeadsAction(
         }
     }
 
+    // Resolve the company-wide event cut-off day for revenue recognition.
+    // Falls back to 25 (matches the default in lead-form.tsx). Using `any`
+    // shape here because system_setting rows store the day as `value` text.
+    const cutoffOpt = (allMasterOptions ?? []).find(
+        (o) => (o as { option_type?: string; label?: string }).option_type === "system_setting" &&
+            (o as { label?: string }).label === "event_cutoff_date",
+    )
+    const eventCutoffDay = (() => {
+        const raw = (cutoffOpt as { value?: string } | undefined)?.value
+        const n = raw ? parseInt(raw, 10) : NaN
+        return Number.isFinite(n) && n >= 1 && n <= 31 ? n : 25
+    })()
+
     // Pre-fetch default stage per pipeline
     const stageCache = new Map<string, string>()
 
@@ -664,11 +678,14 @@ export async function importLeadsAction(
                     // Auto-derive event_date_start and event_date_end from min/max
                     if (!raw.event_date_start) raw.event_date_start = dates[0]
                     if (!raw.event_date_end) raw.event_date_end = dates[dates.length - 1]
-                    // Auto-derive month_event for Revenue Recognition
+                    // Auto-derive month_event for Revenue Recognition.
+                    // Uses the END date and respects the company cut-off (matches
+                    // form-side logic in lead-form.tsx). Importing a 13-Sept to
+                    // 21-Oct event with cutoff 25 should land in October, not
+                    // September.
                     if (!raw.month_event) {
-                        const monthNames = ["January","February","March","April","May","June","July","August","September","October","November","December"]
-                        const firstDate = new Date(dates[0])
-                        raw.month_event = `${monthNames[firstDate.getMonth()]} ${firstDate.getFullYear()}`
+                        const me = computeMonthEvent(dates, eventCutoffDay)
+                        if (me) raw.month_event = me
                     }
                 } else {
                     delete raw.event_dates
@@ -830,6 +847,17 @@ export async function importHistoricalLeadsAction(
         if (opt?.value) optionMap.set(`${opt.option_type}|${opt.value.toLowerCase().trim()}`, opt.value)
     }
 
+    // Same cut-off resolution as importLeadsAction.
+    const cutoffOpt = (allMasterOptions ?? []).find(
+        (o) => (o as { option_type?: string; label?: string }).option_type === "system_setting" &&
+            (o as { label?: string }).label === "event_cutoff_date",
+    )
+    const eventCutoffDay = (() => {
+        const raw = (cutoffOpt as { value?: string } | undefined)?.value
+        const n = raw ? parseInt(raw, 10) : NaN
+        return Number.isFinite(n) && n >= 1 && n <= 31 ? n : 25
+    })()
+
     const stageCache = new Map<string, string>()
 
     for (let i = 0; i < rows.length; i++) {
@@ -973,10 +1001,10 @@ export async function importHistoricalLeadsAction(
                     raw.event_dates = dates
                     if (!raw.event_date_start) raw.event_date_start = dates[0]
                     if (!raw.event_date_end) raw.event_date_end = dates[dates.length - 1]
+                    // End-date based + cutoff-aware. See computeMonthEvent docs.
                     if (!raw.month_event) {
-                        const monthNames = ["January","February","March","April","May","June","July","August","September","October","November","December"]
-                        const firstDate = new Date(dates[0])
-                        raw.month_event = `${monthNames[firstDate.getMonth()]} ${firstDate.getFullYear()}`
+                        const me = computeMonthEvent(dates, eventCutoffDay)
+                        if (me) raw.month_event = me
                     }
                 } else {
                     delete raw.event_dates
