@@ -137,7 +137,7 @@ export const FIELD_ALIASES: FieldAliasMap = {
     ],
     closed_won_date: [
         "closed won date", "won date", "date won", "tanggal won",
-        "date client confirm", "sign cl/ spk/ gl/aggrement",
+        "date client confirm",
     ],
     closed_lost_date: [
         "closed lost date", "lost date", "date lost", "tanggal lost",

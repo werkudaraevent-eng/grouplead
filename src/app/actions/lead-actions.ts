@@ -693,7 +693,9 @@ export async function importLeadsAction(
             // ── Coerce closed dates (Excel serials + ISO + DD-MMM-YY) ──
             // Standard imports increasingly carry closed_won/lost dates and
             // their reason — the recap rows tagged LOST/POSTPONED/CANCELLED
-            // come with DATE CXL/LOST already filled.
+            // come with DATE CXL/LOST already filled. If a value can't be
+            // coerced into a real date (e.g. a name accidentally landed in
+            // this column), drop the field rather than failing the row.
             if (raw.closed_won_date != null && raw.closed_won_date !== "") {
                 const iso = coerceDateToISO(raw.closed_won_date)
                 if (iso) raw.closed_won_date = iso
