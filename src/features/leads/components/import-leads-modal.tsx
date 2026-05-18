@@ -303,6 +303,17 @@ export function ImportLeadsModal({ open, onOpenChange, pipelineId, onSuccess }: 
                 const value = header ? row[header] : ""
                 if (value && String(value).trim()) {
                     const trimmed = String(value).trim()
+                    // Skip cells that are clearly not dates (mostly letters,
+                    // e.g. a signatory name accidentally mapped to a date
+                    // field). Surface as a warning so the user can fix the
+                    // mapping instead of treating the entire row as broken.
+                    const letterCount = (trimmed.match(/[A-Za-z]/g) ?? []).length
+                    const digitCount = (trimmed.match(/\d/g) ?? []).length
+                    if (letterCount > 4 && digitCount === 0) {
+                        const field = activeFields.find((f) => f.key === df)
+                        errors.push({ row: idx + 1, field: field?.label || df, message: `"${trimmed.slice(0, 40)}" doesn't look like a date — unmap this column if you meant something else`, level: "warning" })
+                        continue
+                    }
                     const looksLikeSerial = excelSerialToISO(trimmed) !== null
                     const d = new Date(trimmed)
                     if (!looksLikeSerial && isNaN(d.getTime())) {
