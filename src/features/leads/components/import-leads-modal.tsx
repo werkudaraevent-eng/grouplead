@@ -215,6 +215,14 @@ export function ImportLeadsModal({ open, onOpenChange, pipelineId, onSuccess }: 
         onOpenChange(false)
     }, [resetState, onOpenChange, isPending])
 
+    // Only the result panel (Step 4) is safe to dismiss with an outside
+    // click — by then the import is already complete. Everywhere else the
+    // user has unsaved wizard state (uploaded file, custom mapping, stage
+    // mapping, profile name in flight) and accidental dismissal would be
+    // costly. Match the HubSpot / Linear / Stripe wizard pattern: require
+    // an explicit Cancel / X click to leave.
+    const blockOutsideDismiss = isPending || step < 4
+
     // ── Download XLSX Template ──
     const downloadTemplate = useCallback(() => {
         const headers = activeFields.map((c) => c.label)
@@ -667,8 +675,8 @@ export function ImportLeadsModal({ open, onOpenChange, pipelineId, onSuccess }: 
                 // While an import is running we suppress all dismissal
                 // affordances so the result panel is guaranteed to render.
                 showCloseButton={!isPending}
-                onInteractOutside={(e) => { if (isPending) e.preventDefault() }}
-                onEscapeKeyDown={(e) => { if (isPending) e.preventDefault() }}
+                onInteractOutside={(e) => { if (blockOutsideDismiss) e.preventDefault() }}
+                onEscapeKeyDown={(e) => { if (blockOutsideDismiss) e.preventDefault() }}
             >
                 <DialogHeader className="px-6 pt-6 pb-4 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-blue-50/30">
                     <div className="flex items-center gap-3">
