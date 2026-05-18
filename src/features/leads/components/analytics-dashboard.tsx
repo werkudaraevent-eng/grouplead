@@ -919,6 +919,7 @@ export function AnalyticsDashboard({
                     flexShrink: 0, zIndex: 20,
                     height: 56,
                     display: "flex", justifyContent: "space-between", alignItems: "center",
+                    gap: 16,
                     // Match the right padding used by the scrollable content
                     // grid so the rightmost control (Edit Dashboard) doesn't
                     // hug the viewport edge on wide layouts.
@@ -928,7 +929,15 @@ export function AnalyticsDashboard({
                 }}
             >
                 {/* Left: Title + subtitle */}
-                <div style={{ position: "relative", minWidth: 0, flexShrink: 1, overflow: "hidden" }}>
+                <div style={{
+                    position: "relative",
+                    // Reserve a minimum slot for the title so the right-side
+                    // toolbar (Pipeline / Company / Time / AI / Edit) can't
+                    // crush it down to zero width on small screens.
+                    minWidth: 180,
+                    flexShrink: 1,
+                    overflow: "hidden",
+                }}>
                     <h1 style={{
                         fontSize: 16, fontWeight: 700, color: "#292D30",
                         letterSpacing: "-0.3px", lineHeight: 1.2, margin: 0,
