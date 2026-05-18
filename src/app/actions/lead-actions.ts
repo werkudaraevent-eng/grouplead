@@ -561,6 +561,24 @@ export async function importLeadsAction(
                 } else {
                     errors.push(`Row ${i + 1}: Stage "${stageName}" not found — default stage will be applied`)
                 }
+            } else if (!raw.pipeline_stage_id && raw.pipeline_id) {
+                // No stage name mapped — auto-derive from closed dates so a
+                // recap row tagged LOST/CANCELLED/TURNDOWN with DATE CXL/LOST
+                // filled lands in the right closed bucket instead of the
+                // default Open stage.
+                const pipelineId = raw.pipeline_id as string
+                if (raw.closed_won_date) {
+                    const wonStageId =
+                        stageMap.get(`closed won|${pipelineId}`) ||
+                        stageMap.get(`won|${pipelineId}`)
+                    if (wonStageId) raw.pipeline_stage_id = wonStageId
+                } else if (raw.closed_lost_date) {
+                    const lostStageId =
+                        stageMap.get(`closed lost|${pipelineId}`) ||
+                        stageMap.get(`lost|${pipelineId}`) ||
+                        stageMap.get(`closed turndown|${pipelineId}`)
+                    if (lostStageId) raw.pipeline_stage_id = lostStageId
+                }
             }
             delete raw.pipeline_stage_name
 
@@ -653,7 +671,7 @@ export async function importLeadsAction(
             const taxonomicFields = [
                 "category", "grade_lead", "lead_source",
                 "main_stream", "stream_type", "business_purpose", "event_format",
-                "area"
+                "area", "lost_reason",
             ]
             for (const field of taxonomicFields) {
                 if (raw[field] && typeof raw[field] === "string") {
@@ -670,6 +688,21 @@ export async function importLeadsAction(
                 const iso = coerceDateToISO(raw.target_close_date)
                 if (iso) raw.target_close_date = iso
                 else delete raw.target_close_date
+            }
+
+            // ── Coerce closed dates (Excel serials + ISO + DD-MMM-YY) ──
+            // Standard imports increasingly carry closed_won/lost dates and
+            // their reason — the recap rows tagged LOST/POSTPONED/CANCELLED
+            // come with DATE CXL/LOST already filled.
+            if (raw.closed_won_date != null && raw.closed_won_date !== "") {
+                const iso = coerceDateToISO(raw.closed_won_date)
+                if (iso) raw.closed_won_date = iso
+                else delete raw.closed_won_date
+            }
+            if (raw.closed_lost_date != null && raw.closed_lost_date !== "") {
+                const iso = coerceDateToISO(raw.closed_lost_date)
+                if (iso) raw.closed_lost_date = iso
+                else delete raw.closed_lost_date
             }
 
             // ── Convert destination_city / destination_venue → destinations JSONB ──
@@ -997,7 +1030,7 @@ export async function importHistoricalLeadsAction(
             delete raw.pic_sales_name
 
             // ── Validate Taxonomic Fields (soft fuzzy match) ──
-            const taxonomicFields = ["category", "grade_lead", "lead_source", "main_stream", "stream_type", "business_purpose", "event_format", "area"]
+            const taxonomicFields = ["category", "grade_lead", "lead_source", "main_stream", "stream_type", "business_purpose", "event_format", "area", "lost_reason"]
             for (const field of taxonomicFields) {
                 if (raw[field] && typeof raw[field] === "string") {
                     const result = normalizeTaxonomicValue(field, raw[field] as string, optionMap)
