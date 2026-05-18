@@ -153,7 +153,9 @@ export function parseSmartEventDates(input: string): string[] {
             .filter(s => {
                 if (!s) return false
                 const d = new Date(s)
-                return !isNaN(d.getTime())
+                if (isNaN(d.getTime())) return false
+                const y = d.getFullYear()
+                return y >= 1900 && y <= 9999
             })
             .map(s => {
                 const d = new Date(s)
@@ -348,8 +350,11 @@ export function parseSmartEventDates(input: string): string[] {
     const results: string[] = []
     for (const part of parts) {
         const d = new Date(part)
-        if (!isNaN(d.getTime()) && d.getFullYear() > 2000) {
-            results.push(toISO(d.getFullYear(), d.getMonth(), d.getDate()))
+        if (!isNaN(d.getTime())) {
+            const y = d.getFullYear()
+            if (y >= 2000 && y <= 9999) {
+                results.push(toISO(y, d.getMonth(), d.getDate()))
+            }
         }
     }
 
