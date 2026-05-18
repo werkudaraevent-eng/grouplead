@@ -214,6 +214,29 @@ const FILTER_FIELDS: FilterFieldConfig[] = [
         icon: Calendar,
         type: 'date',
     },
+    // Revenue recognition month — the curated "Month YYYY" string the
+    // form derives from event end date + cut-off rule. Filtering as an
+    // enum lets users multi-select e.g. "May 2026" + "June 2026".
+    // Options are sorted chronologically so the dropdown is easy to scan.
+    {
+        key: 'month_event',
+        label: 'Revenue Recognition Month',
+        icon: Calendar,
+        type: 'enum',
+        getOptions: (leads) => {
+            const set = new Set<string>()
+            leads.forEach((l) => { if (l.month_event) set.add(l.month_event) })
+            const monthIdx = (s: string): number => {
+                const m = s.match(/^([A-Za-z]+)\s+(\d{4})$/)
+                if (!m) return Number.MAX_SAFE_INTEGER
+                const months = ["January","February","March","April","May","June","July","August","September","October","November","December"]
+                const mi = months.indexOf(m[1])
+                if (mi < 0) return Number.MAX_SAFE_INTEGER
+                return parseInt(m[2], 10) * 12 + mi
+            }
+            return Array.from(set).sort((a, b) => monthIdx(a) - monthIdx(b))
+        },
+    },
     {
         key: 'client_company',
         label: 'Client',
@@ -843,6 +866,9 @@ export function applyFilters(leads: Lead[], filters: PipelineFilterState): Lead[
                     // event_dates satisfies the operator. We resolve below
                     // before reaching the operator switch.
                     leadValue = lead.event_dates ?? null
+                    break
+                case 'month_event':
+                    leadValue = lead.month_event
                     break
                 case 'client_company':
                     leadValue = lead.client_company?.name || null
