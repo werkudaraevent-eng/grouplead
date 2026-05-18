@@ -67,6 +67,10 @@ const SYSTEM_FIELDS = [
     // Pipeline & Status
     { key: "pipeline_stage_name", label: "Pipeline Stage", required: false, group: "Pipeline & Status", example: "Lead Masuk" },
     { key: "status", label: "Status", required: false, group: "Pipeline & Status", example: "Open" },
+    { key: "closed_won_date", label: "Closed Won Date", required: false, group: "Pipeline & Status", example: "2026-04-20" },
+    { key: "closed_lost_date", label: "Closed Lost Date", required: false, group: "Pipeline & Status", example: "2026-05-10" },
+    { key: "lost_reason", label: "Lost Reason", required: false, group: "Pipeline & Status", example: "Budget" },
+    { key: "lost_reason_details", label: "Lost Reason Details", required: false, group: "Pipeline & Status", example: "Client postponed event due to internal restructuring" },
 
     // Notes
     { key: "general_brief", label: "General Brief", required: false, group: "Notes", example: "Client needs full-service event management" },
@@ -80,9 +84,6 @@ const SYSTEM_FIELDS = [
 const HISTORICAL_FIELDS = [
     { key: "created_at", label: "Created Date", required: true, group: "Historical", example: "2024-03-15" },
     { key: "actual_value", label: "Actual Value (Revenue)", required: false, group: "Historical", example: "175000000" },
-    { key: "closed_won_date", label: "Closed Won Date", required: false, group: "Historical", example: "2024-04-20" },
-    { key: "closed_lost_date", label: "Closed Lost Date", required: false, group: "Historical", example: "2024-05-10" },
-    { key: "lost_reason", label: "Lost Reason", required: false, group: "Historical", example: "Budget constraints" },
 ]
 
 type ParsedRow = Record<string, string>
@@ -291,11 +292,13 @@ export function ImportLeadsModal({ open, onOpenChange, pipelineId, onSuccess }: 
                     errors.push({ row: idx + 1, field: field.label, message: `${field.label} is required`, level: "error" })
                 }
             }
-            // Validate date formats
-            // We accept ISO strings, JS-parseable strings, and Excel serial
-            // numbers (raw cells from unformatted spreadsheets).
-            const singleDateFields = ["target_close_date"]
-            for (const df of singleDateFields) {
+            // Validate date formats for both standard and historical modes.
+            // Closed dates can appear in either context — historical adds
+            // created_at on top.
+            const dateFieldsForMode = isHistorical
+                ? ["target_close_date", "created_at", "closed_won_date", "closed_lost_date"]
+                : ["target_close_date", "closed_won_date", "closed_lost_date"]
+            for (const df of dateFieldsForMode) {
                 const header = mapping[df]
                 const value = header ? row[header] : ""
                 if (value && String(value).trim()) {
@@ -326,22 +329,10 @@ export function ImportLeadsModal({ open, onOpenChange, pipelineId, onSuccess }: 
                     errors.push({ row: idx + 1, field: field?.label || nf, message: "Must be a number", level: "error" })
                 }
             }
-            // Validate historical date fields — accept Excel serials too.
-            if (isHistorical) {
-                for (const df of ["created_at", "closed_won_date", "closed_lost_date"]) {
-                    const header = mapping[df]
-                    const val = header ? row[header] : ""
-                    if (val && String(val).trim()) {
-                        const trimmed = String(val).trim()
-                        const looksLikeSerial = excelSerialToISO(trimmed) !== null
-                        const d = new Date(trimmed)
-                        if (!looksLikeSerial && isNaN(d.getTime())) {
-                            const field = activeFields.find((f) => f.key === df)
-                            errors.push({ row: idx + 1, field: field?.label || df, message: "Invalid date format (use YYYY-MM-DD)", level: "error" })
-                        }
-                    }
-                }
-            }
+            // Historical-only date field validation (Created Date is already
+            // covered, plus closed dates were promoted to standard above).
+            // Kept as a no-op block for now to make the historical branch
+            // explicit; future historical-only date fields go here.
 
         })
         return errors
