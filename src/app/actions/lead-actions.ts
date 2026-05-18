@@ -739,6 +739,15 @@ export async function importLeadsAction(
                 )
                 if (parsed.destinations.length > 0) {
                     raw.destinations = parsed.destinations
+                    // Form-side gates the destinations editor on event_format
+                    // being Onsite/Hybrid. Recap rows rarely fill that
+                    // column explicitly, so default to Onsite when we know
+                    // there are physical destinations — the editor will
+                    // surface the cities to the user instead of hiding them.
+                    if (!raw.event_format || (typeof raw.event_format === "string" && !raw.event_format.trim())) {
+                        const onsiteOption = optionMap.get("event_format|onsite")
+                        raw.event_format = onsiteOption ?? "Onsite"
+                    }
                 }
                 for (const w of parsed.warnings) {
                     warnings.push(`${rowLabel(i, raw)}: ${w}`)
@@ -1086,6 +1095,10 @@ export async function importHistoricalLeadsAction(
                 )
                 if (parsed.destinations.length > 0) {
                     raw.destinations = parsed.destinations
+                    if (!raw.event_format || (typeof raw.event_format === "string" && !raw.event_format.trim())) {
+                        const onsiteOption = optionMap.get("event_format|onsite")
+                        raw.event_format = onsiteOption ?? "Onsite"
+                    }
                 }
                 for (const w of parsed.warnings) {
                     warnings.push(`${rowLabel(i, raw)}: ${w}`)
