@@ -7,6 +7,7 @@ import { smartCaseRow } from "@/utils/smart-title-case"
 import { parseSmartEventDates } from "@/utils/smart-date-parser"
 import { coerceDateToISO, normalizeTaxonomicValue, coerceNumber } from "@/features/leads/lib/import-normalize"
 import { computeMonthEvent } from "@/features/leads/lib/compute-month-event"
+import { resolvePicSales, type ProfileLite } from "@/features/leads/lib/resolve-pic-sales"
 import { buildStageTransitionAuditEntries } from "@/features/leads/lib/stage-transition-audit"
 import { computeAccountStatus } from "@/features/leads/lib/compute-account-status"
 import { logAuditEvent } from "@/app/actions/audit-actions"
@@ -622,14 +623,25 @@ export async function importLeadsAction(
             }
             delete raw.contact_name
 
-            // ── Resolve PIC Sales name → ID (must already exist as user) ──
+            // ── Resolve PIC Sales name → ID ──
+            // Werkudara recap usually only has first names ("ADIEL", "MITHA")
+            // while profiles store full names. Use the fuzzy resolver so
+            // imports don't all land as Unassigned.
             const picSalesName = raw.pic_sales_name as string | undefined
             if (picSalesName && String(picSalesName).trim()) {
-                const profileId = profileMap.get(String(picSalesName).toLowerCase().trim())
-                if (profileId) {
-                    raw.pic_sales_id = profileId
+                const match = resolvePicSales(
+                    String(picSalesName),
+                    (allProfiles ?? []) as ProfileLite[],
+                )
+                if (match) {
+                    raw.pic_sales_id = match.id
+                    if (match.matched !== "exact") {
+                        errors.push(
+                            `Row ${i + 1}: PIC Sales "${picSalesName}" matched to "${match.via}" (${match.matched}, ${Math.round(match.confidence * 100)}%)`,
+                        )
+                    }
                 } else {
-                    errors.push(`Row ${i + 1}: PIC Sales "${picSalesName}" not found (must be an existing user)`)
+                    errors.push(`Row ${i + 1}: PIC Sales "${picSalesName}" not found — lead will be Unassigned`)
                 }
             }
             delete raw.pic_sales_name
@@ -964,11 +976,23 @@ export async function importHistoricalLeadsAction(
             }
             delete raw.contact_name
 
-            // ── Resolve PIC Sales ──
+            // ── Resolve PIC Sales (fuzzy, see importLeadsAction) ──
             const picSalesName = raw.pic_sales_name as string | undefined
             if (picSalesName && String(picSalesName).trim()) {
-                const profileId = profileMap.get(String(picSalesName).toLowerCase().trim())
-                if (profileId) raw.pic_sales_id = profileId
+                const match = resolvePicSales(
+                    String(picSalesName),
+                    (allProfiles ?? []) as ProfileLite[],
+                )
+                if (match) {
+                    raw.pic_sales_id = match.id
+                    if (match.matched !== "exact") {
+                        errors.push(
+                            `Row ${i + 1}: PIC Sales "${picSalesName}" matched to "${match.via}" (${match.matched}, ${Math.round(match.confidence * 100)}%)`,
+                        )
+                    }
+                } else {
+                    errors.push(`Row ${i + 1}: PIC Sales "${picSalesName}" not found — lead will be Unassigned`)
+                }
             }
             delete raw.pic_sales_name
 
