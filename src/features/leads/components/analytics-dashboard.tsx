@@ -919,7 +919,9 @@ export function AnalyticsDashboard({
                     flexShrink: 0, zIndex: 20,
                     height: 56,
                     display: "flex", justifyContent: "space-between", alignItems: "center",
-                    gap: 16,
+                    // Small gap so the title text never sits flush against the
+                    // first toolbar button.
+                    gap: 12,
                     // Match the right padding used by the scrollable content
                     // grid so the rightmost control (Edit Dashboard) doesn't
                     // hug the viewport edge on wide layouts.
@@ -928,13 +930,15 @@ export function AnalyticsDashboard({
                     borderBottom: "1px solid #f0f0f0",
                 }}
             >
-                {/* Left: Title + subtitle */}
+                {/* Left: Title + subtitle.
+                    Allowed to shrink (and ellipsize) all the way to zero so
+                    that the right-side toolbar — which can contain a lot of
+                    buttons (Pipeline, Company, Time, AI, View, Edit) — is
+                    never pushed off-viewport. The H1 has whiteSpace nowrap +
+                    text-overflow ellipsis so it degrades gracefully. */}
                 <div style={{
                     position: "relative",
-                    // Reserve a minimum slot for the title so the right-side
-                    // toolbar (Pipeline / Company / Time / AI / Edit) can't
-                    // crush it down to zero width on small screens.
-                    minWidth: 180,
+                    minWidth: 0,
                     flexShrink: 1,
                     overflow: "hidden",
                 }}>
