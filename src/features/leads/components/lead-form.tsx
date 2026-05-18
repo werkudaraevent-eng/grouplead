@@ -174,10 +174,30 @@ export function LeadForm({ onSuccess, onClose, pipelineId, defaultStageId, initi
     const { options: tentativeYearOptions } = useMasterOptions("tentative_year", companyIds)
 
     useEffect(() => {
-        if (isHoldingView) {
-            setSubsidiaries(companies.filter((c) => !c.isHolding).map((c) => ({ id: c.id, name: c.name })))
+        if (!isHoldingView) return
+        // Prefer subsidiaries the user is a direct member of so the dropdown
+        // matches the rest of the holding-view UX. If the user has holding
+        // access but no subsidiary memberships (typical for super admins
+        // whose only `company_members` row is the holding itself), the
+        // filtered list ends up empty — fall back to fetching every
+        // non-holding company directly.
+        const memberSubs = companies.filter((c) => !c.isHolding).map((c) => ({ id: c.id, name: c.name }))
+        if (memberSubs.length > 0) {
+            setSubsidiaries(memberSubs)
+            return
         }
-    }, [isHoldingView, companies])
+        let cancelled = false
+        ;(async () => {
+            const { data } = await supabase
+                .from("companies")
+                .select("id, name")
+                .eq("is_holding", false)
+                .order("name", { ascending: true })
+            if (cancelled) return
+            setSubsidiaries((data ?? []) as { id: string; name: string }[])
+        })()
+        return () => { cancelled = true }
+    }, [isHoldingView, companies, supabase])
 
     useEffect(() => {
         const fetchSchemas = async () => {
