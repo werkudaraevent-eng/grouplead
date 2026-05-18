@@ -919,7 +919,10 @@ export function AnalyticsDashboard({
                     flexShrink: 0, zIndex: 20,
                     height: 56,
                     display: "flex", justifyContent: "space-between", alignItems: "center",
-                    padding: "0 24px",
+                    // Match the right padding used by the scrollable content
+                    // grid so the rightmost control (Edit Dashboard) doesn't
+                    // hug the viewport edge on wide layouts.
+                    padding: "0 32px 0 24px",
                     background: "#fff",
                     borderBottom: "1px solid #f0f0f0",
                 }}
