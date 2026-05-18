@@ -18,32 +18,45 @@ import { excelSerialToISO } from "@/utils/excel-date"
  * Convert any reasonable date-ish input (ISO string, JS-parseable string,
  * Excel serial number, Date object) to ISO `YYYY-MM-DD`. Returns null if
  * nothing valid can be derived.
+ *
+ * Strict year bound: 1900–9999. Postgres TIMESTAMPTZ chokes on the `+`
+ * prefix that `Date.toISOString()` emits for years outside that range
+ * (e.g. "+013275-01-01" gets misread as a timezone offset).
  */
 export function coerceDateToISO(input: unknown): string | null {
     if (input === null || input === undefined || input === "") return null
+
+    let d: Date
     if (input instanceof Date) {
         if (isNaN(input.getTime())) return null
-        return input.toISOString().split("T")[0]
+        d = input
+    } else {
+        const str = String(input).trim()
+        if (!str) return null
+
+        // Reject 4-digit year literals ("2026", "1999") so they don't become
+        // Jan 1 of that year. The smart-date-parser handles year-only inputs
+        // separately; here we want a strict single-day date or null.
+        if (/^(?:19|20)\d{2}$/.test(str)) return null
+
+        // Try Excel serial first — pure-numeric strings can be ambiguous, and
+        // excelSerialToISO already rejects 4-digit year literals so it's safe.
+        const serial = excelSerialToISO(str)
+        if (serial) return serial
+
+        // Fall back to native Date parsing (ISO strings, "21 Dec 2025", etc.).
+        d = new Date(str)
+        if (isNaN(d.getTime())) return null
     }
-    const str = String(input).trim()
-    if (!str) return null
 
-    // Reject 4-digit year literals ("2026", "1999") so they don't become
-    // Jan 1 of that year. The smart-date-parser handles year-only inputs
-    // separately; here we want a strict single-day date or null.
-    if (/^(?:19|20)\d{2}$/.test(str)) return null
+    const year = d.getFullYear()
+    if (year < 1900 || year > 9999) return null
 
-    // Try Excel serial first — pure-numeric strings can be ambiguous, and
-    // excelSerialToISO already rejects 4-digit year literals so it's safe.
-    const serial = excelSerialToISO(str)
-    if (serial) return serial
-
-    // Fall back to native Date parsing (ISO strings, "21 Dec 2025", etc.).
-    const d = new Date(str)
-    if (!isNaN(d.getTime()) && d.getFullYear() > 1900) {
-        return d.toISOString().split("T")[0]
-    }
-    return null
+    // Manual format avoids the `+0YYYYY-MM-DD` extended-ISO output that
+    // toISOString uses for years outside 0001–9999.
+    const mm = String(d.getMonth() + 1).padStart(2, "0")
+    const dd = String(d.getDate()).padStart(2, "0")
+    return `${year}-${mm}-${dd}`
 }
 
 /**

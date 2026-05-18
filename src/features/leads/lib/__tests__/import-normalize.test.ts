@@ -23,6 +23,15 @@ describe("coerceDateToISO", () => {
         expect(coerceDateToISO("2026")).toBe(null)
     })
 
+    it("returns null for out-of-range years that would break Postgres", () => {
+        // Postgres rejects toISOString output for year > 9999 because the
+        // leading "+" is parsed as a timezone offset. The recap occasionally
+        // produces nonsensical mega-years (e.g. "+013275-01-01") via stray
+        // characters or formula errors — they must never reach the DB.
+        expect(coerceDateToISO("13275-01-01")).toBe(null)
+        expect(coerceDateToISO(new Date("+013275-01-01T00:00:00Z"))).toBe(null)
+    })
+
     it("handles JS Date object", () => {
         expect(coerceDateToISO(new Date("2026-03-15T00:00:00Z"))).toBe("2026-03-15")
     })
