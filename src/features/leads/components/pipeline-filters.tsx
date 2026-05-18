@@ -192,6 +192,28 @@ const FILTER_FIELDS: FilterFieldConfig[] = [
         icon: Calendar,
         type: 'date',
     },
+    // Event date filters: dispatched against `event_date_start` and
+    // `event_date_end` for first/last day, and against the full
+    // `event_dates` array when the user wants to match "any day of the
+    // event falls within" semantics.
+    {
+        key: 'event_date_start',
+        label: 'Event Start Date',
+        icon: Calendar,
+        type: 'date',
+    },
+    {
+        key: 'event_date_end',
+        label: 'Event End Date',
+        icon: Calendar,
+        type: 'date',
+    },
+    {
+        key: 'event_dates_any',
+        label: 'Event Date (any day)',
+        icon: Calendar,
+        type: 'date',
+    },
     {
         key: 'client_company',
         label: 'Client',
@@ -762,7 +784,7 @@ export function applyFilters(leads: Lead[], filters: PipelineFilterState): Lead[
 
         result = result.filter(lead => {
             // Get the lead's value for this field
-            let leadValue: string | number | null = null
+            let leadValue: string | number | string[] | null = null
 
             switch (rule.field) {
                 case 'pic_sales':
@@ -810,6 +832,18 @@ export function applyFilters(leads: Lead[], filters: PipelineFilterState): Lead[
                 case 'target_close_date':
                     leadValue = lead.target_close_date
                     break
+                case 'event_date_start':
+                    leadValue = lead.event_date_start
+                    break
+                case 'event_date_end':
+                    leadValue = lead.event_date_end
+                    break
+                case 'event_dates_any':
+                    // Multi-day events: a row passes if ANY day in
+                    // event_dates satisfies the operator. We resolve below
+                    // before reaching the operator switch.
+                    leadValue = lead.event_dates ?? null
+                    break
                 case 'client_company':
                     leadValue = lead.client_company?.name || null
                     break
@@ -824,6 +858,27 @@ export function applyFilters(leads: Lead[], filters: PipelineFilterState): Lead[
             }
 
             // Apply operator logic
+            // Special case for the multi-day event-date field: leadValue is
+            // an ISO-string array. We satisfy the rule when ANY date in the
+            // array passes the operator.
+            if (rule.field === 'event_dates_any' && Array.isArray(leadValue)) {
+                const dates = leadValue as string[]
+                if (dates.length === 0) return false
+                const target = rule.value[0]
+                if (!target) return true
+                const cmp = new Date(target)
+                switch (rule.operator) {
+                    case 'after':
+                        return dates.some((d) => new Date(d) > cmp)
+                    case 'before':
+                        return dates.some((d) => new Date(d) < cmp)
+                    case 'on':
+                        return dates.some((d) => d.startsWith(target))
+                    default:
+                        return true
+                }
+            }
+
             switch (rule.operator) {
                 case 'is_any_of':
                     return leadValue != null && rule.value.includes(String(leadValue))
