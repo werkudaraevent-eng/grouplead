@@ -204,9 +204,16 @@ export function ImportLeadsModal({ open, onOpenChange, pipelineId, onSuccess }: 
     }, [])
 
     const handleClose = useCallback(() => {
+        // Modern platform UX: never let an in-flight import be lost to a
+        // stray outside click or Escape press. Inform the user, keep the
+        // modal open, finish the request.
+        if (isPending) {
+            toast.info("Import in progress — please wait until it finishes.")
+            return
+        }
         resetState()
         onOpenChange(false)
-    }, [resetState, onOpenChange])
+    }, [resetState, onOpenChange, isPending])
 
     // ── Download XLSX Template ──
     const downloadTemplate = useCallback(() => {
@@ -655,7 +662,14 @@ export function ImportLeadsModal({ open, onOpenChange, pipelineId, onSuccess }: 
 
     return (
         <Dialog open={open} onOpenChange={(v) => { if (!v) handleClose(); else onOpenChange(v) }}>
-            <DialogContent className="sm:max-w-2xl max-h-[85vh] flex flex-col p-0 gap-0 overflow-hidden">
+            <DialogContent
+                className="sm:max-w-2xl max-h-[85vh] flex flex-col p-0 gap-0 overflow-hidden"
+                // While an import is running we suppress all dismissal
+                // affordances so the result panel is guaranteed to render.
+                showCloseButton={!isPending}
+                onInteractOutside={(e) => { if (isPending) e.preventDefault() }}
+                onEscapeKeyDown={(e) => { if (isPending) e.preventDefault() }}
+            >
                 <DialogHeader className="px-6 pt-6 pb-4 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-blue-50/30">
                     <div className="flex items-center gap-3">
                         <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-500/20">
@@ -1252,7 +1266,7 @@ export function ImportLeadsModal({ open, onOpenChange, pipelineId, onSuccess }: 
                         )}
                     </div>
                     <div className="flex items-center gap-2">
-                        <Button variant="outline" size="sm" onClick={handleClose}>
+                        <Button variant="outline" size="sm" onClick={handleClose} disabled={isPending}>
                             {step === 4 ? "Close" : "Cancel"}
                         </Button>
                         {step === 2 && (
