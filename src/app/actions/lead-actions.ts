@@ -8,6 +8,7 @@ import { parseSmartEventDates } from "@/utils/smart-date-parser"
 import { coerceDateToISO, normalizeTaxonomicValue, coerceNumber } from "@/features/leads/lib/import-normalize"
 import { computeMonthEvent } from "@/features/leads/lib/compute-month-event"
 import { resolvePicSales, type ProfileLite } from "@/features/leads/lib/resolve-pic-sales"
+import { parseDestinations } from "@/features/leads/lib/parse-destinations"
 import { buildStageTransitionAuditEntries } from "@/features/leads/lib/stage-transition-audit"
 import { computeAccountStatus } from "@/features/leads/lib/compute-account-status"
 import { logAuditEvent } from "@/app/actions/audit-actions"
@@ -725,10 +726,23 @@ export async function importLeadsAction(
             }
 
             // ── Convert destination_city / destination_venue → destinations JSONB ──
+            // Recap rows often pack several cities into one cell
+            // ("JAKARTA, SURABAYA", "BANDUNG / LOMBOK"). Split + normalize
+            // each so the multi-destination editor in the form picks them up.
             const destCity = raw.destination_city as string | undefined
             const destVenue = raw.destination_venue as string | undefined
             if (destCity && String(destCity).trim()) {
-                raw.destinations = [{ city: String(destCity).trim(), venue: destVenue ? String(destVenue).trim() : "" }]
+                const parsed = parseDestinations(
+                    String(destCity),
+                    destVenue ? String(destVenue) : "",
+                    optionMap,
+                )
+                if (parsed.destinations.length > 0) {
+                    raw.destinations = parsed.destinations
+                }
+                for (const w of parsed.warnings) {
+                    warnings.push(`${rowLabel(i, raw)}: ${w}`)
+                }
             }
             delete raw.destination_city
             delete raw.destination_venue
@@ -1061,11 +1075,21 @@ export async function importHistoricalLeadsAction(
                 }
             }
 
-            // ── Destinations ──
+            // ── Destinations (split + normalize, see importLeadsAction) ──
             const destCity = raw.destination_city as string | undefined
             const destVenue = raw.destination_venue as string | undefined
             if (destCity && String(destCity).trim()) {
-                raw.destinations = [{ city: String(destCity).trim(), venue: destVenue ? String(destVenue).trim() : "" }]
+                const parsed = parseDestinations(
+                    String(destCity),
+                    destVenue ? String(destVenue) : "",
+                    optionMap,
+                )
+                if (parsed.destinations.length > 0) {
+                    raw.destinations = parsed.destinations
+                }
+                for (const w of parsed.warnings) {
+                    warnings.push(`${rowLabel(i, raw)}: ${w}`)
+                }
             }
             delete raw.destination_city
             delete raw.destination_venue
