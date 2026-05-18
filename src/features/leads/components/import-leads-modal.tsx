@@ -109,7 +109,7 @@ export function ImportLeadsModal({ open, onOpenChange, pipelineId, onSuccess }: 
     const [excelHeaders, setExcelHeaders] = useState<string[]>([])
     const [columnMapping, setColumnMapping] = useState<ColumnMapping>({})
     const [validations, setValidations] = useState<RowValidation[]>([])
-    const [importResult, setImportResult] = useState<{ success: number; failed: number; errors: string[] }>({ success: 0, failed: 0, errors: [] })
+    const [importResult, setImportResult] = useState<{ success: number; failed: number; errors: string[]; warnings: string[] }>({ success: 0, failed: 0, errors: [], warnings: [] })
     const [isHistorical, setIsHistorical] = useState(false)
     const [historicalPipelineId, setHistoricalPipelineId] = useState<string>("")
     const [pipelines, setPipelines] = useState<{ id: string; name: string }[]>([])
@@ -195,7 +195,7 @@ export function ImportLeadsModal({ open, onOpenChange, pipelineId, onSuccess }: 
         setExcelHeaders([])
         setColumnMapping({})
         setValidations([])
-        setImportResult({ success: 0, failed: 0, errors: [] })
+        setImportResult({ success: 0, failed: 0, errors: [], warnings: [] })
         setIsHistorical(false)
         setHistoricalPipelineId("")
         setStageMapping({})
@@ -1186,14 +1186,34 @@ export function ImportLeadsModal({ open, onOpenChange, pipelineId, onSuccess }: 
 
                             {importResult.errors.length > 0 && (
                                 <div className="rounded-lg border border-red-200 overflow-hidden">
-                                    <div className="px-3 py-2 bg-red-50 border-b border-red-200 text-xs font-semibold text-red-700">
-                                        Error Details
+                                    <div className="px-3 py-2 bg-red-50 border-b border-red-200 text-xs font-semibold text-red-700 flex items-center gap-1.5">
+                                        <XCircle className="h-3.5 w-3.5" />
+                                        Failed Imports ({importResult.errors.length})
+                                        <span className="ml-auto text-[10px] font-normal text-red-600/80">these rows were NOT imported</span>
                                     </div>
                                     <div className="max-h-40 overflow-y-auto divide-y divide-red-100">
                                         {importResult.errors.map((err, i) => (
-                                            <div key={i} className="flex items-center gap-2 px-3 py-2 text-xs text-red-700">
-                                                <XCircle className="h-3.5 w-3.5 shrink-0" />
-                                                {err}
+                                            <div key={i} className="flex items-start gap-2 px-3 py-2 text-xs text-red-700">
+                                                <XCircle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                                                <span>{err}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {importResult.warnings.length > 0 && (
+                                <div className="rounded-lg border border-amber-200 overflow-hidden">
+                                    <div className="px-3 py-2 bg-amber-50 border-b border-amber-200 text-xs font-semibold text-amber-800 flex items-center gap-1.5">
+                                        <AlertTriangle className="h-3.5 w-3.5" />
+                                        Auto-corrections ({importResult.warnings.length})
+                                        <span className="ml-auto text-[10px] font-normal text-amber-700/80">leads imported, please verify</span>
+                                    </div>
+                                    <div className="max-h-40 overflow-y-auto divide-y divide-amber-100">
+                                        {importResult.warnings.map((w, i) => (
+                                            <div key={i} className="flex items-start gap-2 px-3 py-2 text-xs text-amber-800">
+                                                <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                                                <span>{w}</span>
                                             </div>
                                         ))}
                                     </div>
