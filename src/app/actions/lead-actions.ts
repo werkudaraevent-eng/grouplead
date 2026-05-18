@@ -424,7 +424,21 @@ export async function deleteLeadAction(
     }
 }
 
-export type ImportResult = { success: number; failed: number; errors: string[] }
+export type ImportResult = {
+    success: number
+    failed: number
+    /** Hard failures — these rows did NOT get inserted. */
+    errors: string[]
+    /** Soft notes — row was inserted but something was auto-corrected
+     *  (PIC fuzzy-matched, taxonomic value coerced, stage defaulted, ...).*/
+    warnings: string[]
+}
+
+/** Build a human-readable row label for log messages. */
+function rowLabel(i: number, raw: Record<string, unknown>): string {
+    const name = typeof raw.project_name === "string" ? raw.project_name.trim() : ""
+    return name ? `Row ${i + 1} (${name})` : `Row ${i + 1}`
+}
 
 export async function importLeadsAction(
     rows: Record<string, unknown>[]
@@ -435,6 +449,9 @@ export async function importLeadsAction(
     let success = 0
     let failed = 0
     const errors: string[] = []
+    const warnings: string[] = []
+
+    // Pre-fetch lookup tables (same as standard import)
 
     // Pre-fetch lookup tables for name → ID resolution
     const { data: allCompanies } = await supabase
@@ -539,7 +556,7 @@ export async function importLeadsAction(
                     raw.company_id = subId
                 } else {
                     failed++
-                    errors.push(`Row ${i + 1}: Subsidiary "${subsidiaryName}" not found — lead skipped`)
+                    errors.push(`${rowLabel(i, raw)}: Subsidiary "${subsidiaryName}" not found — lead skipped`)
                     delete raw.subsidiary_name
                     continue
                 }
@@ -559,7 +576,7 @@ export async function importLeadsAction(
                 if (stageId) {
                     raw.pipeline_stage_id = stageId
                 } else {
-                    errors.push(`Row ${i + 1}: Stage "${stageName}" not found — default stage will be applied`)
+                    warnings.push(`${rowLabel(i, raw)}: Stage "${stageName}" not found — default stage applied`)
                 }
             } else if (!raw.pipeline_stage_id && raw.pipeline_id) {
                 // No stage name mapped — auto-derive from closed dates so a
@@ -598,7 +615,7 @@ export async function importLeadsAction(
                         companyId = newCompany.id
                         companyMap.set(nameKey, newCompany.id) // cache for subsequent rows
                     } else {
-                        errors.push(`Row ${i + 1}: Failed to create company "${clientCompanyName}" — ${compErr?.message}`)
+                        errors.push(`${rowLabel(i, raw)}: Failed to create company "${clientCompanyName}" — ${compErr?.message}`)
                     }
                 }
                 if (companyId) raw.client_company_id = companyId
@@ -635,7 +652,7 @@ export async function importLeadsAction(
                             client_company_id: (raw.client_company_id as string) || null,
                         })
                     } else {
-                        errors.push(`Row ${i + 1}: Failed to create contact "${contactName}" — ${cErr?.message}`)
+                        errors.push(`${rowLabel(i, raw)}: Failed to create contact "${contactName}" — ${cErr?.message}`)
                     }
                 }
             }
@@ -654,12 +671,12 @@ export async function importLeadsAction(
                 if (match) {
                     raw.pic_sales_id = match.id
                     if (match.matched !== "exact") {
-                        errors.push(
-                            `Row ${i + 1}: PIC Sales "${picSalesName}" matched to "${match.via}" (${match.matched}, ${Math.round(match.confidence * 100)}%)`,
+                        warnings.push(
+                            `${rowLabel(i, raw)}: PIC Sales "${picSalesName}" matched to "${match.via}" (${match.matched}, ${Math.round(match.confidence * 100)}%)`,
                         )
                     }
                 } else {
-                    errors.push(`Row ${i + 1}: PIC Sales "${picSalesName}" not found — lead will be Unassigned`)
+                    warnings.push(`${rowLabel(i, raw)}: PIC Sales "${picSalesName}" not found — lead will be Unassigned`)
                 }
             }
             delete raw.pic_sales_name
@@ -678,7 +695,7 @@ export async function importLeadsAction(
                     const result = normalizeTaxonomicValue(field, raw[field] as string, optionMap)
                     raw[field] = result.value
                     if (result.warning) {
-                        errors.push(`Row ${i + 1}: ${result.warning}`)
+                        warnings.push(`${rowLabel(i, raw)}: ${result.warning}`)
                     }
                 }
             }
@@ -765,7 +782,7 @@ export async function importLeadsAction(
             const { data: insertedData, error } = await supabase.from("leads").insert(payload).select("id")
             if (error) {
                 failed++
-                errors.push(`Row ${i + 1}: ${error.message}`)
+                errors.push(`${rowLabel(i, raw)}: ${error.message}`)
             } else {
                 success++
                 if (insertedData?.[0]?.id) {
@@ -779,7 +796,9 @@ export async function importLeadsAction(
             }
         } catch (err) {
             failed++
-            errors.push(`Row ${i + 1}: ${err instanceof Error ? err.message : "Unknown error"}`)
+            const projectName = typeof rows[i]?.project_name === "string" ? (rows[i].project_name as string).trim() : ""
+            const label = projectName ? `Row ${i + 1} (${projectName})` : `Row ${i + 1}`
+            errors.push(`${label}: ${err instanceof Error ? err.message : "Unknown error"}`)
         }
     }
 
@@ -789,13 +808,13 @@ export async function importLeadsAction(
             action: "import",
             resource_type: "lead",
             description: `imported ${success} lead(s)${failed > 0 ? ` (${failed} failed)` : ''}`,
-            metadata: { success, failed, total: rows.length },
+            metadata: { success, failed, total: rows.length, warnings: warnings.length },
         })
     }
 
     revalidatePath("/", "layout")
     revalidatePath("/leads")
-    return { success, failed, errors }
+    return { success, failed, errors, warnings }
 }
 
 // ── Historical sanitize — allows created_at for backdating ──
@@ -832,8 +851,7 @@ export async function importHistoricalLeadsAction(
     let success = 0
     let failed = 0
     const errors: string[] = []
-
-    // Pre-fetch lookup tables (same as standard import)
+    const warnings: string[] = []
     const { data: allCompanies } = await supabase
         .from("client_companies")
         .select("id, name")
@@ -916,13 +934,13 @@ export async function importHistoricalLeadsAction(
             const createdAtRaw = raw.created_at as unknown
             if (!createdAtRaw || (typeof createdAtRaw === "string" && !createdAtRaw.trim())) {
                 failed++
-                errors.push(`Row ${i + 1}: Created Date is required for historical import`)
+                errors.push(`${rowLabel(i, raw)}: Created Date is required for historical import`)
                 continue
             }
             const createdAtISO = coerceDateToISO(createdAtRaw)
             if (!createdAtISO) {
                 failed++
-                errors.push(`Row ${i + 1}: Invalid Created Date "${String(createdAtRaw)}" — use YYYY-MM-DD format`)
+                errors.push(`${rowLabel(i, raw)}: Invalid Created Date "${String(createdAtRaw)}" — use YYYY-MM-DD format`)
                 continue
             }
             const createdAtDate = new Date(createdAtISO)
@@ -937,7 +955,7 @@ export async function importHistoricalLeadsAction(
                     raw.company_id = subId
                 } else {
                     failed++
-                    errors.push(`Row ${i + 1}: Subsidiary "${subsidiaryName}" not found — lead skipped`)
+                    errors.push(`${rowLabel(i, raw)}: Subsidiary "${subsidiaryName}" not found — lead skipped`)
                     continue
                 }
             }
@@ -1021,12 +1039,12 @@ export async function importHistoricalLeadsAction(
                 if (match) {
                     raw.pic_sales_id = match.id
                     if (match.matched !== "exact") {
-                        errors.push(
-                            `Row ${i + 1}: PIC Sales "${picSalesName}" matched to "${match.via}" (${match.matched}, ${Math.round(match.confidence * 100)}%)`,
+                        warnings.push(
+                            `${rowLabel(i, raw)}: PIC Sales "${picSalesName}" matched to "${match.via}" (${match.matched}, ${Math.round(match.confidence * 100)}%)`,
                         )
                     }
                 } else {
-                    errors.push(`Row ${i + 1}: PIC Sales "${picSalesName}" not found — lead will be Unassigned`)
+                    warnings.push(`${rowLabel(i, raw)}: PIC Sales "${picSalesName}" not found — lead will be Unassigned`)
                 }
             }
             delete raw.pic_sales_name
@@ -1038,7 +1056,7 @@ export async function importHistoricalLeadsAction(
                     const result = normalizeTaxonomicValue(field, raw[field] as string, optionMap)
                     raw[field] = result.value
                     if (result.warning) {
-                        errors.push(`Row ${i + 1}: ${result.warning}`)
+                        warnings.push(`${rowLabel(i, raw)}: ${result.warning}`)
                     }
                 }
             }
@@ -1132,7 +1150,7 @@ export async function importHistoricalLeadsAction(
                 .select("id")
             if (error) {
                 failed++
-                errors.push(`Row ${i + 1}: ${error.message}`)
+                errors.push(`${rowLabel(i, raw)}: ${error.message}`)
             } else {
                 success++
                 if (insertedData?.[0]?.id) {
@@ -1146,7 +1164,9 @@ export async function importHistoricalLeadsAction(
             }
         } catch (err) {
             failed++
-            errors.push(`Row ${i + 1}: ${err instanceof Error ? err.message : "Unknown error"}`)
+            const projectName = typeof rows[i]?.project_name === "string" ? (rows[i].project_name as string).trim() : ""
+            const label = projectName ? `Row ${i + 1} (${projectName})` : `Row ${i + 1}`
+            errors.push(`${label}: ${err instanceof Error ? err.message : "Unknown error"}`)
         }
     }
 
@@ -1156,13 +1176,13 @@ export async function importHistoricalLeadsAction(
             action: "import",
             resource_type: "lead",
             description: `imported ${success} historical lead(s)${failed > 0 ? ` (${failed} failed)` : ''}`,
-            metadata: { success, failed, total: rows.length, type: "historical" },
+            metadata: { success, failed, total: rows.length, type: "historical", warnings: warnings.length },
         })
     }
 
     revalidatePath("/", "layout")
     revalidatePath("/leads")
-    return { success, failed, errors }
+    return { success, failed, errors, warnings }
 }
 
 /**
