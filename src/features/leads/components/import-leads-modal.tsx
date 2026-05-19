@@ -81,8 +81,11 @@ const SYSTEM_FIELDS = [
 ]
 
 // ── Additional fields for historical import ──
+// `received_date` is REQUIRED — it sets the lead's "Received Month" used in
+// the pipeline filter. For backfilled rows it MUST reflect the date the
+// lead was originally received, not the day the row is being imported.
 const HISTORICAL_FIELDS = [
-    { key: "created_at", label: "Created Date", required: true, group: "Historical", example: "2024-03-15" },
+    { key: "received_date", label: "Received Date", required: true, group: "Historical", example: "2024-03-15" },
     { key: "actual_value", label: "Actual Value (Revenue)", required: false, group: "Historical", example: "175000000" },
 ]
 
@@ -234,6 +237,42 @@ export function ImportLeadsModal({ open, onOpenChange, pipelineId, onSuccess }: 
         const wb = XLSX.utils.book_new()
         const sheetName = isHistorical ? "Historical Import Template" : "Lead Import Template"
         XLSX.utils.book_append_sheet(wb, ws, sheetName)
+
+        // For historical imports, add an Instructions sheet so users know
+        // exactly how to populate the Received Date column. Without this,
+        // users frequently leave it blank or fill it with today's date,
+        // which breaks the Received Month filter.
+        if (isHistorical) {
+            const instructions = [
+                ["Historical Lead Import \u2014 Instructions"],
+                [""],
+                ["This template is for backfilling leads that were received in"],
+                ["PREVIOUS months. The Received Date column drives the"],
+                ["\"Received Month\" filter on the pipeline."],
+                [""],
+                ["Required:"],
+                ["  \u2022 Received Date (YYYY-MM-DD) \u2014 the date the lead was"],
+                ["    originally received, NOT today's date."],
+                ["  \u2022 Project Name"],
+                ["  \u2022 Subsidiary / Business Unit"],
+                [""],
+                ["Tips:"],
+                ["  \u2022 Use ISO format YYYY-MM-DD (e.g. 2024-03-15) for safety,"],
+                ["    or any date Excel recognises."],
+                ["  \u2022 Leave Actual Value blank for leads that didn't close Won."],
+                ["  \u2022 If a lead is already in the system from a regular import,"],
+                ["    delete it first \u2014 re-importing as historical does NOT"],
+                ["    update existing rows."],
+                [""],
+                ["Acceptable header aliases for Received Date:"],
+                ["  Received Date | Created Date | Inquiry Date |"],
+                ["  Month Received Lead | Lead Received | Tanggal Buat"],
+            ]
+            const wsInfo = XLSX.utils.aoa_to_sheet(instructions)
+            wsInfo["!cols"] = [{ wch: 70 }]
+            XLSX.utils.book_append_sheet(wb, wsInfo, "Instructions")
+        }
+
         XLSX.writeFile(wb, isHistorical ? "historical_lead_import_template.xlsx" : "lead_import_template.xlsx")
         toast.success("Template downloaded!")
     }, [activeFields, isHistorical])
@@ -309,9 +348,9 @@ export function ImportLeadsModal({ open, onOpenChange, pipelineId, onSuccess }: 
             }
             // Validate date formats for both standard and historical modes.
             // Closed dates can appear in either context — historical adds
-            // created_at on top.
+            // received_date on top.
             const dateFieldsForMode = isHistorical
-                ? ["target_close_date", "created_at", "closed_won_date", "closed_lost_date"]
+                ? ["target_close_date", "received_date", "closed_won_date", "closed_lost_date"]
                 : ["target_close_date", "closed_won_date", "closed_lost_date"]
             for (const df of dateFieldsForMode) {
                 const header = mapping[df]

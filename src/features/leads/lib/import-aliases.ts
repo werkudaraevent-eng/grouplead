@@ -126,8 +126,7 @@ export const FIELD_ALIASES: FieldAliasMap = {
     ],
 
     // ── Historical fields ───────────────────────────────────────
-    created_at: [
-        "created date", "created at", "date created", "inquiry date",
+    created_at: [        "received date", "month received lead", "date received",        "created date", "created at", "date created", "inquiry date",
         "tanggal buat", "tanggal dibuat", "month receive lead",
         "tgl time lead terima", "lead received", "year lead receive",
     ],
