@@ -29,6 +29,7 @@ import {
 import { ProfileCombobox } from "@/features/users/components/profile-combobox"
 import type { ClientCompany, FormSchema } from "@/types"
 import { DEFAULT_LAYOUTS, type LayoutItemsMap } from "@/features/settings/components/form-layout-builder"
+import { mergeMissingNativeFields } from "@/features/settings/lib/layout-self-heal"
 import { formatTabLabel, getVisibleTabEntries } from "@/features/settings/lib/form-layout-tabs"
 import { DynamicField } from "@/features/leads/components/dynamic-field"
 import { useCompany } from "@/contexts/company-context"
@@ -144,12 +145,12 @@ export function AddContactModal({ isOpen, onOpenChange, preselectedCompanyId, in
                     try {
                         const parsed = JSON.parse(cnf.value)
                         if (parsed.tabs && parsed.requiredOverrides) {
-                            setLayoutConfig({ ...DEFAULT_LAYOUTS.contacts, ...parsed.tabs })
+                            setLayoutConfig(mergeMissingNativeFields({ ...DEFAULT_LAYOUTS.contacts, ...parsed.tabs }, DEFAULT_LAYOUTS.contacts))
                             setRequiredOverrides(parsed.requiredOverrides)
                             if (parsed.tabSettings) setTabSettings(parsed.tabSettings)
                             if (parsed.tabSettings) setTabSettings(parsed.tabSettings)
                         } else {
-                            setLayoutConfig({ ...DEFAULT_LAYOUTS.contacts, ...parsed })
+                            setLayoutConfig(mergeMissingNativeFields({ ...DEFAULT_LAYOUTS.contacts, ...parsed }, DEFAULT_LAYOUTS.contacts))
                         }
                     } catch(e) {}
                 }

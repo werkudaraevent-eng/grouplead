@@ -19,6 +19,7 @@ import { toast } from "sonner"
 import type { FormSchema } from "@/types"
 import { cn } from "@/lib/utils"
 import { buildLayoutStateSnapshot, createTabId, formatTabLabel } from "@/features/settings/lib/form-layout-tabs"
+import { mergeMissingNativeFields } from "@/features/settings/lib/layout-self-heal"
 import {
     AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
     AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -55,7 +56,7 @@ export type LayoutItemsMap = Record<string, string[]>
 
 export const DEFAULT_LAYOUTS: Record<string, LayoutItemsMap> = {
     leads: {
-        project: ["native:project_name", "native:pipeline_stage_id", "native:category", "native:grade_lead", "native:client_company_id", "native:account_status", "native:contact_id", "native:pic_sales_id", "native:lead_source", "native:referral_source", "native:target_close_date"],
+        project: ["native:project_name", "native:pipeline_stage_id", "native:category", "native:grade_lead", "native:client_company_id", "native:account_status", "native:contact_id", "native:pic_sales_id", "native:lead_source", "native:referral_source", "native:received_date", "native:target_close_date"],
         event: ["native:event_dates", "native:month_event", "native:pax_count", "native:event_format", "native:destinations", "native:virtual_platform"],
         classification: ["native:main_stream", "native:stream_type", "native:business_purpose", "native:area"],
         financial: ["native:estimated_value"],
@@ -85,6 +86,7 @@ export const FIELD_LABELS: Record<string, string> = {
     "native:lead_source": "Lead Source",
     "native:referral_source": "Referral Source",
     "native:target_close_date": "Target Close Date",
+    "native:received_date": "Received Date",
     "native:pipeline_stage_id": "Pipeline Stage",
     "native:event_dates": "Event Dates",
     "native:month_event": "Revenue Recognition (Month & Year)",
@@ -195,20 +197,9 @@ export function FormLayoutBuilder({ companyId, customSchemas, onEditCustomField 
                 setLayoutConfigId(null)
             }
 
-            // Self-heal: Inject any newly-added native fields from DEFAULT_LAYOUTS that are missing from saved config
-            const allPresent = new Set(Object.values(loadedLayout).flat())
-            const defaultLayout = DEFAULT_LAYOUTS[activeModule]
-            if (defaultLayout) {
-                for (const [tabKey, defaultFields] of Object.entries(defaultLayout)) {
-                    for (const fieldId of defaultFields) {
-                        if (fieldId.startsWith("native:") && !allPresent.has(fieldId)) {
-                            if (!loadedLayout[tabKey]) loadedLayout[tabKey] = []
-                            loadedLayout[tabKey].push(fieldId)
-                            allPresent.add(fieldId)
-                        }
-                    }
-                }
-            }
+            // Self-heal: reinject native fields the saved layout is missing
+            // when DEFAULT_LAYOUTS gained a new field after the tenant saved.
+            loadedLayout = mergeMissingNativeFields(loadedLayout, DEFAULT_LAYOUTS[activeModule] ?? {})
 
             // Sync Custom Fields for this specific module
             const moduleCustomSchemas = customSchemas.filter(s => s.module_name === activeModule)

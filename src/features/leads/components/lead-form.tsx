@@ -31,11 +31,12 @@ import { ProfileCombobox } from "@/features/users/components/profile-combobox"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
 import type { LayoutItemsMap, VisibilityRules } from "@/features/settings/components/form-layout-builder"
+import { mergeMissingNativeFields } from "@/features/settings/lib/layout-self-heal"
 import { formatTabLabel, getVisibleTabIds } from "@/features/settings/lib/form-layout-tabs"
 import { DynamicField } from "./dynamic-field"
 
 const DEFAULT_LAYOUT: LayoutItemsMap = {
-    project: ["native:project_name", "native:pipeline_stage_id", "native:category", "native:grade_lead", "native:client_company_id", "native:account_status", "native:contact_id", "native:pic_sales_id", "native:lead_source", "native:referral_source", "native:target_close_date"],
+    project: ["native:project_name", "native:pipeline_stage_id", "native:category", "native:grade_lead", "native:client_company_id", "native:account_status", "native:contact_id", "native:pic_sales_id", "native:lead_source", "native:referral_source", "native:received_date", "native:target_close_date"],
     event: ["native:event_dates", "native:month_event", "native:pax_count", "native:event_format", "native:destinations", "native:virtual_platform"],
     classification: ["native:main_stream", "native:stream_type", "native:business_purpose", "native:area"],
     financial: ["native:estimated_value"],
@@ -65,6 +66,7 @@ const addLeadSchema = z.object({
     referral_source: z.string().nullable().optional(),
     pic_sales_id: z.string().nullable().optional(),
     target_close_date: z.string().nullable().optional(),
+    received_date: z.string().nullable().optional(),
     closed_won_date: z.string().optional().or(z.literal("")),
     closed_lost_date: z.string().optional().or(z.literal("")),
     estimated_value: z.coerce.number().nullable().optional(),
@@ -230,44 +232,22 @@ export function LeadForm({ onSuccess, onClose, pipelineId, defaultStageId, initi
                         
                         // Extract base layout
                         const baseLayout = parsed.tabs ? { ...DEFAULT_LAYOUT, ...parsed.tabs } : { ...DEFAULT_LAYOUT, ...parsed }
-                        
-                        // Self-heal: Inject newly added native fields if they are completely missing from DB layouts
-                        const allPresent = new Set(Object.values(baseLayout).flat())
-                        if (!allPresent.has("native:month_event")) {
-                            if (!baseLayout.event) baseLayout.event = []
-                            const eventDatesIdx = baseLayout.event.indexOf("native:event_dates")
-                            if (eventDatesIdx !== -1) {
-                                baseLayout.event.splice(eventDatesIdx + 1, 0, "native:month_event")
-                            } else {
-                                baseLayout.event.push("native:month_event")
-                            }
-                        }
-                        if (!allPresent.has("native:pipeline_stage_id")) {
-                            if (!baseLayout.project) baseLayout.project = []
-                            const projectNameIdx = baseLayout.project.indexOf("native:project_name")
-                            if (projectNameIdx !== -1) {
-                                baseLayout.project.splice(projectNameIdx + 1, 0, "native:pipeline_stage_id")
-                            } else {
-                                baseLayout.project.unshift("native:pipeline_stage_id")
-                            }
-                        }
-                        if (!allPresent.has("native:account_status")) {
-                            if (!baseLayout.project) baseLayout.project = []
-                            const companyIdx = baseLayout.project.indexOf("native:client_company_id")
-                            if (companyIdx !== -1) {
-                                baseLayout.project.splice(companyIdx + 1, 0, "native:account_status")
-                            } else {
-                                baseLayout.project.push("native:account_status")
-                            }
-                        }
+
+                        // Self-heal: reinject native fields the saved layout
+                        // is missing. Critical for fields shipped after a
+                        // tenant already saved a custom layout (e.g.
+                        // received_date) — without this they'd be silently
+                        // absent from the form even though they exist in
+                        // DEFAULT_LAYOUT.
+                        const healedLayout = mergeMissingNativeFields(baseLayout, DEFAULT_LAYOUT)
 
                         if (parsed.tabs && parsed.requiredOverrides) {
-                            setLayoutConfig(baseLayout)
+                            setLayoutConfig(healedLayout)
                             setRequiredOverrides(parsed.requiredOverrides)
                             if (parsed.visibilityRules) setVisibilityRules(parsed.visibilityRules)
                             if (parsed.tabSettings) setTabSettings(parsed.tabSettings)
                         } else {
-                            setLayoutConfig(baseLayout)
+                            setLayoutConfig(healedLayout)
                         }
                     } catch(e) {}
                 }
@@ -360,6 +340,7 @@ export function LeadForm({ onSuccess, onClose, pipelineId, defaultStageId, initi
             referral_source: null,
             pic_sales_id: null,
             target_close_date: "",
+            received_date: new Date().toISOString().slice(0, 10),
             closed_won_date: "",
             closed_lost_date: "",
             month_event: null,
@@ -961,6 +942,16 @@ export function LeadForm({ onSuccess, onClose, pipelineId, defaultStageId, initi
                                                     return <DynamicSelectField key={fieldId} control={form.control} name="lead_source" label={getLabelStr("Lead Source", fieldId)} options={leadSourceOptions.map((o) => o.value)} />
                                                 case "native:referral_source":
                                                     return isFieldVisible("native:referral_source") ? <TextField key={fieldId} control={form.control} name="referral_source" label={getLabelStr("Referral Source", fieldId)} /> : null
+                                                case "native:received_date":
+                                                    return (
+                                                        <TextField
+                                                            key={fieldId}
+                                                            control={form.control}
+                                                            name="received_date"
+                                                            label={getLabelStr("Received Date", fieldId)}
+                                                            type="date"
+                                                        />
+                                                    )
                                                 case "native:target_close_date":
                                                     return (
                                                         <div key={fieldId} className="sm:col-span-2 grid grid-cols-1 sm:grid-cols-3 gap-3">

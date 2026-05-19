@@ -13,6 +13,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
+import {
+    logManualActivityAction,
+    type ManualActivityType,
+} from "@/app/actions/activity-log-actions"
 
 // ═══════════════════════════════════════════════════════════════
 //  TYPES
@@ -184,18 +188,16 @@ export function TimelineTab({ leadId }: TimelineTabProps) {
 
         setLogSaving(true)
 
-        // Get current user
-        const { data: { user } } = await supabase.auth.getUser()
+        // Dual-write via server action so the global /history page reflects
+        // manual activity logs (Note/Email/Meeting/Task) as well.
+        const result = await logManualActivityAction(
+            Number(leadId),
+            logType as ManualActivityType,
+            logDescription.trim(),
+        )
 
-        const { error } = await supabase.from("lead_activities").insert({
-            lead_id: leadId,
-            user_id: user?.id ?? null,
-            action_type: logType,
-            description: logDescription.trim(),
-        })
-
-        if (error) {
-            toast.error(`Failed to log activity: ${error.message}`)
+        if (!result.success) {
+            toast.error(`Failed to log activity: ${result.error ?? "Unknown error"}`)
         } else {
             toast.success("Activity logged")
             setLogDescription("")

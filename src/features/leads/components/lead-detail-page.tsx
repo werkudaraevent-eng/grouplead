@@ -33,6 +33,7 @@ import { FilesTab } from "@/features/leads/components/files-tab"
 import { TransitionPromptModal } from "@/features/leads/components/transition-prompt-modal"
 import { useCurrency } from "@/contexts/currency-context"
 import { useLeadTabUnread } from "@/features/leads/lib/use-lead-tab-unread"
+import { updatePipelineStageAction } from "@/app/actions/lead-actions"
 interface LeadDetailPageProps {
     lead: Lead & { pipeline?: { name: string } | null }
     prevLeadId?: number | null
@@ -136,42 +137,16 @@ export function LeadDetailPage({ lead, prevLeadId, nextLeadId, lastModifiedBy = 
             }
         }
 
-        // ── No rule matched — proceed with direct update ──
+        // ── No rule matched — proceed via server action ──
+        // updatePipelineStageAction handles: leads update, lead_stage_history,
+        // lead_activities, AND audit_logs (for global /history). Doing it
+        // here in the client previously skipped audit_logs and caused the
+        // /history page to drift from the per-lead Timeline.
         setMovingStage(true)
-        const { error } = await supabase
-            .from('leads')
-            .update({ pipeline_stage_id: stage.id, status: stage.name })
-            .eq('id', lead.id)
-        if (error) {
-            toast.error("Failed to move stage")
+        const result = await updatePipelineStageAction(lead.id, stage.id)
+        if (!result.success) {
+            toast.error(result.error ?? "Failed to move stage")
         } else {
-            const { data: { user } } = await supabase.auth.getUser()
-            let userName = "System"
-            if (user) {
-                const { data: profile } = await supabase
-                    .from("profiles")
-                    .select("full_name")
-                    .eq("id", user.id)
-                    .single()
-                if (profile?.full_name) userName = profile.full_name
-            }
-
-            await supabase.from("lead_stage_history").insert({
-                lead_id: lead.id,
-                stage_id: stage.id,
-                stage_name: stage.name,
-                user_id: user?.id ?? null,
-                user_name: userName,
-                amount: lead.estimated_value ?? null,
-            })
-
-            await supabase.from("lead_activities").insert({
-                lead_id: lead.id,
-                user_id: user?.id ?? null,
-                action_type: "Stage Change",
-                description: `${userName} moved lead from "${stageName}" to "${stage.name}"`,
-            })
-
             toast.success(`Moved to "${stage.name}"`)
             router.refresh()
         }

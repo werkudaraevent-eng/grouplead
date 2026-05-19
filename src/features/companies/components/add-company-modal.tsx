@@ -34,6 +34,7 @@ import type { ClientCompany, FormSchema } from "@/types"
 import { parseAddress } from "@/lib/address-parser"
 import { DynamicField } from "@/features/leads/components/dynamic-field"
 import { DEFAULT_LAYOUTS, type LayoutItemsMap } from "@/features/settings/components/form-layout-builder"
+import { mergeMissingNativeFields } from "@/features/settings/lib/layout-self-heal"
 import { formatTabLabel, getVisibleTabEntries } from "@/features/settings/lib/form-layout-tabs"
 import { useCompany } from "@/contexts/company-context"
 
@@ -164,25 +165,18 @@ export function AddCompanyModal({ open, onOpenChange, onCreated, initialData }: 
                     try {
                         const parsed = JSON.parse(cnf.value)
                         if (parsed.tabs && parsed.requiredOverrides) {
-                            const merged = { ...DEFAULT_LAYOUTS.companies, ...parsed.tabs }
-                            // Self-heal: inject missing native fields
-                            const allPresent = new Set(Object.values(merged).flat())
-                            if (!allPresent.has("native:account_status")) {
-                                if (!merged.identity) merged.identity = []
-                                const liIdx = merged.identity.indexOf("native:line_industry")
-                                if (liIdx !== -1) merged.identity.splice(liIdx + 1, 0, "native:account_status")
-                                else merged.identity.push("native:account_status")
-                            }
+                            const merged = mergeMissingNativeFields(
+                                { ...DEFAULT_LAYOUTS.companies, ...parsed.tabs },
+                                DEFAULT_LAYOUTS.companies,
+                            )
                             setLayoutConfig(merged)
                             setRequiredOverrides(parsed.requiredOverrides)
                             if (parsed.tabSettings) setTabSettings(parsed.tabSettings)
                         } else {
-                            const merged = { ...DEFAULT_LAYOUTS.companies, ...parsed }
-                            const allPresent = new Set(Object.values(merged).flat())
-                            if (!allPresent.has("native:account_status")) {
-                                if (!merged.identity) merged.identity = []
-                                merged.identity.push("native:account_status")
-                            }
+                            const merged = mergeMissingNativeFields(
+                                { ...DEFAULT_LAYOUTS.companies, ...parsed },
+                                DEFAULT_LAYOUTS.companies,
+                            )
                             setLayoutConfig(merged)
                         }
                     } catch(e) {}

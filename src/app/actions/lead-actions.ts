@@ -22,7 +22,7 @@ const LEADS_COLUMNS = new Set([
     "line_industry", "area", "is_qualified", "lead_source", "referral_source",
     "estimated_value", "remark", "company_id", "client_company_id", "contact_id",
     "pic_sales_id", "account_manager_id", "pipeline_stage_id", "event_date_end",
-    "actual_value", "event_format", "target_close_date", "description",
+    "actual_value", "event_format", "target_close_date", "received_date", "description",
     "virtual_platform", "main_stream", "destinations", "pipeline_id",
     "custom_data", "general_brief", "production_sow", "special_remarks", "event_dates", "month_event",
     "kanban_sort_order", "lost_reason", "lost_reason_details",
@@ -132,8 +132,9 @@ export async function createLeadAction(
             description: "Lead created",
         })
 
-        // Audit log
-        logAuditEvent({
+        // Audit log — await so the insert is durable before the action
+        // returns; unawaited promises can be cancelled mid-flight.
+        await logAuditEvent({
             action: "create",
             resource_type: "lead",
             resource_id: String(newLead.id),
@@ -247,8 +248,9 @@ export async function updateLeadAction(
 
         if (error) return { success: false, error: error.message }
 
-        // Audit log
-        logAuditEvent({
+        // Audit log — await so the insert is durable before the
+        // action returns and the request lifecycle ends.
+        await logAuditEvent({
             action: "update",
             resource_type: "lead",
             resource_id: String(leadId),
@@ -283,7 +285,7 @@ export async function updatePipelineStageAction(
         ] = await Promise.all([
             supabase
                 .from("leads")
-                .select("estimated_value, pipeline_stage:pipeline_stages!pipeline_stage_id(name)")
+                .select("estimated_value, project_name, pipeline_stage:pipeline_stages!pipeline_stage_id(name)")
                 .eq("id", leadId)
                 .single(),
             supabase
@@ -362,14 +364,16 @@ export async function updatePipelineStageAction(
 
         if (activityError) return { success: false, error: activityError.message }
 
-        // Audit log
+        // Audit log — must await so the row lands before the server
+        // action returns; otherwise Next.js can drop the unawaited insert.
         const prevStage = (leadRow.pipeline_stage as unknown as { name: string } | null)?.name ?? "Unknown"
-        logAuditEvent({
+        const leadProjectName = (leadRow as { project_name?: string | null }).project_name ?? ""
+        await logAuditEvent({
             action: "stage_change",
             resource_type: "lead",
             resource_id: String(leadId),
-            resource_name: "",
-            description: `moved lead from "${prevStage}" to "${stageRow.name}"`,
+            resource_name: leadProjectName,
+            description: `moved lead${leadProjectName ? ` "${leadProjectName}"` : ""} from "${prevStage}" to "${stageRow.name}"`,
             metadata: { from: prevStage, to: stageRow.name },
         })
 
@@ -405,8 +409,9 @@ export async function deleteLeadAction(
 
         if (error) return { success: false, error: error.message }
 
-        // Audit log
-        logAuditEvent({
+        // Audit log — await so the insert is durable before the action
+        // returns; unawaited promises can be cancelled mid-flight.
+        await logAuditEvent({
             action: "delete",
             resource_type: "lead",
             resource_id: String(leadId),
@@ -825,9 +830,9 @@ export async function importLeadsAction(
         }
     }
 
-    // Audit log
+    // Audit log — await so the row is durable.
     if (success > 0) {
-        logAuditEvent({
+        await logAuditEvent({
             action: "import",
             resource_type: "lead",
             description: `imported ${success} lead(s)${failed > 0 ? ` (${failed} failed)` : ''}`,
@@ -840,15 +845,17 @@ export async function importLeadsAction(
     return { success, failed, errors, warnings }
 }
 
-// ── Historical sanitize — allows created_at for backdating ──
+// ── Historical sanitize — allows received_date (and created_at) for backdating ──
 function sanitizeHistoricalPayload(data: Record<string, unknown>): Record<string, unknown> {
     const clean: Record<string, unknown> = {}
     for (const [key, val] of Object.entries(data)) {
         if (val === undefined) continue
         if (RELATIONAL_KEYS.has(key)) continue
-        // Allow created_at for historical import (skip id, updated_at, manual_id)
         if (key === "id" || key === "updated_at" || key === "manual_id") continue
-        // Allow created_at explicitly
+        // Allow created_at explicitly so backdating still works for rows
+        // imported before received_date existed. New imports also set
+        // received_date below; we keep created_at in lock-step for
+        // historical clarity.
         if (key === "created_at") {
             clean[key] = val === "" ? null : val
             continue
@@ -860,9 +867,10 @@ function sanitizeHistoricalPayload(data: Record<string, unknown>): Record<string
 }
 
 /**
- * Import historical leads with custom created_at dates.
- * Uses service client (admin) to bypass the DEFAULT NOW() on created_at.
- * Same logic as importLeadsAction but allows backdating.
+ * Import historical leads with custom received_date (and matching created_at)
+ * dates. Uses the service client (admin) to bypass the DEFAULT current_date /
+ * NOW() on those columns. Same logic as importLeadsAction but allows
+ * backdating.
  */
 export async function importHistoricalLeadsAction(
     rows: Record<string, unknown>[]
@@ -952,23 +960,29 @@ export async function importHistoricalLeadsAction(
         try {
             const raw = smartCaseRow({ ...rows[i] }) as Record<string, unknown>
 
-            // ── Validate created_at (required for historical) ──
-            // Accept Excel serials, ISO strings, JS-parseable dates.
-            const createdAtRaw = raw.created_at as unknown
-            if (!createdAtRaw || (typeof createdAtRaw === "string" && !createdAtRaw.trim())) {
+            // ── Validate received_date (required for historical) ──
+            // Accept Excel serials, ISO strings, JS-parseable dates. The
+            // historical template uses "Received Date" as the canonical
+            // header; we still fall back to a stray `created_at` value if
+            // the file came from an older template.
+            const receivedRaw = (raw.received_date ?? raw.created_at) as unknown
+            if (!receivedRaw || (typeof receivedRaw === "string" && !receivedRaw.trim())) {
                 failed++
-                errors.push(`${rowLabel(i, raw)}: Created Date is required for historical import`)
+                errors.push(`${rowLabel(i, raw)}: Received Date is required for historical import`)
                 continue
             }
-            const createdAtISO = coerceDateToISO(createdAtRaw)
-            if (!createdAtISO) {
+            const receivedISO = coerceDateToISO(receivedRaw)
+            if (!receivedISO) {
                 failed++
-                errors.push(`${rowLabel(i, raw)}: Invalid Created Date "${String(createdAtRaw)}" — use YYYY-MM-DD format`)
+                errors.push(`${rowLabel(i, raw)}: Invalid Received Date "${String(receivedRaw)}" — use YYYY-MM-DD format`)
                 continue
             }
-            const createdAtDate = new Date(createdAtISO)
-            // Store as ISO string
-            raw.created_at = createdAtDate.toISOString()
+            const receivedDate = new Date(receivedISO)
+            // Store the day on `received_date` (DATE column) and mirror the
+            // same instant onto `created_at` so legacy reports keyed on
+            // created_at also see the backdated value.
+            raw.received_date = receivedISO.slice(0, 10)
+            raw.created_at = receivedDate.toISOString()
 
             // ── Resolve Subsidiary ──
             const subsidiaryName = raw.subsidiary_name as string | undefined
@@ -1180,7 +1194,7 @@ export async function importHistoricalLeadsAction(
                 if (fallbackStage) payload.pipeline_stage_id = fallbackStage
             }
 
-            // Use admin client to insert with custom created_at
+            // Use admin client to insert with custom received_date / created_at
             const { data: insertedData, error } = await adminClient
                 .from("leads")
                 .insert(payload)
@@ -1195,7 +1209,7 @@ export async function importHistoricalLeadsAction(
                         lead_id: insertedData[0].id,
                         user_id: user?.id ?? null,
                         action_type: "Create",
-                        description: `Lead created via Historical Import (original date: ${createdAtDate.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })})`
+                        description: `Lead created via Historical Import (received: ${receivedDate.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })})`
                     })
                 }
             }
@@ -1207,9 +1221,9 @@ export async function importHistoricalLeadsAction(
         }
     }
 
-    // Audit log
+    // Audit log — await so the row is durable.
     if (success > 0) {
-        logAuditEvent({
+        await logAuditEvent({
             action: "import",
             resource_type: "lead",
             description: `imported ${success} historical lead(s)${failed > 0 ? ` (${failed} failed)` : ''}`,

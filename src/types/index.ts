@@ -170,6 +170,7 @@ export interface Lead {
     actual_value: number | null;
     kanban_sort_order?: number;
     target_close_date: string | null;
+    received_date: string;
 
     // Description / Initial Inquiry
     description: string | null;

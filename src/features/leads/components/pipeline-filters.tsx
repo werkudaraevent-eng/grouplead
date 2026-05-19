@@ -39,6 +39,28 @@ type FilterFieldConfig = {
     getOptions?: (leads: Lead[]) => string[]
 }
 
+// ────────────────────────────────────────────────────────────────────
+// Helpers
+// ────────────────────────────────────────────────────────────────────
+
+const MONTH_NAMES = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December",
+]
+
+/**
+ * Format a date-ish value (ISO timestamp, YYYY-MM-DD string, etc.) into a
+ * "Month YYYY" label that mirrors the existing Revenue Recognition Month
+ * convention. Returns null for missing or unparsable inputs so callers can
+ * skip them in option lists.
+ */
+function monthLabelFromDate(value: string | null | undefined): string | null {
+    if (!value) return null
+    const d = new Date(value)
+    if (Number.isNaN(d.getTime())) return null
+    return `${MONTH_NAMES[d.getMonth()]} ${d.getFullYear()}`
+}
+
 // ════════════════════════════════════════════════════════════════════
 //  FIELD REGISTRY — all filterable lead columns
 // ════════════════════════════════════════════════════════════════════
@@ -235,6 +257,36 @@ const FILTER_FIELDS: FilterFieldConfig[] = [
                 return parseInt(m[2], 10) * 12 + mi
             }
             return Array.from(set).sort((a, b) => monthIdx(a) - monthIdx(b))
+        },
+    },
+    // Received month — derived from `received_date` (a business date the
+    // user can override at create / edit time). For backfilled historical
+    // leads it should be set to the date the lead was originally received,
+    // not the day the row landed in the database. The migration backfilled
+    // existing rows from `created_at::date` so the filter has a reasonable
+    // default before users curate the data.
+    {
+        key: 'received_month',
+        label: 'Received Month',
+        icon: Calendar,
+        type: 'enum',
+        getOptions: (leads) => {
+            const set = new Set<string>()
+            leads.forEach((l) => {
+                const ym = monthLabelFromDate(l.received_date ?? l.created_at)
+                if (ym) set.add(ym)
+            })
+            const monthIdx = (s: string): number => {
+                const m = s.match(/^([A-Za-z]+)\s+(\d{4})$/)
+                if (!m) return Number.MAX_SAFE_INTEGER
+                const months = ["January","February","March","April","May","June","July","August","September","October","November","December"]
+                const mi = months.indexOf(m[1])
+                if (mi < 0) return Number.MAX_SAFE_INTEGER
+                return parseInt(m[2], 10) * 12 + mi
+            }
+            // Reverse chronological — most recent months first since they
+            // are usually the most actionable for intake reporting.
+            return Array.from(set).sort((a, b) => monthIdx(b) - monthIdx(a))
         },
     },
     {
@@ -869,6 +921,9 @@ export function applyFilters(leads: Lead[], filters: PipelineFilterState): Lead[
                     break
                 case 'month_event':
                     leadValue = lead.month_event
+                    break
+                case 'received_month':
+                    leadValue = monthLabelFromDate(lead.received_date ?? lead.created_at)
                     break
                 case 'client_company':
                     leadValue = lead.client_company?.name || null
