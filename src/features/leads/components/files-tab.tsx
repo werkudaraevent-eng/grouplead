@@ -3,6 +3,11 @@
 import { useState, useEffect, useCallback, useRef } from "react"
 import { createClient } from "@/utils/supabase/client"
 import { Button } from "@/components/ui/button"
+import {
+    AlertDialog, AlertDialogAction, AlertDialogCancel,
+    AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
+    AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { toast } from "sonner"
 import {
     Upload, Loader2, FileText, FileSpreadsheet, FileImage, File,
@@ -44,6 +49,9 @@ export function FilesTab({ leadId }: FilesTabProps) {
     const [loading, setLoading] = useState(true)
     const [uploading, setUploading] = useState(false)
     const [dragOver, setDragOver] = useState(false)
+    // Pending delete target. The AlertDialog opens when this is non-null.
+    const [pendingDelete, setPendingDelete] = useState<AttachmentRow | null>(null)
+    const [deleting, setDeleting] = useState(false)
 
     const fetchFiles = useCallback(async () => {
         setLoading(true)
@@ -158,8 +166,7 @@ export function FilesTab({ leadId }: FilesTabProps) {
 
     const handleDelete = useCallback(
         async (file: AttachmentRow) => {
-            if (!confirm(`Delete "${file.file_name}"? This cannot be undone.`)) return
-
+            setDeleting(true)
             const { error: storageErr } = await supabase.storage
                 .from(BUCKET)
                 .remove([file.storage_path])
@@ -175,6 +182,7 @@ export function FilesTab({ leadId }: FilesTabProps) {
                 .eq("id", file.id)
             if (rowErr) {
                 toast.error(`Delete failed: ${rowErr.message}`)
+                setDeleting(false)
                 return
             }
 
@@ -189,6 +197,8 @@ export function FilesTab({ leadId }: FilesTabProps) {
             }
 
             toast.success(`Deleted "${file.file_name}"`)
+            setPendingDelete(null)
+            setDeleting(false)
             await fetchFiles()
         },
         [leadId, supabase, fetchFiles],
@@ -329,7 +339,7 @@ export function FilesTab({ leadId }: FilesTabProps) {
                                     <Button
                                         size="sm"
                                         variant="ghost"
-                                        onClick={() => handleDelete(f)}
+                                        onClick={() => setPendingDelete(f)}
                                         className="h-7 w-7 p-0 text-slate-500 hover:text-red-600"
                                         title="Delete"
                                     >
@@ -341,6 +351,40 @@ export function FilesTab({ leadId }: FilesTabProps) {
                     </ul>
                 )}
             </div>
+
+            {/* Delete confirmation — platform-styled, replaces window.confirm. */}
+            <AlertDialog
+                open={!!pendingDelete}
+                onOpenChange={(open) => { if (!open && !deleting) setPendingDelete(null) }}
+            >
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Delete this file?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            {pendingDelete
+                                ? <><span className="font-medium text-slate-700">{pendingDelete.file_name}</span> will be permanently removed from this deal. This cannot be undone.</>
+                                : null}
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                            disabled={deleting}
+                            onClick={(e) => {
+                                e.preventDefault()
+                                if (pendingDelete) handleDelete(pendingDelete)
+                            }}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                            {deleting ? (
+                                <><Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> Deleting…</>
+                            ) : (
+                                "Delete"
+                            )}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     )
 }
