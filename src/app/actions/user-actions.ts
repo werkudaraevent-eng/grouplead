@@ -61,8 +61,8 @@ export async function provisionUserAction(
             }
         }
 
-        // Audit log
-        logAuditEvent({
+        // Audit log — await so the row is durable.
+        await logAuditEvent({
             action: "create",
             resource_type: "user",
             resource_id: authData.user.id,
@@ -110,8 +110,8 @@ export async function deactivateUserAction(
             }
         }
 
-        // Audit log
-        logAuditEvent({
+        // Audit log — await so the row is durable.
+        await logAuditEvent({
             action: "user_management",
             resource_type: "user",
             resource_id: userId,

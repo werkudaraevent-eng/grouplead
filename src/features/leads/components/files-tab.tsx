@@ -15,6 +15,10 @@ import {
 } from "lucide-react"
 import { useCurrency } from "@/contexts/currency-context"
 import { formatDistanceToNow } from "date-fns"
+import {
+    logFileUploadAction,
+    logFileDeleteAction,
+} from "@/app/actions/activity-log-actions"
 
 interface AttachmentRow {
     id: string
@@ -128,13 +132,9 @@ export function FilesTab({ leadId }: FilesTabProps) {
                 return false
             }
 
-            // Activity log so the Timeline tab reflects the upload.
-            await supabase.from("lead_activities").insert({
-                lead_id: Number(leadId),
-                user_id: user.id,
-                action_type: "File Uploaded",
-                description: `${uploaderName ?? "User"} uploaded "${file.name}"`,
-            })
+            // Dual-write activity (lead_activities + audit_logs) via server
+            // action so the global /history page stays in sync.
+            await logFileUploadAction(Number(leadId), file.name)
 
             return true
         },
@@ -188,12 +188,8 @@ export function FilesTab({ leadId }: FilesTabProps) {
 
             const { data: { user } } = await supabase.auth.getUser()
             if (user) {
-                await supabase.from("lead_activities").insert({
-                    lead_id: Number(leadId),
-                    user_id: user.id,
-                    action_type: "File Deleted",
-                    description: `Removed "${file.file_name}"`,
-                })
+                // Dual-write activity (lead_activities + audit_logs).
+                await logFileDeleteAction(Number(leadId), file.file_name)
             }
 
             toast.success(`Deleted "${file.file_name}"`)

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { toast } from "sonner"
 import { Loader2, Send } from "lucide-react"
+import { logNoteAddedAction } from "@/app/actions/activity-log-actions"
 
 interface Note {
     id: string
@@ -79,13 +80,9 @@ export function NotesTab({ leadId }: NotesTabProps) {
             return
         }
 
-        // Also insert into lead_activities for the Timeline
-        await supabase.from("lead_activities").insert({
-            lead_id: Number(leadId),
-            user_id: user?.id ?? null,
-            action_type: "Note Added",
-            description: `${authorName} added a note`,
-        })
+        // Dual-write the activity entry (lead_activities + audit_logs) via
+        // server action so the global /history page stays in sync.
+        await logNoteAddedAction(Number(leadId), newNote.trim())
 
         toast.success("Note saved")
         setNewNote("")
