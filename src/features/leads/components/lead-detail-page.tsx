@@ -29,6 +29,7 @@ import { StageHistoryTab } from "@/features/leads/components/stage-history-tab"
 import { HeaderMetricPopover } from "@/features/leads/components/header-metric-popover"
 import { HeaderAssigneePopover } from "@/features/leads/components/header-assignee-popover"
 import { TasksTab } from "@/features/leads/components/tasks-tab"
+import { FilesTab } from "@/features/leads/components/files-tab"
 import { TransitionPromptModal } from "@/features/leads/components/transition-prompt-modal"
 import { useCurrency } from "@/contexts/currency-context"
 import { useLeadTabUnread } from "@/features/leads/lib/use-lead-tab-unread"
@@ -733,22 +734,7 @@ export function LeadDetailPage({ lead, prevLeadId, nextLeadId, lastModifiedBy = 
 
                         {/* ── FILES ── */}
                         <TabsContent value="files" className="m-0 pt-6">
-                            <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-                                <div className="px-5 py-3.5 border-b border-slate-100">
-                                    <h3 className="font-semibold text-[13px] text-slate-800 tracking-tight flex items-center gap-2">
-                                        <Folder className="w-4 h-4 text-slate-400" /> Files & Documents
-                                    </h3>
-                                </div>
-                                <div className="flex flex-col items-center justify-center py-14 text-center">
-                                    <div className="w-11 h-11 rounded-full bg-slate-100 flex items-center justify-center mb-3">
-                                        <Upload className="h-5 w-5 text-slate-300" />
-                                    </div>
-                                    <p className="text-[13px] text-slate-500 font-medium mb-0.5">No files attached</p>
-                                    <p className="text-[12px] text-slate-400 max-w-xs">
-                                        Upload proposals, contracts, and supporting documents for this deal.
-                                    </p>
-                                </div>
-                            </div>
+                            <FilesTab leadId={lead.id} />
                         </TabsContent>
 
                         {/* ── TASKS ── */}
