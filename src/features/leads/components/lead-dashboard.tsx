@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useState } from "react"
+import { createPortal } from "react-dom"
 import { DataTable } from "@/components/shared/data-table"
 import { getColumns, DEFAULT_HIDDEN_COLUMNS } from "@/features/leads/components/lead-columns"
 import { useCurrency } from "@/contexts/currency-context"
@@ -26,7 +27,7 @@ import {
     MoreHorizontal, Trash2, PanelLeftClose, PanelLeft,
     Copy, ListTree, ChevronRight, Pencil, X, Lock, Eye,
     Search, SlidersHorizontal, ChevronDown, ChevronUp,
-    Archive, RotateCcw, Settings2, ArchiveRestore, Upload,
+    Archive, RotateCcw, Settings2, ArchiveRestore, Upload, Download,
     ChevronsLeft, ChevronsRight, TrendingUp, ArrowUpDown,
     Check, Clock, CalendarClock, DollarSign, GripVertical,
 } from "lucide-react"
@@ -56,6 +57,7 @@ import {
     AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { bulkDeleteLeadsAction, deleteLeadAction } from "@/app/actions/lead-actions"
+import * as XLSX from "xlsx"
 
 type ViewMode = 'table' | 'kanban'
 const VIEW_MODES = ['kanban', 'table'] as const satisfies readonly ViewMode[]
@@ -330,7 +332,7 @@ export function LeadDashboard() {
         setDeleting(false)
     }
 
-    // ─── Bulk Export (CSV) ───────────────────────────────────────────
+    // ─── Export Leads (XLSX) ─────────────────────────────────────────
     const handleBulkExport = (rows: Lead[]) => {
         if (rows.length === 0) return
         const headers = [
@@ -364,19 +366,13 @@ export function LeadDashboard() {
             lead.estimated_value ?? '',
             lead.actual_value ?? '',
         ])
-        const csvContent = [
-            headers.join(','),
-            ...csvRows.map(row => row.map(v => `"${String(v).replace(/"/g, '""')}"`).join(','))
-        ].join('\n')
+        const worksheet = XLSX.utils.aoa_to_sheet([headers, ...csvRows])
+        worksheet['!cols'] = headers.map((header) => ({ wch: Math.max(14, header.length + 2) }))
 
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
-        const url = URL.createObjectURL(blob)
-        const link = document.createElement('a')
-        link.href = url
-        link.download = `leads_export_${new Date().toISOString().slice(0, 10)}.csv`
-        link.click()
-        URL.revokeObjectURL(url)
-        toast.success(`Exported ${rows.length} lead(s) to CSV`)
+        const workbook = XLSX.utils.book_new()
+        XLSX.utils.book_append_sheet(workbook, worksheet, 'Leads')
+        XLSX.writeFile(workbook, `leads_export_${new Date().toISOString().slice(0, 10)}.xlsx`)
+        toast.success(`Exported ${rows.length} lead(s) to XLSX`)
     }
 
     // ─── Fetch pipelines (visibility matrix) ───────────────────────────
@@ -1043,50 +1039,35 @@ export function LeadDashboard() {
                     </div>
                 )}
 
-                {/* ─── Strategic Header Bar ─────────────────────────── */}
-                <div className="px-4 border-b border-border bg-background shrink-0">
-                    {/* Single-row compact toolbar (Linear/Attio style) */}
-                    <div className="flex items-center justify-between h-10 gap-x-3 w-full">
-                        <div className="flex items-center gap-2 min-w-0">
-                            <h2 className="text-[13px] font-semibold leading-none truncate text-foreground">
-                                {activePipeline?.name || "Select a Pipeline"}
-                            </h2>
-                            <span className="text-[11px] text-muted-foreground/70 tabular-nums whitespace-nowrap">
-                                {leadsLoading ? "…" : filteredLeads.length}
-                            </span>
-                            {isHoldingView && activePipeline?.company?.name && (
-                                <span className="text-[10px] font-medium text-muted-foreground bg-muted px-1.5 py-0.5 rounded truncate max-w-[120px]">
-                                    {activePipeline.company.name}
-                                </span>
+                {/* ─── Page Header (Linear / Attio style two-row layout) ─────────── */}
+                <div className="border-b border-border bg-background shrink-0">
+                    {/* Row 1: Pipeline identity + primary action */}
+                    <div className="flex items-center justify-between gap-4 px-6 pt-4 pb-2">
+                        <div className="flex items-center gap-3 min-w-0">
+                            {activePipeline?.icon && (
+                                <PipelineIcon icon={activePipeline.icon} className="h-5 w-5 text-muted-foreground shrink-0" />
                             )}
-                        </div>
-
-                        <div className="flex items-center gap-1.5 shrink-0 ml-auto max-w-full overflow-visible">
-                            {/* Search Bar — compact, matches card text scale */}
-                            <div className="relative shrink-0">
-                                <Search className="w-3 h-3 absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground/60 pointer-events-none" />
-                                <Input
-                                    placeholder="Search..."
-                                    value={searchQuery}
-                                    onChange={(e) => setSearchQuery(e.target.value)}
-                                    className="pl-7 h-7 w-[140px] sm:w-[160px] lg:w-[180px] text-[11px] bg-muted/30 border-border/60 focus-visible:bg-background focus-visible:border-border focus-visible:w-[220px] transition-all placeholder:text-muted-foreground/50"
-                                />
-                                {searchQuery && (
-                                    <button
-                                        onClick={() => setSearchQuery("")}
-                                        className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                                    >
-                                        <X className="h-3 w-3" />
-                                    </button>
+                            <div className="min-w-0">
+                                <h1 className="text-[18px] font-semibold tracking-tight leading-snug text-foreground truncate">
+                                    {activePipeline?.name || "Select a Pipeline"}
+                                </h1>
+                                {(isHoldingView && activePipeline?.company?.name) && (
+                                    <p className="text-[12px] text-muted-foreground/80 truncate mt-0.5">
+                                        {activePipeline.company.name}
+                                    </p>
                                 )}
                             </div>
+                            <span className="ml-1 inline-flex items-center justify-center min-w-[28px] h-6 px-2 rounded-full bg-muted text-muted-foreground text-[12px] font-medium tabular-nums">
+                                {leadsLoading ? "…" : filteredLeads.length}
+                            </span>
+                        </div>
 
-                            {/* Pipeline Action Menu */}
+                        <div className="flex items-center gap-2 shrink-0">
                             {activePipeline && !isHoldingView && (
                                 <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
-                                        <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
-                                            <MoreHorizontal className="h-3.5 w-3.5" />
+                                        <Button variant="ghost" size="sm" className="h-9 w-9 p-0">
+                                            <MoreHorizontal className="h-4 w-4" />
                                         </Button>
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent align="end" className="w-48">
@@ -1115,109 +1096,22 @@ export function LeadDashboard() {
                                 </DropdownMenu>
                             )}
 
-                            {/* View Toggle and Filters */}
-                            <div className="flex items-center gap-1 shrink-0">
-                                {/* Advanced Pipeline Filters */}
-                                <PipelineFilters leads={leads} filters={filters} setFilters={setFilters} />
-
-                                {/* Kanban Sort Dropdown (only in kanban view) */}
-                                {viewMode === 'kanban' && (
-                                    <DropdownMenu>
-                                        <DropdownMenuTrigger asChild>
-                                            <Button
-                                                variant="outline"
-                                                size="sm"
-                                                className="h-7 px-2 gap-1.5 text-[11px] font-normal border-border/60"
-                                                title="Sort order"
-                                            >
-                                                <ArrowUpDown className="h-3 w-3 text-muted-foreground" />
-                                                <span className="text-foreground">
-                                                    {kanbanSort === 'manual' && 'Manual'}
-                                                    {kanbanSort === 'newest' && 'Newest'}
-                                                    {kanbanSort === 'oldest' && 'Oldest'}
-                                                    {kanbanSort === 'close_date' && 'Close date'}
-                                                    {kanbanSort === 'value_desc' && 'Value'}
-                                                    {kanbanSort === 'updated' && 'Last updated'}
-                                                </span>
-                                            </Button>
-                                        </DropdownMenuTrigger>
-                                        <DropdownMenuContent align="end" className="w-56">
-                                            {([
-                                                { key: 'newest', label: 'Newest first', icon: Clock, desc: 'Recently created on top' },
-                                                { key: 'oldest', label: 'Oldest first', icon: Clock, desc: 'Oldest on top' },
-                                                { key: 'close_date', label: 'Close date', icon: CalendarClock, desc: 'Earliest due first' },
-                                                { key: 'value_desc', label: 'Highest value', icon: DollarSign, desc: 'Largest deals first' },
-                                                { key: 'updated', label: 'Last updated', icon: RotateCcw, desc: 'Recent activity' },
-                                                { key: 'manual', label: 'Manual order', icon: GripVertical, desc: 'Drag & drop' },
-                                            ] as const).map((opt) => {
-                                                const Icon = opt.icon
-                                                const active = kanbanSort === opt.key
-                                                return (
-                                                    <DropdownMenuItem
-                                                        key={opt.key}
-                                                        onClick={() => handleSortChange(opt.key as KanbanSort)}
-                                                        className="flex items-start gap-2.5 py-2"
-                                                    >
-                                                        <Icon className="h-3.5 w-3.5 mt-0.5 text-muted-foreground shrink-0" />
-                                                        <div className="flex-1 min-w-0">
-                                                            <div className="text-[12px] font-medium text-foreground">{opt.label}</div>
-                                                            <div className="text-[10.5px] text-muted-foreground">{opt.desc}</div>
-                                                        </div>
-                                                        {active && <Check className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />}
-                                                    </DropdownMenuItem>
-                                                )
-                                            })}
-                                        </DropdownMenuContent>
-                                    </DropdownMenu>
-                                )}
-
-                                {/* Portal target for Kanban Card Settings */}
-                                {viewMode === 'kanban' && <div id="kanban-settings-portal" className="flex items-center shrink-0" />}
-
-                                {/* Icon-only view toggle (Linear/Notion style) */}
-                                <div className="flex items-center border rounded-md p-0.5 bg-muted/40 shrink-0">
-                                    <button
-                                        onClick={() => setViewMode('kanban')}
-                                        title="Kanban view"
-                                        className={`flex items-center justify-center w-6 h-6 rounded-sm transition-all ${viewMode === 'kanban'
-                                            ? 'bg-background shadow-sm text-foreground'
-                                            : 'text-muted-foreground hover:text-foreground'
-                                            }`}
-                                    >
-                                        <LayoutGrid className="h-3.5 w-3.5" />
-                                    </button>
-                                    <button
-                                        onClick={() => setViewMode('table')}
-                                        title="Table view"
-                                        className={`flex items-center justify-center w-6 h-6 rounded-sm transition-all ${viewMode === 'table'
-                                            ? 'bg-background shadow-sm text-foreground'
-                                            : 'text-muted-foreground hover:text-foreground'
-                                            }`}
-                                    >
-                                        <Table className="h-3.5 w-3.5" />
-                                    </button>
-                                </div>
-                            </div>
-
-                            {/* Add Lead / Import */}
                             <PermissionGate resource="leads" action="create">
                                 <div className="flex items-center">
                                     <Button
-                                        size="sm"
                                         disabled={!activePipeline}
-                                        className="h-7 rounded-r-none text-xs px-2.5"
+                                        className="h-9 rounded-r-none px-4 text-[13px]"
                                         onClick={() => setAddSheetOpen(true)}
                                     >
-                                        <Plus className="mr-1 h-3 w-3" /> New Lead
+                                        <Plus className="mr-1.5 h-4 w-4" /> New Lead
                                     </Button>
                                     <DropdownMenu>
                                         <DropdownMenuTrigger asChild>
                                             <Button
-                                                size="sm"
                                                 disabled={!activePipeline}
-                                                className="h-7 rounded-l-none border-l border-primary-foreground/20 px-1"
+                                                className="h-9 rounded-l-none border-l border-primary-foreground/20 px-2"
                                             >
-                                                <ChevronDown className="h-3 w-3" />
+                                                <ChevronDown className="h-4 w-4" />
                                             </Button>
                                         </DropdownMenuTrigger>
                                         <DropdownMenuContent align="end" className="w-48">
@@ -1233,10 +1127,124 @@ export function LeadDashboard() {
                                                 <Upload className="mr-2 h-4 w-4" />
                                                 Import Leads
                                             </DropdownMenuItem>
+                                            <DropdownMenuItem
+                                                disabled={filteredLeads.length === 0}
+                                                onClick={() => handleBulkExport(filteredLeads)}
+                                            >
+                                                <Download className="mr-2 h-4 w-4" />
+                                                Export to XLSX
+                                            </DropdownMenuItem>
                                         </DropdownMenuContent>
                                     </DropdownMenu>
                                 </div>
                             </PermissionGate>
+                        </div>
+                    </div>
+
+                    {/* Row 2: Toolbar */}
+                    <div className="flex items-center justify-between gap-3 px-6 pb-2.5">
+                        <div className="flex items-center gap-2 min-w-0 flex-1">
+                            <div className="relative w-full max-w-[280px]">
+                                <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground/60 pointer-events-none" />
+                                <Input
+                                    placeholder="Search leads..."
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    className="pl-8 h-8 text-[12px] bg-muted/30 border-border/60 focus-visible:bg-background focus-visible:border-border placeholder:text-muted-foreground/50"
+                                />
+                                {searchQuery && (
+                                    <button
+                                        onClick={() => setSearchQuery("")}
+                                        className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                                    >
+                                        <X className="h-3 w-3" />
+                                    </button>
+                                )}
+                            </div>
+                            <PipelineFilters leads={leads} filters={filters} setFilters={setFilters} />
+                        </div>
+
+                        <div className="flex items-center gap-2 shrink-0">
+                            {viewMode === 'kanban' && (
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            className="h-8 px-2.5 gap-1.5 text-[12px] font-normal border-border/60"
+                                            title="Sort order"
+                                        >
+                                            <ArrowUpDown className="h-3.5 w-3.5 text-muted-foreground" />
+                                            <span className="text-foreground">
+                                                {kanbanSort === 'manual' && 'Manual'}
+                                                {kanbanSort === 'newest' && 'Newest'}
+                                                {kanbanSort === 'oldest' && 'Oldest'}
+                                                {kanbanSort === 'close_date' && 'Close date'}
+                                                {kanbanSort === 'value_desc' && 'Value'}
+                                                {kanbanSort === 'updated' && 'Last updated'}
+                                            </span>
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end" className="w-56">
+                                        {([
+                                            { key: 'newest', label: 'Newest first', icon: Clock, desc: 'Recently created on top' },
+                                            { key: 'oldest', label: 'Oldest first', icon: Clock, desc: 'Oldest on top' },
+                                            { key: 'close_date', label: 'Close date', icon: CalendarClock, desc: 'Earliest due first' },
+                                            { key: 'value_desc', label: 'Highest value', icon: DollarSign, desc: 'Largest deals first' },
+                                            { key: 'updated', label: 'Last updated', icon: RotateCcw, desc: 'Recent activity' },
+                                            { key: 'manual', label: 'Manual order', icon: GripVertical, desc: 'Drag & drop' },
+                                        ] as const).map((opt) => {
+                                            const Icon = opt.icon
+                                            const active = kanbanSort === opt.key
+                                            return (
+                                                <DropdownMenuItem
+                                                    key={opt.key}
+                                                    onClick={() => handleSortChange(opt.key as KanbanSort)}
+                                                    className="flex items-start gap-2.5 py-2"
+                                                >
+                                                    <Icon className="h-3.5 w-3.5 mt-0.5 text-muted-foreground shrink-0" />
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="text-[12px] font-medium text-foreground">{opt.label}</div>
+                                                        <div className="text-[10.5px] text-muted-foreground">{opt.desc}</div>
+                                                    </div>
+                                                    {active && <Check className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />}
+                                                </DropdownMenuItem>
+                                            )
+                                        })}
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                            )}
+
+                            {/* Portal target for Kanban Card Settings */}
+                            {viewMode === 'kanban' && <div id="kanban-settings-portal" className="flex items-center shrink-0" />}
+
+                            {/* Portal target for Table Columns popover */}
+                            {viewMode === 'table' && <div id="table-columns-portal" className="flex items-center shrink-0" />}
+
+                            <div className="flex items-center border rounded-md p-0.5 bg-muted/40 shrink-0">
+                                <button
+                                    onClick={() => setViewMode('kanban')}
+                                    title="Kanban view"
+                                    className={`inline-flex items-center gap-1.5 px-2.5 h-7 rounded-sm text-[12px] font-medium transition-all ${viewMode === 'kanban'
+                                        ? 'bg-background shadow-sm text-foreground'
+                                        : 'text-muted-foreground hover:text-foreground'
+                                        }`}
+                                >
+                                    <LayoutGrid className="h-3.5 w-3.5" />
+                                    Kanban
+                                </button>
+                                <button
+                                    onClick={() => setViewMode('table')}
+                                    title="Table view"
+                                    className={`inline-flex items-center gap-1.5 px-2.5 h-7 rounded-sm text-[12px] font-medium transition-all ${viewMode === 'table'
+                                        ? 'bg-background shadow-sm text-foreground'
+                                        : 'text-muted-foreground hover:text-foreground'
+                                        }`}
+                                >
+                                    <Table className="h-3.5 w-3.5" />
+                                    Table
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1246,7 +1254,7 @@ export function LeadDashboard() {
 
                 {/* ─── Board / Table Content ───────────────────────────── */}
                 <div className={`flex-1 overflow-x-auto overflow-y-hidden ${
-                    viewMode === 'kanban' ? 'pt-4 px-3 pb-3' : 'pt-1 pb-0 px-0'
+                    viewMode === 'kanban' ? 'pt-3 px-3 pb-2' : 'pt-1 pb-0 px-0'
                 }`}>
                     {!activePipeline ? (
                         <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
@@ -1285,7 +1293,10 @@ export function LeadDashboard() {
                                 totalValueLabel="Total value"
                                 bulkActions={{
                                     onBulkDelete: canDeleteLeads ? handleTableBulkDelete : undefined,
-                                    onBulkExport: handleBulkExport,
+                                }}
+                                columnsPopoverSlot={({ Trigger }) => {
+                                    const target = typeof document !== 'undefined' ? document.getElementById('table-columns-portal') : null
+                                    return target ? createPortal(Trigger, target) : null
                                 }}
                             />
                         </div>

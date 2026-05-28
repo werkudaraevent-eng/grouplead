@@ -7,11 +7,13 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Loader2, UploadCloud } from "lucide-react"
+import { Loader2 } from "lucide-react"
 import { Lead, TransitionRule } from "@/types"
 import { FIELD_LABELS } from "@/features/settings/components/form-layout-builder"
 import { CurrencyInput } from "@/components/shared/currency-input"
 import { MultiDatePicker } from "@/components/shared/multi-date-picker"
+import { DatePickerField } from "@/components/shared/date-picker-field"
+import { MultiFileUploader, type UploadedAttachment } from "@/components/shared/multi-file-uploader"
 import { updatePipelineStageAction } from "@/app/actions/lead-actions"
 import { createClient } from "@/utils/supabase/client"
 import { toast } from "sonner"
@@ -28,15 +30,26 @@ interface TransitionPromptModalProps {
     onSuccess: (leadId: number, newStageId: string, leadUpdates: any) => void;
 }
 
+const todayIso = () => new Date().toISOString().slice(0, 10)
+
 export function TransitionPromptModal({ prompt, onClose, onSuccess }: TransitionPromptModalProps) {
     const [loading, setLoading] = useState(false)
     const [formData, setFormData] = useState<Record<string, any>>({})
     const [note, setNote] = useState("")
-    const [fileUrl, setFileUrl] = useState("")
+    const [attachments, setAttachments] = useState<UploadedAttachment[]>([])
     const [uploading, setUploading] = useState(false)
+    const [closeDate, setCloseDate] = useState<string>("")
     const [masterOptions, setMasterOptions] = useState<Record<string, string[]>>({})
-    
+
     const supabase = createClient()
+
+    // Detect destination stage state so we can ask the user for the
+    // matching closing date. Resolve via stages list so we can read the
+    // canonical closed_status (won/lost) regardless of stage name casing.
+    const [destinationMeta, setDestinationMeta] = useState<
+        | { closedStatus: "won" | "lost" | null; stageType: "open" | "closed" | null; stageName: string }
+        | null
+    >(null)
 
     // Fields that should render as dropdown (from master_options)
     const DROPDOWN_FIELDS: Record<string, string> = {
@@ -65,7 +78,38 @@ export function TransitionPromptModal({ prompt, onClose, onSuccess }: Transition
             }
             setFormData(initial)
             setNote("")
-            setFileUrl("")
+            setAttachments([])
+            setCloseDate(todayIso())
+
+            // Fetch destination stage to know if we need a close date input.
+            supabase
+                .from("pipeline_stages")
+                .select("name, closed_status, stage_type")
+                .eq("id", prompt.newStageId)
+                .single()
+                .then(({ data }) => {
+                    if (!data) {
+                        setDestinationMeta(null)
+                        return
+                    }
+                    const meta = {
+                        closedStatus: (data.closed_status ?? null) as "won" | "lost" | null,
+                        stageType: (data.stage_type ?? null) as "open" | "closed" | null,
+                        stageName: data.name as string,
+                    }
+                    setDestinationMeta(meta)
+
+                    // If transitioning into a known closed state, prefill the
+                    // close date with whatever was previously stamped (if any),
+                    // falling back to today.
+                    if (meta.closedStatus === "won") {
+                        const existing = (prompt.lead as any).closed_won_date as string | null
+                        setCloseDate(existing ? existing.slice(0, 10) : todayIso())
+                    } else if (meta.closedStatus === "lost" || meta.stageType === "closed") {
+                        const existing = (prompt.lead as any).closed_lost_date as string | null
+                        setCloseDate(existing ? existing.slice(0, 10) : todayIso())
+                    }
+                })
 
             // Fetch master options for any dropdown fields in required_fields
             const dropdownKeys = (prompt.rule.required_fields || []).filter(f => f in DROPDOWN_FIELDS)
@@ -89,6 +133,18 @@ export function TransitionPromptModal({ prompt, onClose, onSuccess }: Transition
 
     if (!prompt) return null
 
+    const showCloseDatePicker = !!destinationMeta && (
+        destinationMeta.closedStatus === "won" ||
+        destinationMeta.closedStatus === "lost" ||
+        destinationMeta.stageType === "closed"
+    )
+
+    const closeDateLabel = destinationMeta?.closedStatus === "won"
+        ? "Won Date"
+        : destinationMeta?.closedStatus === "lost"
+            ? "Lost Date"
+            : "Closed Date"
+
     const handleSave = async () => {
         // Validation
         for (const field of prompt.rule.required_fields || []) {
@@ -101,8 +157,12 @@ export function TransitionPromptModal({ prompt, onClose, onSuccess }: Transition
             toast.error("A note is required for this transition")
             return
         }
-        if (prompt.rule.attachment_required && !fileUrl) {
-            toast.error("An attachment is required for this transition")
+        if (prompt.rule.attachment_required && attachments.length === 0) {
+            toast.error("At least one attachment is required for this transition")
+            return
+        }
+        if (showCloseDatePicker && !closeDate) {
+            toast.error(`Please pick the ${closeDateLabel.toLowerCase()}`)
             return
         }
 
@@ -132,22 +192,43 @@ export function TransitionPromptModal({ prompt, onClose, onSuccess }: Transition
                     .eq('id', prompt.lead.id)
                 if (updateErr) throw updateErr
             }
-            
+
             // 3. Perform the stage transition (this will also write to transition history via trigger/RPC)
-            const result = await updatePipelineStageAction(prompt.lead.id, prompt.newStageId, prompt.newSortOrder)
+            const result = await updatePipelineStageAction(
+                prompt.lead.id,
+                prompt.newStageId,
+                prompt.newSortOrder,
+                showCloseDatePicker && closeDate ? { closedDate: closeDate } : undefined,
+            )
             if (!result.success) throw new Error(result.error)
-            
-            // 3. If note or attachment, perhaps we should save it to notes?
-            if (note || fileUrl) {
+
+            // 4. Persist a note if the user supplied one. Attachments are
+            // already saved through MultiFileUploader (lead_attachments).
+            if (note.trim()) {
                 await supabase.from('lead_notes').insert({
                     lead_id: prompt.lead.id,
-                    content: note || "Stage transition attachment",
-                    attachment_url: fileUrl || null
+                    content: note.trim(),
                 })
             }
-            
+
+            // Bubble close date back to the parent so card UI updates without
+            // a refetch. The server already persisted the value.
+            const surfaceUpdates = { ...payload }
+            if (showCloseDatePicker && closeDate) {
+                if (destinationMeta?.closedStatus === "won") {
+                    surfaceUpdates.closed_won_date = closeDate
+                    surfaceUpdates.closed_lost_date = null
+                } else if (
+                    destinationMeta?.closedStatus === "lost" ||
+                    destinationMeta?.stageType === "closed"
+                ) {
+                    surfaceUpdates.closed_lost_date = closeDate
+                    surfaceUpdates.closed_won_date = null
+                }
+            }
+
             toast.success("Stage updated successfully")
-            onSuccess(prompt.lead.id, prompt.newStageId, payload)
+            onSuccess(prompt.lead.id, prompt.newStageId, surfaceUpdates)
         } catch (err: any) {
             toast.error(`Update failed: ${err.message}`)
         } finally {
@@ -155,37 +236,29 @@ export function TransitionPromptModal({ prompt, onClose, onSuccess }: Transition
         }
     }
 
-    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0]
-        if (!file) return
-        setUploading(true)
-        try {
-            const ext = file.name.split('.').pop()
-            const fileName = `${Math.random()}.${ext}`
-            const filePath = `transitions/${prompt.lead.id}/${fileName}`
-            const { error: uploadError } = await supabase.storage.from('lead_attachments').upload(filePath, file)
-            if (uploadError) throw uploadError
-            const { data } = supabase.storage.from('lead_attachments').getPublicUrl(filePath)
-            setFileUrl(data.publicUrl)
-            toast.success("File uploaded")
-        } catch (error: any) {
-            toast.error(error.message)
-        } finally {
-            setUploading(false)
-        }
-    }
-
     return (
         <Dialog open={!!prompt} onOpenChange={(open) => !open && onClose()}>
-            <DialogContent className="sm:max-w-[425px]">
-                <DialogHeader>
+            <DialogContent className="sm:max-w-[480px] max-h-[90vh] p-0 gap-0 flex flex-col">
+                <DialogHeader className="px-6 pt-6 pb-3 border-b border-slate-100 shrink-0">
                     <DialogTitle>Update Fields</DialogTitle>
                     <DialogDescription>
                         It is mandatory to fill these information while moving this pipeline lead.
                     </DialogDescription>
                 </DialogHeader>
 
-                <div className="py-4 space-y-4">
+                <div className="flex-1 min-h-0 overflow-y-auto px-6 py-4 space-y-4">
+                    {showCloseDatePicker && (
+                        <div className="space-y-1.5">
+                            <Label className="text-slate-600">{closeDateLabel} <span className="text-red-500">*</span></Label>
+                            <DatePickerField
+                                value={closeDate}
+                                onChange={setCloseDate}
+                                placeholder="Pick a date"
+                                clearable={false}
+                            />
+                        </div>
+                    )}
+
                     {prompt.rule.required_fields?.length > 0 && (
                         <div className="space-y-4">
                             <h4 className="text-sm font-medium border-b pb-1 text-slate-700">Required Information</h4>
@@ -253,35 +326,19 @@ export function TransitionPromptModal({ prompt, onClose, onSuccess }: Transition
                     )}
 
                     {prompt.rule.attachment_required && (
-                        <div className="space-y-1.5 border border-dashed border-slate-300 rounded-lg p-6 bg-slate-50 relative flex flex-col items-center justify-center text-center">
-                            <Input
-                                type="file"
-                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                                onChange={handleFileUpload}
-                                disabled={uploading}
+                        <div className="space-y-1.5">
+                            <Label className="text-slate-600">Attachments <span className="text-red-500">*</span></Label>
+                            <MultiFileUploader
+                                leadId={prompt.lead.id}
+                                onChange={setAttachments}
+                                onUploadingChange={setUploading}
+                                disabled={loading}
                             />
-                            {uploading ? (
-                                <div className="flex flex-col items-center text-slate-500">
-                                    <Loader2 className="h-6 w-6 animate-spin mb-2" />
-                                    <span className="text-xs font-medium">Uploading...</span>
-                                </div>
-                            ) : fileUrl ? (
-                                <div className="flex flex-col items-center text-emerald-600">
-                                    <span className="text-xs font-medium">File uploaded successfully</span>
-                                    <span className="text-[10px] text-slate-400 mt-1">Click to replace</span>
-                                </div>
-                            ) : (
-                                <div className="flex flex-col items-center text-slate-500">
-                                    <UploadCloud className="h-6 w-6 mb-2 text-slate-400" />
-                                    <span className="text-xs font-medium text-blue-600">Click to browse</span>
-                                    <span className="text-[10px] text-slate-400 mt-0.5">Required document</span>
-                                </div>
-                            )}
                         </div>
                     )}
                 </div>
 
-                <DialogFooter>
+                <DialogFooter className="px-6 py-4 border-t border-slate-100 shrink-0">
                     <Button variant="outline" onClick={onClose} disabled={loading}>
                         Cancel
                     </Button>

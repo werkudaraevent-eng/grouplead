@@ -173,15 +173,15 @@ export function LeadDetailPage({ lead, prevLeadId, nextLeadId, lastModifiedBy = 
     //  RENDER
     // ═══════════════════════════════════════════════════════
     return (
-        <div className="flex flex-col h-full overflow-hidden bg-[#f8fafc]">
+        <div className="flex min-w-0 flex-col h-full overflow-hidden bg-[#f8fafc]">
 
             {/* ═══ TOP HEADER (white) ══════════════════════════════ */}
-            <header className="flex-none bg-white border-b border-slate-200">
-                <div className="px-8 py-5 flex flex-col gap-5">
+            <header className="flex-none min-w-0 bg-white border-b border-slate-200">
+                <div className="min-w-0 px-4 sm:px-6 xl:px-8 py-5 flex flex-col gap-5">
 
                     {/* Row 1: Breadcrumb + Title + Actions */}
-                    <div className="flex items-start justify-between">
-                        <div className="flex items-start gap-3">
+                    <div className="flex min-w-0 flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+                        <div className="flex min-w-0 flex-1 items-start gap-3">
                             {/* Nav Cluster: Back + Prev/Next */}
                             <div className="flex items-center gap-1 mt-0.5">
                                 <button
@@ -192,14 +192,14 @@ export function LeadDetailPage({ lead, prevLeadId, nextLeadId, lastModifiedBy = 
                                     <ArrowLeft className="h-[18px] w-[18px]" />
                                 </button>
                             </div>
-                            <div className="flex flex-col justify-center">
-                                <div className="flex flex-wrap items-center gap-3">
+                            <div className="flex min-w-0 flex-1 flex-col justify-center">
+                                <div className="flex min-w-0 flex-wrap items-center gap-3">
                                     <HeaderMetricPopover
                                         leadId={lead.id}
                                         fieldPath="project_name"
                                         label="Project Name"
                                         displayValue={lead.project_name || "Untitled Lead"}
-                                        triggerClassName="text-xl font-semibold text-slate-900 hover:text-blue-600 text-left max-w-[500px]"
+                                        triggerClassName="text-xl font-semibold text-slate-900 hover:text-blue-600 text-left max-w-full xl:max-w-[500px] truncate"
                                         rawValue={lead.project_name}
                                     />
                                     <div className="flex items-center">
@@ -240,7 +240,7 @@ export function LeadDetailPage({ lead, prevLeadId, nextLeadId, lastModifiedBy = 
                                     </div>
                                 </div>
                                 {/* Inline Metric Strip */}
-                                <div className="flex items-center gap-5 mt-2">
+                                <div className="flex min-w-0 flex-wrap items-center gap-x-5 gap-y-2 mt-2">
                                     <div className="flex items-center gap-2 text-[13px]">
                                         <span className="text-slate-400 font-medium flex items-center gap-1.5">
                                             <Wallet className="h-3.5 w-3.5" /> Amount:
@@ -284,7 +284,7 @@ export function LeadDetailPage({ lead, prevLeadId, nextLeadId, lastModifiedBy = 
                                 </div>
                             </div>
                         </div>
-                        <div className="flex items-center gap-3">
+                        <div className="flex shrink-0 flex-wrap items-center justify-end gap-3 xl:ml-4">
                             <div className="flex items-center border border-slate-200 rounded-lg overflow-hidden shadow-sm bg-white">
                                 <Link
                                     href={prevLeadId ? `/leads/${prevLeadId}` : '#'}
@@ -306,7 +306,7 @@ export function LeadDetailPage({ lead, prevLeadId, nextLeadId, lastModifiedBy = 
 
                             <div className="w-px h-5 bg-slate-200 block" />
 
-                            <div className="flex items-center gap-2">
+                            <div className="flex flex-wrap items-center justify-end gap-2">
                                 <Button
                                     onClick={handleExportPdf}
                                     variant="outline"

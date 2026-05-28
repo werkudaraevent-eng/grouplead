@@ -1,14 +1,11 @@
 import { test, expect } from '@playwright/test'
+import { login } from './helpers'
 
 test('Capture full dashboard with extended viewport', async ({ page }) => {
   // Use a very tall viewport to force all content visible without scroll
   await page.setViewportSize({ width: 1280, height: 8000 })
 
-  await page.goto('/login')
-  await page.fill('#email', 'hanungsastria13@gmail.com')
-  await page.fill('#password', 'sayalupa')
-  await page.click('button[type="submit"]')
-  await page.waitForURL('/', { timeout: 15000 })
+  await login(page)
   await page.waitForTimeout(5000)
 
   // Full page screenshot with tall viewport
@@ -37,11 +34,7 @@ test('Capture full dashboard with extended viewport', async ({ page }) => {
 test('Capture dashboard sections via scrollable container', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 720 })
 
-  await page.goto('/login')
-  await page.fill('#email', 'hanungsastria13@gmail.com')
-  await page.fill('#password', 'sayalupa')
-  await page.click('button[type="submit"]')
-  await page.waitForURL('/', { timeout: 15000 })
+  await login(page)
   await page.waitForTimeout(5000)
 
   // Find the scrollable container
@@ -103,11 +96,7 @@ test('Capture dashboard sections via scrollable container', async ({ page }) => 
 test('Capture via element screenshots', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 720 })
 
-  await page.goto('/login')
-  await page.fill('#email', 'hanungsastria13@gmail.com')
-  await page.fill('#password', 'sayalupa')
-  await page.click('button[type="submit"]')
-  await page.waitForURL('/', { timeout: 15000 })
+  await login(page)
   await page.waitForTimeout(5000)
 
   // Try to find and screenshot the main content area directly

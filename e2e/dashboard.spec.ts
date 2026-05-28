@@ -1,19 +1,9 @@
 import { test, expect } from '@playwright/test'
+import { login } from './helpers'
 
 test('login and check dashboard', async ({ page }) => {
-  // Go to login page
-  await page.goto('/login')
+  await login(page)
   await expect(page.locator('text=Werkudara LeadEngine')).toBeVisible()
-
-  // Fill login form
-  await page.fill('#email', 'hanungsastria13@gmail.com')
-  await page.fill('#password', 'sayalupa')
-
-  // Click Sign In
-  await page.click('button[type="submit"]')
-
-  // Wait for navigation to dashboard (root /)
-  await page.waitForURL('/', { timeout: 15000 })
 
   // Take screenshot of dashboard
   await page.screenshot({ path: 'e2e/screenshots/dashboard.png', fullPage: true })

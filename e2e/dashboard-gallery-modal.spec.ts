@@ -1,12 +1,9 @@
 import { test, expect } from '@playwright/test'
+import { login } from './helpers'
 
 test.describe('Widget Gallery Modal', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/login')
-    await page.fill('#email', 'hanungsastria13@gmail.com')
-    await page.fill('#password', 'sayalupa')
-    await page.click('button[type="submit"]')
-    await page.waitForURL('/', { timeout: 15000 })
+    await login(page)
     await page.waitForTimeout(3000)
   })
 

@@ -9,24 +9,42 @@ import { StageCellEditor } from "@/features/leads/components/stage-cell-editor"
 
 // ── Badge helper ──
 const Badge = ({ children, className }: { children: React.ReactNode; className?: string }) => (
-    <span className={`inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-medium whitespace-nowrap max-w-[140px] truncate ${className ?? "bg-slate-100 text-slate-600"}`}>
+    <span className={`inline-flex items-center rounded-md px-1.5 py-0.5 text-[11px] font-medium whitespace-nowrap max-w-[140px] truncate ${className ?? "bg-slate-100 text-slate-600"}`}>
         {children}
     </span>
 )
 
 // ── Sortable Header ──
-function SortableHeader({ column, label }: { column: any; label: string }) {
+function SortableHeader({ column, label, align = "left" }: { column: any; label: string; align?: "left" | "right" }) {
     const sorted = column.getIsSorted()
     return (
         <button
-            className="flex items-center gap-1 text-[11px] font-semibold text-slate-500 hover:text-slate-900 transition-colors group"
+            className={`flex items-center gap-1 text-[12px] font-semibold text-slate-700 hover:text-slate-900 transition-colors group w-full ${
+                align === "right" ? "justify-end" : "justify-start"
+            }`}
             onClick={() => column.toggleSorting(sorted === "asc")}
         >
-            {label}
-            <span className="text-slate-300 group-hover:text-slate-500 transition-colors">
-                {sorted === "asc" ? <ArrowUp className="h-3 w-3" /> : sorted === "desc" ? <ArrowDown className="h-3 w-3" /> : <ArrowUpDown className="h-3 w-3" />}
-            </span>
+            {align === "right" && (
+                <span className="text-slate-300 group-hover:text-slate-500 transition-colors">
+                    {sorted === "asc" ? <ArrowUp className="h-3 w-3" /> : sorted === "desc" ? <ArrowDown className="h-3 w-3" /> : <ArrowUpDown className="h-3 w-3" />}
+                </span>
+            )}
+            <span>{label}</span>
+            {align === "left" && (
+                <span className="text-slate-300 group-hover:text-slate-500 transition-colors">
+                    {sorted === "asc" ? <ArrowUp className="h-3 w-3" /> : sorted === "desc" ? <ArrowDown className="h-3 w-3" /> : <ArrowUpDown className="h-3 w-3" />}
+                </span>
+            )}
         </button>
+    )
+}
+
+// ── Static header (non-sortable) ──
+function StaticHeader({ label, align = "left" }: { label: string; align?: "left" | "right" }) {
+    return (
+        <span className={`text-[12px] font-semibold text-slate-700 ${align === "right" ? "text-right block" : ""}`}>
+            {label}
+        </span>
     )
 }
 
@@ -108,15 +126,19 @@ export function getColumns(
   return [
     {
         id: "subsidiary",
-        header: "Subsidiary",
+        header: ({ column }) => <SortableHeader column={column} label="Subsidiary" />,
         accessorFn: (row) => row.company?.name ?? "",
         cell: ({ row }) => {
             const name = row.original.company?.name
             if (!name) return <span className="text-slate-300">—</span>
+            const initial = name.split(" ").map(w => w[0]).filter(Boolean).slice(0, 2).join("").toUpperCase() || name.charAt(0).toUpperCase()
             return (
-                <span className="text-[11px] font-medium text-slate-600 bg-slate-50 px-1.5 py-0.5 rounded truncate block max-w-[120px]" title={name}>
-                    {name}
-                </span>
+                <div className="flex items-center gap-2 max-w-[180px]" title={name}>
+                    <div className="h-6 w-6 rounded-md bg-indigo-50 text-indigo-700 ring-1 ring-indigo-100 flex items-center justify-center text-[10px] font-semibold shrink-0">
+                        {initial}
+                    </div>
+                    <span className="text-[12.5px] font-medium text-slate-700 truncate">{name}</span>
+                </div>
             )
         },
         enableHiding: true,
@@ -183,7 +205,7 @@ export function getColumns(
     {
         accessorKey: "main_stream",
         id: "main_stream",
-        header: "Stream",
+        header: ({ column }) => <SortableHeader column={column} label="Stream" />,
         cell: ({ row }) => {
             const val = row.getValue("main_stream") as string
             if (!val) return <span className="text-slate-300">—</span>
@@ -194,7 +216,7 @@ export function getColumns(
     {
         accessorKey: "stream_type",
         id: "stream_type",
-        header: "Stream Type",
+        header: ({ column }) => <SortableHeader column={column} label="Stream Type" />,
         cell: ({ row }) => {
             const val = row.getValue("stream_type") as string
             if (!val) return <span className="text-slate-300">—</span>
@@ -205,7 +227,7 @@ export function getColumns(
     {
         accessorKey: "event_format",
         id: "event_format",
-        header: "Format",
+        header: ({ column }) => <SortableHeader column={column} label="Format" />,
         cell: ({ row }) => {
             const val = row.getValue("event_format") as string
             if (!val) return <span className="text-slate-300">—</span>
@@ -237,7 +259,7 @@ export function getColumns(
     {
         accessorKey: "grade_lead",
         id: "grade_lead",
-        header: "Grade",
+        header: ({ column }) => <SortableHeader column={column} label="Grade" />,
         cell: ({ row }) => {
             const val = row.getValue("grade_lead") as string
             if (!val) return <span className="text-slate-300">—</span>
@@ -247,7 +269,7 @@ export function getColumns(
     },
     {
         id: "contact_person",
-        header: "Contact Person",
+        header: ({ column }) => <SortableHeader column={column} label="Contact Person" />,
         accessorFn: (row) => row.contact?.full_name ?? "",
         cell: ({ row }) => {
             const contact = row.original.contact
@@ -267,7 +289,7 @@ export function getColumns(
     },
     {
         id: "pic_sales",
-        header: ({ column }) => <SortableHeader column={column} label="Pic Sales" />,
+        header: ({ column }) => <SortableHeader column={column} label="PIC Sales" />,
         accessorFn: (row) => row.pic_sales_profile?.full_name ?? "",
         cell: ({ row }) => {
             const name = row.original.pic_sales_profile?.full_name
@@ -285,7 +307,7 @@ export function getColumns(
     },
     {
         id: "account_manager",
-        header: "Account Manager",
+        header: ({ column }) => <SortableHeader column={column} label="Account Manager" />,
         accessorFn: (row) => row.account_manager_profile?.full_name ?? "",
         cell: ({ row }) => {
             const name = row.original.account_manager_profile?.full_name
@@ -304,7 +326,7 @@ export function getColumns(
     {
         accessorKey: "lead_source",
         id: "lead_source",
-        header: "Lead Source",
+        header: ({ column }) => <SortableHeader column={column} label="Lead Source" />,
         cell: ({ row }) => {
             const val = row.getValue("lead_source") as string
             if (!val) return <span className="text-slate-300">—</span>
@@ -315,7 +337,7 @@ export function getColumns(
     {
         accessorKey: "referral_source",
         id: "referral_source",
-        header: "Referral Source",
+        header: ({ column }) => <SortableHeader column={column} label="Referral Source" />,
         cell: ({ row }) => {
             const val = row.getValue("referral_source") as string
             if (!val) return <span className="text-slate-300">—</span>
@@ -330,7 +352,7 @@ export function getColumns(
     {
         accessorKey: "business_purpose",
         id: "business_purpose",
-        header: "Business Purpose",
+        header: ({ column }) => <SortableHeader column={column} label="Business Purpose" />,
         cell: ({ row }) => {
             const val = row.getValue("business_purpose") as string
             if (!val) return <span className="text-slate-300">—</span>
@@ -350,7 +372,7 @@ export function getColumns(
     },
     {
         id: "event_dates",
-        header: "Event Dates",
+        header: ({ column }) => <SortableHeader column={column} label="Event Dates" />,
         accessorFn: (row) => {
             if (row.event_dates && row.event_dates.length > 0) return row.event_dates.join(", ")
             if (row.event_date_start) return row.event_date_start
@@ -378,11 +400,7 @@ export function getColumns(
     {
         accessorKey: "pax_count",
         id: "pax_count",
-        header: ({ column }) => (
-            <div className="text-right">
-                <SortableHeader column={column} label="Pax" />
-            </div>
-        ),
+        header: ({ column }) => <SortableHeader column={column} label="Pax" align="right" />,
         cell: ({ row }) => {
             const val = row.getValue("pax_count") as number
             if (!val) return <span className="text-slate-300 text-right block">—</span>
@@ -396,7 +414,7 @@ export function getColumns(
     },
     {
         id: "destinations",
-        header: "Destinations",
+        header: ({ column }) => <SortableHeader column={column} label="Destinations" />,
         accessorFn: (row) => {
             if (!row.destinations || row.destinations.length === 0) return ""
             return row.destinations.map(d => d.city).join(", ")
@@ -416,11 +434,7 @@ export function getColumns(
     {
         accessorKey: "estimated_value",
         id: "estimated_value",
-        header: ({ column }) => (
-            <div className="text-right">
-                <SortableHeader column={column} label="Estimated Value" />
-            </div>
-        ),
+        header: ({ column }) => <SortableHeader column={column} label="Estimated Value" align="right" />,
         cell: ({ row }) => {
             const amount = parseFloat(row.getValue("estimated_value"))
             return (
@@ -433,15 +447,11 @@ export function getColumns(
     {
         accessorKey: "actual_value",
         id: "actual_value",
-        header: ({ column }) => (
-            <div className="text-right">
-                <SortableHeader column={column} label="Actual Value" />
-            </div>
-        ),
+        header: ({ column }) => <SortableHeader column={column} label="Actual Value" align="right" />,
         cell: ({ row }) => {
             const amount = parseFloat(row.getValue("actual_value"))
             return (
-                <div className="text-right font-semibold text-[13px] text-emerald-700 whitespace-nowrap">
+                <div className="text-right font-semibold text-[13px] text-slate-700 whitespace-nowrap">
                     {fmtCurrency(amount || null)}
                 </div>
             )

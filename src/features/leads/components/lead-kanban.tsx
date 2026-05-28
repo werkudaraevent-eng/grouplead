@@ -21,7 +21,7 @@ import { createClient } from "@/utils/supabase/client"
 import { useCurrency } from "@/contexts/currency-context"
 import { toast } from "sonner"
 import { updatePipelineStageAction } from "@/app/actions/lead-actions"
-import { Building2, CalendarDays, Copy, Edit2, Globe, Loader2, MoreHorizontal, Pencil, Trash2, User } from "lucide-react"
+import { Building2, CalendarDays, CheckCircle2, ChevronsRight, Copy, Edit2, Globe, Loader2, MoreHorizontal, Pencil, Trash2, User, XCircle, Clock, Check, ThumbsDown, ThumbsUp } from "lucide-react"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
 import {
@@ -483,6 +483,12 @@ export function LeadKanban({
             const originalIndex = initialLeads.findIndex(l => l.id === activeLeadId)
             const currentIndex = leads.findIndex(l => l.id === activeLeadId)
             if (originalIndex === currentIndex) return // did not genuinely sort
+            // Within-column reorder is only meaningful when user is in manual
+            // sort mode. Otherwise keep visual position but don't persist.
+            if (!dndEnabled) {
+                setLeads(initialLeads)
+                return
+            }
         }
 
         await executeStageTransition(
@@ -497,6 +503,67 @@ export function LeadKanban({
         setActiveId(null)
         setLeads(initialLeads)
     }, [initialLeads])
+
+    // Quick stage move triggered from a card menu (no drag).
+    // Honors transition rules and backward warnings just like drag.
+    const handleQuickMoveStage = useCallback(
+        (lead: Lead, target: PipelineStage) => {
+            const originalStageId = lead.pipeline_stage_id
+            if (!originalStageId || target.id === originalStageId) return
+
+            // Compute a new sort_order at the top of the destination column so
+            // the moved card surfaces as most recent.
+            const stageLeads = leads.filter(l => l.pipeline_stage_id === target.id)
+            const topOrder = stageLeads.reduce((max, l) => {
+                const v = l.kanban_sort_order
+                return typeof v === "number" && v > max ? v : max
+            }, 0)
+            const newSortOrder = (topOrder || Date.now() / 1000) + 1000
+
+            const matchedRule = findMatchingTransitionRule(
+                transitionRules,
+                originalStageId,
+                target.id,
+            )
+            if (ruleRequiresPrompt(matchedRule)) {
+                setTransitionPrompt({
+                    lead,
+                    oldStageId: originalStageId,
+                    newStageId: target.id,
+                    rule: matchedRule!,
+                    newSortOrder,
+                })
+                return
+            }
+
+            const fromStage = stages.find(s => s.id === originalStageId)
+            if (fromStage && isBackwardTransition(fromStage, target)) {
+                setBackwardPrompt({
+                    lead,
+                    fromStage,
+                    toStage: target,
+                    newSortOrder,
+                })
+                return
+            }
+
+            // Optimistic update so the card moves immediately.
+            setLeads(prev => prev.map(l =>
+                l.id === lead.id
+                    ? {
+                          ...l,
+                          pipeline_stage_id: target.id,
+                          status: target.name,
+                          pipeline_stage: { name: target.name, color: target.color },
+                          kanban_sort_order: newSortOrder,
+                      }
+                    : l,
+            ))
+
+            void executeStageTransition(lead.id, target.id, newSortOrder, originalStageId)
+        },
+        [leads, stages, transitionRules, executeStageTransition],
+    )
 
     if (loading) {
         return (
@@ -596,9 +663,14 @@ export function LeadKanban({
                 onDragOver={handleDragOver}
                 onDragEnd={handleDragEnd}
                 onDragCancel={handleDragCancel}
+                autoScroll={{
+                    threshold: { x: 0.18, y: 0.2 },
+                    acceleration: 16,
+                    interval: 5,
+                }}
             >
-                <div className="flex-1 overflow-x-auto overflow-y-hidden min-h-0 w-full kanban-horizontal-scroll pb-6">
-                    <div className="flex h-full w-max items-start gap-3 px-0.5 relative">
+                <div className="flex-1 overflow-x-auto overflow-y-hidden min-h-0 w-full kanban-horizontal-scroll pb-4">
+                    <div className="flex h-full w-max items-start gap-5 px-1 relative">
                     {grouped.map((stage) => {
                         const accentBg = BG_COLOR_MAP[stage.color] || BG_COLOR_MAP.gray
                         const totalRevenue = stage.leads.reduce((sum, l) => sum + (l.estimated_value || 0), 0)
@@ -607,18 +679,18 @@ export function LeadKanban({
                         return (
                             <div
                                 key={stage.id}
-                                className={`group/stage bg-slate-50/50 border border-slate-200/80 rounded-lg flex flex-col w-[272px] min-w-[272px] shrink-0 h-full max-h-full overflow-hidden relative`}
+                                className={`group/stage bg-slate-50/70 border border-slate-200/70 rounded-xl flex flex-col w-[300px] min-w-[300px] shrink-0 h-full max-h-full overflow-hidden relative shadow-[0_1px_2px_rgba(15,23,42,.03)]`}
                             >
                                 {/* Column Header */}
-                                <div className="px-3 py-2 shrink-0 bg-white border-b border-slate-100 rounded-t-lg relative z-10">
-                                    <div className="flex items-center justify-between gap-2 mb-1">
-                                        <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                                <div className="px-3.5 py-2 shrink-0 bg-white/80 backdrop-blur-sm border-b border-slate-200/60 rounded-t-xl relative z-10">
+                                    <div className="flex items-center justify-between gap-2">
+                                        <div className="flex items-center gap-2 flex-1 min-w-0">
                                             <div className={`w-2 h-2 rounded-full ${accentBg} shrink-0`} />
                                             {renameStageId === stage.id ? (
                                                 <input
                                                     autoFocus
                                                     defaultValue={renameValue}
-                                                    className="font-semibold text-[12px] leading-snug text-slate-800 bg-transparent border-b border-blue-400 outline-none w-full py-0.5"
+                                                    className="font-semibold text-[13.5px] leading-tight text-slate-800 bg-transparent border-b border-blue-400 outline-none w-full py-0.5"
                                                     onBlur={(e) => handleRenameStage(stage.id, e.target.value)}
                                                     onKeyDown={(e) => {
                                                         if (e.key === 'Enter') handleRenameStage(stage.id, (e.target as HTMLInputElement).value)
@@ -626,15 +698,23 @@ export function LeadKanban({
                                                     }}
                                                 />
                                             ) : (
-                                                <h3 className="font-semibold text-[12px] leading-none text-slate-700 line-clamp-1">
+                                                <h3 className="font-semibold text-[13.5px] leading-tight text-slate-800 line-clamp-1 tracking-tight">
                                                     {stage.name}
                                                 </h3>
+                                            )}
+                                            <span className="shrink-0 inline-flex items-center justify-center min-w-[22px] h-[22px] px-1.5 rounded-full bg-slate-100 text-slate-500 text-[11px] font-medium tabular-nums">
+                                                {stage.leads.length}
+                                            </span>
+                                            {totalRevenue > 0 && (
+                                                <span className="shrink-0 ml-auto text-[10.5px] font-medium text-slate-400 tabular-nums">
+                                                    {formatCompact(totalRevenue)}
+                                                </span>
                                             )}
                                         </div>
                                         <DropdownMenu>
                                             <DropdownMenuTrigger asChild>
-                                                <button type="button" className="p-0.5 -mr-0.5 rounded border border-transparent hover:bg-slate-50 hover:border-slate-200 text-slate-400 hover:text-slate-600 transition-all shrink-0 opacity-0 group-hover/stage:opacity-100">
-                                                    <MoreHorizontal className="h-3.5 w-3.5" />
+                                                <button type="button" className="h-7 w-7 inline-flex items-center justify-center rounded-md hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-all shrink-0 opacity-0 group-hover/stage:opacity-100">
+                                                    <MoreHorizontal className="h-4 w-4" />
                                                 </button>
                                             </DropdownMenuTrigger>
                                             <DropdownMenuContent align="end" className="w-44">
@@ -658,16 +738,6 @@ export function LeadKanban({
                                             </DropdownMenuContent>
                                         </DropdownMenu>
                                     </div>
-                                    <div className="flex items-center justify-between">
-                                        <span className="text-[10px] font-medium text-slate-400">
-                                            {stage.leads.length}
-                                        </span>
-                                        {totalRevenue > 0 && (
-                                            <span className="text-[10px] font-medium text-slate-400 tabular-nums">
-                                                {formatCompact(totalRevenue)}
-                                            </span>
-                                        )}
-                                    </div>
                                 </div>
 
                                 {/* Droppable Card Zone */}
@@ -684,6 +754,8 @@ export function LeadKanban({
                                                 onToggleSelect={onToggleSelect}
                                                 config={config}
                                                 dndEnabled={dndEnabled}
+                                                stages={stages}
+                                                onQuickMoveStage={(target) => handleQuickMoveStage(lead, target)}
                                             />
                                         ))}
                                     </DroppableColumn>
@@ -806,12 +878,12 @@ function DroppableColumn({ stageId, isEmpty, children }: { stageId: string; isEm
     return (
         <div
             ref={setNodeRef}
-            className={`flex-1 overflow-y-auto px-2.5 py-2.5 flex flex-col gap-2.5 pb-4 thin-scrollbar rounded-b-lg transition-colors ${
-                isOver ? "bg-blue-50/40" : ""
+            className={`flex-1 overflow-y-auto px-2.5 pt-2 flex flex-col gap-2.5 pb-3 thin-scrollbar rounded-b-xl transition-colors ${
+                isOver ? "bg-blue-50/50" : ""
             }`}
         >
             {isEmpty && !isOver && (
-                <div className="flex items-center justify-center h-24 text-xs text-slate-400">
+                <div className="flex items-center justify-center h-20 text-[12px] text-slate-400">
                     No leads
                 </div>
             )}
@@ -833,6 +905,8 @@ function SortableCard({
     onToggleSelect,
     config,
     dndEnabled = true,
+    stages,
+    onQuickMoveStage,
 }: {
     lead: Lead
     onClick: () => void
@@ -842,6 +916,8 @@ function SortableCard({
     onToggleSelect?: (leadId: string, checked: boolean) => void
     config: KanbanCardConfig
     dndEnabled?: boolean
+    stages: PipelineStage[]
+    onQuickMoveStage?: (target: PipelineStage) => void
 }) {
     const {
         attributes,
@@ -850,7 +926,7 @@ function SortableCard({
         transform,
         transition,
         isDragging,
-    } = useSortable({ id: lead.id.toString(), disabled: !dndEnabled })
+    } = useSortable({ id: lead.id.toString() })
 
     const style = {
         transform: CSS.Transform.toString(transform),
@@ -879,14 +955,11 @@ function SortableCard({
     return (
         <div
             ref={setNodeRef}
-            style={{ ...style, cursor: dndEnabled ? undefined : 'pointer' }}
+            style={{ ...style, cursor: dndEnabled ? undefined : 'grab' }}
             {...attributes}
             {...listeners}
             onPointerDown={(e) => {
-                // Call dnd-kit listener first (only if enabled)
-                if (dndEnabled) {
-                    listeners?.onPointerDown?.(e as unknown as React.PointerEvent<Element>)
-                }
+                listeners?.onPointerDown?.(e as unknown as React.PointerEvent<Element>)
                 handlePointerDown(e)
             }}
             onPointerUp={handlePointerUp}
@@ -898,6 +971,8 @@ function SortableCard({
                 isSelected={isSelected}
                 onToggleSelect={onToggleSelect}
                 config={config}
+                stages={stages}
+                onQuickMoveStage={onQuickMoveStage}
             />
         </div>
     )
@@ -942,6 +1017,8 @@ function KanbanCard({
     isSelected,
     onToggleSelect,
     config,
+    stages = [],
+    onQuickMoveStage,
 }: {
     lead: Lead
     onClick?: () => void
@@ -951,6 +1028,8 @@ function KanbanCard({
     isSelected?: boolean
     onToggleSelect?: (leadId: string, checked: boolean) => void
     config: KanbanCardConfig
+    stages?: PipelineStage[]
+    onQuickMoveStage?: (target: PipelineStage) => void
 }) {
     const { fmtAxis } = useCurrency()
     const picName = lead.pic_sales_profile?.full_name
@@ -973,43 +1052,76 @@ function KanbanCard({
     const hasAnyBadge = (showSubsidiary && lead.company?.name) || (showGrade && lead.grade_lead) || (showCategory && lead.category)
     const hasFooter = showEstimatedValue || showCloseDate || showPic || showAm || showManualId
 
-    // Target Close Date urgency
+    // Resolve which date to surface based on stage state.
+    // Open stages → target_close_date with urgency.
+    // Closed-won → closed_won_date (fallback updated_at).
+    // Closed-lost / cancelled / postponed / turndown → closed_lost_date (fallback updated_at).
+    type DateState = "closing" | "won" | "lost" | "updated" | "none"
+    let dateState: DateState = "none"
+    let dateValue: string | null = null
+    let dateLabel = ""
     let dateUrgency: "overdue" | "soon" | "normal" = "normal"
-    if (showCloseDate && lead.target_close_date) {
-        const today = new Date(); today.setHours(0, 0, 0, 0)
-        const target = new Date(lead.target_close_date); target.setHours(0, 0, 0, 0)
-        const diffDays = Math.ceil((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
-        if (diffDays < 0) dateUrgency = "overdue"
-        else if (diffDays <= 3) dateUrgency = "soon"
+
+    if (showCloseDate) {
+        const stageName = (lead.pipeline_stage?.name || lead.status || "").toLowerCase()
+        const closedStatus = lead.pipeline_stage?.closed_status
+        const stageType = lead.pipeline_stage?.stage_type
+        const isWon = closedStatus === "won" || stageName.includes("won")
+        const isLost = closedStatus === "lost" ||
+            ["lost", "cancel", "cancelled", "canceled", "postpone", "postponed", "turndown"].some(t => stageName.includes(t))
+        const isClosed = stageType === "closed" || isWon || isLost
+
+        if (isClosed) {
+            if (isWon) {
+                dateValue = lead.closed_won_date ?? lead.updated_at ?? null
+                dateState = lead.closed_won_date ? "won" : (dateValue ? "updated" : "none")
+                dateLabel = dateState === "won" ? "Won Date" : "Updated"
+            } else {
+                dateValue = lead.closed_lost_date ?? lead.updated_at ?? null
+                dateState = lead.closed_lost_date ? "lost" : (dateValue ? "updated" : "none")
+                dateLabel = dateState === "lost" ? "Closed Date" : "Updated"
+            }
+        } else if (lead.target_close_date) {
+            dateValue = lead.target_close_date
+            dateState = "closing"
+            dateLabel = "Closing Date"
+            const today = new Date(); today.setHours(0, 0, 0, 0)
+            const target = new Date(lead.target_close_date); target.setHours(0, 0, 0, 0)
+            const diffDays = Math.ceil((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+            if (diffDays < 0) dateUrgency = "overdue"
+            else if (diffDays <= 3) dateUrgency = "soon"
+        }
     }
+
+    const hasFooterDate = dateState !== "none" && !!dateValue
 
     return (
         <div
             onClick={onClick}
             role="button"
             tabIndex={0}
-            className={`group/card w-full text-left bg-white rounded-lg cursor-grab transition-all duration-150 ease-out relative ${
+            className={`group/card w-full text-left bg-white rounded-xl cursor-grab transition-all duration-200 ease-out relative ${
                 isDragging
                     ? "shadow-xl ring-2 ring-[#02378D]/20 rotate-[1deg] scale-[1.02] z-50 border border-[#02378D]/30"
                     : isSelected
                         ? "border border-[#02378D] ring-1 ring-[#02378D]/30 shadow-sm"
-                        : "border border-slate-200/80 shadow-[0_1px_2px_rgba(0,0,0,.03)] hover:border-slate-300 hover:shadow-[0_2px_8px_rgba(0,0,0,.06)]"
+                        : "border border-slate-200/70 shadow-[0_1px_2px_rgba(15,23,42,.04)] hover:border-slate-300 hover:shadow-[0_4px_16px_-4px_rgba(15,23,42,.08)]"
             }`}
         >
             {/* ── Main content area ── */}
-            <div className="px-3 pt-2.5 pb-2">
+            <div className="px-3.5 pt-3 pb-2.5">
                 {/* Header row: Project name + context menu */}
                 <div className="flex items-start justify-between gap-2">
                     <div className="flex-1 min-w-0">
-                        <h4 className="font-medium text-[12px] text-slate-800 leading-snug line-clamp-2">
+                        <h4 className="font-semibold text-[13px] text-slate-900 leading-[1.35] truncate tracking-[-0.01em]">
                             {lead.project_name || "Untitled"}
                         </h4>
-                        <span className="text-[11px] text-slate-400 line-clamp-1 mt-0.5">
+                        <span className="block text-[11px] text-slate-500 truncate mt-0.5">
                             {lead.client_company?.name}
                         </span>
                     </div>
                     {/* Actions — appear on hover */}
-                    <div className="flex items-center shrink-0 -mt-0.5 -mr-0.5 opacity-0 group-hover/card:opacity-100 transition-opacity">
+                    <div className="flex items-center gap-0.5 shrink-0 -mt-0.5 -mr-0.5 opacity-0 group-hover/card:opacity-100 transition-opacity">
                         {onToggleSelect && (
                             <div onClick={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()}>
                                 <Checkbox
@@ -1017,6 +1129,56 @@ function KanbanCard({
                                     onCheckedChange={(checked) => onToggleSelect(lead.id.toString(), checked as boolean)}
                                     className="h-3.5 w-3.5 border-slate-300 data-[state=checked]:bg-[#02378D] data-[state=checked]:border-[#02378D]"
                                 />
+                            </div>
+                        )}
+                        {onQuickMoveStage && stages.length > 1 && (
+                            <div onClick={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()}>
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <button
+                                            type="button"
+                                            title="Move to stage"
+                                            className="inline-flex items-center gap-0.5 h-5 px-1.5 rounded text-[10px] font-medium text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors"
+                                        >
+                                            <ChevronsRight className="h-3 w-3" />
+                                            Move
+                                        </button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end" className="w-56">
+                                        <div className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                                            Move to stage
+                                        </div>
+                                        {stages.map((stage) => {
+                                            const isCurrent = stage.id === lead.pipeline_stage_id
+                                            const isWonStage = stage.closed_status === "won" ||
+                                                stage.name.toLowerCase().includes("won")
+                                            const isLostStage = stage.closed_status === "lost" ||
+                                                ["lost", "cancel", "cancelled", "canceled", "postpone", "postponed", "turndown"].some(t => stage.name.toLowerCase().includes(t))
+                                            const Icon = isWonStage ? ThumbsUp : isLostStage ? ThumbsDown : null
+                                            const iconClass = isWonStage
+                                                ? "text-emerald-500"
+                                                : isLostStage
+                                                    ? "text-rose-500"
+                                                    : "text-slate-400"
+                                            return (
+                                                <DropdownMenuItem
+                                                    key={stage.id}
+                                                    onClick={() => !isCurrent && onQuickMoveStage(stage)}
+                                                    disabled={isCurrent}
+                                                    className={`text-xs ${isCurrent ? "opacity-50" : ""}`}
+                                                >
+                                                    {Icon ? (
+                                                        <Icon className={`h-3.5 w-3.5 mr-2 ${iconClass}`} />
+                                                    ) : (
+                                                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-slate-300 mr-2" />
+                                                    )}
+                                                    <span className="flex-1 truncate">{stage.name}</span>
+                                                    {isCurrent && <Check className="h-3.5 w-3.5 text-slate-400" />}
+                                                </DropdownMenuItem>
+                                            )
+                                        })}
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
                             </div>
                         )}
                         <div onClick={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()}>
@@ -1043,41 +1205,44 @@ function KanbanCard({
                     </div>
                 </div>
 
-                {/* Badges — clean, readable, muted tones */}
+                {/* Badges — single row, all pills share equal width */}
                 {hasAnyBadge && (
-                    <div className="flex flex-wrap items-center gap-1 mt-2">
+                    <div className="flex items-stretch gap-1.5 mt-2 overflow-hidden whitespace-nowrap">
                         {showSubsidiary && lead.company?.name && (
-                            <span className="px-1.5 py-px rounded text-[10px] font-medium bg-slate-100 text-slate-500">
-                                {lead.company.name}
+                            <span className="inline-flex flex-1 min-w-0 basis-0 items-center justify-center px-2 py-[2px] rounded-md text-[10px] font-medium bg-indigo-50 text-indigo-700 ring-1 ring-indigo-100">
+                                <span className="truncate">{lead.company.name}</span>
                             </span>
                         )}
                         {showGrade && lead.grade_lead && (
-                            <span className={`px-1.5 py-px rounded text-[10px] font-medium ${getGradeColor(lead.grade_lead)}`}>
-                                {lead.grade_lead}
+                            <span className={`inline-flex flex-1 min-w-0 basis-0 items-center justify-center gap-1 px-2 py-[2px] rounded-md text-[10px] font-medium ${getGradeColor(lead.grade_lead)}`}>
+                                <span className="inline-block w-1 h-1 rounded-full bg-current opacity-80 shrink-0" />
+                                <span className="truncate">{lead.grade_lead}</span>
                             </span>
                         )}
                         {showCategory && lead.category && (
-                            <span className={`px-1.5 py-px rounded text-[10px] font-medium ${
-                                lead.category.toLowerCase().includes('hot') ? 'bg-rose-50 text-rose-600' :
-                                lead.category.toLowerCase().includes('warm') ? 'bg-amber-50 text-amber-600' :
-                                'bg-slate-100 text-slate-500'
+                            <span className={`inline-flex flex-1 min-w-0 basis-0 items-center justify-center gap-1 px-2 py-[2px] rounded-md text-[10px] font-medium ${
+                                lead.category.toLowerCase().includes('hot') ? 'bg-rose-50 text-rose-700 ring-1 ring-rose-100' :
+                                lead.category.toLowerCase().includes('warm') ? 'bg-amber-50 text-amber-700 ring-1 ring-amber-100' :
+                                lead.category.toLowerCase().includes('cold') ? 'bg-sky-50 text-sky-700 ring-1 ring-sky-100' :
+                                'bg-slate-100 text-slate-600 ring-1 ring-slate-200'
                             }`}>
-                                {lead.category}
+                                <span className="inline-block w-1 h-1 rounded-full bg-current opacity-80 shrink-0" />
+                                <span className="truncate">{lead.category}</span>
                             </span>
                         )}
                         {showSource && lead.lead_source && (
-                            <span className="px-1.5 py-px rounded text-[10px] font-medium bg-slate-100 text-slate-500">
-                                {lead.lead_source}
+                            <span className="inline-flex flex-1 min-w-0 basis-0 items-center justify-center px-2 py-[2px] rounded-md text-[10px] font-medium bg-cyan-50 text-cyan-700 ring-1 ring-cyan-100">
+                                <span className="truncate">{lead.lead_source}</span>
                             </span>
                         )}
                         {showMainStream && lead.main_stream && (
-                            <span className="px-1.5 py-px rounded text-[10px] font-medium bg-slate-100 text-slate-500">
-                                {lead.main_stream}
+                            <span className="inline-flex flex-1 min-w-0 basis-0 items-center justify-center px-2 py-[2px] rounded-md text-[10px] font-medium bg-violet-50 text-violet-700 ring-1 ring-violet-100">
+                                <span className="truncate">{lead.main_stream}</span>
                             </span>
                         )}
                         {showEventFormat && lead.event_format && (
-                            <span className="px-1.5 py-px rounded text-[10px] font-medium bg-slate-100 text-slate-500">
-                                {lead.event_format}
+                            <span className="inline-flex flex-1 min-w-0 basis-0 items-center justify-center px-2 py-[2px] rounded-md text-[10px] font-medium bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100">
+                                <span className="truncate">{lead.event_format}</span>
                             </span>
                         )}
                     </div>
@@ -1086,47 +1251,84 @@ function KanbanCard({
 
             {/* ── Footer — value + meta ── */}
             {hasFooter && (
-                <div className="px-3 pt-1.5 pb-2 border-t border-slate-100/80 space-y-1">
-                    {/* Row 1: Value */}
-                    {showEstimatedValue && lead.estimated_value ? (
-                        <span className="block font-semibold text-[11.5px] text-slate-700 tabular-nums">
-                            {fmtAxis(lead.estimated_value)}
-                        </span>
-                    ) : null}
-                    {/* Row 2: Date + ID + Avatars — secondary meta */}
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2 min-w-0">
-                            {showCloseDate && lead.target_close_date && (
-                                <span className="inline-flex items-center gap-1 text-[10px] tabular-nums text-slate-400">
-                                    <span className={`inline-block w-1.5 h-1.5 rounded-full shrink-0 ${
-                                        dateUrgency === "overdue" ? "bg-red-500" :
-                                        dateUrgency === "soon" ? "bg-amber-400" :
-                                        "bg-slate-300"
-                                    }`} />
-                                    <span className={dateUrgency === "overdue" ? "text-red-600" : dateUrgency === "soon" ? "text-amber-600" : ""}>
-                                        {new Date(lead.target_close_date).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
-                                    </span>
+                <div className="px-3.5 pt-2 pb-2.5 border-t border-slate-100 space-y-1">
+                    {/* Row 1: Value + manual id */}
+                    {(showEstimatedValue && lead.estimated_value) || (showManualId && lead.manual_id) ? (
+                        <div className="flex items-center justify-between gap-2">
+                            {showEstimatedValue && lead.estimated_value ? (
+                                <span className="font-semibold text-[12px] text-slate-800 tabular-nums tracking-tight truncate">
+                                    {fmtAxis(lead.estimated_value)}
                                 </span>
-                            )}
+                            ) : <span />}
                             {showManualId && lead.manual_id && (
-                                <span className="font-mono text-[9.5px] text-slate-300">
+                                <span className="font-mono text-[10px] text-slate-400 shrink-0">
                                     {lead.manual_id}
                                 </span>
                             )}
                         </div>
-                        <div className="flex items-center gap-1 shrink-0">
-                            {showAm && amName && (
-                                <div title={amName} className="w-5 h-5 rounded-full bg-[#6EBDA1] flex items-center justify-center text-[8px] font-bold text-white ring-[1.5px] ring-white">
-                                    {getInitials(amName)}
-                                </div>
-                            )}
-                            {showPic && picName && (
-                                <div title={picName} className="w-5 h-5 rounded-full bg-[#02378D] flex items-center justify-center text-[8px] font-bold text-white ring-[1.5px] ring-white">
-                                    {getInitials(picName)}
-                                </div>
-                            )}
+                    ) : null}
+                    {/* Row 2: Date + Avatars — single line, truncated */}
+                    {hasFooterDate || (showAm && amName) || (showPic && picName) ? (
+                        <div className="flex items-center justify-between gap-2">
+                            {hasFooterDate && dateValue ? (() => {
+                                const fullDate = new Date(dateValue).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })
+                                const tooltip = `${dateLabel}: ${fullDate}`
+                                const tone = dateState === "won"
+                                    ? "text-emerald-600"
+                                    : dateState === "lost"
+                                        ? "text-rose-600"
+                                        : dateState === "updated"
+                                            ? "text-slate-500"
+                                            : dateUrgency === "overdue"
+                                                ? "text-red-600"
+                                                : dateUrgency === "soon"
+                                                    ? "text-amber-600"
+                                                    : "text-slate-500"
+                                const iconTone = dateState === "won"
+                                    ? "text-emerald-500"
+                                    : dateState === "lost"
+                                        ? "text-rose-500"
+                                        : dateState === "updated"
+                                            ? "text-slate-400"
+                                            : dateUrgency === "overdue"
+                                                ? "text-red-500"
+                                                : dateUrgency === "soon"
+                                                    ? "text-amber-500"
+                                                    : "text-slate-400"
+                                const Icon = dateState === "won"
+                                    ? CheckCircle2
+                                    : dateState === "lost"
+                                        ? XCircle
+                                        : dateState === "updated"
+                                            ? Clock
+                                            : CalendarDays
+                                const valueIsBold = (dateState === "closing" && (dateUrgency === "overdue" || dateUrgency === "soon")) || dateState === "won" || dateState === "lost"
+                                return (
+                                    <span title={tooltip} className={`inline-flex items-center gap-1.5 text-[10.5px] tabular-nums truncate min-w-0 ${tone}`}>
+                                        <Icon className={`h-3 w-3 shrink-0 ${iconTone}`} />
+                                        <span className="truncate">
+                                            <span className="text-slate-400 font-normal mr-1">{dateLabel}</span>
+                                            <span className={valueIsBold ? "font-medium" : ""}>
+                                                {new Date(dateValue).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "2-digit" })}
+                                            </span>
+                                        </span>
+                                    </span>
+                                )
+                            })() : <span />}
+                            <div className="flex items-center -space-x-1.5 shrink-0">
+                                {showAm && amName && (
+                                    <div title={amName} className="w-[22px] h-[22px] rounded-full bg-[#6EBDA1] flex items-center justify-center text-[9px] font-semibold text-white ring-2 ring-white">
+                                        {getInitials(amName)}
+                                    </div>
+                                )}
+                                {showPic && picName && (
+                                    <div title={picName} className="w-[22px] h-[22px] rounded-full bg-[#02378D] flex items-center justify-center text-[9px] font-semibold text-white ring-2 ring-white">
+                                        {getInitials(picName)}
+                                    </div>
+                                )}
+                            </div>
                         </div>
-                    </div>
+                    ) : null}
                 </div>
             )}
         </div>

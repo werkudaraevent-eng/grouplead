@@ -212,7 +212,7 @@ export function StageCellEditor({
     }
 
     return (
-        <>
+        <div onClick={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()}>
             <Popover open={open} onOpenChange={(next) => !pending && setOpen(next)}>
                 <PopoverTrigger asChild>
                     <button
@@ -316,6 +316,6 @@ export function StageCellEditor({
                 onClose={() => setPromptState(null)}
                 onSuccess={handlePromptSuccess}
             />
-        </>
+        </div>
     )
 }

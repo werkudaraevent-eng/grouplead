@@ -33,8 +33,6 @@ import {
     ClassificationWidget,
     StreamWidget,
     GoalAttainmentWidget,
-    GoalForecastWidget,
-    GoalVarianceWidget,
     GoalCompanyBreakdownWidget,
     GoalSegmentBreakdownWidget,
     GoalTrendWidget,
@@ -68,6 +66,10 @@ import { DashboardViewSwitcher } from "./dashboard-view-switcher"
 import type { DashboardFiltersSnapshot } from "@/types/dashboard-view"
 import type { LayoutItem } from "react-grid-layout"
 import type { WidgetId } from "@/features/leads/lib/dashboard-layout"
+
+const LAUNCH_WIDGET_IDS = WIDGET_IDS.filter(
+    id => id !== "goal-forecast" && id !== "goal-variance",
+) as WidgetId[]
 
 // ─── Helper ─────────────────────────────────────────────────────────────────
 function getStageComparisonLabel(period: string) {
@@ -1305,7 +1307,7 @@ export function AnalyticsDashboard({
                                         ? <Loader2 className="h-4 w-4 animate-spin" />
                                         : <FileDown className="h-4 w-4" />
                                     }
-                                    <span className="ml-1">Export PDF</span>
+                                    <span className="ml-1">Print / Save PDF</span>
                                 </DropdownMenuItem>
                                 <DropdownMenuItem onSelect={() => tools.handleOpenAnalyze()}>
                                     <Sparkles className="h-4 w-4" style={{ color: "#7C3AED" }} />
@@ -1483,7 +1485,7 @@ export function AnalyticsDashboard({
             <div id="dashboard-scroll-area" className="thin-scrollbar" style={{ flex: 1, overflowY: "auto", overflowX: "clip" }}>
             <div id="dashboard-content" style={{ padding: "20px 24px 24px", background: "#eaeff5", minHeight: "100%", overflowX: "clip", overflowY: "visible", boxSizing: "border-box", width: "100%", minWidth: 0 }}>
                 <DashboardGrid
-                    widgetIds={[...WIDGET_IDS]}
+                    widgetIds={LAUNCH_WIDGET_IDS}
                     customWidgets={customWidgetsList}
                     onCreateCustomWidget={() => { setEditingWidget(null); setShowConfigurator(true) }}
                     onEditCustomWidget={(w) => { setEditingWidget(w); setShowConfigurator(true) }}
@@ -1535,12 +1537,6 @@ export function AnalyticsDashboard({
                     {/* Goal widgets - each individually wrapped */}
                     <GoalDataProvider value={goalProviderValue}>
                       {activeGoal ? <GoalAttainmentWidget /> : <div><EmptyState icon={TrendingUp} title="No active goal configured" description="Set up goals in settings" size="sm" /></div>}
-                    </GoalDataProvider>
-                    <GoalDataProvider value={goalProviderValue}>
-                      {activeGoal ? <GoalForecastWidget /> : <div><EmptyState icon={TrendingUp} title="No active goal configured" description="Set up goals in settings" size="sm" /></div>}
-                    </GoalDataProvider>
-                    <GoalDataProvider value={goalProviderValue}>
-                      {activeGoal ? <GoalVarianceWidget /> : <div><EmptyState icon={TrendingUp} title="No active goal configured" description="Set up goals in settings" size="sm" /></div>}
                     </GoalDataProvider>
                     <GoalDataProvider value={goalProviderValue}>
                       {activeGoal ? <GoalCompanyBreakdownWidget /> : <div><EmptyState icon={TrendingUp} title="No active goal configured" description="Set up goals in settings" size="sm" /></div>}

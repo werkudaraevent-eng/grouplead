@@ -32,9 +32,9 @@ export function useDashboardTools(dashboardData: Record<string, unknown>) {
     const handleExportPDF = useCallback(async () => {
         try {
             await exportToPDF({ targetId: "dashboard-content", filename: "dashboard-report" })
-            toast.success("PDF berhasil di-export!")
+            toast.success("Print view dibuka. Pilih Save as PDF di browser.")
         } catch {
-            toast.error("Gagal export PDF. Coba lagi.")
+            toast.error("Gagal membuka print view. Coba izinkan pop-up browser.")
         }
     }, [exportToPDF])
 

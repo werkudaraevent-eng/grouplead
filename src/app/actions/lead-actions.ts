@@ -280,7 +280,8 @@ export async function updateLeadAction(
 export async function updatePipelineStageAction(
     leadId: number,
     stageId: string,
-    sortOrder?: number
+    sortOrder?: number,
+    options?: { closedDate?: string | null }
 ): Promise<ActionResult> {
     try {
         const supabase = await createClient()
@@ -328,13 +329,17 @@ export async function updatePipelineStageAction(
             payload.kanban_sort_order = sortOrder
         }
 
-        // Auto-stamp closed dates when transitioning to Won or Lost
+        // Auto-stamp closed dates when transitioning to Won or Lost.
+        // If the caller supplies an explicit closed date (e.g. a transition
+        // prompt where the user picks the actual won/lost date), honor it.
         const closedStatus = (stageRow as any).closed_status as string | null
+        const explicitClosedDate = options?.closedDate ?? null
+        const resolvedClosedDate = explicitClosedDate ? new Date(explicitClosedDate).toISOString() : now
         if (closedStatus === "won") {
-            payload.closed_won_date = now
+            payload.closed_won_date = resolvedClosedDate
             payload.closed_lost_date = null  // clear if previously lost
         } else if (closedStatus === "lost") {
-            payload.closed_lost_date = now
+            payload.closed_lost_date = resolvedClosedDate
             payload.closed_won_date = null  // clear if previously won
         } else {
             // Reopened — clear both closed dates

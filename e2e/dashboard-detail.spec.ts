@@ -1,12 +1,8 @@
 import { test, expect } from '@playwright/test'
+import { login } from './helpers'
 
 test('login and inspect full dashboard', async ({ page }) => {
-  // Login
-  await page.goto('/login')
-  await page.fill('#email', 'hanungsastria13@gmail.com')
-  await page.fill('#password', 'sayalupa')
-  await page.click('button[type="submit"]')
-  await page.waitForURL('/', { timeout: 15000 })
+  await login(page)
 
   // Wait for dashboard to fully load (wait for loading to disappear)
   await page.waitForTimeout(5000)

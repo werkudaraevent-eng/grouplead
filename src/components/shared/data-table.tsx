@@ -58,6 +58,13 @@ interface DataTableProps<TData, TValue> {
     getRowId?: (row: TData) => string
     totalValueAccessor?: (row: TData) => number
     totalValueLabel?: string
+    /**
+     * When provided, the parent owns where the column visibility/reorder
+     * popover renders (e.g. inside a page-level toolbar). The render prop
+     * receives a fully wired trigger element so the parent doesn't need to
+     * duplicate state.
+     */
+    columnsPopoverSlot?: (props: { Trigger: React.ReactElement }) => React.ReactNode
 }
 
 export function DataTable<TData, TValue>({
@@ -70,6 +77,7 @@ export function DataTable<TData, TValue>({
     getRowId,
     totalValueAccessor,
     totalValueLabel = "Total value",
+    columnsPopoverSlot,
 }: DataTableProps<TData, TValue>) {
     const [sorting, setSorting] = React.useState<SortingState>([])
     const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>(defaultHiddenColumns ?? {})
@@ -110,9 +118,23 @@ export function DataTable<TData, TValue>({
         },
     })
 
-    // Get orderable columns (without 'actions' and 'row_number')
+    // Get orderable columns (without 'actions' and 'row_number'). TanStack's
+    // `getAllColumns()` keeps definition order, not current `columnOrder`, so
+    // the column popover needs its own ordered projection to stay in sync with
+    // the rendered table after drag/drop.
     const allColumns = table.getAllColumns().filter(c => c.id !== "actions" && c.id !== "row_number")
-    const visibleCount = allColumns.filter(c => c.getIsVisible()).length
+    const orderedColumns = React.useMemo(() => {
+        if (columnOrder.length === 0) return allColumns
+
+        const byId = new Map(allColumns.map(column => [column.id, column]))
+        const ordered = columnOrder
+            .map(id => byId.get(id))
+            .filter((column): column is (typeof allColumns)[number] => Boolean(column))
+        const missing = allColumns.filter(column => !columnOrder.includes(column.id))
+
+        return [...ordered, ...missing]
+    }, [allColumns, columnOrder])
+    const visibleCount = orderedColumns.filter(c => c.getIsVisible()).length
 
     const totalPages = table.getPageCount()
     const totalRows = data.length
@@ -148,7 +170,7 @@ export function DataTable<TData, TValue>({
             setDragOverCol(null)
             return
         }
-        const currentOrder = columnOrder.length > 0 ? [...columnOrder] : allColumns.map(c => c.id)
+        const currentOrder = orderedColumns.map(c => c.id)
         const fromIdx = currentOrder.indexOf(draggedCol)
         const toIdx = currentOrder.indexOf(targetColId)
         if (fromIdx === -1 || toIdx === -1) return
@@ -169,10 +191,9 @@ export function DataTable<TData, TValue>({
 
     return (
         <div className="flex flex-col h-full">
-            {/* ── Toolbar / Bulk Action Bar ── */}
-            <div className="flex items-center justify-between px-1 pb-2 shrink-0">
-                {selectedCount > 0 ? (
-                    /* ── Floating Bulk Toolbar ── */
+            {/* ── Bulk Action Bar — only renders when rows are selected. */}
+            {selectedCount > 0 && (
+                <div className="flex items-center justify-between px-1 pb-2 shrink-0">
                     <div className="flex items-center gap-3 w-full">
                         <div className="flex items-center gap-2 bg-slate-900 text-white px-4 py-1.5 rounded-lg shadow-lg">
                             <span className="text-sm font-semibold">{selectedCount}</span>
@@ -189,17 +210,6 @@ export function DataTable<TData, TValue>({
                                 Delete
                             </Button>
                         )}
-                        {bulkActions?.onBulkExport && (
-                            <Button
-                                size="sm"
-                                variant="outline"
-                                className="h-8 text-xs gap-1.5 border-slate-200 bg-white text-slate-700 hover:text-slate-900 shadow-sm"
-                                onClick={() => bulkActions.onBulkExport!(selectedRows.map(r => r.original))}
-                            >
-                                <Download className="h-3.5 w-3.5" />
-                                Export
-                            </Button>
-                        )}
                         <button
                             onClick={() => setRowSelection({})}
                             className="ml-auto h-7 w-7 rounded-full flex items-center justify-center text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors"
@@ -208,82 +218,83 @@ export function DataTable<TData, TValue>({
                             <X className="h-4 w-4" />
                         </button>
                     </div>
-                ) : (
-                    /* ── Normal Toolbar ── */
-                    <>
-                        <div className="text-[12px] text-slate-400">
-                            {totalRows > 0 ? `${totalRows} record${totalRows !== 1 ? 's' : ''}` : 'No records'}
-                        </div>
-                        <Popover>
-                            <PopoverTrigger asChild>
-                                <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5 border-slate-200 text-slate-600 hover:text-slate-900">
-                                    <Columns3 className="h-3.5 w-3.5" />
-                                    Columns
-                                    <span className="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded-full ml-0.5">
-                                        {visibleCount}/{allColumns.length}
-                                    </span>
-                                </Button>
-                            </PopoverTrigger>
-                            <PopoverContent align="end" className="w-[260px] p-0">
-                                {/* Header */}
-                                <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
-                                    <span className="font-semibold text-sm text-slate-900">Columns</span>
-                                    <button
-                                        onClick={resetColumns}
-                                        className="flex items-center gap-1 text-[11px] font-medium text-blue-600 hover:text-blue-800 transition-colors"
-                                    >
-                                        <RotateCcw className="h-3 w-3" />
-                                        Reset All
-                                    </button>
-                                </div>
-                                <p className="px-4 pt-2 pb-1 text-[10px] text-slate-400">
-                                    Drag to reorder • Click eye to toggle
-                                </p>
-                                {/* Column list */}
-                                <div className="max-h-[320px] overflow-y-auto px-2 py-1">
-                                    {allColumns.map(column => {
-                                        const isVisible = column.getIsVisible()
-                                        const colName = typeof column.columnDef.header === 'string'
-                                            ? column.columnDef.header
-                                            : column.id.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
+                </div>
+            )}
 
-                                        return (
-                                            <div
-                                                key={column.id}
-                                                draggable
-                                                onDragStart={() => handleColDragStart(column.id)}
-                                                onDragOver={(e) => handleColDragOver(e, column.id)}
-                                                onDrop={() => handleColDrop(column.id)}
-                                                onDragEnd={() => { setDraggedCol(null); setDragOverCol(null) }}
-                                                className={`flex items-center gap-2 px-2 py-2 rounded-md cursor-grab transition-all ${
-                                                    dragOverCol === column.id ? 'bg-blue-50 ring-1 ring-blue-200' : 'hover:bg-slate-50'
-                                                } ${draggedCol === column.id ? 'opacity-40' : ''} ${!isVisible ? 'opacity-50' : ''}`}
+            {/* ── Columns popover (rendered via slot or inline trigger) ── */}
+            {(() => {
+                const trigger = (
+                    <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5 border-slate-200 text-slate-600 hover:text-slate-900">
+                        <Columns3 className="h-3.5 w-3.5" />
+                        Columns
+                        <span className="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded-full ml-0.5">
+                            {visibleCount}/{allColumns.length}
+                        </span>
+                    </Button>
+                )
+                const popover = (
+                    <Popover>
+                        <PopoverTrigger asChild>{trigger}</PopoverTrigger>
+                        <PopoverContent align="end" className="w-[260px] p-0">
+                            <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
+                                <span className="font-semibold text-sm text-slate-900">Columns</span>
+                                <button
+                                    onClick={resetColumns}
+                                    className="flex items-center gap-1 text-[11px] font-medium text-blue-600 hover:text-blue-800 transition-colors"
+                                >
+                                    <RotateCcw className="h-3 w-3" />
+                                    Reset All
+                                </button>
+                            </div>
+                            <p className="px-4 pt-2 pb-1 text-[10px] text-slate-400">
+                                Drag to reorder • Click eye to toggle
+                            </p>
+                            <div className="max-h-[320px] overflow-y-auto px-2 py-1">
+                                {orderedColumns.map(column => {
+                                    const isVisible = column.getIsVisible()
+                                    const colName = typeof column.columnDef.header === 'string'
+                                        ? column.columnDef.header
+                                        : column.id.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
+
+                                    return (
+                                        <div
+                                            key={column.id}
+                                            draggable
+                                            onDragStart={() => handleColDragStart(column.id)}
+                                            onDragOver={(e) => handleColDragOver(e, column.id)}
+                                            onDrop={() => handleColDrop(column.id)}
+                                            onDragEnd={() => { setDraggedCol(null); setDragOverCol(null) }}
+                                            className={`flex items-center gap-2 px-2 py-2 rounded-md cursor-grab transition-all ${
+                                                dragOverCol === column.id ? 'bg-blue-50 ring-1 ring-blue-200' : 'hover:bg-slate-50'
+                                            } ${draggedCol === column.id ? 'opacity-40' : ''} ${!isVisible ? 'opacity-50' : ''}`}
+                                        >
+                                            <GripVertical className="h-3.5 w-3.5 text-slate-300 shrink-0" />
+                                            <span className={`flex-1 text-[13px] font-medium ${isVisible ? 'text-slate-800' : 'text-slate-400 line-through'}`}>
+                                                {colName}
+                                            </span>
+                                            <button
+                                                onClick={() => column.toggleVisibility(!isVisible)}
+                                                className={`h-6 w-6 flex items-center justify-center rounded transition-colors ${
+                                                    isVisible ? 'text-emerald-500 hover:bg-emerald-50' : 'text-slate-300 hover:bg-slate-100'
+                                                }`}
                                             >
-                                                <GripVertical className="h-3.5 w-3.5 text-slate-300 shrink-0" />
-                                                <span className={`flex-1 text-[13px] font-medium ${isVisible ? 'text-slate-800' : 'text-slate-400 line-through'}`}>
-                                                    {colName}
-                                                </span>
-                                                <button
-                                                    onClick={() => column.toggleVisibility(!isVisible)}
-                                                    className={`h-6 w-6 flex items-center justify-center rounded transition-colors ${
-                                                        isVisible ? 'text-emerald-500 hover:bg-emerald-50' : 'text-slate-300 hover:bg-slate-100'
-                                                    }`}
-                                                >
-                                                    {isVisible ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
-                                                </button>
-                                            </div>
-                                        )
-                                    })}
-                                </div>
-                                {/* Footer */}
-                                <div className="px-4 py-2 border-t border-slate-100 text-[11px] text-slate-400 text-center">
-                                    {visibleCount} of {allColumns.length} columns visible
-                                </div>
-                            </PopoverContent>
-                        </Popover>
-                    </>
-                )}
-            </div>
+                                                {isVisible ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+                                            </button>
+                                        </div>
+                                    )
+                                })}
+                            </div>
+                            <div className="px-4 py-2 border-t border-slate-100 text-[11px] text-slate-400 text-center">
+                                {visibleCount} of {allColumns.length} columns visible
+                            </div>
+                        </PopoverContent>
+                    </Popover>
+                )
+                if (columnsPopoverSlot) {
+                    return columnsPopoverSlot({ Trigger: popover })
+                }
+                return null
+            })()}
 
             {/* ── Table Container (full-width, no card wrapper) ── */}
             <div className="flex-1 relative overflow-hidden border-t border-b border-[#E5E7EB]">
@@ -315,7 +326,7 @@ export function DataTable<TData, TValue>({
                                                         />
                                                     </div>
                                                 )}
-                                                <div className="flex items-center justify-center w-12 shrink-0 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+                                                <div className="flex items-center justify-center w-12 shrink-0 text-[12px] font-semibold text-slate-700">
                                                     No
                                                 </div>
                                             </div>
@@ -323,7 +334,7 @@ export function DataTable<TData, TValue>({
                                         {headerGroup.headers.map((header) => (
                                             <TableHead
                                                 key={header.id}
-                                                className="h-10 px-4 text-[11px] font-semibold uppercase tracking-wider text-slate-500 whitespace-nowrap bg-[#FAFAFA]"
+                                                className="h-10 px-4 text-[12px] font-semibold text-slate-700 whitespace-nowrap bg-[#FAFAFA]"
                                                 style={{ width: header.getSize() !== 150 ? header.getSize() : undefined }}
                                             >
                                                 {header.isPlaceholder
@@ -381,7 +392,7 @@ export function DataTable<TData, TValue>({
                                                     </div>
                                                 </TableCell>
                                                 {row.getVisibleCells().map((cell) => (
-                                                    <TableCell key={cell.id} className="px-4 py-2 text-sm h-[52px] align-middle">
+                                                    <TableCell key={cell.id} className="px-4 py-2 text-sm h-[48px] align-middle">
                                                         {flexRender(cell.column.columnDef.cell, cell.getContext())}
                                                     </TableCell>
                                                 ))}
@@ -469,7 +480,7 @@ export function DataTable<TData, TValue>({
                         {totalValue !== null && (
                             <div className="flex items-center gap-2">
                                 <span className="text-[12px] text-slate-400">{totalValueLabel}:</span>
-                                <span className="text-[14px] font-bold text-emerald-600">{formatCurrency(totalValue)}</span>
+                                <span className="text-[13px] font-semibold text-slate-700 tabular-nums">{formatCurrency(totalValue)}</span>
                             </div>
                         )}
                         <div className="flex items-center gap-2">

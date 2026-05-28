@@ -1,0 +1,321 @@
+# Launch Import Sample Audit
+
+Date: 2026-05-28
+File: `sample/Lead 2026.xlsx`
+Sheet: `Recap`
+Rows: 188 data rows + 1 header row
+
+## Header Row
+
+- JML
+- #
+- CATEGORY
+- BU REVENUE
+- COMPANY
+- MAIN COMPANY
+- MONTH EVENT
+- START DATE
+- DATE OF EVENT
+- NAME OF PROJECT
+- GRADE LEAD
+- MAIN STREAM
+- TIPE STREAM
+- BUSINESS PURPOSE
+- TYPE
+- NO. OF PAX
+- NATIONALITY
+- VENUE/ HOTEL
+- LOKASI (NAMA KOTA)
+- STATUS
+- CANCEL/ LOST/ POST REASON
+- DATE CXL/ LOST
+- MONTH CXL/ LOST/ TURNDOWN
+- ACCOUNT
+- SECTOR
+- LINE INDUSTRY
+- AREA
+- PIC SALES
+- QUALIFIED
+- SOURCE LEAD
+- REFERRAL
+- EST. CLOSING DATE
+- EST REVENUE
+- MONTH RECEIVE LEAD
+- TGL TIME LEAD TERIMA
+- SIGN CL/ SPK/ GL/AGGREMENT
+- DATE CLIENT CONFIRM
+- NOMINAL KONFIRMASI
+- MATERIALIZED
+- SALUTATION
+- CONTACT FULL NAME
+- CONTACT EMAIL
+- CONTACT MOBILE
+- JOB TITTLE
+- DATE OF BIRTH
+- ADDRESS
+- DESTINASI
+- PROVINSI/NEGARA KLIEN
+- NEGARA COMPANY KLIEN
+- YEAR LEAD RECEIVE
+- OFFICE PHONE
+- 
+- 
+- 
+- 
+- 
+- 
+- 
+- 
+
+## High-Risk Fields
+
+- `MONTH EVENT` and `START DATE` are Excel serial dates. Verify preview converts them correctly.
+- `DATE OF EVENT` mixes text ranges (`26 - 29 Jan 26`) and month ranges (`Jun/Jul 26`, `May - Dec 26`). Verify parsed event start/end.
+- `STATUS` must be explicitly mapped before import.
+- `PIC SALES` names must match `profiles.full_name` or be manually mapped/normalized.
+- `BU REVENUE` must map to correct internal company/subsidiary.
+- `COMPANY` and `MAIN COMPANY` may duplicate client company names. Review duplicate hints.
+- Contact data exists after column 30 in sample rows: salutation, name, email, phone, title, address, country. Verify mapping UI exposes these columns.
+
+### BU REVENUE
+
+- WNS: 113
+- TEE: 45
+- MRP: 13
+- WNW: 7
+- WNN: 4
+- UK: 3
+- YPN: 3
+
+### STATUS
+
+- LOST: 73
+- TENTATIVE: 52
+- MATERIALIZED: 49
+- POSTPONED: 5
+- TURNDOWN: 5
+- CANCELLED: 2
+- CONFIRMED: 2
+
+## Recommended Stage Mapping
+
+- `MATERIALIZED` → Closed Won / Won stage
+- `CONFIRMED` → Confirmed / late open stage, unless management treats it as won
+- `TENTATIVE` → first open stage / Lead Masuk
+- `LOST` → Closed Lost
+- `POSTPONED` → Postponed stage or Closed Lost equivalent if no postponed stage exists
+- `TURNDOWN` → Closed Lost / Turndown
+- `CANCELLED` → Closed Lost / Cancelled
+
+### PIC SALES
+
+- IRVANI: 59
+- KENSRIE: 56
+- ELFASA: 29
+- ADIEL: 10
+- EMY: 8
+- MITHA: 7
+- NINDY: 6
+- ANWAR: 3
+- RESERVATION: 3
+- MYA: 2
+- VIANA: 2
+- DIMAS: 1
+- OKKI: 1
+- PURWATI: 1
+
+### SOURCE LEAD
+
+- DIRECT - PHONE: 79
+- DIRECT - EMAIL: 34
+- TELEMARKETING: 34
+- REFERENSI - KLIEN: 9
+- REFERENSI - LAIN: 7
+- GOOGLE: 6
+- SALES CALL: 6
+- REFERENSI - HOTEL: 4
+- REFERENSI - VENDOR: 3
+- SOCIAL MEDIA: 2
+- TRAVEL FAIR: 2
+- WEBSITE: 2
+
+### CATEGORY
+
+- HOT LEAD: 73
+- WARM LEAD: 69
+- COLD LEAD: 43
+- HQL: 3
+
+### GRADE LEAD
+
+- Grade D (< 200 Juta): 78
+- Grade C (200 - 499 Juta): 54
+- Grade B (500 - 999 Juta): 26
+- Grade A (1 - 1,99 Milyar): 15
+- HQL (>=2 Milyar): 15
+
+### MAIN STREAM
+
+- CORPORATE: 122
+- RETAIL: 32
+- TRAVEL: 22
+- CREATIVE: 8
+- WELLNESS: 3
+- TRAINING: 1
+
+### TIPE STREAM
+
+- BUSINESS EVENT: 122
+- RETAIL EVENT: 20
+- INBOUND: 17
+- RETAIL TRAVEL: 12
+- EVENT BRANDING: 6
+- OUTBOND: 5
+- CORPORATE WELLNESS PROGRAM: 3
+- GROUP/CORPORATE TRAINING: 1
+- PACKAGING & MERCHANDISE: 1
+- VIDEO PRODUCTION: 1
+
+### BUSINESS PURPOSE
+
+- CORP. INCENTIVE: 37
+- MEETING: 25
+- WORKSHOP: 18
+- GIT: 11
+- RECEPTION / GALA: 11
+- CORPORATE TRAVEL: 9
+- INCENTIVE TRAVEL: 9
+- CONFERENCE: 8
+- BOOTH EXHIBITION: 6
+- PRODUCTION & EQUIPMENT RENT: 6
+- TRAINING & CAPACITY BUILDING: 6
+- LAUNCHING & PRODUCT DEMO: 5
+- SPECIAL EVENT OR OTHERS: 5
+- EVENT SUPPORT: 3
+- RENT - CAR: 3
+- BOOTH PRODUCTION: 2
+- CORPORATE WELLNESS PROGRAM: 2
+- DOCUMENTATION: 2
+- FIT: 2
+- FUNDING: 2
+- SOCIAL FUNCTION: 2
+- V-WORKSHOP: 2
+- ACTIVITIES: 1
+- ANIMATION VIDEO: 1
+- ART & MEDITATION: 1
+- CATERING (F&B): 1
+- CONVENTION & CONGRESS: 1
+- MEETING PACKAGE: 1
+- MERCHANDISE PRODUCTION: 1
+- SOUVENIR/GIMMICK: 1
+- SPECIALIZED TRAINING PROGRAM: 1
+- TEAM BUILDING ACTIVITY: 1
+- V-LAUNCHING & PRODUCT DEMO: 1
+- V-MEETING: 1
+
+### TYPE
+
+- MICE: 121
+- RETAIL: 32
+- TRAVEL: 22
+- CREATIVE: 8
+- WELLNESS: 3
+- TRAINING: 1
+- VIRTUAL: 1
+
+### NATIONALITY
+
+- INDONESIA: 143
+- MIX: 13
+- ASEAN: 7
+- MALAYSIA: 6
+- CANADA: 3
+- SINGAPURA: 2
+- ASIA PASIFIC: 1
+- CHINA: 1
+- INDIA: 1
+- INDONESIA, ASEAN: 1
+- INDONESIA, CHINA: 1
+- INDONESIA, EGYPT, INDIA, AUSTRALIA: 1
+- INDONESIA, MALAYSIA: 1
+- INDONESIA, SG: 1
+- JAPAN: 1
+- MIX ASEAN: 1
+- MIX EAST ASIA PACIFIC: 1
+- MIX SOUTHEAST ASIA: 1
+- PORTUGIS, SPANYOL: 1
+- TURKI: 1
+
+### ACCOUNT
+
+- NEW: 100
+- REPEATER: 76
+- CONTRACTED: 12
+
+### SECTOR
+
+- PRIVATE: 134
+- PUBLIC: 54
+
+### LINE INDUSTRY
+
+- TOUR OPERATOR/TRAVEL AGENT: 21
+- IGO: 19
+- BANKING: 16
+- NGO: 15
+- INDIVIDUAL GUEST: 12
+- GOVERNMENT: 11
+- OIL, GAS & ENERGY COMPANIES: 10
+- MANUFACTURE: 7
+- EVENT ORGANIZER: 6
+- PROPERTY: 6
+- TELECOMMUNICATION: 6
+- CONSULTANT: 5
+- DISTRIBUTION: 5
+- PHARMACEUTICAL: 5
+- ASSOCIATION: 4
+- EDUCATION: 4
+- FINANCIAL INSTITUTION: 4
+- HOTEL / HOSPITALITY: 4
+- AUTOMOTIVE: 3
+- INSURANCE: 3
+- IT (INFORMATION TECHNOLOGY): 3
+- AGRICULTURE: 2
+- CONSUMER GOODS: 2
+- FINANCIAL TECHNOLOGIES: 2
+- HOSPITAL: 2
+- MINING: 2
+- TRANSPORTASI/LOGISTIK: 2
+- BEAUTY COMPANIES: 1
+- ELECTRONIC: 1
+- FINANCE: 1
+- INFRASTUCTURE: 1
+- LAW FIRM: 1
+- MEDIA: 1
+- RETAIL: 1
+
+### AREA
+
+- JAKARTA: 130
+- LUAR JAKARTA: 58
+
+### CANCEL/ LOST/ POST REASON
+
+- KALAH BIDDING / DIHANDLE EO LAIN: 29
+- TIDAK ADA RESPON / UPDATE / INFORMASI DARI CLIENT / AGENT: 27
+- BUDGET: 16
+- INTERNAL ISSUE CLIENT: 5
+- POSTPONED / DITUNDA: 4
+- DIBATALKAN OLEH CLIENT / AGENT: 2
+- BELUM MEMENUHI KUALIFIKASI: 1
+- TIDAK QUALIFIED: 1
+
+## Launch Import Recommendation
+
+1. Import first 20?50 rows only.
+2. Confirm header mapping preview.
+3. Confirm stage mapping for every `STATUS` above.
+4. Confirm `PIC SALES` names exist in user profiles.
+5. Import sample batch.
+6. Validate row count, dates, companies, contacts, PIC assignment, and stages.
+7. Only then import larger batch.

@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { getE2ECredentials, login } from './helpers'
 
 test.describe('Dashboard Responsive & Extra Tests', () => {
 
@@ -11,12 +12,7 @@ test.describe('Dashboard Responsive & Extra Tests', () => {
     await page.waitForTimeout(1000)
     await page.screenshot({ path: 'e2e/screenshots/resp-mobile-login.png' })
 
-    await page.fill('#email', 'hanungsastria13@gmail.com')
-    await page.fill('#password', 'sayalupa')
-    await page.click('button[type="submit"]')
-
-    // Wait for navigation - use networkidle for slower mobile
-    await page.waitForURL('/', { timeout: 30000 })
+    await login(page)
     await page.waitForTimeout(5000)
 
     await page.screenshot({ path: 'e2e/screenshots/resp-mobile-dashboard.png', fullPage: true })
@@ -41,11 +37,7 @@ test.describe('Dashboard Responsive & Extra Tests', () => {
   test('02 - Tablet responsive (768px)', async ({ page }) => {
     await page.setViewportSize({ width: 768, height: 1024 })
 
-    await page.goto('/login')
-    await page.fill('#email', 'hanungsastria13@gmail.com')
-    await page.fill('#password', 'sayalupa')
-    await page.click('button[type="submit"]')
-    await page.waitForURL('/', { timeout: 30000 })
+    await login(page)
     await page.waitForTimeout(5000)
 
     await page.screenshot({ path: 'e2e/screenshots/resp-tablet-dashboard.png', fullPage: true })
@@ -57,11 +49,7 @@ test.describe('Dashboard Responsive & Extra Tests', () => {
   })
 
   test('03 - Classification widget deep dive', async ({ page }) => {
-    await page.goto('/login')
-    await page.fill('#email', 'hanungsastria13@gmail.com')
-    await page.fill('#password', 'sayalupa')
-    await page.click('button[type="submit"]')
-    await page.waitForURL('/', { timeout: 15000 })
+    await login(page)
     await page.waitForTimeout(3000)
 
     // Scroll to Lead Classification section
@@ -96,11 +84,7 @@ test.describe('Dashboard Responsive & Extra Tests', () => {
   })
 
   test('04 - Loading states and empty states', async ({ page }) => {
-    await page.goto('/login')
-    await page.fill('#email', 'hanungsastria13@gmail.com')
-    await page.fill('#password', 'sayalupa')
-    await page.click('button[type="submit"]')
-    await page.waitForURL('/', { timeout: 15000 })
+    await login(page)
 
     // Check immediately for loading states
     const loadingElements = page.locator('text=Loading')
@@ -123,8 +107,9 @@ test.describe('Dashboard Responsive & Extra Tests', () => {
 
   test('05 - Page performance metrics', async ({ page }) => {
     await page.goto('/login')
-    await page.fill('#email', 'hanungsastria13@gmail.com')
-    await page.fill('#password', 'sayalupa')
+    const { email, password } = getE2ECredentials()
+    await page.fill('#email', email)
+    await page.fill('#password', password)
 
     const startTime = Date.now()
     await page.click('button[type="submit"]')

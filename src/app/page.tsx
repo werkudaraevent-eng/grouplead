@@ -9,6 +9,8 @@ import type { CustomWidget } from "@/types/custom-widget"
 
 type SalesProfile = { id: string; full_name: string | null }
 
+const DASHBOARD_LEADS_LIMIT = 5000
+
 export const dynamic = 'force-dynamic'
 
 export default async function DashboardPage({ searchParams }: { searchParams: Promise<{ pipeline?: string }> }) {
@@ -64,6 +66,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
         .from('leads')
         .select('*, client_company:client_companies!client_company_id(name, line_industry, area, account_status, industry), contact:contacts!contact_id(full_name, email, phone), pipeline_stage:pipeline_stages!pipeline_stage_id(name, color, closed_status, stage_type), pic_sales_profile:profiles!pic_sales_id(full_name)')
         .order('updated_at', { ascending: false })
+        .limit(DASHBOARD_LEADS_LIMIT)
 
     if (allPipelineIds.length > 0) {
         base.in('pipeline_id', allPipelineIds)
@@ -202,6 +205,11 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
 
     return (
         <>
+            {leads.length >= DASHBOARD_LEADS_LIMIT && (
+                <div className="mx-6 mt-4 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                    Dashboard is limited to latest {DASHBOARD_LEADS_LIMIT.toLocaleString()} records for launch stability. Use lead filters for full detail review.
+                </div>
+            )}
             {error && (
                 <div className="bg-destructive/15 text-destructive px-4 py-3 rounded-md text-sm mx-6 mt-4">
                     <strong>Database Error:</strong> {error.message}
