@@ -130,22 +130,29 @@ export function DashboardViewSwitcher({
               display: "flex",
               alignItems: "center",
               gap: 6,
-              background: "#fff",
-              border: "1px solid #e5e8ed",
-              borderRadius: 7,
-              padding: "5px 10px",
-              fontSize: 11,
-              fontWeight: 600,
-              color: isEditMode ? "#94a3b8" : "#02378D",
+              background: "transparent",
+              border: "1px solid transparent",
+              borderRadius: 8,
+              padding: "0 10px",
+              height: 32,
+              fontSize: 12,
+              fontWeight: 500,
+              color: isEditMode ? "#94a3b8" : "#475569",
               cursor: isEditMode ? "not-allowed" : "pointer",
               fontFamily: "inherit",
-              boxShadow: "0 1px 2px rgba(0,0,0,.03)",
               maxWidth: 200,
               opacity: isEditMode ? 0.5 : 1,
               whiteSpace: "nowrap",
+              transition: "background .15s ease",
+            }}
+            onMouseEnter={e => {
+              if (!isEditMode) e.currentTarget.style.background = "#f1f5f9"
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.background = "transparent"
             }}
           >
-            <Bookmark style={{ width: 12, height: 12, flexShrink: 0 }} />
+            <Bookmark style={{ width: 14, height: 14, flexShrink: 0 }} />
             <span
               style={{
                 maxWidth: 130,
@@ -168,7 +175,7 @@ export function DashboardViewSwitcher({
                 <CircleDot style={{ width: 10, height: 10, color: "#f59e0b" }} />
               </span>
             )}
-            <ChevronDown style={{ width: 12, height: 12, flexShrink: 0 }} />
+            <ChevronDown style={{ width: 13, height: 13, flexShrink: 0, opacity: 0.6 }} />
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-[260px]">

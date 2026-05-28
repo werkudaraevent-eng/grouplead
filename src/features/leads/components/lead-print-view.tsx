@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import type { Lead } from "@/types"
 import { Printer, Download, ArrowLeft } from "lucide-react"
+import { formatPhoneDisplay } from "@/lib/phone-normalize"
 
 // ─── Types ────────────────────────────────────────────────────
 interface LeadNote {
@@ -566,7 +567,7 @@ export function LeadPrintView({ lead, notes, activities, currencySettings }: Pro
                                 <FieldCell label="Client Company" value={lead.client_company?.name} />
                                 <FieldCell label="Contact Person" value={lead.contact?.full_name} />
                                 <FieldCell label="Email" value={lead.contact?.email} />
-                                <FieldCell label="Phone" value={lead.contact?.phone} />
+                                <FieldCell label="Phone" value={lead.contact?.phone ? formatPhoneDisplay(lead.contact.phone) : null} />
                             </div>
                         </section>
 

@@ -18,6 +18,7 @@ import {
     AlertTriangle, Loader2, ArrowRight, ArrowLeft, Link2, Link2Off,
     Sparkles, RotateCcw,
 } from "lucide-react"
+import { normalizePhoneToE164 } from "@/lib/phone-normalize"
 
 // ── Helper formatters ──
 const PRESERVE_UPPERCASE = ["IT", "HR", "MICE", "PR", "B2B", "B2C", "PT", "CV", "TBK", "LLC", "INC", "LTD", "IGO", "NGO", "MLM", "BUMN", "BUMD", "FMCG"]
@@ -241,7 +242,11 @@ export function ImportCompaniesModal({ open, onOpenChange, onSuccess }: ImportCo
                     let val = row[excelHeader]?.trim()
                     if (val) {
                         val = formatValue(fieldKey, val)
-                        payload[fieldKey] = val
+                        if (fieldKey === "phone") {
+                            payload[fieldKey] = normalizePhoneToE164(val) ?? val
+                        } else {
+                            payload[fieldKey] = val
+                        }
                     }
                 }
 

@@ -2,9 +2,12 @@ import { AnalyticsDashboard } from "@/features/leads/components/analytics-dashbo
 import { createClient } from "@/utils/supabase/server"
 import { getActiveCompany } from "@/utils/company"
 import { getScopedCompanyId, scopedQuery } from "@/utils/supabase/scoped-query"
+import { requirePermission } from "@/lib/require-permission"
 import type { Lead, PipelineStage } from "@/types"
 import type { GoalV2, GoalNode, GoalUserTarget, GoalSettingsV2 } from "@/types/goals"
 import type { CustomWidget } from "@/types/custom-widget"
+
+type SalesProfile = { id: string; full_name: string | null }
 
 export const dynamic = 'force-dynamic'
 
@@ -19,6 +22,19 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
     ])
 
     const user = authResult.data?.user
+    const dashboardGuard = await requirePermission('dashboard', 'read', activeCompany?.id)
+    if (!dashboardGuard.allowed) {
+        return (
+            <div className="flex min-h-[60vh] items-center justify-center px-6">
+                <div className="max-w-md rounded-xl border border-border bg-card p-8 text-center">
+                    <h1 className="text-base font-semibold text-foreground">Dashboard access restricted</h1>
+                    <p className="mt-2 text-sm text-muted-foreground">
+                        Your role does not have permission to view the main dashboard.
+                    </p>
+                </div>
+            </div>
+        )
+    }
 
     // Fetch pipelines (needs company_id for scoping)
     let pipelinesQuery = supabase.from('pipelines').select('id, name, is_default').order('created_at', { ascending: true })
@@ -46,7 +62,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
     const allPipelineIds = pipelines.map(p => p.id)
     const base = supabase
         .from('leads')
-        .select('*, client_company:client_companies!client_company_id(name, line_industry, area, account_status, industry), contact:contacts!contact_id(full_name, email, phone), pipeline_stage:pipeline_stages!pipeline_stage_id(name, color), pic_sales_profile:profiles!pic_sales_id(full_name)')
+        .select('*, client_company:client_companies!client_company_id(name, line_industry, area, account_status, industry), contact:contacts!contact_id(full_name, email, phone), pipeline_stage:pipeline_stages!pipeline_stage_id(name, color, closed_status, stage_type), pic_sales_profile:profiles!pic_sales_id(full_name)')
         .order('updated_at', { ascending: false })
 
     if (allPipelineIds.length > 0) {
@@ -99,9 +115,90 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
         .eq('user_id', user?.id ?? '')
         .order('created_at', { ascending: true })
 
-    // Execute all in parallel
+    // Execute leads + goals + custom widgets in parallel
     const [,, widgetsResult] = await Promise.all([leadsPromise, goalsPromise, widgetsPromise])
     const customWidgets = (widgetsResult as { data: CustomWidget[] | null }).data
+
+    // ── Resolve display names for sales reps referenced by targets/nodes ──
+    // Reps may have targets but zero leads in the active period. Without
+    // their profile we cannot show their name. Build the candidate id set
+    // from every place a target can live (user_targets, goal_nodes, AND
+    // breakdown_config sales_owner — which only has names, so we have to
+    // resolve those by full_name lookup separately).
+    const targetUserIds = new Set<string>()
+    for (const t of userTargets) {
+        if (t.user_id) targetUserIds.add(t.user_id)
+    }
+    for (const n of goalNodes) {
+        const isSalesOwnerNode =
+            n.reference_field === "pic_sales_id" ||
+            n.reference_field === "sales_owner" ||
+            n.dimension_type === "sales_owner"
+        if (isSalesOwnerNode && n.reference_value) {
+            targetUserIds.add(n.reference_value)
+        }
+    }
+
+    // Names referenced by breakdown_config sales_owner level — these need
+    // to be resolved against profiles.full_name to recover their user id.
+    const breakdownSalesNames = new Set<string>()
+    type BreakdownLevel = {
+        dimension?: string
+        nodes?: Array<{ name?: string }>
+        perParentNodes?: Record<string, Array<{ name?: string }> | undefined>
+    }
+    // TS narrows `activeGoal` to `null` here because the actual assignment
+    // happens inside a `.then()` callback. Re-widen via an explicit cast
+    // through `unknown` so we can read its breakdown_config at runtime.
+    const goalForBreakdown = activeGoal as unknown as GoalV2 | null
+    const breakdownConfig = (goalForBreakdown?.breakdown_config as unknown as BreakdownLevel[] | null) ?? []
+    for (const level of breakdownConfig) {
+        if (level?.dimension !== "sales_owner") continue
+        for (const node of level.nodes ?? []) {
+            if (node?.name) breakdownSalesNames.add(node.name)
+        }
+        const perParent = level.perParentNodes ?? {}
+        for (const list of Object.values(perParent)) {
+            for (const node of list ?? []) {
+                if (node?.name) breakdownSalesNames.add(node.name)
+            }
+        }
+    }
+
+    let salesProfiles: SalesProfile[] = []
+    if (targetUserIds.size > 0 || breakdownSalesNames.size > 0) {
+        const profileQueries: Promise<{ data: SalesProfile[] | null }>[] = []
+        if (targetUserIds.size > 0) {
+            profileQueries.push(
+                Promise.resolve(
+                    supabase
+                        .from("profiles")
+                        .select("id, full_name")
+                        .in("id", Array.from(targetUserIds))
+                ).then(r => ({ data: (r.data as SalesProfile[] | null) ?? null })),
+            )
+        }
+        if (breakdownSalesNames.size > 0) {
+            profileQueries.push(
+                Promise.resolve(
+                    supabase
+                        .from("profiles")
+                        .select("id, full_name")
+                        .in("full_name", Array.from(breakdownSalesNames))
+                ).then(r => ({ data: (r.data as SalesProfile[] | null) ?? null })),
+            )
+        }
+        const results = await Promise.all(profileQueries)
+        const seen = new Set<string>()
+        for (const r of results) {
+            for (const p of r.data ?? []) {
+                if (p?.id && !seen.has(p.id)) {
+                    seen.add(p.id)
+                    salesProfiles.push(p)
+                }
+            }
+        }
+    }
 
     return (
         <>
@@ -120,6 +217,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
                 userTargets={userTargets}
                 goalSettings={goalSettings}
                 customWidgets={customWidgets ?? []}
+                salesProfiles={salesProfiles}
             />
         </>
     )

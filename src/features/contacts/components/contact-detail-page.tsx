@@ -18,6 +18,7 @@ import { useCurrency } from "@/contexts/currency-context"
 import { ContactTimelineTab } from "./contact-timeline-tab"
 import { AddContactModal } from "./add-contact-modal"
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select"
+import { formatPhoneDisplay } from "@/lib/phone-normalize"
 
 // ═══════════════════════════════════════════════════════════════
 //  TYPES
@@ -378,8 +379,8 @@ export function ContactDetailPage({ contact, leads, lastModified, lastModifiedBy
                             <InfoRow icon={Mail} label="Email" value={contact.email} isEmail />
                             <InfoRow icon={Mail} label="Secondary Email(s)" value={[contact.secondary_email, ...(contact.secondary_emails || [])].filter(Boolean).join("\n")} isEmail />
                             
-                            <InfoRow icon={Phone} label="Phone" value={contact.phone} isPhone />
-                            <InfoRow icon={Phone} label="Secondary Phone(s)" value={[contact.secondary_phone, ...(contact.secondary_phones || [])].filter(Boolean).join("\n")} isPhone />
+                            <InfoRow icon={Phone} label="Phone" value={contact.phone ? formatPhoneDisplay(contact.phone) : null} isPhone phoneRaw={contact.phone} />
+                            <InfoRow icon={Phone} label="Secondary Phone(s)" value={[contact.secondary_phone, ...(contact.secondary_phones || [])].filter(Boolean).map(p => formatPhoneDisplay(p as string)).join("\n")} isPhone phoneRaw={[contact.secondary_phone, ...(contact.secondary_phones || [])].filter(Boolean).join("\n")} />
                             
                             <InfoRow icon={CalendarDays} label="Date of Birth" value={fmtDate(contact.date_of_birth)} />
                             <InfoRow icon={MapPin} label="Address" value={contact.address} />
@@ -691,11 +692,12 @@ function TabBtn({ value, icon: Icon, label }: { value: string; icon: typeof Cloc
     )
 }
 
-function InfoRow({ icon: Icon, label, value, isEmail, isPhone }: {
-    icon: typeof Building2; label: string; value?: string | null; isEmail?: boolean; isPhone?: boolean
+function InfoRow({ icon: Icon, label, value, isEmail, isPhone, phoneRaw }: {
+    icon: typeof Building2; label: string; value?: string | null; isEmail?: boolean; isPhone?: boolean; phoneRaw?: string | null
 }) {
     if (!value || value === "—") return null
     const lines = value.split("\n").filter(Boolean)
+    const rawLines = (phoneRaw || "").split("\n").filter(Boolean)
     if (lines.length === 0) return null
 
     return (
@@ -708,7 +710,10 @@ function InfoRow({ icon: Icon, label, value, isEmail, isPhone }: {
                         if (isEmail) {
                             return <a key={idx} href={`mailto:${line}`} className="text-[13px] text-blue-600 hover:underline break-all block">{line}</a>
                         } else if (isPhone) {
-                            return <a key={idx} href={`tel:${line}`} className="text-[13px] text-blue-600 hover:underline break-all block">{line}</a>
+                            // tel: must use the canonical/raw value, not the
+                            // formatted display string with spaces.
+                            const telTarget = rawLines[idx] || line
+                            return <a key={idx} href={`tel:${telTarget}`} className="text-[13px] text-blue-600 hover:underline break-all block">{line}</a>
                         } else {
                             return <p key={idx} className="text-[13px] text-slate-800 break-words">{line}</p>
                         }

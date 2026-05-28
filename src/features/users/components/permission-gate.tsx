@@ -8,18 +8,29 @@ interface PermissionGateProps {
   action: string
   children: React.ReactNode
   fallback?: React.ReactNode
+  /**
+   * What to render while permissions are still loading. Defaults to `null` so
+   * gated buttons don't flash visible then disappear once permissions resolve.
+   * Pass `children` for optimistic rendering during load.
+   */
+  loadingPlaceholder?: React.ReactNode
 }
 
-export function PermissionGate({ resource, action, children, fallback = null }: PermissionGateProps) {
+export function PermissionGate({
+  resource,
+  action,
+  children,
+  fallback = null,
+  loadingPlaceholder = null,
+}: PermissionGateProps) {
   const { activeCompany } = useCompany()
   const { can, loading } = usePermissions()
 
-  // If no company context is resolved (migration not run, no membership, etc.)
-  // allow everything through — don't block the pre-existing UI
+  // No company context — let children through (login flow, migration not run).
   if (!activeCompany) return <>{children}</>
 
-  // Show children while loading to avoid blank UI flash
-  if (loading) return <>{children}</>
+  // Avoid the "show then hide" flash. Default placeholder is null.
+  if (loading) return <>{loadingPlaceholder}</>
 
   if (can(resource, action)) {
     return <>{children}</>

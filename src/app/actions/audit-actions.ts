@@ -1,6 +1,7 @@
 "use server"
 
 import { createClient } from "@/utils/supabase/server"
+import { createServiceClient } from "@/utils/supabase/service"
 import { revalidatePath } from "next/cache"
 
 export interface AuditLogEntry {
@@ -18,6 +19,7 @@ export interface AuditLogEntry {
 export async function logAuditEvent(entry: AuditLogEntry) {
     try {
         const supabase = await createClient()
+        const service = createServiceClient()
         const { data: { user } } = await supabase.auth.getUser()
         if (!user) return
 
@@ -28,7 +30,7 @@ export async function logAuditEvent(entry: AuditLogEntry) {
             .eq("id", user.id)
             .single()
 
-        await supabase.from("audit_logs").insert({
+        const { error } = await service.from("audit_logs").insert({
             user_id: user.id,
             user_name: profile?.full_name || user.email || "Unknown",
             action: entry.action,
@@ -38,9 +40,10 @@ export async function logAuditEvent(entry: AuditLogEntry) {
             description: entry.description,
             metadata: entry.metadata || {},
         })
-    } catch {
+        if (error) throw error
+    } catch (err) {
         // Audit logging should never break the main flow
-        console.warn("[audit] Failed to log event:", entry.description)
+        console.warn("[audit] Failed to log event:", entry.description, err)
     }
 }
 

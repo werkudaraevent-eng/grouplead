@@ -25,76 +25,137 @@ export function PermissionsProvider({ children }: { children: React.ReactNode })
   const [userType, setUserType] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    if (!activeCompany) {
+  const fetchPermissions = useCallback(async (showLoading = true) => {
+    if (!activeCompany?.id) {
       setPermissions([])
       setUserType(null)
       setLoading(false)
       return
     }
 
-    const fetchPermissions = async () => {
-      setLoading(true)
-      const supabase = createClient()
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user?.id) { setPermissions([]); setUserType(null); setLoading(false); return }
+    if (showLoading) setLoading(true)
+    const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user?.id) { setPermissions([]); setUserType(null); setLoading(false); return }
 
-      // Parallel fetch: profile + membership (eliminates waterfall)
-      const [profileResult, membershipResult] = await Promise.all([
-        supabase.from('profiles').select('role, role_id').eq('id', user.id).maybeSingle(),
-        supabase.from('company_members').select('user_type').eq('user_id', user.id).eq('company_id', activeCompany.id).maybeSingle(),
-      ])
+    // Parallel fetch: profile + membership (eliminates waterfall)
+    const [profileResult, membershipResult] = await Promise.all([
+      supabase.from('profiles').select('role, role_id').eq('id', user.id).maybeSingle(),
+      supabase.from('company_members').select('user_type').eq('user_id', user.id).eq('company_id', activeCompany.id).maybeSingle(),
+    ])
 
-      const profile = profileResult.data
-      const membership = membershipResult.data
-      const globalRole = (profile?.role ?? '').toLowerCase().replace(/\s+/g, '_')
+    const profile = profileResult.data
+    const membership = membershipResult.data
+    const globalRole = (profile?.role ?? '').toLowerCase().replace(/\s+/g, '_')
 
-      // Global super_admin bypass
-      if (globalRole === 'super_admin') {
-        setUserType('super_admin')
-        setPermissions([])
+    // Global super_admin bypass
+    if (globalRole === 'super_admin') {
+      setUserType('super_admin')
+      setPermissions([])
+      setLoading(false)
+      return
+    }
+
+    setUserType(membership?.user_type ?? globalRole ?? null)
+
+    const roleId = profile?.role_id ?? null
+
+    // Try role_id-based permissions first
+    if (roleId) {
+      const { data: perms } = await supabase
+        .from('role_permissions')
+        .select('*')
+        .eq('role_id', roleId)
+        .eq('company_id', activeCompany.id)
+
+      if (perms && perms.length > 0) {
+        setPermissions(perms)
         setLoading(false)
         return
       }
-
-      setUserType(membership?.user_type ?? globalRole ?? null)
-
-      const roleId = profile?.role_id ?? null
-
-      // Try role_id-based permissions first
-      if (roleId) {
-        const { data: perms } = await supabase
-          .from('role_permissions')
-          .select('*')
-          .eq('role_id', roleId)
-          .eq('company_id', activeCompany.id)
-
-        if (perms && perms.length > 0) {
-          setPermissions(perms)
-          setLoading(false)
-          return
-        }
-      }
-
-      // Fallback: user_type-based lookup (covers sales users without role_id)
-      const resolvedUserType = membership?.user_type ?? globalRole
-      if (resolvedUserType) {
-        const { data: legacyPerms } = await supabase
-          .from('role_permissions')
-          .select('*')
-          .eq('user_type', resolvedUserType)
-          .eq('company_id', activeCompany.id)
-        setPermissions(legacyPerms ?? [])
-      } else {
-        console.warn(`[Permissions] No role_id or user_type for user ${user.id}. No permissions granted.`)
-        setPermissions([])
-      }
-
-      setLoading(false)
     }
 
-    fetchPermissions()
+    // Fallback: user_type-based lookup (covers sales users without role_id)
+    const resolvedUserType = membership?.user_type ?? globalRole
+    if (resolvedUserType) {
+      const { data: legacyPerms } = await supabase
+        .from('role_permissions')
+        .select('*')
+        .eq('user_type', resolvedUserType)
+        .eq('company_id', activeCompany.id)
+      setPermissions(legacyPerms ?? [])
+    } else {
+      console.warn(`[Permissions] No role_id or user_type for user ${user.id}. No permissions granted.`)
+      setPermissions([])
+    }
+
+    setLoading(false)
   }, [activeCompany?.id])
+
+  useEffect(() => {
+    fetchPermissions(true)
+  }, [fetchPermissions])
+
+  useEffect(() => {
+    if (!activeCompany?.id) return
+
+    const supabase = createClient()
+    let timeout: ReturnType<typeof setTimeout> | null = null
+    let channel: ReturnType<typeof supabase.channel> | null = null
+
+    const refreshSoon = () => {
+      if (timeout) clearTimeout(timeout)
+      timeout = setTimeout(() => {
+        fetchPermissions(false)
+      }, 250)
+    }
+
+    const setupRealtime = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user?.id) return
+
+      channel = supabase
+        .channel(`permissions:${activeCompany.id}:${user.id}`)
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'role_permissions',
+            filter: `company_id=eq.${activeCompany.id}`,
+          },
+          refreshSoon,
+        )
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'profiles',
+            filter: `id=eq.${user.id}`,
+          },
+          refreshSoon,
+        )
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'company_members',
+            filter: `user_id=eq.${user.id}`,
+          },
+          refreshSoon,
+        )
+        .subscribe()
+    }
+
+    setupRealtime()
+
+    return () => {
+      if (timeout) clearTimeout(timeout)
+      if (channel) supabase.removeChannel(channel)
+    }
+  }, [activeCompany?.id, fetchPermissions])
 
   const can = useCallback((module: string, action: string): boolean => {
     if (userType === 'super_admin') return true

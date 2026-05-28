@@ -12,6 +12,7 @@ import { parseDestinations } from "@/features/leads/lib/parse-destinations"
 import { buildStageTransitionAuditEntries } from "@/features/leads/lib/stage-transition-audit"
 import { computeAccountStatus } from "@/features/leads/lib/compute-account-status"
 import { logAuditEvent } from "@/app/actions/audit-actions"
+import { requirePermission } from "@/lib/require-permission"
 import type { ActionResult } from "@/types"
 
 // ── Column Whitelist: ONLY these keys are physical columns on the `leads` table ──
@@ -57,6 +58,9 @@ export async function createLeadAction(
     data: Record<string, unknown>
 ): Promise<ActionResult<{ id: number }>> {
     try {
+        const guard = await requirePermission('leads', 'create')
+        if (!guard.allowed) return guard.error
+
         const supabase = await createClient()
         const payload = sanitizePayload(data)
 
@@ -158,6 +162,9 @@ export async function updateLeadAction(
     data: Record<string, unknown>
 ): Promise<ActionResult> {
     try {
+        const guard = await requirePermission('leads', 'update')
+        if (!guard.allowed) return guard.error
+
         const supabase = await createClient()
         const payload = sanitizePayload(data)
 
@@ -393,6 +400,9 @@ export async function deleteLeadAction(
     leadId: number
 ): Promise<ActionResult> {
     try {
+        const guard = await requirePermission('leads', 'delete')
+        if (!guard.allowed) return guard.error
+
         const supabase = await createClient()
 
         // Get lead name before deleting
@@ -430,6 +440,53 @@ export async function deleteLeadAction(
     }
 }
 
+export async function bulkDeleteLeadsAction(
+    leadIds: number[]
+): Promise<ActionResult<{ deleted: number }>> {
+    try {
+        const guard = await requirePermission('leads', 'delete')
+        if (!guard.allowed) return guard.error
+
+        const ids = Array.from(new Set(leadIds.filter((id) => Number.isFinite(id))))
+        if (ids.length === 0) return { success: false, error: "No leads selected" }
+
+        const supabase = await createClient()
+
+        const { data: leadData, error: fetchError } = await supabase
+            .from("leads")
+            .select("id, project_name")
+            .in("id", ids)
+
+        if (fetchError) return { success: false, error: fetchError.message }
+
+        const { error } = await supabase
+            .from("leads")
+            .delete()
+            .in("id", ids)
+
+        if (error) return { success: false, error: error.message }
+
+        for (const lead of leadData ?? []) {
+            await logAuditEvent({
+                action: "delete",
+                resource_type: "lead",
+                resource_id: String(lead.id),
+                resource_name: lead.project_name || "",
+                description: `deleted lead "${lead.project_name || lead.id}"`,
+            })
+        }
+
+        revalidatePath("/", "layout")
+        revalidatePath("/leads")
+        return { success: true, data: { deleted: leadData?.length ?? ids.length } }
+    } catch (err) {
+        return {
+            success: false,
+            error: err instanceof Error ? err.message : "Unknown error",
+        }
+    }
+}
+
 export type ImportResult = {
     success: number
     failed: number
@@ -449,6 +506,16 @@ function rowLabel(i: number, raw: Record<string, unknown>): string {
 export async function importLeadsAction(
     rows: Record<string, unknown>[]
 ): Promise<ImportResult> {
+    const guard = await requirePermission('leads', 'create')
+    if (!guard.allowed) {
+        return {
+            success: 0,
+            failed: rows.length,
+            errors: [guard.error.error ?? 'Forbidden'],
+            warnings: [],
+        }
+    }
+
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
     

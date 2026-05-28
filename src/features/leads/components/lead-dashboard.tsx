@@ -36,6 +36,7 @@ import { useResizablePanel } from "@/hooks/use-resizable-panel"
 import { usePersistentViewMode } from "@/hooks/use-persistent-view-mode"
 import { useRouter } from "next/navigation"
 import { PermissionGate } from "@/features/users/components/permission-gate"
+import { usePermissions } from "@/contexts/permissions-context"
 import { Input } from "@/components/ui/input"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
@@ -54,15 +55,18 @@ import {
     AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
     AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import { bulkDeleteLeadsAction, deleteLeadAction } from "@/app/actions/lead-actions"
 
 type ViewMode = 'table' | 'kanban'
 const VIEW_MODES = ['kanban', 'table'] as const satisfies readonly ViewMode[]
 
 export function LeadDashboard() {
     const { activeCompany, companies, isHoldingView } = useCompany()
+    const { can } = usePermissions()
     const { fmt } = useCurrency()
     const supabase = createClient()
     const router = useRouter()
+    const canDeleteLeads = can("leads", "delete")
 
     // Pipeline state
     const [pipelines, setPipelines] = useState<Pipeline[]>([])
@@ -291,9 +295,9 @@ export function LeadDashboard() {
     const handleDeleteSingleLead = async () => {
         if (!deleteLeadId) return
         setDeleting(true)
-        const { error } = await supabase.from('leads').delete().eq('id', deleteLeadId)
-        if (error) {
-            toast.error(`Delete failed: ${error.message}`)
+        const result = await deleteLeadAction(deleteLeadId)
+        if (!result.success) {
+            toast.error(`Delete failed: ${result.error || "Permission denied"}`)
         } else {
             toast.success('Lead deleted')
             fetchLeads()
@@ -313,11 +317,11 @@ export function LeadDashboard() {
         if (targets.length === 0) return
         setDeleting(true)
         const numericIds = targets.map(l => l.id)
-        const { error } = await supabase.from('leads').delete().in('id', numericIds)
-        if (error) {
-            toast.error(`Bulk delete failed: ${error.message}`)
+        const result = await bulkDeleteLeadsAction(numericIds)
+        if (!result.success) {
+            toast.error(`Bulk delete failed: ${result.error || "Permission denied"}`)
         } else {
-            toast.success(`${targets.length} lead(s) deleted`)
+            toast.success(`${result.data?.deleted ?? targets.length} lead(s) deleted`)
             setSelectedLeadIds([])
             fetchLeads()
         }
@@ -1257,7 +1261,7 @@ export function LeadDashboard() {
                             leads={filteredLeads}
                             onSelectLead={handleNavigateToLead}
                             onQuickEdit={handleQuickEdit}
-                            onDeleteLead={(id) => setDeleteLeadId(id)}
+                            onDeleteLead={canDeleteLeads ? (id) => setDeleteLeadId(id) : undefined}
                             pipelineId={activePipeline.id}
                             selectedIds={selectedLeadIds}
                             onToggleSelect={handleToggleSelect}
@@ -1280,7 +1284,7 @@ export function LeadDashboard() {
                                 totalValueAccessor={(row) => (row as Lead).estimated_value || 0}
                                 totalValueLabel="Total value"
                                 bulkActions={{
-                                    onBulkDelete: handleTableBulkDelete,
+                                    onBulkDelete: canDeleteLeads ? handleTableBulkDelete : undefined,
                                     onBulkExport: handleBulkExport,
                                 }}
                             />

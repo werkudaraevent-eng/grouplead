@@ -18,6 +18,7 @@ import {
     AlertTriangle, Loader2, ArrowRight, ArrowLeft, Link2, Link2Off,
     RotateCcw,
 } from "lucide-react"
+import { normalizePhoneToE164 } from "@/lib/phone-normalize"
 
 // ── Helper formatters ──
 const PRESERVE_UPPERCASE = ["IT", "HR", "MICE", "PR", "B2B", "B2C", "PT", "CV", "CEO", "CFO", "CTO", "CMO", "VP", "SVP", "EVP", "AVP", "IGO", "NGO", "MLM", "BUMN", "BUMD", "FMCG"]
@@ -215,6 +216,9 @@ export function ImportContactsModal({ open, onOpenChange, onSuccess }: ImportCon
                     if (val) {
                         val = formatValue(fieldKey, val)
                         if (fieldKey === "company_name") companyName = val
+                        else if (fieldKey === "phone" || fieldKey === "secondary_phone") {
+                            payload[fieldKey] = normalizePhoneToE164(val) ?? val
+                        }
                         else payload[fieldKey] = val
                     }
                 }

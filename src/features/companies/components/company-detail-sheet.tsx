@@ -10,6 +10,7 @@ import {
     Plus, Mail, Phone, Briefcase, Globe, MapPin, Building2, Users, Loader2,
 } from "lucide-react"
 import type { ClientCompany, Contact } from "@/types"
+import { formatPhoneDisplay } from "@/lib/phone-normalize"
 
 interface CompanyDetailSheetProps {
     company: (ClientCompany & { lead_count: number }) | null
@@ -82,7 +83,7 @@ export function CompanyDetailSheet({
                             {company.phone && (
                                 <div className="flex items-start gap-2">
                                     <Phone className="h-4 w-4 text-slate-400 mt-0.5 shrink-0" />
-                                    <div><p className="text-slate-500 text-xs">Phone</p><p className="text-slate-900">{company.phone}</p></div>
+                                    <div><p className="text-slate-500 text-xs">Phone</p><p className="text-slate-900">{formatPhoneDisplay(company.phone)}</p></div>
                                 </div>
                             )}
                             {company.website && (
@@ -152,7 +153,7 @@ export function CompanyDetailSheet({
                                                     </a>
                                                 )}
                                                 {contact.phone && (
-                                                    <span className="flex items-center gap-1 text-xs text-slate-500"><Phone className="h-3 w-3" />{contact.phone}</span>
+                                                    <span className="flex items-center gap-1 text-xs text-slate-500"><Phone className="h-3 w-3" />{formatPhoneDisplay(contact.phone)}</span>
                                                 )}
                                             </div>
                                         </div>

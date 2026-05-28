@@ -16,6 +16,8 @@ import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Loader2, Save, UserCircle, KeyRound, Shield, Mail, Camera } from "lucide-react"
 import { SettingsPageHeader } from "@/components/layout/settings-page-header"
+import { PhoneInput } from "@/components/shared/phone-input"
+import { normalizePhoneToE164 } from "@/lib/phone-normalize"
 
 /* ─── Schemas ────────────────────────────────────────────────────────────── */
 const profileSchema = z.object({
@@ -98,7 +100,9 @@ export default function MyProfilePage() {
 
         const { error } = await supabase.from("profiles").update({
             full_name: values.full_name.trim(),
-            phone: values.phone?.trim() || null,
+            phone: values.phone
+                ? (normalizePhoneToE164(values.phone) ?? values.phone.trim() ?? null)
+                : null,
             job_title: values.job_title?.trim() || null,
             bio: values.bio?.trim() || null,
         }).eq("id", user.id)
@@ -240,7 +244,14 @@ export default function MyProfilePage() {
                                 <FormField control={profileForm.control} name="phone" render={({ field }) => (
                                     <FormItem>
                                         <FormLabel>Phone</FormLabel>
-                                        <FormControl><Input placeholder="+62 812 1234 5678" {...field} /></FormControl>
+                                        <FormControl>
+                                            <PhoneInput
+                                                value={field.value || ""}
+                                                onChange={field.onChange}
+                                                onBlur={field.onBlur}
+                                                placeholder="+62 812 1234 5678"
+                                            />
+                                        </FormControl>
                                     </FormItem>
                                 )} />
                                 <FormField control={profileForm.control} name="job_title" render={({ field }) => (

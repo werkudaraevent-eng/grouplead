@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useMemo } from "react"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -12,10 +12,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import {
-    Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select"
-import {
-    Form, FormControl, FormField, FormItem, FormLabel, FormMessage
+    Form, FormControl, FormField, FormItem, FormMessage
 } from "@/components/ui/form"
 import { Loader2, Check, ChevronsUpDown, Settings2 } from "lucide-react"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
@@ -23,6 +20,14 @@ import {
     Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList,
 } from "@/components/ui/command"
 import { cn } from "@/lib/utils"
+import { normalizeStringFields } from "@/lib/text-normalize"
+import { normalizePhoneToE164 } from "@/lib/phone-normalize"
+import { TitleCaseHint } from "@/components/shared/title-case-hint"
+import { DuplicateHint } from "@/components/shared/duplicate-hint"
+import { PhoneInput } from "@/components/shared/phone-input"
+import { FormFieldLabel } from "@/components/shared/form-field-label"
+import { SearchableSelect } from "@/components/shared/searchable-select"
+import { SegmentedControl } from "@/components/shared/segmented-control"
 import { toast } from "sonner"
 import Link from "next/link"
 import { usePermissions } from "@/contexts/permissions-context"
@@ -64,27 +69,84 @@ const addCompanySchema = z.object({
 
 type AddCompanyValues = z.infer<typeof addCompanySchema>
 
-const NULLABLE_FIELDS = new Set(["parent_id", "account_status", "owner_id"])
+/**
+ * Fields whose `null` value is a semantically valid first-class choice,
+ * not "user hasn't picked yet". These bypass the required-emptiness
+ * check because choosing "None (top-level)" IS a valid answer.
+ *
+ * Contrast with `industry` / `line_industry` / `account_status` /
+ * `owner_id` where `null` means "no value selected" and a required
+ * override should reject it.
+ */
+const NULL_IS_VALID_CHOICE = new Set(["parent_id"])
 
-const getDynamicSchema = (requiredIds: string[]) => {
+/**
+ * Build a Zod resolver that enforces "required" overrides at runtime.
+ *
+ * The base schema marks most fields as nullable/optional because that
+ * matches the database shape. Whether a field is *required for the
+ * user* is decided per-tenant by Layout Settings and stored in
+ * `master_options.value.requiredOverrides`. We assert those rules here
+ * via `superRefine` so they apply alongside the static schema.
+ *
+ * `customSchemas` is also passed in so server-defined custom fields
+ * (e.g. "Segment") can be validated against `custom_data`.
+ */
+function getDynamicSchema(
+    requiredIds: string[],
+    customSchemas: FormSchema[],
+    customValues: Record<string, unknown>,
+) {
     return addCompanySchema.superRefine((data, ctx) => {
-        requiredIds.forEach(fieldId => {
-            if (fieldId.startsWith('native:')) {
-                const key = fieldId.replace('native:', '')
-                if (NULLABLE_FIELDS.has(key)) return // These fields accept null as valid
-                let internalKey = key
-                if (key === 'sector') internalKey = 'industry'
-
-                const val = (data as any)[internalKey]
-                if (val === undefined || val === null || val === "" || (Array.isArray(val) && val.length === 0)) {
-                    ctx.addIssue({
-                        code: z.ZodIssueCode.custom,
-                        message: "This field is required",
-                        path: [internalKey]
-                    })
-                }
+        // 1. Native fields: any id like "native:foo" with foo present in
+        //    the schema must be non-empty when listed in requiredIds.
+        for (const fieldId of requiredIds) {
+            if (!fieldId.startsWith("native:")) continue
+            const key = fieldId.replace("native:", "")
+            // The form key for the "sector" UI is `industry` (legacy).
+            const internalKey = key === "sector" ? "industry" : key
+            const val = (data as Record<string, unknown>)[internalKey]
+            // Some fields treat `null` as a real choice (e.g. parent_id =
+            // "None (top-level)" means the entity is top-level). Don't
+            // count those as empty for the required check.
+            if (val === null && NULL_IS_VALID_CHOICE.has(internalKey)) continue
+            const empty =
+                val === undefined ||
+                val === null ||
+                (typeof val === "string" && val.trim() === "") ||
+                (Array.isArray(val) && val.length === 0)
+            if (empty) {
+                ctx.addIssue({
+                    code: z.ZodIssueCode.custom,
+                    message: "This field is required",
+                    path: [internalKey],
+                })
             }
-        })
+        }
+
+        // 2. Custom (per-tenant) fields stored on `custom_data`. The
+        //    server-side schema has its own `is_required` flag; we honour
+        //    it here so the user can't bypass via empty submit. The path
+        //    points at `custom_data.<fieldKey>` so RHF can highlight the
+        //    DynamicField in the form.
+        for (const schema of customSchemas) {
+            const fieldId = `custom:${schema.field_key}`
+            const isRequired = schema.is_required || requiredIds.includes(fieldId)
+            if (!isRequired) continue
+            const val = customValues[schema.field_key]
+            const empty =
+                val === undefined ||
+                val === null ||
+                (typeof val === "string" && val.trim() === "") ||
+                (Array.isArray(val) && val.length === 0)
+            if (empty) {
+                ctx.addIssue({
+                    code: z.ZodIssueCode.custom,
+                    message: "This field is required",
+                    path: ["custom_data", schema.field_key],
+                })
+            }
+        }
     })
 }
 
@@ -116,9 +178,21 @@ export function AddCompanyModal({ open, onOpenChange, onCreated, initialData }: 
     const liParentValue = liParentFieldKey ? (customValues[liParentFieldKey] as string | null) ?? null : null
     const { options: filteredLineIndustryOptions, isDisabledByParent: liDisabled } = useCascadedOptions("line_industry", liParentValue, companyIds)
 
+    // Memoize the dynamic resolver. We feed RHF a stable schema reference
+    // and re-bind whenever any input it depends on changes — layout config
+    // (`requiredOverrides`), the loaded custom schemas, or the live custom
+    // values (so newly-typed values clear the "required" error). Without
+    // this re-bind, the resolver would freeze at the initial state from
+    // useForm and the user could submit even after Layout Settings adds
+    // new required fields.
+    const dynamicResolver = useMemo(
+        () => zodResolver(getDynamicSchema(requiredOverrides, customSchemas, customValues)),
+        [requiredOverrides, customSchemas, customValues],
+    )
+
     const form = useForm<AddCompanyValues>({
         // @ts-ignore
-        resolver: zodResolver(getDynamicSchema(requiredOverrides)),
+        resolver: dynamicResolver,
         defaultValues: {
             name: "",
             parent_id: null,
@@ -241,17 +315,25 @@ export function AddCompanyModal({ open, onOpenChange, onCreated, initialData }: 
 
     const onSubmit = async (data: AddCompanyValues) => {
         setSaving(true)
-        // Sanitize phone: strip non-digits except leading +
+        // Canonicalize phone → E.164. Falls back to a digit-only form if
+        // libphonenumber-js can't validate, so we never lose user input.
         if (data.phone) {
-            const hasPlus = data.phone.trim().startsWith("+")
-            const digits = data.phone.replace(/[^\d]/g, "")
-            data.phone = digits ? (hasPlus ? `+${digits}` : digits) : null
+            const canonical = normalizePhoneToE164(data.phone)
+            if (canonical) {
+                data.phone = canonical
+            } else {
+                const trimmed = data.phone.trim()
+                data.phone = trimmed || null
+            }
         }
+        // Layer 1 — normalize whitespace on every string field. Empty
+        // strings become NULL so the DB never carries spurious "" rows.
+        const cleaned = normalizeStringFields(data)
         const payload = {
-            ...data,
+            ...cleaned,
             custom_data: customValues,
             // Automatically compile standard full address
-            address: [data.street_address, data.city, data.postal_code, data.country].filter(Boolean).join(", ") || null,
+            address: [cleaned.street_address, cleaned.city, cleaned.postal_code, cleaned.country].filter(Boolean).join(", ") || null,
         }
         
         if (isEditMode) {
@@ -272,107 +354,146 @@ export function AddCompanyModal({ open, onOpenChange, onCreated, initialData }: 
     }
 
     const isFieldMandatory = (id: string) => requiredOverrides.includes(id) || id === "native:name"
-    const getLabelStr = (base: string, id: string) => isFieldMandatory(id) ? `${base} *` : base
 
     const onError = (errors: any) => {
         toast.error("Please fill in all mandatory fields.")
         console.error(errors)
+        // Find the first errored input and scroll it into view so the
+        // user knows exactly which field is missing. RHF marks
+        // FormItem-rendered fields with `aria-invalid="true"`; we also
+        // tagged custom field containers with the destructive border
+        // ring above so they show up to the same selector.
+        requestAnimationFrame(() => {
+            const firstInvalid = document.querySelector<HTMLElement>(
+                "[aria-invalid='true'], .border-destructive"
+            )
+            if (firstInvalid) {
+                firstInvalid.scrollIntoView({ behavior: "smooth", block: "center" })
+                if (typeof firstInvalid.focus === "function") firstInvalid.focus({ preventScroll: true })
+            }
+        })
     }
 
     const renderNativeField = (fieldId: string) => {
+        const required = isFieldMandatory(fieldId)
         switch (fieldId) {
             case "native:name":
                 return (
                     <FormField key={fieldId} control={form.control} name="name" render={({ field }) => (
-                        <FormItem className="col-span-2">
-                            <FormLabel className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{getLabelStr("Company Name", fieldId)}</FormLabel>
-                            <FormControl><Input placeholder="e.g. PT Telkom Indonesia" {...field} /></FormControl>
-                            <FormMessage className="text-[10px]" />
+                        <FormItem className="col-span-2 space-y-1.5">
+                            <FormFieldLabel htmlFor="company-name" required={required}>Company name</FormFieldLabel>
+                            <FormControl>
+                                <Input
+                                    id="company-name"
+                                    placeholder="e.g. PT Telkom Indonesia"
+                                    autoComplete="organization"
+                                    aria-required={required}
+                                    {...field}
+                                />
+                            </FormControl>
+                            <TitleCaseHint
+                                value={field.value}
+                                onApply={(suggested) => form.setValue("name", suggested, { shouldDirty: true })}
+                            />
+                            <DuplicateHint
+                                value={field.value}
+                                existing={parents}
+                                getName={(p) => p.name}
+                                excludeId={initialData?.id}
+                                entityNoun="company"
+                            />
+                            <FormMessage className="text-[11px]" />
                         </FormItem>
                     )} />
                 )
             case "native:parent_id":
                 return (
                     <FormField key={fieldId} control={form.control} name="parent_id" render={({ field }) => (
-                        <FormItem>
-                            <FormLabel className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{getLabelStr("Parent Company", fieldId)}</FormLabel>
-                            <Select value={field.value || "none"} onValueChange={v => field.onChange(v === "none" ? null : v)}>
-                                <FormControl>
-                                    <SelectTrigger><SelectValue placeholder="None (top-level)" /></SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                    <SelectItem value="none">None (top-level)</SelectItem>
-                                    {parents.map(c => (<SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>))}
-                                </SelectContent>
-                            </Select>
-                            <FormMessage className="text-[10px]" />
+                        <FormItem className="space-y-1.5">
+                            <FormFieldLabel required={required} hint="Use this when the company is a subsidiary or branch under a holding company.">Parent company</FormFieldLabel>
+                            <FormControl>
+                                <SearchableSelect
+                                    value={field.value ?? null}
+                                    onChange={field.onChange}
+                                    options={parents.map(c => ({ value: c.id, label: c.name }))}
+                                    placeholder="None (top-level)"
+                                    searchPlaceholder="Search company…"
+                                    emptyText="No companies found"
+                                />
+                            </FormControl>
+                            <FormMessage className="text-[11px]" />
                         </FormItem>
                     )} />
                 )
             case "native:sector":
                 return (
                     <FormField key={fieldId} control={form.control} name="industry" render={({ field }) => (
-                        <FormItem>
-                            <FormLabel className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{getLabelStr("Sector", fieldId)}</FormLabel>
-                            <Select value={field.value || "none"} onValueChange={v => field.onChange(v === "none" ? null : v)}>
-                                <FormControl>
-                                    <SelectTrigger><SelectValue placeholder={industriesLoading ? "Loading..." : "Select sector"} /></SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                    <SelectItem value="none">— None —</SelectItem>
-                                    {industryOptions.map(opt => (<SelectItem key={opt.id} value={opt.value}>{opt.label}</SelectItem>))}
-                                </SelectContent>
-                            </Select>
-                            <FormMessage className="text-[10px]" />
+                        <FormItem className="space-y-1.5">
+                            <FormFieldLabel required={required}>Sector</FormFieldLabel>
+                            <FormControl>
+                                <SearchableSelect
+                                    value={field.value ?? null}
+                                    onChange={field.onChange}
+                                    options={industryOptions.map(opt => ({ value: opt.value, label: opt.label }))}
+                                    placeholder={industriesLoading ? "Loading…" : "Select sector"}
+                                    loading={industriesLoading}
+                                />
+                            </FormControl>
+                            <FormMessage className="text-[11px]" />
                         </FormItem>
                     )} />
                 )
             case "native:line_industry":
                 return (
                     <FormField key={fieldId} control={form.control} name="line_industry" render={({ field }) => (
-                        <FormItem>
-                            <FormLabel className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{getLabelStr("Line Industry", fieldId)}</FormLabel>
-                            <Select value={field.value || "none"} onValueChange={v => field.onChange(v === "none" ? null : v)} disabled={liDisabled}>
-                                <FormControl>
-                                    <SelectTrigger><SelectValue placeholder={lineIndustriesLoading ? "Loading..." : liDisabled ? "Select parent field first" : "Select line industry"} /></SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                    <SelectItem value="none">— None —</SelectItem>
-                                    {filteredLineIndustryOptions.map(opt => (<SelectItem key={opt.id} value={opt.value}>{opt.label}</SelectItem>))}
-                                </SelectContent>
-                            </Select>
-                            <FormMessage className="text-[10px]" />
+                        <FormItem className="space-y-1.5">
+                            <FormFieldLabel required={required}>Line of industry</FormFieldLabel>
+                            <FormControl>
+                                <SearchableSelect
+                                    value={field.value ?? null}
+                                    onChange={field.onChange}
+                                    options={filteredLineIndustryOptions.map(opt => ({ value: opt.value, label: opt.label }))}
+                                    placeholder={lineIndustriesLoading ? "Loading…" : liDisabled ? "Pick parent field first" : "Select line industry"}
+                                    loading={lineIndustriesLoading}
+                                    disabled={liDisabled}
+                                />
+                            </FormControl>
+                            <FormMessage className="text-[11px]" />
                         </FormItem>
                     )} />
                 )
             case "native:account_status":
                 return (
                     <FormField key={fieldId} control={form.control} name="account_status" render={({ field }) => (
-                        <FormItem>
-                            <FormLabel className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{getLabelStr("Account Status", fieldId)}</FormLabel>
-                            <Select value={field.value || "new"} onValueChange={v => field.onChange(v)}>
-                                <FormControl>
-                                    <SelectTrigger><SelectValue /></SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                    <SelectItem value="new">New</SelectItem>
-                                    <SelectItem value="repeater">Repeater</SelectItem>
-                                    <SelectItem value="contracted">Contracted</SelectItem>
-                                </SelectContent>
-                            </Select>
-                            <FormMessage className="text-[10px]" />
+                        <FormItem className="col-span-2 space-y-1.5">
+                            <FormFieldLabel required={required} hint={"New = first-time client. Repeater = previously bought once or twice. Contracted = ongoing contract in place."}>Account status</FormFieldLabel>
+                            <FormControl>
+                                <SegmentedControl
+                                    value={field.value || "new"}
+                                    onChange={(v) => field.onChange(v)}
+                                    options={[
+                                        { value: "new", label: "New" },
+                                        { value: "repeater", label: "Repeater" },
+                                        { value: "contracted", label: "Contracted" },
+                                    ]}
+                                    aria-label="Account status"
+                                />
+                            </FormControl>
+                            <FormMessage className="text-[11px]" />
                         </FormItem>
                     )} />
                 )
             case "native:street_address":
                 return (
                     <FormField key={fieldId} control={form.control} name="street_address" render={({ field }) => (
-                        <FormItem className="col-span-2">
-                            <FormLabel className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{getLabelStr("Address", fieldId)}</FormLabel>
+                        <FormItem className="col-span-2 space-y-1.5">
+                            <FormFieldLabel required={required}>Address</FormFieldLabel>
                             <FormControl>
-                                <Textarea 
-                                    placeholder="Jl. Sudirman Kav. 52-53..." 
-                                    {...field} 
+                                <Textarea
+                                    placeholder="Jl. Sudirman Kav. 52-53…"
+                                    autoComplete="street-address"
+                                    aria-required={required}
+                                    {...field}
                                     value={field.value || ""}
                                     onBlur={() => {
                                         field.onBlur();
@@ -385,80 +506,98 @@ export function AddCompanyModal({ open, onOpenChange, onCreated, initialData }: 
                                     }}
                                 />
                             </FormControl>
-                            <FormMessage className="text-[10px]" />
+                            <FormMessage className="text-[11px]" />
                         </FormItem>
                     )} />
                 )
             case "native:city":
                 return (
                     <FormField key={fieldId} control={form.control} name="city" render={({ field }) => (
-                        <FormItem>
-                            <FormLabel className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{getLabelStr("City", fieldId)}</FormLabel>
-                            <FormControl><Input placeholder="Jakarta Selatan" {...field} value={field.value || ""} /></FormControl>
-                            <FormMessage className="text-[10px]" />
+                        <FormItem className="space-y-1.5">
+                            <FormFieldLabel required={required}>City</FormFieldLabel>
+                            <FormControl>
+                                <Input
+                                    placeholder="Jakarta Selatan"
+                                    autoComplete="address-level2"
+                                    aria-required={required}
+                                    {...field}
+                                    value={field.value || ""}
+                                />
+                            </FormControl>
+                            <FormMessage className="text-[11px]" />
                         </FormItem>
                     )} />
                 )
             case "native:postal_code":
                 return (
                     <FormField key={fieldId} control={form.control} name="postal_code" render={({ field }) => (
-                        <FormItem>
-                            <FormLabel className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{getLabelStr("Postal Code", fieldId)}</FormLabel>
-                            <FormControl><Input placeholder="12190" {...field} value={field.value || ""} /></FormControl>
-                            <FormMessage className="text-[10px]" />
+                        <FormItem className="space-y-1.5">
+                            <FormFieldLabel required={required}>Postal code</FormFieldLabel>
+                            <FormControl>
+                                <Input
+                                    placeholder="12190"
+                                    autoComplete="postal-code"
+                                    aria-required={required}
+                                    {...field}
+                                    value={field.value || ""}
+                                />
+                            </FormControl>
+                            <FormMessage className="text-[11px]" />
                         </FormItem>
                     )} />
                 )
             case "native:country":
                 return (
                     <FormField key={fieldId} control={form.control} name="country" render={({ field }) => (
-                        <FormItem className="col-span-2">
-                            <FormLabel className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{getLabelStr("Country", fieldId)}</FormLabel>
+                        <FormItem className="col-span-2 space-y-1.5">
+                            <FormFieldLabel required={required}>Country</FormFieldLabel>
                             <CountryCombobox value={field.value || ""} onChange={field.onChange} />
-                            <FormMessage className="text-[10px]" />
+                            <FormMessage className="text-[11px]" />
                         </FormItem>
                     )} />
                 )
             case "native:phone":
                 return (
                     <FormField key={fieldId} control={form.control} name="phone" render={({ field }) => (
-                        <FormItem>
-                            <FormLabel className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{getLabelStr("Phone", fieldId)}</FormLabel>
+                        <FormItem className="space-y-1.5">
+                            <FormFieldLabel required={required}>Phone</FormFieldLabel>
                             <FormControl>
-                                <Input placeholder="+62..." {...field} value={field.value || ""}
-                                    onBlur={() => {
-                                        field.onBlur()
-                                        if (!field.value) return
-                                        // Sanitize: strip (), spaces, dashes → keep only digits and leading +
-                                        const raw = field.value.trim()
-                                        const hasPlus = raw.startsWith("+")
-                                        const digits = raw.replace(/[^\d]/g, "")
-                                        if (!digits) return
-                                        field.onChange(hasPlus ? `+${digits}` : digits)
-                                    }}
+                                <PhoneInput
+                                    value={field.value || ""}
+                                    onChange={field.onChange}
+                                    onBlur={field.onBlur}
                                 />
                             </FormControl>
-                            <FormMessage className="text-[10px]" />
+                            <FormMessage className="text-[11px]" />
                         </FormItem>
                     )} />
                 )
             case "native:website":
                 return (
                     <FormField key={fieldId} control={form.control} name="website" render={({ field }) => (
-                        <FormItem>
-                            <FormLabel className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{getLabelStr("Website", fieldId)}</FormLabel>
-                            <FormControl><Input placeholder="https://..." {...field} value={field.value || ""} /></FormControl>
-                            <FormMessage className="text-[10px]" />
+                        <FormItem className="space-y-1.5">
+                            <FormFieldLabel required={required}>Website</FormFieldLabel>
+                            <FormControl>
+                                <Input
+                                    type="url"
+                                    placeholder="https://…"
+                                    autoComplete="url"
+                                    aria-required={required}
+                                    {...field}
+                                    value={field.value || ""}
+                                />
+                            </FormControl>
+                            <FormMessage className="text-[11px]" />
                         </FormItem>
                     )} />
                 )
             case "native:owner_id":
                 return (
                     <FormField key={fieldId} control={form.control} name="owner_id" render={({ field }) => (
-                        <FormItem className="col-span-2">
-                            <FormLabel className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{getLabelStr("Owner", fieldId)}</FormLabel>
-                            <FormControl><ProfileCombobox value={field.value || null} onChange={field.onChange} placeholder="Assign..." filterRoles={["sales", "bu_manager"]} /></FormControl>
-                            <FormMessage className="text-[10px]" />
+                        <FormItem className="col-span-2 space-y-1.5">
+                            <FormFieldLabel required={required}>Owner</FormFieldLabel>
+                            <FormControl><ProfileCombobox value={field.value || null} onChange={field.onChange} placeholder="Assign…" filterRoles={["sales", "bu_manager"]} /></FormControl>
+                            <FormMessage className="text-[11px]" />
                         </FormItem>
                     )} />
                 )
@@ -471,68 +610,90 @@ export function AddCompanyModal({ open, onOpenChange, onCreated, initialData }: 
     return (
         <Sheet open={open} onOpenChange={onOpenChange}>
             <SheetContent
-                className="w-full sm:max-w-xl p-0 flex flex-col bg-slate-50 border-l border-slate-200"
+                className="w-full sm:max-w-xl p-0 flex flex-col bg-background border-l border-border"
                 onInteractOutside={(e) => e.preventDefault()}
             >
                 <Form {...form}>
                     <form onSubmit={form.handleSubmit(onSubmit, onError)} className="flex flex-col h-full overflow-hidden">
-                        <SheetHeader className="relative px-6 py-4 bg-white border-b border-slate-200 shrink-0">
-                            <div className="flex justify-between items-start">
+                        <SheetHeader className="relative px-6 py-4 bg-card border-b border-border shrink-0">
+                            <div className="flex justify-between items-start gap-3">
                                 <div>
-                                    <SheetTitle>{isEditMode ? "Edit Company" : "Add Company"}</SheetTitle>
-                                    <SheetDescription className="text-xs mt-0.5">
+                                    <SheetTitle className="text-base font-semibold tracking-tight">{isEditMode ? "Edit company" : "Add company"}</SheetTitle>
+                                    <SheetDescription className="text-xs mt-0.5 text-muted-foreground">
                                         {isEditMode ? "Update company information" : "Add a new client company to your directory"}
                                     </SheetDescription>
                                 </div>
                                 {canManageLayout && (
-                                    <Button variant="outline" size="sm" className="h-8 shadow-sm hidden sm:flex bg-amber-50 hover:bg-amber-100 text-amber-700 border-amber-200" onClick={() => onOpenChange(false)} asChild>
+                                    <Button variant="ghost" size="sm" className="h-8 px-2 text-muted-foreground hover:text-foreground hidden sm:flex" onClick={() => onOpenChange(false)} asChild>
                                         <Link href="/settings/master-options?tab=layout">
                                             <Settings2 className="w-3.5 h-3.5 mr-1.5" />
-                                            Layout Settings
+                                            <span className="text-xs">Layout</span>
                                         </Link>
                                     </Button>
                                 )}
                             </div>
                         </SheetHeader>
 
-                        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+                        <div className="flex-1 overflow-y-auto custom-scrollbar px-6 py-5 space-y-5">
                             {visibleTabs.map(([tab, fields]) => (
-                                    <div key={tab} className="bg-white border border-slate-200 rounded-xl p-5 space-y-4 shadow-sm">
-                                        <h4 className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">{tabSettings[tab]?.label || formatTabLabel(tab)} Details</h4>
-                                        {fields.length === 0 ? (
-                                            <p className="text-sm text-slate-500">No fields assigned to this tab yet.</p>
-                                        ) : (
-                                            <div className="grid grid-cols-2 gap-4">
-                                                {fields.map(fieldId => {
-                                                    if (fieldId.startsWith("custom:")) {
-                                                        const schema = customSchemas.find(s => s.field_key === fieldId.replace("custom:", ""))
-                                                        if (!schema) return null
-                                                        return (
-                                                            <div key={fieldId} className={schema.field_type === 'text' || schema.field_type === 'dropdown' ? "col-span-2" : ""}>
-                                                                <DynamicField 
-                                                                    schema={schema}
-                                                                    value={customValues[schema.field_key]}
-                                                                    onChange={(val) => setCustomValues((prev) => ({ ...prev, [schema.field_key]: val }))}
-                                                                    companyId={activeCompany?.id}
-                                                                    allValues={customValues}
-                                                                    isRequired={schema.is_required || isFieldMandatory(fieldId)} />
-                                                            </div>
-                                                        )
-                                                    }
-                                                    return renderNativeField(fieldId)
-                                                })}
-                                            </div>
-                                        )}
-                                    </div>
+                                <section key={tab} className="space-y-3">
+                                    <h4 className="text-[11px] font-semibold text-muted-foreground tracking-wide">{tabSettings[tab]?.label || formatTabLabel(tab)}</h4>
+                                    {fields.length === 0 ? (
+                                        <p className="text-sm text-muted-foreground italic">No fields assigned to this tab.</p>
+                                    ) : (
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-4 rounded-xl border border-border bg-card p-4">
+                                            {fields.map(fieldId => {
+                                                if (fieldId.startsWith("custom:")) {
+                                                    const schema = customSchemas.find(s => s.field_key === fieldId.replace("custom:", ""))
+                                                    if (!schema) return null
+                                                    const customError = (form.formState.errors as Record<string, { message?: string } | undefined>)
+                                                        ?.custom_data
+                                                        ? ((form.formState.errors as Record<string, Record<string, { message?: string }>>).custom_data?.[schema.field_key])
+                                                        : undefined
+                                                    const errorMessage = customError?.message
+                                                    return (
+                                                        <div
+                                                            key={fieldId}
+                                                            className={`${schema.field_type === 'text' || schema.field_type === 'dropdown' ? "sm:col-span-2" : ""} ${errorMessage ? "[&_button[role=combobox]]:border-destructive [&_input]:border-destructive [&_button[role=combobox]]:ring-destructive/20" : ""}`}
+                                                        >
+                                                            <DynamicField
+                                                                schema={schema}
+                                                                value={customValues[schema.field_key]}
+                                                                onChange={(val) => {
+                                                                    setCustomValues((prev) => ({ ...prev, [schema.field_key]: val }))
+                                                                    if (errorMessage) {
+                                                                        form.clearErrors(`custom_data.${schema.field_key}` as never)
+                                                                    }
+                                                                }}
+                                                                companyId={activeCompany?.id}
+                                                                allValues={customValues}
+                                                                isRequired={schema.is_required || isFieldMandatory(fieldId)} />
+                                                            {errorMessage && (
+                                                                <p className="mt-1 text-[11px] text-destructive">{errorMessage}</p>
+                                                            )}
+                                                        </div>
+                                                    )
+                                                }
+                                                return renderNativeField(fieldId)
+                                            })}
+                                        </div>
+                                    )}
+                                </section>
                             ))}
                         </div>
 
-                        <div className="px-6 py-4 bg-white border-t border-slate-200 flex justify-end gap-3 shrink-0">
-                            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-                            <Button type="submit" disabled={saving} className="bg-slate-900 hover:bg-slate-800 text-white">
-                                {saving && <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />}
-                                {isEditMode ? "Save Changes" : "Create Company"}
-                            </Button>
+                        <div className="px-6 py-3.5 bg-card border-t border-border flex items-center justify-between gap-3 shrink-0">
+                            <p className="text-[11px] text-muted-foreground hidden sm:block">
+                                <kbd className="px-1 py-0.5 rounded border border-border bg-muted text-[10px] font-mono">Esc</kbd>
+                                <span className="mx-1">to cancel</span>
+                            </p>
+                            <div className="flex items-center gap-2 ml-auto">
+                                <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
+                                <Button type="submit" disabled={saving}>
+                                    {saving && <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />}
+                                    {saving ? "Saving…" : isEditMode ? "Save changes" : "Create company"}
+                                </Button>
+                            </div>
                         </div>
                     </form>
                 </Form>

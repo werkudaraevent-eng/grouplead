@@ -7,6 +7,7 @@ import {
 } from "lucide-react"
 import { WorkflowActions } from "@/features/tasks/components/workflow-actions"
 import { useCurrency } from "@/contexts/currency-context"
+import { formatPhoneDisplay } from "@/lib/phone-normalize"
 
 interface LeadDetailLayoutProps {
     lead: Lead
@@ -78,7 +79,7 @@ function ContactCard({ lead }: { lead: Lead }) {
                 )}
                 {c.phone && (
                     <a href={`tel:${c.phone}`} className="flex items-center gap-2 text-xs text-blue-600 hover:underline">
-                        <Phone className="h-3 w-3" /> {c.phone}
+                        <Phone className="h-3 w-3" /> {formatPhoneDisplay(c.phone)}
                     </a>
                 )}
             </div>

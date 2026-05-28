@@ -165,6 +165,9 @@ export default function UserManagementPage() {
     const getInitials = (name: string | null) => name ? name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2) : "?"
 
     return (
+        <PermissionGate resource="members" action="read" fallback={
+            <div className="p-8 text-center text-muted-foreground">You don&apos;t have permission to view users.</div>
+        }>
         <div className="space-y-6 w-full">
             <SettingsPageHeader
                 title="User Management"
@@ -506,5 +509,6 @@ export default function UserManagementPage() {
                 </DialogContent>
             </Dialog>
         </div>
+        </PermissionGate>
     )
 }

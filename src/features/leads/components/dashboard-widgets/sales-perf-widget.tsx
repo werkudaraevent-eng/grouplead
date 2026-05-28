@@ -41,8 +41,11 @@ export function SalesPerfWidget({ data }: SalesPerfWidgetProps) {
         )
     }
 
-    // Split into tracked (with target) and untracked (no target)
-    const tracked = data.filter(r => r.target > 0).sort((a, b) => (b.actual / b.target) - (a.actual / a.target))
+    // Split into tracked (with target) and untracked (no target).
+    // Tracked are sorted by achievement % ascending so under-performers
+    // (especially 0% reps with target but no leads in this period) surface
+    // at the top where they are most actionable.
+    const tracked = data.filter(r => r.target > 0).sort((a, b) => (a.actual / a.target) - (b.actual / b.target))
     const untracked = data.filter(r => r.target <= 0 && r.actual > 0).sort((a, b) => b.actual - a.actual)
 
     const teamActual = tracked.reduce((s, r) => s + r.actual, 0)
@@ -153,15 +156,25 @@ export function SalesPerfWidget({ data }: SalesPerfWidgetProps) {
                 ))}
             </div>
 
-            {/* Insight callout */}
+            {/* Insight callout — prioritized by severity:
+                1. Reps with a target and zero actual (idle / not delivering)
+                2. Reps below 50% — needs attention
+                3. Reps without any target set — config gap
+                4. Whole team on track — celebration */}
             {(() => {
-                const noTargets = untracked.length
-                if (noTargets > 0) return <InsightCallout type="warning" text={`${noTargets} sales rep${noTargets > 1 ? 's' : ''} without targets — set targets in goal settings`} />
+                const idle = tracked.filter(r => r.actual === 0)
+                if (idle.length > 0) {
+                    if (idle.length === 1) return <InsightCallout type="warning" text={`${idle[0].name} has a target but no closing this period`} />
+                    return <InsightCallout type="warning" text={`${idle.length} reps have targets but no closings this period`} />
+                }
 
                 const lowPerf = tracked.find(r => (r.actual / r.target) < 0.5)
                 if (lowPerf) return <InsightCallout type="warning" text={`${lowPerf.name} at ${((lowPerf.actual / lowPerf.target) * 100).toFixed(0)}% — needs attention`} />
 
-                if (tracked.every(r => (r.actual / r.target) >= 0.8)) return <InsightCallout type="success" text="Team on track — consider raising targets" />
+                const noTargets = untracked.length
+                if (noTargets > 0) return <InsightCallout type="warning" text={`${noTargets} sales rep${noTargets > 1 ? 's' : ''} without targets — set targets in goal settings`} />
+
+                if (tracked.length > 0 && tracked.every(r => (r.actual / r.target) >= 0.8)) return <InsightCallout type="success" text="Team on track — consider raising targets" />
                 return null
             })()}
         </SectionCard>

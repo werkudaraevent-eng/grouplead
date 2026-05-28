@@ -7,8 +7,17 @@ import type { GoalV2, GoalNode, GoalUserTarget, GoalSettingsV2 } from "@/types/g
 import { GoalDataProvider } from "@/features/goals/contexts/goal-data-context"
 import { EmptyState } from "@/components/shared/empty-state"
 import { buildDashboardStageSeries } from "@/features/leads/lib/dashboard-stage-series"
-import { splitDashboardLeadsByPeriod, getRevenueDate } from "@/features/leads/lib/dashboard-period"
-import { Briefcase, Trophy, CheckSquare, RefreshCw, TrendingUp, Calendar, Layers } from "lucide-react"
+import {
+    splitDashboardLeadsByPeriod,
+    splitLeadsByBasis,
+    getRevenueDate,
+    getDashboardPeriodRanges,
+    prorateTarget,
+    prorateMonthlyTargets,
+    isAllTimeRange,
+    type DashboardPeriod,
+} from "@/features/leads/lib/dashboard-period"
+import { Briefcase, Trophy, CheckSquare, RefreshCw, TrendingUp, Calendar, Layers, FileDown, Sparkles, MessageCircle, Loader2, MoreHorizontal, Info } from "lucide-react"
 import { useCurrency } from "@/contexts/currency-context"
 import { ACCENT, MONTHS_SHORT, getVsLastYearPct } from "./dashboard-widgets/shared"
 import { WIDGET_IDS } from "@/features/leads/lib/dashboard-layout"
@@ -35,7 +44,21 @@ import type { CustomWidget } from "@/types/custom-widget"
 import { aggregateLeads } from "@/features/leads/lib/aggregate-leads"
 import { CustomWidgetRenderer } from "./dashboard-widgets/custom-widget-renderer"
 import { WidgetConfiguratorModal } from "./dashboard-widgets/widget-configurator-modal"
-import { DashboardAIToolbar } from "./dashboard-widgets/dashboard-ai-toolbar"
+import { useDashboardTools } from "./dashboard-widgets/use-dashboard-tools"
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select"
+import { Tooltip } from "@/components/ui/tooltip"
 import type { CustomWidgetInput } from "@/types/custom-widget"
 import { createClient } from "@/utils/supabase/client"
 import { useCompany } from "@/contexts/company-context"
@@ -63,6 +86,7 @@ interface AnalyticsDashboardProps {
     userTargets?: GoalUserTarget[]
     goalSettings?: GoalSettingsV2 | null
     customWidgets?: CustomWidget[]
+    salesProfiles?: { id: string; full_name: string | null }[]
 }
 
 export function AnalyticsDashboard({
@@ -75,6 +99,7 @@ export function AnalyticsDashboard({
     userTargets = [],
     goalSettings = null,
     customWidgets = [],
+    salesProfiles = [],
 }: AnalyticsDashboardProps) {
     const router = useRouter()
     const pathname = usePathname()
@@ -225,13 +250,39 @@ export function AnalyticsDashboard({
 
     const periodLeadBuckets = useMemo(() => splitDashboardLeadsByPeriod(
         filteredLeads,
-        periodStr as "this_month" | "this_quarter" | "this_year" | "all_time" | "custom",
+        periodStr as DashboardPeriod,
         new Date(),
         periodStr === "custom" && customStart && customEnd ? { start: customStart, end: customEnd } : undefined
     ), [filteredLeads, periodStr, customStart, customEnd])
     const periodLeads = periodLeadBuckets.current
     const previousPeriodLeads = periodLeadBuckets.previous
+    const dashboardRange = useMemo(() => getDashboardPeriodRanges(
+        periodStr as DashboardPeriod,
+        new Date(),
+        periodStr === "custom" && customStart && customEnd ? { start: customStart, end: customEnd } : undefined,
+    ).current, [periodStr, customStart, customEnd])
     const stageComparisonLabel = useMemo(() => getStageComparisonLabel(periodStr), [periodStr])
+
+    // ── Per-basis lead buckets ───────────────────────────────────────────────
+    // Each KPI on the Performance Dashboard is bucketed using the date that
+    // matches the question the metric answers. See `dashboard-period.ts` →
+    // `DateBasis` for the rationale per basis. We compute all four buckets
+    // up-front so each card can pick its own without re-walking the data.
+    const customRangeArg = periodStr === "custom" && customStart && customEnd
+        ? { start: customStart, end: customEnd }
+        : undefined
+    const receivedBuckets = useMemo(() => splitLeadsByBasis(
+        filteredLeads, "received", periodStr as DashboardPeriod, new Date(), customRangeArg,
+    ), [filteredLeads, periodStr, customStart, customEnd]) // eslint-disable-line react-hooks/exhaustive-deps
+    const closeBuckets = useMemo(() => splitLeadsByBasis(
+        filteredLeads, "close", periodStr as DashboardPeriod, new Date(), customRangeArg,
+    ), [filteredLeads, periodStr, customStart, customEnd]) // eslint-disable-line react-hooks/exhaustive-deps
+    const revenueBuckets = useMemo(() => splitLeadsByBasis(
+        filteredLeads, "revenue", periodStr as DashboardPeriod, new Date(), customRangeArg,
+    ), [filteredLeads, periodStr, customStart, customEnd]) // eslint-disable-line react-hooks/exhaustive-deps
+    const targetCloseBuckets = useMemo(() => splitLeadsByBasis(
+        filteredLeads, "target_close", periodStr as DashboardPeriod, new Date(), customRangeArg,
+    ), [filteredLeads, periodStr, customStart, customEnd]) // eslint-disable-line react-hooks/exhaustive-deps
 
     // Custom widgets state
     const [customWidgetsList, setCustomWidgetsList] = useState<CustomWidget[]>(customWidgets ?? [])
@@ -367,71 +418,121 @@ export function AnalyticsDashboard({
         return Array.from(years).sort((a, b) => b - a)
     }, [leads, currentYear])
 
-    // ─── STATS (period-filtered) ───────────────────────────────────
+    // ─── STATS (period-filtered, per-basis) ─────────────────────────
+    //
+    // Each KPI uses a different date basis to answer the right question:
+    //   Total Leads      = COUNT received-bucket            (received_date)
+    //   Deal Win Rate    = won / (won + lost) close-bucket  (closed_*_date)
+    //   Lead Conversion  = won / total close-bucket         (closed_*_date)
+    //   Won Revenue      = SUM revenue-bucket where won     (event/month_event)
+    //   Avg Deal Size    = won_revenue / won_count          (revenue-bucket)
+    //   Pipeline Value   = SUM target-close-bucket active   (target_close_date,
+    //                                                        excludes nulls)
     const stats = useMemo(() => {
-        let totalInquiry = periodLeads.length
+        // Total Leads — every received lead in the period
+        const totalInquiry = receivedBuckets.current.length
+
+        // Win rate — close bucket only (resolved deals)
         let closedWonCount = 0
         let closedLostCount = 0
-        let totalRevenue = 0
-
-        periodLeads.forEach(l => {
-            const stage = (l.pipeline_stage?.name || "").toLowerCase()
-            const val = l.estimated_value ?? 0
-            if (stage.includes("won")) {
-                closedWonCount++
-                totalRevenue += (l.actual_value ?? val)
-            } else if (stage.includes("lost") || stage.includes("cancel")) {
-                closedLostCount++
-            }
-        })
-
+        for (const l of closeBuckets.current) {
+            const status = l.pipeline_stage?.closed_status
+            if (status === "won") closedWonCount++
+            else if (status === "lost") closedLostCount++
+        }
         const totalClosed = closedWonCount + closedLostCount
         const winRate = totalClosed > 0 ? (closedWonCount / totalClosed) * 100 : 0
-        const conversionRate = totalInquiry > 0 ? (closedWonCount / totalInquiry) * 100 : 0
-        const avgSize = closedWonCount > 0 ? totalRevenue / closedWonCount : 0
 
-        // Pipeline value: estimated value of leads in active (non-closed) stages
+        // Lead Conversion — wins this period vs leads received this period.
+        // Mixed basis on purpose: numerator is from close bucket (only
+        // counts deals settled this period), denominator is from received
+        // bucket (every lead that came in). This makes Lead Conversion
+        // distinct from Win Rate — it treats open leads as "not yet
+        // converted" so the metric is locked once the period ends.
+        const conversionRate = totalInquiry > 0
+            ? (closedWonCount / totalInquiry) * 100
+            : 0
+
+        // Won Revenue / Avg Deal — sum from the revenue-recognition bucket
+        let totalRevenue = 0
+        let revenueWonCount = 0
+        for (const l of revenueBuckets.current) {
+            if (l.pipeline_stage?.closed_status !== "won") continue
+            totalRevenue += (l.actual_value ?? l.estimated_value ?? 0)
+            revenueWonCount++
+        }
+        const avgSize = revenueWonCount > 0 ? totalRevenue / revenueWonCount : 0
+
+        // Pipeline Value — active stages, bucketed by target_close_date.
+        // Leads with no target_close_date are surfaced separately so the
+        // user knows their pipeline view is incomplete.
         let pipelineValue = 0
-        periodLeads.forEach(l => {
-            const stage = (l.pipeline_stage?.name || "").toLowerCase()
-            if (!stage.includes("won") && !stage.includes("lost") && !stage.includes("cancel") && !stage.includes("turndown") && !stage.includes("postponed")) {
-                pipelineValue += (l.estimated_value ?? 0)
-            }
-        })
-
-        return { totalInquiry, totalRevenue, winRate, conversionRate, avgSize, closedWonCount, pipelineValue }
-    }, [periodLeads])
-
-    // ─── PERIOD COMPARISON METRICS ──────────────────────────────────
-    // Compares current period vs same period last year (from periodLeadBuckets)
-    const goalMetrics = useMemo(() => {
-        // Helper to calculate stats for a lead set
-        const calculateStats = (leadSet: Lead[]) => {
-            let totalInquiry = leadSet.length
-            let closedWonCount = 0
-            let closedLostCount = 0
-            let totalRevenue = 0
-
-            leadSet.forEach(l => {
-                const stage = (l.pipeline_stage?.name || "").toLowerCase()
-                if (stage.includes("won")) {
-                    closedWonCount++
-                    totalRevenue += (l.actual_value ?? l.estimated_value ?? 0)
-                } else if (stage.includes("lost") || stage.includes("cancel")) {
-                    closedLostCount++
-                }
-            })
-
-            const totalClosed = closedWonCount + closedLostCount
-            const winRate = totalClosed > 0 ? (closedWonCount / totalClosed) * 100 : 0
-            const conversionRate = totalInquiry > 0 ? (closedWonCount / totalInquiry) * 100 : 0
-            const avgSize = closedWonCount > 0 ? totalRevenue / closedWonCount : 0
-
-            return { totalInquiry, totalRevenue, winRate, conversionRate, avgSize, closedWonCount }
+        let pipelineLeadCount = 0
+        let activeWithoutTargetClose = 0
+        for (const l of targetCloseBuckets.current) {
+            if (l.pipeline_stage?.stage_type !== "open") continue
+            pipelineValue += (l.estimated_value ?? 0)
+            pipelineLeadCount++
+        }
+        for (const l of targetCloseBuckets.excluded) {
+            if (l.pipeline_stage?.stage_type === "open") activeWithoutTargetClose++
         }
 
-        const currentStats = calculateStats(periodLeads)
-        const prevStats = calculateStats(previousPeriodLeads)
+        return {
+            totalInquiry,
+            totalRevenue,
+            winRate,
+            conversionRate,
+            avgSize,
+            closedWonCount,
+            pipelineValue,
+            pipelineLeadCount,
+            activeWithoutTargetClose,
+        }
+    }, [receivedBuckets, closeBuckets, revenueBuckets, targetCloseBuckets])
+
+    // ─── PERIOD COMPARISON METRICS ──────────────────────────────────
+    // Compares current period vs same period last year. Each comparison
+    // uses the same basis as its corresponding KPI card so the YoY arrow
+    // is honest (compares apples-to-apples).
+    const goalMetrics = useMemo(() => {
+        // Helpers per basis
+        const countLeads = (set: Lead[]) => set.length
+        const countWon = (set: Lead[]) =>
+            set.reduce((s, l) => s + (l.pipeline_stage?.closed_status === "won" ? 1 : 0), 0)
+        const countLost = (set: Lead[]) =>
+            set.reduce((s, l) => s + (l.pipeline_stage?.closed_status === "lost" ? 1 : 0), 0)
+        const sumWonRevenue = (set: Lead[]) =>
+            set.reduce((s, l) => l.pipeline_stage?.closed_status === "won"
+                ? s + (l.actual_value ?? l.estimated_value ?? 0)
+                : s, 0)
+
+        // Current vs previous, each from the appropriate bucket
+        const currentInquiry = countLeads(receivedBuckets.current)
+        const prevInquiry = countLeads(receivedBuckets.previous)
+
+        const currentWon = countWon(closeBuckets.current)
+        const currentLost = countLost(closeBuckets.current)
+        const prevWon = countWon(closeBuckets.previous)
+        const prevLost = countLost(closeBuckets.previous)
+
+        const currentClosed = currentWon + currentLost
+        const prevClosed = prevWon + prevLost
+
+        const currentWinRate = currentClosed > 0 ? (currentWon / currentClosed) * 100 : 0
+        const prevWinRate = prevClosed > 0 ? (prevWon / prevClosed) * 100 : 0
+
+        // Lead Conversion uses the mixed-basis formula (see stats memo):
+        // wins (close bucket) / total received (received bucket).
+        const currentConvRate = currentInquiry > 0 ? (currentWon / currentInquiry) * 100 : 0
+        const prevConvRate = prevInquiry > 0 ? (prevWon / prevInquiry) * 100 : 0
+
+        const currentRevenue = sumWonRevenue(revenueBuckets.current)
+        const prevRevenue = sumWonRevenue(revenueBuckets.previous)
+        const currentRevenueWon = countWon(revenueBuckets.current)
+        const prevRevenueWon = countWon(revenueBuckets.previous)
+        const currentAvg = currentRevenueWon > 0 ? currentRevenue / currentRevenueWon : 0
+        const prevAvg = prevRevenueWon > 0 ? prevRevenue / prevRevenueWon : 0
 
         // Calculate vs previous period percentages
         const calculateVsPrev = (current: number, previous: number) => {
@@ -439,16 +540,16 @@ export function AnalyticsDashboard({
             return ((current - previous) / previous) * 100
         }
 
-        const inquiryYoy = calculateVsPrev(currentStats.totalInquiry, prevStats.totalInquiry)
-        const revYoy = calculateVsPrev(currentStats.totalRevenue, prevStats.totalRevenue)
-        const winYoy = calculateVsPrev(currentStats.winRate, prevStats.winRate)
-        const convYoy = calculateVsPrev(currentStats.conversionRate, prevStats.conversionRate)
-        const avgYoy = calculateVsPrev(currentStats.avgSize, prevStats.avgSize)
+        const inquiryYoy = calculateVsPrev(currentInquiry, prevInquiry)
+        const revYoy = calculateVsPrev(currentRevenue, prevRevenue)
+        const winYoy = calculateVsPrev(currentWinRate, prevWinRate)
+        const convYoy = calculateVsPrev(currentConvRate, prevConvRate)
+        const avgYoy = calculateVsPrev(currentAvg, prevAvg)
 
         // Calculate vs target percentages
         const revenueTarget = activeGoal?.target_amount || 0
         const revenuePctVsTarget = revenueTarget > 0
-            ? ((stats.totalRevenue - revenueTarget) / revenueTarget) * 100
+            ? ((currentRevenue - revenueTarget) / revenueTarget) * 100
             : null
 
         return {
@@ -463,12 +564,12 @@ export function AnalyticsDashboard({
             convYoy,
             // Absolute difference in percentage points (e.g. 34.6% - 30% = +4.6)
             convTgt: goalSettings?.conversion_target_pct != null && goalSettings.conversion_target_pct > 0
-                ? currentStats.conversionRate - goalSettings.conversion_target_pct
+                ? currentConvRate - goalSettings.conversion_target_pct
                 : null,
             avgYoy,
             avgTgt: null, // No target for avg deal size yet
         }
-    }, [activeGoal, goalSettings, stats.totalRevenue, periodLeads, previousPeriodLeads])
+    }, [activeGoal, goalSettings, receivedBuckets, closeBuckets, revenueBuckets])
 
     // ─── CHART DATA ─────────────────────────────────────────────────
     // Parse "April 2026" → { month: 3, year: 2026 } for month_event field
@@ -656,89 +757,204 @@ export function AnalyticsDashboard({
     }, [pipelineStages, periodLeadBuckets])
 
     const salesData = useMemo(() => {
-        const reps: Record<string, { name: string, actual: number, target: number, userId?: string, hasRealTarget: boolean }> = {}
+        type Rep = {
+            name: string
+            actual: number
+            target: number
+            userId?: string
+            hasRealTarget: boolean
+        }
+        const reps: Record<string, Rep> = {}
+
+        // Build a lookup for sales rep display names. profiles fetched on the
+        // server cover reps that have targets but no leads in this period.
+        const profileById = new Map<string, string>()
+        const profileIdByName = new Map<string, string>()
+        for (const p of salesProfiles) {
+            if (p.full_name) {
+                profileById.set(p.id, p.full_name)
+                profileIdByName.set(p.full_name, p.id)
+            }
+        }
+
+        const ensureRep = (userId: string, fallbackName?: string): Rep => {
+            if (!reps[userId]) {
+                const resolved = profileById.get(userId) || fallbackName || "Unknown"
+                reps[userId] = {
+                    name: resolved,
+                    actual: 0,
+                    target: 0,
+                    userId,
+                    hasRealTarget: false,
+                }
+            } else if (reps[userId].name === "Unknown" || reps[userId].name === "Unassigned") {
+                const resolved = profileById.get(userId)
+                if (resolved) reps[userId].name = resolved
+            }
+            return reps[userId]
+        }
 
         // Calculate actual revenue per sales rep from won deals in selected period
         periodLeads.forEach(l => {
             const stage = (l.pipeline_stage?.name || "").toLowerCase()
             const pic = l.pic_sales_profile?.full_name || "Unassigned"
             const picId = l.pic_sales_id || "unassigned"
-            if (!reps[picId]) reps[picId] = { name: pic, actual: 0, target: 0, userId: picId, hasRealTarget: false }
+            const rep = ensureRep(picId, pic)
             if (stage.includes("won")) {
-                reps[picId].actual += (l.actual_value ?? l.estimated_value ?? 0)
+                rep.actual += (l.actual_value ?? l.estimated_value ?? 0)
             }
         })
 
-        // Apply real targets from userTargets if available
+        // ── Resolve target span (used for proration fallback when targets
+        //    are stored as a single annual amount). Priority:
+        //      1. activeGoal.period_start / period_end
+        //      2. trendYear (full calendar year)
+        const goalRange = (() => {
+            if (activeGoal?.period_start && activeGoal?.period_end) {
+                const start = new Date(activeGoal.period_start)
+                const end = new Date(activeGoal.period_end)
+                end.setDate(end.getDate() + 1) // make end exclusive
+                if (!isNaN(start.getTime()) && !isNaN(end.getTime()) && end > start) {
+                    return { start, end }
+                }
+            }
+            return {
+                start: new Date(trendYear, 0, 1),
+                end: new Date(trendYear + 1, 0, 1),
+            }
+        })()
+
+        const targetYear = activeGoal?.period_start
+            ? new Date(activeGoal.period_start).getFullYear()
+            : trendYear
+
+        const allTime = isAllTimeRange(dashboardRange)
+        const prorate = (amount: number, range: { start: Date; end: Date } = goalRange) =>
+            allTime ? amount : prorateTarget(amount, range, dashboardRange)
+
+        // Apply real targets from userTargets if available — prorate using
+        // each target's own period_start/period_end window. Seed missing reps
+        // so people with targets but no leads in this period still appear.
         if (userTargets && userTargets.length > 0) {
             userTargets.forEach(ut => {
-                if (reps[ut.user_id]) {
-                    reps[ut.user_id].target = ut.target_amount
-                    reps[ut.user_id].hasRealTarget = true
+                const rep = ensureRep(ut.user_id)
+                const utStart = ut.period_start ? new Date(ut.period_start) : null
+                const utEnd = ut.period_end ? new Date(ut.period_end) : null
+                let prorated = ut.target_amount
+                if (!allTime && utStart && utEnd && !isNaN(utStart.getTime()) && !isNaN(utEnd.getTime())) {
+                    const utEndExclusive = new Date(utEnd)
+                    utEndExclusive.setDate(utEndExclusive.getDate() + 1)
+                    prorated = prorateTarget(ut.target_amount, { start: utStart, end: utEndExclusive }, dashboardRange)
                 }
+                rep.target = prorated
+                rep.hasRealTarget = true
             })
         }
 
-        // Fallback: apply targets from goal_nodes (pic_sales_id nodes)
+        // Fallback: apply targets from goal_nodes (pic_sales_id nodes).
+        // Prefer monthly_targets when available — they prorate cleanly to
+        // partial-quarter / partial-month dashboard windows.
         if (goalNodes && goalNodes.length > 0) {
             goalNodes.forEach(node => {
-                if (node.reference_field === "pic_sales_id" && node.reference_value && node.target_amount > 0) {
-                    const userId = node.reference_value
-                    if (reps[userId] && !reps[userId].hasRealTarget) {
-                        reps[userId].target = node.target_amount
-                        reps[userId].hasRealTarget = true
-                    }
+                // Tolerate legacy rows where reference_field accidentally
+                // stores the dimension_type ("sales_owner") instead of the
+                // lead column ("pic_sales_id"). See goal-actions.ts fix.
+                const isSalesOwnerNode =
+                    node.reference_field === "pic_sales_id" ||
+                    node.reference_field === "sales_owner" ||
+                    node.dimension_type === "sales_owner"
+                if (!isSalesOwnerNode || !node.reference_value) return
+                const userId = node.reference_value
+                const rep = ensureRep(userId, node.name)
+                if (rep.hasRealTarget) return
+
+                const monthly = node.monthly_targets && Object.keys(node.monthly_targets).length > 0
+                    ? prorateMonthlyTargets(node.monthly_targets, targetYear, dashboardRange)
+                    : 0
+
+                const targetAmt = monthly > 0
+                    ? monthly
+                    : prorate(node.target_amount || 0)
+
+                if (targetAmt > 0) {
+                    rep.target = targetAmt
+                    rep.hasRealTarget = true
                 }
             })
         }
 
-        // Fallback: apply targets from breakdown_config (sales_owner dimension)
+        // Fallback: apply targets from breakdown_config (sales_owner dimension).
+        // For multi-level configs (e.g. industry × sales_owner) the target
+        // for a given rep is the SUM of their nodes across every parent
+        // bucket. We resolve names to user ids via salesProfiles so reps
+        // with no leads in this period still get seeded.
         if (activeGoal?.breakdown_config && Array.isArray(activeGoal.breakdown_config)) {
-            for (const level of activeGoal.breakdown_config as any[]) {
-                if (level.dimension === "sales_owner" && Array.isArray(level.nodes)) {
-                    const totalTarget = activeGoal.target_amount || 0
-                    level.nodes.forEach((node: any) => {
-                        // Match node name to rep name
-                        const matchedRep = Object.values(reps).find(
-                            r => r.name === node.name && !r.hasRealTarget
-                        )
-                        if (matchedRep) {
-                            const nodeTarget = node.value > 0 ? node.value : totalTarget * (node.pct || 0) / 100
-                            if (nodeTarget > 0) {
-                                matchedRep.target = nodeTarget
-                                matchedRep.hasRealTarget = true
-                            }
-                        }
-                    })
+            // Aggregate: name → total raw target across the entire config
+            const breakdownTotals = new Map<string, number>()
+            const addNode = (node: { name?: string; pct?: number; value?: number }, parentTotal: number) => {
+                if (!node?.name) return
+                const amt = (node.value && node.value > 0)
+                    ? node.value
+                    : parentTotal * ((node.pct ?? 0) / 100)
+                if (amt <= 0) return
+                breakdownTotals.set(node.name, (breakdownTotals.get(node.name) ?? 0) + amt)
+            }
 
-                    // Also check perParentNodes for customize-per-parent mode
-                    if (level.perParentNodes && typeof level.perParentNodes === 'object') {
-                        Object.values(level.perParentNodes).forEach((parentNodes: any) => {
-                            if (!Array.isArray(parentNodes)) return
-                            parentNodes.forEach((node: any) => {
-                                const matchedRep = Object.values(reps).find(
-                                    r => r.name === node.name && !r.hasRealTarget
-                                )
-                                if (matchedRep) {
-                                    const nodeTarget = node.value > 0 ? node.value : totalTarget * (node.pct || 0) / 100
-                                    if (nodeTarget > 0) {
-                                        matchedRep.target = nodeTarget
-                                        matchedRep.hasRealTarget = true
-                                    }
-                                }
-                            })
-                        })
+            const totalTarget = activeGoal.target_amount || 0
+            for (const level of activeGoal.breakdown_config as any[]) {
+                if (level?.dimension !== "sales_owner" || !Array.isArray(level.nodes)) continue
+
+                // Shared nodes (applyAll path) — divide goal target across them
+                if (level.applyAll !== false || !level.perParentNodes) {
+                    for (const node of level.nodes) addNode(node, totalTarget)
+                }
+
+                // Per-parent nodes — each parent contributes independently
+                if (level.perParentNodes && typeof level.perParentNodes === 'object') {
+                    for (const parentNodes of Object.values(level.perParentNodes) as any[]) {
+                        if (!Array.isArray(parentNodes)) continue
+                        for (const node of parentNodes) addNode(node, totalTarget)
                     }
+                }
+            }
+
+            for (const [name, rawTarget] of breakdownTotals) {
+                if (rawTarget <= 0) continue
+                // Resolve name → user id; fall back to a name-based key if
+                // no profile match so the rep still appears in the widget.
+                const userId = profileIdByName.get(name) ?? `name:${name}`
+                const rep = ensureRep(userId, name)
+                if (rep.hasRealTarget) continue
+                const prorated = prorate(rawTarget)
+                if (prorated > 0) {
+                    rep.target = prorated
+                    rep.hasRealTarget = true
                 }
             }
         }
 
-        // Filter out unassigned and sort by actual revenue
+        // Filter rules:
+        //   - Drop unassigned bucket.
+        //   - Drop reps with zero actual AND zero (prorated) target — they
+        //     have no signal in this period, e.g. target window outside the
+        //     dashboard range.
+        // Sort tracked reps by achievement % ascending so under-performers
+        // surface at the top (where the eye lands), then untracked by actual
+        // desc so high-revenue reps without targets still get visibility.
         return Object.values(reps)
-            .filter(r => r.userId !== "unassigned") // Remove unassigned
-            .sort((a, b) => b.actual - a.actual)
+            .filter(r => r.userId !== "unassigned")
+            .filter(r => r.target > 0 || r.actual > 0)
+            .sort((a, b) => {
+                const aTracked = a.target > 0
+                const bTracked = b.target > 0
+                if (aTracked !== bTracked) return aTracked ? -1 : 1
+                if (aTracked) {
+                    return (a.actual / a.target) - (b.actual / b.target)
+                }
+                return b.actual - a.actual
+            })
             .slice(0, 15)
-    }, [periodLeads, userTargets, goalNodes, activeGoal])
+    }, [periodLeads, userTargets, goalNodes, activeGoal, dashboardRange, trendYear, salesProfiles])
 
     const topComps = useMemo(() => {
         const comps: Record<string, number> = {}
@@ -823,6 +1039,17 @@ export function AnalyticsDashboard({
     }, [periodLeads])
 
     // ─── KPI DEFINITIONS ────────────────────────────────────────────
+    //
+    // Each card has a hardcoded date basis chosen to match the question
+    // the metric answers. Layer 1 (basisLabel) keeps the basis visible at
+    // a glance; Layer 2 (basisInfo) gives the plain-English explanation
+    // when the user hovers the ⓘ icon. See dashboard-period.ts → DateBasis.
+    //
+    // Tooltip copy guidelines:
+    //   • One short sentence answering "what does this number mean?"
+    //   • A "Counted by" line in human terms (no column names)
+    //   • A "Why" line if the basis choice could surprise the user
+    //   • Avoid: SQL, formulas, column names. Those live in docs.
     const kpis = [
         {
             label: "Total Leads",
@@ -831,8 +1058,17 @@ export function AnalyticsDashboard({
             vsPrev: goalMetrics.inquiryYoy,
             accent: ACCENT.leads,
             icon: Briefcase,
-            tooltip: "Total number of leads in the system",
             sparkline: sparklines.leads,
+            basisLabel: "by received date",
+            basisInfo: (
+                <div className="space-y-1.5">
+                    <div className="font-semibold">Total Leads</div>
+                    <div className="opacity-85">How many new leads came in during this period.</div>
+                    <div className="pt-1 border-t border-white/10 opacity-70">
+                        Counted by the date the lead was received.
+                    </div>
+                </div>
+            ),
         },
         {
             label: "Won Revenue",
@@ -841,8 +1077,17 @@ export function AnalyticsDashboard({
             vsPrev: goalMetrics.revYoy,
             accent: ACCENT.revenue,
             icon: Trophy,
-            tooltip: `Total revenue from closed won deals: ${fmt(stats.totalRevenue)}`,
             sparkline: sparklines.revenue,
+            basisLabel: "by revenue recognition month",
+            basisInfo: (
+                <div className="space-y-1.5">
+                    <div className="font-semibold">Won Revenue</div>
+                    <div className="opacity-85">Revenue from won deals booked to this period.</div>
+                    <div className="pt-1 border-t border-white/10 opacity-70">
+                        Counted by the month the event runs (or by event end date) — the way an event business actually recognises revenue.
+                    </div>
+                </div>
+            ),
         },
         {
             label: "Deal Win Rate",
@@ -852,8 +1097,17 @@ export function AnalyticsDashboard({
             vsPrev: goalMetrics.winYoy,
             accent: ACCENT.winrate,
             icon: CheckSquare,
-            tooltip: "Percentage of closed deals that were won (won / total closed)",
             sparkline: sparklines.winRate,
+            basisLabel: "by close date",
+            basisInfo: (
+                <div className="space-y-1.5">
+                    <div className="font-semibold">Deal Win Rate</div>
+                    <div className="opacity-85">Of the deals that finished this period, how many were won.</div>
+                    <div className="pt-1 border-t border-white/10 opacity-70">
+                        Counted by the date the deal was settled (won or lost), not by when the event will run.
+                    </div>
+                </div>
+            ),
         },
         {
             label: "Lead Conversion",
@@ -863,10 +1117,20 @@ export function AnalyticsDashboard({
             vsPrev: goalMetrics.convYoy,
             accent: ACCENT.conversion,
             icon: RefreshCw,
-            tooltip: goalSettings?.conversion_target_pct
-                ? `Lead-to-deal conversion rate. Target: ${goalSettings.conversion_target_pct}% · Actual: ${stats.conversionRate.toFixed(1)}% · Gap: ${(stats.conversionRate - goalSettings.conversion_target_pct) > 0 ? "+" : ""}${(stats.conversionRate - goalSettings.conversion_target_pct).toFixed(1)} pts`
-                : "Percentage of leads that converted to won deals",
             sparkline: sparklines.conversion,
+            basisLabel: "wins this period ÷ leads received",
+            basisInfo: (
+                <div className="space-y-1.5">
+                    <div className="font-semibold">Lead Conversion</div>
+                    <div className="opacity-85">For every lead that came in this period, the share that has already been won.</div>
+                    <div className="pt-1 border-t border-white/10 opacity-70">
+                        Wins are counted by close date; the denominator is every lead received this period — including ones still open. So this stays low until deals close, and won’t change after the period ends.
+                    </div>
+                    {goalSettings?.conversion_target_pct
+                        ? <div className="opacity-70 pt-1">Target {goalSettings.conversion_target_pct}% · Actual {stats.conversionRate.toFixed(1)}%</div>
+                        : null}
+                </div>
+            ),
         },
         {
             label: "Avg Deal Size",
@@ -875,8 +1139,17 @@ export function AnalyticsDashboard({
             vsPrev: goalMetrics.avgYoy,
             accent: ACCENT.dealsize,
             icon: TrendingUp,
-            tooltip: `Average revenue per won deal: ${fmt(stats.avgSize)}`,
             sparkline: sparklines.avgDeal,
+            basisLabel: "by revenue recognition month",
+            basisInfo: (
+                <div className="space-y-1.5">
+                    <div className="font-semibold">Avg Deal Size</div>
+                    <div className="opacity-85">The average size of a won deal recognised in this period.</div>
+                    <div className="pt-1 border-t border-white/10 opacity-70">
+                        Same period basis as Won Revenue, so the two stay in sync.
+                    </div>
+                </div>
+            ),
         },
         {
             label: "Pipeline Value",
@@ -885,8 +1158,27 @@ export function AnalyticsDashboard({
             vsPrev: null,
             accent: "#00A1E9",
             icon: Layers,
-            tooltip: `Total estimated value of leads in active stages: ${fmt(stats.pipelineValue)}`,
             sparkline: sparklines.pipeline,
+            // When some deals are missing target_close_date we surface the
+            // count inline with the basis label — keeps the card on a single
+            // visual line and avoids overflow against the grid row height.
+            basisLabel: stats.activeWithoutTargetClose > 0
+                ? `by target close · ${stats.activeWithoutTargetClose} hidden`
+                : "by target close date",
+            basisInfo: (
+                <div className="space-y-1.5">
+                    <div className="font-semibold">Pipeline Value</div>
+                    <div className="opacity-85">The estimated value of open deals expected to close in this period.</div>
+                    <div className="pt-1 border-t border-white/10 opacity-70">
+                        Open deals without a target close date are skipped — set one on the lead so the deal shows up here.
+                    </div>
+                    {stats.activeWithoutTargetClose > 0
+                        ? <div className="opacity-70 pt-1 text-amber-300">
+                            {stats.activeWithoutTargetClose} active deal{stats.activeWithoutTargetClose === 1 ? "" : "s"} are not shown because no target close date is set.
+                        </div>
+                        : null}
+                </div>
+            ),
         },
     ]
 
@@ -910,177 +1202,126 @@ export function AnalyticsDashboard({
     const isDefaultPeriod = periodStr === "this_quarter" && companyFilter === "all"
     const handleResetPeriod = () => { setPeriodStr("this_quarter"); setCustomStart(""); setCustomEnd(""); setCompanyFilter("all") }
 
+    // Tools dropdown — PDF / Analyze / Ask AI moved here to keep the
+    // primary toolbar focused on filter context (pipeline, company,
+    // period). Hook also returns the floating panel JSX which we render
+    // outside the header so it can position freely.
+    const tools = useDashboardTools(aiContextData)
+
     return (
         <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
-            {/* ─── FIXED HEADER (outside scroll) ─── */}
+            {/* ─── HEADER (two-row, sticky) ──────────────────────────────────
+                Inspired by Vercel / Stripe / GitHub Actions: separate the
+                identity row (title + global actions) from the filter row
+                so each layer has a single purpose. The filter row collapses
+                naturally on narrow viewports (chips wrap) instead of being
+                horizontally scrolled or clipped.
+
+                Row 1: Title · Tools · View · Edit
+                Row 2: Pipeline · Company · Period · custom-range-inputs · Reset
+            */}
             <div
                 id="dashboard-sticky-header"
                 style={{
-                    flexShrink: 0, zIndex: 20,
-                    height: 56,
-                    display: "flex", justifyContent: "space-between", alignItems: "center",
-                    // Small gap so the title text never sits flush against the
-                    // first toolbar button.
-                    gap: 12,
-                    // Match the right padding used by the scrollable content
-                    // grid so the rightmost control (Edit Dashboard) doesn't
-                    // hug the viewport edge on wide layouts.
-                    padding: "0 32px 0 24px",
+                    flexShrink: 0,
+                    zIndex: 20,
+                    display: "flex",
+                    flexDirection: "column",
                     background: "#fff",
                     borderBottom: "1px solid #f0f0f0",
                 }}
             >
-                {/* Left: Title + subtitle.
-                    Allowed to shrink (and ellipsize) all the way to zero so
-                    that the right-side toolbar — which can contain a lot of
-                    buttons (Pipeline, Company, Time, AI, View, Edit) — is
-                    never pushed off-viewport. The H1 has whiteSpace nowrap +
-                    text-overflow ellipsis so it degrades gracefully. */}
-                <div style={{
-                    position: "relative",
-                    minWidth: 0,
-                    flexShrink: 1,
-                    overflow: "hidden",
-                }}>
-                    <h1 style={{
-                        fontSize: 16, fontWeight: 700, color: "#292D30",
-                        letterSpacing: "-0.3px", lineHeight: 1.2, margin: 0,
-                        whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
-                    }}>
-                        Performance Dashboard
-                    </h1>
-                    <p style={{
-                        fontSize: 11, color: "#94a3b8", margin: 0, marginTop: 1,
-                        whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
-                        opacity: scrolled ? 0 : 1,
-                        maxHeight: scrolled ? 0 : 16,
-                        transition: "opacity .2s ease, max-height .2s ease",
-                        pointerEvents: scrolled ? "none" : "auto",
-                    }}>
-                        Real-time sales analytics &amp; goal tracking
-                    </p>
-                </div>
-
-                {/* Right: Filters + Edit */}
-                <div style={{ display: "flex", gap: 8, alignItems: "center", flexShrink: 0 }}>
-                    {/* Pipeline selector — switches the dashboard's stage context.
-                        Updates `?pipeline=<id>` so the server re-fetches the right
-                        stages and YoY series for the chosen pipeline. */}
-                    {pipelines.length > 1 && (
-                        <select
-                            value={activePipelineId ?? ""}
-                            onChange={(e) => {
-                                const params = new URLSearchParams(searchParams.toString())
-                                params.set("pipeline", e.target.value)
-                                router.push(`${pathname}?${params.toString()}`)
-                            }}
-                            title="Switch pipeline context for stage-based widgets"
-                            style={{
-                                appearance: "none" as const,
-                                backgroundColor: "#f8f9fb",
-                                border: "1px solid transparent",
-                                borderRadius: 6,
-                                padding: "6px 28px 6px 10px",
-                                fontSize: 12, fontWeight: 600, color: "#292D30",
-                                cursor: "pointer", fontFamily: "inherit",
-                                backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='2.5'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")`,
-                                backgroundRepeat: "no-repeat",
-                                backgroundPosition: "right 8px center",
-                                transition: "all .15s ease",
-                            }}
-                        >
-                            {pipelines.map(p => (
-                                <option key={p.id} value={p.id}>{p.name}</option>
-                            ))}
-                        </select>
-                    )}
-
-                    {/* Company filter (holding view only) */}
-                    {isHoldingView && companies.length > 1 && (
-                        <select value={companyFilter} onChange={e => setCompanyFilter(e.target.value)} style={{
-                            appearance: "none" as const, backgroundColor: companyFilter !== "all" ? "#EEF2FF" : "#f8f9fb",
-                            border: companyFilter !== "all" ? "1px solid #C7D2FE" : "1px solid transparent", borderRadius: 6,
-                            padding: "6px 28px 6px 10px", fontSize: 12, fontWeight: 600,
-                            color: companyFilter !== "all" ? "#02378D" : "#292D30",
-                            cursor: "pointer", fontFamily: "inherit",
-                            backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='2.5'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")`,
-                            backgroundRepeat: "no-repeat", backgroundPosition: "right 8px center",
-                            transition: "all .15s ease",
+                {/* ─── Row 1: identity + global actions ─── */}
+                <div
+                    style={{
+                        height: scrolled ? 48 : 56,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        padding: "0 24px",
+                        gap: 12,
+                        transition: "height .2s ease",
+                    }}
+                >
+                    {/* Title only — subtitle was marketing fluff. The h1
+                        ellipsizes if the toolbar grows wide on narrow
+                        viewports. */}
+                    <div style={{ minWidth: 0, flexShrink: 1, overflow: "hidden" }}>
+                        <h1 style={{
+                            fontSize: 16, fontWeight: 700, color: "#292D30",
+                            letterSpacing: "-0.3px", lineHeight: 1.2, margin: 0,
+                            whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
                         }}>
-                            <option value="all">All Companies</option>
-                            {companies.filter(c => !c.isHolding).map(c => (
-                                <option key={c.id} value={c.id}>{c.name}</option>
-                            ))}
-                        </select>
-                    )}
-
-                    {/* Period selector */}
-                    <select value={periodStr} onChange={e => setPeriodStr(e.target.value)} style={{
-                        appearance: "none" as const, backgroundColor: "#f8f9fb", border: "1px solid transparent", borderRadius: 6,
-                        padding: "6px 28px 6px 10px", fontSize: 12, fontWeight: 600, color: "#292D30",
-                        cursor: "pointer", fontFamily: "inherit",
-                        backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='2.5'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")`,
-                        backgroundRepeat: "no-repeat", backgroundPosition: "right 8px center",
-                        transition: "all .15s ease",
-                    }}>
-                        <option value="this_month">This Month</option>
-                        <option value="this_quarter">This Quarter</option>
-                        <option value="this_year">This Year</option>
-                        <option value="all_time">All Time</option>
-                        <option value="custom">Custom Range</option>
-                    </select>
-
-                    {/* Custom date inputs */}
-                    {isCustomPeriod && (
-                        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                            <input
-                                type="date"
-                                value={customStart}
-                                onChange={e => setCustomStart(e.target.value)}
-                                style={{
-                                    background: "#f8f9fb", border: "1px solid transparent", borderRadius: 6,
-                                    padding: "5px 8px", fontSize: 11, fontWeight: 500, color: "#292D30",
-                                    fontFamily: "inherit",
-                                }}
-                            />
-                            <span style={{ fontSize: 9, color: "#94a3b8", fontWeight: 500 }}>—</span>
-                            <input
-                                type="date"
-                                value={customEnd}
-                                onChange={e => setCustomEnd(e.target.value)}
-                                style={{
-                                    background: "#f8f9fb", border: "1px solid transparent", borderRadius: 6,
-                                    padding: "5px 8px", fontSize: 11, fontWeight: 500, color: "#292D30",
-                                    fontFamily: "inherit",
-                                }}
-                            />
-                        </div>
-                    )}
-
-                    {/* Clear filter */}
-                    {!isDefaultPeriod && (
-                        <button
-                            onClick={handleResetPeriod}
-                            style={{
-                                background: "none", border: "none", cursor: "pointer",
-                                fontSize: 10, fontWeight: 600, color: "#94a3b8",
-                                padding: "4px 6px", borderRadius: 4, fontFamily: "inherit",
-                                transition: "color .15s ease",
-                            }}
-                            onMouseEnter={e => (e.currentTarget.style.color = "#292D30")}
-                            onMouseLeave={e => (e.currentTarget.style.color = "#94a3b8")}
-                        >
-                            Reset
-                        </button>
-                    )}
-
-                    {/* AI Toolbar */}
-                    <div style={{ borderLeft: "1px solid #f0f0f0", paddingLeft: 8, marginLeft: 2 }}>
-                        <DashboardAIToolbar dashboardData={aiContextData} />
+                            Performance Dashboard
+                        </h1>
                     </div>
 
-                    {/* Saved-view switcher — always rendered in header (independent of grid load state). */}
-                    <div style={{ display: "flex", alignItems: "center", borderLeft: "1px solid #f0f0f0", paddingLeft: 8, marginLeft: 2 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
+                        {/* Tools — bundles secondary actions (PDF, Analyze, Ask AI).
+                            Icon-only with tooltip; matches Vercel / Linear pattern.
+                            Active state when any AI panel is open. */}
+                        <DropdownMenu>
+                            <Tooltip content="Tools — Export, AI Analyze, Ask AI">
+                                <DropdownMenuTrigger asChild>
+                                    <button
+                                        type="button"
+                                        aria-label="Dashboard tools"
+                                        style={{
+                                            display: "inline-flex", alignItems: "center", justifyContent: "center",
+                                            width: 32, height: 32, borderRadius: 8, border: "none",
+                                            background: (tools.analyzeOpen || tools.askOpen) ? "#1e293b" : "transparent",
+                                            color: (tools.analyzeOpen || tools.askOpen) ? "#fff" : "#475569",
+                                            cursor: "pointer",
+                                            position: "relative",
+                                            transition: "background .15s ease, color .15s ease",
+                                        }}
+                                        onMouseEnter={e => {
+                                            if (!tools.analyzeOpen && !tools.askOpen) e.currentTarget.style.background = "#f1f5f9"
+                                        }}
+                                        onMouseLeave={e => {
+                                            if (!tools.analyzeOpen && !tools.askOpen) e.currentTarget.style.background = "transparent"
+                                        }}
+                                    >
+                                        {tools.exporting
+                                            ? <Loader2 size={16} style={{ animation: "spin 1s linear infinite" }} />
+                                            : <MoreHorizontal size={16} />
+                                        }
+                                        {tools.analyzeBadge && !tools.analyzeOpen && (
+                                            <span style={{
+                                                position: "absolute", top: 6, right: 6,
+                                                width: 7, height: 7, borderRadius: "50%",
+                                                background: "#10B981", border: "2px solid #fff",
+                                            }} />
+                                        )}
+                                    </button>
+                                </DropdownMenuTrigger>
+                            </Tooltip>
+                            <DropdownMenuContent align="end" className="w-52">
+                                <DropdownMenuItem
+                                    onSelect={() => tools.handleExportPDF()}
+                                    disabled={tools.exporting}
+                                >
+                                    {tools.exporting
+                                        ? <Loader2 className="h-4 w-4 animate-spin" />
+                                        : <FileDown className="h-4 w-4" />
+                                    }
+                                    <span className="ml-1">Export PDF</span>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onSelect={() => tools.handleOpenAnalyze()}>
+                                    <Sparkles className="h-4 w-4" style={{ color: "#7C3AED" }} />
+                                    <span className="ml-1">AI Analyze</span>
+                                    {tools.analyzeBadge && (
+                                        <span className="ml-auto text-[10px] text-emerald-600 font-medium">{tools.analyzeBadge}</span>
+                                    )}
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onSelect={() => tools.handleOpenAsk()}>
+                                    <MessageCircle className="h-4 w-4" style={{ color: "#06B6D4" }} />
+                                    <span className="ml-1">Ask AI</span>
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+
+                        {/* Saved-view switcher */}
                         <DashboardViewSwitcher
                             views={views.views}
                             activeView={views.activeView}
@@ -1095,10 +1336,146 @@ export function AnalyticsDashboard({
                             onDuplicate={(id) => views.duplicateView(id)}
                             onDelete={(id) => views.deleteView(id)}
                         />
-                    </div>
 
-                    {/* Separator + Edit controls */}
-                    <div id="dashboard-edit-controls" style={{ display: "flex", alignItems: "center", borderLeft: "1px solid #f0f0f0", paddingLeft: 8, marginLeft: 2 }} />
+                        {/* Edit Dashboard CTA — primary action on the right.
+                            Rendered into via a portal-like pattern (the grid
+                            mounts its own button into #dashboard-edit-controls
+                            so it can show "Save / Cancel" while editing). */}
+                        <div id="dashboard-edit-controls" style={{ display: "flex", alignItems: "center", marginLeft: 4 }} />
+                    </div>
+                </div>
+
+                {/* ─── Row 2: filter chips ─── */}
+                <div
+                    style={{
+                        display: "flex",
+                        alignItems: "center",
+                        flexWrap: "wrap",
+                        gap: 6,
+                        padding: "0 24px 10px",
+                    }}
+                >
+                    {pipelines.length > 1 && (
+                        <Select
+                            value={activePipelineId ?? ""}
+                            onValueChange={(value) => {
+                                const params = new URLSearchParams(searchParams.toString())
+                                params.set("pipeline", value)
+                                router.push(`${pathname}?${params.toString()}`)
+                            }}
+                        >
+                            <SelectTrigger size="sm" className="w-auto h-8 px-2.5 text-[12px] font-medium gap-1.5 border-slate-200 bg-white hover:bg-slate-50 shadow-none">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {pipelines.map(p => (
+                                    <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    )}
+
+                    {isHoldingView && companies.length > 1 && (
+                        <Select value={companyFilter} onValueChange={setCompanyFilter}>
+                            <SelectTrigger
+                                size="sm"
+                                className={`w-auto h-8 px-2.5 text-[12px] font-medium gap-1.5 shadow-none ${
+                                    companyFilter !== "all"
+                                        ? "bg-indigo-50 border-indigo-200 text-indigo-900 hover:bg-indigo-100"
+                                        : "bg-white border-slate-200 hover:bg-slate-50"
+                                }`}
+                            >
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">All Companies</SelectItem>
+                                {companies.filter(c => !c.isHolding).map(c => (
+                                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    )}
+
+                    <Select value={periodStr} onValueChange={setPeriodStr}>
+                        <SelectTrigger
+                            size="sm"
+                            className={`w-auto h-8 px-2.5 text-[12px] font-medium gap-1.5 shadow-none ${
+                                periodStr !== "this_quarter"
+                                    ? "bg-indigo-50 border-indigo-200 text-indigo-900 hover:bg-indigo-100"
+                                    : "bg-white border-slate-200 hover:bg-slate-50"
+                            }`}
+                        >
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="this_month">This Month</SelectItem>
+                            <SelectItem value="this_quarter">This Quarter</SelectItem>
+                            <SelectItem value="this_year">This Year</SelectItem>
+                            <SelectItem value="all_time">All Time</SelectItem>
+                            <SelectItem value="custom">Custom Range</SelectItem>
+                        </SelectContent>
+                    </Select>
+
+                    {/* Global note: each card uses its own date basis. The
+                        info icon sits inline with the chips so the user
+                        sees it the moment they pick a period. Hovering
+                        explains the convention; per-card details live in
+                        the ⓘ next to each card label. */}
+                    <Tooltip
+                        position="bottom"
+                        content="Each card uses the date that fits what it measures (when leads came in, when deals closed, or when revenue is recognized). Hover the ⓘ on a card to see how it works."
+                    >
+                        <span
+                            className="inline-flex items-center justify-center w-6 h-6 rounded-md text-slate-400 hover:text-slate-600 hover:bg-slate-100 cursor-help"
+                            aria-label="How are these numbers calculated?"
+                        >
+                            <Info className="w-3.5 h-3.5" />
+                        </span>
+                    </Tooltip>
+
+                    {isCustomPeriod && (
+                        <div style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                            <input
+                                type="date"
+                                value={customStart}
+                                onChange={e => setCustomStart(e.target.value)}
+                                style={{
+                                    height: 32, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 6,
+                                    padding: "0 8px", fontSize: 12, fontWeight: 500, color: "#292D30",
+                                    fontFamily: "inherit",
+                                }}
+                            />
+                            <span style={{ fontSize: 11, color: "#94a3b8", fontWeight: 500 }}>—</span>
+                            <input
+                                type="date"
+                                value={customEnd}
+                                onChange={e => setCustomEnd(e.target.value)}
+                                style={{
+                                    height: 32, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 6,
+                                    padding: "0 8px", fontSize: 12, fontWeight: 500, color: "#292D30",
+                                    fontFamily: "inherit",
+                                }}
+                            />
+                        </div>
+                    )}
+
+                    {!isDefaultPeriod && (
+                        <button
+                            type="button"
+                            onClick={handleResetPeriod}
+                            style={{
+                                background: "transparent", border: "none", cursor: "pointer",
+                                fontSize: 11, fontWeight: 500, color: "#94a3b8",
+                                padding: "0 6px", height: 32, borderRadius: 4, fontFamily: "inherit",
+                                transition: "color .15s ease",
+                                marginLeft: 2,
+                            }}
+                            onMouseEnter={e => (e.currentTarget.style.color = "#475569")}
+                            onMouseLeave={e => (e.currentTarget.style.color = "#94a3b8")}
+                        >
+                            Reset
+                        </button>
+                    )}
                 </div>
             </div>
 
@@ -1194,6 +1571,11 @@ export function AnalyticsDashboard({
                 )}
             </div>
             </div>
+
+            {/* Floating tool panels (Analyze, Ask AI). Mounted at the
+                dashboard root so they position freely over the grid and
+                survive scroll. */}
+            {tools.Panels}
         </div>
     )
 }

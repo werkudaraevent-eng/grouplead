@@ -1,14 +1,40 @@
 type LeadWithDates = {
     created_at?: string | null
+    received_date?: string | null
     month_event?: string | null
     event_date_end?: string | null
     event_date_start?: string | null
     closed_won_date?: string | null
+    closed_lost_date?: string | null
+    target_close_date?: string | null
 }
 
-type DashboardPeriod = "this_month" | "this_quarter" | "this_year" | "all_time" | "custom"
+export type DashboardPeriod = "this_month" | "this_quarter" | "this_year" | "all_time" | "custom"
 
-type DateRange = {
+/**
+ * Per-metric date basis for the Performance Dashboard.
+ *
+ * Each KPI on the dashboard is bucketed using the date that matches
+ * the question the metric answers. Mixing bases on the same dashboard
+ * is intentional — see `docs/sales-performance-widget.md` and the
+ * tooltip text inside `analytics-dashboard.tsx`.
+ *
+ * - received     : when the lead was first received (`received_date` →
+ *                  `created_at`). Answers "who came in this period?".
+ * - close        : when the deal was settled. For won leads this is
+ *                  `closed_won_date`, for lost leads `closed_lost_date`.
+ *                  Answers "what got resolved this period?".
+ * - revenue      : when revenue is recognized for an event business.
+ *                  `month_event` → `event_date_end` → `event_date_start`.
+ *                  Answers "when was/will the revenue be earned?".
+ * - target_close : the lead's expected close date. Used only for
+ *                  forward-looking pipeline metrics. Leads without
+ *                  this date are excluded from the bucket so the user
+ *                  knows their data is incomplete.
+ */
+export type DateBasis = "received" | "close" | "revenue" | "target_close"
+
+export type DateRange = {
     start: Date
     end: Date
 }
@@ -62,6 +88,47 @@ export function getRevenueDate(lead: LeadWithDates): Date | null {
     return null
 }
 
+// ─── Per-basis date resolvers ───────────────────────────────────────────────
+
+function parseDate(value: string | null | undefined): Date | null {
+    if (!value) return null
+    const d = new Date(value)
+    return isNaN(d.getTime()) ? null : d
+}
+
+/** Received-date basis: when the lead first entered the system. */
+export function getReceivedDate(lead: LeadWithDates): Date | null {
+    return parseDate(lead.received_date) ?? parseDate(lead.created_at)
+}
+
+/**
+ * Close-date basis: when the deal was settled. Returns null while the
+ * deal is still open. We assume the caller (the dashboard) has already
+ * checked the lead's stage — this just resolves the date column.
+ */
+export function getCloseDate(lead: LeadWithDates): Date | null {
+    return parseDate(lead.closed_won_date) ?? parseDate(lead.closed_lost_date)
+}
+
+/** Target-close basis: forward-looking pipeline date. No fallback by design. */
+export function getTargetCloseDate(lead: LeadWithDates): Date | null {
+    return parseDate(lead.target_close_date)
+}
+
+/**
+ * Generic resolver that switches on basis. Returns null when the lead
+ * has no date for the requested basis — caller should treat null as
+ * "exclude this lead from this bucket".
+ */
+export function getDateForBasis(lead: LeadWithDates, basis: DateBasis): Date | null {
+    switch (basis) {
+        case "received": return getReceivedDate(lead)
+        case "close": return getCloseDate(lead)
+        case "revenue": return getRevenueDate(lead)
+        case "target_close": return getTargetCloseDate(lead)
+    }
+}
+
 function startOfMonth(date: Date) {
     return new Date(date.getFullYear(), date.getMonth(), 1)
 }
@@ -79,7 +146,7 @@ function addYears(date: Date, years: number) {
     return new Date(date.getFullYear() + years, date.getMonth(), date.getDate())
 }
 
-function getPeriodRanges(period: DashboardPeriod, now: Date, customRange?: { start: string; end: string }): { current: DateRange; previous: DateRange } {
+export function getDashboardPeriodRanges(period: DashboardPeriod, now: Date, customRange?: { start: string; end: string }): { current: DateRange; previous: DateRange } {
     if (period === "this_month") {
         const start = startOfMonth(now)
         return {
@@ -136,7 +203,7 @@ export function splitDashboardLeadsByPeriod<T extends LeadWithDates>(
     now = new Date(),
     customRange?: { start: string; end: string }
 ) {
-    const ranges = getPeriodRanges(period, now, customRange)
+    const ranges = getDashboardPeriodRanges(period, now, customRange)
     const current: T[] = []
     const previous: T[] = []
 
@@ -149,4 +216,119 @@ export function splitDashboardLeadsByPeriod<T extends LeadWithDates>(
     }
 
     return { current, previous }
+}
+
+/**
+ * Generic basis-aware splitter. Each KPI on the dashboard runs this with
+ * the basis appropriate to the metric:
+ *   - Total Leads / Lead Conversion (received side)  → "received"
+ *   - Deal Win Rate / Lead Conversion (won side)     → "close"
+ *   - Won Revenue / Avg Deal                         → "revenue"
+ *   - Pipeline Value                                 → "target_close"
+ *
+ * Leads without a date for the requested basis are excluded from BOTH
+ * the current and previous buckets, AND counted in `excluded` so the
+ * UI can flag missing data (e.g. "3 active deals excluded — no target
+ * close date set").
+ */
+export function splitLeadsByBasis<T extends LeadWithDates>(
+    leads: T[],
+    basis: DateBasis,
+    period: DashboardPeriod,
+    now = new Date(),
+    customRange?: { start: string; end: string },
+): { current: T[]; previous: T[]; excluded: T[] } {
+    const ranges = getDashboardPeriodRanges(period, now, customRange)
+    const current: T[] = []
+    const previous: T[] = []
+    const excluded: T[] = []
+
+    for (const lead of leads) {
+        const date = getDateForBasis(lead, basis)
+        if (!date) {
+            excluded.push(lead)
+            continue
+        }
+        if (isWithinRange(date, ranges.current)) current.push(lead)
+        if (isWithinRange(date, ranges.previous)) previous.push(lead)
+    }
+
+    return { current, previous, excluded }
+}
+
+// ─── Target proration helpers ───────────────────────────────────────────────
+//
+// Sales targets in LeadEngine are stored at varying period granularities:
+//   • goal_user_targets:  has explicit period_start / period_end
+//   • goal_nodes monthly: 12 month buckets keyed "1".."12"
+//   • goal_nodes total:   single annual amount tied to activeGoal.period
+//   • breakdown_config:   nested pct splits of activeGoal.target_amount
+//
+// When the dashboard period (this_month / this_quarter / custom / etc.)
+// differs from the target's natural span, we have to prorate the target
+// down to a comparable amount or the achievement % is misleading
+// (e.g. quarter-actual vs annual-target = always ~25%).
+
+const MS_PER_DAY = 24 * 60 * 60 * 1000
+
+export function rangesOverlapDays(a: DateRange, b: DateRange): number {
+    const start = Math.max(a.start.getTime(), b.start.getTime())
+    const end = Math.min(a.end.getTime(), b.end.getTime())
+    if (end <= start) return 0
+    return (end - start) / MS_PER_DAY
+}
+
+export function rangeDurationDays(range: DateRange): number {
+    return Math.max(0, (range.end.getTime() - range.start.getTime()) / MS_PER_DAY)
+}
+
+/**
+ * Linear proration: targetAmount * overlapDays / targetSpanDays.
+ * Returns the original amount when dashboardRange fully covers targetRange
+ * or when the target is "all_time" (sentinel infinite range).
+ */
+export function prorateTarget(
+    targetAmount: number,
+    targetRange: DateRange,
+    dashboardRange: DateRange,
+): number {
+    if (!Number.isFinite(targetAmount) || targetAmount <= 0) return 0
+    const span = rangeDurationDays(targetRange)
+    if (span <= 0) return 0
+    const overlap = rangesOverlapDays(targetRange, dashboardRange)
+    if (overlap <= 0) return 0
+    if (overlap >= span) return targetAmount
+    return targetAmount * (overlap / span)
+}
+
+/**
+ * Sum monthly target buckets ("1".."12") that overlap dashboardRange.
+ * Months are treated as full calendar months in the supplied targetYear.
+ * Partial-month overlap (e.g. dashboard ends mid-month) is prorated by days.
+ */
+export function prorateMonthlyTargets(
+    monthlyTargets: Record<string, number> | null | undefined,
+    targetYear: number,
+    dashboardRange: DateRange,
+): number {
+    if (!monthlyTargets) return 0
+    let total = 0
+    for (let m = 0; m < 12; m++) {
+        const amount = monthlyTargets[String(m + 1)] || 0
+        if (amount <= 0) continue
+        const monthRange: DateRange = {
+            start: new Date(targetYear, m, 1),
+            end: new Date(targetYear, m + 1, 1),
+        }
+        total += prorateTarget(amount, monthRange, dashboardRange)
+    }
+    return total
+}
+
+/**
+ * True when dashboardRange is the "all_time" sentinel (covers everything).
+ * Used to short-circuit proration and return raw targets.
+ */
+export function isAllTimeRange(range: DateRange): boolean {
+    return range.start.getTime() <= 0 && range.end.getTime() >= 8640000000000000
 }

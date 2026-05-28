@@ -1,11 +1,11 @@
 "use client"
 
-import { useEffect, useState, useCallback } from "react"
+import { useEffect, useState, useCallback, useMemo } from "react"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { createClient } from "@/utils/supabase/client"
-import { Loader2, Plus, Trash2, CalendarDays, MapPin, Settings2 } from "lucide-react"
+import { Loader2, Plus, Trash2, MapPin, Settings2 } from "lucide-react"
 import { toast } from "sonner"
 import Link from "next/link"
 import { usePermissions } from "@/contexts/permissions-context"
@@ -21,13 +21,18 @@ import {
     AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import {
-    Form, FormField, FormItem, FormLabel, FormControl, FormMessage,
+    Form, FormField, FormItem, FormControl, FormMessage,
 } from "@/components/ui/form"
-import {
-    Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select"
 import { ProfileCombobox } from "@/features/users/components/profile-combobox"
 import type { ClientCompany, FormSchema } from "@/types"
+import { normalizeStringFields } from "@/lib/text-normalize"
+import { normalizePhoneToE164 } from "@/lib/phone-normalize"
+import { TitleCaseHint } from "@/components/shared/title-case-hint"
+import { DuplicateHint } from "@/components/shared/duplicate-hint"
+import { PhoneInput } from "@/components/shared/phone-input"
+import { FormFieldLabel } from "@/components/shared/form-field-label"
+import { SearchableSelect } from "@/components/shared/searchable-select"
+import { DatePickerField } from "@/components/shared/date-picker-field"
 import { DEFAULT_LAYOUTS, type LayoutItemsMap } from "@/features/settings/components/form-layout-builder"
 import { mergeMissingNativeFields } from "@/features/settings/lib/layout-self-heal"
 import { formatTabLabel, getVisibleTabEntries } from "@/features/settings/lib/form-layout-tabs"
@@ -71,23 +76,66 @@ const EMPTY_DEFAULTS: ContactFormValues = {
     date_of_birth: "", address: "", notes: "", owner_id: null, custom_data: {}
 }
 
-const getDynamicSchema = (requiredIds: string[]) => {
+/**
+ * Build a Zod resolver that enforces "required" overrides at runtime.
+ *
+ * Most fields on the contact form are optional in the static schema
+ * because they are also optional in the database. Whether a field is
+ * required for the user is decided per-tenant by Layout Settings
+ * (`requiredOverrides`) and by the server-defined custom schemas
+ * (`customSchemas[i].is_required`). We assert both here in
+ * `superRefine` so the user can never bypass them with an empty submit.
+ *
+ * `additionalEmails` / `additionalPhones` / `socialLinks` live in
+ * component state (not in the Zod-tracked form), so we treat their
+ * required overrides as a pre-submit assertion in `onSubmit` instead
+ * of a Zod issue.
+ */
+function getDynamicSchema(
+    requiredIds: string[],
+    customSchemas: FormSchema[],
+    customValues: Record<string, unknown>,
+) {
+    const ARRAY_KEYS = new Set(["secondary_emails", "secondary_phones", "social_urls"])
     return contactSchema.superRefine((data, ctx) => {
-        requiredIds.forEach(fieldId => {
-            if (fieldId.startsWith('native:')) {
-                const key = fieldId.replace('native:', '')
-                if (key === 'secondary_emails' || key === 'secondary_phones' || key === 'social_urls') return // skip json arrays for zod
-                
-                const val = (data as any)[key]
-                if (val === undefined || val === null || val === "" || (Array.isArray(val) && val.length === 0)) {
-                    ctx.addIssue({
-                        code: z.ZodIssueCode.custom,
-                        message: "This field is required",
-                        path: [key]
-                    })
-                }
+        for (const fieldId of requiredIds) {
+            if (!fieldId.startsWith("native:")) continue
+            const key = fieldId.replace("native:", "")
+            // Array fields are validated against component state in onSubmit.
+            if (ARRAY_KEYS.has(key)) continue
+            const val = (data as Record<string, unknown>)[key]
+            const empty =
+                val === undefined ||
+                val === null ||
+                (typeof val === "string" && val.trim() === "") ||
+                (Array.isArray(val) && val.length === 0)
+            if (empty) {
+                ctx.addIssue({
+                    code: z.ZodIssueCode.custom,
+                    message: "This field is required",
+                    path: [key],
+                })
             }
-        })
+        }
+
+        for (const schema of customSchemas) {
+            const fieldId = `custom:${schema.field_key}`
+            const isRequired = schema.is_required || requiredIds.includes(fieldId)
+            if (!isRequired) continue
+            const val = customValues[schema.field_key]
+            const empty =
+                val === undefined ||
+                val === null ||
+                (typeof val === "string" && val.trim() === "") ||
+                (Array.isArray(val) && val.length === 0)
+            if (empty) {
+                ctx.addIssue({
+                    code: z.ZodIssueCode.custom,
+                    message: "This field is required",
+                    path: ["custom_data", schema.field_key],
+                })
+            }
+        }
     })
 }
 
@@ -99,6 +147,7 @@ export function AddContactModal({ isOpen, onOpenChange, preselectedCompanyId, in
     const isEditMode = !!initialData?.id
     
     const [companies, setCompanies] = useState<ClientCompany[]>([])
+    const [existingContacts, setExistingContacts] = useState<{ id: string; full_name: string }[]>([])
     const [saving, setSaving] = useState(false)
     const [showWarning, setShowWarning] = useState(false)
     const [currentUserId, setCurrentUserId] = useState<string | null>(null)
@@ -115,9 +164,17 @@ export function AddContactModal({ isOpen, onOpenChange, preselectedCompanyId, in
     const [additionalPhones, setAdditionalPhones] = useState<string[]>([])
     const [socialLinks, setSocialLinks] = useState<SocialLink[]>([])
 
+    // See `add-company-modal.tsx` — RHF doesn't watch `resolver`, so we
+    // memoize and re-bind on every dependency change so newly-loaded
+    // Layout Settings actually take effect.
+    const dynamicResolver = useMemo(
+        () => zodResolver(getDynamicSchema(requiredOverrides, customSchemas, customValues)),
+        [requiredOverrides, customSchemas, customValues],
+    )
+
     const form = useForm<ContactFormValues>({
         // @ts-ignore
-        resolver: zodResolver(getDynamicSchema(requiredOverrides)),
+        resolver: dynamicResolver,
         defaultValues: EMPTY_DEFAULTS,
     })
 
@@ -126,10 +183,19 @@ export function AddContactModal({ isOpen, onOpenChange, preselectedCompanyId, in
         supabase.from("client_companies").select("id, name").order("name").then(({ data }) => {
             if (data) setCompanies(data as unknown as ClientCompany[])
         })
+        // Fetch existing contacts for soft duplicate detection. Light
+        // payload (id + full_name only) so it is cheap even for tens of
+        // thousands of rows. Excludes the contact being edited so a
+        // record can't match itself.
+        let q = supabase.from("contacts").select("id, full_name").order("full_name")
+        if (initialData?.id) q = q.neq("id", initialData.id)
+        q.then(({ data }) => {
+            if (data) setExistingContacts(data as { id: string; full_name: string }[])
+        })
         supabase.auth.getUser().then(({ data }) => {
             if (data?.user?.id) setCurrentUserId(data.user.id)
         })
-    }, [isOpen, supabase])
+    }, [isOpen, supabase, initialData?.id])
 
     useEffect(() => {
         const fetchConfig = async () => {
@@ -218,7 +284,13 @@ export function AddContactModal({ isOpen, onOpenChange, preselectedCompanyId, in
         setSaving(true)
         try {
             const cleanEmails = additionalEmails.filter(e => e.trim())
-            const cleanPhones = additionalPhones.filter(p => p.trim())
+            const cleanPhones = additionalPhones
+                .map(p => {
+                    const t = p.trim()
+                    if (!t) return ""
+                    return normalizePhoneToE164(t) ?? t
+                })
+                .filter(Boolean)
             const cleanSocials = socialLinks.filter(s => s.url.trim())
 
             if (requiredOverrides.includes('native:secondary_emails') && cleanEmails.length === 0) {
@@ -231,11 +303,17 @@ export function AddContactModal({ isOpen, onOpenChange, preselectedCompanyId, in
                 toast.error("Social Links are required"); setSaving(false); return
             }
 
-            const payload: Record<string, any> = {
+            const rawPayload: Record<string, any> = {
                 salutation: values.salutation || null,
                 full_name: values.full_name,
-                email: values.email || null,
-                phone: values.phone ? (() => { const r = values.phone!.trim(); const p = r.startsWith("+"); const d = r.replace(/[^\d]/g, ""); return d ? (p ? `+${d}` : d) : null })() : null,
+                email: values.email ? values.email.trim().toLowerCase() : null,
+                phone: values.phone
+                    ? (() => {
+                        const trimmed = values.phone!.trim()
+                        if (!trimmed) return null
+                        return normalizePhoneToE164(trimmed) ?? trimmed
+                    })()
+                    : null,
                 job_title: values.job_title || null,
                 client_company_id: values.client_company_id || null,
                 date_of_birth: values.date_of_birth || null,
@@ -243,12 +321,30 @@ export function AddContactModal({ isOpen, onOpenChange, preselectedCompanyId, in
                 notes: values.notes || null,
                 owner_id: values.owner_id || null,
                 custom_data: customValues,
-                secondary_emails: cleanEmails.length > 0 ? cleanEmails : [],
+                secondary_emails: cleanEmails.length > 0 ? cleanEmails.map(e => e.trim().toLowerCase()) : [],
                 secondary_phones: cleanPhones.length > 0 ? cleanPhones : [],
                 social_urls: cleanSocials.length > 0 ? cleanSocials : [],
-                secondary_email: cleanEmails[0] || null,
+                secondary_email: cleanEmails[0] ? cleanEmails[0].trim().toLowerCase() : null,
                 secondary_phone: cleanPhones[0] || null,
                 linkedin_url: cleanSocials.find(s => s.platform === "LinkedIn")?.url || null,
+            }
+            // Layer 1 — normalize whitespace on every plain-string field.
+            // Email/phone/social_urls are already special-cased above so
+            // they stay accurate; the helper only walks string-valued keys.
+            const payload: Record<string, any> = {
+                ...normalizeStringFields(rawPayload),
+                // Re-attach the array/object fields the helper passed through.
+                custom_data: customValues,
+                secondary_emails: rawPayload.secondary_emails,
+                secondary_phones: rawPayload.secondary_phones,
+                social_urls: rawPayload.social_urls,
+            }
+            // Guard: full_name is required, the normalizer can return null
+            // if the user typed only whitespace. Bail out cleanly.
+            if (!payload.full_name) {
+                toast.error("Full name is required")
+                setSaving(false)
+                return
             }
 
             const selectFields = "id, salutation, full_name, email, phone, job_title, created_at, client_company_id, secondary_email, secondary_phone, secondary_emails, secondary_phones, linkedin_url, notes, date_of_birth, address, social_urls, owner_id, custom_data, client_company:client_company_id ( name )"
@@ -278,196 +374,257 @@ export function AddContactModal({ isOpen, onOpenChange, preselectedCompanyId, in
     const getLabelStr = (base: string, id: string) => isFieldMandatory(id) ? `${base} *` : base
 
     const renderNativeField = (fieldId: string) => {
+        const required = isFieldMandatory(fieldId)
         switch (fieldId) {
             case "native:client_company_id":
                 return (
-                    <div key={fieldId} className="space-y-1.5 col-span-2">
-                        <Label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">{getLabelStr("Link to Client Company", fieldId)}</Label>
-                        <Select value={form.watch("client_company_id") || "none"} onValueChange={v => form.setValue("client_company_id", v === "none" ? null : v)}>
-                            <SelectTrigger className="w-full bg-slate-50">
-                                <SelectValue placeholder="No Company (Individual Contact)" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="none">No Company (Individual Contact)</SelectItem>
-                                {companies.map(c => (<SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>))}
-                            </SelectContent>
-                        </Select>
-                        {form.formState.errors.client_company_id && <p className="text-[10px] text-red-500">{form.formState.errors.client_company_id.message}</p>}
+                    <div key={fieldId} className="space-y-1.5 sm:col-span-2">
+                        <FormFieldLabel required={required}>Linked company</FormFieldLabel>
+                        <SearchableSelect
+                            value={form.watch("client_company_id") || null}
+                            onChange={(v) => form.setValue("client_company_id", v ?? null, { shouldDirty: true })}
+                            options={companies.map(c => ({ value: c.id, label: c.name }))}
+                            placeholder="No company (individual contact)"
+                            searchPlaceholder="Search company…"
+                            emptyText="No companies found"
+                        />
+                        {form.formState.errors.client_company_id && <p className="text-[11px] text-destructive">{form.formState.errors.client_company_id.message}</p>}
                     </div>
                 )
             case "native:salutation":
                 return (
                     <FormField key={fieldId} control={form.control} name="salutation" render={({ field }) => (
-                        <FormItem>
-                            <FormLabel className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">{getLabelStr("Salutation", fieldId)}</FormLabel>
-                            <Select value={field.value || "none"} onValueChange={v => field.onChange(v === "none" ? null : v)}>
-                                <FormControl><SelectTrigger><SelectValue placeholder="-" /></SelectTrigger></FormControl>
-                                <SelectContent>
-                                    <SelectItem value="none">-</SelectItem>
-                                    {SALUTATIONS.map(s => (<SelectItem key={s} value={s}>{s}</SelectItem>))}
-                                </SelectContent>
-                            </Select>
-                            <FormMessage className="text-[10px]" />
+                        <FormItem className="space-y-1.5">
+                            <FormFieldLabel required={required}>Salutation</FormFieldLabel>
+                            <FormControl>
+                                <SearchableSelect
+                                    value={field.value || null}
+                                    onChange={(v) => field.onChange(v ?? null)}
+                                    options={SALUTATIONS.map(s => ({ value: s, label: s }))}
+                                    placeholder="—"
+                                    searchPlaceholder="Search…"
+                                />
+                            </FormControl>
+                            <FormMessage className="text-[11px]" />
                         </FormItem>
                     )} />
                 )
             case "native:full_name":
                 return (
                     <FormField key={fieldId} control={form.control} name="full_name" render={({ field }) => (
-                        <FormItem>
-                            <FormLabel className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">{getLabelStr("Full Name", fieldId)}</FormLabel>
-                            <FormControl><Input placeholder="John Doe" {...field} value={field.value || ""} /></FormControl>
-                            <FormMessage className="text-[10px]" />
+                        <FormItem className="space-y-1.5">
+                            <FormFieldLabel htmlFor="contact-full-name" required={required}>Full name</FormFieldLabel>
+                            <FormControl>
+                                <Input
+                                    id="contact-full-name"
+                                    placeholder="John Doe"
+                                    autoComplete="name"
+                                    aria-required={required}
+                                    {...field}
+                                    value={field.value || ""}
+                                />
+                            </FormControl>
+                            <TitleCaseHint
+                                value={field.value}
+                                onApply={(suggested) => form.setValue("full_name", suggested, { shouldDirty: true })}
+                            />
+                            <DuplicateHint
+                                value={field.value}
+                                existing={existingContacts}
+                                getName={(c) => c.full_name}
+                                excludeId={initialData?.id}
+                                entityNoun="contact"
+                            />
+                            <FormMessage className="text-[11px]" />
                         </FormItem>
                     )} />
                 )
             case "native:job_title":
                 return (
                     <FormField key={fieldId} control={form.control} name="job_title" render={({ field }) => (
-                        <FormItem className="col-span-2">
-                            <FormLabel className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">{getLabelStr("Job Title", fieldId)}</FormLabel>
-                            <FormControl><Input placeholder="e.g. Marketing Director" {...field} value={field.value || ""} /></FormControl>
-                            <FormMessage className="text-[10px]" />
+                        <FormItem className="sm:col-span-2 space-y-1.5">
+                            <FormFieldLabel required={required}>Job title</FormFieldLabel>
+                            <FormControl>
+                                <Input
+                                    placeholder="e.g. Marketing Director"
+                                    autoComplete="organization-title"
+                                    aria-required={required}
+                                    {...field}
+                                    value={field.value || ""}
+                                />
+                            </FormControl>
+                            <FormMessage className="text-[11px]" />
                         </FormItem>
                     )} />
                 )
-            // Contact Methods
             case "native:email":
                 return (
                     <FormField key={fieldId} control={form.control} name="email" render={({ field }) => (
-                        <FormItem className="col-span-2">
-                            <FormLabel className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">{getLabelStr("Primary Email", fieldId)}</FormLabel>
-                            <FormControl><Input type="email" placeholder="john@example.com" {...field} value={field.value || ""} /></FormControl>
-                            <FormMessage className="text-[10px]" />
+                        <FormItem className="sm:col-span-2 space-y-1.5">
+                            <FormFieldLabel required={required}>Primary email</FormFieldLabel>
+                            <FormControl>
+                                <Input
+                                    type="email"
+                                    placeholder="john@example.com"
+                                    autoComplete="email"
+                                    aria-required={required}
+                                    {...field}
+                                    value={field.value || ""}
+                                />
+                            </FormControl>
+                            <FormMessage className="text-[11px]" />
                         </FormItem>
                     )} />
                 )
             case "native:phone":
                 return (
                     <FormField key={fieldId} control={form.control} name="phone" render={({ field }) => (
-                        <FormItem className="col-span-2">
-                            <FormLabel className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">{getLabelStr("Primary Phone", fieldId)}</FormLabel>
+                        <FormItem className="sm:col-span-2 space-y-1.5">
+                            <FormFieldLabel required={required}>Primary phone</FormFieldLabel>
                             <FormControl>
-                                <Input placeholder="+62 8..." {...field} value={field.value || ""}
-                                    onBlur={() => {
-                                        field.onBlur()
-                                        if (!field.value) return
-                                        const raw = field.value.trim()
-                                        const hasPlus = raw.startsWith("+")
-                                        const digits = raw.replace(/[^\d]/g, "")
-                                        if (!digits) return
-                                        field.onChange(hasPlus ? `+${digits}` : digits)
-                                    }}
+                                <PhoneInput
+                                    value={field.value || ""}
+                                    onChange={field.onChange}
+                                    onBlur={field.onBlur}
                                 />
                             </FormControl>
-                            <FormMessage className="text-[10px]" />
+                            <FormMessage className="text-[11px]" />
                         </FormItem>
                     )} />
                 )
             case "native:secondary_emails":
                 return (
-                    <div key={fieldId} className="space-y-2 col-span-2 bg-slate-50/50 p-3 rounded-lg border border-slate-100">
+                    <div key={fieldId} className="space-y-2 sm:col-span-2">
                         <div className="flex items-center justify-between">
-                            <Label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">{getLabelStr("Additional Emails", fieldId)}</Label>
-                            <Button type="button" variant="ghost" size="sm" onClick={() => setAdditionalEmails(prev => [...prev, ""])} className="h-6 text-xs text-blue-600 hover:text-blue-700 bg-blue-50/50">
+                            <FormFieldLabel required={required}>Additional emails</FormFieldLabel>
+                            <Button type="button" variant="ghost" size="sm" onClick={() => setAdditionalEmails(prev => [...prev, ""])} className="h-7 text-xs text-primary hover:text-primary hover:bg-primary/5">
                                 <Plus className="w-3 h-3 mr-1" /> Add
                             </Button>
                         </div>
-                        {additionalEmails.map((email, idx) => (
-                            <div key={idx} className="flex items-center gap-2">
-                                <Input type="email" placeholder="e.g. personal@email.com" value={email} onChange={e => { const n = [...additionalEmails]; n[idx] = e.target.value; setAdditionalEmails(n) }} className="h-8 text-sm" />
-                                <Button type="button" variant="ghost" size="icon" onClick={() => setAdditionalEmails(prev => prev.filter((_, i) => i !== idx))} className="h-8 w-8 text-slate-400 hover:text-red-600"><Trash2 className="w-3.5 h-3.5" /></Button>
-                            </div>
-                        ))}
+                        <div className="space-y-2">
+                            {additionalEmails.map((email, idx) => (
+                                <div key={idx} className="flex items-center gap-2">
+                                    <Input type="email" placeholder="personal@email.com" autoComplete="email" value={email} onChange={e => { const n = [...additionalEmails]; n[idx] = e.target.value; setAdditionalEmails(n) }} className="h-9 text-sm flex-1" />
+                                    <Button type="button" variant="ghost" size="icon" onClick={() => setAdditionalEmails(prev => prev.filter((_, i) => i !== idx))} className="h-9 w-9 text-muted-foreground hover:text-destructive"><Trash2 className="w-3.5 h-3.5" /></Button>
+                                </div>
+                            ))}
+                        </div>
                     </div>
                 )
             case "native:secondary_phones":
                 return (
-                    <div key={fieldId} className="space-y-2 col-span-2 bg-slate-50/50 p-3 rounded-lg border border-slate-100">
+                    <div key={fieldId} className="space-y-2 sm:col-span-2">
                         <div className="flex items-center justify-between">
-                            <Label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">{getLabelStr("Additional Phones", fieldId)}</Label>
-                            <Button type="button" variant="ghost" size="sm" onClick={() => setAdditionalPhones(prev => [...prev, ""])} className="h-6 text-xs text-blue-600 hover:text-blue-700 bg-blue-50/50">
+                            <FormFieldLabel required={required}>Additional phones</FormFieldLabel>
+                            <Button type="button" variant="ghost" size="sm" onClick={() => setAdditionalPhones(prev => [...prev, ""])} className="h-7 text-xs text-primary hover:text-primary hover:bg-primary/5">
                                 <Plus className="w-3 h-3 mr-1" /> Add
                             </Button>
                         </div>
-                        {additionalPhones.map((phone, idx) => (
-                            <div key={idx} className="flex items-center gap-2">
-                                <Input placeholder="e.g. +62 8..." value={phone} onChange={e => { const n = [...additionalPhones]; n[idx] = e.target.value; setAdditionalPhones(n) }} className="h-8 text-sm" />
-                                <Button type="button" variant="ghost" size="icon" onClick={() => setAdditionalPhones(prev => prev.filter((_, i) => i !== idx))} className="h-8 w-8 text-slate-400 hover:text-red-600"><Trash2 className="w-3.5 h-3.5" /></Button>
-                            </div>
-                        ))}
+                        <div className="space-y-2">
+                            {additionalPhones.map((phone, idx) => (
+                                <div key={idx} className="flex items-center gap-2">
+                                    <PhoneInput
+                                        value={phone}
+                                        onChange={(v) => { const n = [...additionalPhones]; n[idx] = v; setAdditionalPhones(n) }}
+                                        wrapperClassName="flex-1"
+                                    />
+                                    <Button type="button" variant="ghost" size="icon" onClick={() => setAdditionalPhones(prev => prev.filter((_, i) => i !== idx))} className="h-9 w-9 text-muted-foreground hover:text-destructive"><Trash2 className="w-3.5 h-3.5" /></Button>
+                                </div>
+                            ))}
+                        </div>
                     </div>
                 )
             case "native:social_urls":
                 return (
-                    <div key={fieldId} className="space-y-3 col-span-2 bg-slate-50/50 p-3 rounded-lg border border-slate-100">
+                    <div key={fieldId} className="space-y-2 sm:col-span-2">
                         <div className="flex items-center justify-between">
-                            <Label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">{getLabelStr("Social & External Links", fieldId)}</Label>
-                            <Button type="button" variant="ghost" size="sm" onClick={() => setSocialLinks(prev => [...prev, { platform: "LinkedIn", url: "" }])} className="h-6 text-xs text-blue-600 hover:text-blue-700 bg-blue-50/50">
-                                <Plus className="w-3 h-3 mr-1" /> Add Link
+                            <FormFieldLabel required={required}>Social & external links</FormFieldLabel>
+                            <Button type="button" variant="ghost" size="sm" onClick={() => setSocialLinks(prev => [...prev, { platform: "LinkedIn", url: "" }])} className="h-7 text-xs text-primary hover:text-primary hover:bg-primary/5">
+                                <Plus className="w-3 h-3 mr-1" /> Add link
                             </Button>
                         </div>
-                        {socialLinks.map((social, idx) => (
-                            <div key={idx} className="flex items-start gap-2">
-                                <div className="w-[110px] shrink-0">
-                                    <Select value={social.platform} onValueChange={v => { const n = [...socialLinks]; n[idx].platform = v; setSocialLinks(n) }}>
-                                        <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-                                        <SelectContent>{SOCIAL_PLATFORMS.map(p => (<SelectItem key={p} value={p}>{p}</SelectItem>))}</SelectContent>
-                                    </Select>
+                        <div className="space-y-2">
+                            {socialLinks.map((social, idx) => (
+                                <div key={idx} className="flex items-start gap-2">
+                                    <div className="w-[140px] shrink-0">
+                                        <SearchableSelect
+                                            value={social.platform}
+                                            onChange={(v) => { const n = [...socialLinks]; n[idx].platform = v ?? "Other"; setSocialLinks(n) }}
+                                            options={SOCIAL_PLATFORMS.map(p => ({ value: p, label: p }))}
+                                            placeholder="Platform"
+                                            clearable={false}
+                                        />
+                                    </div>
+                                    <Input placeholder="https://…" type="url" value={social.url} onChange={e => { const n = [...socialLinks]; n[idx].url = e.target.value; setSocialLinks(n) }} className="h-9 text-sm flex-1" />
+                                    <Button type="button" variant="ghost" size="icon" onClick={() => setSocialLinks(prev => prev.filter((_, i) => i !== idx))} className="h-9 w-9 shrink-0 text-muted-foreground hover:text-destructive"><Trash2 className="w-3.5 h-3.5" /></Button>
                                 </div>
-                                <div className="flex-1">
-                                    <Input placeholder="https://..." value={social.url} onChange={e => { const n = [...socialLinks]; n[idx].url = e.target.value; setSocialLinks(n) }} className="h-8 text-sm" />
-                                </div>
-                                <Button type="button" variant="ghost" size="icon" onClick={() => setSocialLinks(prev => prev.filter((_, i) => i !== idx))} className="h-8 w-8 shrink-0 text-slate-400 hover:text-red-600"><Trash2 className="w-3.5 h-3.5" /></Button>
-                            </div>
-                        ))}
+                            ))}
+                        </div>
                     </div>
                 )
             case "native:linkedin_url":
-                return null // skip because mapped under social_urls dynamically or just ignored for modern UI
+                return null
             case "native:date_of_birth":
                 return (
                     <FormField key={fieldId} control={form.control} name="date_of_birth" render={({ field }) => (
-                        <FormItem className="col-span-2">
-                            <FormLabel className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">{getLabelStr("Date of Birth", fieldId)}</FormLabel>
-                            <div className="relative">
-                                <Input type="date" {...field} value={field.value || ""} className="pl-9" />
-                                <CalendarDays className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
-                            </div>
-                            <FormMessage className="text-[10px]" />
+                        <FormItem className="sm:col-span-2 space-y-1.5">
+                            <FormFieldLabel required={required}>Date of birth</FormFieldLabel>
+                            <FormControl>
+                                <DatePickerField
+                                    value={field.value || ""}
+                                    onChange={field.onChange}
+                                    placeholder="Select date"
+                                    maxDate={new Date().toISOString().slice(0, 10)}
+                                />
+                            </FormControl>
+                            <FormMessage className="text-[11px]" />
                         </FormItem>
                     )} />
                 )
             case "native:address":
                 return (
                     <FormField key={fieldId} control={form.control} name="address" render={({ field }) => (
-                        <FormItem className="col-span-2">
-                            <FormLabel className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">{getLabelStr("Address", fieldId)}</FormLabel>
-                            <div className="relative">
-                                <Textarea placeholder="Full residential/office address..." rows={2} {...field} value={field.value || ""} className="pl-9" />
-                                <MapPin className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
-                            </div>
-                            <FormMessage className="text-[10px]" />
+                        <FormItem className="sm:col-span-2 space-y-1.5">
+                            <FormFieldLabel required={required}>Address</FormFieldLabel>
+                            <FormControl>
+                                <Textarea
+                                    placeholder="Full residential / office address…"
+                                    rows={2}
+                                    autoComplete="street-address"
+                                    aria-required={required}
+                                    {...field}
+                                    value={field.value || ""}
+                                />
+                            </FormControl>
+                            <FormMessage className="text-[11px]" />
                         </FormItem>
                     )} />
                 )
             case "native:notes":
                 return (
                     <FormField key={fieldId} control={form.control} name="notes" render={({ field }) => (
-                        <FormItem className="col-span-2">
-                            <FormLabel className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">{getLabelStr("Private Notes", fieldId)}</FormLabel>
-                            <FormControl><Textarea placeholder="Background info, preferences..." rows={3} {...field} value={field.value || ""} /></FormControl>
-                            <FormMessage className="text-[10px]" />
+                        <FormItem className="sm:col-span-2 space-y-1.5">
+                            <FormFieldLabel required={required} hint="Internal-only notes. Not shared with the contact.">Private notes</FormFieldLabel>
+                            <FormControl>
+                                <Textarea
+                                    placeholder="Background info, preferences…"
+                                    rows={3}
+                                    aria-required={required}
+                                    {...field}
+                                    value={field.value || ""}
+                                />
+                            </FormControl>
+                            <FormMessage className="text-[11px]" />
                         </FormItem>
                     )} />
                 )
             case "native:owner_id":
                 return (
                     <FormField key={fieldId} control={form.control} name="owner_id" render={({ field }) => (
-                        <FormItem className="col-span-2">
-                            <FormLabel className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">{getLabelStr("Owner", fieldId)}</FormLabel>
-                            <FormControl><ProfileCombobox value={field.value || null} onChange={field.onChange} placeholder="Assign..." filterRoles={["sales", "bu_manager"]} /></FormControl>
-                            <FormMessage className="text-[10px]" />
+                        <FormItem className="sm:col-span-2 space-y-1.5">
+                            <FormFieldLabel required={required}>Owner</FormFieldLabel>
+                            <FormControl><ProfileCombobox value={field.value || null} onChange={field.onChange} placeholder="Assign…" filterRoles={["sales", "bu_manager"]} /></FormControl>
+                            <FormMessage className="text-[11px]" />
                         </FormItem>
                     )} />
                 )
@@ -481,69 +638,103 @@ export function AddContactModal({ isOpen, onOpenChange, preselectedCompanyId, in
         <>
             <Sheet open={isOpen} onOpenChange={(open) => { if (!open) handleAttemptClose(); else onOpenChange(true) }}>
                 <SheetContent
-                    className="w-full sm:max-w-xl p-0 flex flex-col bg-slate-50 border-l border-slate-200"
+                    className="w-full sm:max-w-xl p-0 flex flex-col bg-background border-l border-border"
                     onInteractOutside={(e) => e.preventDefault()}
                     onEscapeKeyDown={(e) => { e.preventDefault(); handleAttemptClose() }}
                 >
                     <Form {...form}>
-                        <form onSubmit={form.handleSubmit(onSubmit, (err) => { toast.error("Please complete all required fields"); console.error(err) })} className="flex flex-col h-full overflow-hidden">
-                            <SheetHeader className="relative px-6 py-4 bg-white border-b border-slate-200 shrink-0">
-                                <div className="flex justify-between items-start">
+                        <form onSubmit={form.handleSubmit(onSubmit, (err) => {
+                            toast.error("Please complete all required fields")
+                            console.error(err)
+                            requestAnimationFrame(() => {
+                                const firstInvalid = document.querySelector<HTMLElement>(
+                                    "[aria-invalid='true'], .border-destructive"
+                                )
+                                if (firstInvalid) {
+                                    firstInvalid.scrollIntoView({ behavior: "smooth", block: "center" })
+                                    if (typeof firstInvalid.focus === "function") firstInvalid.focus({ preventScroll: true })
+                                }
+                            })
+                        })} className="flex flex-col h-full overflow-hidden">
+                            <SheetHeader className="relative px-6 py-4 bg-card border-b border-border shrink-0">
+                                <div className="flex justify-between items-start gap-3">
                                     <div>
-                                        <SheetTitle>{isEditMode ? "Edit Contact" : "Add Contact"}</SheetTitle>
-                                        <SheetDescription className="text-xs mt-0.5">
+                                        <SheetTitle className="text-base font-semibold tracking-tight">{isEditMode ? "Edit contact" : "Add contact"}</SheetTitle>
+                                        <SheetDescription className="text-xs mt-0.5 text-muted-foreground">
                                             {isEditMode ? "Update contact information" : "Add a new person to your directory"}
                                         </SheetDescription>
                                     </div>
                                     {canManageLayout && (
-                                        <Button variant="outline" size="sm" className="h-8 shadow-sm hidden sm:flex bg-amber-50 hover:bg-amber-100 text-amber-700 border-amber-200" onClick={() => handleAttemptClose()} asChild>
+                                        <Button variant="ghost" size="sm" className="h-8 px-2 text-muted-foreground hover:text-foreground hidden sm:flex" onClick={() => handleAttemptClose()} asChild>
                                             <Link href="/settings/master-options?tab=layout">
                                                 <Settings2 className="w-3.5 h-3.5 mr-1.5" />
-                                                Layout Settings
+                                                <span className="text-xs">Layout</span>
                                             </Link>
                                         </Button>
                                     )}
                                 </div>
                             </SheetHeader>
 
-                            <div className="flex-1 overflow-y-auto p-6 space-y-6">
+                            <div className="flex-1 overflow-y-auto custom-scrollbar px-6 py-5 space-y-5">
                                 {visibleTabs.map(([tab, fields]) => (
-                                        <div key={tab} className="bg-white border border-slate-200 rounded-xl p-5 space-y-4 shadow-sm">
-                                            <h4 className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">{tabSettings[tab]?.label || formatTabLabel(tab)} Details</h4>
-                                            {fields.length === 0 ? (
-                                                <p className="text-sm text-slate-500">No fields assigned to this tab yet.</p>
-                                            ) : (
-                                                <div className="grid grid-cols-2 gap-4">
-                                                    {fields.map(fieldId => {
-                                                        if (fieldId.startsWith("custom:")) {
-                                                            const schema = customSchemas.find(s => s.field_key === fieldId.replace("custom:", ""))
-                                                            if (!schema) return null
-                                                            return (
-                                                                <div key={fieldId} className={schema.field_type === 'text' || schema.field_type === 'dropdown' ? "col-span-2" : ""}>
-                                                                    <DynamicField 
-                                                                        schema={schema}
-                                                                        value={customValues[schema.field_key]}
-                                                                        onChange={(val: any) => setCustomValues((prev) => ({ ...prev, [schema.field_key]: val }))}
-                                                                        companyId={activeCompany?.id}
-                                                                        allValues={customValues}
-                                                                        isRequired={schema.is_required || isFieldMandatory(fieldId)} />
-                                                                </div>
-                                                            )
-                                                        }
-                                                        return renderNativeField(fieldId)
-                                                    })}
-                                                </div>
-                                            )}
-                                        </div>
+                                    <section key={tab} className="space-y-3">
+                                        <h4 className="text-[11px] font-semibold text-muted-foreground tracking-wide">{tabSettings[tab]?.label || formatTabLabel(tab)}</h4>
+                                        {fields.length === 0 ? (
+                                            <p className="text-sm text-muted-foreground italic">No fields assigned to this tab.</p>
+                                        ) : (
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-4 rounded-xl border border-border bg-card p-4">
+                                                {fields.map(fieldId => {
+                                                    if (fieldId.startsWith("custom:")) {
+                                                        const schema = customSchemas.find(s => s.field_key === fieldId.replace("custom:", ""))
+                                                        if (!schema) return null
+                                                        const customError = (form.formState.errors as Record<string, { message?: string } | undefined>)
+                                                            ?.custom_data
+                                                            ? ((form.formState.errors as Record<string, Record<string, { message?: string }>>).custom_data?.[schema.field_key])
+                                                            : undefined
+                                                        const errorMessage = customError?.message
+                                                        return (
+                                                            <div
+                                                                key={fieldId}
+                                                                className={`${schema.field_type === 'text' || schema.field_type === 'dropdown' ? "sm:col-span-2" : ""} ${errorMessage ? "[&_button[role=combobox]]:border-destructive [&_input]:border-destructive [&_button[role=combobox]]:ring-destructive/20" : ""}`}
+                                                            >
+                                                                <DynamicField
+                                                                    schema={schema}
+                                                                    value={customValues[schema.field_key]}
+                                                                    onChange={(val: any) => {
+                                                                        setCustomValues((prev) => ({ ...prev, [schema.field_key]: val }))
+                                                                        if (errorMessage) {
+                                                                            form.clearErrors(`custom_data.${schema.field_key}` as never)
+                                                                        }
+                                                                    }}
+                                                                    companyId={activeCompany?.id}
+                                                                    allValues={customValues}
+                                                                    isRequired={schema.is_required || isFieldMandatory(fieldId)} />
+                                                                {errorMessage && (
+                                                                    <p className="mt-1 text-[11px] text-destructive">{errorMessage}</p>
+                                                                )}
+                                                            </div>
+                                                        )
+                                                    }
+                                                    return renderNativeField(fieldId)
+                                                })}
+                                            </div>
+                                        )}
+                                    </section>
                                 ))}
                             </div>
 
-                            <div className="px-6 py-4 bg-white border-t border-slate-200 flex justify-end gap-3 shrink-0 relative z-10 shadow-[0_-1px_3px_rgba(0,0,0,0.05)]">
-                                <Button type="button" variant="outline" onClick={handleAttemptClose}>Cancel</Button>
-                                <Button type="submit" disabled={saving} className="bg-slate-900 hover:bg-slate-800 text-white">
-                                    {saving && <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />}
-                                    {isEditMode ? "Save Changes" : "Create Contact"}
-                                </Button>
+                            <div className="px-6 py-3.5 bg-card border-t border-border flex items-center justify-between gap-3 shrink-0">
+                                <p className="text-[11px] text-muted-foreground hidden sm:block">
+                                    <kbd className="px-1 py-0.5 rounded border border-border bg-muted text-[10px] font-mono">Esc</kbd>
+                                    <span className="mx-1">to cancel</span>
+                                </p>
+                                <div className="flex items-center gap-2 ml-auto">
+                                    <Button type="button" variant="ghost" onClick={handleAttemptClose}>Cancel</Button>
+                                    <Button type="submit" disabled={saving}>
+                                        {saving && <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />}
+                                        {saving ? "Saving…" : isEditMode ? "Save changes" : "Create contact"}
+                                    </Button>
+                                </div>
                             </div>
                         </form>
                     </Form>
@@ -559,8 +750,8 @@ export function AddContactModal({ isOpen, onOpenChange, preselectedCompanyId, in
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                        <AlertDialogCancel>Keep Editing</AlertDialogCancel>
-                        <AlertDialogAction onClick={() => { setShowWarning(false); resetAndClose(); }} className="bg-red-600 hover:bg-red-700 focus:ring-red-600">
+                        <AlertDialogCancel>Keep editing</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => { setShowWarning(false); resetAndClose(); }} className="bg-destructive text-destructive-foreground hover:bg-destructive/90 focus-visible:ring-destructive">
                             Discard
                         </AlertDialogAction>
                     </AlertDialogFooter>

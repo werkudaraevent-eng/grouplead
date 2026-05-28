@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache"
 import { createServiceClient } from "@/utils/supabase/service"
 import { logAuditEvent } from "@/app/actions/audit-actions"
+import { requirePermission } from "@/lib/require-permission"
 import type { ActionResult } from "@/types"
 
 interface ProvisionUserData {
@@ -19,6 +20,9 @@ export async function provisionUserAction(
     data: ProvisionUserData
 ): Promise<ActionResult<{ userId: string }>> {
     try {
+        const guard = await requirePermission('members', 'create')
+        if (!guard.allowed) return guard.error
+
         const supabase = createServiceClient()
 
         // 1. Create auth user via Admin API (bypasses email confirmation)
@@ -85,6 +89,9 @@ export async function deactivateUserAction(
     userId: string
 ): Promise<ActionResult> {
     try {
+        const guard = await requirePermission('members', 'update')
+        if (!guard.allowed) return guard.error
+
         const supabase = createServiceClient()
 
         // Soft-delete: ban the user in Supabase Auth (prevents login)
@@ -132,6 +139,9 @@ export async function deleteUserAction(
     userId: string
 ): Promise<ActionResult> {
     try {
+        const guard = await requirePermission('members', 'delete')
+        if (!guard.allowed) return guard.error
+
         const supabase = createServiceClient()
 
         // Hard delete: remove from Supabase Auth (cascades to profiles via trigger/FK)

@@ -133,7 +133,16 @@ export interface Lead {
     company?: { id?: string; name: string } | null;
     client_company?: { id?: string; name: string; line_industry?: string | null; area?: string | null; account_status?: string | null; industry?: string | null } | null;
     contact?: { id?: string; salutation: string | null; full_name: string; email: string | null; phone: string | null } | null;
-    pipeline_stage?: { id?: string; name: string; color: string } | null;
+    pipeline_stage?: {
+        id?: string
+        name: string
+        color: string
+        // Optional because not every fetcher selects these. Dashboard
+        // queries do — they drive per-basis filtering on the
+        // Performance Dashboard. See `analytics-dashboard.tsx`.
+        closed_status?: 'won' | 'lost' | null
+        stage_type?: 'open' | 'closed'
+    } | null;
     pic_sales_profile?: { id?: string; full_name: string } | null;
     account_manager_profile?: { id?: string; full_name: string } | null;
 

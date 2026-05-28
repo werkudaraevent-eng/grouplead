@@ -462,14 +462,18 @@ export function DashboardGrid({
                     onClick={handleStartEdit}
                     style={{
                         display: "flex", alignItems: "center", gap: 6,
-                        background: "#fff", border: "1px solid #e5e8ed", borderRadius: 7,
-                        padding: "5px 12px", fontSize: 11, fontWeight: 600, color: "#02378D",
+                        background: "#02378D", border: "1px solid #02378D", borderRadius: 8,
+                        padding: "0 14px", height: 32,
+                        fontSize: 12, fontWeight: 600, color: "#fff",
                         cursor: "pointer", fontFamily: "inherit",
-                        boxShadow: "0 1px 2px rgba(0,0,0,.03)",
+                        boxShadow: "0 1px 2px rgba(2,55,141,.18)",
                         whiteSpace: "nowrap",
+                        transition: "background .15s ease",
                     }}
+                    onMouseEnter={e => (e.currentTarget.style.background = "#013577")}
+                    onMouseLeave={e => (e.currentTarget.style.background = "#02378D")}
                 >
-                    <Pencil style={{ width: 12, height: 12 }} /> Edit Dashboard
+                    <Pencil style={{ width: 13, height: 13 }} /> Edit Dashboard
                 </button>
             </div>
         )

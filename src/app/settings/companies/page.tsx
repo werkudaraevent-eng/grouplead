@@ -92,6 +92,9 @@ export default function CompanyManagementPage() {
   }
 
   return (
+    <PermissionGate resource="companies" action="read" fallback={
+      <div className="p-8 text-center text-muted-foreground">You don&apos;t have permission to view company settings.</div>
+    }>
     <div className="space-y-6 w-full">
       <SettingsPageHeader
         title="Company Management"
@@ -270,5 +273,6 @@ export default function CompanyManagementPage() {
         </DialogContent>
       </Dialog>
     </div>
+    </PermissionGate>
   )
 }

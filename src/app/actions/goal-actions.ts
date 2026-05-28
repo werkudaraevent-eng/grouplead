@@ -15,6 +15,7 @@ import {
 import { validateCriticalFieldUpdate } from '@/features/goals/lib/goal-settings-validation'
 import { cascadeRecalculate, cascadeMonthlyTarget } from '@/features/goals/lib/cascade-service'
 import { validateMonthlyWeights } from '@/features/goals/lib/target-calculator'
+import { requirePermission } from '@/lib/require-permission'
 import type {
   GoalV2Insert,
   GoalV2Update,
@@ -37,6 +38,9 @@ const GOALS_PATH = '/settings/goals'
 
 export async function createGoalV2Action(data: GoalV2Insert): Promise<ActionResult<{ id: string; slug: string }>> {
   try {
+    const guard = await requirePermission('goal_settings', 'create')
+    if (!guard.allowed) return guard.error
+
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return { success: false, error: 'Not authenticated' }
@@ -92,6 +96,9 @@ export async function createGoalV2Action(data: GoalV2Insert): Promise<ActionResu
 
 export async function updateGoalV2Action(goalId: string, data: GoalV2Update): Promise<ActionResult> {
   try {
+    const guard = await requirePermission('goal_settings', 'update')
+    if (!guard.allowed) return guard.error
+
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return { success: false, error: 'Not authenticated' }
@@ -193,6 +200,9 @@ export async function updateGoalV2Action(goalId: string, data: GoalV2Update): Pr
 
 export async function deleteGoalV2Action(goalId: string): Promise<ActionResult> {
   try {
+    const guard = await requirePermission('goal_settings', 'delete')
+    if (!guard.allowed) return guard.error
+
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return { success: false, error: 'Not authenticated' }
@@ -719,7 +729,21 @@ export async function autoInsertGoalHierarchyAction(
 
     // First attempt to find the field in our registry
     const fieldEntry = LEAD_FIELD_REGISTRY.find(f => f.key === dimensionType)
-    
+
+    // Resolve the canonical lead column for this dimension. Entity-typed
+    // dimensions (sales_owner, subsidiary, client_company) DO NOT match
+    // their dimension_type — they live on the lead row under a different
+    // column. Storing reference_field = dimensionType for these creates
+    // orphan goal_nodes that can never be joined back to leads.
+    const ENTITY_FIELD_MAP: Record<string, string> = {
+       sales_owner: 'pic_sales_id',
+       subsidiary: 'company_id',
+       client_company: 'client_company_id',
+    }
+    const referenceField = ENTITY_FIELD_MAP[dimensionType]
+       ?? fieldEntry?.key
+       ?? dimensionType
+
     let options: { value: string, label: string }[] = []
 
     if (dimensionType.startsWith('segment:')) {
@@ -775,7 +799,7 @@ export async function autoInsertGoalHierarchyAction(
            parent_node_id: pId,
            name: opt.label,
            dimension_type: dimensionType,
-           reference_field: dimensionType,
+           reference_field: referenceField,
            reference_value: opt.value,
            allocation_mode: 'absolute',
            percentage: 0,

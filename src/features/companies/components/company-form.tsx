@@ -17,6 +17,8 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import type { Company } from '@/types/company'
+import { normalizeStringFields } from '@/lib/text-normalize'
+import { TitleCaseHint } from '@/components/shared/title-case-hint'
 
 const companySchema = z.object({
   name: z.string().min(1, 'Company name is required'),
@@ -86,11 +88,23 @@ export function CompanyForm({ open, onOpenChange, company, onSuccess }: CompanyF
 
   const onSubmit = async (values: CompanyFormValues) => {
     const supabase = createClient()
-    const payload = {
+    // Layer 1 — normalize whitespace on every string field. The slug is
+    // already constrained by the schema regex so it is safe to pass
+    // through; `normalizeStringFields` only affects strings.
+    const cleaned = normalizeStringFields({
       name: values.name,
       slug: values.slug,
-      is_holding: values.is_holding,
       logo_url: values.logo_url || null,
+    })
+    const payload = {
+      name: cleaned.name,
+      slug: cleaned.slug,
+      is_holding: values.is_holding,
+      logo_url: cleaned.logo_url || null,
+    }
+    if (!payload.name) {
+      toast.error('Company name is required')
+      return
     }
 
     if (isEdit && company) {
@@ -181,6 +195,10 @@ export function CompanyForm({ open, onOpenChange, company, onSuccess }: CompanyF
                       <FormControl>
                         <Input placeholder="Werkudara Nusantara" className="placeholder:text-slate-400" {...field} />
                       </FormControl>
+                      <TitleCaseHint
+                        value={field.value}
+                        onApply={(suggested) => form.setValue('name', suggested, { shouldDirty: true })}
+                      />
                       <FormMessage />
                     </FormItem>
                   )}

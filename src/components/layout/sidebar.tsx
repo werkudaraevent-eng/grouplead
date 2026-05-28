@@ -89,9 +89,8 @@ export function Sidebar({ onCollapse, isSheet = false, collapsed = false, onTogg
         ? []
         : mainNav.filter(item => {
             switch (item.label) {
-                case 'Dashboard':  return true
+                case 'Dashboard':  return can('dashboard', 'read')
                 case 'Pipeline':   return can('leads', 'read')
-                case 'Tasks':      return can('lead_tasks', 'read')
                 case 'Companies':  return can('companies', 'read')
                 case 'Contacts':   return can('contacts', 'read')
                 case 'History':    return true
@@ -99,9 +98,9 @@ export function Sidebar({ onCollapse, isSheet = false, collapsed = false, onTogg
             }
         })
 
-    // Settings visible for admin/executive only — sales (leader) has members.read=false
-    // Hide during load to prevent flash of unauthorized content (FOUC)
-    const showAdminNav = !permsLoading && can('members', 'read')
+    // Settings hub visibility is controlled by settings.read.
+    // Section-level access is handled inside /settings via module permissions.
+    const showAdminNav = !permsLoading && can('settings', 'read')
 
     const menuItemClasses = (isActive: boolean) =>
         `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-semibold transition-all duration-150 ${

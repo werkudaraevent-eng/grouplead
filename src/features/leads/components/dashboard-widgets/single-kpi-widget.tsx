@@ -1,6 +1,9 @@
 "use client"
 
 import { cn } from "@/lib/utils"
+import { Info } from "lucide-react"
+import { Tooltip as TooltipPrimitive } from "radix-ui"
+import type { ReactNode } from "react"
 
 // Format percentage compactly: "4.6%" for small, "2.6x" for >100%, "86%" for large
 function formatCompact(pct: number): string {
@@ -20,9 +23,16 @@ export interface SingleKPIProps {
     vsPrev: number | null
     accent: string
     icon: React.ComponentType<any>
-    tooltip?: string
     /** Optional sparkline data points (normalized 0-1 range or raw values) */
     sparkline?: number[]
+    /** Layer 1 — micro-meta line at the bottom of the card describing
+     *  which date basis the metric uses. Always visible. e.g. "by received date".
+     *  When the string contains "hidden" we render it amber to call out
+     *  excluded data (e.g. Pipeline Value missing target_close_date). */
+    basisLabel?: string
+    /** Layer 2 — rich tooltip content shown on the small ⓘ icon next to
+     *  the label. Use to explain the formula, basis, and rationale. */
+    basisInfo?: ReactNode
 }
 
 // ─── SPARKLINE ──────────────────────────────────────────────────────────────
@@ -90,7 +100,7 @@ function BreathingDot({ status }: { status: "positive" | "neutral" | "negative" 
     )
 }
 
-export function SingleKPIWidget({ label, value, prefix = "", suffix = "", vsTarget, vsPrev, accent, icon: Icon, tooltip, sparkline }: SingleKPIProps) {
+export function SingleKPIWidget({ label, value, prefix = "", suffix = "", vsTarget, vsPrev, accent, icon: Icon, sparkline, basisLabel, basisInfo }: SingleKPIProps) {
     const hasBadge = vsTarget !== null || vsPrev !== null
 
     // Determine overall status — drives badge color, sparkline color
@@ -113,13 +123,45 @@ export function SingleKPIWidget({ label, value, prefix = "", suffix = "", vsTarg
                 "hover:shadow-[0_6px_16px_rgba(0,0,0,.08),0_2px_6px_rgba(0,0,0,.04)]",
                 "hover:-translate-y-[1px]",
             )}
-            title={tooltip}
         >
-            {/* Top row: Label + Icon */}
+            {/* Top row: Label (+ optional info icon) + Icon */}
             <div className="flex items-center justify-between gap-1 mb-1">
-                <span className="text-[10.5px] font-medium text-muted-foreground tracking-wide truncate">
-                    {label}
-                </span>
+                <div className="flex items-center gap-1 min-w-0">
+                    <span className="text-[10.5px] font-medium text-muted-foreground tracking-wide truncate">
+                        {label}
+                    </span>
+                    {basisInfo && (
+                        <TooltipPrimitive.Provider delayDuration={150}>
+                            <TooltipPrimitive.Root>
+                                <TooltipPrimitive.Trigger asChild>
+                                    <button
+                                        type="button"
+                                        aria-label={`${label} — calculation details`}
+                                        className="shrink-0 inline-flex items-center justify-center text-slate-300 hover:text-slate-500 transition-colors cursor-help"
+                                    >
+                                        <Info className="w-3 h-3" />
+                                    </button>
+                                </TooltipPrimitive.Trigger>
+                                <TooltipPrimitive.Portal>
+                                    <TooltipPrimitive.Content
+                                        side="bottom"
+                                        align="start"
+                                        sideOffset={6}
+                                        className={cn(
+                                            "z-50 max-w-[280px] p-3 text-[11px] leading-snug",
+                                            "bg-slate-900 text-white rounded-lg shadow-xl",
+                                            "animate-in fade-in-0 zoom-in-95",
+                                            "data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95",
+                                        )}
+                                    >
+                                        {basisInfo}
+                                        <TooltipPrimitive.Arrow className="fill-slate-900" width={10} height={5} />
+                                    </TooltipPrimitive.Content>
+                                </TooltipPrimitive.Portal>
+                            </TooltipPrimitive.Root>
+                        </TooltipPrimitive.Provider>
+                    )}
+                </div>
                 <div
                     className="flex items-center justify-center w-7 h-7 rounded-lg shrink-0 opacity-80 group-hover:opacity-100 transition-opacity"
                     style={{ backgroundColor: `${accent}14` }}
@@ -170,6 +212,22 @@ export function SingleKPIWidget({ label, value, prefix = "", suffix = "", vsTarg
             ) : (
                 /* Empty spacer — maintains card height consistency */
                 <div className="mt-2 h-[14px]" />
+            )}
+
+            {/* Layer 1 — basis micro-meta. Always-visible truth-in-labelling
+                so the user knows which date the metric is bucketed by.
+                Renders amber when the label carries a warning (e.g. when
+                some leads are hidden because they lack the required
+                date) so the user notices without an extra row. */}
+            {basisLabel && (
+                <div className={cn(
+                    "mt-1 text-[9px] uppercase tracking-wider font-medium truncate",
+                    /hidden|excluded|missing/i.test(basisLabel)
+                        ? "text-amber-700"
+                        : "text-slate-400",
+                )}>
+                    {basisLabel}
+                </div>
             )}
         </div>
     )

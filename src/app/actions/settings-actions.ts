@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache"
 import { createClient } from "@/utils/supabase/server"
+import { requirePermission } from "@/lib/require-permission"
 import type { ActionResult } from "@/types"
 import type { CurrencyFormat, CurrencyPrefix } from "@/types/currency"
 
@@ -10,6 +11,9 @@ export async function updateCurrencySettingsAction(
   data: { currency_format: CurrencyFormat; currency_prefix: CurrencyPrefix }
 ): Promise<ActionResult> {
   try {
+    const guard = await requirePermission('settings', 'update', companyId)
+    if (!guard.allowed) return guard.error
+
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return { success: false, error: "Not authenticated" }

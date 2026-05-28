@@ -27,6 +27,10 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Loader2, Save, UserCog, Building2, X } from "lucide-react"
 import { Profile } from "@/types"
 import type { Role } from "@/types/company"
+import { normalizePhoneToE164 } from "@/lib/phone-normalize"
+import { PhoneInput } from "@/components/shared/phone-input"
+import { FormFieldLabel } from "@/components/shared/form-field-label"
+import { SearchableSelect } from "@/components/shared/searchable-select"
 
 /* ─── Schema ─────────────────────────────────────────────────────────────── */
 const schema = z.object({
@@ -124,7 +128,9 @@ export function EditUserSheet({ profile, open, onOpenChange, onSaved }: EditUser
 
             const { data, error } = await supabase.from("profiles").update({
                 full_name: values.full_name.trim(),
-                phone: values.phone?.trim() || null,
+                phone: values.phone
+                    ? (normalizePhoneToE164(values.phone) ?? values.phone.trim() ?? null)
+                    : null,
                 job_title: values.job_title?.trim() || null,
                 role_id: values.role_id,
                 role: roleText,
@@ -256,67 +262,66 @@ export function EditUserSheet({ profile, open, onOpenChange, onSaved }: EditUser
                         <form id="edit-user-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
 
                             {/* Section 1: User Information */}
-                            <div className="space-y-4">
-                                <h3 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider border-b pb-2">
-                                    User Information
+                            <div className="space-y-3">
+                                <h3 className="text-[11px] font-semibold text-muted-foreground tracking-wide">
+                                    User information
                                 </h3>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-4 rounded-xl border border-border bg-card p-4">
                                     <FormField control={form.control} name="full_name" render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>Full Name</FormLabel>
-                                            <FormControl><Input {...field} /></FormControl>
-                                            <FormMessage />
+                                        <FormItem className="space-y-1.5">
+                                            <FormFieldLabel required>Full name</FormFieldLabel>
+                                            <FormControl><Input autoComplete="name" aria-required {...field} /></FormControl>
+                                            <FormMessage className="text-[11px]" />
                                         </FormItem>
                                     )} />
-                                    <FormItem>
-                                        <FormLabel>Email Address</FormLabel>
+                                    <FormItem className="space-y-1.5">
+                                        <FormFieldLabel hint="Email is tied to Auth and cannot be changed here.">Email address</FormFieldLabel>
                                         <FormControl>
                                             <Input value={profile.email || ""} disabled className="bg-muted/50 text-muted-foreground cursor-not-allowed" />
                                         </FormControl>
-                                        <p className="text-[0.75rem] text-muted-foreground">
-                                            Email is tied to Auth and cannot be changed here.
-                                        </p>
                                     </FormItem>
                                     <FormField control={form.control} name="phone" render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>Phone</FormLabel>
-                                            <FormControl><Input placeholder="+62 812 1234 5678" {...field} /></FormControl>
+                                        <FormItem className="space-y-1.5">
+                                            <FormFieldLabel>Phone</FormFieldLabel>
+                                            <FormControl>
+                                                <PhoneInput
+                                                    value={field.value || ""}
+                                                    onChange={field.onChange}
+                                                    onBlur={field.onBlur}
+                                                />
+                                            </FormControl>
                                         </FormItem>
                                     )} />
                                     <FormField control={form.control} name="job_title" render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>Job Title</FormLabel>
-                                            <FormControl><Input placeholder="e.g. Sales Manager" {...field} /></FormControl>
+                                        <FormItem className="space-y-1.5">
+                                            <FormFieldLabel>Job title</FormFieldLabel>
+                                            <FormControl><Input placeholder="e.g. Sales Manager" autoComplete="organization-title" {...field} /></FormControl>
                                         </FormItem>
                                     )} />
                                 </div>
                             </div>
 
                             {/* Section 2: Organizational Structure */}
-                            <div className="space-y-4">
-                                <h3 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider border-b pb-2">
-                                    Organizational Structure
+                            <div className="space-y-3">
+                                <h3 className="text-[11px] font-semibold text-muted-foreground tracking-wide">
+                                    Organizational structure
                                 </h3>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-4 rounded-xl border border-border bg-card p-4">
                                     {/* System Role */}
                                     <FormField control={form.control} name="role_id" render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>System Role</FormLabel>
-                                            <Select key={profile.id} onValueChange={field.onChange} defaultValue={field.value}>
-                                                <FormControl>
-                                                    <SelectTrigger>
-                                                        <SelectValue placeholder="Select a role..." />
-                                                    </SelectTrigger>
-                                                </FormControl>
-                                                <SelectContent>
-                                                    {roles.map((r) => (
-                                                        <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
-                                            <p className="text-[0.75rem] text-muted-foreground">
-                                                Determines data visibility based on Role Hierarchy.
-                                            </p>
+                                        <FormItem className="space-y-1.5">
+                                            <FormFieldLabel required hint="Determines data visibility based on Role Hierarchy.">System role</FormFieldLabel>
+                                            <FormControl>
+                                                <SearchableSelect
+                                                    value={field.value || null}
+                                                    onChange={(v) => field.onChange(v ?? "")}
+                                                    options={roles.map(r => ({ value: r.id, label: r.name }))}
+                                                    placeholder="Select a role…"
+                                                    searchPlaceholder="Search roles…"
+                                                    clearable={false}
+                                                />
+                                            </FormControl>
+                                            <FormMessage className="text-[11px]" />
                                         </FormItem>
                                     )} />
 
@@ -350,18 +355,18 @@ export function EditUserSheet({ profile, open, onOpenChange, onSaved }: EditUser
                                         }
 
                                         return (
-                                            <div className="sm:col-span-2">
-                                                <FormLabel className="flex items-center gap-1.5 mb-2">
-                                                    <Building2 className="h-3.5 w-3.5" /> Accessible Business Units
-                                                </FormLabel>
-                                                <p className="text-[0.7rem] text-muted-foreground mb-3">
+                                            <div className="sm:col-span-2 space-y-1.5">
+                                                <FormFieldLabel className="flex items-center gap-1.5">
+                                                    <Building2 className="h-3.5 w-3.5" /> Accessible business units
+                                                </FormFieldLabel>
+                                                <p className="text-[11px] text-muted-foreground">
                                                     Select the companies this user should have access to. This defines their data scope.
                                                 </p>
-                                                <div className="flex flex-col gap-3 border rounded-xl p-3 bg-slate-50/50 max-h-72 overflow-y-auto">
+                                                <div className="flex flex-col gap-3 border border-border rounded-xl p-3 bg-muted/40 max-h-72 overflow-y-auto custom-scrollbar mt-2">
                                                     {/* Group Level (HQ) — acts as "select all" */}
                                                     {holdingCompanies.length > 0 && (
                                                         <div className="flex flex-col gap-2">
-                                                            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Group Level (HQ)</span>
+                                                            <span className="text-[10px] font-semibold text-muted-foreground tracking-wide">Group level (HQ)</span>
                                                             {holdingCompanies.map(c => {
                                                                 const isChecked = selectedCompanyIds.includes(c.id)
                                                                 return (
@@ -369,14 +374,14 @@ export function EditUserSheet({ profile, open, onOpenChange, onSaved }: EditUser
                                                                         key={c.id}
                                                                         className={`flex items-center gap-2.5 px-3 py-2.5 rounded-md cursor-pointer transition-all text-sm ${
                                                                             isChecked
-                                                                                ? "bg-indigo-50 border border-indigo-200 text-indigo-900 shadow-sm"
+                                                                                ? "bg-primary/10 border border-primary/20 text-primary shadow-sm"
                                                                                 : "bg-background border border-transparent hover:bg-muted"
                                                                         }`}
                                                                     >
                                                                         <Checkbox
                                                                             checked={isChecked}
                                                                             onCheckedChange={(checked) => handleHoldingToggle(c.id, !!checked)}
-                                                                            className="h-4 w-4 border-slate-300 data-[state=checked]:bg-indigo-600 data-[state=checked]:border-indigo-600"
+                                                                            className="h-4 w-4 data-[state=checked]:bg-primary data-[state=checked]:border-primary"
                                                                         />
                                                                         <span className="font-semibold">{c.name}</span>
                                                                         <span className="text-[10px] text-muted-foreground ml-auto">Access all units</span>
@@ -393,9 +398,9 @@ export function EditUserSheet({ profile, open, onOpenChange, onSaved }: EditUser
                                                     {subsidiaryCompanies.length > 0 && (
                                                         <div className="flex flex-col gap-2">
                                                             <div className="flex items-center justify-between">
-                                                                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Subsidiary Units</span>
+                                                                <span className="text-[10px] font-semibold text-muted-foreground tracking-wide">Subsidiary units</span>
                                                                 {hasHoldingSelected && (
-                                                                    <span className="text-[10px] text-indigo-500 font-medium">All included via Group</span>
+                                                                    <span className="text-[10px] text-primary/80 font-medium">All included via group</span>
                                                                 )}
                                                             </div>
                                                             <div className={`grid grid-cols-1 sm:grid-cols-2 gap-2 ${hasHoldingSelected ? "opacity-50 pointer-events-none" : ""}`}>
@@ -406,9 +411,9 @@ export function EditUserSheet({ profile, open, onOpenChange, onSaved }: EditUser
                                                                             key={c.id}
                                                                             className={`flex items-center gap-2.5 px-3 py-2 rounded-md transition-all text-sm ${
                                                                                 hasHoldingSelected
-                                                                                    ? "bg-indigo-50/50 border border-indigo-100 text-indigo-800"
+                                                                                    ? "bg-primary/5 border border-primary/10 text-primary/90"
                                                                                     : isChecked
-                                                                                        ? "bg-blue-50 border border-blue-200 text-blue-900 shadow-sm cursor-pointer"
+                                                                                        ? "bg-primary/10 border border-primary/20 text-primary shadow-sm cursor-pointer"
                                                                                         : "bg-background border border-transparent hover:bg-muted cursor-pointer"
                                                                             }`}
                                                                         >
@@ -416,7 +421,7 @@ export function EditUserSheet({ profile, open, onOpenChange, onSaved }: EditUser
                                                                                 checked={isChecked || hasHoldingSelected}
                                                                                 disabled={hasHoldingSelected}
                                                                                 onCheckedChange={(checked) => handleSubsidiaryToggle(c.id, !!checked)}
-                                                                                className="h-4 w-4 border-slate-300 data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600 disabled:opacity-60"
+                                                                                className="h-4 w-4 data-[state=checked]:bg-primary data-[state=checked]:border-primary disabled:opacity-60"
                                                                             />
                                                                             <span className="truncate font-medium">{c.name}</span>
                                                                         </label>
@@ -427,7 +432,7 @@ export function EditUserSheet({ profile, open, onOpenChange, onSaved }: EditUser
                                                     )}
                                                 </div>
                                                 {selectedCompanyIds.length > 0 && (
-                                                    <p className="text-[0.7rem] text-muted-foreground mt-1.5">
+                                                    <p className="text-[11px] text-muted-foreground mt-1.5">
                                                         {hasHoldingSelected
                                                             ? "Full group access (all business units)"
                                                             : `${selectedCompanyIds.length} compan${selectedCompanyIds.length === 1 ? 'y' : 'ies'} assigned`
@@ -440,28 +445,17 @@ export function EditUserSheet({ profile, open, onOpenChange, onSaved }: EditUser
 
                                     {/* Direct Manager */}
                                     <FormField control={form.control} name="reports_to" render={({ field }) => (
-                                        <FormItem className="sm:col-span-2">
-                                            <FormLabel>Direct Manager (Reports To)</FormLabel>
-                                            <Select
-                                                key={profile.id + "-mgr"}
-                                                onValueChange={(v) => field.onChange(v === "none" ? null : v)}
-                                                defaultValue={field.value || "none"}
-                                            >
-                                                <FormControl>
-                                                    <SelectTrigger>
-                                                        <SelectValue placeholder="Assign a manager..." />
-                                                    </SelectTrigger>
-                                                </FormControl>
-                                                <SelectContent>
-                                                    <SelectItem value="none">— None (Top Level) —</SelectItem>
-                                                    {managers.map((m) => (
-                                                        <SelectItem key={m.id} value={m.id}>{m.full_name || "Unnamed User"}</SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
-                                            <p className="text-[0.75rem] text-muted-foreground">
-                                                Used for approval workflows and quota rollups.
-                                            </p>
+                                        <FormItem className="sm:col-span-2 space-y-1.5">
+                                            <FormFieldLabel hint="Used for approval workflows and quota rollups.">Direct manager (reports to)</FormFieldLabel>
+                                            <FormControl>
+                                                <SearchableSelect
+                                                    value={field.value ?? null}
+                                                    onChange={(v) => field.onChange(v)}
+                                                    options={managers.map(m => ({ value: m.id, label: m.full_name || "Unnamed user" }))}
+                                                    placeholder="None (top level)"
+                                                    searchPlaceholder="Search…"
+                                                />
+                                            </FormControl>
                                         </FormItem>
                                     )} />
                                 </div>
@@ -472,12 +466,18 @@ export function EditUserSheet({ profile, open, onOpenChange, onSaved }: EditUser
                 </div>
 
                 {/* ─── Footer ─────────────────────────────────────────── */}
-                <div className="px-6 py-4 border-t flex justify-end gap-3">
-                    <Button type="button" variant="outline" onClick={handleAttemptClose}>Cancel</Button>
-                    <Button type="submit" form="edit-user-form" disabled={saving}>
-                        {saving ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Save className="h-4 w-4 mr-1.5" />}
-                        Save Changes
-                    </Button>
+                <div className="px-6 py-3.5 border-t border-border bg-card flex items-center justify-between gap-3">
+                    <p className="text-[11px] text-muted-foreground hidden sm:block">
+                        <kbd className="px-1 py-0.5 rounded border border-border bg-muted text-[10px] font-mono">Esc</kbd>
+                        <span className="mx-1">to cancel</span>
+                    </p>
+                    <div className="flex items-center gap-2 ml-auto">
+                        <Button type="button" variant="ghost" onClick={handleAttemptClose}>Cancel</Button>
+                        <Button type="submit" form="edit-user-form" disabled={saving}>
+                            {saving ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Save className="h-4 w-4 mr-1.5" />}
+                            {saving ? "Saving…" : "Save changes"}
+                        </Button>
+                    </div>
                 </div>
             </SheetContent>
         </Sheet>

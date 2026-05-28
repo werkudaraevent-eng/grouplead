@@ -18,6 +18,7 @@ import { useCurrency } from "@/contexts/currency-context"
 import type { ClientCompany, Contact } from "@/types"
 import { TimelineTab } from "./timeline-tab"
 import { AddCompanyModal } from "./add-company-modal"
+import { formatPhoneDisplay } from "@/lib/phone-normalize"
 // ═══════════════════════════════════════════════════════════════
 //  TYPES
 // ═══════════════════════════════════════════════════════════════
@@ -305,7 +306,7 @@ export function CompanyDetailPage({ company, leads, contactCount, lastModified, 
                                 )}
                                 {company.phone && (
                                     <span className="flex items-center gap-1.5">
-                                        <Phone className="w-3.5 h-3.5" /> {company.phone}
+                                        <Phone className="w-3.5 h-3.5" /> {formatPhoneDisplay(company.phone)}
                                     </span>
                                 )}
                             </div>
@@ -365,7 +366,7 @@ export function CompanyDetailPage({ company, leads, contactCount, lastModified, 
                         <div className="px-5 py-4 space-y-3">
                             <InfoRow icon={Briefcase} label="Sector" value={company.industry} />
                             <InfoRow icon={Building2} label="Line Industry" value={company.line_industry} />
-                            <InfoRow icon={Phone} label="Phone" value={company.phone} />
+                            <InfoRow icon={Phone} label="Phone" value={company.phone ? formatPhoneDisplay(company.phone) : null} />
                             <InfoRow icon={Globe} label="Website" value={company.website || "—"} isLink={!!company.website} />
                             <InfoRow icon={MapPin} label="Area" value={company.area} />
                             <InfoRow icon={MapPin} label="Address" value={[company.street_address, company.city, company.postal_code, company.country].filter(Boolean).join(", ") || company.address} />

@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react"
 import { createClient } from "@/utils/supabase/client"
 import { useCompany } from "@/contexts/company-context"
+import { usePermissions } from "@/contexts/permissions-context"
 import { PermissionGate } from "@/features/users/components/permission-gate"
 import { RoleModal } from "@/features/roles/components/create-role-modal"
 import { Loader2, ShieldCheck, Shield, Lock, Crown, UserCog, User, Plus, ChevronRight, Pencil, Trash2, Info } from "lucide-react"
@@ -30,14 +31,78 @@ const ROLE_ICON_MAP: Record<string, React.ElementType> = {
 
 const CAN_READ_OPTIONS = ["none", "own", "company", "all"] as const
 const READ_LABELS: Record<string, string> = {
-  none: "No Access",
-  own: "Own Records",
+  none: "No access",
+  own: "Own records (preview)",
   company: "Company-wide",
   all: "Cross-company",
 }
 
+const MODULE_GROUPS = [
+  {
+    title: "Core CRM",
+    description: "Daily sales workspace and customer records.",
+    modules: ["dashboard", "leads", "companies", "contacts"],
+  },
+  {
+    title: "Settings",
+    description: "Settings hub access and section-level controls.",
+    modules: ["settings", "master_options", "segment_settings", "goal_settings", "forecast_settings", "management_dashboard", "members", "permissions"],
+  },
+] as const
+
+const MODULE_DISPLAY: Record<string, { name: string; description: string; level?: number }> = {
+  dashboard: {
+    name: "Dashboard",
+    description: "Main executive and sales performance dashboard.",
+    level: 0,
+  },
+  settings: {
+    name: "Settings hub",
+    description: "Controls whether the user can open the main /settings page.",
+    level: 0,
+  },
+  master_options: {
+    name: "Master Options",
+    description: "Lead fields, dropdown options, form layouts, and pipeline stage configuration.",
+    level: 1,
+  },
+  segment_settings: {
+    name: "Segments",
+    description: "Segment definitions and mappings inside Settings.",
+    level: 1,
+  },
+  goal_settings: {
+    name: "Goal Settings",
+    description: "Goal periods, attribution rules, and reporting configuration inside Settings.",
+    level: 1,
+  },
+  forecast_settings: {
+    name: "Forecast Settings",
+    description: "Stage weights and forecast configuration inside Settings.",
+    level: 1,
+  },
+  management_dashboard: {
+    name: "Goal Management Dashboard",
+    description: "Goal attainment and forecast dashboard inside Goal Settings, not the main app dashboard.",
+    level: 1,
+  },
+  members: {
+    name: "Users",
+    description: "User management and member provisioning inside Settings.",
+    level: 1,
+  },
+  permissions: {
+    name: "Roles & Permissions",
+    description: "Access-control matrix administration inside Settings.",
+    level: 1,
+  },
+}
+
+const GROUPED_MODULE_IDS: Set<string> = new Set(MODULE_GROUPS.flatMap((group) => [...group.modules]))
+
 export default function GlobalPermissionsPage() {
   const { activeCompany, isHoldingView, companies } = useCompany()
+  const { can } = usePermissions()
   const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null)
 
   /* ─── Dynamic roles state ──────────────────────────────────────────────── */
@@ -53,10 +118,12 @@ export default function GlobalPermissionsPage() {
   const [rolesLoading, setRolesLoading] = useState(true)
   const [toggling, setToggling] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({})
 
   const supabase = createClient()
   const companyId = selectedCompanyId ?? activeCompany?.id ?? null
   const isSuperAdmin = selectedRole?.name === "Super Admin"
+  const canManagePermissions = can("permissions", "update")
 
   /* ─── Fetch roles from DB ──────────────────────────────────────────────── */
   const fetchRoles = useCallback(async () => {
@@ -111,11 +178,25 @@ export default function GlobalPermissionsPage() {
   const findPerm = (moduleId: string) =>
     permissions.find((p) => p.module_id === moduleId)
 
+  const isGroupExpanded = (groupTitle: string) => {
+    if (expandedGroups[groupTitle] !== undefined) return expandedGroups[groupTitle]
+    if (groupTitle !== "Settings") return true
+    const settingsPerm = findPerm("settings")
+    return (settingsPerm?.can_read ?? "none") !== "none"
+  }
+
+  const toggleGroup = (groupTitle: string) => {
+    setExpandedGroups((prev) => ({
+      ...prev,
+      [groupTitle]: !isGroupExpanded(groupTitle),
+    }))
+  }
+
   const handleToggleBool = async (
     moduleId: string,
     field: "can_create" | "can_update" | "can_delete"
   ) => {
-    if (!companyId || !selectedRole || isSuperAdmin) return
+    if (!companyId || !selectedRole || isSuperAdmin || !canManagePermissions) return
     const key = `${moduleId}:${selectedRole.id}:${field}`
     setToggling(key)
 
@@ -171,7 +252,7 @@ export default function GlobalPermissionsPage() {
   }
 
   const handleChangeRead = async (moduleId: string, value: string) => {
-    if (!companyId || !selectedRole || isSuperAdmin) return
+    if (!companyId || !selectedRole || isSuperAdmin || !canManagePermissions) return
     const key = `${moduleId}:${selectedRole.id}:can_read`
     setToggling(key)
 
@@ -309,9 +390,89 @@ export default function GlobalPermissionsPage() {
     ? companies.find((c) => c.id === companyId)?.name ?? "All Companies"
     : activeCompany?.name ?? ""
 
+  const renderPermissionRow = (mod: AppModule) => {
+    if (!selectedRole) return null
+    const display = MODULE_DISPLAY[mod.id]
+    const level = display?.level ?? 0
+    const perm = findPerm(mod.id)
+    const isReadLocked = !isSuperAdmin && (perm?.can_read ?? 'none') === 'none'
+    const label = display?.name ?? mod.name
+    const description = display?.description ?? mod.description
+
+    return (
+      <tr key={mod.id} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
+        <td className="px-4 py-4">
+          <div className={cn("flex items-start gap-2", level > 0 && "pl-6")}>
+            {level > 0 && <span className="mt-1.5 h-px w-3 shrink-0 bg-border" />}
+            <div>
+              <div className="font-medium text-foreground">{label}</div>
+              {description && (
+                <div className="text-xs text-muted-foreground mt-0.5">{description}</div>
+              )}
+            </div>
+          </div>
+        </td>
+        <td className="text-center px-4 py-4">
+          <div className="flex justify-center">
+            <Switch
+              checked={isSuperAdmin ? true : (perm?.can_create ?? false)}
+              disabled={!canManagePermissions || isSuperAdmin || isReadLocked || toggling === `${mod.id}:${selectedRole.id}:can_create`}
+              onCheckedChange={() => handleToggleBool(mod.id, "can_create")}
+              className={isReadLocked ? 'opacity-40 cursor-not-allowed' : ''}
+            />
+          </div>
+        </td>
+        <td className="text-center px-4 py-4">
+          {isSuperAdmin ? (
+            <span className="inline-flex items-center rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary border border-primary/30">
+              Cross-company
+            </span>
+          ) : (
+            <Select
+              value={perm?.can_read ?? "none"}
+              onValueChange={(val) => handleChangeRead(mod.id, val)}
+              disabled={!canManagePermissions || toggling === `${mod.id}:${selectedRole.id}:can_read`}
+            >
+              <SelectTrigger className="h-8 w-[140px] mx-auto text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {CAN_READ_OPTIONS.map((opt) => (
+                  <SelectItem key={opt} value={opt} className="text-xs">
+                    {READ_LABELS[opt]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        </td>
+        <td className="text-center px-4 py-4">
+          <div className="flex justify-center">
+            <Switch
+              checked={isSuperAdmin ? true : (perm?.can_update ?? false)}
+              disabled={!canManagePermissions || isSuperAdmin || isReadLocked || toggling === `${mod.id}:${selectedRole.id}:can_update`}
+              onCheckedChange={() => handleToggleBool(mod.id, "can_update")}
+              className={isReadLocked ? 'opacity-40 cursor-not-allowed' : ''}
+            />
+          </div>
+        </td>
+        <td className="text-center px-4 py-4">
+          <div className="flex justify-center">
+            <Switch
+              checked={isSuperAdmin ? true : (perm?.can_delete ?? false)}
+              disabled={!canManagePermissions || isSuperAdmin || isReadLocked || toggling === `${mod.id}:${selectedRole.id}:can_delete`}
+              onCheckedChange={() => handleToggleBool(mod.id, "can_delete")}
+              className={isReadLocked ? 'opacity-40 cursor-not-allowed' : ''}
+            />
+          </div>
+        </td>
+      </tr>
+    )
+  }
+
   /* ─── Render ───────────────────────────────────────────────────────────── */
   return (
-    <PermissionGate resource="companies" action="update" fallback={
+    <PermissionGate resource="permissions" action="read" fallback={
       <div className="p-8 text-center text-muted-foreground">You don&apos;t have permission to manage permissions.</div>
     }>
       <div className="space-y-6 w-full">
@@ -359,6 +520,7 @@ export default function GlobalPermissionsPage() {
                   variant="ghost"
                   className="h-6 w-6 p-0 hover:bg-muted"
                   onClick={() => openRoleModal()}
+                  disabled={!canManagePermissions}
                   title="Create new role"
                 >
                   <Plus className="h-3.5 w-3.5" />
@@ -422,7 +584,7 @@ export default function GlobalPermissionsPage() {
                         </CardDescription>
                       </div>
                       {isSuperAdmin ? (
-                        <div className="flex items-center gap-2 rounded-full bg-amber-100 px-3 py-1.5 text-amber-800 border border-amber-200 shrink-0">
+                        <div className="flex items-center gap-2 rounded-full bg-accent/20 px-3 py-1.5 text-accent-foreground border border-accent/40 shrink-0">
                           <Lock className="h-3.5 w-3.5" />
                           <span className="text-xs font-semibold">Immutable — full access granted</span>
                         </div>
@@ -433,6 +595,7 @@ export default function GlobalPermissionsPage() {
                             size="sm"
                             className="h-8"
                             onClick={() => openRoleModal(selectedRole)}
+                            disabled={!canManagePermissions}
                           >
                             <Pencil className="h-3.5 w-3.5 mr-1.5" /> Edit
                           </Button>
@@ -440,8 +603,9 @@ export default function GlobalPermissionsPage() {
                             <Button
                               variant="outline"
                               size="sm"
-                              className="h-8 text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+                              className="h-8 text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/40"
                               onClick={() => setRoleToDelete(selectedRole)}
+                              disabled={!canManagePermissions}
                             >
                               <Trash2 className="h-3.5 w-3.5 mr-1.5" /> Delete
                             </Button>
@@ -462,16 +626,16 @@ export default function GlobalPermissionsPage() {
                     ) : (
                       <>
                       {/* ─── Data Visibility Scope Legend ──────────────────── */}
-                      <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 mb-5 flex flex-col gap-2">
-                        <div className="flex items-center gap-2 text-slate-800 font-semibold text-sm">
-                          <Info className="w-4 h-4 text-blue-600 shrink-0" />
-                          <span>Data Visibility Scopes (Read Access)</span>
+                      <div className="bg-muted/40 border border-border rounded-lg p-4 mb-5 flex flex-col gap-2">
+                        <div className="flex items-center gap-2 text-foreground font-semibold text-sm">
+                          <Info className="w-4 h-4 text-primary shrink-0" />
+                          <span>Data visibility scopes (read access)</span>
                         </div>
-                        <ul className="text-[13px] text-slate-600 space-y-1.5 ml-6 list-disc">
-                          <li><strong className="text-slate-800">No Access:</strong> Module is completely hidden from the user&apos;s sidebar and all create/update/delete toggles are disabled.</li>
-                          <li><strong className="text-slate-800">Own Records:</strong> Strict isolation. User only sees data they created or are explicitly assigned to as owner.</li>
-                          <li><strong className="text-slate-800">Company-wide:</strong> Business unit isolation. User sees all data within the specific subsidiaries they are assigned to (via the User Matrix).</li>
-                          <li><strong className="text-slate-800">Cross-company:</strong> Global visibility. User sees all data across the entire holding and all subsidiaries, bypassing company assignments. <span className="text-amber-600 font-medium">(Use for Super Admins/Directors only).</span></li>
+                        <ul className="text-[13px] text-muted-foreground space-y-1.5 ml-6 list-disc">
+                          <li><strong className="text-foreground">No access:</strong> Module is hidden from the user&apos;s sidebar and all create/update/delete toggles are disabled.</li>
+                          <li><strong className="text-foreground">Own records:</strong> Strict isolation. User only sees data they created or are explicitly assigned to as owner. <span className="text-destructive font-medium">Note: this scope is not yet enforced in queries — pending implementation.</span></li>
+                          <li><strong className="text-foreground">Company-wide:</strong> Business unit isolation. User sees all data within the specific subsidiaries they are assigned to (via the User Matrix).</li>
+                          <li><strong className="text-foreground">Cross-company:</strong> Global visibility. User sees all data across the entire holding and all subsidiaries, bypassing company assignments. <span className="text-accent-foreground font-medium">(Use for Super Admins/Directors only).</span></li>
                         </ul>
                       </div>
 
@@ -486,76 +650,69 @@ export default function GlobalPermissionsPage() {
                               <th className="text-center px-4 py-3 font-semibold text-xs uppercase tracking-wider text-muted-foreground">Delete</th>
                             </tr>
                           </thead>
-                          <tbody>
-                            {modules.map((mod) => {
-                              const perm = findPerm(mod.id)
-                              const isReadLocked = !isSuperAdmin && (perm?.can_read ?? 'none') === 'none'
+                          <>
+                            {MODULE_GROUPS.map((group) => {
+                              const groupModules = group.modules
+                                .map((id) => modules.find((mod) => mod.id === id))
+                                .filter((mod): mod is AppModule => Boolean(mod))
+
+                              if (groupModules.length === 0) return null
+                              const expanded = isGroupExpanded(group.title)
+                              const hasChildren = group.title === "Settings"
+                              const visibleModules = hasChildren && !expanded
+                                ? groupModules.filter((mod) => mod.id === "settings")
+                                : groupModules
+
                               return (
-                                <tr key={mod.id} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
-                                  <td className="px-4 py-4">
-                                    <div className="font-medium">{mod.name}</div>
-                                    {mod.description && (
-                                      <div className="text-xs text-muted-foreground mt-0.5">{mod.description}</div>
-                                    )}
-                                  </td>
-                                  <td className="text-center px-4 py-4">
-                                    <div className="flex justify-center">
-                                      <Switch
-                                        checked={isSuperAdmin ? true : (perm?.can_create ?? false)}
-                                        disabled={isSuperAdmin || isReadLocked || toggling === `${mod.id}:${selectedRole.id}:can_create`}
-                                        onCheckedChange={() => handleToggleBool(mod.id, "can_create")}
-                                        className={isReadLocked ? 'opacity-40 cursor-not-allowed' : ''}
-                                      />
-                                    </div>
-                                  </td>
-                                  <td className="text-center px-4 py-4">
-                                    {isSuperAdmin ? (
-                                      <span className="inline-flex items-center rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-700 border border-emerald-200">
-                                        Cross-company
-                                      </span>
-                                    ) : (
-                                      <Select
-                                        value={perm?.can_read ?? "none"}
-                                        onValueChange={(val) => handleChangeRead(mod.id, val)}
-                                        disabled={toggling === `${mod.id}:${selectedRole.id}:can_read`}
+                                <tbody key={group.title}>
+                                  <tr className="bg-muted/30 border-b">
+                                    <td colSpan={5} className="px-4 py-3">
+                                      <button
+                                        type="button"
+                                        onClick={() => hasChildren && toggleGroup(group.title)}
+                                        className={cn(
+                                          "flex w-full items-start justify-between gap-3 text-left",
+                                          hasChildren && "cursor-pointer"
+                                        )}
                                       >
-                                        <SelectTrigger className="h-8 w-[140px] mx-auto text-xs">
-                                          <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                          {CAN_READ_OPTIONS.map((opt) => (
-                                            <SelectItem key={opt} value={opt} className="text-xs">
-                                              {READ_LABELS[opt]}
-                                            </SelectItem>
-                                          ))}
-                                        </SelectContent>
-                                      </Select>
-                                    )}
-                                  </td>
-                                  <td className="text-center px-4 py-4">
-                                    <div className="flex justify-center">
-                                      <Switch
-                                        checked={isSuperAdmin ? true : (perm?.can_update ?? false)}
-                                        disabled={isSuperAdmin || isReadLocked || toggling === `${mod.id}:${selectedRole.id}:can_update`}
-                                        onCheckedChange={() => handleToggleBool(mod.id, "can_update")}
-                                        className={isReadLocked ? 'opacity-40 cursor-not-allowed' : ''}
-                                      />
-                                    </div>
-                                  </td>
-                                  <td className="text-center px-4 py-4">
-                                    <div className="flex justify-center">
-                                      <Switch
-                                        checked={isSuperAdmin ? true : (perm?.can_delete ?? false)}
-                                        disabled={isSuperAdmin || isReadLocked || toggling === `${mod.id}:${selectedRole.id}:can_delete`}
-                                        onCheckedChange={() => handleToggleBool(mod.id, "can_delete")}
-                                        className={isReadLocked ? 'opacity-40 cursor-not-allowed' : ''}
-                                      />
-                                    </div>
-                                  </td>
-                                </tr>
+                                        <div>
+                                          <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                                            {group.title}
+                                          </div>
+                                          <div className="mt-0.5 text-xs text-muted-foreground/80 normal-case tracking-normal">
+                                            {group.description}
+                                            {group.title === "Settings" && (
+                                              <span className="ml-1 text-muted-foreground/70">
+                                                Child sections only appear to users when Settings hub read access is enabled.
+                                              </span>
+                                            )}
+                                          </div>
+                                        </div>
+                                        {hasChildren && (
+                                          <ChevronRight
+                                            className={cn(
+                                              "mt-0.5 h-4 w-4 shrink-0 text-muted-foreground transition-transform",
+                                              expanded && "rotate-90"
+                                            )}
+                                            aria-hidden="true"
+                                          />
+                                        )}
+                                      </button>
+                                    </td>
+                                  </tr>
+                                  {visibleModules.map((mod) => renderPermissionRow(mod))}
+                                </tbody>
                               )
                             })}
-                          </tbody>
+
+                            {modules.filter((mod) => !GROUPED_MODULE_IDS.has(mod.id)).length > 0 && (
+                              <tbody>
+                                {modules
+                                  .filter((mod) => !GROUPED_MODULE_IDS.has(mod.id))
+                                  .map((mod) => renderPermissionRow(mod))}
+                              </tbody>
+                            )}
+                          </>
                         </table>
                       </div>
                       </>
@@ -598,7 +755,7 @@ export default function GlobalPermissionsPage() {
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => setRoleToDelete(null)}>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              className="bg-red-600 hover:bg-red-700 text-white"
+              className="bg-destructive hover:bg-destructive/90 text-white"
               onClick={handleDeleteRole}
             >
               Force Delete

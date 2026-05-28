@@ -33,7 +33,8 @@ import { FilesTab } from "@/features/leads/components/files-tab"
 import { TransitionPromptModal } from "@/features/leads/components/transition-prompt-modal"
 import { useCurrency } from "@/contexts/currency-context"
 import { useLeadTabUnread } from "@/features/leads/lib/use-lead-tab-unread"
-import { updatePipelineStageAction } from "@/app/actions/lead-actions"
+import { formatPhoneDisplay } from "@/lib/phone-normalize"
+import { deleteLeadAction, updatePipelineStageAction } from "@/app/actions/lead-actions"
 interface LeadDetailPageProps {
     lead: Lead & { pipeline?: { name: string } | null }
     prevLeadId?: number | null
@@ -328,31 +329,33 @@ export function LeadDetailPage({ lead, prevLeadId, nextLeadId, lastModifiedBy = 
                                 </PermissionGate>
 
                                 {/* Overflow only for destructive/rare actions */}
-                                <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                        <button className="w-9 h-9 flex items-center justify-center rounded-lg border border-slate-200 text-slate-400 hover:text-slate-700 hover:bg-slate-50 transition-colors">
-                                            <MoreHorizontal className="h-4 w-4" />
-                                        </button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end" className="w-48">
-                                        <DropdownMenuItem
-                                            className="text-red-600 focus:bg-red-50 focus:text-red-700 cursor-pointer"
-                                            onClick={async () => {
-                                                if (!confirm('Are you sure you want to delete this lead? This action cannot be undone.')) return
-                                                const { error } = await supabase.from('leads').delete().eq('id', lead.id)
-                                                if (error) {
-                                                    toast.error(`Delete failed: ${error.message}`)
-                                                } else {
-                                                    toast.success('Lead deleted')
-                                                    router.push('/leads')
-                                                }
-                                            }}
-                                        >
-                                            <Trash2 className="h-4 w-4 mr-2" />
-                                            Delete Lead
-                                        </DropdownMenuItem>
-                                    </DropdownMenuContent>
-                                </DropdownMenu>
+                                <PermissionGate resource="leads" action="delete">
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                            <button className="w-9 h-9 flex items-center justify-center rounded-lg border border-slate-200 text-slate-400 hover:text-slate-700 hover:bg-slate-50 transition-colors">
+                                                <MoreHorizontal className="h-4 w-4" />
+                                            </button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end" className="w-48">
+                                            <DropdownMenuItem
+                                                className="text-red-600 focus:bg-red-50 focus:text-red-700 cursor-pointer"
+                                                onClick={async () => {
+                                                    if (!confirm('Are you sure you want to delete this lead? This action cannot be undone.')) return
+                                                    const result = await deleteLeadAction(lead.id)
+                                                    if (!result.success) {
+                                                        toast.error(`Delete failed: ${result.error || "Permission denied"}`)
+                                                    } else {
+                                                        toast.success('Lead deleted')
+                                                        router.push('/leads')
+                                                    }
+                                                }}
+                                            >
+                                                <Trash2 className="h-4 w-4 mr-2" />
+                                                Delete Lead
+                                            </DropdownMenuItem>
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
+                                </PermissionGate>
                             </div>
                         </div>
                     </div>
@@ -565,7 +568,7 @@ export function LeadDetailPage({ lead, prevLeadId, nextLeadId, lastModifiedBy = 
                                                     className="flex items-center gap-2.5 text-[13px] text-slate-600 hover:text-blue-600 transition-colors bg-slate-50 rounded-lg px-3 py-2 min-w-0 max-w-full"
                                                 >
                                                     <Phone className="h-3.5 w-3.5 text-slate-400 shrink-0" />
-                                                    <span className="truncate">{lead.contact.phone}</span>
+                                                    <span className="truncate">{formatPhoneDisplay(lead.contact.phone)}</span>
                                                 </a>
                                             </div>
                                         )}

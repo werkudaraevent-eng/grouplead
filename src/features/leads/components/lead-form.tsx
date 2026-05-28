@@ -20,10 +20,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
-    Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select"
-import {
-    Form, FormControl, FormField, FormItem, FormLabel, FormMessage
+    Form, FormControl, FormField, FormItem, FormMessage
 } from "@/components/ui/form"
 import { CompanyCombobox, ContactCombobox } from "@/components/shared/entity-combobox"
 import { CurrencyInput } from "@/components/shared/currency-input"
@@ -34,6 +31,10 @@ import type { LayoutItemsMap, VisibilityRules } from "@/features/settings/compon
 import { mergeMissingNativeFields } from "@/features/settings/lib/layout-self-heal"
 import { formatTabLabel, getVisibleTabIds } from "@/features/settings/lib/form-layout-tabs"
 import { DynamicField } from "./dynamic-field"
+import { FormFieldLabel } from "@/components/shared/form-field-label"
+import { SearchableSelect } from "@/components/shared/searchable-select"
+import { SegmentedControl } from "@/components/shared/segmented-control"
+import { DatePickerField } from "@/components/shared/date-picker-field"
 
 const DEFAULT_LAYOUT: LayoutItemsMap = {
     project: ["native:project_name", "native:pipeline_stage_id", "native:category", "native:grade_lead", "native:client_company_id", "native:account_status", "native:contact_id", "native:pic_sales_id", "native:lead_source", "native:referral_source", "native:received_date", "native:target_close_date"],
@@ -367,7 +368,7 @@ export function LeadForm({ onSuccess, onClose, pipelineId, defaultStageId, initi
     })
 
     const isFieldMandatory = (fieldId: string) => requiredOverrides.includes(fieldId) || fieldId === "native:project_name"
-    const getLabelStr = (baseLabel: string, fieldId: string) => baseLabel + (isFieldMandatory(fieldId) ? " *" : "")
+    const getLabelStr = (baseLabel: string, fieldId: string) => baseLabel + (isFieldMandatory(fieldId) ? " *" : "") // legacy helper, retained for any caller still relying on it
 
     // Reset form when initialData changes (e.g., switching between edit targets)
     useEffect(() => {
@@ -733,25 +734,25 @@ export function LeadForm({ onSuccess, onClose, pipelineId, defaultStageId, initi
             <form onSubmit={form.handleSubmit(onSubmit, onError)} className="flex flex-col h-full overflow-hidden">
                 <Tabs value={resolvedActiveTab} onValueChange={setActiveTab} className="flex flex-col h-full overflow-hidden">
                     {/* FIXED HEADER: Title + Tabs */}
-                    <div className="flex-none px-6 pt-6 pb-2 border-b border-slate-100 bg-white z-10">
-                        <div className="flex items-start justify-between">
+                    <div className="flex-none px-6 pt-5 pb-2 border-b border-border bg-card z-10">
+                        <div className="flex items-start justify-between gap-3">
                             <div>
-                                <h2 className="text-lg font-semibold">{isEditing ? 'Edit Lead Details' : 'Add New Lead'}</h2>
-                                <p className="text-sm text-muted-foreground">{isEditing ? `Editing ${initialData?.project_name || 'lead'} — #${initialData?.manual_id || 'N/A'}` : 'Fill in the details to track a new lead.'}</p>
+                                <h2 className="text-base font-semibold tracking-tight">{isEditing ? "Edit lead details" : "Add new lead"}</h2>
+                                <p className="text-xs text-muted-foreground mt-0.5">{isEditing ? `Editing ${initialData?.project_name || "lead"} · #${initialData?.manual_id || "N/A"}` : "Fill in the details to track a new lead."}</p>
                             </div>
-                            <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-2">
                                 {canManageLayout && (
-                                    <Button variant="outline" size="sm" asChild className="h-8 text-xs shrink-0 hidden sm:flex">
+                                    <Button variant="ghost" size="sm" asChild className="h-8 px-2 text-muted-foreground hover:text-foreground hidden sm:flex">
                                         <Link href="/settings/master-options?tab=layout" onClick={onClose}>
                                             <Settings2 className="w-3.5 h-3.5 mr-1.5" />
-                                            Layout Settings
+                                            <span className="text-xs">Layout</span>
                                         </Link>
                                     </Button>
                                 )}
                                 <button
                                     type="button"
                                     onClick={handleAttemptClose}
-                                    className="rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                                    className="rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 p-1"
                                 >
                                     <X className="h-4 w-4" />
                                     <span className="sr-only">Close</span>
@@ -759,7 +760,7 @@ export function LeadForm({ onSuccess, onClose, pipelineId, defaultStageId, initi
                             </div>
                         </div>
                         {/* DYNAMIC TABS LIST */}
-                        <TabsList className="flex w-full mt-4 bg-muted p-1 rounded-lg overflow-x-auto no-scrollbar justify-start">
+                        <TabsList className="flex w-full mt-4 bg-muted/60 p-1 rounded-lg overflow-x-auto no-scrollbar justify-start">
                             {visibleTabs.map(tab => (
                                     <TabsTrigger key={tab} value={tab} className="text-xs min-w-fit px-4 flex-1">
                                         {tabSettings[tab]?.label || formatTabLabel(tab)}
@@ -769,19 +770,24 @@ export function LeadForm({ onSuccess, onClose, pipelineId, defaultStageId, initi
                     </div>
 
                     {/* SCROLLABLE BODY */}
-                    <div className="flex-1 overflow-y-auto px-6 py-4">
+                    <div className="flex-1 overflow-y-auto custom-scrollbar px-6 py-5">
 
                         {visibleTabs.map(tab => (
                             <TabsContent key={tab} value={tab} className="mt-0 space-y-5">
                                 {tab === "project" && isHoldingView && (
                                     <FieldSection title="Company Assignment">
                                         <FormField control={form.control} name="company_id" render={({ field }) => (
-                                            <FormItem>
-                                                <FormLabel className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Assign to Company *</FormLabel>
-                                                <Select value={field.value || undefined} onValueChange={(v) => field.onChange(v || null)}>
-                                                    <FormControl><SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Select subsidiary..." /></SelectTrigger></FormControl>
-                                                    <SelectContent>{subsidiaries.map((c) => (<SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>))}</SelectContent>
-                                                </Select>
+                                            <FormItem className="space-y-1.5">
+                                                <FormFieldLabel required>Assign to company</FormFieldLabel>
+                                                <FormControl>
+                                                    <SearchableSelect
+                                                        value={field.value ?? null}
+                                                        onChange={(v) => field.onChange(v ?? null)}
+                                                        options={subsidiaries.map(c => ({ value: c.id, label: c.name }))}
+                                                        placeholder="Select subsidiary…"
+                                                        searchPlaceholder="Search…"
+                                                    />
+                                                </FormControl>
                                             </FormItem>
                                         )} />
                                     </FieldSection>
@@ -806,40 +812,39 @@ export function LeadForm({ onSuccess, onClose, pipelineId, defaultStageId, initi
                                             // Render Native Fields individually mapped
                                             switch (fieldId) {
                                                 case "native:project_name":
-                                                    return <TextField key={fieldId} control={form.control} name="project_name" label={getLabelStr("Project Name", fieldId)} className="sm:col-span-2" />
+                                                    return <TextField key={fieldId} control={form.control} name="project_name" label="Project name" required={isFieldMandatory(fieldId)} className="sm:col-span-2" />
                                                 case "native:pipeline_stage_id":
                                                     return (
                                                         <FormField key={fieldId} control={form.control} name="pipeline_stage_id" render={({ field }) => (
-                                                            <FormItem>
-                                                                <FormLabel className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{getLabelStr("Pipeline Stage", fieldId)}</FormLabel>
-                                                                <Select value={field.value || undefined} onValueChange={(v) => field.onChange(v || null)}>
-                                                                    <FormControl><SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Select stage..." /></SelectTrigger></FormControl>
-                                                                    <SelectContent>
-                                                                        {pipelineStages.map((s) => (<SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>))}
-                                                                    </SelectContent>
-                                                                </Select>
+                                                            <FormItem className="space-y-1.5">
+                                                                <FormFieldLabel required={isFieldMandatory(fieldId)}>Pipeline stage</FormFieldLabel>
+                                                                <FormControl>
+                                                                    <SearchableSelect
+                                                                        value={field.value ?? null}
+                                                                        onChange={(v) => field.onChange(v ?? null)}
+                                                                        options={pipelineStages.map(s => ({ value: s.id, label: s.name }))}
+                                                                        placeholder="Select stage…"
+                                                                    />
+                                                                </FormControl>
+                                                                <FormMessage className="text-[11px]" />
                                                             </FormItem>
                                                         )} />
                                                     )
                                                 case "native:category":
-                                                    return <DynamicSelectField key={fieldId} control={form.control} name="category" label={getLabelStr("Category", fieldId)} options={categoryOptions.map((o) => o.value)} />
+                                                    return <DynamicSelectField key={fieldId} control={form.control} name="category" label="Category" required={isFieldMandatory(fieldId)} options={categoryOptions.map((o) => o.value)} />
                                                 case "native:grade_lead":
-                                                    return <DynamicSelectField key={fieldId} control={form.control} name="grade_lead" label={getLabelStr("Grade Lead", fieldId)} options={gradeLeadOptions.map((o) => o.value)} />
+                                                    return <DynamicSelectField key={fieldId} control={form.control} name="grade_lead" label="Grade lead" required={isFieldMandatory(fieldId)} options={gradeLeadOptions.map((o) => o.value)} />
                                                 case "native:client_company_id":
                                                     return (
                                                         <FormField key={fieldId} control={form.control} name="client_company_id" render={({ field }) => (
-                                                            <FormItem>
-                                                                <FormLabel className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{getLabelStr("Client Company", fieldId)}</FormLabel>
+                                                            <FormItem className="space-y-1.5">
+                                                                <FormFieldLabel required={isFieldMandatory(fieldId)}>Client company</FormFieldLabel>
                                                                 <FormControl><CompanyCombobox value={field.value ?? null} onChange={(id) => { field.onChange(id); form.setValue("contact_id", null) }} /></FormControl>
+                                                                <FormMessage className="text-[11px]" />
                                                             </FormItem>
                                                         )} />
                                                     )
                                                 case "native:account_status": {
-                                                    const statusColors: Record<string, string> = {
-                                                        new: "text-blue-700 bg-blue-50",
-                                                        repeater: "text-emerald-700 bg-emerald-50",
-                                                        contracted: "text-violet-700 bg-violet-50",
-                                                    }
                                                     return (
                                                         <FormField
                                                             key={fieldId}
@@ -868,29 +873,21 @@ export function LeadForm({ onSuccess, onClose, pipelineId, defaultStageId, initi
                                                                     return null
                                                                 })()
                                                                 return (
-                                                                    <FormItem>
-                                                                        <FormLabel className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                                                                            {getLabelStr("Account Status", fieldId)}
-                                                                        </FormLabel>
+                                                                    <FormItem className="sm:col-span-2 space-y-1.5">
+                                                                        <FormFieldLabel required={isFieldMandatory(fieldId)} hint="New = first-time client. Repeater = previously bought once or twice. Contracted = ongoing contract in place.">
+                                                                            Account status
+                                                                        </FormFieldLabel>
                                                                         <FormControl>
-                                                                            <Select
-                                                                                value={value}
-                                                                                onValueChange={(v) => field.onChange(v)}
-                                                                            >
-                                                                                <SelectTrigger
-                                                                                    className={cn(
-                                                                                        "h-9 text-sm",
-                                                                                        value && (statusColors[value] ?? ""),
-                                                                                    )}
-                                                                                >
-                                                                                    <SelectValue placeholder="Select account status" />
-                                                                                </SelectTrigger>
-                                                                                <SelectContent>
-                                                                                    <SelectItem value="new">New</SelectItem>
-                                                                                    <SelectItem value="repeater">Repeater</SelectItem>
-                                                                                    <SelectItem value="contracted">Contracted</SelectItem>
-                                                                                </SelectContent>
-                                                                            </Select>
+                                                                            <SegmentedControl
+                                                                                value={value || "new"}
+                                                                                onChange={(v) => field.onChange(v)}
+                                                                                options={[
+                                                                                    { value: "new", label: "New" },
+                                                                                    { value: "repeater", label: "Repeater" },
+                                                                                    { value: "contracted", label: "Contracted" },
+                                                                                ]}
+                                                                                aria-label="Account status"
+                                                                            />
                                                                         </FormControl>
                                                                         {sourceLabel && (
                                                                             <p className="text-[11px] text-muted-foreground leading-snug">
@@ -907,7 +904,7 @@ export function LeadForm({ onSuccess, onClose, pipelineId, defaultStageId, initi
                                                                                                     { shouldDirty: true },
                                                                                                 )
                                                                                             }
-                                                                                            className="ml-1 underline-offset-2 hover:underline text-blue-600"
+                                                                                            className="ml-1 underline-offset-2 hover:underline text-primary"
                                                                                         >
                                                                                             Use suggested ({clientAccountStatus})
                                                                                         </button>
@@ -923,43 +920,46 @@ export function LeadForm({ onSuccess, onClose, pipelineId, defaultStageId, initi
                                                 case "native:contact_id":
                                                     return (
                                                         <FormField key={fieldId} control={form.control} name="contact_id" render={({ field }) => (
-                                                            <FormItem>
-                                                                <FormLabel className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{getLabelStr("Contact Person", fieldId)}</FormLabel>
+                                                            <FormItem className="space-y-1.5">
+                                                                <FormFieldLabel required={isFieldMandatory(fieldId)}>Contact person</FormFieldLabel>
                                                                 <FormControl><ContactCombobox value={field.value ?? null} onChange={(id) => field.onChange(id)} clientCompanyId={form.watch("client_company_id") ?? null} /></FormControl>
+                                                                <FormMessage className="text-[11px]" />
                                                             </FormItem>
                                                         )} />
                                                     )
                                                 case "native:pic_sales_id":
                                                     return (
                                                         <FormField key={fieldId} control={form.control} name="pic_sales_id" render={({ field }) => (
-                                                            <FormItem>
-                                                                <FormLabel className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{getLabelStr("PIC Sales", fieldId)}</FormLabel>
-                                                                <FormControl><ProfileCombobox value={field.value ?? null} onChange={(id) => field.onChange(id)} placeholder="Select PIC Sales..." filterRoles={["sales", "bu_manager"]} /></FormControl>
+                                                            <FormItem className="space-y-1.5">
+                                                                <FormFieldLabel required={isFieldMandatory(fieldId)}>PIC sales</FormFieldLabel>
+                                                                <FormControl><ProfileCombobox value={field.value ?? null} onChange={(id) => field.onChange(id)} placeholder="Select PIC sales…" filterRoles={["sales", "bu_manager"]} /></FormControl>
+                                                                <FormMessage className="text-[11px]" />
                                                             </FormItem>
                                                         )} />
                                                     )
                                                 case "native:lead_source":
-                                                    return <DynamicSelectField key={fieldId} control={form.control} name="lead_source" label={getLabelStr("Lead Source", fieldId)} options={leadSourceOptions.map((o) => o.value)} />
+                                                    return <DynamicSelectField key={fieldId} control={form.control} name="lead_source" label="Lead source" required={isFieldMandatory(fieldId)} options={leadSourceOptions.map((o) => o.value)} />
                                                 case "native:referral_source":
-                                                    return isFieldVisible("native:referral_source") ? <TextField key={fieldId} control={form.control} name="referral_source" label={getLabelStr("Referral Source", fieldId)} /> : null
+                                                    return isFieldVisible("native:referral_source") ? <TextField key={fieldId} control={form.control} name="referral_source" label="Referral source" required={isFieldMandatory(fieldId)} /> : null
                                                 case "native:received_date":
                                                     return (
                                                         <TextField
                                                             key={fieldId}
                                                             control={form.control}
                                                             name="received_date"
-                                                            label={getLabelStr("Received Date", fieldId)}
+                                                            label="Received date"
+                                                            required={isFieldMandatory(fieldId)}
                                                             type="date"
                                                         />
                                                     )
                                                 case "native:target_close_date":
                                                     return (
                                                         <div key={fieldId} className="sm:col-span-2 grid grid-cols-1 sm:grid-cols-3 gap-3">
-                                                            <TextField control={form.control} name="target_close_date" label={getLabelStr("Target Close Date", fieldId)} type="date" />
+                                                            <TextField control={form.control} name="target_close_date" label="Target close date" required={isFieldMandatory(fieldId)} type="date" />
                                                             {initialData && (
                                                                 <>
-                                                                    <TextField control={form.control} name="closed_won_date" label="Closed Won Date" type="date" />
-                                                                    <TextField control={form.control} name="closed_lost_date" label="Closed Lost Date" type="date" />
+                                                                    <TextField control={form.control} name="closed_won_date" label="Closed won date" type="date" />
+                                                                    <TextField control={form.control} name="closed_lost_date" label="Closed lost date" type="date" />
                                                                 </>
                                                             )}
                                                         </div>
@@ -967,9 +967,9 @@ export function LeadForm({ onSuccess, onClose, pipelineId, defaultStageId, initi
                                                 case "native:event_dates":
                                                     return (
                                                         <FormField key={fieldId} control={form.control} name="event_dates" render={({ field }) => (
-                                                            <FormItem className="sm:col-span-2">
-                                                                <FormLabel className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{getLabelStr("Event Dates", fieldId)}</FormLabel>
-                                                                <p className="text-[13px] text-muted-foreground mb-2">Select one or multiple dates. Use <kbd className="px-1.5 py-0.5 bg-slate-100 border rounded text-[11px] font-sans">Shift</kbd> + click to select a range.</p>
+                                                            <FormItem className="sm:col-span-2 space-y-1.5">
+                                                                <FormFieldLabel required={isFieldMandatory(fieldId)}>Event dates</FormFieldLabel>
+                                                                <p className="text-[12px] text-muted-foreground">Select one or multiple dates. Use <kbd className="px-1 py-0.5 bg-muted border border-border rounded text-[10px] font-mono">Shift</kbd> + click to select a range.</p>
                                                                 <FormControl>
                                                                     <MultiDatePicker value={field.value ?? []} onChange={field.onChange} />
                                                                 </FormControl>
@@ -981,90 +981,75 @@ export function LeadForm({ onSuccess, onClose, pipelineId, defaultStageId, initi
                                                     // Handled outside of the main FieldGrid for UX separation
                                                     return null
                                                 case "native:pax_count":
-                                                    return <TextField key={fieldId} control={form.control} name="pax_count" label={getLabelStr("Pax Count", fieldId)} type="number" />
+                                                    return <TextField key={fieldId} control={form.control} name="pax_count" label="Pax count" required={isFieldMandatory(fieldId)} type="number" />
                                                 case "native:event_format":
-                                                    return <DynamicSelectField key={fieldId} control={form.control} name="event_format" label={getLabelStr("Event Format", fieldId)} options={eventFormatOptions.map(o => o.value)} />
+                                                    return <DynamicSelectField key={fieldId} control={form.control} name="event_format" label="Event format" required={isFieldMandatory(fieldId)} options={eventFormatOptions.map(o => o.value)} />
                                                 case "native:destinations":
                                                     if (!isFieldVisible("native:destinations") && !(isPhysical && !visibilityRules["native:destinations"])) return null
                                                     return (
-                                                        <div key={fieldId} className="sm:col-span-2 space-y-3 p-4 border rounded-md bg-muted/30">
-                                                            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-1">{getLabelStr("Destinations", fieldId)}</div>
-                                                            {destinationFields.map((destField, index) => (
-                                                                <div key={destField.id} className="flex items-start gap-3 rounded-md border bg-white p-3">
-                                                                    <div className="flex-1 grid gap-3 grid-cols-1 sm:grid-cols-2">
-                                                                        <FormField control={form.control} name={`destinations.${index}.city`} render={({ field }) => (
-                                                                            <FormItem className="flex flex-col">
-                                                                                <FormLabel className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">City *</FormLabel>
-                                                                                <Popover>
-                                                                                    <PopoverTrigger asChild>
-                                                                                        <FormControl>
-                                                                                            <Button variant="outline" role="combobox" className={cn("h-9 w-full justify-between text-sm font-normal", !field.value && "text-muted-foreground")}>
-                                                                                                {field.value || "Select city"}
-                                                                                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                                                                            </Button>
-                                                                                        </FormControl>
-                                                                                    </PopoverTrigger>
-                                                                                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-                                                                                        <Command>
-                                                                                            <CommandInput placeholder="Search city..." />
-                                                                                            <CommandList>
-                                                                                                <CommandEmpty>City not found</CommandEmpty>
-                                                                                                <CommandGroup>
-                                                                                                    {eventCityOptions.map((opt) => (
-                                                                                                        <CommandItem key={opt.id} value={opt.value} onSelect={() => field.onChange(opt.value)}>
-                                                                                                            <Check className={cn("mr-2 h-4 w-4", field.value === opt.value ? "opacity-100" : "opacity-0")} />
-                                                                                                            {opt.label}
-                                                                                                        </CommandItem>
-                                                                                                    ))}
-                                                                                                </CommandGroup>
-                                                                                            </CommandList>
-                                                                                        </Command>
-                                                                                    </PopoverContent>
-                                                                                </Popover>
-                                                                            </FormItem>
-                                                                        )} />
-                                                                        <TextField control={form.control} name={`destinations.${index}.venue`} label="Venue" />
+                                                        <div key={fieldId} className="sm:col-span-2 space-y-3">
+                                                            <FormFieldLabel required={isFieldMandatory(fieldId)}>Destinations</FormFieldLabel>
+                                                            <div className="space-y-2">
+                                                                {destinationFields.map((destField, index) => (
+                                                                    <div key={destField.id} className="flex items-start gap-2 rounded-lg border border-border bg-background p-3">
+                                                                        <div className="flex-1 grid gap-3 grid-cols-1 sm:grid-cols-2">
+                                                                            <FormField control={form.control} name={`destinations.${index}.city`} render={({ field }) => (
+                                                                                <FormItem className="space-y-1.5">
+                                                                                    <FormFieldLabel required>City</FormFieldLabel>
+                                                                                    <FormControl>
+                                                                                        <SearchableSelect
+                                                                                            value={field.value || null}
+                                                                                            onChange={(v) => field.onChange(v ?? "")}
+                                                                                            options={eventCityOptions.map(opt => ({ value: opt.value, label: opt.label }))}
+                                                                                            placeholder="Select city"
+                                                                                        />
+                                                                                    </FormControl>
+                                                                                </FormItem>
+                                                                            )} />
+                                                                            <TextField control={form.control} name={`destinations.${index}.venue`} label="Venue" />
+                                                                        </div>
+                                                                        <Button type="button" variant="ghost" size="icon" className="h-9 w-9 mt-6 text-muted-foreground hover:text-destructive shrink-0" onClick={() => removeDestination(index)}>
+                                                                            <Trash2 className="h-4 w-4" />
+                                                                        </Button>
                                                                     </div>
-                                                                    <Button type="button" variant="ghost" size="icon" className="h-9 w-9 mt-6 text-destructive shrink-0" onClick={() => removeDestination(index)}>
-                                                                        <Trash2 className="h-4 w-4" />
-                                                                    </Button>
-                                                                </div>
-                                                            ))}
+                                                                ))}
+                                                            </div>
                                                             <Button type="button" variant="outline" size="sm" onClick={() => appendDestination({ city: "", venue: "" })}>
-                                                                <Plus className="h-3.5 w-3.5 mr-1.5" /> Add Destination
+                                                                <Plus className="h-3.5 w-3.5 mr-1.5" /> Add destination
                                                             </Button>
                                                         </div>
                                                     )
                                                 case "native:lost_reason":
                                                     if (!isFieldVisible(fieldId)) return null;
-                                                    return <DynamicSelectField key={fieldId} control={form.control} name="lost_reason" label={getLabelStr("Lost Reason", fieldId)} options={lostReasonOptions.map(o => o.value)} />
+                                                    return <DynamicSelectField key={fieldId} control={form.control} name="lost_reason" label="Lost reason" required={isFieldMandatory(fieldId)} options={lostReasonOptions.map(o => o.value)} />
                                                 case "native:lost_reason_details":
                                                     if (!isFieldVisible(fieldId)) return null;
                                                     return (
                                                         <FormField key={fieldId} control={form.control as any} name="lost_reason_details" render={({ field }) => (
-                                                            <FormItem className="sm:col-span-2">
-                                                                <FormLabel className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{getLabelStr("Lost Reason Details", fieldId)}</FormLabel>
+                                                            <FormItem className="sm:col-span-2 space-y-1.5">
+                                                                <FormFieldLabel required={isFieldMandatory(fieldId)}>Lost reason details</FormFieldLabel>
                                                                 <FormControl>
-                                                                    <textarea rows={3} className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2" placeholder="Provide more context..." {...field} value={field.value ?? ""} />
+                                                                    <textarea rows={3} className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2" placeholder="Provide more context…" {...field} value={field.value ?? ""} />
                                                                 </FormControl>
+                                                                <FormMessage className="text-[11px]" />
                                                             </FormItem>
                                                         )} />
                                                     )
                                                 case "native:virtual_platform":
-                                                    return (isFieldVisible("native:virtual_platform") || (isOnline && !visibilityRules["native:virtual_platform"])) ? <TextField key={fieldId} control={form.control} name="virtual_platform" label={getLabelStr("Virtual Platform", fieldId)} /> : null
+                                                    return (isFieldVisible("native:virtual_platform") || (isOnline && !visibilityRules["native:virtual_platform"])) ? <TextField key={fieldId} control={form.control} name="virtual_platform" label="Virtual platform" required={isFieldMandatory(fieldId)} /> : null
                                                 case "native:main_stream":
-                                                    return <DynamicSelectField key={fieldId} control={form.control} name="main_stream" label={getLabelStr("Main Stream", fieldId)} options={mainStreamOptions.map((o) => o.value)} />
+                                                    return <DynamicSelectField key={fieldId} control={form.control} name="main_stream" label="Main stream" required={isFieldMandatory(fieldId)} options={mainStreamOptions.map((o) => o.value)} />
                                                 case "native:stream_type":
-                                                    return <DynamicSelectField key={fieldId} control={form.control} name="stream_type" label={getLabelStr("Stream Type", fieldId)} options={filteredStreamTypes.map((o) => o.value)} disabled={!watchedMainStream} />
+                                                    return <DynamicSelectField key={fieldId} control={form.control} name="stream_type" label="Stream type" required={isFieldMandatory(fieldId)} options={filteredStreamTypes.map((o) => o.value)} disabled={!watchedMainStream} />
                                                 case "native:business_purpose":
-                                                    return <DynamicSelectField key={fieldId} control={form.control} name="business_purpose" label={getLabelStr("Business Purpose", fieldId)} options={filteredBusinessPurposes.map((o) => o.value)} disabled={!watchedStreamType} />
+                                                    return <DynamicSelectField key={fieldId} control={form.control} name="business_purpose" label="Business purpose" required={isFieldMandatory(fieldId)} options={filteredBusinessPurposes.map((o) => o.value)} disabled={!watchedStreamType} />
                                                 case "native:area":
-                                                    return <DynamicSelectField key={fieldId} control={form.control} name="area" label={getLabelStr("Client Source Area", fieldId)} options={areaOptions.map((o) => o.value)} />
+                                                    return <DynamicSelectField key={fieldId} control={form.control} name="area" label="Client source area" required={isFieldMandatory(fieldId)} options={areaOptions.map((o) => o.value)} />
                                                 case "native:estimated_value":
                                                     return (
                                                         <FormField key={fieldId} control={form.control} name="estimated_value" render={({ field }) => (
-                                                            <FormItem>
-                                                                <FormLabel className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{getLabelStr("Estimated Value (IDR)", fieldId)}</FormLabel>
+                                                            <FormItem className="space-y-1.5">
+                                                                <FormFieldLabel required={isFieldMandatory(fieldId)}>Estimated value (IDR)</FormFieldLabel>
                                                                 <FormControl>
                                                                     <CurrencyInput
                                                                         ref={field.ref}
@@ -1075,6 +1060,7 @@ export function LeadForm({ onSuccess, onClose, pipelineId, defaultStageId, initi
                                                                         prefix="Rp"
                                                                     />
                                                                 </FormControl>
+                                                                <FormMessage className="text-[11px]" />
                                                             </FormItem>
                                                         )} />
                                                     )
@@ -1088,11 +1074,11 @@ export function LeadForm({ onSuccess, onClose, pipelineId, defaultStageId, initi
                                 {/* Separate box for Revenue Recognition outside Event Details */}
                                 {(layoutConfig[tab] || []).includes("native:month_event") && (
                                     <FieldSection title="Revenue Recognition">
-                                        <div className="grid grid-cols-2 gap-4">
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                             <DynamicSelectField control={form.control} name="tentative_month" label="Month" options={tentativeMonthOptions.map(o => o.value)} />
                                             <DynamicSelectField control={form.control} name="tentative_year" label="Year" options={tentativeYearOptions.map(o => o.value)} />
                                         </div>
-                                        <p className="text-[11.5px] text-muted-foreground mt-0">Defaults dynamically back to Event Dates if available.</p>
+                                        <p className="text-[11px] text-muted-foreground mt-0">Defaults dynamically back to Event Dates if available.</p>
                                     </FieldSection>
                                 )}
                             </TabsContent>
@@ -1103,14 +1089,20 @@ export function LeadForm({ onSuccess, onClose, pipelineId, defaultStageId, initi
                     {/* END SCROLLABLE BODY */}
 
                     {/* FIXED FOOTER */}
-                    <div className="flex-none px-6 py-4 border-t border-slate-200 bg-slate-50 flex justify-end gap-3 z-10">
-                        <Button type="button" variant="outline" onClick={handleAttemptClose}>
-                            Cancel
-                        </Button>
-                        <Button type="submit" disabled={isPending || (isEditing && !form.formState.isDirty)}>
-                            {isPending ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Save className="h-4 w-4 mr-1.5" />}
-                            {isEditing ? 'Save Changes' : 'Create Lead'}
-                        </Button>
+                    <div className="flex-none px-6 py-3.5 border-t border-border bg-card flex items-center justify-between gap-3 z-10">
+                        <p className="text-[11px] text-muted-foreground hidden sm:block">
+                            <kbd className="px-1 py-0.5 rounded border border-border bg-muted text-[10px] font-mono">Esc</kbd>
+                            <span className="mx-1">to cancel</span>
+                        </p>
+                        <div className="flex items-center gap-2 ml-auto">
+                            <Button type="button" variant="ghost" onClick={handleAttemptClose}>
+                                Cancel
+                            </Button>
+                            <Button type="submit" disabled={isPending || (isEditing && !form.formState.isDirty)}>
+                                {isPending ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Save className="h-4 w-4 mr-1.5" />}
+                                {isPending ? "Saving…" : isEditing ? "Save changes" : "Create lead"}
+                            </Button>
+                        </div>
                     </div>
                 </Tabs>
             </form>
@@ -1125,12 +1117,12 @@ export function LeadForm({ onSuccess, onClose, pipelineId, defaultStageId, initi
                     </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                    <AlertDialogCancel onClick={() => setShowWarning(false)}>Continue Editing</AlertDialogCancel>
+                    <AlertDialogCancel onClick={() => setShowWarning(false)}>Keep editing</AlertDialogCancel>
                     <AlertDialogAction
-                        className="bg-red-600 hover:bg-red-700 text-white"
+                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90 focus-visible:ring-destructive"
                         onClick={handleForceClose}
                     >
-                        Discard Changes
+                        Discard changes
                     </AlertDialogAction>
                 </AlertDialogFooter>
             </AlertDialogContent>
@@ -1141,41 +1133,77 @@ export function LeadForm({ onSuccess, onClose, pipelineId, defaultStageId, initi
 
 
 function FieldSection({ title, children }: { title: string; children: React.ReactNode }) {
-    return (<div className="border rounded-lg p-4 bg-card space-y-4"><h4 className="font-semibold text-sm text-primary">{title}</h4>{children}</div>)
+    return (
+        <section className="space-y-3">
+            <h4 className="text-[11px] font-semibold text-muted-foreground tracking-wide">{title}</h4>
+            <div className="rounded-xl border border-border bg-card p-4 space-y-4">{children}</div>
+        </section>
+    )
 }
 
 function FieldGrid({ children, cols = 2 }: { children: React.ReactNode; cols?: number }) {
-    return (<div className={`grid gap-4 [&>*]:min-w-0 ${cols === 1 ? "grid-cols-1" : "grid-cols-1 sm:grid-cols-2"}`}>{children}</div>)
+    return (<div className={`grid gap-x-4 gap-y-4 [&>*]:min-w-0 ${cols === 1 ? "grid-cols-1" : "grid-cols-1 sm:grid-cols-2"}`}>{children}</div>)
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function TextField({ control, name, label, type = "text", className }: { control: any; name: string; label: string; type?: string; className?: string }) {
+function TextField({ control, name, label, type = "text", className, required, autoComplete }: { control: any; name: string; label: string; type?: string; className?: string; required?: boolean; autoComplete?: string }) {
+    // Date inputs use DatePickerField (Popover + Calendar) so we get a
+    // consistent UI without the native browser quirks.
+    if (type === "date") {
+        return (
+            <FormField control={control} name={name} render={({ field }) => (
+                <FormItem className={cn("space-y-1.5", className)}>
+                    <FormFieldLabel required={required}>{label}</FormFieldLabel>
+                    <FormControl>
+                        <DatePickerField
+                            value={(field.value as string | null | undefined) ?? ""}
+                            onChange={field.onChange}
+                            placeholder={`Select ${label.toLowerCase()}`}
+                        />
+                    </FormControl>
+                    <FormMessage className="text-[11px]" />
+                </FormItem>
+            )} />
+        )
+    }
     return (
         <FormField control={control} name={name} render={({ field }) => (
-            <FormItem className={className}>
-                <FormLabel className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{label}</FormLabel>
-                <FormControl><Input type={type} className="h-9 text-sm" {...field} value={field.value ?? ""} /></FormControl>
+            <FormItem className={cn("space-y-1.5", className)}>
+                <FormFieldLabel required={required}>{label}</FormFieldLabel>
+                <FormControl>
+                    <Input
+                        type={type}
+                        autoComplete={autoComplete}
+                        aria-required={required}
+                        className="h-9 text-sm"
+                        {...field}
+                        value={field.value ?? ""}
+                    />
+                </FormControl>
+                <FormMessage className="text-[11px]" />
             </FormItem>
         )} />
     )
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function DynamicSelectField({ control, name, label, options, disabled }: { control: any; name: string; label: string; options: string[]; disabled?: boolean }) {
+function DynamicSelectField({ control, name, label, options, disabled, required }: { control: any; name: string; label: string; options: string[]; disabled?: boolean; required?: boolean }) {
     return (
         <FormField control={control} name={name} render={({ field }) => (
-            <FormItem>
-                <FormLabel className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{label}</FormLabel>
-                <Select value={field.value || undefined} onValueChange={(v) => field.onChange(v || null)} disabled={disabled}>
-                    <FormControl><SelectTrigger className="h-9 text-sm"><SelectValue placeholder={`Select ${label.toLowerCase()}`} /></SelectTrigger></FormControl>
-                    <SelectContent>
-                        {options.length === 0 ? (
-                            <SelectItem value="__empty" disabled>No options configured in Settings</SelectItem>
-                        ) : (
-                            options.map((opt, index) => (<SelectItem key={`${opt}-${index}`} value={opt}>{opt}</SelectItem>))
-                        )}
-                    </SelectContent>
-                </Select>
+            <FormItem className="space-y-1.5">
+                <FormFieldLabel required={required}>{label}</FormFieldLabel>
+                <FormControl>
+                    <SearchableSelect
+                        value={(field.value as string | null | undefined) ?? null}
+                        onChange={(v) => field.onChange(v ?? null)}
+                        options={options.length === 0 ? [] : options.map((opt, idx) => ({ value: opt, label: opt, secondary: idx === 0 ? undefined : undefined }))}
+                        placeholder={options.length === 0 ? "No options configured" : `Select ${label.toLowerCase()}`}
+                        searchPlaceholder="Search…"
+                        emptyText="No options found"
+                        disabled={disabled || options.length === 0}
+                    />
+                </FormControl>
+                <FormMessage className="text-[11px]" />
             </FormItem>
         )} />
     )
