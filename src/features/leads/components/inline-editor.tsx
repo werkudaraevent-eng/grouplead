@@ -251,7 +251,7 @@ export function InlineEditor({
             ) : (
                 <button
                     onClick={() => setIsEditing(true)}
-                    className="flex items-center gap-3 py-3 px-3.5 rounded-md border border-dashed border-slate-200 hover:border-[#02378D]/30 hover:bg-[#02378D]/[0.02] transition-all w-full text-left cursor-pointer group/empty"
+                    className="flex items-center gap-3 py-3 px-3.5 rounded-lg border border-dashed border-slate-200 hover:border-[#02378D]/30 hover:bg-[#02378D]/[0.02] transition-all w-full text-left cursor-pointer group/empty"
                 >
                     <Plus className="h-3.5 w-3.5 text-slate-300 group-hover/empty:text-[#02378D] transition-colors shrink-0" />
                     <div>

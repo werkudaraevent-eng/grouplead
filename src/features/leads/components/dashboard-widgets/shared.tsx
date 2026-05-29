@@ -54,10 +54,13 @@ export function getVsLastYearPct(current: number, previous: number) {
 export function SectionCard({ children, className }: { children: React.ReactNode; className?: string }) {
     return (
         <div className={cn(
-            "bg-card rounded-xl border-0 shadow-[0_4px_12px_rgba(0,0,0,.06),0_1px_3px_rgba(0,0,0,.04)]",
-            "px-[18px] pt-4 pb-3.5 h-full flex flex-col",
+            "bg-card rounded-2xl border border-[#02378D]/[0.05]",
+            "shadow-[0_2px_4px_rgba(16,24,40,0.04),0_12px_28px_-8px_rgba(16,24,40,0.16)]",
+            "px-5 pt-[18px] pb-4 h-full flex flex-col",
             "overflow-y-auto overflow-x-hidden thin-scrollbar",
             "animate-in fade-in duration-300 fill-mode-both",
+            "transition-shadow duration-200 ease-out",
+            "hover:shadow-[0_4px_8px_rgba(16,24,40,0.06),0_20px_40px_-10px_rgba(16,24,40,0.22)]",
             className,
         )}>
             {children}
@@ -66,7 +69,7 @@ export function SectionCard({ children, className }: { children: React.ReactNode
 }
 
 export function SectionTitle({ children }: { children: React.ReactNode }) {
-    return <div className="text-[13px] font-bold text-foreground tracking-tight mb-0.5">{children}</div>
+    return <div className="text-[13.5px] font-semibold text-foreground tracking-[-0.01em] mb-0.5">{children}</div>
 }
 
 export function SectionSub({ children }: { children: React.ReactNode }) {
@@ -113,9 +116,9 @@ export function DarkTooltip({ active, payload, label, fmt }: any) {
                     </span>
                 </div>
             )}
-            {dataPoint?.prevYear !== undefined && (
+            {dataPoint?.prevYear > 0 && (
                 <div className="mt-0.5 opacity-70">
-                    vs Last Year:{" "}
+                    vs comparison:{" "}
                     <span className={vsLastYear === null ? "text-slate-300" : vsLastYear >= 0 ? "text-emerald-300" : "text-red-300"}>
                         {vsLastYear === null
                             ? (dataPoint.actual > 0 && dataPoint.prevYear === 0 ? "New" : "N/A")
@@ -157,12 +160,14 @@ export const TOOLTIP_STYLE: React.CSSProperties = {
 }
 
 // ─── MINI SELECT ───────────────────────────────────────────────────────────
-export function MiniSelect({ value, onChange, label, children, className }: {
+export function MiniSelect({ value, onChange, label, children, className, disabled, title }: {
     value: string | number
     onChange: (e: React.ChangeEvent<HTMLSelectElement>) => void
     label?: string
     children: React.ReactNode
     className?: string
+    disabled?: boolean
+    title?: string
 }) {
     return (
         <div>
@@ -170,10 +175,13 @@ export function MiniSelect({ value, onChange, label, children, className }: {
             <select
                 value={value}
                 onChange={onChange}
+                disabled={disabled}
+                title={title}
                 className={cn(
                     "appearance-none bg-muted border border-border rounded-[5px]",
                     "px-2 pr-5 py-0.5 text-[11px] font-semibold text-foreground",
                     "cursor-pointer font-[inherit]",
+                    "disabled:cursor-not-allowed disabled:opacity-50",
                     "bg-[url('data:image/svg+xml,%3Csvg%20xmlns=%27http://www.w3.org/2000/svg%27%20width=%279%27%20height=%279%27%20viewBox=%270%200%2024%2024%27%20fill=%27none%27%20stroke=%27%239ca3af%27%20stroke-width=%272.5%27%3E%3Cpath%20d=%27M6%209l6%206%206-6%27/%3E%3C/svg%3E')]",
                     "bg-no-repeat bg-[position:right_5px_center]",
                     className,

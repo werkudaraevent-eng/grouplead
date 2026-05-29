@@ -22,8 +22,13 @@ export interface DashboardFiltersSnapshot {
   catToggle?: string
   /** Stream chart toggle (field id, e.g. "main_stream"). */
   streamToggle?: string
-  /** Selected trend year for the revenue chart. */
+  /** @deprecated Legacy field. The revenue chart now fixes its main series
+   *  to the current year and uses `compareYear` for the optional overlay. */
   trendYear?: number
+  /** Optional historical year overlaid on the revenue chart. `null`/absent
+   *  means no comparison (default). Only years with real revenue data appear
+   *  in the picker. */
+  compareYear?: number | null
   /** Active pipeline id for stage-based widgets (Pipeline Funnel etc.). */
   pipelineId?: string
 }

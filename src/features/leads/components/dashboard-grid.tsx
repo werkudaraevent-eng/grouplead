@@ -323,7 +323,7 @@ export function DashboardGrid({
     const gridOverlayCells = useMemo(() => {
         if (!isEditing || !width) return null
         const cols = 12
-        const margin = 10
+        const margin = 22
         // react-grid-layout formula: colWidth = (containerWidth - margin * (cols - 1)) / cols
         const colWidth = (width - margin * (cols - 1)) / cols
         const rowHeight = GRID_ROW_HEIGHT
@@ -566,7 +566,7 @@ export function DashboardGrid({
                         gridConfig={{
                             cols: GRID_COLS,
                             rowHeight: GRID_ROW_HEIGHT,
-                            margin: [10, 10] as const,
+                            margin: [22, 22] as const,
                             containerPadding: [0, 0] as const,
                         }}
                         dragConfig={{

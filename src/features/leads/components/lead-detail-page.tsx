@@ -503,7 +503,7 @@ export function LeadDetailPage({ lead, prevLeadId, nextLeadId, lastModifiedBy = 
                     </div>
 
                     {/* Card 2: Client & Contact */}
-                    <div className="bg-white border border-slate-200 rounded-xl shadow-sm flex flex-col overflow-hidden shrink-0">
+                    <div className="bg-white border border-slate-200/80 rounded-lg flex flex-col overflow-hidden shrink-0">
                         <div className="px-5 py-4 border-b border-slate-100">
                             <h3 className="font-semibold text-[14px] text-slate-900">Client & Contact</h3>
                         </div>
@@ -585,7 +585,7 @@ export function LeadDetailPage({ lead, prevLeadId, nextLeadId, lastModifiedBy = 
 
                     {/* Card 3: Event Details (conditional) */}
                     {(lead.event_date_start || lead.pax_count || (lead.destinations && lead.destinations.length > 0)) && (
-                        <div className="bg-white border border-slate-200 rounded-xl shadow-sm flex flex-col overflow-hidden shrink-0">
+                        <div className="bg-white border border-slate-200/80 rounded-lg flex flex-col overflow-hidden shrink-0">
                             <div className="px-5 py-4 border-b border-slate-100">
                                 <h3 className="font-semibold text-[14px] text-slate-900">Event Details</h3>
                             </div>
@@ -611,7 +611,7 @@ export function LeadDetailPage({ lead, prevLeadId, nextLeadId, lastModifiedBy = 
 
                     {/* Card 4: Lost Reason (conditional — only when data exists) */}
                     {(lead.lost_reason || lead.lost_reason_details) && (
-                        <div className="bg-red-50/50 border border-red-200 rounded-xl shadow-sm flex flex-col overflow-hidden shrink-0">
+                        <div className="bg-red-50/50 border border-red-200 rounded-lg flex flex-col overflow-hidden shrink-0">
                             <div className="px-5 py-4 border-b border-red-100 flex items-center gap-2">
                                 <ThumbsDown className="h-4 w-4 text-red-400" />
                                 <h3 className="font-semibold text-[14px] text-red-800">Lost Reason</h3>
@@ -655,8 +655,8 @@ export function LeadDetailPage({ lead, prevLeadId, nextLeadId, lastModifiedBy = 
                     onScroll={handleScroll}
                 >
                     <Tabs value={activeTab} onValueChange={handleTabChange} className="flex flex-col h-fit pb-12 pr-2">
-                        {/* Tab Bar — no box, no gap, fully opaque */}
-                        <TabsList className="w-full justify-start rounded-none! bg-white! gap-0! p-0! h-auto! shrink-0 shadow-none! sticky top-0 z-30 border-b border-slate-200">
+                        {/* Tab Bar — card container, rounded edges to match other containers */}
+                        <TabsList className="w-full justify-start rounded-lg! bg-white! gap-0! p-0! h-auto! shrink-0 shadow-none! sticky top-0 z-30 border border-slate-200/80 overflow-hidden">
                             <TabBtn value="scope" icon={BookOpen} label="Scope & Brief" hasBadge={unread.scope} />
                             <TabBtn value="notes" icon={FileText} label="Notes" hasBadge={unread.notes} />
                             <TabBtn value="timeline" icon={Clock} label="Timeline" hasBadge={unread.timeline} />
@@ -837,7 +837,7 @@ function ScopeCard({
     placeholder: string
 }) {
     return (
-        <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+        <div className="bg-white border border-slate-200/80 rounded-lg overflow-hidden">
             {/* Card Header — compact, subtle */}
             <div className="px-5 py-3.5 border-b border-slate-100 flex items-center gap-2">
                 <Icon className="w-4 h-4 text-slate-400" />

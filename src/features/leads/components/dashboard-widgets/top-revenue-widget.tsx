@@ -63,13 +63,17 @@ export function TopRevenueWidget({ data }: TopRevenueWidgetProps) {
                                 </div>
                             </div>
                             {/* Bar */}
-                            <div className="h-[5px] bg-[#f0f0f0] rounded-full overflow-hidden">
+                            <div className="h-[7px] bg-[#eef2f7] rounded-full overflow-hidden">
                                 <div
                                     className="h-full rounded-full"
                                     style={{
                                         width: `${barWidth}%`,
-                                        backgroundColor: isUnknown ? "#d1d5db" : isTop3 ? "#02378D" : "#5EC5F2",
-                                        opacity: isTop3 ? 0.85 : 0.6,
+                                        background: isUnknown
+                                            ? "#d1d5db"
+                                            : isTop3
+                                                ? "linear-gradient(90deg, #2069B4 0%, #02378D 100%)"
+                                                : "linear-gradient(90deg, #8AD3F5 0%, #5EC5F2 100%)",
+                                        opacity: isTop3 ? 1 : 0.75,
                                         transition: "width 500ms cubic-bezier(0.23,1,0.32,1)",
                                     }}
                                 />

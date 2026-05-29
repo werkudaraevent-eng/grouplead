@@ -46,12 +46,12 @@ export function LeadSourceWidget({ data }: LeadSourceWidgetProps) {
                                     <span className="text-[9px] text-muted-foreground">{pct.toFixed(0)}%</span>
                                 </div>
                             </div>
-                            <div className="h-[5px] bg-[#f0f0f0] rounded-full overflow-hidden">
+                            <div className="h-[7px] bg-[#eef2f7] rounded-full overflow-hidden">
                                 <div
                                     className="h-full rounded-full"
                                     style={{
                                         width: `${barWidth}%`,
-                                        backgroundColor: "#02378D",
+                                        background: "linear-gradient(90deg, #2069B4 0%, #02378D 100%)",
                                         opacity,
                                         transition: "width 500ms cubic-bezier(0.23,1,0.32,1)",
                                     }}

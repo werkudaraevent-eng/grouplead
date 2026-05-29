@@ -14,10 +14,11 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
-import { Loader2, Save, UserCircle, KeyRound, Shield, Mail, Camera } from "lucide-react"
+import { Loader2, Save, UserCircle, KeyRound, Shield, Mail, Camera, Settings2 } from "lucide-react"
 import { SettingsPageHeader } from "@/components/layout/settings-page-header"
 import { PhoneInput } from "@/components/shared/phone-input"
 import { normalizePhoneToE164 } from "@/lib/phone-normalize"
+import { Switch } from "@/components/ui/switch"
 
 /* ─── Schemas ────────────────────────────────────────────────────────────── */
 const profileSchema = z.object({
@@ -47,6 +48,8 @@ export default function MyProfilePage() {
     const [roleName, setRoleName] = useState("")
     const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
     const [userId, setUserId] = useState<string>("")
+    const [autoFillPicSales, setAutoFillPicSales] = useState<boolean>(true)
+    const [savingPreferences, setSavingPreferences] = useState(false)
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const profileForm = useForm<ProfileValues>({
@@ -71,7 +74,7 @@ export default function MyProfilePage() {
 
             const { data: profile } = await supabase
                 .from("profiles")
-                .select("full_name, phone, job_title, bio, avatar_url, role, assigned_role:roles(name)")
+                .select("full_name, phone, job_title, bio, avatar_url, role, ui_preferences, assigned_role:roles(name)")
                 .eq("id", user.id)
                 .single()
 
@@ -86,6 +89,11 @@ export default function MyProfilePage() {
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 const ar = (profile as any).assigned_role
                 setRoleName(ar?.name || profile.role || "Unknown")
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                const prefs = (typeof (profile as any).ui_preferences === "object" && (profile as any).ui_preferences) ? (profile as any).ui_preferences : {}
+                if (typeof prefs.auto_fill_pic_sales === "boolean") {
+                    setAutoFillPicSales(prefs.auto_fill_pic_sales)
+                }
             }
             setLoading(false)
         }
@@ -110,6 +118,33 @@ export default function MyProfilePage() {
         if (error) toast.error(error.message)
         else toast.success("Profile updated")
         setSavingProfile(false)
+    }
+
+    /* ─── Save Preferences ───────────────────────────────────────────────── */
+    const updateAutoFillPic = async (next: boolean) => {
+        setAutoFillPicSales(next)
+        setSavingPreferences(true)
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) {
+            toast.error("Not authenticated")
+            setSavingPreferences(false)
+            return
+        }
+        const { data: profile } = await supabase
+            .from("profiles")
+            .select("ui_preferences")
+            .eq("id", user.id)
+            .single()
+        const current = (typeof profile?.ui_preferences === "object" && profile?.ui_preferences) ? profile.ui_preferences : {}
+        const { error } = await supabase
+            .from("profiles")
+            .update({ ui_preferences: { ...current, auto_fill_pic_sales: next } })
+            .eq("id", user.id)
+        if (error) {
+            toast.error(error.message)
+            setAutoFillPicSales(!next)
+        }
+        setSavingPreferences(false)
     }
 
     /* ─── Change Password (Self) ─────────────────────────────────────────── */
@@ -281,6 +316,32 @@ export default function MyProfilePage() {
                             </div>
                         </form>
                     </Form>
+                </CardContent>
+            </Card>
+
+            {/* ─── Preferences ───────────────────────────────────────────── */}
+            <Card>
+                <CardHeader>
+                    <CardTitle className="text-base flex items-center gap-2">
+                        <Settings2 className="h-4 w-4" /> Preferences
+                    </CardTitle>
+                    <CardDescription>Personal defaults applied to forms and lists across the app.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <div className="flex items-start justify-between gap-6 rounded-lg border border-slate-200 bg-card px-4 py-3">
+                        <div className="min-w-0">
+                            <p className="text-[13px] font-medium text-slate-800">Auto-fill PIC sales when creating a lead</p>
+                            <p className="text-[12px] text-muted-foreground mt-0.5">
+                                Pre-fills the PIC sales field with your account when you open the new lead form. You can still change it before saving.
+                            </p>
+                        </div>
+                        <Switch
+                            checked={autoFillPicSales}
+                            onCheckedChange={updateAutoFillPic}
+                            disabled={savingPreferences}
+                            aria-label="Toggle auto-fill PIC sales"
+                        />
+                    </div>
                 </CardContent>
             </Card>
 

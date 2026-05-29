@@ -113,15 +113,15 @@ export function SingleKPIWidget({ label, value, prefix = "", suffix = "", vsTarg
     return (
         <div
             className={cn(
-                "group relative bg-card rounded-xl min-w-0 overflow-hidden",
-                "px-3.5 pt-3 pb-2.5 flex flex-col justify-between",
+                "group relative bg-card rounded-2xl min-w-0 overflow-hidden",
+                "px-4 pt-3.5 pb-3 flex flex-col justify-between",
                 "cursor-default h-full box-border",
-                "shadow-[0_4px_12px_rgba(0,0,0,.06),0_1px_3px_rgba(0,0,0,.04)]",
+                "border border-[#02378D]/[0.05]",
+                "shadow-[0_2px_4px_rgba(16,24,40,0.04),0_12px_28px_-8px_rgba(16,24,40,0.16)]",
                 "transition-all duration-200 ease-[cubic-bezier(0.23,1,0.32,1)]",
-                "border-0",
                 // Hover
-                "hover:shadow-[0_6px_16px_rgba(0,0,0,.08),0_2px_6px_rgba(0,0,0,.04)]",
-                "hover:-translate-y-[1px]",
+                "hover:shadow-[0_4px_8px_rgba(16,24,40,0.06),0_20px_40px_-10px_rgba(16,24,40,0.24)]",
+                "hover:-translate-y-[2px]",
             )}
         >
             {/* Top row: Label (+ optional info icon) + Icon */}
@@ -163,15 +163,15 @@ export function SingleKPIWidget({ label, value, prefix = "", suffix = "", vsTarg
                     )}
                 </div>
                 <div
-                    className="flex items-center justify-center w-7 h-7 rounded-lg shrink-0 opacity-80 group-hover:opacity-100 transition-opacity"
+                    className="flex items-center justify-center w-8 h-8 rounded-xl shrink-0 opacity-90 group-hover:opacity-100 transition-opacity"
                     style={{ backgroundColor: `${accent}14` }}
                 >
-                    <Icon className="w-3.5 h-3.5" style={{ color: accent }} />
+                    <Icon className="w-4 h-4" style={{ color: accent }} />
                 </div>
             </div>
 
             {/* Value — the hero (never truncated, full width) */}
-            <div className="text-[22px] font-bold text-[#292D30] tracking-tight leading-none tabular-nums min-w-0">
+            <div className="text-[25px] font-bold text-[#1a2230] tracking-[-0.02em] leading-none tabular-nums min-w-0">
                 {prefix}{value}{suffix}
             </div>
 

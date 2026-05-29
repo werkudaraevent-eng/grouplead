@@ -90,13 +90,12 @@ export function SalesPerfWidget({ data }: SalesPerfWidgetProps) {
                                     <span className="text-[9px] text-muted-foreground">{fmtAxis(rep.actual)} / {fmtAxis(rep.target)}</span>
                                 </div>
                             </div>
-                            <div className="h-[6px] bg-[#f0f0f0] rounded-full overflow-hidden">
+                            <div className="h-[7px] bg-[#eef2f7] rounded-full overflow-hidden">
                                 <div
                                     className="h-full rounded-full"
                                     style={{
                                         width: `${barWidth}%`,
-                                        backgroundColor: color,
-                                        opacity: 0.85,
+                                        background: `linear-gradient(90deg, ${color}bb 0%, ${color} 100%)`,
                                         transition: "width 500ms cubic-bezier(0.23,1,0.32,1)",
                                     }}
                                 />

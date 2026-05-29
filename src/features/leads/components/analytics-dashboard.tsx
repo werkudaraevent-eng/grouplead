@@ -116,7 +116,10 @@ export function AnalyticsDashboard({
     const [customEnd, setCustomEnd] = useState("")
     const [catToggle, setCatToggle] = useState<string>('category')
     const [streamToggle, setStreamToggle] = useState<string>('main_stream')
-    const [trendYear, setTrendYear] = useState(currentYear)
+    // Revenue chart: main bars are always the current year. `compareYear`
+    // holds the optional historical year overlaid as a secondary series.
+    // null = no comparison (default — chart shows current-year revenue + target only).
+    const [compareYear, setCompareYear] = useState<number | null>(null)
     const [revenueBasis, setRevenueBasis] = useState<RevenueBasis>("revenue_recognition")
     const [scrolled, setScrolled] = useState(false)
     const scrollRef = useRef<HTMLElement | null>(null)
@@ -144,9 +147,9 @@ export function AnalyticsDashboard({
         revenueBasis,
         catToggle,
         streamToggle,
-        trendYear,
+        compareYear,
         pipelineId: activePipelineId,
-    }), [periodStr, customStart, customEnd, companyFilter, revenueBasis, catToggle, streamToggle, trendYear, activePipelineId])
+    }), [periodStr, customStart, customEnd, companyFilter, revenueBasis, catToggle, streamToggle, compareYear, activePipelineId])
 
     // Seed filter state from active view (only on view switch, not on every render).
     const seededViewIdRef = useRef<string | null>(null)
@@ -163,7 +166,11 @@ export function AnalyticsDashboard({
         if (typeof f.revenueBasis === "string") setRevenueBasis(f.revenueBasis as RevenueBasis)
         if (typeof f.catToggle === "string") setCatToggle(f.catToggle)
         if (typeof f.streamToggle === "string") setStreamToggle(f.streamToggle)
-        if (typeof f.trendYear === "number") setTrendYear(f.trendYear)
+        // compareYear: explicit null means "no comparison". Older saved views
+        // may only carry the legacy `trendYear` — ignore it (default to None)
+        // since the main series is now always the current year.
+        if (f.compareYear === null || typeof f.compareYear === "number") setCompareYear(f.compareYear ?? null)
+        else setCompareYear(null)
         // Pipeline lives in the URL (?pipeline=) so the server can fetch its
         // stages on the next render. Push only when the saved view points to a
         // different pipeline than what's currently in the URL to avoid a no-op
@@ -186,7 +193,7 @@ export function AnalyticsDashboard({
                 (a.revenueBasis ?? "revenue_recognition") === (b.revenueBasis ?? "revenue_recognition") &&
                 (a.catToggle ?? "category") === (b.catToggle ?? "category") &&
                 (a.streamToggle ?? "main_stream") === (b.streamToggle ?? "main_stream") &&
-                (a.trendYear ?? 0) === (b.trendYear ?? 0) &&
+                (a.compareYear ?? null) === (b.compareYear ?? null) &&
                 (a.pipelineId ?? "") === (b.pipelineId ?? "")
             )
         },
@@ -410,15 +417,30 @@ export function AnalyticsDashboard({
         leads: periodLeads,
     }), [activeGoal, goalNodes, userTargets, goalSettings, periodLeads])
 
-    const availableYears = useMemo(() => {
+    // Years available as a historical comparison overlay on the revenue
+    // chart. Only past years (< current) that actually carry revenue data
+    // qualify — we never offer a comparison year with nothing to show.
+    // Sorted descending (most recent first).
+    const compareYears = useMemo(() => {
         const years = new Set<number>()
         leads.forEach(l => {
             const d = getRevenueDate(l)
-            if (d) years.add(d.getFullYear())
+            if (d) {
+                const yr = d.getFullYear()
+                if (yr < currentYear) years.add(yr)
+            }
         })
-        years.add(currentYear)
         return Array.from(years).sort((a, b) => b - a)
     }, [leads, currentYear])
+
+    // If the selected comparison year drops out of the available set (e.g.
+    // company filter changes), reset to None so the picker can't show a stale
+    // year with no data.
+    useEffect(() => {
+        if (compareYear !== null && !compareYears.includes(compareYear)) {
+            setCompareYear(null)
+        }
+    }, [compareYears, compareYear])
 
     // ─── STATS (period-filtered, per-basis) ─────────────────────────
     //
@@ -615,8 +637,10 @@ export function AnalyticsDashboard({
             }
 
             if (y !== null && m !== null) {
-                if (y === trendYear) data[m].actual += val
-                else if (y === trendYear - 1) data[m].prevYear += val
+                // Main series is always the current year. The optional overlay
+                // (`prevYear`) is whatever historical year the user picked.
+                if (y === currentYear) data[m].actual += val
+                else if (compareYear !== null && y === compareYear) data[m].prevYear += val
             }
         })
 
@@ -752,7 +776,7 @@ export function AnalyticsDashboard({
             d.vsLastYear = getVsLastYearPct(d.actual, d.prevYear)
         })
         return data
-    }, [filteredLeads, trendYear, activeGoal, goalNodes, revenueBasis])
+    }, [filteredLeads, currentYear, compareYear, activeGoal, goalNodes, revenueBasis])
 
     const stageData = useMemo(() => {
         return buildDashboardStageSeries(pipelineStages, periodLeadBuckets.current, periodLeadBuckets.previous)
@@ -810,7 +834,7 @@ export function AnalyticsDashboard({
         // ── Resolve target span (used for proration fallback when targets
         //    are stored as a single annual amount). Priority:
         //      1. activeGoal.period_start / period_end
-        //      2. trendYear (full calendar year)
+        //      2. current calendar year
         const goalRange = (() => {
             if (activeGoal?.period_start && activeGoal?.period_end) {
                 const start = new Date(activeGoal.period_start)
@@ -821,14 +845,14 @@ export function AnalyticsDashboard({
                 }
             }
             return {
-                start: new Date(trendYear, 0, 1),
-                end: new Date(trendYear + 1, 0, 1),
+                start: new Date(currentYear, 0, 1),
+                end: new Date(currentYear + 1, 0, 1),
             }
         })()
 
         const targetYear = activeGoal?.period_start
             ? new Date(activeGoal.period_start).getFullYear()
-            : trendYear
+            : currentYear
 
         const allTime = isAllTimeRange(dashboardRange)
         const prorate = (amount: number, range: { start: Date; end: Date } = goalRange) =>
@@ -956,7 +980,7 @@ export function AnalyticsDashboard({
                 return b.actual - a.actual
             })
             .slice(0, 15)
-    }, [periodLeads, userTargets, goalNodes, activeGoal, dashboardRange, trendYear, salesProfiles])
+    }, [periodLeads, userTargets, goalNodes, activeGoal, dashboardRange, currentYear, salesProfiles])
 
     const topComps = useMemo(() => {
         const comps: Record<string, number> = {}
@@ -1229,20 +1253,22 @@ export function AnalyticsDashboard({
                     zIndex: 20,
                     display: "flex",
                     flexDirection: "column",
-                    background: "#fff",
-                    borderBottom: "1px solid #f0f0f0",
+                    background: "rgba(255,255,255,0.85)",
+                    backdropFilter: "saturate(180%) blur(12px)",
+                    WebkitBackdropFilter: "saturate(180%) blur(12px)",
+                    borderBottom: "1px solid rgba(2,55,141,0.06)",
                 }}
             >
                 {/* ─── Row 1: identity + global actions ─── */}
                 <div
                     style={{
-                        height: scrolled ? 48 : 56,
+                        height: scrolled ? 56 : 68,
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "space-between",
-                        padding: "0 24px",
+                        padding: "0 32px",
                         gap: 12,
-                        transition: "height .2s ease",
+                        transition: "height .25s cubic-bezier(0.23,1,0.32,1)",
                     }}
                 >
                     {/* Title only — subtitle was marketing fluff. The h1
@@ -1250,9 +1276,10 @@ export function AnalyticsDashboard({
                         viewports. */}
                     <div style={{ minWidth: 0, flexShrink: 1, overflow: "hidden" }}>
                         <h1 style={{
-                            fontSize: 16, fontWeight: 700, color: "#292D30",
-                            letterSpacing: "-0.3px", lineHeight: 1.2, margin: 0,
+                            fontSize: scrolled ? 17 : 19, fontWeight: 700, color: "#1a2230",
+                            letterSpacing: "-0.4px", lineHeight: 1.15, margin: 0,
                             whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+                            transition: "font-size .25s cubic-bezier(0.23,1,0.32,1)",
                         }}>
                             Performance Dashboard
                         </h1>
@@ -1354,7 +1381,7 @@ export function AnalyticsDashboard({
                         alignItems: "center",
                         flexWrap: "wrap",
                         gap: 6,
-                        padding: "0 24px 10px",
+                        padding: "0 32px 14px",
                     }}
                 >
                     {pipelines.length > 1 && (
@@ -1366,7 +1393,7 @@ export function AnalyticsDashboard({
                                 router.push(`${pathname}?${params.toString()}`)
                             }}
                         >
-                            <SelectTrigger size="sm" className="w-auto h-8 px-2.5 text-[12px] font-medium gap-1.5 border-slate-200 bg-white hover:bg-slate-50 shadow-none">
+                            <SelectTrigger size="sm" className="w-auto h-8 px-2.5 text-[12px] font-medium gap-1.5 border-slate-200 bg-white hover:bg-slate-50 shadow-none rounded-lg">
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
@@ -1381,9 +1408,9 @@ export function AnalyticsDashboard({
                         <Select value={companyFilter} onValueChange={setCompanyFilter}>
                             <SelectTrigger
                                 size="sm"
-                                className={`w-auto h-8 px-2.5 text-[12px] font-medium gap-1.5 shadow-none ${
+                                className={`w-auto h-8 px-2.5 text-[12px] font-medium gap-1.5 shadow-none rounded-lg ${
                                     companyFilter !== "all"
-                                        ? "bg-indigo-50 border-indigo-200 text-indigo-900 hover:bg-indigo-100"
+                                        ? "bg-primary/10 border-primary/30 text-primary hover:bg-primary/15"
                                         : "bg-white border-slate-200 hover:bg-slate-50"
                                 }`}
                             >
@@ -1401,9 +1428,9 @@ export function AnalyticsDashboard({
                     <Select value={periodStr} onValueChange={setPeriodStr}>
                         <SelectTrigger
                             size="sm"
-                            className={`w-auto h-8 px-2.5 text-[12px] font-medium gap-1.5 shadow-none ${
+                            className={`w-auto h-8 px-2.5 text-[12px] font-medium gap-1.5 shadow-none rounded-lg ${
                                 periodStr !== "this_quarter"
-                                    ? "bg-indigo-50 border-indigo-200 text-indigo-900 hover:bg-indigo-100"
+                                    ? "bg-primary/10 border-primary/30 text-primary hover:bg-primary/15"
                                     : "bg-white border-slate-200 hover:bg-slate-50"
                             }`}
                         >
@@ -1483,7 +1510,7 @@ export function AnalyticsDashboard({
 
             {/* ─── SCROLLABLE CONTENT (scrollbar starts below header) ─── */}
             <div id="dashboard-scroll-area" className="thin-scrollbar" style={{ flex: 1, overflowY: "auto", overflowX: "clip" }}>
-            <div id="dashboard-content" style={{ padding: "20px 24px 24px", background: "#eaeff5", minHeight: "100%", overflowX: "clip", overflowY: "visible", boxSizing: "border-box", width: "100%", minWidth: 0 }}>
+            <div id="dashboard-content" style={{ padding: "28px 32px 36px", background: "#e7edf5", minHeight: "100%", overflowX: "clip", overflowY: "visible", boxSizing: "border-box", width: "100%", minWidth: 0 }}>
                 <DashboardGrid
                     widgetIds={LAUNCH_WIDGET_IDS}
                     customWidgets={customWidgetsList}
@@ -1509,9 +1536,10 @@ export function AnalyticsDashboard({
                     {/* Chart widgets */}
                     <RevenueChartWidget
                         data={monthlyRev}
-                        trendYear={trendYear}
-                        setTrendYear={setTrendYear}
-                        availableYears={availableYears}
+                        currentYear={currentYear}
+                        compareYear={compareYear}
+                        setCompareYear={setCompareYear}
+                        compareYears={compareYears}
                         hasMounted={hasMounted}
                         revenueBasis={revenueBasis}
                         setRevenueBasis={setRevenueBasis}

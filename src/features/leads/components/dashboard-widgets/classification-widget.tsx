@@ -46,17 +46,18 @@ export function ClassificationWidget({ data, catToggle, setCatToggle }: Classifi
 
             {/* Stacked summary bar — shows proportions at a glance */}
             {total > 0 && (
-                <div className="flex h-[8px] rounded-full overflow-hidden mb-3 bg-[#f0f0f0]">
+                <div className="flex h-[10px] rounded-full overflow-hidden mb-3 bg-[#eef2f7]">
                     {data.map((d, i) => {
                         const pct = (d.value / total) * 100
                         if (pct === 0) return null
+                        const c = TEMP_COLORS[d.name] || CHART_COLORS[i % CHART_COLORS.length]
                         return (
                             <div
                                 key={d.name}
                                 className="h-full first:rounded-l-full last:rounded-r-full"
                                 style={{
                                     width: `${pct}%`,
-                                    backgroundColor: TEMP_COLORS[d.name] || CHART_COLORS[i % CHART_COLORS.length],
+                                    background: `linear-gradient(180deg, ${c}dd 0%, ${c} 100%)`,
                                     transition: "width 500ms cubic-bezier(0.23,1,0.32,1)",
                                 }}
                                 title={`${d.name}: ${d.value} (${pct.toFixed(0)}%)`}
@@ -85,13 +86,12 @@ export function ClassificationWidget({ data, catToggle, setCatToggle }: Classifi
                                     <span className="text-[9px] text-muted-foreground">{pct.toFixed(0)}%</span>
                                 </div>
                             </div>
-                            <div className="h-[5px] bg-[#f0f0f0] rounded-full overflow-hidden">
+                            <div className="h-[7px] bg-[#eef2f7] rounded-full overflow-hidden">
                                 <div
                                     className="h-full rounded-full"
                                     style={{
                                         width: `${barWidth}%`,
-                                        backgroundColor: color,
-                                        opacity: 0.8,
+                                        background: `linear-gradient(90deg, ${color}bb 0%, ${color} 100%)`,
                                         transition: "width 500ms cubic-bezier(0.23,1,0.32,1)",
                                     }}
                                 />

@@ -1,6 +1,8 @@
 # LeadEngine Launch Readiness Phase Plan
 
 Tanggal: 2026-05-28  
+Last updated: 2026-05-29  
+**Launch date: 2026-06-05 (postponed dari 2026-05-29 — runway 7 hari untuk hardening)**  
 Tujuan launch: **digital adoption release** — user mulai pindah dari Excel ke LeadEngine untuk input, tracking, dan monitoring operasional dasar.
 
 > Dashboard launch awal = operational monitoring. Forecast, goal variance, snapshot reporting, dan advanced management analytics masuk phase berikutnya.
@@ -197,43 +199,43 @@ User bisa mulai kerja dari LeadEngine, bukan Excel.
 
 ## Master Data Checklist
 
-- [ ] Pipelines siap. **Manual app check.**
-- [ ] Pipeline stages siap dan urutan benar. **Must include mapping for MATERIALIZED / CONFIRMED / TENTATIVE.**
-- [ ] Lead sources siap. **Sample values include TELEMARKETING, GOOGLE, DIRECT - EMAIL, DIRECT - PHONE, REFERENSI - KLIEN.**
-- [ ] Industry/classification options siap. **Sample fields: SECTOR, LINE INDUSTRY, AREA, MAIN STREAM, TIPE STREAM, BUSINESS PURPOSE, TYPE.**
-- [ ] Sales users/PIC siap. **Confirm KENSRIE, IRVANI, NINDY, and all real PIC names exist.**
-- [ ] Client companies siap. **Can be created during import, but duplicate review needed.**
-- [ ] Contacts siap. **Sample does not show contact person in first rows; confirm if later columns include contacts.**
-- [ ] Company scoping benar. **Confirm imported rows land in correct subsidiary from BU REVENUE.**
+- [x] Pipelines siap. **Confirmed 2026-05-29.**
+- [x] Pipeline stages siap dan urutan benar. **MATERIALIZED / CONFIRMED / TENTATIVE mapping confirmed.**
+- [x] Lead sources siap. **Confirmed 2026-05-29.**
+- [x] Industry/classification options siap. **SECTOR / LINE INDUSTRY / AREA / MAIN STREAM / TIPE STREAM / BUSINESS PURPOSE / TYPE configured.**
+- [x] Sales users/PIC siap. **Confirmed 2026-05-29.**
+- [x] Client companies siap. **Sample data already imported.**
+- [x] Contacts siap. **Sample data already imported.**
+- [x] Company scoping benar. **Confirmed via sample data placement.**
 
 ## Import Sample Checklist
 
-- [ ] Import sample 20–50 rows from `sample/Lead 2026.xlsx`.
-- [~] Header mapping benar. **Static alias audit done; verify in UI preview.**
-- [ ] Stage mapping benar. **Map MATERIALIZED / CONFIRMED / TENTATIVE explicitly.**
-- [ ] Date parsing benar. **Verify Excel serial + text ranges.**
-- [ ] Phone normalization benar. **If file has phone columns; first sample rows do not show phone.**
-- [ ] Duplicate hints muncul sesuai harapan. **Especially COMPANY vs MAIN COMPANY.**
-- [ ] Import warnings bisa dipahami admin.
-- [ ] Imported records muncul di leads list.
+- [x] Import sample 20–50 rows from `sample/Lead 2026.xlsx`. **Done 2026-05-29.**
+- [x] Header mapping benar. **Verified in UI preview.**
+- [x] Stage mapping benar. **MATERIALIZED / CONFIRMED / TENTATIVE mapped explicitly.**
+- [x] Date parsing benar. **Excel serial + text ranges verified.**
+- [~] Phone normalization benar. **Sample data tidak punya kolom phone; verify lagi saat Excel real masuk.**
+- [x] Duplicate hints muncul sesuai harapan. **COMPANY vs MAIN COMPANY handled.**
+- [x] Import warnings bisa dipahami admin.
+- [x] Imported records muncul di leads list.
 
 ## Production Import Checklist
 
-- [ ] Mulai dari batch kecil, bukan semua data langsung.
-- [ ] Pilih 1 pipeline / 1 team / 1 periode sebagai pilot. **Recommendation: first 20–50 rows from Recap only.**
-- [ ] Cocokkan total row Excel vs imported.
-- [ ] Review records dengan missing PIC.
-- [ ] Review records dengan missing stage.
-- [ ] Review records dengan missing company/contact.
-- [ ] Review date yang terlihat aneh.
-- [ ] Review duplicate suspicious.
+- [x] Mulai dari batch kecil, bukan semua data langsung. **Sample batch sudah masuk.**
+- [x] Pilih 1 pipeline / 1 team / 1 periode sebagai pilot. **Sample dari Recap.**
+- [ ] Cocokkan total row Excel vs imported. **Pending production import.**
+- [ ] Review records dengan missing PIC. **Pending production import.**
+- [ ] Review records dengan missing stage. **Pending production import.**
+- [ ] Review records dengan missing company/contact. **Pending production import.**
+- [ ] Review date yang terlihat aneh. **Pending production import.**
+- [ ] Review duplicate suspicious. **Pending production import.**
 
 ## Acceptance Criteria
 
-- [ ] User pilot bisa menemukan leads mereka.
-- [ ] User bisa search/filter leads.
-- [ ] User bisa update status/stage.
-- [ ] Admin bisa koreksi data hasil import.
+- [x] User pilot bisa menemukan leads mereka. **Sample data accessible.**
+- [x] User bisa search/filter leads.
+- [x] User bisa update status/stage.
+- [x] Admin bisa koreksi data hasil import.
 
 ---
 
@@ -561,3 +563,14 @@ Tambahkan catatan per item di bawah ini saat implementasi berjalan.
 ## Notes
 
 - 2026-05-28: Plan dibuat untuk launch readiness dan phased execution.
+- 2026-05-29: Launch postponed ke 2026-06-05 — runway 7 hari untuk hardening (permission audit, CSP, beta labels, smoke test). Master data sudah siap, sample data lead/company/contact sudah masuk, pilot users sudah login & input.
+
+## Roadmap 7 Hari (29 Mei → 5 Juni)
+
+- **D-7 (Sab 29 Mei) — Engineering hardening**: Beta labels untuk widget goal visible, smoke test dashboard empty state, update launch plan, verify staging build.
+- **D-6 (Min 30 Mei) — Permission & RLS audit**: 6 role checkpoint (admin/sales/viewer/subsidiary/holding/no-permission), cross-company leak test, isi issue log.
+- **D-5 (Sen 1 Juni) — End-to-end smoke test**: Phase 3 full (Admin/Sales/Management/Import flow), dashboard mobile, activity log check.
+- **D-4 (Sel 2 Juni) — Credentials & CSP**: Rotate password test account, env validation startup, CSP headers di `next.config.ts`.
+- **D-3 (Rab 3 Juni) — User communication**: User guide singkat, support channel setup, known limitations note final.
+- **D-2 (Kam 4 Juni) — Dry run**: Pilot users (1 admin + 2 sales + 1 viewer) kerja real 2–3 jam, issue log war-room siap.
+- **D-1 (Jum 5 Juni) — LAUNCH**: Batch 1 → 2 → 3, monitoring aktif.

@@ -77,14 +77,15 @@ export function PipelineWidget({ data, comparisonLabel, pipelines = [], activePi
                     </div>
                     {/* Funnel bar */}
                     <div className="flex-1 flex items-center gap-2 min-w-0">
-                        <div className="flex-1 h-[18px] bg-[#f4f6f8] rounded-[3px] overflow-hidden relative">
+                        <div className="flex-1 h-[20px] bg-[#eef2f7] rounded-full overflow-hidden relative">
                             <div
-                                className="h-full rounded-[3px]"
+                                className="h-full rounded-full"
                                 style={{
                                     width: `${barWidth}%`,
-                                    backgroundColor: color,
-                                    opacity: isHovered ? 1 : 0.8,
-                                    transition: "width 500ms cubic-bezier(0.23,1,0.32,1), opacity 150ms ease",
+                                    background: `linear-gradient(90deg, ${color}cc 0%, ${color} 100%)`,
+                                    boxShadow: isHovered ? `0 1px 6px ${color}55` : "none",
+                                    opacity: isHovered ? 1 : 0.92,
+                                    transition: "width 500ms cubic-bezier(0.23,1,0.32,1), opacity 150ms ease, box-shadow 150ms ease",
                                 }}
                             />
                         </div>

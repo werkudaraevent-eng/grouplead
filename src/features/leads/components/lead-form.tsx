@@ -140,6 +140,9 @@ export function LeadForm({ onSuccess, onClose, pipelineId, defaultStageId, initi
     const [pipelineStages, setPipelineStages] = useState<{ id: string; name: string }[]>([])
     const [customSchemas, setCustomSchemas] = useState<FormSchema[]>([])
     const [customValues, setCustomValues] = useState<Record<string, any>>({})
+    // Auto-fill PIC sales preference — fetched from profiles.ui_preferences.
+    // Defaults to true so new users get the convenience without configuring.
+    const [defaultPicSalesId, setDefaultPicSalesId] = useState<string | null>(null)
 
     const { can } = usePermissions()
     const canManageLayout = can("master_options", "update")
@@ -257,6 +260,31 @@ export function LeadForm({ onSuccess, onClose, pipelineId, defaultStageId, initi
         fetchSchemas()
     }, [supabase, companies])
 
+    // Resolve current user + their auto-fill PIC preference. Only applies
+    // when creating a new lead. We require the user to actually be in the
+    // PIC sales options (sales / bu_manager) so we don't pre-fill a value
+    // the user can't legitimately own.
+    useEffect(() => {
+        if (isEditing) return
+        let cancelled = false
+        ;(async () => {
+            const { data: { user } } = await supabase.auth.getUser()
+            if (cancelled || !user) return
+            const { data: profile } = await supabase
+                .from("profiles")
+                .select("id, role, ui_preferences")
+                .eq("id", user.id)
+                .single()
+            if (cancelled || !profile) return
+            const prefs = (typeof profile.ui_preferences === "object" && profile.ui_preferences) ? profile.ui_preferences as Record<string, unknown> : {}
+            const enabled = prefs.auto_fill_pic_sales !== false // default true
+            const eligibleRole = profile.role === "sales" || profile.role === "bu_manager"
+            if (!enabled || !eligibleRole) return
+            setDefaultPicSalesId(profile.id)
+        })()
+        return () => { cancelled = true }
+    }, [supabase, isEditing])
+
     // For editing existing leads: only enforce project_name as required
     // Historical/imported leads often have incomplete data — don't block saves
     const effectiveRequired = isEditing
@@ -367,8 +395,19 @@ export function LeadForm({ onSuccess, onClose, pipelineId, defaultStageId, initi
         },
     })
 
+    // Once the auto-fill default resolves AFTER the form is mounted, patch
+    // the pic_sales_id field if the user hasn't touched it yet. This handles
+    // the common case where the form mounts before the profile fetch lands.
+    useEffect(() => {
+        if (isEditing || !defaultPicSalesId) return
+        const current = form.getValues("pic_sales_id")
+        if (current) return
+        form.setValue("pic_sales_id", defaultPicSalesId, { shouldDirty: false, shouldTouch: false })
+    }, [defaultPicSalesId, isEditing, form])
+
     const isFieldMandatory = (fieldId: string) => requiredOverrides.includes(fieldId) || fieldId === "native:project_name"
     const getLabelStr = (baseLabel: string, fieldId: string) => baseLabel + (isFieldMandatory(fieldId) ? " *" : "") // legacy helper, retained for any caller still relying on it
+
 
     // Reset form when initialData changes (e.g., switching between edit targets)
     useEffect(() => {

@@ -67,6 +67,12 @@ export function ProfileCombobox({ value, onChange, filterTierBelow, filterRoles,
     const [profiles, setProfiles] = useState<ProfileOption[]>([])
     const [isLoading, setIsLoading] = useState(true)
 
+    // Serialize array prop to a stable key so useEffect doesn't fire on
+    // every parent render (e.g. typing in another form field). Without this
+    // the combobox refetches profiles continuously and "flickers" between
+    // its loading and ready states.
+    const filterRolesKey = filterRoles ? filterRoles.join(",") : ""
+
     useEffect(() => {
         const supabase = createClient()
 
@@ -86,9 +92,10 @@ export function ProfileCombobox({ value, onChange, filterTierBelow, filterRoles,
                 return
             }
 
+            const allowedRoles = filterRolesKey ? filterRolesKey.split(",") : null
             const filtered = (data ?? []).filter((p) => {
                 if (filterTierBelow && (p.role_tier == null || p.role_tier >= filterTierBelow)) return false
-                if (filterRoles && !filterRoles.includes(p.role)) return false
+                if (allowedRoles && !allowedRoles.includes(p.role)) return false
                 return true
             })
 
@@ -103,7 +110,7 @@ export function ProfileCombobox({ value, onChange, filterTierBelow, filterRoles,
         }
 
         fetchProfiles()
-    }, [filterTierBelow, filterRoles])
+    }, [filterTierBelow, filterRolesKey])
 
     const selected = profiles.find((p) => p.value === value)
 

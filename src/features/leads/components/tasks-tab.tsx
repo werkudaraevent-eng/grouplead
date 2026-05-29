@@ -259,7 +259,7 @@ export function TasksTab({ leadId }: TasksTabProps) {
     }
 
     return (
-        <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+        <div className="bg-white border border-slate-200/80 rounded-lg overflow-hidden">
             {/* ── Header ──────────────────────────────────── */}
             <div className="px-5 py-3.5 border-b border-slate-100 flex items-center justify-between">
                 <h3 className="font-semibold text-[13px] text-slate-800 tracking-tight flex items-center gap-2">
