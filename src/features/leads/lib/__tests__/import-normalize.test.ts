@@ -79,13 +79,35 @@ describe("normalizeTaxonomicValue", () => {
 })
 
 describe("coerceNumber", () => {
-    it("strips commas and dots", () => {
+    it("strips thousands separators (dots and commas)", () => {
         expect(coerceNumber("3.090.000")).toBe(3090000)
         expect(coerceNumber("3,090,000")).toBe(3090000)
     })
 
     it("handles raw numbers", () => {
         expect(coerceNumber(150_000_000)).toBe(150000000)
+    })
+
+    it("treats an Indonesian decimal comma as a decimal point — NOT a separator", () => {
+        // Regression for the 2026-06 import bug: "92826005,7275" was being
+        // turned into 928260057275 (≈928 B) instead of ≈92.8 jt.
+        expect(coerceNumber("92826005,7275")).toBeCloseTo(92826005.7275, 4)
+        expect(coerceNumber("1234,5")).toBeCloseTo(1234.5, 4)
+    })
+
+    it("treats a US decimal point as a decimal point", () => {
+        expect(coerceNumber("1234.5")).toBeCloseTo(1234.5, 4)
+        expect(coerceNumber("0.75")).toBeCloseTo(0.75, 4)
+    })
+
+    it("handles mixed separators by using the right-most as decimal", () => {
+        expect(coerceNumber("1.234.567,89")).toBeCloseTo(1234567.89, 2) // ID
+        expect(coerceNumber("1,234,567.89")).toBeCloseTo(1234567.89, 2) // US
+    })
+
+    it("treats a single dot/comma before a 3-digit group as thousands", () => {
+        expect(coerceNumber("3.090")).toBe(3090)
+        expect(coerceNumber("3,090")).toBe(3090)
     })
 
     it("returns null for invalid input", () => {

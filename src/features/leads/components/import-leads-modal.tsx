@@ -12,6 +12,7 @@ import { excelSerialToISO } from "@/utils/excel-date"
 import { detectHeaderRow, buildHeaderAndRows } from "@/features/leads/lib/detect-header-row"
 import { resolveFieldByAlias, fuzzyMatchFieldKey } from "@/features/leads/lib/import-aliases"
 import { suggestStageMappings, type StageInfo } from "@/features/leads/lib/suggest-stage-mapping"
+import { coerceNumber } from "@/features/leads/lib/import-normalize"
 import {
     getStageMappings,
     saveStageMappings,
@@ -394,7 +395,7 @@ export function ImportLeadsModal({ open, onOpenChange, pipelineId, onSuccess }: 
             for (const nf of ["estimated_value", "actual_value", "pax_count"]) {
                 const header = mapping[nf]
                 const val = header ? row[header] : ""
-                if (val && String(val).trim() && isNaN(Number(String(val).replace(/[,.\s]/g, "")))) {
+                if (val && String(val).trim() && coerceNumber(val) === null) {
                     const field = activeFields.find((f) => f.key === nf)
                     errors.push({ row: idx + 1, field: field?.label || nf, message: "Must be a number", level: "error" })
                 }
@@ -638,10 +639,10 @@ export function ImportLeadsModal({ open, onOpenChange, pipelineId, onSuccess }: 
                 for (const [fieldKey, excelHeader] of Object.entries(columnMapping)) {
                     let val: unknown = row[excelHeader]?.trim() || null
                     if ((fieldKey === "estimated_value" || fieldKey === "actual_value") && val) {
-                        val = Number(String(val).replace(/[,.\s]/g, ""))
+                        val = coerceNumber(val)
                     }
                     if (fieldKey === "pax_count" && val) {
-                        val = Number(val)
+                        val = coerceNumber(val)
                     }
 
                     mapped[fieldKey] = val

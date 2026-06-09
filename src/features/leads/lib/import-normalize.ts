@@ -148,15 +148,58 @@ function diceBigram(a: string, b: string): number {
 }
 
 /**
- * Coerce numeric-ish string to number, stripping commas/dots/whitespace
- * thousand separators commonly found in Indonesian spreadsheets
- * ("3.090.000" or "3,090,000" → 3090000).
+ * Coerce a numeric-ish string to a number, handling both Indonesian and
+ * US-style separators without ever mistaking a decimal comma for a thousands
+ * separator.
+ *
+ * The old implementation stripped every "," "." and space, which turned the
+ * Indonesian value "92826005,7275" (≈ 92.8 jt, comma = decimal) into
+ * 928260057275 (≈ 928 B). To avoid that class of bug we decide which symbol
+ * is the decimal mark:
+ *   - Both "," and "." present → the LAST one is the decimal separator
+ *       "1.234.567,89" → 1234567.89   (ID)
+ *       "1,234,567.89" → 1234567.89   (US)
+ *   - Only one symbol present, appearing once, with a group of digits after it
+ *     that is NOT exactly 3 long → treat it as the decimal mark
+ *       "92826005,7275" → 92826005.7275
+ *   - Otherwise (multiple occurrences, or a single occurrence followed by
+ *     exactly 3 digits) → treat it as a thousands separator and strip it
+ *       "3.090.000" → 3090000   "3,090,000" → 3090000
  */
 export function coerceNumber(input: unknown): number | null {
     if (input === null || input === undefined || input === "") return null
     if (typeof input === "number") return Number.isFinite(input) ? input : null
-    const cleaned = String(input).replace(/[,.\s]/g, "")
-    if (!cleaned) return null
-    const n = Number(cleaned)
+
+    // Keep only digits, separators, and a leading sign.
+    let s = String(input).trim().replace(/[^0-9.,-]/g, "")
+    if (!s) return null
+
+    const hasComma = s.includes(",")
+    const hasDot = s.includes(".")
+
+    if (hasComma && hasDot) {
+        // The right-most symbol is the decimal separator.
+        if (s.lastIndexOf(",") > s.lastIndexOf(".")) {
+            s = s.replace(/\./g, "").replace(",", ".") // ID: 1.234,56 → 1234.56
+        } else {
+            s = s.replace(/,/g, "") // US: 1,234.56 → 1234.56
+        }
+    } else if (hasComma) {
+        const parts = s.split(",")
+        // Single comma whose fractional group isn't a 3-digit block → decimal.
+        s = parts.length === 2 && parts[1].length !== 3
+            ? parts[0] + "." + parts[1]
+            : s.replace(/,/g, "")
+    } else if (hasDot) {
+        const parts = s.split(".")
+        // Single dot followed by a 3-digit block (or several dots) → thousands.
+        if (parts.length > 2 || (parts.length === 2 && parts[1].length === 3)) {
+            s = s.replace(/\./g, "")
+        }
+        // else: single dot, non-3-digit fraction → already a valid decimal.
+    }
+
+    if (!s || s === "-") return null
+    const n = Number(s)
     return Number.isFinite(n) ? n : null
 }
