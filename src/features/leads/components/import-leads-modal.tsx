@@ -105,6 +105,10 @@ export function ImportLeadsModal({ open, onOpenChange, pipelineId, onSuccess }: 
     const fileInputRef = useRef<HTMLInputElement>(null)
     const [isPending, startTransition] = useTransition()
 
+    // Determinate progress while importing — driven by client-side batching
+    // so the user sees real row counts instead of an indefinite spinner.
+    const [importProgress, setImportProgress] = useState<{ done: number; total: number } | null>(null)
+
     // Wizard state — 4 steps
     const [step, setStep] = useState<1 | 2 | 3 | 4>(1)
     const [fileName, setFileName] = useState("")
@@ -199,6 +203,7 @@ export function ImportLeadsModal({ open, onOpenChange, pipelineId, onSuccess }: 
         setColumnMapping({})
         setValidations([])
         setImportResult({ success: 0, failed: 0, errors: [], warnings: [] })
+        setImportProgress(null)
         setIsHistorical(false)
         setHistoricalPipelineId("")
         setStageMapping({})
@@ -677,22 +682,55 @@ export function ImportLeadsModal({ open, onOpenChange, pipelineId, onSuccess }: 
                 void saveStageMappings(targetPipelineId, entries)
             }
 
-            const result = isHistorical
-                ? await importHistoricalLeadsAction(rows)
-                : await importLeadsAction(rows)
-            setImportResult(result)
+            // ── Batched import for real progress feedback ──
+            // The server actions process whatever rows they're given and return
+            // once. Sending the rows in chunks lets us advance a determinate
+            // progress bar between calls. Sequential (not parallel) on purpose:
+            // each call re-fetches lookup tables, so a client company / contact
+            // auto-created in an earlier chunk is visible to later chunks and
+            // we avoid duplicate inserts.
+            const BATCH_SIZE = 50
+            const aggregate: typeof importResult = { success: 0, failed: 0, errors: [], warnings: [] }
+
+            // Server labels rows "Row N" within its own slice; shift by the
+            // batch offset so error/warning row numbers stay file-global.
+            const reindex = (msgs: string[], offset: number) =>
+                offset === 0
+                    ? msgs
+                    : msgs.map((m) =>
+                          m.replace(/^Row (\d+)/, (_, n) => `Row ${Number(n) + offset}`),
+                      )
+
+            setImportProgress({ done: 0, total: rows.length })
+
+            for (let start = 0; start < rows.length; start += BATCH_SIZE) {
+                const chunk = rows.slice(start, start + BATCH_SIZE)
+                const result = isHistorical
+                    ? await importHistoricalLeadsAction(chunk)
+                    : await importLeadsAction(chunk)
+
+                aggregate.success += result.success
+                aggregate.failed += result.failed
+                aggregate.errors.push(...reindex(result.errors, start))
+                aggregate.warnings.push(...reindex(result.warnings, start))
+
+                setImportProgress({ done: Math.min(start + chunk.length, rows.length), total: rows.length })
+            }
+
+            setImportResult(aggregate)
+            setImportProgress(null)
             setStep(4)
 
-            if (result.success > 0) {
-                toast.success(`${result.success} lead(s) imported successfully!`)
+            if (aggregate.success > 0) {
+                toast.success(`${aggregate.success} lead(s) imported successfully!`)
                 onSuccess?.()
                 router.refresh()
             }
-            if (result.failed > 0) {
-                toast.error(`${result.failed} lead(s) failed to import`)
+            if (aggregate.failed > 0) {
+                toast.error(`${aggregate.failed} lead(s) failed to import`)
             }
         })
-    }, [columnMapping, parsedData, pipelineId, historicalPipelineId, startTransition, onSuccess, router, isHistorical, stageMapping, statusSourceField, targetPipelineId])
+    }, [columnMapping, parsedData, pipelineId, historicalPipelineId, startTransition, onSuccess, router, isHistorical, stageMapping, statusSourceField, targetPipelineId, importResult])
 
     // Headers already used in mapping
     const usedHeaders = useMemo(() => new Set(Object.values(columnMapping)), [columnMapping])
@@ -1106,6 +1144,31 @@ export function ImportLeadsModal({ open, onOpenChange, pipelineId, onSuccess }: 
                     {/* ═══ STEP 3: Preview & Validate ═══ */}
                     {step === 3 && (
                         <div className="space-y-4">
+                            {/* Determinate import progress — real row counts, not a spinner */}
+                            {importProgress && (
+                                <div className="rounded-xl border border-blue-200 bg-blue-50/60 p-4 space-y-2">
+                                    <div className="flex items-center justify-between text-xs font-semibold text-blue-800">
+                                        <span className="flex items-center gap-1.5">
+                                            <Loader2 className="h-3.5 w-3.5 animate-spin" /> Importing leads…
+                                        </span>
+                                        <span>
+                                            {importProgress.done} / {importProgress.total}
+                                            {" "}
+                                            ({Math.round((importProgress.done / Math.max(importProgress.total, 1)) * 100)}%)
+                                        </span>
+                                    </div>
+                                    <div className="h-2 rounded-full bg-blue-100 overflow-hidden">
+                                        <div
+                                            className="h-full rounded-full bg-gradient-to-r from-blue-500 to-indigo-500 transition-[width] duration-300 ease-out"
+                                            style={{ width: `${(importProgress.done / Math.max(importProgress.total, 1)) * 100}%` }}
+                                        />
+                                    </div>
+                                    <p className="text-[10px] text-blue-600/80">
+                                        Please keep this window open until the import finishes.
+                                    </p>
+                                </div>
+                            )}
+
                             <div className="grid grid-cols-4 gap-3">
                                 <StatCard label="Rows" value={parsedData.length} icon={<FileSpreadsheet className="h-3.5 w-3.5" />} color="blue" />
                                 <StatCard label="Mapped" value={`${mappedCount}/${activeFields.length}`} icon={<CheckCircle2 className="h-3.5 w-3.5" />} color="emerald" />
@@ -1334,7 +1397,7 @@ export function ImportLeadsModal({ open, onOpenChange, pipelineId, onSuccess }: 
                                 className="gap-1.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
                             >
                                 {isPending ? (
-                                    <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Importing...</>
+                                    <><Loader2 className="h-3.5 w-3.5 animate-spin" /> {importProgress ? `Importing ${importProgress.done}/${importProgress.total}…` : "Importing…"}</>
                                 ) : (
                                     <><ArrowRight className="h-3.5 w-3.5" /> Import {parsedData.length} Lead{parsedData.length > 1 ? 's' : ''}</>
                                 )}
