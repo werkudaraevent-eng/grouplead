@@ -253,9 +253,20 @@ export function AnalyticsDashboard({
 
     // Company-filtered leads (for holding view)
     const filteredLeads = useMemo(() => {
-        if (!isHoldingView || companyFilter === "all") return leads
-        return leads.filter(l => l.company_id === companyFilter)
-    }, [leads, isHoldingView, companyFilter])
+        let result = leads
+        // Scope to the active pipeline so KPI numbers match the pipeline view.
+        // page.tsx deliberately loads leads across ALL pipelines (for YoY), so
+        // without this narrowing every KPI (Won Revenue, Total Leads, …) would
+        // aggregate across pipelines and not match the pipeline's own totals.
+        // No selected pipeline → keep everything.
+        if (activePipelineId) {
+            result = result.filter(l => l.pipeline_id === activePipelineId)
+        }
+        if (isHoldingView && companyFilter !== "all") {
+            result = result.filter(l => l.company_id === companyFilter)
+        }
+        return result
+    }, [leads, isHoldingView, companyFilter, activePipelineId])
 
     const periodLeadBuckets = useMemo(() => splitDashboardLeadsByPeriod(
         filteredLeads,
