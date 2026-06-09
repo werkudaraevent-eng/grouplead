@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Top Revenue Deals — Chart Options</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --p1:#02378D; --p2:#2069B4; --p3:#00A1E9; --p4:#5EC5F2; --p5:#C3E6F5;
+    --s1:#ED6F22; --s2:#F9BB46; --s3:#6EBDA1; --s4:#292D30; --s5:#EFEFEF;
+    --bg:#f8f9fb; --card:#fff; --border:rgba(226,230,238,0.6);
+    --text-primary:#1a1d23; --text-secondary:#64748b; --text-muted:#94a3b8;
+  }
+  body { font-family:'Inter',sans-serif; background:var(--bg); color:var(--text-primary); -webkit-font-smoothing:antialiased; padding:40px; }
+  .grid { max-width:1100px; margin:0 auto; display:grid; grid-template-columns:1fr 1fr; gap:24px; }
+  .widget { background:var(--card); border:1px solid var(--border); border-radius:12px; overflow:hidden; }
+  .widget-header { display:flex; align-items:center; justify-content:space-between; padding:20px 24px 0; }
+  .widget-title { display:flex; align-items:center; gap:8px; font-size:14px; font-weight:600; letter-spacing:-0.01em; }
+  .widget-title svg { width:16px; height:16px; color:var(--text-muted); }
+  .opt-tag { font-size:10px; font-weight:600; text-transform:uppercase; letter-spacing:0.08em; color:var(--p3); background:#ecfeff; padding:2px 8px; border-radius:4px; }
+  .widget-body { padding:24px; }
+  h2.page-title { max-width:1100px; margin:0 auto 8px; font-size:20px; font-weight:700; letter-spacing:-0.02em; }
+  p.page-sub { max-width:1100px; margin:0 auto 32px; font-size:13px; color:var(--text-muted); }
+
+  /* ── Option A: Vertical Columns ───────────── */
+  .vcol-row { display:flex; align-items:flex-end; gap:14px; height:240px; padding-top:24px; }
+  .vcol-group { flex:1; display:flex; flex-direction:column; align-items:center; height:100%; justify-content:flex-end; gap:10px; }
+  .vcol-bar { width:100%; max-width:54px; border-radius:8px 8px 0 0; position:relative; transition:filter .2s; }
+  .vcol-bar:hover { filter:brightness(1.08); }
+  .vcol-val { position:absolute; top:-22px; left:50%; transform:translateX(-50%); font-size:12px; font-weight:700; white-space:nowrap; font-variant-numeric:tabular-nums; }
+  .vcol-meta { text-align:center; }
+  .vcol-name { font-size:10.5px; font-weight:600; color:var(--text-primary); line-height:1.2; max-width:90px; }
+  .vcol-company { font-size:9.5px; color:var(--text-muted); margin-top:2px; }
+
+  /* ── Option B: Lollipop ───────────────────── */
+  .lolli-list { display:flex; flex-direction:column; gap:22px; }
+  .lolli-row { display:flex; align-items:center; gap:14px; }
+  .lolli-info { width:150px; flex-shrink:0; }
+  .lolli-name { font-size:12.5px; font-weight:600; line-height:1.2; }
+  .lolli-company { font-size:10.5px; color:var(--text-muted); margin-top:1px; }
+  .lolli-track { flex:1; position:relative; height:14px; display:flex; align-items:center; }
+  .lolli-stem { height:3px; border-radius:2px; }
+  .lolli-dot { width:14px; height:14px; border-radius:50%; flex-shrink:0; margin-left:-2px; box-shadow:0 0 0 3px rgba(255,255,255,1); }
+  .lolli-val { font-size:12.5px; font-weight:700; margin-left:10px; white-space:nowrap; font-variant-numeric:tabular-nums; }
+
+  /* ── Option C: Ranked Rows (value-in-bar) ── */
+  .rank-list { display:flex; flex-direction:column; gap:12px; }
+  .rank-row { display:flex; align-items:center; gap:14px; }
+  .rank-num { width:24px; height:24px; border-radius:7px; background:var(--s5); color:var(--text-secondary); font-size:11px; font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+  .rank-num.gold { background:#fef3c7; color:#b45309; }
+  .rank-body { flex:1; min-width:0; }
+  .rank-top { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:6px; }
+  .rank-name { font-size:12.5px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .rank-company { font-size:10.5px; color:var(--text-muted); font-weight:400; margin-left:6px; }
+  .rank-val { font-size:13px; font-weight:700; font-variant-numeric:tabular-nums; flex-shrink:0; margin-left:10px; }
+  .rank-track { width:100%; height:8px; background:var(--s5); border-radius:4px; overflow:hidden; }
+  .rank-fill { height:100%; border-radius:4px; }
+
+  /* ── Option D: Radial bars ────────────────── */
+  .radial-wrap { display:flex; align-items:center; gap:28px; }
+  .radial-legend { flex:1; display:flex; flex-direction:column; gap:14px; }
+  .radial-item { display:flex; align-items:center; gap:10px; }
+  .radial-item .dot { width:10px; height:10px; border-radius:3px; flex-shrink:0; }
+  .radial-name { flex:1; font-size:12px; font-weight:500; line-height:1.2; }
+  .radial-company { font-size:10px; color:var(--text-muted); }
+  .radial-val { font-size:12.5px; font-weight:700; font-variant-numeric:tabular-nums; }
+</style>
+</head>
+<body>
+
+<h2 class="page-title">Top Revenue Deals — 4 Chart Options</h2>
+<p class="page-sub">Same data, different visualizations. Pick the one that feels right (or mix ideas).</p>
+
+<div class="grid">
+
+  <!-- ════ OPTION A: VERTICAL COLUMNS ════ -->
+  <div class="widget">
+    <div class="widget-header">
+      <div class="widget-title">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><rect x="7" y="9" width="3" height="9"/><rect x="13" y="5" width="3" height="13"/></svg>
+        Top Revenue Deals
+      </div>
+      <span class="opt-tag">Option A · Columns</span>
+    </div>
+    <div class="widget-body">
+      <div class="vcol-row">
+        <div class="vcol-group">
+          <div class="vcol-bar" style="height:100%; background:var(--p1)"><span class="vcol-val" style="color:var(--p1)">1.2B</span></div>
+          <div class="vcol-meta"><div class="vcol-name">Annual Summit</div><div class="vcol-company">Telkom</div></div>
+        </div>
+        <div class="vcol-group">
+          <div class="vcol-bar" style="height:74%; background:var(--p2)"><span class="vcol-val" style="color:var(--p2)">890M</span></div>
+          <div class="vcol-meta"><div class="vcol-name">Exec Retreat</div><div class="vcol-company">Mandiri</div></div>
+        </div>
+        <div class="vcol-group">
+          <div class="vcol-bar" style="height:54%; background:var(--p3)"><span class="vcol-val" style="color:var(--p3)">650M</span></div>
+          <div class="vcol-meta"><div class="vcol-name">Product Launch</div><div class="vcol-company">Unilever</div></div>
+        </div>
+        <div class="vcol-group">
+          <div class="vcol-bar" style="height:40%; background:var(--s3)"><span class="vcol-val" style="color:var(--s3)">480M</span></div>
+          <div class="vcol-meta"><div class="vcol-name">Team Building</div><div class="vcol-company">Astra</div></div>
+        </div>
+        <div class="vcol-group">
+          <div class="vcol-bar" style="height:29%; background:var(--p4)"><span class="vcol-val" style="color:#3a9fd4">350M</span></div>
+          <div class="vcol-meta"><div class="vcol-name">Gala Dinner</div><div class="vcol-company">Pertamina</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════ OPTION B: LOLLIPOP ════ -->
+  <div class="widget">
+    <div class="widget-header">
+      <div class="widget-title">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M9 18h6M6 15V9"/></svg>
+        Top Revenue Deals
+      </div>
+      <span class="opt-tag">Option B · Lollipop</span>
+    </div>
+    <div class="widget-body">
+      <div class="lolli-list">
+        <div class="lolli-row">
+          <div class="lolli-info"><div class="lolli-name">Annual Summit 2026</div><div class="lolli-company">PT Telkom Indonesia</div></div>
+          <div class="lolli-track"><div class="lolli-stem" style="width:100%; background:var(--p1)"></div><div class="lolli-dot" style="background:var(--p1)"></div></div>
+          <div class="lolli-val">1.2B</div>
+        </div>
+        <div class="lolli-row">
+          <div class="lolli-info"><div class="lolli-name">Executive Retreat Bali</div><div class="lolli-company">Bank Mandiri</div></div>
+          <div class="lolli-track"><div class="lolli-stem" style="width:74%; background:var(--p2)"></div><div class="lolli-dot" style="background:var(--p2)"></div></div>
+          <div class="lolli-val">890M</div>
+        </div>
+        <div class="lolli-row">
+          <div class="lolli-info"><div class="lolli-name">Product Launch Event</div><div class="lolli-company">Unilever Indonesia</div></div>
+          <div class="lolli-track"><div class="lolli-stem" style="width:54%; background:var(--p3)"></div><div class="lolli-dot" style="background:var(--p3)"></div></div>
+          <div class="lolli-val">650M</div>
+        </div>
+        <div class="lolli-row">
+          <div class="lolli-info"><div class="lolli-name">Team Building Yogyakarta</div><div class="lolli-company">Astra International</div></div>
+          <div class="lolli-track"><div class="lolli-stem" style="width:40%; background:var(--s3)"></div><div class="lolli-dot" style="background:var(--s3)"></div></div>
+          <div class="lolli-val">480M</div>
+        </div>
+        <div class="lolli-row">
+          <div class="lolli-info"><div class="lolli-name">Gala Dinner Jakarta</div><div class="lolli-company">Pertamina</div></div>
+          <div class="lolli-track"><div class="lolli-stem" style="width:29%; background:var(--p4)"></div><div class="lolli-dot" style="background:var(--p4)"></div></div>
+          <div class="lolli-val">350M</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════ OPTION C: RANKED ROWS ════ -->
+  <div class="widget">
+    <div class="widget-header">
+      <div class="widget-title">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+        Top Revenue Deals
+      </div>
+      <span class="opt-tag">Option C · Ranked</span>
+    </div>
+    <div class="widget-body">
+      <div class="rank-list">
+        <div class="rank-row">
+          <div class="rank-num gold">1</div>
+          <div class="rank-body">
+            <div class="rank-top"><div class="rank-name">Annual Summit 2026 <span class="rank-company">· Telkom</span></div><div class="rank-val">1.2B</div></div>
+            <div class="rank-track"><div class="rank-fill" style="width:100%; background:var(--p1)"></div></div>
+          </div>
+        </div>
+        <div class="rank-row">
+          <div class="rank-num">2</div>
+          <div class="rank-body">
+            <div class="rank-top"><div class="rank-name">Executive Retreat Bali <span class="rank-company">· Mandiri</span></div><div class="rank-val">890M</div></div>
+            <div class="rank-track"><div class="rank-fill" style="width:74%; background:var(--p2)"></div></div>
+          </div>
+        </div>
+        <div class="rank-row">
+          <div class="rank-num">3</div>
+          <div class="rank-body">
+            <div class="rank-top"><div class="rank-name">Product Launch Event <span class="rank-company">· Unilever</span></div><div class="rank-val">650M</div></div>
+            <div class="rank-track"><div class="rank-fill" style="width:54%; background:var(--p3)"></div></div>
+          </div>
+        </div>
+        <div class="rank-row">
+          <div class="rank-num">4</div>
+          <div class="rank-body">
+            <div class="rank-top"><div class="rank-name">Team Building Yogyakarta <span class="rank-company">· Astra</span></div><div class="rank-val">480M</div></div>
+            <div class="rank-track"><div class="rank-fill" style="width:40%; background:var(--s3)"></div></div>
+          </div>
+        </div>
+        <div class="rank-row">
+          <div class="rank-num">5</div>
+          <div class="rank-body">
+            <div class="rank-top"><div class="rank-name">Gala Dinner Jakarta <span class="rank-company">· Pertamina</span></div><div class="rank-val">350M</div></div>
+            <div class="rank-track"><div class="rank-fill" style="width:29%; background:var(--p4)"></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════ OPTION D: RADIAL BARS ════ -->
+  <div class="widget">
+    <div class="widget-header">
+      <div class="widget-title">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+        Top Revenue Deals
+      </div>
+      <span class="opt-tag">Option D · Radial</span>
+    </div>
+    <div class="widget-body">
+      <div class="radial-wrap">
+        <svg width="170" height="170" viewBox="0 0 170 170">
+          <!-- tracks -->
+          <circle cx="85" cy="85" r="72" fill="none" stroke="#eef1f5" stroke-width="11"/>
+          <circle cx="85" cy="85" r="58" fill="none" stroke="#eef1f5" stroke-width="11"/>
+          <circle cx="85" cy="85" r="44" fill="none" stroke="#eef1f5" stroke-width="11"/>
+          <circle cx="85" cy="85" r="30" fill="none" stroke="#eef1f5" stroke-width="11"/>
+          <circle cx="85" cy="85" r="16" fill="none" stroke="#eef1f5" stroke-width="9"/>
+          <!-- fills (stroke-dasharray = circumference; offset = remaining) -->
+          <circle cx="85" cy="85" r="72" fill="none" stroke="var(--p1)" stroke-width="11" stroke-linecap="round"
+                  stroke-dasharray="452.4" stroke-dashoffset="0" transform="rotate(-90 85 85)"/>
+          <circle cx="85" cy="85" r="58" fill="none" stroke="var(--p2)" stroke-width="11" stroke-linecap="round"
+                  stroke-dasharray="364.4" stroke-dashoffset="94.7" transform="rotate(-90 85 85)"/>
+          <circle cx="85" cy="85" r="44" fill="none" stroke="var(--p3)" stroke-width="11" stroke-linecap="round"
+                  stroke-dasharray="276.5" stroke-dashoffset="127.2" transform="rotate(-90 85 85)"/>
+          <circle cx="85" cy="85" r="30" fill="none" stroke="var(--s3)" stroke-width="11" stroke-linecap="round"
+                  stroke-dasharray="188.5" stroke-dashoffset="113.1" transform="rotate(-90 85 85)"/>
+          <circle cx="85" cy="85" r="16" fill="none" stroke="var(--p4)" stroke-width="9" stroke-linecap="round"
+                  stroke-dasharray="100.5" stroke-dashoffset="71.4" transform="rotate(-90 85 85)"/>
+        </svg>
+        <div class="radial-legend">
+          <div class="radial-item"><span class="dot" style="background:var(--p1)"></span><span class="radial-name">Annual Summit <span class="radial-company">· Telkom</span></span><span class="radial-val">1.2B</span></div>
+          <div class="radial-item"><span class="dot" style="background:var(--p2)"></span><span class="radial-name">Exec Retreat <span class="radial-company">· Mandiri</span></span><span class="radial-val">890M</span></div>
+          <div class="radial-item"><span class="dot" style="background:var(--p3)"></span><span class="radial-name">Product Launch <span class="radial-company">· Unilever</span></span><span class="radial-val">650M</span></div>
+          <div class="radial-item"><span class="dot" style="background:var(--s3)"></span><span class="radial-name">Team Building <span class="radial-company">· Astra</span></span><span class="radial-val">480M</span></div>
+          <div class="radial-item"><span class="dot" style="background:var(--p4)"></span><span class="radial-name">Gala Dinner <span class="radial-company">· Pertamina</span></span><span class="radial-val">350M</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>

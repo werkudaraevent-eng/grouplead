@@ -1,5 +1,5 @@
 ﻿import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Plus_Jakarta_Sans, Geist_Mono } from "next/font/google";
 import { headers } from "next/headers";
 import { MainLayout } from "@/components/layout/main-layout";
 import { getActiveCompany, getUserCompanies } from "@/utils/company";
@@ -9,9 +9,10 @@ import { DEFAULT_CURRENCY_SETTINGS } from "@/types/currency";
 import { Toaster } from "sonner";
 import "./globals.css";
 
-const geistSans = Geist({
+const geistSans = Plus_Jakarta_Sans({
   variable: "--font-geist-sans",
   subsets: ["latin"],
+  weight: ["400", "500", "600", "700", "800"],
 });
 
 const geistMono = Geist_Mono({

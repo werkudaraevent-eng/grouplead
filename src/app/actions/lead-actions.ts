@@ -28,7 +28,7 @@ const LEADS_COLUMNS = new Set([
     "custom_data", "general_brief", "production_sow", "special_remarks", "event_dates", "month_event",
     "kanban_sort_order", "lost_reason", "lost_reason_details",
     "closed_won_date", "closed_lost_date",
-    "account_status", "account_status_source"
+    "account_status", "account_status_source", "month_event_source"
 ])
 
 // ── Blocklist: relational join objects that come from Supabase `.select('*, relation(…)')` ──
@@ -471,15 +471,19 @@ export async function bulkDeleteLeadsAction(
 
         if (error) return { success: false, error: error.message }
 
-        for (const lead of leadData ?? []) {
-            await logAuditEvent({
-                action: "delete",
-                resource_type: "lead",
-                resource_id: String(lead.id),
-                resource_name: lead.project_name || "",
-                description: `deleted lead "${lead.project_name || lead.id}"`,
-            })
-        }
+        // Audit log in parallel — sequential awaits made bulk deletes of
+        // 100+ leads feel frozen (one round trip per row).
+        await Promise.all(
+            (leadData ?? []).map((lead) =>
+                logAuditEvent({
+                    action: "delete",
+                    resource_type: "lead",
+                    resource_id: String(lead.id),
+                    resource_name: lead.project_name || "",
+                    description: `deleted lead "${lead.project_name || lead.id}"`,
+                })
+            )
+        )
 
         revalidatePath("/", "layout")
         revalidatePath("/leads")

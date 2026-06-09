@@ -47,6 +47,7 @@ import { Save, Loader2, Check, ChevronsUpDown, Plus, Trash2, X, CalendarIcon, Se
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import { MultiDatePicker } from "@/components/shared/multi-date-picker"
 import { Switch } from "@/components/ui/switch"
+import { computeMonthEvent } from "@/features/leads/lib/compute-month-event"
 import { format } from "date-fns"
 import {
     AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -147,7 +148,10 @@ export function LeadForm({ onSuccess, onClose, pipelineId, defaultStageId, initi
     const { can } = usePermissions()
     const canManageLayout = can("master_options", "update")
 
-    const [cutoffDate, setCutoffDate] = useState<number>(31)
+    // Default 25 matches the canonical computeMonthEvent + import path so the
+    // recognition month behaves identically before the System Rules setting
+    // loads (or if the setting row is absent).
+    const [cutoffDate, setCutoffDate] = useState<number>(25)
     const [layoutConfig, setLayoutConfig] = useState<LayoutItemsMap>(DEFAULT_LAYOUT)
     const [requiredOverrides, setRequiredOverrides] = useState<string[]>(["native:project_name"])
     const [tabSettings, setTabSettings] = useState<any>({})
@@ -317,11 +321,9 @@ export function LeadForm({ onSuccess, onClose, pipelineId, defaultStageId, initi
                 }
                 const parsed = me.split(" ")[0] || null
                 if (!parsed && initialData.event_dates && initialData.event_dates.length > 0) {
-                    const sorted = [...initialData.event_dates].sort()
-                    const sd = new Date(sorted[0])
-                    if (sd.getDate() > 25) sd.setMonth(sd.getMonth() + 1)
-                    const monthsNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
-                    return monthsNames[sd.getMonth()]
+                    // Fallback: derive from event END date + cut-off rule.
+                    const derived = computeMonthEvent(initialData.event_dates, cutoffDate)
+                    return derived ? derived.split(" ")[0] : null
                 }
                 return parsed
             })(),
@@ -333,10 +335,8 @@ export function LeadForm({ onSuccess, onClose, pipelineId, defaultStageId, initi
                 }
                 const parsed = me.split(" ")[1] || null
                 if (!parsed && initialData.event_dates && initialData.event_dates.length > 0) {
-                    const sorted = [...initialData.event_dates].sort()
-                    const sd = new Date(sorted[0])
-                    if (sd.getDate() > 25) sd.setMonth(sd.getMonth() + 1)
-                    return String(sd.getFullYear())
+                    const derived = computeMonthEvent(initialData.event_dates, cutoffDate)
+                    return derived ? derived.split(" ")[1] : null
                 }
                 return parsed
             })(),
@@ -425,12 +425,12 @@ export function LeadForm({ onSuccess, onClose, pipelineId, defaultStageId, initi
                 tYear = me.split(" ")[1] || null
             }
             if (!tMonth && initialData.event_dates && initialData.event_dates.length > 0) {
-                const sorted = [...initialData.event_dates].sort()
-                const sd = new Date(sorted[0])
-                if (sd.getDate() > 25) sd.setMonth(sd.getMonth() + 1)
-                const monthsNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
-                tMonth = monthsNames[sd.getMonth()]
-                tYear = String(sd.getFullYear())
+                // Fallback: derive from event END date + cut-off rule (canonical helper).
+                const derived = computeMonthEvent(initialData.event_dates, cutoffDate)
+                if (derived) {
+                    tMonth = derived.split(" ")[0]
+                    tYear = derived.split(" ")[1]
+                }
             }
             form.reset({
                 project_name: initialData.project_name || "",
@@ -570,19 +570,17 @@ export function LeadForm({ onSuccess, onClose, pipelineId, defaultStageId, initi
         if (currentDateStr !== prevEventDatesStr.current) {
             prevEventDatesStr.current = currentDateStr
             if (watchedEventDates && watchedEventDates.length > 0) {
-                const sorted = [...watchedEventDates].sort()
-                const sd = new Date(sorted[0])
-                if (sd.getDate() > cutoffDate) sd.setMonth(sd.getMonth() + 1)
-                
-                // Format as YYYY-MM-DD
-                const yyyy = sd.getFullYear()
-                const mm = String(sd.getMonth() + 1).padStart(2, "0")
-                const dd = String(sd.getDate()).padStart(2, "0")
-                const monthsNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
-                const monthName = monthsNames[sd.getMonth()]
-
-                form.setValue("tentative_month", monthName, { shouldDirty: true, shouldValidate: true })
-                form.setValue("tentative_year", String(yyyy), { shouldDirty: true, shouldValidate: true })
+                // Auto-derive Revenue Recognition month from the event's END
+                // date + the company cut-off rule (System Rules). Uses the
+                // canonical computeMonthEvent so form, import, and server all
+                // agree. The user can still override the month/year manually
+                // afterwards — we only set, never lock.
+                const me = computeMonthEvent(watchedEventDates, cutoffDate)
+                if (me) {
+                    const [monthName, yyyy] = me.split(" ")
+                    form.setValue("tentative_month", monthName, { shouldDirty: true, shouldValidate: true })
+                    form.setValue("tentative_year", yyyy, { shouldDirty: true, shouldValidate: true })
+                }
             }
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -698,6 +696,18 @@ export function LeadForm({ onSuccess, onClose, pipelineId, defaultStageId, initi
                 // Allow manual override for revenue recognized date via dual dropdowns
                 payload.month_event = [values.tentative_month, values.tentative_year].filter(Boolean).join(" ") || null
 
+                // Tag the source so recalculate jobs know what's safe to touch.
+                // If the chosen month matches what the cut-off rule derives from
+                // the event dates, it's 'auto'; any divergence (or a tentative
+                // entry with no event dates) is a deliberate 'manual' value.
+                if (payload.month_event) {
+                    const derived = values.event_dates && values.event_dates.length > 0
+                        ? computeMonthEvent(values.event_dates, cutoffDate)
+                        : null
+                    payload.month_event_source = derived && derived === payload.month_event ? "auto" : "manual"
+                } else {
+                    payload.month_event_source = null
+                }
 
                 if (isEditing && initialData) {
                     // ── UPDATE MODE ──

@@ -197,6 +197,10 @@ export interface Lead {
     month_cancel_lost: string | null;
     is_qualified: boolean | null;
     month_event: string | null;
+    /** How month_event was set: 'auto' (derived from event dates + cut-off
+     *  rule) or 'manual' (user override / tentative). Recalculate jobs only
+     *  touch 'auto' rows. */
+    month_event_source: 'auto' | 'manual' | null;
 
     // Dynamic / Custom
     custom_data: Record<string, unknown> | null;

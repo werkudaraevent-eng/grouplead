@@ -27,8 +27,9 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Switch } from "@/components/ui/switch"
-import { Plus, Pencil, Trash2, Loader2, ListChecks, FolderPlus, Tag, Link2, Upload, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Search, RotateCcw, GripVertical, Archive, GitBranch } from "lucide-react"
+import { Plus, Pencil, Trash2, Loader2, ListChecks, FolderPlus, Tag, Link2, Upload, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Search, RotateCcw, GripVertical, Archive, GitBranch, Calculator } from "lucide-react"
 import { toast } from "sonner"
+import { recalcMonthEventAction, type RecalcMonthEventResult } from "@/app/actions/settings-actions"
 import type { MasterOption, FormSchema } from "@/types"
 import { cn } from "@/lib/utils"
 import {
@@ -154,6 +155,11 @@ function MasterOptionsContent() {
     // ── System Settings state ──
     const [cutoffDate, setCutoffDate] = useState<string>("31")
     const [settingsSaving, setSettingsSaving] = useState(false)
+    // Revenue-Recognition recalculation (preview → confirm)
+    const [recalcOpen, setRecalcOpen] = useState(false)
+    const [recalcLoading, setRecalcLoading] = useState(false)
+    const [recalcApplying, setRecalcApplying] = useState(false)
+    const [recalcPreview, setRecalcPreview] = useState<RecalcMonthEventResult | null>(null)
 
     // ── Cascade Relations state (dynamic parent-child mapping) ──
     const [cascadeRelations, setCascadeRelations] = useState<Record<string, string>>(DEFAULT_CASCADE_RELATIONS)
@@ -660,6 +666,31 @@ function MasterOptionsContent() {
         fetchOptions()
     }
 
+    // ── Recalculate Revenue-Recognition months ──
+    // Opens a confirm dialog showing a dry-run preview (how many leads would
+    // change) before the user commits. Manual overrides are never touched.
+    const openRecalc = async () => {
+        setRecalcOpen(true)
+        setRecalcLoading(true)
+        setRecalcPreview(null)
+        const res = await recalcMonthEventAction(false)
+        if (res.success && res.data) setRecalcPreview(res.data)
+        else if (!res.success) toast.error(res.error)
+        setRecalcLoading(false)
+    }
+
+    const applyRecalc = async () => {
+        setRecalcApplying(true)
+        const res = await recalcMonthEventAction(true)
+        if (res.success && res.data) {
+            toast.success(`Recalculated ${res.data.applied} lead${res.data.applied === 1 ? "" : "s"}`)
+            setRecalcOpen(false)
+        } else if (!res.success) {
+            toast.error(res.error)
+        }
+        setRecalcApplying(false)
+    }
+
     // ── Form Schemas CRUD ──
     const openAddSchema = () => {
         setEditingSchema(null)
@@ -1143,7 +1174,10 @@ function MasterOptionsContent() {
                                         <div className="grid gap-2">
                                             <Label className="font-semibold text-slate-800">Event Cut-Off Date</Label>
                                             <p className="text-sm text-slate-500 mb-2">
-                                                Determines which month an event Revenue is recognized in. For instance, if the cut-off date is the 25th, an event starting on the 26th will be recognized in the <strong>following month</strong>.
+                                                Determines which month an event&apos;s revenue is recognized in, based on its <strong>end date</strong>. An event that ends after the {cutoffDate || "—"}<sup>th</sup> is recognized in the <strong>following month</strong>.
+                                            </p>
+                                            <p className="text-xs text-amber-600 mb-2">
+                                                Changing this only affects new leads and leads whose event dates you edit afterward. Existing leads keep their current recognition month until recalculated.
                                             </p>
                                             <div className="flex items-center gap-3">
                                                 <Input 
@@ -1157,10 +1191,14 @@ function MasterOptionsContent() {
                                             </div>
                                         </div>
 
-                                        <div className="pt-4 border-t">
+                                        <div className="pt-4 border-t flex flex-wrap items-center gap-3">
                                             <Button onClick={saveSettings} disabled={settingsSaving}>
                                                 {settingsSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                                                 Save Settings
+                                            </Button>
+                                            <Button variant="outline" onClick={openRecalc} disabled={settingsSaving}>
+                                                <Calculator className="h-4 w-4 mr-2" />
+                                                Recalculate existing leads
                                             </Button>
                                         </div>
                                     </div>
@@ -1419,6 +1457,59 @@ function MasterOptionsContent() {
                             <AlertDialogAction onClick={(e) => { e.preventDefault(); deleteCategory(); }} disabled={editCatLoading} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
                                 {editCatLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Trash2 className="h-4 w-4 mr-2" />}
                                 Delete Category
+                            </AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
+
+                {/* Recalculate Revenue-Recognition months — preview → confirm */}
+                <AlertDialog open={recalcOpen} onOpenChange={(o) => { if (!recalcApplying) setRecalcOpen(o) }}>
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>Recalculate recognition months</AlertDialogTitle>
+                            <AlertDialogDescription asChild>
+                                <div className="space-y-3 text-sm">
+                                    {recalcLoading ? (
+                                        <div className="flex items-center gap-2 text-muted-foreground">
+                                            <Loader2 className="h-4 w-4 animate-spin" /> Checking leads…
+                                        </div>
+                                    ) : recalcPreview ? (
+                                        <>
+                                            <p>
+                                                Using cut-off day <strong className="text-foreground">{recalcPreview.cutoffDay}</strong>,
+                                                this will update <strong className="text-foreground">{recalcPreview.wouldChange}</strong> lead{recalcPreview.wouldChange === 1 ? "" : "s"}.
+                                            </p>
+                                            <ul className="text-xs text-muted-foreground space-y-0.5">
+                                                <li>• {recalcPreview.unchanged} already correct</li>
+                                                <li>• {recalcPreview.skippedManual} manual overrides (protected — won&apos;t change)</li>
+                                                <li>• {recalcPreview.skippedNoDates} without usable event dates</li>
+                                            </ul>
+                                            {recalcPreview.sample.length > 0 && (
+                                                <div className="rounded-md border bg-muted/20 p-2 max-h-44 overflow-y-auto thin-scrollbar">
+                                                    {recalcPreview.sample.map(s => (
+                                                        <div key={s.id} className="flex items-center justify-between gap-2 text-[11px] py-0.5">
+                                                            <span className="truncate text-foreground" title={s.name}>{s.name}</span>
+                                                            <span className="shrink-0 tabular-nums text-muted-foreground">{s.from ?? "∅"} → <strong className="text-foreground">{s.to}</strong></span>
+                                                        </div>
+                                                    ))}
+                                                    {recalcPreview.wouldChange > recalcPreview.sample.length && (
+                                                        <div className="text-[11px] text-muted-foreground pt-1">…and {recalcPreview.wouldChange - recalcPreview.sample.length} more</div>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </>
+                                    ) : null}
+                                </div>
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel disabled={recalcApplying}>Cancel</AlertDialogCancel>
+                            <AlertDialogAction
+                                onClick={(e) => { e.preventDefault(); applyRecalc() }}
+                                disabled={recalcApplying || recalcLoading || !recalcPreview || recalcPreview.wouldChange === 0}
+                            >
+                                {recalcApplying ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Calculator className="h-4 w-4 mr-2" />}
+                                Apply{recalcPreview && recalcPreview.wouldChange > 0 ? ` (${recalcPreview.wouldChange})` : ""}
                             </AlertDialogAction>
                         </AlertDialogFooter>
                     </AlertDialogContent>

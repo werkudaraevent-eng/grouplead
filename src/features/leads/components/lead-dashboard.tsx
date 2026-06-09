@@ -297,15 +297,21 @@ export function LeadDashboard() {
     const handleDeleteSingleLead = async () => {
         if (!deleteLeadId) return
         setDeleting(true)
-        const result = await deleteLeadAction(deleteLeadId)
-        if (!result.success) {
-            toast.error(`Delete failed: ${result.error || "Permission denied"}`)
-        } else {
-            toast.success('Lead deleted')
-            fetchLeads()
+        const toastId = toast.loading('Deleting lead…')
+        try {
+            const result = await deleteLeadAction(deleteLeadId)
+            if (!result.success) {
+                toast.error(`Delete failed: ${result.error || "Permission denied"}`, { id: toastId })
+            } else {
+                toast.success('Lead deleted', { id: toastId })
+                fetchLeads()
+            }
+        } catch (err) {
+            toast.error(`Delete failed: ${err instanceof Error ? err.message : "Unexpected error"}`, { id: toastId })
+        } finally {
+            setDeleteLeadId(null)
+            setDeleting(false)
         }
-        setDeleteLeadId(null)
-        setDeleting(false)
     }
 
     // ─── Bulk Lead Delete (from DataTable selection) ─────────────────
@@ -319,17 +325,24 @@ export function LeadDashboard() {
         if (targets.length === 0) return
         setDeleting(true)
         const numericIds = targets.map(l => l.id)
-        const result = await bulkDeleteLeadsAction(numericIds)
-        if (!result.success) {
-            toast.error(`Bulk delete failed: ${result.error || "Permission denied"}`)
-        } else {
-            toast.success(`${result.data?.deleted ?? targets.length} lead(s) deleted`)
-            setSelectedLeadIds([])
-            fetchLeads()
+        const toastId = toast.loading(`Deleting ${targets.length} lead${targets.length !== 1 ? 's' : ''}…`)
+        try {
+            const result = await bulkDeleteLeadsAction(numericIds)
+            if (!result.success) {
+                toast.error(`Bulk delete failed: ${result.error || "Permission denied"}`, { id: toastId })
+            } else {
+                const deleted = result.data?.deleted ?? targets.length
+                toast.success(`${deleted} lead${deleted !== 1 ? 's' : ''} deleted`, { id: toastId })
+                setSelectedLeadIds([])
+                fetchLeads()
+            }
+        } catch (err) {
+            toast.error(`Bulk delete failed: ${err instanceof Error ? err.message : "Unexpected error"}`, { id: toastId })
+        } finally {
+            setBulkDeleteOpen(false)
+            setBulkDeleteLeads([])
+            setDeleting(false)
         }
-        setBulkDeleteOpen(false)
-        setBulkDeleteLeads([])
-        setDeleting(false)
     }
 
     // ─── Export Leads (XLSX) ─────────────────────────────────────────
@@ -1651,12 +1664,12 @@ export function LeadDashboard() {
                     <AlertDialogFooter>
                         <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
                         <AlertDialogAction
-                            onClick={handleDeleteSingleLead}
+                            onClick={(e) => { e.preventDefault(); handleDeleteSingleLead() }}
                             disabled={deleting}
                             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                         >
                             {deleting && <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />}
-                            Delete Lead
+                            {deleting ? 'Deleting…' : 'Delete Lead'}
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
@@ -1674,12 +1687,12 @@ export function LeadDashboard() {
                     <AlertDialogFooter>
                         <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
                         <AlertDialogAction
-                            onClick={handleBulkDelete}
+                            onClick={(e) => { e.preventDefault(); handleBulkDelete() }}
                             disabled={deleting}
                             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                         >
                             {deleting && <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />}
-                            Delete {bulkDeleteLeads.length} Lead{bulkDeleteLeads.length !== 1 ? 's' : ''}
+                            {deleting ? 'Deleting…' : `Delete ${bulkDeleteLeads.length} Lead${bulkDeleteLeads.length !== 1 ? 's' : ''}`}
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>

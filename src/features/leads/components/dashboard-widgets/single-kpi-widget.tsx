@@ -35,73 +35,9 @@ export interface SingleKPIProps {
     basisInfo?: ReactNode
 }
 
-// ─── SPARKLINE ──────────────────────────────────────────────────────────────
-// Minimal SVG sparkline — no axis, no labels, just direction & momentum
-// Renders full-width below the value so it never competes for horizontal space
-function MiniSparkline({ data, status }: { data: number[]; status: "positive" | "neutral" | "negative" }) {
-    if (data.length < 2) return null
-
-    const min = Math.min(...data)
-    const max = Math.max(...data)
-    const range = max - min || 1
-
-    const w = 64
-    const h = 14
-    const padding = 2
-
-    const points = data.map((v, i) => {
-        const x = padding + (i / (data.length - 1)) * (w - padding * 2)
-        const y = h - padding - ((v - min) / range) * (h - padding * 2)
-        return `${x},${y}`
-    })
-
-    const strokeColor =
-        status === "positive" ? "#6EBDA1"
-            : status === "negative" ? "#ED6F22"
-                : "#94a3b8"
-
-    return (
-        <svg
-            width="100%"
-            height={h}
-            viewBox={`0 0 ${w} ${h}`}
-            preserveAspectRatio="none"
-            fill="none"
-            className="opacity-50 group-hover:opacity-80 transition-opacity duration-300"
-        >
-            <polyline
-                points={points.join(" ")}
-                stroke={strokeColor}
-                strokeWidth="1.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                fill="none"
-            />
-            {/* End dot — current value indicator */}
-            <circle
-                cx={points[points.length - 1].split(",")[0]}
-                cy={points[points.length - 1].split(",")[1]}
-                r="1.5"
-                fill={strokeColor}
-            />
-        </svg>
-    )
-}
-
-// ─── BREATHING DOT ──────────────────────────────────────────────────────────
-// Subtle pulse for critical state — draws management eye without being alarming
-function BreathingDot({ status }: { status: "positive" | "neutral" | "negative" }) {
-    if (status !== "negative") return null
-    return (
-        <span className="relative flex h-2 w-2 shrink-0">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#ED6F22]/40" />
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-[#ED6F22]/80" />
-        </span>
-    )
-}
-
-export function SingleKPIWidget({ label, value, prefix = "", suffix = "", vsTarget, vsPrev, accent, icon: Icon, sparkline, basisLabel, basisInfo }: SingleKPIProps) {
+export function SingleKPIWidget({ label, value, prefix = "", suffix = "", vsTarget, vsPrev, icon: Icon, basisLabel, basisInfo }: SingleKPIProps) {
     const hasBadge = vsTarget !== null || vsPrev !== null
+    const hasWarning = !!basisLabel && /hidden|excluded|missing/i.test(basisLabel)
 
     // Determine overall status — drives badge color, sparkline color
     const status: "positive" | "neutral" | "negative" = vsTarget !== null
@@ -113,21 +49,24 @@ export function SingleKPIWidget({ label, value, prefix = "", suffix = "", vsTarg
     return (
         <div
             className={cn(
-                "group relative bg-card rounded-2xl min-w-0 overflow-hidden",
-                "px-4 pt-3.5 pb-3 flex flex-col justify-between",
-                "cursor-default h-full box-border",
-                "border border-[#02378D]/[0.05]",
-                "shadow-[0_2px_4px_rgba(16,24,40,0.04),0_12px_28px_-8px_rgba(16,24,40,0.16)]",
+                "group relative bg-card rounded-[20px] min-w-0 overflow-hidden",
+                "px-5 pt-4 pb-4 flex flex-col justify-between",
+                "cursor-default h-full box-border border-0",
+                "shadow-[0_1px_3px_rgba(16,24,40,0.03),0_6px_20px_-8px_rgba(16,24,40,0.06)]",
                 "transition-all duration-200 ease-[cubic-bezier(0.23,1,0.32,1)]",
                 // Hover
-                "hover:shadow-[0_4px_8px_rgba(16,24,40,0.06),0_20px_40px_-10px_rgba(16,24,40,0.24)]",
-                "hover:-translate-y-[2px]",
+                "hover:shadow-[0_2px_6px_rgba(16,24,40,0.04),0_10px_28px_-10px_rgba(16,24,40,0.10)]",
+                "hover:-translate-y-[1px]",
             )}
+            // Establish a container-query context so the hero value can scale
+            // with the card's own width (handles browser zoom / narrow grid
+            // columns) instead of wrapping to a second line.
+            style={{ containerType: "inline-size" }}
         >
             {/* Top row: Label (+ optional info icon) + Icon */}
-            <div className="flex items-center justify-between gap-1 mb-1">
+            <div className="flex items-center justify-between gap-1 mb-1.5">
                 <div className="flex items-center gap-1 min-w-0">
-                    <span className="text-[10.5px] font-medium text-muted-foreground tracking-wide truncate">
+                    <span className="text-[12px] font-medium text-muted-foreground truncate">
                         {label}
                     </span>
                     {basisInfo && (
@@ -162,34 +101,34 @@ export function SingleKPIWidget({ label, value, prefix = "", suffix = "", vsTarg
                         </TooltipPrimitive.Provider>
                     )}
                 </div>
-                <div
-                    className="flex items-center justify-center w-8 h-8 rounded-xl shrink-0 opacity-90 group-hover:opacity-100 transition-opacity"
-                    style={{ backgroundColor: `${accent}14` }}
-                >
-                    <Icon className="w-4 h-4" style={{ color: accent }} />
+                <div className="flex items-center justify-center w-9 h-9 rounded-xl shrink-0 bg-[#02378D]/[0.06] group-hover:bg-[#02378D]/[0.10] transition-colors">
+                    <Icon className="w-[18px] h-[18px] text-[#02378D]" strokeWidth={1.75} />
                 </div>
             </div>
 
-            {/* Value — the hero (never truncated, full width) */}
-            <div className="text-[25px] font-bold text-[#1a2230] tracking-[-0.02em] leading-none tabular-nums min-w-0">
+            {/* Value — the hero. Font scales with the card width (cqw) and
+                never wraps, so large currency values like "IDR 16.5B" stay on
+                one line and shrink gracefully on zoom / narrow columns instead
+                of breaking to two rows. leading-tight (not none) keeps glyph
+                ascenders from being clipped by the card's overflow-hidden. */}
+            <div
+                className="font-bold text-[#1a2230] tracking-[-0.02em] leading-tight tabular-nums min-w-0 mt-1 whitespace-nowrap overflow-hidden text-ellipsis"
+                style={{ fontSize: "clamp(16px, 8.5cqw, 26px)" }}
+                title={`${prefix}${value}${suffix}`}
+            >
                 {prefix}{value}{suffix}
             </div>
 
-            {/* Sparkline — subtle trend line below value */}
-            {sparkline && sparkline.length >= 2 && (
-                <div className="mt-1 h-3.5 w-full max-w-[64px]">
-                    <MiniSparkline data={sparkline} status={status} />
-                </div>
-            )}
-
-            {/* Status line — single row, inline badges separated by dot */}
+            {/* Status line — single row, inline badges separated by dot.
+                Green/red delta stays on the card face (key signal); the
+                date-basis micro-meta moved into the ⓘ tooltip to reduce noise. */}
             {hasBadge ? (
-                <div className="flex items-center gap-1.5 mt-2 text-[10.5px] leading-none tabular-nums">
+                <div className="flex items-center gap-1.5 mt-2.5 text-[11px] leading-none tabular-nums">
                     {vsTarget !== null && (
                         <span className={cn(
                             "inline-flex items-center gap-[3px] font-semibold whitespace-nowrap",
                             status === "positive" && "text-[#3d7a5c]",
-                            status === "neutral" && "text-[#555]",
+                            status === "neutral" && "text-[#64748b]",
                             status === "negative" && "text-[#b84a1c]",
                         )}>
                             {vsTarget >= 0 ? "↑" : "↓"}{formatCompact(vsTarget)}
@@ -209,23 +148,21 @@ export function SingleKPIWidget({ label, value, prefix = "", suffix = "", vsTarg
                         </span>
                     )}
                 </div>
-            ) : (
-                /* Empty spacer — maintains card height consistency */
-                <div className="mt-2 h-[14px]" />
-            )}
+            ) : !hasWarning ? (
+                /* Empty spacer — maintains card height consistency only when
+                   there's neither a badge nor a warning line to occupy it.
+                   (Pipeline Value has a warning but no badge, so rendering both
+                   the spacer AND the warning overflowed the card and clipped
+                   the hero number.) */
+                <div className="mt-2.5 h-[14px]" />
+            ) : null}
 
-            {/* Layer 1 — basis micro-meta. Always-visible truth-in-labelling
-                so the user knows which date the metric is bucketed by.
-                Renders amber when the label carries a warning (e.g. when
-                some leads are hidden because they lack the required
-                date) so the user notices without an extra row. */}
-            {basisLabel && (
-                <div className={cn(
-                    "mt-1 text-[9px] uppercase tracking-wider font-medium truncate",
-                    /hidden|excluded|missing/i.test(basisLabel)
-                        ? "text-amber-700"
-                        : "text-slate-400",
-                )}>
+            {/* Basis warning only — when some leads are hidden because they
+                lack the required date, surface it inline so the user knows
+                their view is incomplete. The normal date-basis label now
+                lives in the ⓘ tooltip to keep the card calm. */}
+            {hasWarning && (
+                <div className="mt-1.5 text-[9.5px] font-medium text-amber-600 truncate">
                     {basisLabel}
                 </div>
             )}

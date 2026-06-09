@@ -1,9 +1,23 @@
 "use client"
 
+import { useState } from "react"
 import { useCurrency } from "@/contexts/currency-context"
-import { SectionCard, SectionTitle, SectionSub, InsightCallout } from "./shared"
+import { SectionCard, SectionTitle, SectionSub, InsightCallout, MiniSelect } from "./shared"
 import { EmptyState } from "@/components/shared/empty-state"
 import { Users } from "lucide-react"
+
+// Sort modes offered to the user. Default `achievement_asc` keeps the
+// action-oriented behaviour (worst performers surface at the top), but the
+// user can flip to highest-first, by revenue, by target size, or A–Z.
+type SortMode = "achievement_asc" | "achievement_desc" | "actual_desc" | "target_desc" | "name_asc"
+
+const SORT_LABELS: Record<SortMode, string> = {
+    achievement_asc: "Lowest %",
+    achievement_desc: "Highest %",
+    actual_desc: "Revenue",
+    target_desc: "Target",
+    name_asc: "Name (A\u2013Z)",
+}
 
 interface SalesRep {
     name: string
@@ -25,6 +39,7 @@ function getColor(pct: number, hasTarget: boolean): string {
 
 export function SalesPerfWidget({ data }: SalesPerfWidgetProps) {
     const { fmtAxis } = useCurrency()
+    const [sortBy, setSortBy] = useState<SortMode>("achievement_asc")
 
     if (data.length === 0) {
         return (
@@ -42,11 +57,23 @@ export function SalesPerfWidget({ data }: SalesPerfWidgetProps) {
     }
 
     // Split into tracked (with target) and untracked (no target).
-    // Tracked are sorted by achievement % ascending so under-performers
-    // (especially 0% reps with target but no leads in this period) surface
-    // at the top where they are most actionable.
-    const tracked = data.filter(r => r.target > 0).sort((a, b) => (a.actual / a.target) - (b.actual / b.target))
-    const untracked = data.filter(r => r.target <= 0 && r.actual > 0).sort((a, b) => b.actual - a.actual)
+    // Tracked order follows the user's chosen sort. Achievement modes add a
+    // secondary sort by target size so reps tied at the same % (e.g. several
+    // at 0%) get a stable, meaningful order instead of input order.
+    const pctOf = (r: SalesRep) => r.actual / r.target
+    const trackedComparators: Record<SortMode, (a: SalesRep, b: SalesRep) => number> = {
+        achievement_asc: (a, b) => pctOf(a) - pctOf(b) || b.target - a.target,
+        achievement_desc: (a, b) => pctOf(b) - pctOf(a) || b.target - a.target,
+        actual_desc: (a, b) => b.actual - a.actual,
+        target_desc: (a, b) => b.target - a.target,
+        name_asc: (a, b) => a.name.localeCompare(b.name),
+    }
+    const tracked = data.filter(r => r.target > 0).sort(trackedComparators[sortBy])
+    const untracked = data.filter(r => r.target <= 0 && r.actual > 0).sort(
+        sortBy === "name_asc"
+            ? (a, b) => a.name.localeCompare(b.name)
+            : (a, b) => b.actual - a.actual,
+    )
 
     const teamActual = tracked.reduce((s, r) => s + r.actual, 0)
     const teamTarget = tracked.reduce((s, r) => s + r.target, 0)
@@ -57,19 +84,31 @@ export function SalesPerfWidget({ data }: SalesPerfWidgetProps) {
 
     return (
         <SectionCard>
-            <div className="flex items-start justify-between mb-1">
-                <div>
+            <div className="flex items-start justify-between mb-1 gap-2">
+                <div className="min-w-0">
                     <SectionTitle>Sales Performance</SectionTitle>
                     <SectionSub>Revenue achievement per sales rep</SectionSub>
                 </div>
-                {teamTarget > 0 && (
-                    <div className="text-right shrink-0">
-                        <div className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Team avg</div>
-                        <div className="text-[15px] font-bold tabular-nums tracking-tight" style={{ color: getColor(teamPct, true) }}>
-                            {teamPct.toFixed(0)}%
+                <div className="flex items-end gap-2.5 shrink-0">
+                    <MiniSelect
+                        label="Sort by"
+                        value={sortBy}
+                        onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setSortBy(e.target.value as SortMode)}
+                        className="text-[10px]"
+                    >
+                        {(Object.keys(SORT_LABELS) as SortMode[]).map(mode => (
+                            <option key={mode} value={mode}>{SORT_LABELS[mode]}</option>
+                        ))}
+                    </MiniSelect>
+                    {teamTarget > 0 && (
+                        <div className="text-right">
+                            <div className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Team avg</div>
+                            <div className="text-[15px] font-bold tabular-nums tracking-tight" style={{ color: getColor(teamPct, true) }}>
+                                {teamPct.toFixed(0)}%
+                            </div>
                         </div>
-                    </div>
-                )}
+                    )}
+                </div>
             </div>
 
             <div className="flex-1 overflow-y-auto thin-scrollbar space-y-0.5">

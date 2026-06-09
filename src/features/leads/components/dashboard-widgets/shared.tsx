@@ -19,21 +19,158 @@ const W = {
 
 export const ACCENT = {
     leads: W.P1,
-    revenue: W.P3,
-    winrate: W.S3,
-    conversion: W.P2,
-    dealsize: W.S2,
+    revenue: W.P1,
+    winrate: W.P1,
+    conversion: W.P1,
+    dealsize: W.P1,
 }
 
+// Categorical palette — a single navy→sky monochrome ramp. Distribution
+// widgets distinguish categories by lightness within ONE blue family
+// instead of clashing hues, which is what makes the dashboard read as calm
+// and on-brand. Semantic colors (won=green, lost=orange, deltas) live
+// elsewhere and are intentionally NOT part of this ramp.
 export const CHART_COLORS = [
-    W.P1, W.P2, W.S3, W.S2, W.S1,
-    W.P3, W.P4, '#14b8a6', W.P5, '#06b6d4',
+    "#02378D", // deep navy
+    "#1E5BA8", // navy-blue
+    "#2069B4", // medium blue
+    "#3A8DD0", // azure
+    "#00A1E9", // bright cyan
+    "#5EC5F2", // sky blue
+    "#8AD3F5", // light sky
+    "#A9DBF6", // pale sky
+    "#C3E6F5", // ice blue
+    "#D8EEF9", // mist
 ]
 
 export const MONTHS_SHORT = [
     'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
     'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
 ]
+
+// ─── DONUT CHART ────────────────────────────────────────────────────────────
+// Reusable composition (part-to-whole) chart. Used by widgets whose question
+// is "what share of the total" (Classification, Stream) rather than "rank by
+// size" (which stays as horizontal bars). Long category sets are collapsed to
+// Top N + Others so the ring never fragments into unreadable slivers.
+export interface DonutDatum {
+    name: string
+    value: number
+    /** Optional explicit color override (e.g. semantic heat colors). */
+    color?: string
+}
+
+export function DonutChart({
+    data,
+    centerLabel = "Total",
+    maxSlices = 6,
+    colorMap,
+}: {
+    data: DonutDatum[]
+    centerLabel?: string
+    /** Max ring segments before collapsing the tail into "+N others". */
+    maxSlices?: number
+    /** Per-name color overrides (semantic). Falls back to the navy→sky ramp. */
+    colorMap?: Record<string, string>
+}) {
+    const positive = data.filter(d => d.value > 0)
+    const total = positive.reduce((s, d) => s + d.value, 0)
+
+    // Top (maxSlices-1) + Others rollup so the ring stays legible.
+    const sorted = [...positive].sort((a, b) => b.value - a.value)
+    let slices: DonutDatum[]
+    if (sorted.length > maxSlices) {
+        const head = sorted.slice(0, maxSlices - 1)
+        const tail = sorted.slice(maxSlices - 1)
+        slices = [
+            ...head,
+            { name: `+${tail.length} others`, value: tail.reduce((s, d) => s + d.value, 0), color: "#cbd5e1" },
+        ]
+    } else {
+        slices = sorted
+    }
+
+    const colored = slices.map((d, i) => ({
+        ...d,
+        _color: d.color ?? colorMap?.[d.name] ?? CHART_COLORS[i % CHART_COLORS.length],
+    }))
+
+    const size = 130
+    const stroke = 18
+    const r = (size - stroke) / 2
+    const c = size / 2
+    const circumference = 2 * Math.PI * r
+
+    let offsetAcc = 0
+    const segments = colored.map(d => {
+        const len = total > 0 ? (d.value / total) * circumference : 0
+        const seg = { color: d._color, dash: len, gap: circumference - len, offset: -offsetAcc }
+        offsetAcc += len
+        return seg
+    })
+
+    if (total === 0) {
+        return (
+            <div className="flex-1 flex items-center justify-center text-[11px] text-muted-foreground">
+                No data for this period
+            </div>
+        )
+    }
+
+    return (
+        <div className="flex-1 flex items-center gap-5 min-h-0">
+            {/* Ring */}
+            <div className="relative shrink-0" style={{ width: size, height: size }}>
+                <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="-rotate-90">
+                    <circle cx={c} cy={c} r={r} fill="none" stroke="#eef2f7" strokeWidth={stroke} />
+                    {segments.map((s, i) => (
+                        <circle
+                            key={i}
+                            cx={c}
+                            cy={c}
+                            r={r}
+                            fill="none"
+                            stroke={s.color}
+                            strokeWidth={stroke}
+                            strokeDasharray={`${s.dash} ${s.gap}`}
+                            strokeDashoffset={s.offset}
+                            style={{ transition: "stroke-dasharray 600ms cubic-bezier(0.23,1,0.32,1)" }}
+                        />
+                    ))}
+                </svg>
+                <div className="absolute inset-0 flex flex-col items-center justify-center">
+                    <span className="text-[20px] font-bold text-[#1a2230] tabular-nums leading-none">
+                        {total.toLocaleString()}
+                    </span>
+                    <span className="text-[8.5px] text-muted-foreground uppercase tracking-wider mt-1">
+                        {centerLabel}
+                    </span>
+                </div>
+            </div>
+            {/* Legend */}
+            <div className="flex-1 min-w-0 space-y-[7px] overflow-y-auto thin-scrollbar max-h-full py-0.5">
+                {colored.map(d => {
+                    const pct = total > 0 ? (d.value / total) * 100 : 0
+                    return (
+                        <div key={d.name} className="flex items-center gap-2 min-w-0">
+                            <span className="w-2.5 h-2.5 rounded-[3px] shrink-0" style={{ background: d._color }} />
+                            <span className="text-[11.5px] font-medium text-[#292D30] truncate flex-1 min-w-0" title={d.name}>
+                                {d.name}
+                            </span>
+                            <span className="text-[11.5px] font-bold text-[#292D30] tabular-nums shrink-0">
+                                {d.value.toLocaleString()}
+                            </span>
+                            <span className="text-[9px] text-muted-foreground tabular-nums shrink-0 w-7 text-right">
+                                {pct.toFixed(0)}%
+                            </span>
+                        </div>
+                    )
+                })}
+            </div>
+        </div>
+    )
+}
+
 
 // ─── FORMATTERS ─────────────────────────────────────────────────────────────
 export function formatPct(value: number) {
@@ -54,13 +191,13 @@ export function getVsLastYearPct(current: number, previous: number) {
 export function SectionCard({ children, className }: { children: React.ReactNode; className?: string }) {
     return (
         <div className={cn(
-            "bg-card rounded-2xl border border-[#02378D]/[0.05]",
-            "shadow-[0_2px_4px_rgba(16,24,40,0.04),0_12px_28px_-8px_rgba(16,24,40,0.16)]",
-            "px-5 pt-[18px] pb-4 h-full flex flex-col",
+            "bg-card rounded-[20px] border-0",
+            "shadow-[0_1px_3px_rgba(16,24,40,0.03),0_6px_20px_-8px_rgba(16,24,40,0.06)]",
+            "px-6 pt-5 pb-5 h-full flex flex-col",
             "overflow-y-auto overflow-x-hidden thin-scrollbar",
             "animate-in fade-in duration-300 fill-mode-both",
             "transition-shadow duration-200 ease-out",
-            "hover:shadow-[0_4px_8px_rgba(16,24,40,0.06),0_20px_40px_-10px_rgba(16,24,40,0.22)]",
+            "hover:shadow-[0_2px_6px_rgba(16,24,40,0.04),0_10px_28px_-10px_rgba(16,24,40,0.10)]",
             className,
         )}>
             {children}
@@ -69,11 +206,11 @@ export function SectionCard({ children, className }: { children: React.ReactNode
 }
 
 export function SectionTitle({ children }: { children: React.ReactNode }) {
-    return <div className="text-[13.5px] font-semibold text-foreground tracking-[-0.01em] mb-0.5">{children}</div>
+    return <div className="text-[14px] font-semibold text-foreground tracking-[-0.01em] mb-0.5">{children}</div>
 }
 
 export function SectionSub({ children }: { children: React.ReactNode }) {
-    return <div className="text-[11px] text-muted-foreground mb-3">{children}</div>
+    return <div className="text-[11px] text-muted-foreground/70 mb-3.5">{children}</div>
 }
 
 export function InsightCallout({ type = "info", text }: { icon?: string; type?: "warning" | "info" | "success"; text: string }) {

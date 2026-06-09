@@ -991,7 +991,7 @@ export function AnalyticsDashboard({
                 comps[c] = (comps[c] || 0) + (l.actual_value ?? l.estimated_value ?? 0)
             }
         })
-        return Object.entries(comps).map(([name, revenue]) => ({ name, revenue })).sort((a, b) => b.revenue - a.revenue).slice(0, 10)
+        return Object.entries(comps).map(([name, revenue]) => ({ name, revenue })).sort((a, b) => b.revenue - a.revenue)
     }, [periodLeads])
 
     const sourceData = useMemo(() => {
@@ -1228,6 +1228,35 @@ export function AnalyticsDashboard({
     const isDefaultPeriod = periodStr === "this_quarter" && companyFilter === "all"
     const handleResetPeriod = () => { setPeriodStr("this_quarter"); setCustomStart(""); setCustomEnd(""); setCompanyFilter("all") }
 
+    // Switching pipeline also realigns the period. Pipelines are organised per
+    // year ("Group Lead 2025", "Group Lead 2026"), so picking a past-year
+    // pipeline while the period is still "This Year" shows an empty dashboard.
+    // We parse the 4-digit year from the pipeline name and:
+    //   • current year  → snap to "This Year"
+    //   • a past year    → Custom Range = Jan 1–Dec 31 of that year (so the
+    //                      date inputs stay open and the user can fine-tune)
+    //   • no year in name → leave the period untouched
+    // Only fires on an explicit manual pipeline switch, never on view restore.
+    const handlePipelineChange = useCallback((id: string) => {
+        const name = pipelines.find(p => p.id === id)?.name ?? ""
+        const yearMatch = name.match(/\b(20\d{2})\b/)
+        if (yearMatch) {
+            const year = parseInt(yearMatch[1], 10)
+            if (year === currentYear) {
+                setPeriodStr("this_year")
+                setCustomStart("")
+                setCustomEnd("")
+            } else {
+                setPeriodStr("custom")
+                setCustomStart(`${year}-01-01`)
+                setCustomEnd(`${year}-12-31`)
+            }
+        }
+        const params = new URLSearchParams(searchParams.toString())
+        params.set("pipeline", id)
+        router.push(`${pathname}?${params.toString()}`)
+    }, [pipelines, currentYear, searchParams, router, pathname])
+
     // Tools dropdown — PDF / Analyze / Ask AI moved here to keep the
     // primary toolbar focused on filter context (pipeline, company,
     // period). Hook also returns the floating panel JSX which we render
@@ -1387,11 +1416,7 @@ export function AnalyticsDashboard({
                     {pipelines.length > 1 && (
                         <Select
                             value={activePipelineId ?? ""}
-                            onValueChange={(value) => {
-                                const params = new URLSearchParams(searchParams.toString())
-                                params.set("pipeline", value)
-                                router.push(`${pathname}?${params.toString()}`)
-                            }}
+                            onValueChange={handlePipelineChange}
                         >
                             <SelectTrigger size="sm" className="w-auto h-8 px-2.5 text-[12px] font-medium gap-1.5 border-slate-200 bg-white hover:bg-slate-50 shadow-none rounded-lg">
                                 <SelectValue />
@@ -1510,7 +1535,7 @@ export function AnalyticsDashboard({
 
             {/* ─── SCROLLABLE CONTENT (scrollbar starts below header) ─── */}
             <div id="dashboard-scroll-area" className="thin-scrollbar" style={{ flex: 1, overflowY: "auto", overflowX: "clip" }}>
-            <div id="dashboard-content" style={{ padding: "28px 32px 36px", background: "#e7edf5", minHeight: "100%", overflowX: "clip", overflowY: "visible", boxSizing: "border-box", width: "100%", minWidth: 0 }}>
+            <div id="dashboard-content" style={{ padding: "28px 32px 40px", background: "#f7f8fa", minHeight: "100%", overflowX: "clip", overflowY: "visible", boxSizing: "border-box", width: "100%", minWidth: 0 }}>
                 <DashboardGrid
                     widgetIds={LAUNCH_WIDGET_IDS}
                     customWidgets={customWidgetsList}
@@ -1549,11 +1574,7 @@ export function AnalyticsDashboard({
                         comparisonLabel={stageComparisonLabel}
                         pipelines={pipelines}
                         activePipelineId={activePipelineId}
-                        onPipelineChange={(id) => {
-                            const params = new URLSearchParams(searchParams.toString())
-                            params.set("pipeline", id)
-                            router.push(`${pathname}?${params.toString()}`)
-                        }}
+                        onPipelineChange={handlePipelineChange}
                     />
                     <SalesPerfWidget data={salesData} />
                     <TopRevenueWidget data={topComps} />

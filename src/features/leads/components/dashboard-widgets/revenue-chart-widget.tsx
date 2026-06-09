@@ -141,8 +141,23 @@ export function RevenueChartWidget({ data, currentYear, compareYear, setCompareY
                             <YAxis yAxisId="left" tickFormatter={axisOnly} axisLine={false} tickLine={false} tick={{ fontSize: 9, fill: '#94a3b8', fontWeight: 500 }} dx={-5} width={42} />
                             <RechartsTooltip content={<DarkTooltip fmt={fmt} />} cursor={{ fill: 'rgba(2,55,141,0.04)' }} />
                             <Legend wrapperStyle={{ paddingTop: '8px', fontSize: '10px', fontWeight: 600 }} iconType="circle" iconSize={8} />
-                            {/* Target line — smooth monotone, subtle reference */}
-                            <Line yAxisId="left" type="monotone" dataKey="target" name="Target" stroke="#F9BB46" strokeWidth={2.5} strokeDasharray="6 4" dot={false} strokeOpacity={0.85} strokeLinecap="round" />
+                            {/* Target line — linear (not monotone) so it doesn't
+                                imply continuous values between discrete monthly
+                                targets. Small subtle dots help the eye lock onto
+                                each month's target; exact value stays in tooltip. */}
+                            <Line
+                                yAxisId="left"
+                                type="linear"
+                                dataKey="target"
+                                name="Target"
+                                stroke="#F9BB46"
+                                strokeWidth={2.5}
+                                strokeDasharray="6 4"
+                                strokeOpacity={0.85}
+                                strokeLinecap="round"
+                                dot={{ r: 2.5, fill: "#F9BB46", stroke: "#fff", strokeWidth: 1 }}
+                                activeDot={{ r: 4, fill: "#F9BB46", stroke: "#fff", strokeWidth: 1.5 }}
+                            />
                             {/* Actual bars — color changes based on vs target.
                                 Solid `fill` drives the legend swatch (gradients
                                 don't resolve in Recharts' separate legend SVG);
