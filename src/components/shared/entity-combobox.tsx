@@ -17,6 +17,7 @@ import { toast } from "sonner"
 import type { ClientCompany, Contact } from "@/types"
 import { AddCompanyModal } from "@/features/companies/components/add-company-modal"
 import { AddContactModal } from "@/features/contacts/components/add-contact-modal"
+import { getDescendantCompanyIds, getAncestorCompanyIds } from "@/features/companies/lib/company-hierarchy"
 
 // Get initials from name — e.g. "Bank Indonesia KP" → "BI"
 function getInitials(name: string): string {
@@ -82,6 +83,19 @@ export function CompanyCombobox({ value, onChange, disabled, excludeId }: Compan
     const parentOptions = companies.filter(c => !c.parent_id && c.id !== excludeId)
     const childOptions = companies.filter(c => c.parent_id && c.id !== excludeId)
 
+    // Full lineage label for a nested company, e.g. "Holding B › PT. A".
+    // Walks the whole ancestor chain (not just the immediate parent) so
+    // multi-level hierarchies read clearly. Cycle-safe via the helper.
+    const companyNameById = new Map(companies.map(c => [c.id, c.name]))
+    const lineageLabel = (companyId: string): string => {
+        const ancestors = getAncestorCompanyIds(companies, companyId) // nearest-first
+        return ancestors
+            .reverse() // top-most first
+            .map(id => companyNameById.get(id))
+            .filter(Boolean)
+            .join(" › ")
+    }
+
     return (
         <>
             <Popover open={open} onOpenChange={setOpen} modal={true}>
@@ -135,8 +149,9 @@ export function CompanyCombobox({ value, onChange, disabled, excludeId }: Compan
                                         <CommandGroup heading="Divisions / Subsidiaries">
                                             {childOptions.map(c => {
                                                 const isSelected = value === c.id
+                                                const lineage = lineageLabel(c.id)
                                                 return (
-                                                    <CommandItem key={c.id} value={`${c.name} ${c.parent?.name ?? ""}`} onSelect={() => { onChange(c.id); setOpen(false) }} className="flex items-center gap-2.5 py-2">
+                                                    <CommandItem key={c.id} value={`${c.name} ${lineage}`} onSelect={() => { onChange(c.id); setOpen(false) }} className="flex items-center gap-2.5 py-2">
                                                         <span className={cn(
                                                             "w-6 h-6 rounded-md flex items-center justify-center text-[10px] font-semibold shrink-0",
                                                             getAvatarColor(c.name)
@@ -145,8 +160,8 @@ export function CompanyCombobox({ value, onChange, disabled, excludeId }: Compan
                                                         </span>
                                                         <span className="flex-1 min-w-0 flex flex-col">
                                                             <span className="text-[13px] text-foreground truncate">{c.name}</span>
-                                                            {c.parent?.name && (
-                                                                <span className="text-[10.5px] text-muted-foreground truncate">↳ {c.parent.name}</span>
+                                                            {lineage && (
+                                                                <span className="text-[10.5px] text-muted-foreground truncate">↳ {lineage}</span>
                                                             )}
                                                         </span>
                                                         <Check className={cn("h-3.5 w-3.5 shrink-0 text-primary", isSelected ? "opacity-100" : "opacity-0")} />
@@ -209,11 +224,30 @@ export function ContactCombobox({ value, onChange, clientCompanyId, clientCompan
     const [contacts, setContacts] = useState<Contact[]>([])
     const [loading, setLoading] = useState(false)
     const [createOpen, setCreateOpen] = useState(false)
+    // Map of client_company_id → company name, for labelling contacts that
+    // belong to a descendant company rather than the selected one directly.
+    const [companyNames, setCompanyNames] = useState<Record<string, string>>({})
 
     const load = useCallback(async () => {
         if (!clientCompanyId) { setContacts([]); return }
         setLoading(true)
-        const { data } = await supabase.from("contacts").select("*").eq("client_company_id", clientCompanyId).order("full_name")
+        // Include contacts from the selected company AND all of its descendant
+        // companies (subsidiaries/divisions), so a contact attached to a child
+        // org can still be picked as a PIC for the parent org's lead.
+        const { data: allCompanies } = await supabase
+            .from("client_companies")
+            .select("id, name, parent_id")
+        const companies = (allCompanies ?? []) as { id: string; name: string; parent_id: string | null }[]
+        const nameMap: Record<string, string> = {}
+        for (const c of companies) nameMap[c.id] = c.name
+        setCompanyNames(nameMap)
+
+        const scopeIds = [clientCompanyId, ...getDescendantCompanyIds(companies, clientCompanyId)]
+        const { data } = await supabase
+            .from("contacts")
+            .select("*")
+            .in("client_company_id", scopeIds)
+            .order("full_name")
         setContacts(data ?? [])
         setLoading(false)
     }, [supabase, clientCompanyId])
@@ -258,6 +292,10 @@ export function ContactCombobox({ value, onChange, clientCompanyId, clientCompan
                                     <CommandGroup>
                                         {contacts.map(c => {
                                             const isSelected = value === c.id
+                                            // Contact belongs to a descendant company, not the
+                                            // selected one → show its origin so the user knows.
+                                            const isFromChild = !!c.client_company_id && c.client_company_id !== clientCompanyId
+                                            const originName = isFromChild ? companyNames[c.client_company_id!] : null
                                             return (
                                                 <CommandItem key={c.id} value={c.full_name} onSelect={() => { onChange(c.id); setOpen(false) }} className="flex items-center gap-2.5 py-2">
                                                     <span className={cn(
@@ -267,7 +305,12 @@ export function ContactCombobox({ value, onChange, clientCompanyId, clientCompan
                                                         {getInitials(c.full_name)}
                                                     </span>
                                                     <span className="flex-1 min-w-0 flex flex-col">
-                                                        <span className="text-[13px] text-foreground truncate">{c.full_name}</span>
+                                                        <span className="text-[13px] text-foreground truncate">
+                                                            {c.full_name}
+                                                            {originName && (
+                                                                <span className="text-[10.5px] text-muted-foreground font-normal"> · via {originName}</span>
+                                                            )}
+                                                        </span>
                                                         {c.email && (
                                                             <span className="text-[10.5px] text-muted-foreground truncate">{c.email}</span>
                                                         )}

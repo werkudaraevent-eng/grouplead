@@ -38,6 +38,7 @@ import { ProfileCombobox } from "@/features/users/components/profile-combobox"
 import type { ClientCompany, FormSchema } from "@/types"
 import { parseAddress } from "@/lib/address-parser"
 import { DynamicField } from "@/features/leads/components/dynamic-field"
+import { getInvalidParentIds } from "@/features/companies/lib/company-hierarchy"
 import { DEFAULT_LAYOUTS, type LayoutItemsMap } from "@/features/settings/components/form-layout-builder"
 import { mergeMissingNativeFields } from "@/features/settings/lib/layout-self-heal"
 import { formatTabLabel, getVisibleTabEntries } from "@/features/settings/lib/form-layout-tabs"
@@ -211,11 +212,14 @@ export function AddCompanyModal({ open, onOpenChange, onCreated, initialData }: 
     })
 
     const loadParents = useCallback(async () => {
-        let query = supabase.from("client_companies").select("id, name").order("name")
-        if (initialData?.id) query = query.neq("id", initialData.id)
-        const { data } = await query
+        // Fetch parent_id too so we can exclude the company's own descendants
+        // from the parent picker — choosing a descendant would create a cycle.
+        const { data } = await supabase
+            .from("client_companies")
+            .select("id, name, parent_id")
+            .order("name")
         setParents((data as ClientCompany[]) ?? [])
-    }, [initialData?.id, supabase])
+    }, [supabase])
 
     useEffect(() => {
         if (!open) return
@@ -408,14 +412,19 @@ export function AddCompanyModal({ open, onOpenChange, onCreated, initialData }: 
                 )
             case "native:parent_id":
                 return (
-                    <FormField key={fieldId} control={form.control} name="parent_id" render={({ field }) => (
+                    <FormField key={fieldId} control={form.control} name="parent_id" render={({ field }) => {
+                        // Exclude the company itself and all of its descendants —
+                        // choosing any of them as a parent would create a cycle.
+                        const invalidIds = getInvalidParentIds(parents, initialData?.id ?? null)
+                        const validParents = parents.filter(c => !invalidIds.has(c.id))
+                        return (
                         <FormItem className="space-y-1.5">
                             <FormFieldLabel required={required} hint="Use this when the company is a subsidiary or branch under a holding company.">Parent company</FormFieldLabel>
                             <FormControl>
                                 <SearchableSelect
                                     value={field.value ?? null}
                                     onChange={field.onChange}
-                                    options={parents.map(c => ({ value: c.id, label: c.name }))}
+                                    options={validParents.map(c => ({ value: c.id, label: c.name }))}
                                     placeholder="None (top-level)"
                                     searchPlaceholder="Search company…"
                                     emptyText="No companies found"
@@ -423,7 +432,8 @@ export function AddCompanyModal({ open, onOpenChange, onCreated, initialData }: 
                             </FormControl>
                             <FormMessage className="text-[11px]" />
                         </FormItem>
-                    )} />
+                        )
+                    }} />
                 )
             case "native:sector":
                 return (
