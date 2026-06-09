@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useTransition, useRef } from "react"
+import { useEffect, useState, useTransition, useRef, useMemo } from "react"
 import { useForm, useWatch, useFieldArray } from "react-hook-form"
 import { z } from "zod"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -54,6 +54,11 @@ import {
     AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 
+// Revenue-recognition month options — calendar constants, not master data.
+const REVENUE_MONTH_OPTIONS: { value: string }[] = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December",
+].map(value => ({ value }))
 
 
 const addLeadSchema = z.object({
@@ -180,8 +185,17 @@ export function LeadForm({ onSuccess, onClose, pipelineId, defaultStageId, initi
     const { options: eventCityOptions } = useMasterOptions("event_city", companyIds)
     const { options: eventFormatOptions } = useMasterOptions("event_format", companyIds)
     const { options: lostReasonOptions } = useMasterOptions("lost_reason", companyIds)
-    const { options: tentativeMonthOptions } = useMasterOptions("tentative_month", companyIds)
-    const { options: tentativeYearOptions } = useMasterOptions("tentative_year", companyIds)
+    // Revenue-recognition Month/Year are calendar concepts, not business
+    // taxonomy — generate them locally instead of reading master_options.
+    // This avoids the "selected year not in options" bug for historical leads
+    // (e.g. a 2025 lead whose options only listed 2026/2027).
+    const tentativeMonthOptions = REVENUE_MONTH_OPTIONS
+    const tentativeYearOptions = useMemo(() => {
+        const end = new Date().getFullYear() + 2
+        const years: { value: string }[] = []
+        for (let y = end; y >= 2015; y--) years.push({ value: String(y) })
+        return years
+    }, [])
 
     useEffect(() => {
         if (!isHoldingView) return

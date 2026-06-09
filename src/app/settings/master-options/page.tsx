@@ -53,7 +53,6 @@ const CATEGORY_GROUPS: Record<string, string[]> = {
     "Leads": [
         "category", "lead_source", "grade_lead",
         "event_city", "event_format",
-        "tentative_month", "tentative_year",
         "main_stream", "stream_type", "business_purpose", "tipe", "lost_reason"
     ],
     "Companies": ["sector", "area", "line_industry"],
