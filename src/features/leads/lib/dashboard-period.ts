@@ -256,6 +256,68 @@ export function splitLeadsByBasis<T extends LeadWithDates>(
     return { current, previous, excluded }
 }
 
+// ─── Cross-year YoY helpers ──────────────────────────────────────────────────
+//
+// Pipelines model a fiscal period ("Group Lead 2025"). For honest YoY the
+// PREVIOUS bucket must come from the prior YEAR'S PIPELINE, not from same-
+// pipeline date math — a pipeline can hold leads dated in other years, so
+// date-only comparison double-counts. These helpers pair the active pipeline
+// with the one whose fiscal_year is exactly one less.
+
+/**
+ * Resolve the pipeline representing the year before the active pipeline.
+ * Returns null when the active pipeline has no fiscal_year, or when no
+ * pipeline exists for (activeYear - 1). When several pipelines share the
+ * prior year, an is_default match wins, else the first encountered.
+ */
+export function findPriorYearPipelineId(
+    pipelines: { id: string; fiscal_year?: number | null; is_default?: boolean }[],
+    activePipelineId: string | undefined | null,
+): string | null {
+    if (!activePipelineId) return null
+    const active = pipelines.find((p) => p.id === activePipelineId)
+    const activeYear = active?.fiscal_year
+    if (activeYear == null) return null
+
+    const candidates = pipelines.filter((p) => p.fiscal_year === activeYear - 1)
+    if (candidates.length === 0) return null
+    return (candidates.find((p) => p.is_default) ?? candidates[0]).id
+}
+
+/**
+ * Like splitLeadsByBasis, but the PREVIOUS bucket is computed from a
+ * separate set of leads (the prior-year pipeline). The CURRENT bucket and
+ * excluded list come from the active set. When priorLeads is empty the
+ * previous bucket is empty and callers should suppress YoY deltas.
+ */
+export function splitLeadsByBasisWithPrior<T extends LeadWithDates>(
+    currentLeads: T[],
+    priorLeads: T[],
+    basis: DateBasis,
+    period: DashboardPeriod,
+    now = new Date(),
+    customRange?: { start: string; end: string },
+): { current: T[]; previous: T[]; excluded: T[] } {
+    const cur = splitLeadsByBasis(currentLeads, basis, period, now, customRange)
+    const prev = splitLeadsByBasis(priorLeads, basis, period, now, customRange)
+    return { current: cur.current, previous: prev.previous, excluded: cur.excluded }
+}
+
+/**
+ * Cross-year variant of splitDashboardLeadsByPeriod (revenue-date basis).
+ */
+export function splitDashboardLeadsByPeriodWithPrior<T extends LeadWithDates>(
+    currentLeads: T[],
+    priorLeads: T[],
+    period: DashboardPeriod,
+    now = new Date(),
+    customRange?: { start: string; end: string },
+) {
+    const cur = splitDashboardLeadsByPeriod(currentLeads, period, now, customRange)
+    const prev = splitDashboardLeadsByPeriod(priorLeads, period, now, customRange)
+    return { current: cur.current, previous: prev.previous }
+}
+
 // ─── Target proration helpers ───────────────────────────────────────────────
 //
 // Sales targets in LeadEngine are stored at varying period granularities:

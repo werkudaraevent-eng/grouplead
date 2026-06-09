@@ -9,7 +9,10 @@ import { EmptyState } from "@/components/shared/empty-state"
 import { buildDashboardStageSeries } from "@/features/leads/lib/dashboard-stage-series"
 import {
     splitDashboardLeadsByPeriod,
+    splitDashboardLeadsByPeriodWithPrior,
     splitLeadsByBasis,
+    splitLeadsByBasisWithPrior,
+    findPriorYearPipelineId,
     getRevenueDate,
     getDashboardPeriodRanges,
     prorateTarget,
@@ -80,7 +83,7 @@ function getStageComparisonLabel(period: string) {
 // ─── MAIN COMPONENT ─────────────────────────────────────────────────────────
 interface AnalyticsDashboardProps {
     leads: Lead[]
-    pipelines?: { id: string; name: string; is_default?: boolean }[]
+    pipelines?: { id: string; name: string; is_default?: boolean; fiscal_year?: number | null }[]
     activePipelineId?: string
     pipelineStages?: PipelineStage[]
     activeGoal?: GoalV2 | null
@@ -109,6 +112,11 @@ export function AnalyticsDashboard({
     const { activeCompany, companies, isHoldingView } = useCompany()
     const { fmt, fmtAxis } = useCurrency()
     const currentYear = new Date().getFullYear()
+    // The revenue chart's "actual" series follows the active pipeline's fiscal
+    // year (a "Group Lead 2025" pipeline charts 2025), falling back to the
+    // calendar year when the pipeline has no fiscal_year set.
+    const activePipeline = pipelines.find(p => p.id === activePipelineId)
+    const chartYear = activePipeline?.fiscal_year ?? currentYear
     const [hasMounted, setHasMounted] = useState(false)
     const [companyFilter, setCompanyFilter] = useState<string>("all")
     const [periodStr, setPeriodStr] = useState("this_quarter")
@@ -268,12 +276,49 @@ export function AnalyticsDashboard({
         return result
     }, [leads, isHoldingView, companyFilter, activePipelineId])
 
-    const periodLeadBuckets = useMemo(() => splitDashboardLeadsByPeriod(
+    // ── Prior-year pipeline leads (for cross-year YoY) ────────────────────────
+    // The active pipeline models one fiscal year. Honest YoY pairs it with the
+    // pipeline whose fiscal_year is exactly one less and pulls the PREVIOUS
+    // bucket from there (date-only comparison would double-count leads dated in
+    // other years). When no prior-year pipeline exists, this is empty and the
+    // YoY deltas are suppressed automatically: empty prior leads → previous
+    // bucket = 0 → calculateVsPrev returns null → KPI card hides the arrow.
+    const priorYearPipelineId = useMemo(
+        () => findPriorYearPipelineId(pipelines, activePipelineId),
+        [pipelines, activePipelineId],
+    )
+    const priorYearLeads = useMemo(() => {
+        if (!priorYearPipelineId) return [] as Lead[]
+        let result = leads.filter(l => l.pipeline_id === priorYearPipelineId)
+        if (isHoldingView && companyFilter !== "all") {
+            result = result.filter(l => l.company_id === companyFilter)
+        }
+        return result
+    }, [leads, priorYearPipelineId, isHoldingView, companyFilter])
+
+    // Revenue-chart compare overlay: leads from the pipeline whose fiscal_year
+    // matches the user-picked compareYear. Same pipeline-scoped sourcing as the
+    // KPI YoY so the chart and cards stay consistent.
+    const compareYearLeads = useMemo(() => {
+        if (compareYear === null) return [] as Lead[]
+        const comparePipelineIds = pipelines
+            .filter(p => p.fiscal_year === compareYear)
+            .map(p => p.id)
+        if (comparePipelineIds.length === 0) return [] as Lead[]
+        let result = leads.filter(l => l.pipeline_id != null && comparePipelineIds.includes(l.pipeline_id))
+        if (isHoldingView && companyFilter !== "all") {
+            result = result.filter(l => l.company_id === companyFilter)
+        }
+        return result
+    }, [leads, pipelines, compareYear, isHoldingView, companyFilter])
+
+    const periodLeadBuckets = useMemo(() => splitDashboardLeadsByPeriodWithPrior(
         filteredLeads,
+        priorYearLeads,
         periodStr as DashboardPeriod,
         new Date(),
         periodStr === "custom" && customStart && customEnd ? { start: customStart, end: customEnd } : undefined
-    ), [filteredLeads, periodStr, customStart, customEnd])
+    ), [filteredLeads, priorYearLeads, periodStr, customStart, customEnd])
     const periodLeads = periodLeadBuckets.current
     const previousPeriodLeads = periodLeadBuckets.previous
     const dashboardRange = useMemo(() => getDashboardPeriodRanges(
@@ -288,18 +333,19 @@ export function AnalyticsDashboard({
     // matches the question the metric answers. See `dashboard-period.ts` →
     // `DateBasis` for the rationale per basis. We compute all four buckets
     // up-front so each card can pick its own without re-walking the data.
+    // The PREVIOUS bucket comes from the prior-year pipeline (cross-year YoY).
     const customRangeArg = periodStr === "custom" && customStart && customEnd
         ? { start: customStart, end: customEnd }
         : undefined
-    const receivedBuckets = useMemo(() => splitLeadsByBasis(
-        filteredLeads, "received", periodStr as DashboardPeriod, new Date(), customRangeArg,
-    ), [filteredLeads, periodStr, customStart, customEnd]) // eslint-disable-line react-hooks/exhaustive-deps
-    const closeBuckets = useMemo(() => splitLeadsByBasis(
-        filteredLeads, "close", periodStr as DashboardPeriod, new Date(), customRangeArg,
-    ), [filteredLeads, periodStr, customStart, customEnd]) // eslint-disable-line react-hooks/exhaustive-deps
-    const revenueBuckets = useMemo(() => splitLeadsByBasis(
-        filteredLeads, "revenue", periodStr as DashboardPeriod, new Date(), customRangeArg,
-    ), [filteredLeads, periodStr, customStart, customEnd]) // eslint-disable-line react-hooks/exhaustive-deps
+    const receivedBuckets = useMemo(() => splitLeadsByBasisWithPrior(
+        filteredLeads, priorYearLeads, "received", periodStr as DashboardPeriod, new Date(), customRangeArg,
+    ), [filteredLeads, priorYearLeads, periodStr, customStart, customEnd]) // eslint-disable-line react-hooks/exhaustive-deps
+    const closeBuckets = useMemo(() => splitLeadsByBasisWithPrior(
+        filteredLeads, priorYearLeads, "close", periodStr as DashboardPeriod, new Date(), customRangeArg,
+    ), [filteredLeads, priorYearLeads, periodStr, customStart, customEnd]) // eslint-disable-line react-hooks/exhaustive-deps
+    const revenueBuckets = useMemo(() => splitLeadsByBasisWithPrior(
+        filteredLeads, priorYearLeads, "revenue", periodStr as DashboardPeriod, new Date(), customRangeArg,
+    ), [filteredLeads, priorYearLeads, periodStr, customStart, customEnd]) // eslint-disable-line react-hooks/exhaustive-deps
     const targetCloseBuckets = useMemo(() => splitLeadsByBasis(
         filteredLeads, "target_close", periodStr as DashboardPeriod, new Date(), customRangeArg,
     ), [filteredLeads, periodStr, customStart, customEnd]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -429,20 +475,19 @@ export function AnalyticsDashboard({
     }), [activeGoal, goalNodes, userTargets, goalSettings, periodLeads])
 
     // Years available as a historical comparison overlay on the revenue
-    // chart. Only past years (< current) that actually carry revenue data
-    // qualify — we never offer a comparison year with nothing to show.
+    // chart. Sourced from pipeline fiscal_years (the source of truth) rather
+    // than lead dates — only fiscal years earlier than the active chart year
+    // qualify, and only pipelines the user can actually see contribute.
     // Sorted descending (most recent first).
     const compareYears = useMemo(() => {
         const years = new Set<number>()
-        leads.forEach(l => {
-            const d = getRevenueDate(l)
-            if (d) {
-                const yr = d.getFullYear()
-                if (yr < currentYear) years.add(yr)
+        for (const p of pipelines) {
+            if (p.fiscal_year != null && p.fiscal_year < chartYear) {
+                years.add(p.fiscal_year)
             }
-        })
+        }
         return Array.from(years).sort((a, b) => b - a)
-    }, [leads, currentYear])
+    }, [pipelines, chartYear])
 
     // If the selected comparison year drops out of the available set (e.g.
     // company filter changes), reset to None so the picker can't show a stale
@@ -612,48 +657,51 @@ export function AnalyticsDashboard({
 
     const monthlyRev = useMemo(() => {
         const data = MONTHS_SHORT.map(m => ({ month: m, actual: 0, target: 0, prevYear: 0, overUnder: 0, vsLastYear: null as number | null }))
-        filteredLeads.forEach(l => {
-            const stage = (l.pipeline_stage?.name || "").toLowerCase()
-            if (!stage.includes("won")) return
 
-            const val = (l.actual_value ?? l.estimated_value ?? 0)
-            let y: number | null = null
-            let m: number | null = null
-
+        // Resolve the calendar month (0-11) a won lead's revenue belongs to,
+        // per the active revenue basis. Year is intentionally ignored: the
+        // pipeline already defines the fiscal year, so we bucket purely by
+        // month. Returns null when no usable date is present.
+        const monthOf = (l: Lead): number | null => {
             if (revenueBasis === "revenue_recognition") {
-                // Use month_event field (format: "April 2026")
-                // Fallback to event_date_end → event_date_start if month_event is empty
                 const monthEvent = l.month_event
                 if (monthEvent && typeof monthEvent === "string") {
                     const parts = monthEvent.trim().split(/\s+/)
                     if (parts.length >= 2) {
                         const mi = MONTH_NAMES_LONG.indexOf(parts[0])
-                        const yr = parseInt(parts[parts.length - 1], 10)
-                        if (mi >= 0 && !isNaN(yr)) { m = mi; y = yr }
+                        if (mi >= 0) return mi
                     }
                 }
-                // Fallback to event dates
-                if (y === null || m === null) {
-                    const dateStr = l.event_date_end ?? l.event_date_start
-                    if (dateStr) {
-                        const d = new Date(dateStr)
-                        if (!isNaN(d.getTime())) { y = d.getFullYear(); m = d.getMonth() }
-                    }
+                const dateStr = l.event_date_end ?? l.event_date_start
+                if (dateStr) {
+                    const d = new Date(dateStr)
+                    if (!isNaN(d.getTime())) return d.getMonth()
                 }
-            } else {
-                // closed_won: use closed_won_date field, fallback to updated_at
-                const dateStr = l.closed_won_date ?? l.updated_at
-                const d = new Date(dateStr)
-                if (!isNaN(d.getTime())) { y = d.getFullYear(); m = d.getMonth() }
+                return null
             }
+            // closed_won basis: use closed_won_date, fallback to updated_at
+            const dateStr = l.closed_won_date ?? l.updated_at
+            const d = new Date(dateStr)
+            return isNaN(d.getTime()) ? null : d.getMonth()
+        }
 
-            if (y !== null && m !== null) {
-                // Main series is always the current year. The optional overlay
-                // (`prevYear`) is whatever historical year the user picked.
-                if (y === currentYear) data[m].actual += val
-                else if (compareYear !== null && y === compareYear) data[m].prevYear += val
+        const isWon = (l: Lead) => (l.pipeline_stage?.name || "").toLowerCase().includes("won")
+        const valueOf = (l: Lead) => (l.actual_value ?? l.estimated_value ?? 0)
+
+        // Actual = the active pipeline (chartYear). Overlay = the compare-year
+        // pipeline. Both bucketed by month so the chart compares like-for-like.
+        for (const l of filteredLeads) {
+            if (!isWon(l)) continue
+            const m = monthOf(l)
+            if (m !== null) data[m].actual += valueOf(l)
+        }
+        if (compareYear !== null) {
+            for (const l of compareYearLeads) {
+                if (!isWon(l)) continue
+                const m = monthOf(l)
+                if (m !== null) data[m].prevYear += valueOf(l)
             }
-        })
+        }
 
         // ── Calculate monthly target ──
         //
@@ -787,7 +835,7 @@ export function AnalyticsDashboard({
             d.vsLastYear = getVsLastYearPct(d.actual, d.prevYear)
         })
         return data
-    }, [filteredLeads, currentYear, compareYear, activeGoal, goalNodes, revenueBasis])
+    }, [filteredLeads, compareYearLeads, compareYear, activeGoal, goalNodes, revenueBasis])
 
     const stageData = useMemo(() => {
         return buildDashboardStageSeries(pipelineStages, periodLeadBuckets.current, periodLeadBuckets.previous)

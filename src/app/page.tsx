@@ -39,7 +39,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
     }
 
     // Fetch pipelines (needs company_id for scoping)
-    let pipelinesQuery = supabase.from('pipelines').select('id, name, is_default').order('created_at', { ascending: true })
+    let pipelinesQuery = supabase.from('pipelines').select('id, name, is_default, fiscal_year').order('created_at', { ascending: true })
     if (activeCompany?.id) {
         pipelinesQuery = pipelinesQuery.eq('company_id', activeCompany.id)
     }
