@@ -126,13 +126,22 @@ export function CreateUserModal({ open, onOpenChange, onCreated }: CreateUserMod
                 // Insert ALL company memberships into junction table
                 if (selectedCompanyIds.length > 0 && result.data?.userId) {
                     const supabase = createClient()
-                    await supabase.from("company_members").insert(
+                    // company_members.user_type has a CHECK constraint — only these
+                    // values are valid. Role slugs like "sales" would be rejected by
+                    // the DB, so coerce anything outside the set to "staff".
+                    const VALID_USER_TYPES = ["staff", "leader", "executive", "admin", "super_admin"]
+                    const memberType = VALID_USER_TYPES.includes(roleSlug || "") ? roleSlug! : "staff"
+
+                    const { error: memberErr } = await supabase.from("company_members").insert(
                         selectedCompanyIds.map(cid => ({
                             company_id: cid,
                             user_id: result.data!.userId,
-                            user_type: roleSlug || "staff",
+                            user_type: memberType,
                         }))
                     )
+                    if (memberErr) {
+                        toast.warning(`User created, but assigning business units failed: ${memberErr.message}. Edit the user to assign access.`)
+                    }
                 }
 
                 toast.success(`User "${values.full_name}" created successfully`)
