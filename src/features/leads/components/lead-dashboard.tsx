@@ -35,7 +35,7 @@ import { PipelineFilters, PipelineFilterState, INITIAL_FILTER_STATE, ActiveFilte
 import { PipelineIconPicker, PipelineIcon, DEFAULT_PIPELINE_ICON } from "@/features/leads/components/pipeline-icon-picker"
 import { useResizablePanel } from "@/hooks/use-resizable-panel"
 import { usePersistentViewMode } from "@/hooks/use-persistent-view-mode"
-import { useRouter } from "next/navigation"
+import { useRouter, usePathname } from "next/navigation"
 import { PermissionGate } from "@/features/users/components/permission-gate"
 import { usePermissions } from "@/contexts/permissions-context"
 import { Input } from "@/components/ui/input"
@@ -62,12 +62,46 @@ import * as XLSX from "xlsx"
 type ViewMode = 'table' | 'kanban'
 const VIEW_MODES = ['kanban', 'table'] as const satisfies readonly ViewMode[]
 
+// Persist the last-selected pipeline per company scope so a page refresh
+// restores the user's choice instead of snapping back to the first pipeline.
+const PIPELINE_STORAGE_PREFIX = 'leadengine.activePipeline.'
+// URL search param name — authoritative + shareable across refresh/back/forward.
+const PIPELINE_QUERY_KEY = 'pipeline'
+
+function getUrlPipelineId(): string | null {
+    if (typeof window === 'undefined') return null
+    try {
+        return new URLSearchParams(window.location.search).get(PIPELINE_QUERY_KEY)
+    } catch {
+        return null
+    }
+}
+
+function getStoredPipelineId(scope: string): string | null {
+    if (typeof window === 'undefined' || !scope) return null
+    try {
+        return window.localStorage.getItem(PIPELINE_STORAGE_PREFIX + scope)
+    } catch {
+        return null
+    }
+}
+
+function setStoredPipelineId(scope: string, id: string) {
+    if (typeof window === 'undefined' || !scope) return
+    try {
+        window.localStorage.setItem(PIPELINE_STORAGE_PREFIX + scope, id)
+    } catch {
+        /* ignore quota / privacy-mode errors */
+    }
+}
+
 export function LeadDashboard() {
     const { activeCompany, companies, isHoldingView } = useCompany()
     const { can } = usePermissions()
     const { fmt } = useCurrency()
     const supabase = createClient()
     const router = useRouter()
+    const pathname = usePathname()
     const canDeleteLeads = can("leads", "delete")
 
     // Pipeline state
@@ -412,7 +446,12 @@ export function LeadDashboard() {
             setPipelines(fetched)
             setActivePipeline((prev) => {
                 if (prev && fetched.find(p => p.id === prev.id)) return prev
-                return fetched[0] ?? null
+                const urlId = getUrlPipelineId()
+                const fromUrl = urlId ? fetched.find(p => p.id === urlId) : undefined
+                if (fromUrl) return fromUrl
+                const storedId = getStoredPipelineId('holding')
+                const stored = storedId ? fetched.find(p => p.id === storedId) : undefined
+                return stored ?? fetched[0] ?? null
             })
 
             // Build access map for holding-owned pipelines with 'selected' visibility
@@ -483,7 +522,12 @@ export function LeadDashboard() {
             setPipelines(fetched)
             setActivePipeline((prev) => {
                 if (prev && fetched.find(p => p.id === prev.id)) return prev
-                return fetched[0] ?? null
+                const urlId = getUrlPipelineId()
+                const fromUrl = urlId ? fetched.find(p => p.id === urlId) : undefined
+                if (fromUrl) return fromUrl
+                const storedId = getStoredPipelineId(activeCompany.id)
+                const stored = storedId ? fetched.find(p => p.id === storedId) : undefined
+                return stored ?? fetched[0] ?? null
             })
         }
 
@@ -643,6 +687,22 @@ export function LeadDashboard() {
 
     useEffect(() => { fetchPipelines() }, [fetchPipelines])
     useEffect(() => { fetchLeads() }, [fetchLeads])
+
+    // ─── Persist active pipeline → URL (?pipeline=) + localStorage ──────
+    // URL is authoritative/shareable; localStorage is the cross-session
+    // fallback when the URL has no param (matches usePersistentViewMode).
+    useEffect(() => {
+        if (!activePipeline) return
+        const scope = isHoldingView ? 'holding' : (activeCompany?.id ?? '')
+        setStoredPipelineId(scope, activePipeline.id)
+
+        if (typeof window === 'undefined') return
+        const params = new URLSearchParams(window.location.search)
+        if (params.get(PIPELINE_QUERY_KEY) !== activePipeline.id) {
+            params.set(PIPELINE_QUERY_KEY, activePipeline.id)
+            router.replace(`${pathname}?${params.toString()}`, { scroll: false })
+        }
+    }, [activePipeline?.id, isHoldingView, activeCompany?.id, pathname, router])
 
     // ─── Fetch pipeline stages + transition rules for the active pipeline ──
     // Mirrors the kanban's own fetch so the table and the kanban share the
