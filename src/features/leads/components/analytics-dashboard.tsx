@@ -1620,7 +1620,7 @@ export function AnalyticsDashboard({
                     {/* Chart widgets */}
                     <RevenueChartWidget
                         data={monthlyRev}
-                        currentYear={currentYear}
+                        currentYear={chartYear}
                         compareYear={compareYear}
                         setCompareYear={setCompareYear}
                         compareYears={compareYears}

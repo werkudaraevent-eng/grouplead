@@ -121,7 +121,7 @@ export function GoalSettingsPage() {
       weighted_forecast_enabled: createWeightedForecast,
       breakdown_config: [],
       breakdown_targets: {},
-      monthly_weights: null,
+      monthly_weights: {},
       created_by: null,
       period_start: createPeriodStart,
       period_end: createPeriodEnd,

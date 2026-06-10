@@ -93,14 +93,35 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
         }
     })()
 
+    // Select the goal whose fiscal period matches the active pipeline's year.
+    // Pipelines carry a `fiscal_year` (e.g. "Group Lead 2025" -> 2025); the
+    // dashboard shows the goal whose period covers that year so each pipeline
+    // reads its own target. Falls back to the calendar year when the pipeline
+    // has no fiscal_year. A year with no matching goal yields no goal (target
+    // shows as "not set" instead of borrowing another year's target).
+    const activePipeline = pipelines.find(p => p.id === activePipelineId)
+    const goalTargetYear = activePipeline?.fiscal_year ?? new Date().getFullYear()
+
     const goalsPromise = activeCompany?.id
         ? Promise.all([
-            supabase.from('goals_v2').select('*').eq('company_id', activeCompany.id).eq('is_active', true).order('created_at', { ascending: false }).limit(1).maybeSingle(),
+            supabase.from('goals_v2').select('*').eq('company_id', activeCompany.id).eq('is_active', true).order('created_at', { ascending: false }),
             supabase.from('goal_nodes').select('*').eq('company_id', activeCompany.id).order('sort_order'),
             supabase.from('goal_user_targets').select('*').eq('company_id', activeCompany.id),
             supabase.from('goal_settings_v2').select('*').eq('company_id', activeCompany.id).maybeSingle(),
         ]).then(([goalRes, nodesRes, targetsRes, settingsRes]) => {
-            activeGoal = goalRes.data as GoalV2 | null
+            const allGoals = (goalRes.data as GoalV2[]) || []
+            const matched = allGoals.find(g => {
+                if (!g.period_start) return false
+                const startY = new Date(g.period_start).getFullYear()
+                const endY = g.period_end ? new Date(g.period_end).getFullYear() : startY
+                return goalTargetYear >= startY && goalTargetYear <= endY
+            })
+            // Safety net for legacy data: if no goal carries a period at all,
+            // fall back to the most recent goal so existing single-goal
+            // dashboards keep working. When goals DO have periods but none
+            // match the year, intentionally show no goal.
+            const anyHasPeriod = allGoals.some(g => g.period_start)
+            activeGoal = matched ?? (anyHasPeriod ? null : (allGoals[0] ?? null))
             goalNodes = (nodesRes.data as GoalNode[]) || []
             userTargets = (targetsRes.data as GoalUserTarget[]) || []
             goalSettings = settingsRes.data as GoalSettingsV2 | null
