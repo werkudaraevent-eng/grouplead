@@ -95,7 +95,7 @@ export function SearchableSelect({
                         className,
                     )}
                 >
-                    <span className="truncate flex-1 text-left">
+                    <span className="truncate flex-1 min-w-0 text-left">
                         {loading ? "Loading…" : selected ? selected.label : placeholder}
                     </span>
                     <span className="flex items-center gap-1 ml-2 shrink-0">
