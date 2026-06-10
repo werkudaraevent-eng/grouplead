@@ -651,7 +651,7 @@ export function AddCompanyModal({ open, onOpenChange, onCreated, initialData }: 
                                     {fields.length === 0 ? (
                                         <p className="text-sm text-muted-foreground italic">No fields assigned to this tab.</p>
                                     ) : (
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-4 rounded-xl border border-border bg-card p-4">
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-4 rounded-xl border border-border bg-card p-4 [&>*]:min-w-0">
                                             {fields.map(fieldId => {
                                                 if (fieldId.startsWith("custom:")) {
                                                     const schema = customSchemas.find(s => s.field_key === fieldId.replace("custom:", ""))

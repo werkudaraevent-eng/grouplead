@@ -1017,7 +1017,7 @@ export function LeadForm({ onSuccess, onClose, pipelineId, defaultStageId, initi
                                                     )
                                                 case "native:target_close_date":
                                                     return (
-                                                        <div key={fieldId} className="sm:col-span-2 grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                                        <div key={fieldId} className="sm:col-span-2 grid grid-cols-1 sm:grid-cols-3 gap-3 [&>*]:min-w-0">
                                                             <TextField control={form.control} name="target_close_date" label="Target close date" required={isFieldMandatory(fieldId)} type="date" />
                                                             {initialData && (
                                                                 <>
@@ -1055,7 +1055,7 @@ export function LeadForm({ onSuccess, onClose, pipelineId, defaultStageId, initi
                                                             <div className="space-y-2">
                                                                 {destinationFields.map((destField, index) => (
                                                                     <div key={destField.id} className="flex items-start gap-2 rounded-lg border border-border bg-background p-3">
-                                                                        <div className="flex-1 grid gap-3 grid-cols-1 sm:grid-cols-2">
+                                                                        <div className="flex-1 grid gap-3 grid-cols-1 sm:grid-cols-2 [&>*]:min-w-0">
                                                                             <FormField control={form.control} name={`destinations.${index}.city`} render={({ field }) => (
                                                                                 <FormItem className="space-y-1.5">
                                                                                     <FormFieldLabel required>City</FormFieldLabel>
@@ -1137,7 +1137,7 @@ export function LeadForm({ onSuccess, onClose, pipelineId, defaultStageId, initi
                                 {/* Separate box for Revenue Recognition outside Event Details */}
                                 {(layoutConfig[tab] || []).includes("native:month_event") && (
                                     <FieldSection title="Revenue Recognition">
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 [&>*]:min-w-0">
                                             <DynamicSelectField control={form.control} name="tentative_month" label="Month" options={tentativeMonthOptions.map(o => o.value)} />
                                             <DynamicSelectField control={form.control} name="tentative_year" label="Year" options={tentativeYearOptions.map(o => o.value)} />
                                         </div>
