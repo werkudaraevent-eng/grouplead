@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard KPI Cards — v2 Premium</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#F4F5F7;--white:#fff;--border:#E7E9EE;--border-light:#F1F2F5;
+  --t1:#10141C;--t2:#697080;--t3:#9AA1B0;
+  --accent:#3F4DC4;--accent-bg:#EEF1FE;
+  --blue:#2563EB;--blue-bg:#EFF6FF;
+  --purple:#7C3AED;--purple-bg:#F5F3FF;
+  --green:#059669;--green-bg:#ECFDF5;
+  --red:#DC2626;--red-bg:#FEF2F2;
+  --shadow-sm:0 1px 2px rgba(16,20,28,.05),0 1px 3px rgba(16,20,28,.04);
+  --shadow-md:0 8px 24px rgba(16,20,28,.08),0 2px 6px rgba(16,20,28,.05);
+}
+body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(--t1);-webkit-font-smoothing:antialiased;padding:28px 32px 48px}
+.wrap{max-width:1480px;margin:0 auto}
+
+/* Toolbar */
+.toolbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:22px;flex-wrap:wrap;gap:14px}
+.toolbar h1{font-size:19px;font-weight:800;letter-spacing:-.3px}
+.toolbar p{font-size:13px;color:var(--t2);margin-top:3px}
+.seg{display:inline-flex;background:#fff;border:1.5px solid var(--border);border-radius:10px;padding:4px;box-shadow:var(--shadow-sm)}
+.seg button{padding:8px 18px;border-radius:7px;font-size:13px;font-weight:700;color:var(--t2);cursor:pointer;transition:all .15s;font-family:inherit;border:none;background:none}
+.seg button.active{background:var(--accent);color:#fff;box-shadow:0 1px 3px rgba(63,77,196,.3)}
+
+.stage-label{display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;padding:5px 12px;border-radius:20px;margin-bottom:14px}
+.stage-label.bad{background:var(--red-bg);color:var(--red)}
+.stage-label.good{background:var(--green-bg);color:var(--green)}
+
+/* Frame */
+.frame{background:#FBFBFC;border:1px solid var(--border);border-radius:18px;padding:26px;box-shadow:var(--shadow-sm)}
+.frame-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px}
+.frame-title{font-size:17px;font-weight:800;letter-spacing:-.2px}
+.frame-sub{font-size:12px;color:var(--t3);margin-top:2px}
+.filters{display:flex;gap:8px}
+.filter-chip{display:inline-flex;align-items:center;gap:6px;background:#fff;border:1.5px solid var(--border);border-radius:8px;padding:7px 13px;font-size:12.5px;font-weight:600;color:var(--t1);cursor:pointer;transition:all .15s}
+.filter-chip:hover{border-color:#D2D6DE}
+.filter-chip.active{background:var(--accent-bg);border-color:#C3CBF5;color:var(--accent)}
+
+/* ─────── KPI v2 ─────── */
+.kpi-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:14px}
+.kpi{background:#fff;border:1px solid var(--border);border-radius:14px;padding:18px 18px 15px;box-shadow:var(--shadow-sm);display:flex;flex-direction:column;min-height:168px;transition:box-shadow .22s,transform .22s,border-color .22s;cursor:default;position:relative}
+.kpi:hover{box-shadow:var(--shadow-md);transform:translateY(-2px);border-color:#DDE0E7}
+.kpi-head{display:flex;align-items:center;gap:9px;margin-bottom:15px}
+.kpi-ic{width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;background:var(--ic-bg);color:var(--ic-c)}
+.kpi-label{font-size:12.5px;font-weight:600;color:var(--t2);line-height:1.2;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kpi-info{width:14px;height:14px;color:var(--t3);flex-shrink:0;opacity:0;transition:opacity .2s;cursor:help}
+.kpi:hover .kpi-info{opacity:1}
+.kpi-value-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.kpi-value{font-size:27px;font-weight:800;color:var(--t1);letter-spacing:-.7px;line-height:1;white-space:nowrap;font-variant-numeric:tabular-nums}
+.kpi-chip{display:inline-flex;align-items:center;gap:3px;padding:3px 8px;border-radius:20px;font-size:11px;font-weight:700;white-space:nowrap;font-variant-numeric:tabular-nums}
+.kpi-chip.down{background:var(--red-bg);color:var(--red)}
+.kpi-chip.up{background:var(--green-bg);color:var(--green)}
+.kpi-chip.flat{background:#F3F4F6;color:var(--t2)}
+.kpi-chip-note{font-size:10.5px;color:var(--t3);font-weight:500;white-space:nowrap}
+.kpi-foot{margin-top:auto;padding-top:12px;border-top:1px solid var(--border-light);display:flex;align-items:flex-end;justify-content:space-between;gap:10px}
+.kpi-stats{font-size:11.5px;color:var(--t2);font-weight:500;line-height:1.6;min-width:0}
+.kpi-stats .num{color:var(--t1);font-weight:700;font-variant-numeric:tabular-nums}
+.kpi-stats .dot{display:inline-block;width:3px;height:3px;border-radius:50%;background:#C9CDD6;margin:0 6px;vertical-align:middle}
+.kpi-spark{flex-shrink:0;opacity:.9}
+
+/* ─────── BEFORE (messy reproduction) ─────── */
+.kpi-grid.before{grid-template-columns:1.45fr 1.45fr 1.45fr 1fr 1fr;gap:22px}
+.kpi.b{min-height:330px;padding:26px;display:block;border-radius:14px}
+.kpi.b:hover{transform:none;box-shadow:var(--shadow-sm);border-color:var(--border)}
+.kpi.b .b-head{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:34px}
+.kpi.b .b-label{font-size:15px;font-weight:600;color:var(--t2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:140px;display:flex;align-items:center;gap:6px}
+.kpi.b .b-ic{width:50px;height:50px;border-radius:14px;background:var(--ic-bg);color:var(--ic-c);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.kpi.b .b-value{font-size:40px;font-weight:800;letter-spacing:-1px;margin-bottom:14px}
+.kpi.b .b-stats{font-size:14px;color:var(--t3)}
+.kpi.b .b-stats .v{color:var(--t1);font-weight:600}
+.kpi.b .b-target{font-size:14px;color:var(--red);font-weight:600;margin-top:6px}
+
+.note{margin-top:14px;font-size:12.5px;color:var(--t2);display:flex;flex-wrap:wrap;gap:8px}
+.note .tag{background:#fff;border:1px solid var(--border);border-radius:20px;padding:4px 11px;font-weight:600;display:inline-flex;align-items:center;gap:5px}
+.note .tag.bad{color:var(--red);border-color:#FECACA;background:var(--red-bg)}
+.note .tag.good{color:var(--green);border-color:#A7F3D0;background:var(--green-bg)}
+.hidden{display:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="toolbar">
+    <div>
+      <h1>Dashboard KPI Cards — Premium</h1>
+      <p>Versi yang lebih halus &amp; informatif: delta chip inline, sparkline trend, typography tabular.</p>
+    </div>
+    <div class="seg">
+      <button id="btn-before" onclick="setView('before')">Before</button>
+      <button id="btn-after" class="active" onclick="setView('after')">After ✨</button>
+    </div>
+  </div>
+
+  <!-- AFTER -->
+  <div id="view-after">
+    <div class="stage-label good">● Premium — modern global platform</div>
+    <div class="frame">
+      <div class="frame-head">
+        <div>
+          <div class="frame-title">Performance Dashboard</div>
+          <div class="frame-sub">Group Lead 2025 · Updated 2 minutes ago</div>
+        </div>
+        <div class="filters">
+          <span class="filter-chip">Group Lead 2025 ▾</span>
+          <span class="filter-chip">All Companies ▾</span>
+          <span class="filter-chip active">This Year ▾</span>
+        </div>
+      </div>
+      <div class="kpi-grid" id="after-grid"></div>
+    </div>
+    <div class="note">
+      <span class="tag good">✓ Delta chip inline di samping angka</span>
+      <span class="tag good">✓ Sparkline 8-minggu per metrik</span>
+      <span class="tag good">✓ Angka tabular-nums (sejajar rapi)</span>
+      <span class="tag good">✓ Divider halus memisah konteks</span>
+      <span class="tag good">✓ Info icon muncul saat hover</span>
+      <span class="tag good">✓ Warna hanya untuk makna (delta &amp; trend)</span>
+    </div>
+  </div>
+
+  <!-- BEFORE -->
+  <div id="view-before" class="hidden">
+    <div class="stage-label bad">● Sebelum — kondisi production sekarang</div>
+    <div class="frame">
+      <div class="frame-head">
+        <div class="frame-title">Performance Dashboard</div>
+        <div class="filters">
+          <span class="filter-chip">Group Lead 2025 ▾</span>
+          <span class="filter-chip">All Companies ▾</span>
+          <span class="filter-chip active">This Year ▾</span>
+        </div>
+      </div>
+      <div class="kpi-grid before" id="before-grid"></div>
+    </div>
+    <div class="note">
+      <span class="tag bad">✕ Lebar card tidak sama</span>
+      <span class="tag bad">✕ Ruang kosong besar di bawah</span>
+      <span class="tag bad">✕ Ikon mengambang besar</span>
+      <span class="tag bad">✕ Label terpotong</span>
+      <span class="tag bad">✕ Format metrik tidak konsisten</span>
+    </div>
+  </div>
+</div>
+
+<script>
+const IC = {
+  briefcase:'<path d="M3 7h18v12a2 2 0 01-2 2H5a2 2 0 01-2-2zM16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2M3 12h18"/>',
+  calendar:'<path d="M19 4H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V6a2 2 0 00-2-2zM16 2v4M8 2v4M3 10h18"/>',
+  convert:'<path d="M21 2v6h-6M3 12a9 9 0 0115-6.7L21 8M3 22v-6h6M21 12a9 9 0 01-15 6.7L3 16"/>',
+  trophy:'<path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 01-10 0zM7 4H4v2a3 3 0 003 3M17 4h3v2a3 3 0 01-3 3"/>',
+  x:'<path d="M18 6L6 18M6 6l12 12"/>',
+  info:'<circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/>',
+};
+function svg(name,size){
+  return '<svg width="'+size+'" height="'+size+'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">'+IC[name]+'</svg>';
+}
+
+/* sparkline: data array -> svg with line + soft area fill */
+let sparkId = 0;
+function sparkline(data, color){
+  const W=68, H=26, P=2;
+  const max = Math.max(...data, 1), min = Math.min(...data, 0);
+  const range = max-min || 1;
+  const pts = data.map((v,i)=>{
+    const x = P + i*(W-2*P)/(data.length-1);
+    const y = H-P - (v-min)/range*(H-2*P);
+    return [x.toFixed(1), y.toFixed(1)];
+  });
+  const line = pts.map(p=>p.join(',')).join(' ');
+  const area = line + ' ' + (W-P)+','+(H-P) + ' ' + P+','+(H-P);
+  const id = 'sg'+(++sparkId);
+  const last = pts[pts.length-1];
+  return `<svg class="kpi-spark" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
+    <defs><linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="${color}" stop-opacity=".18"/>
+      <stop offset="1" stop-color="${color}" stop-opacity="0"/>
+    </linearGradient></defs>
+    <polygon points="${area}" fill="url(#${id})"/>
+    <polyline points="${line}" fill="none" stroke="${color}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="${last[0]}" cy="${last[1]}" r="2.4" fill="${color}"/>
+  </svg>`;
+}
+
+const CARDS = [
+  {label:'Incoming Lead', icon:'briefcase', value:'0',
+   icBg:'var(--accent-bg)', icC:'var(--accent)', spark:'#3F4DC4',
+   trend:[2,3,1,2,1,1,0,0],
+   chip:{t:'flat',txt:'0%'}, chipNote:'vs last month',
+   stats:'<span class="num">IDR 0</span> total<span class="dot"></span><span class="num">IDR 0</span> avg'},
+  {label:'Lead Events', icon:'calendar', value:'2',
+   icBg:'var(--blue-bg)', icC:'var(--blue)', spark:'#2563EB',
+   trend:[0,1,1,0,1,2,1,2],
+   chip:{t:'up',txt:'↑ 100%'}, chipNote:'vs last month',
+   stats:'<span class="num">IDR 342M</span> total<span class="dot"></span><span class="num">IDR 171M</span> avg'},
+  {label:'Lead Conversion', icon:'convert', value:'0.0%',
+   icBg:'var(--purple-bg)', icC:'var(--purple)', spark:'#7C3AED',
+   trend:[18,22,15,10,8,4,0,0],
+   chip:{t:'down',txt:'↓ 30%'}, chipNote:'vs target',
+   stats:'<span class="num">0</span> of <span class="num">2</span> leads converted'},
+  {label:'Won', icon:'trophy', value:'IDR 50M',
+   icBg:'var(--green-bg)', icC:'var(--green)', spark:'#059669',
+   trend:[0,80,40,120,60,90,50,50],
+   chip:{t:'down',txt:'↓ 100%'}, chipNote:'vs target',
+   stats:'<span class="num">1</span> deal<span class="dot"></span><span class="num">IDR 50M</span> avg'},
+  {label:'Lost', icon:'x', value:'IDR 292M',
+   icBg:'var(--red-bg)', icC:'var(--red)', spark:'#DC2626',
+   trend:[0,0,1,0,1,0,1,1],
+   chip:{t:'down',txt:'↓ 1 deal'}, chipNote:'this year',
+   stats:'<span class="num">1</span> deal<span class="dot"></span><span class="num">IDR 292M</span> avg'},
+];
+
+document.getElementById('after-grid').innerHTML = CARDS.map(c=>`
+  <div class="kpi" style="--ic-bg:${c.icBg};--ic-c:${c.icC}">
+    <div class="kpi-head">
+      <div class="kpi-ic">${svg(c.icon,16)}</div>
+      <div class="kpi-label">${c.label}</div>
+      <div class="kpi-info">${svg('info',14)}</div>
+    </div>
+    <div class="kpi-value-row">
+      <span class="kpi-value">${c.value}</span>
+      <span class="kpi-chip ${c.chip.t}">${c.chip.txt}</span>
+      <span class="kpi-chip-note">${c.chipNote}</span>
+    </div>
+    <div class="kpi-foot">
+      <div class="kpi-stats">${c.stats}</div>
+      ${sparkline(c.trend, c.spark)}
+    </div>
+  </div>
+`).join('');
+
+/* BEFORE */
+const beforeData = [
+  {label:'Incoming Lead', icon:'briefcase', value:'0', icBg:'var(--accent-bg)', icC:'var(--accent)', stats:'<span class="v">IDR 0</span> value &nbsp; <span class="v">IDR 0</span> avg'},
+  {label:'Lead Events', icon:'calendar', value:'2', icBg:'var(--blue-bg)', icC:'var(--blue)', stats:'<span class="v">IDR 342M</span> value &nbsp; <span class="v">IDR 171M</span> avg'},
+  {label:'Lead Conversion', icon:'convert', value:'0.0%', icBg:'var(--purple-bg)', icC:'var(--purple)', stats:'', target:'↓30% target'},
+  {label:'Won', icon:'trophy', value:'IDR 50M', icBg:'var(--green-bg)', icC:'var(--green)', stats:'<span class="v">1</span> deals &nbsp; <span class="v">IDR 50M</span> avg', target:'↓100% target'},
+  {label:'Lost', icon:'x', value:'1', icBg:'var(--red-bg)', icC:'var(--red)', stats:'<span class="v">IDR 292M</span> value <br><span class="v">IDR 292M</span> avg'},
+];
+document.getElementById('before-grid').innerHTML = beforeData.map(c=>`
+  <div class="kpi b" style="--ic-bg:${c.icBg};--ic-c:${c.icC}">
+    <div class="b-head">
+      <div class="b-label">${c.label} ${svg('info',13)}</div>
+      <div class="b-ic">${svg(c.icon,26)}</div>
+    </div>
+    <div class="b-value">${c.value}</div>
+    <div class="b-stats">${c.stats}</div>
+    ${c.target?`<div class="b-target">${c.target}</div>`:''}
+  </div>
+`).join('');
+
+function setView(v){
+  document.getElementById('view-after').classList.toggle('hidden',v!=='after');
+  document.getElementById('view-before').classList.toggle('hidden',v!=='before');
+  document.getElementById('btn-after').classList.toggle('active',v==='after');
+  document.getElementById('btn-before').classList.toggle('active',v==='before');
+}
+</script>
+</body>
+</html>

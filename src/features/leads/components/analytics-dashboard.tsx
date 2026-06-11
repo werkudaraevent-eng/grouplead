@@ -10,7 +10,6 @@ import { buildDashboardStageSeries } from "@/features/leads/lib/dashboard-stage-
 import {
     splitDashboardLeadsByPeriod,
     splitDashboardLeadsByPeriodWithPrior,
-    splitLeadsByBasis,
     splitLeadsByBasisWithPrior,
     findPriorYearPipelineId,
     getRevenueDate,
@@ -20,9 +19,9 @@ import {
     isAllTimeRange,
     type DashboardPeriod,
 } from "@/features/leads/lib/dashboard-period"
-import { Briefcase, Trophy, CheckSquare, RefreshCw, TrendingUp, Calendar, Layers, FileDown, Sparkles, MessageCircle, Loader2, MoreHorizontal, Info } from "lucide-react"
+import { Briefcase, Trophy, RefreshCw, TrendingUp, Calendar, FileDown, Sparkles, MessageCircle, Loader2, MoreHorizontal, Info, XCircle } from "lucide-react"
 import { useCurrency } from "@/contexts/currency-context"
-import { ACCENT, MONTHS_SHORT, getVsLastYearPct } from "./dashboard-widgets/shared"
+import { MONTHS_SHORT, getVsLastYearPct } from "./dashboard-widgets/shared"
 import { WIDGET_IDS } from "@/features/leads/lib/dashboard-layout"
 import { DashboardGrid } from "./dashboard-grid"
 import {
@@ -346,9 +345,6 @@ export function AnalyticsDashboard({
     const revenueBuckets = useMemo(() => splitLeadsByBasisWithPrior(
         filteredLeads, priorYearLeads, "revenue", periodStr as DashboardPeriod, new Date(), customRangeArg,
     ), [filteredLeads, priorYearLeads, periodStr, customStart, customEnd]) // eslint-disable-line react-hooks/exhaustive-deps
-    const targetCloseBuckets = useMemo(() => splitLeadsByBasis(
-        filteredLeads, "target_close", periodStr as DashboardPeriod, new Date(), customRangeArg,
-    ), [filteredLeads, periodStr, customStart, customEnd]) // eslint-disable-line react-hooks/exhaustive-deps
 
     // Custom widgets state
     const [customWidgetsList, setCustomWidgetsList] = useState<CustomWidget[]>(customWidgets ?? [])
@@ -500,76 +496,92 @@ export function AnalyticsDashboard({
 
     // ─── STATS (period-filtered, per-basis) ─────────────────────────
     //
-    // Each KPI uses a different date basis to answer the right question:
-    //   Total Leads      = COUNT received-bucket            (received_date)
-    //   Deal Win Rate    = won / (won + lost) close-bucket  (closed_*_date)
-    //   Lead Conversion  = won / total close-bucket         (closed_*_date)
-    //   Won Revenue      = SUM revenue-bucket where won     (event/month_event)
-    //   Avg Deal Size    = won_revenue / won_count          (revenue-bucket)
-    //   Pipeline Value   = SUM target-close-bucket active   (target_close_date,
-    //                                                        excludes nulls)
+    // Five cards, each with a hero number + optional supporting metrics:
+    //   Incoming Lead   = COUNT received-bucket          (received_date)
+    //                     + Σ estimated_value, avg
+    //   Lead Events     = COUNT revenue-bucket (any)     (month_event)
+    //                     + Σ estimated_value, avg
+    //   Lead Conversion = won count (revenue bucket) ÷ incoming count
+    //                     (received). Single metric.
+    //   Won             = Σ actual_value where won (revenue bucket)
+    //                     + deal count, avg
+    //   Lost            = COUNT lost (revenue bucket)    (month_event)
+    //                     + Σ estimated_value, avg
+    //
+    // Each card's YoY badge compares against the same basis in the prior
+    // year (apples-to-apples) using the `.previous` bucket.
     const stats = useMemo(() => {
-        // Total Leads — every received lead in the period
-        const totalInquiry = receivedBuckets.current.length
+        const sumEstimated = (arr: typeof receivedBuckets.current) =>
+            arr.reduce((s, l) => s + (l.estimated_value ?? 0), 0)
+        const pctChange = (cur: number, prev: number) =>
+            prev > 0 ? ((cur - prev) / prev) * 100 : null
 
-        // Win rate — close bucket only (resolved deals)
-        let closedWonCount = 0
-        let closedLostCount = 0
-        for (const l of closeBuckets.current) {
-            const status = l.pipeline_stage?.closed_status
-            if (status === "won") closedWonCount++
-            else if (status === "lost") closedLostCount++
-        }
-        const totalClosed = closedWonCount + closedLostCount
-        const winRate = totalClosed > 0 ? (closedWonCount / totalClosed) * 100 : 0
+        // Incoming Lead — every received lead in the period
+        const incomingCount = receivedBuckets.current.length
+        const incomingValue = sumEstimated(receivedBuckets.current)
+        const incomingAvg = incomingCount > 0 ? incomingValue / incomingCount : 0
+        const prevIncomingCount = receivedBuckets.previous.length
 
-        // Lead Conversion — wins this period vs leads received this period.
-        // Mixed basis on purpose: numerator is from close bucket (only
-        // counts deals settled this period), denominator is from received
-        // bucket (every lead that came in). This makes Lead Conversion
-        // distinct from Win Rate — it treats open leads as "not yet
-        // converted" so the metric is locked once the period ends.
-        const conversionRate = totalInquiry > 0
-            ? (closedWonCount / totalInquiry) * 100
-            : 0
+        // Lead Events — all leads recognised in this period (any status)
+        const eventsCount = revenueBuckets.current.length
+        const eventsValue = sumEstimated(revenueBuckets.current)
+        const eventsAvg = eventsCount > 0 ? eventsValue / eventsCount : 0
+        const prevEventsCount = revenueBuckets.previous.length
 
-        // Won Revenue / Avg Deal — sum from the revenue-recognition bucket
-        let totalRevenue = 0
-        let revenueWonCount = 0
+        // Won — won deals recognised this period; revenue from actual_value
+        let wonRevenue = 0
+        let wonCount = 0
         for (const l of revenueBuckets.current) {
             if (l.pipeline_stage?.closed_status !== "won") continue
-            totalRevenue += (l.actual_value ?? l.estimated_value ?? 0)
-            revenueWonCount++
+            wonRevenue += (l.actual_value ?? l.estimated_value ?? 0)
+            wonCount++
         }
-        const avgSize = revenueWonCount > 0 ? totalRevenue / revenueWonCount : 0
+        const wonAvg = wonCount > 0 ? wonRevenue / wonCount : 0
+        let prevWonRevenue = 0
+        let prevWonCount = 0
+        for (const l of revenueBuckets.previous) {
+            if (l.pipeline_stage?.closed_status !== "won") continue
+            prevWonRevenue += (l.actual_value ?? l.estimated_value ?? 0)
+            prevWonCount++
+        }
 
-        // Pipeline Value — active stages, bucketed by target_close_date.
-        // Leads with no target_close_date are surfaced separately so the
-        // user knows their pipeline view is incomplete.
-        let pipelineValue = 0
-        let pipelineLeadCount = 0
-        let activeWithoutTargetClose = 0
-        for (const l of targetCloseBuckets.current) {
-            if (l.pipeline_stage?.stage_type !== "open") continue
-            pipelineValue += (l.estimated_value ?? 0)
-            pipelineLeadCount++
+        // Lost — lost/turndown/postponed/cancelled all resolve to closed
+        // status "lost" (the only non-won closed status in the schema)
+        let lostCount = 0
+        let lostValue = 0
+        for (const l of revenueBuckets.current) {
+            if (l.pipeline_stage?.closed_status !== "lost") continue
+            lostCount++
+            lostValue += (l.estimated_value ?? 0)
         }
-        for (const l of targetCloseBuckets.excluded) {
-            if (l.pipeline_stage?.stage_type === "open") activeWithoutTargetClose++
+        const lostAvg = lostCount > 0 ? lostValue / lostCount : 0
+        let prevLostCount = 0
+        for (const l of revenueBuckets.previous) {
+            if (l.pipeline_stage?.closed_status === "lost") prevLostCount++
         }
+
+        // Lead Conversion — won count (recognised this period) ÷ leads
+        // received this period. Mixed basis on purpose: a won deal counts
+        // against the cohort of leads that came in, regardless of when they
+        // were received.
+        const conversionRate = incomingCount > 0 ? (wonCount / incomingCount) * 100 : 0
+        const prevConversionRate = prevIncomingCount > 0
+            ? (prevWonCount / prevIncomingCount) * 100
+            : 0
 
         return {
-            totalInquiry,
-            totalRevenue,
-            winRate,
+            incomingCount, incomingValue, incomingAvg,
+            eventsCount, eventsValue, eventsAvg,
+            wonRevenue, wonCount, wonAvg,
+            lostCount, lostValue, lostAvg,
             conversionRate,
-            avgSize,
-            closedWonCount,
-            pipelineValue,
-            pipelineLeadCount,
-            activeWithoutTargetClose,
+            incomingYoy: pctChange(incomingCount, prevIncomingCount),
+            eventsYoy: pctChange(eventsCount, prevEventsCount),
+            wonYoy: pctChange(wonRevenue, prevWonRevenue),
+            lostYoy: pctChange(lostCount, prevLostCount),
+            conversionYoy: pctChange(conversionRate, prevConversionRate),
         }
-    }, [receivedBuckets, closeBuckets, revenueBuckets, targetCloseBuckets])
+    }, [receivedBuckets, revenueBuckets])
 
     // ─── PERIOD COMPARISON METRICS ──────────────────────────────────
     // Compares current period vs same period last year. Each comparison
@@ -1137,59 +1149,47 @@ export function AnalyticsDashboard({
     //   • Avoid: SQL, formulas, column names. Those live in docs.
     const kpis = [
         {
-            label: "Total Leads",
-            value: String(stats.totalInquiry),
-            vsTarget: goalMetrics.inquiryTgt,
-            vsPrev: goalMetrics.inquiryYoy,
-            accent: ACCENT.leads,
+            label: "Incoming Lead",
+            value: String(stats.incomingCount),
+            vsTarget: null,
+            vsPrev: stats.incomingYoy,
+            accent: "#3F4DC4",
             icon: Briefcase,
             sparkline: sparklines.leads,
-            basisLabel: "by received date",
+            supporting: [
+                { label: "total", value: fmtAxis(stats.incomingValue) },
+                { label: "avg", value: fmtAxis(stats.incomingAvg) },
+            ],
+            basisLabel: "by month received",
             basisInfo: (
                 <div className="space-y-1.5">
-                    <div className="font-semibold">Total Leads</div>
-                    <div className="opacity-85">How many new leads came in during this period.</div>
+                    <div className="font-semibold">Incoming Lead</div>
+                    <div className="opacity-85">How many new leads came in during this period, with their total and average estimated value.</div>
                     <div className="pt-1 border-t border-white/10 opacity-70">
-                        Counted by the date the lead was received.
+                        Counted by the month the lead was received.
                     </div>
                 </div>
             ),
         },
         {
-            label: "Won Revenue",
-            value: fmtAxis(stats.totalRevenue),
-            vsTarget: goalMetrics.revTgt,
-            vsPrev: goalMetrics.revYoy,
-            accent: ACCENT.revenue,
-            icon: Trophy,
-            sparkline: sparklines.revenue,
+            label: "Lead Events",
+            value: String(stats.eventsCount),
+            vsTarget: null,
+            vsPrev: stats.eventsYoy,
+            accent: "#2563EB",
+            icon: Calendar,
+            sparkline: sparklines.leads,
+            supporting: [
+                { label: "total", value: fmtAxis(stats.eventsValue) },
+                { label: "avg", value: fmtAxis(stats.eventsAvg) },
+            ],
             basisLabel: "by revenue recognition month",
             basisInfo: (
                 <div className="space-y-1.5">
-                    <div className="font-semibold">Won Revenue</div>
-                    <div className="opacity-85">Revenue from won deals booked to this period.</div>
+                    <div className="font-semibold">Lead Events</div>
+                    <div className="opacity-85">Leads whose revenue is recognised in this period, whatever their status, with total and average value.</div>
                     <div className="pt-1 border-t border-white/10 opacity-70">
-                        Counted by the month the event runs (or by event end date) — the way an event business actually recognises revenue.
-                    </div>
-                </div>
-            ),
-        },
-        {
-            label: "Deal Win Rate",
-            value: stats.winRate.toFixed(1),
-            suffix: "%",
-            vsTarget: goalMetrics.winTgt,
-            vsPrev: goalMetrics.winYoy,
-            accent: ACCENT.winrate,
-            icon: CheckSquare,
-            sparkline: sparklines.winRate,
-            basisLabel: "by close date",
-            basisInfo: (
-                <div className="space-y-1.5">
-                    <div className="font-semibold">Deal Win Rate</div>
-                    <div className="opacity-85">Of the deals that finished this period, how many were won.</div>
-                    <div className="pt-1 border-t border-white/10 opacity-70">
-                        Counted by the date the deal was settled (won or lost), not by when the event will run.
+                        Counted by the revenue recognition month (the month the event runs).
                     </div>
                 </div>
             ),
@@ -1199,17 +1199,20 @@ export function AnalyticsDashboard({
             value: stats.conversionRate.toFixed(1),
             suffix: "%",
             vsTarget: goalMetrics.convTgt,
-            vsPrev: goalMetrics.convYoy,
-            accent: ACCENT.conversion,
+            vsPrev: stats.conversionYoy,
+            accent: "#7C3AED",
             icon: RefreshCw,
             sparkline: sparklines.conversion,
-            basisLabel: "wins this period ÷ leads received",
+            supporting: [
+                { label: "leads converted", value: `${stats.wonCount} of ${stats.incomingCount}` },
+            ],
+            basisLabel: "won events ÷ incoming leads",
             basisInfo: (
                 <div className="space-y-1.5">
                     <div className="font-semibold">Lead Conversion</div>
-                    <div className="opacity-85">For every lead that came in this period, the share that has already been won.</div>
+                    <div className="opacity-85">Of the leads that came in, the share that turned into won events.</div>
                     <div className="pt-1 border-t border-white/10 opacity-70">
-                        Wins are counted by close date; the denominator is every lead received this period — including ones still open. So this stays low until deals close, and won’t change after the period ends.
+                        Won events are counted by revenue recognition month; the denominator is every lead received (by month received).
                     </div>
                     {goalSettings?.conversion_target_pct
                         ? <div className="opacity-70 pt-1">Target {goalSettings.conversion_target_pct}% · Actual {stats.conversionRate.toFixed(1)}%</div>
@@ -1218,50 +1221,49 @@ export function AnalyticsDashboard({
             ),
         },
         {
-            label: "Avg Deal Size",
-            value: fmtAxis(stats.avgSize),
-            vsTarget: goalMetrics.avgTgt,
-            vsPrev: goalMetrics.avgYoy,
-            accent: ACCENT.dealsize,
-            icon: TrendingUp,
-            sparkline: sparklines.avgDeal,
+            label: "Won",
+            value: fmtAxis(stats.wonRevenue),
+            vsTarget: goalMetrics.revTgt,
+            vsPrev: stats.wonYoy,
+            accent: "#059669",
+            icon: Trophy,
+            sparkline: sparklines.revenue,
+            supporting: [
+                { label: "deals", value: String(stats.wonCount) },
+                { label: "avg", value: fmtAxis(stats.wonAvg) },
+            ],
             basisLabel: "by revenue recognition month",
             basisInfo: (
                 <div className="space-y-1.5">
-                    <div className="font-semibold">Avg Deal Size</div>
-                    <div className="opacity-85">The average size of a won deal recognised in this period.</div>
+                    <div className="font-semibold">Won</div>
+                    <div className="opacity-85">Revenue from won deals recognised this period, with deal count and average deal size.</div>
                     <div className="pt-1 border-t border-white/10 opacity-70">
-                        Same period basis as Won Revenue, so the two stay in sync.
+                        Revenue uses the actual booked value, counted by the revenue recognition month for deals in a closed-won stage.
                     </div>
                 </div>
             ),
         },
         {
-            label: "Pipeline Value",
-            value: fmtAxis(stats.pipelineValue),
+            label: "Lost",
+            value: fmtAxis(stats.lostValue),
             vsTarget: null,
-            vsPrev: null,
-            accent: "#00A1E9",
-            icon: Layers,
-            sparkline: sparklines.pipeline,
-            // When some deals are missing target_close_date we surface the
-            // count inline with the basis label — keeps the card on a single
-            // visual line and avoids overflow against the grid row height.
-            basisLabel: stats.activeWithoutTargetClose > 0
-                ? `by target close · ${stats.activeWithoutTargetClose} hidden`
-                : "by target close date",
+            vsPrev: stats.lostYoy,
+            invertDelta: true,
+            accent: "#DC2626",
+            icon: XCircle,
+            sparkline: sparklines.revenue,
+            supporting: [
+                { label: "deals", value: String(stats.lostCount) },
+                { label: "avg", value: fmtAxis(stats.lostAvg) },
+            ],
+            basisLabel: "by revenue recognition month",
             basisInfo: (
                 <div className="space-y-1.5">
-                    <div className="font-semibold">Pipeline Value</div>
-                    <div className="opacity-85">The estimated value of open deals expected to close in this period.</div>
+                    <div className="font-semibold">Lost</div>
+                    <div className="opacity-85">Deals recognised this period that were lost, turned down, postponed, or cancelled — with their total and average value.</div>
                     <div className="pt-1 border-t border-white/10 opacity-70">
-                        Open deals without a target close date are skipped — set one on the lead so the deal shows up here.
+                        Counted by the revenue recognition month for deals in a closed-lost stage.
                     </div>
-                    {stats.activeWithoutTargetClose > 0
-                        ? <div className="opacity-70 pt-1 text-amber-300">
-                            {stats.activeWithoutTargetClose} active deal{stats.activeWithoutTargetClose === 1 ? "" : "s"} are not shown because no target close date is set.
-                        </div>
-                        : null}
                 </div>
             ),
         },
@@ -1610,13 +1612,12 @@ export function AnalyticsDashboard({
                     addCustomWidgetRef={addCustomWidgetRef}
                 >
                     {/* Order MUST match WIDGET_IDS array */}
-                    {/* 6 individual KPI cards */}
+                    {/* 5 individual KPI cards */}
                     <SingleKPIWidget {...kpis[0]} />
                     <SingleKPIWidget {...kpis[1]} />
                     <SingleKPIWidget {...kpis[2]} />
                     <SingleKPIWidget {...kpis[3]} />
                     <SingleKPIWidget {...kpis[4]} />
-                    <SingleKPIWidget {...kpis[5]} />
                     {/* Chart widgets */}
                     <RevenueChartWidget
                         data={monthlyRev}

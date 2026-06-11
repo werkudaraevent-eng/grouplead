@@ -55,18 +55,23 @@ surface missing data.
 
 This is the contract enforced by `src/features/leads/components/analytics-dashboard.tsx`.
 
-| KPI              | Basis           | Notes                                                                 |
-|------------------|-----------------|-----------------------------------------------------------------------|
-| Total Leads      | `received`      | Pure intake metric.                                                   |
-| Deal Win Rate    | `close`         | won / (won + lost), both bucketed by close date.                      |
-| Lead Conversion  | mixed           | wins (close bucket) / leads received (received bucket). Distinct from Win Rate because the denominator includes leads still open. Locks once the period ends. |
-| Won Revenue      | `revenue`       | Sum `actual_value` for won deals in the recognition month.            |
-| Avg Deal Size    | `revenue`       | Same bucket as Won Revenue → `won_revenue / won_count`.               |
-| Pipeline Value   | `target_close`  | Active stages only. Excludes deals with no `target_close_date` set.   |
+Each card shows a **hero number** plus optional **supporting metrics** (a
+small muted line of total value + average under the hero). The supporting
+line is rendered by `SingleKPIWidget`'s `supporting` prop.
+
+| KPI (card)      | Basis           | Hero            | Supporting        | Notes                                                                 |
+|-----------------|-----------------|-----------------|-------------------|-----------------------------------------------------------------------|
+| Incoming Lead   | `received`      | count           | Σ est. value, avg | Pure intake metric. Σ uses `estimated_value`.                         |
+| Lead Events     | `revenue`       | count           | Σ est. value, avg | Every lead recognised this period, any status. Σ uses `estimated_value`. |
+| Lead Conversion | mixed           | %               | —                 | won count (revenue bucket) ÷ incoming count (received bucket). A won deal counts against the cohort of leads that came in. |
+| Won             | `revenue`       | Σ actual value  | deal count, avg   | Σ uses `actual_value` for closed-won deals in the recognition month.  |
+| Lost            | `revenue`       | count           | Σ est. value, avg | closed-lost deals (lost/turndown/postponed/cancelled all map to `closed_status = 'lost'`). YoY is inverted (up = bad). |
 
 YoY arrows on each card use the **same basis** for current and previous
-buckets so the comparison is honest (apples-to-apples). This is enforced
-in `goalMetrics` in `analytics-dashboard.tsx`.
+buckets so the comparison is honest (apples-to-apples). The previous
+bucket comes from the prior-year pipeline (cross-year YoY) via
+`splitLeadsByBasisWithPrior`. The Lost card sets `invertDelta` so a rise
+in losses shows red, not green.
 
 ---
 

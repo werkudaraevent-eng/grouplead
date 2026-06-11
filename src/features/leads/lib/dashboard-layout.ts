@@ -3,12 +3,11 @@ import { createClient } from "@/utils/supabase/client"
 
 // ─── Widget Registry ────────────────────────────────────────────────────────
 export const WIDGET_IDS = [
-  "kpi-total-leads",
-  "kpi-won-revenue",
-  "kpi-deal-win-rate",
+  "kpi-incoming-lead",
+  "kpi-lead-events",
   "kpi-lead-conversion",
-  "kpi-avg-deal-size",
-  "kpi-pipeline-value",
+  "kpi-won",
+  "kpi-lost",
   "revenue-chart",
   "pipeline",
   "sales-perf",
@@ -28,12 +27,11 @@ export const WIDGET_IDS = [
 export type WidgetId = (typeof WIDGET_IDS)[number]
 
 export const WIDGET_LABELS: Record<WidgetId, string> = {
-  "kpi-total-leads": "Total Leads",
-  "kpi-won-revenue": "Won Revenue",
-  "kpi-deal-win-rate": "Deal Win Rate",
+  "kpi-incoming-lead": "Incoming Lead",
+  "kpi-lead-events": "Lead Events",
   "kpi-lead-conversion": "Lead Conversion",
-  "kpi-avg-deal-size": "Avg Deal Size",
-  "kpi-pipeline-value": "Pipeline Value",
+  "kpi-won": "Won",
+  "kpi-lost": "Lost",
   "revenue-chart": "Monthly Revenue vs Target",
   "pipeline": "Pipeline Stages",
   "sales-perf": "Sales Performance",
@@ -74,53 +72,56 @@ export const DEFAULT_HIDDEN_WIDGETS: WidgetId[] = [
 export function getDefaultLayout(): Layout {
   // Layout grid: 12 cols, rowHeight 50px, margin 10px
   // Height formula: px = (h * 50) + ((h - 1) * 10)
-  //   h:2 = 110px | h:3 = 170px | h:6 = 350px | h:7 = 410px
+  //   h:3 = 170px | h:6 = 350px | h:7 = 410px
   //
   // Visual map (default visible widgets only):
   //
-  // Row 0-1:  [KPI:2] [KPI:3] [KPI:2] [KPI:2] [KPI:3]     ← 5 KPI cards
-  // Row 2-8:  [Revenue Chart ........:8w,7h] [Pipeline:4w,7h]
-  // Row 9-15: [Sales Perf .....:6w,7h] [Top Revenue:6w,7h]
-  // Row 16-21:[LeadSrc:4w,6h] [Classif:4w,6h] [Stream:4w,6h]
+  // Row 0-2:  [KPI:3] [KPI:3] [KPI:2] [KPI:2] [KPI:2]     ← 5 KPI cards
+  // Row 3-9:  [Revenue Chart ........:8w,7h] [Pipeline:4w,7h]
+  // Row 10-16:[Sales Perf .....:6w,7h] [Top Revenue:6w,7h]
+  // Row 17-22:[LeadSrc:4w,6h] [Classif:4w,6h] [Stream:4w,6h]
   //
   // No overlaps. Every row boundary is clean.
+  //
+  // KPI cards are h:3 (not h:2) because each now carries a hero number plus
+  // a supporting metrics line (total value + average) under it.
 
   return [
-    // ── Row 0: KPI Cards ── h:2 = 110px, 6 cards × 2 cols = 12
-    { i: "kpi-total-leads",    x: 0,  y: 0, w: 2, h: 2, minW: 2, minH: 2, maxW: 4, maxH: 3 },
-    { i: "kpi-won-revenue",    x: 2,  y: 0, w: 2, h: 2, minW: 2, minH: 2, maxW: 4, maxH: 3 },
-    { i: "kpi-deal-win-rate",  x: 4,  y: 0, w: 2, h: 2, minW: 2, minH: 2, maxW: 4, maxH: 3 },
-    { i: "kpi-lead-conversion",x: 6,  y: 0, w: 2, h: 2, minW: 2, minH: 2, maxW: 4, maxH: 3 },
-    { i: "kpi-avg-deal-size",  x: 8,  y: 0, w: 2, h: 2, minW: 2, minH: 2, maxW: 4, maxH: 3 },
-    { i: "kpi-pipeline-value", x: 10, y: 0, w: 2, h: 2, minW: 2, minH: 2, maxW: 4, maxH: 3 },
+    // ── Row 0: KPI Cards ── h:3 = 170px, widths 3+3+2+2+2 = 12
+    // minH:2 so cards can be shrunk in edit mode; maxH:4 caps the stretch.
+    { i: "kpi-incoming-lead",  x: 0,  y: 0, w: 3, h: 3, minW: 2, minH: 2, maxW: 4, maxH: 4 },
+    { i: "kpi-lead-events",    x: 3,  y: 0, w: 3, h: 3, minW: 2, minH: 2, maxW: 4, maxH: 4 },
+    { i: "kpi-lead-conversion",x: 6,  y: 0, w: 2, h: 3, minW: 2, minH: 2, maxW: 4, maxH: 4 },
+    { i: "kpi-won",            x: 8,  y: 0, w: 2, h: 3, minW: 2, minH: 2, maxW: 4, maxH: 4 },
+    { i: "kpi-lost",           x: 10, y: 0, w: 2, h: 3, minW: 2, minH: 3, maxW: 4, maxH: 4 },
 
     // ── Row 1: Primary Charts ── both h:7 = 410px, same height, no overlap
-    { i: "revenue-chart",      x: 0, y: 2, w: 8, h: 7, minW: 4, minH: 4, maxH: 12 },
-    { i: "pipeline",           x: 8, y: 2, w: 4, h: 7, minW: 3, minH: 4, maxH: 12 },
+    { i: "revenue-chart",      x: 0, y: 3, w: 8, h: 7, minW: 4, minH: 4, maxH: 12 },
+    { i: "pipeline",           x: 8, y: 3, w: 4, h: 7, minW: 3, minH: 4, maxH: 12 },
 
     // ── Row 2: Secondary Charts ── both h:7, equal width (6+6=12)
-    { i: "sales-perf",         x: 0, y: 9, w: 6, h: 7, minW: 4, minH: 4, maxH: 12 },
-    { i: "top-revenue",        x: 6, y: 9, w: 6, h: 7, minW: 3, minH: 4, maxH: 12 },
+    { i: "sales-perf",         x: 0, y: 10, w: 6, h: 7, minW: 4, minH: 4, maxH: 12 },
+    { i: "top-revenue",        x: 6, y: 10, w: 6, h: 7, minW: 3, minH: 4, maxH: 12 },
 
     // ── Row 3: Distribution Charts ── 3 equal columns (4+4+4=12)
-    { i: "lead-source",        x: 0, y: 16, w: 4, h: 6, minW: 3, minH: 3, maxH: 10 },
-    { i: "classification",     x: 4, y: 16, w: 4, h: 6, minW: 3, minH: 3, maxH: 10 },
-    { i: "stream",             x: 8, y: 16, w: 4, h: 6, minW: 3, minH: 3, maxH: 10 },
+    { i: "lead-source",        x: 0, y: 17, w: 4, h: 6, minW: 3, minH: 3, maxH: 10 },
+    { i: "classification",     x: 4, y: 17, w: 4, h: 6, minW: 3, minH: 3, maxH: 10 },
+    { i: "stream",             x: 8, y: 17, w: 4, h: 6, minW: 3, minH: 3, maxH: 10 },
 
     // ── Hidden by default (goal & contact widgets) ──
     // These still need layout entries so they have positions when un-hidden.
-    { i: "contact-analytics",       x: 0, y: 22, w: 6, h: 6, minW: 4, minH: 3, maxH: 10 },
-    { i: "goal-attainment",         x: 6, y: 22, w: 3, h: 6, minW: 3, minH: 3, maxH: 10 },
-    { i: "goal-forecast",           x: 9, y: 22, w: 3, h: 6, minW: 3, minH: 3, maxH: 10 },
-    { i: "goal-variance",           x: 0, y: 28, w: 4, h: 6, minW: 3, minH: 3, maxH: 10 },
-    { i: "goal-company-breakdown",  x: 4, y: 28, w: 4, h: 6, minW: 3, minH: 3, maxH: 10 },
-    { i: "goal-segment-breakdown",  x: 8, y: 28, w: 4, h: 6, minW: 3, minH: 3, maxH: 10 },
-    { i: "goal-trend",              x: 0, y: 34, w: 12, h: 6, minW: 6, minH: 3, maxH: 10 },
+    { i: "contact-analytics",       x: 0, y: 23, w: 6, h: 6, minW: 4, minH: 3, maxH: 10 },
+    { i: "goal-attainment",         x: 6, y: 23, w: 3, h: 6, minW: 3, minH: 3, maxH: 10 },
+    { i: "goal-forecast",           x: 9, y: 23, w: 3, h: 6, minW: 3, minH: 3, maxH: 10 },
+    { i: "goal-variance",           x: 0, y: 29, w: 4, h: 6, minW: 3, minH: 3, maxH: 10 },
+    { i: "goal-company-breakdown",  x: 4, y: 29, w: 4, h: 6, minW: 3, minH: 3, maxH: 10 },
+    { i: "goal-segment-breakdown",  x: 8, y: 29, w: 4, h: 6, minW: 3, minH: 3, maxH: 10 },
+    { i: "goal-trend",              x: 0, y: 35, w: 12, h: 6, minW: 6, minH: 3, maxH: 10 },
   ]
 }
 
 // ─── Local Storage (fast fallback) ──────────────────────────────────────────
-const LS_KEY = "dashboard-layout-v10" // v10: fixed overlap, curated defaults, maxW/maxH constraints
+const LS_KEY = "dashboard-layout-v11" // v11: 5 KPI cards (incoming/events/conversion/won/lost), taller h:3
 
 export function saveLayoutToLocal(layout: Layout | LayoutItem[]) {
   try {

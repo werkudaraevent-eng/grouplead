@@ -92,8 +92,8 @@ test.describe('Dashboard Full Audit', () => {
 
     // Extract KPI data
     const kpis = [
-      'Total Leads', 'Won Revenue', 'Deal Win Rate',
-      'Lead Conversion', 'Avg Deal Size'
+      'Incoming Lead', 'Lead Events', 'Lead Conversion',
+      'Won', 'Lost'
     ]
     console.log('=== KPI CARDS ===')
     for (const kpi of kpis) {
@@ -123,11 +123,11 @@ test.describe('Dashboard Full Audit', () => {
 
         // Get KPI values after filter change
         const bodyText = await page.locator('body').innerText()
-        const totalLeadsMatch = bodyText.match(/Total Leads\n(\d+)/)
-        const wonRevenueMatch = bodyText.match(/Won Revenue\n(Rp[\s\S]*?)(?:\n|▼|▲)/)
+        const incomingMatch = bodyText.match(/Incoming Lead\n(\d+)/)
+        const wonMatch = bodyText.match(/Won\n(Rp[\s\S]*?)(?:\n|▼|▲)/)
         console.log(`=== ${tab.toUpperCase()} ===`)
-        console.log(`Total Leads: ${totalLeadsMatch?.[1] || 'N/A'}`)
-        console.log(`Won Revenue: ${wonRevenueMatch?.[1]?.trim() || 'N/A'}`)
+        console.log(`Incoming Lead: ${incomingMatch?.[1] || 'N/A'}`)
+        console.log(`Won: ${wonMatch?.[1]?.trim() || 'N/A'}`)
       }
     }
   })

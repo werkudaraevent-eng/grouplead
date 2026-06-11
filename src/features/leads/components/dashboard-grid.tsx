@@ -127,13 +127,38 @@ export function DashboardGrid({
     // Merge saved layout with defaults: keep saved positions for widgets that
     // are still present, fill any missing widgets from the current defaults.
     // This lets us adopt new widgets without invalidating older saved layouts.
+    //
+    // Self-heal for changed KPI sets: KPI cards are tightly packed in row 0 and
+    // must share a consistent height. If the saved layout predates a KPI
+    // rename/resize (some new KPI ids missing, or stale ones lingering), a
+    // partial merge leaves a mix of old + new positions that overlap. So when
+    // the saved KPI ids don't exactly match the current default KPI ids, we
+    // reseed the entire KPI row from defaults. Non-KPI widgets keep their saved
+    // positions. Stale built-in ids (no longer in WIDGET_IDS) are dropped;
+    // custom widgets (`custom-*`) are always preserved.
     const mergeWithDefaults = useCallback((saved: LayoutItem[] | null | undefined): LayoutItem[] => {
         const defaults = getDefaultLayout()
         if (!saved || saved.length === 0) return [...defaults]
+
+        const isKpi = (id: string) => id.startsWith("kpi-")
+        const defaultKpiIds = defaults.filter(d => isKpi(d.i)).map(d => d.i).sort()
+        const savedKpiIds = saved.filter(s => isKpi(s.i)).map(s => s.i).sort()
+        const kpiSetMatches =
+            defaultKpiIds.length === savedKpiIds.length &&
+            defaultKpiIds.every((id, i) => id === savedKpiIds[i])
+
         const savedById = new Map(saved.map(item => [item.i, item]))
-        return defaults.map(def => savedById.get(def.i) ?? def).concat(
-            // Preserve any custom widget layouts (not in defaults) from saved.
-            saved.filter(item => !defaults.some(d => d.i === item.i)),
+
+        const merged = defaults.map(def => {
+            // Reseed all KPI cards from defaults when the set changed.
+            if (isKpi(def.i) && !kpiSetMatches) return def
+            return savedById.get(def.i) ?? def
+        })
+
+        // Preserve only custom widget layouts from saved. Anything else not in
+        // defaults is a stale built-in id from an older version — drop it.
+        return merged.concat(
+            saved.filter(item => item.i.startsWith("custom-") && !defaults.some(d => d.i === item.i)),
         )
     }, [])
 
@@ -167,7 +192,15 @@ export function DashboardGrid({
         if (!loaded || !initialLayout || initialLayout.length === 0) return
         setLayout(prev => {
             const prevIds = new Set(prev.map(item => item.i))
-            const additions = initialLayout.filter(item => !prevIds.has(item.i))
+            // Only adopt custom widgets or ids that still exist in the current
+            // defaults. This prevents stale built-in ids (dropped by
+            // mergeWithDefaults after a widget rename) from being re-added here
+            // straight from the raw saved layout.
+            const validDefaultIds = new Set(getDefaultLayout().map(d => d.i))
+            const additions = initialLayout.filter(item =>
+                !prevIds.has(item.i) &&
+                (item.i.startsWith("custom-") || validDefaultIds.has(item.i)),
+            )
             if (additions.length === 0) return prev
             return [...prev, ...additions]
         })
