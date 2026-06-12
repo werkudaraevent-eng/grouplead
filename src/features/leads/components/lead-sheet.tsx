@@ -392,7 +392,7 @@ export function LeadSheet({ lead, open, onOpenChange }: LeadSheetProps) {
                                                 {isClosedWon && (
                                                     <FormField control={form.control} name="actual_value" render={({ field }) => (
                                                         <FormItem>
-                                                            <FormLabel className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Actual Value (IDR)</FormLabel>
+                                                            <FormLabel className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Confirmed Value (IDR)</FormLabel>
                                                             <FormControl>
                                                                 <CurrencyInput
                                                                     ref={field.ref}

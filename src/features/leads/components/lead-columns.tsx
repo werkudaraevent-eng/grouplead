@@ -447,7 +447,7 @@ export function getColumns(
     {
         accessorKey: "actual_value",
         id: "actual_value",
-        header: ({ column }) => <SortableHeader column={column} label="Actual Value" align="right" />,
+        header: ({ column }) => <SortableHeader column={column} label="Confirmed Value" align="right" />,
         cell: ({ row }) => {
             const amount = parseFloat(row.getValue("actual_value"))
             return (

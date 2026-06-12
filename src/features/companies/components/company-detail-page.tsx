@@ -19,6 +19,7 @@ import type { ClientCompany, Contact } from "@/types"
 import { TimelineTab } from "./timeline-tab"
 import { AddCompanyModal } from "./add-company-modal"
 import { formatPhoneDisplay } from "@/lib/phone-normalize"
+import { InlineTextField, InlineSelectField } from "@/components/shared/inline-edit-field"
 // ═══════════════════════════════════════════════════════════════
 //  TYPES
 // ═══════════════════════════════════════════════════════════════
@@ -364,11 +365,11 @@ export function CompanyDetailPage({ company, leads, contactCount, lastModified, 
                             </h3>
                         </div>
                         <div className="px-5 py-4 space-y-3">
-                            <InfoRow icon={Briefcase} label="Sector" value={company.industry} />
-                            <InfoRow icon={Building2} label="Line Industry" value={company.line_industry} />
-                            <InfoRow icon={Phone} label="Phone" value={company.phone ? formatPhoneDisplay(company.phone) : null} />
-                            <InfoRow icon={Globe} label="Website" value={company.website || "—"} isLink={!!company.website} />
-                            <InfoRow icon={MapPin} label="Area" value={company.area} />
+                            <InlineSelectField table="client_companies" id={company.id} fieldPath="industry" icon={Briefcase} label="Sector" rawValue={company.industry} optionType="sector" />
+                            <InlineSelectField table="client_companies" id={company.id} fieldPath="line_industry" icon={Building2} label="Line Industry" rawValue={company.line_industry} optionType="line_industry" parentValue={company.industry} />
+                            <InlineTextField table="client_companies" id={company.id} fieldPath="phone" icon={Phone} label="Phone" rawValue={company.phone} displayValue={company.phone ? formatPhoneDisplay(company.phone) : null} inputType="phone" />
+                            <InlineTextField table="client_companies" id={company.id} fieldPath="website" icon={Globe} label="Website" rawValue={company.website} inputType="url" />
+                            <InlineSelectField table="client_companies" id={company.id} fieldPath="area" icon={MapPin} label="Area" rawValue={company.area} optionType="area" />
                             <InfoRow icon={MapPin} label="Address" value={[company.street_address, company.city, company.postal_code, company.country].filter(Boolean).join(", ") || company.address} />
                             {company.parent?.name && (
                                 <InfoRow icon={Building2} label="Parent Company" value={company.parent.name} />
@@ -388,7 +389,7 @@ export function CompanyDetailPage({ company, leads, contactCount, lastModified, 
                 <div className="flex-1 min-w-0 h-full flex flex-col overflow-y-auto custom-scrollbar relative">
                     <Tabs defaultValue="notes" className="flex flex-col h-fit pb-12 pr-2">
                         {/* Tab Bar */}
-                        <TabsList className="w-full justify-start rounded-none! bg-white! gap-0! p-0! h-auto! shrink-0 shadow-none! sticky top-0 z-30 border-b border-slate-200">
+                        <TabsList className="w-full justify-start rounded-lg! bg-white! gap-0! p-0! h-auto! shrink-0 shadow-none! sticky top-0 z-30 border border-slate-200/80 overflow-hidden">
                             <TabBtn value="notes" icon={FileText} label="Notes" />
                             <TabBtn value="timeline" icon={Clock} label="Timeline" />
                             <TabBtn value="leads" icon={Target} label={`Leads (${leads.length})`} />

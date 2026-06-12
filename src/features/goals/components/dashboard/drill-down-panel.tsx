@@ -74,7 +74,7 @@ export function DrillDownPanel({ label, filterType, filterValue, goalId, onClose
   }, [filterType, filterValue, goalId])
 
   const exportCSV = useCallback(() => {
-    const headers = ["ID", "Project", "Actual Value", "Estimated Value", "Company", "Sales Owner", "Stage"]
+    const headers = ["ID", "Project", "Confirmed Value", "Estimated Value", "Company", "Sales Owner", "Stage"]
     const csvRows = [
       headers.join(","),
       ...leads.map((l) =>

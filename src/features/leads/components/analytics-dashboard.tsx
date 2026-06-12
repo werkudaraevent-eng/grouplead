@@ -22,6 +22,7 @@ import {
 import { Briefcase, Trophy, RefreshCw, TrendingUp, Calendar, FileDown, Sparkles, MessageCircle, Loader2, MoreHorizontal, Info, XCircle } from "lucide-react"
 import { useCurrency } from "@/contexts/currency-context"
 import { MONTHS_SHORT, getVsLastYearPct } from "./dashboard-widgets/shared"
+import { formatRelativeTime, latestTimestamp } from "@/lib/relative-time"
 import { WIDGET_IDS } from "@/features/leads/lib/dashboard-layout"
 import { DashboardGrid } from "./dashboard-grid"
 import {
@@ -62,7 +63,7 @@ import { Tooltip } from "@/components/ui/tooltip"
 import type { CustomWidgetInput } from "@/types/custom-widget"
 import { createClient } from "@/utils/supabase/client"
 import { useCompany } from "@/contexts/company-context"
-import { resolveLeadField, resolveCompanyName } from "@/lib/resolve-lead-field"
+import { resolveLeadField, resolveCompanyName, resolveTopLevelCompanyName } from "@/lib/resolve-lead-field"
 import { useDashboardViews } from "@/features/leads/hooks/use-dashboard-views"
 import { DashboardViewSwitcher } from "./dashboard-view-switcher"
 import type { DashboardFiltersSnapshot } from "@/types/dashboard-view"
@@ -274,6 +275,12 @@ export function AnalyticsDashboard({
         }
         return result
     }, [leads, isHoldingView, companyFilter, activePipelineId])
+
+    // Data-freshness timestamp — the most recent change among the leads
+    // currently in view. Drives the "Updated x ago" subtitle. Computed from
+    // real `updated_at` data (never a faked value); when no leads have a
+    // usable timestamp the subtitle simply omits the "Updated" clause.
+    const lastUpdatedIso = useMemo(() => latestTimestamp(filteredLeads), [filteredLeads])
 
     // ── Prior-year pipeline leads (for cross-year YoY) ────────────────────────
     // The active pipeline models one fiscal year. Honest YoY pairs it with the
@@ -1053,16 +1060,29 @@ export function AnalyticsDashboard({
             .slice(0, 15)
     }, [periodLeads, userTargets, goalNodes, activeGoal, dashboardRange, currentYear, salesProfiles])
 
-    const topComps = useMemo(() => {
-        const comps: Record<string, number> = {}
+    // Top revenue generators, grouped two ways from the same won-deal set:
+    //   • topComps        — by the company directly on the lead (leaf/division)
+    //   • topCompsGrouped — rolled up to the top-level/parent company, so all
+    //                       divisions of one group (e.g. "Bank Indonesia KPw
+    //                       Jabar", "… Pusat") collapse into one "Bank
+    //                       Indonesia" row. The widget's Company/Group switcher
+    //                       picks which to show. Both reconcile to Won Revenue.
+    const { topComps, topCompsGrouped } = useMemo(() => {
+        const leaf: Record<string, number> = {}
+        const group: Record<string, number> = {}
         periodLeads.forEach(l => {
             const stage = (l.pipeline_stage?.name || "").toLowerCase()
             if (stage.includes("won")) {
-                const c = resolveCompanyName(l) || "Unknown Company"
-                comps[c] = (comps[c] || 0) + (l.actual_value ?? l.estimated_value ?? 0)
+                const rev = (l.actual_value ?? l.estimated_value ?? 0)
+                const leafName = resolveCompanyName(l) || "Unknown Company"
+                const groupName = resolveTopLevelCompanyName(l) || "Unknown Company"
+                leaf[leafName] = (leaf[leafName] || 0) + rev
+                group[groupName] = (group[groupName] || 0) + rev
             }
         })
-        return Object.entries(comps).map(([name, revenue]) => ({ name, revenue })).sort((a, b) => b.revenue - a.revenue)
+        const toSorted = (m: Record<string, number>) =>
+            Object.entries(m).map(([name, revenue]) => ({ name, revenue })).sort((a, b) => b.revenue - a.revenue)
+        return { topComps: toSorted(leaf), topCompsGrouped: toSorted(group) }
     }, [periodLeads])
 
     const sourceData = useMemo(() => {
@@ -1154,6 +1174,7 @@ export function AnalyticsDashboard({
             vsTarget: null,
             vsPrev: stats.incomingYoy,
             accent: "#3F4DC4",
+            accentBg: "#EEF1FE",
             icon: Briefcase,
             sparkline: sparklines.leads,
             supporting: [
@@ -1177,6 +1198,7 @@ export function AnalyticsDashboard({
             vsTarget: null,
             vsPrev: stats.eventsYoy,
             accent: "#2563EB",
+            accentBg: "#EFF6FF",
             icon: Calendar,
             sparkline: sparklines.leads,
             supporting: [
@@ -1201,6 +1223,7 @@ export function AnalyticsDashboard({
             vsTarget: goalMetrics.convTgt,
             vsPrev: stats.conversionYoy,
             accent: "#7C3AED",
+            accentBg: "#F5F3FF",
             icon: RefreshCw,
             sparkline: sparklines.conversion,
             supporting: [
@@ -1226,6 +1249,7 @@ export function AnalyticsDashboard({
             vsTarget: goalMetrics.revTgt,
             vsPrev: stats.wonYoy,
             accent: "#059669",
+            accentBg: "#ECFDF5",
             icon: Trophy,
             sparkline: sparklines.revenue,
             supporting: [
@@ -1250,6 +1274,7 @@ export function AnalyticsDashboard({
             vsPrev: stats.lostYoy,
             invertDelta: true,
             accent: "#DC2626",
+            accentBg: "#FEF2F2",
             icon: XCircle,
             sparkline: sparklines.revenue,
             supporting: [
@@ -1361,9 +1386,13 @@ export function AnalyticsDashboard({
                         transition: "height .25s cubic-bezier(0.23,1,0.32,1)",
                     }}
                 >
-                    {/* Title only — subtitle was marketing fluff. The h1
-                        ellipsizes if the toolbar grows wide on narrow
-                        viewports. */}
+                    {/* Title + data-freshness subtitle. The h1 ellipsizes if
+                        the toolbar grows wide on narrow viewports. The subtitle
+                        shows the active pipeline and a real "Updated x ago"
+                        (from the latest lead `updated_at`); it hides while the
+                        header is in its compact scrolled state to save height,
+                        and renders only after mount so the relative time never
+                        causes a hydration mismatch. */}
                     <div style={{ minWidth: 0, flexShrink: 1, overflow: "hidden" }}>
                         <h1 style={{
                             fontSize: scrolled ? 17 : 19, fontWeight: 700, color: "#1a2230",
@@ -1373,6 +1402,20 @@ export function AnalyticsDashboard({
                         }}>
                             Performance Dashboard
                         </h1>
+                        {hasMounted && !scrolled && (() => {
+                            const updated = formatRelativeTime(lastUpdatedIso)
+                            const parts = [activePipeline?.name, updated ? `Updated ${updated}` : null].filter(Boolean)
+                            if (parts.length === 0) return null
+                            return (
+                                <p style={{
+                                    fontSize: 12.5, color: "#9AA1B0", fontWeight: 500,
+                                    margin: "3px 0 0", lineHeight: 1.2,
+                                    whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+                                }}>
+                                    {parts.join(" · ")}
+                                </p>
+                            )
+                        })()}
                     </div>
 
                     <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
@@ -1637,7 +1680,7 @@ export function AnalyticsDashboard({
                         onPipelineChange={handlePipelineChange}
                     />
                     <SalesPerfWidget data={salesData} />
-                    <TopRevenueWidget data={topComps} />
+                    <TopRevenueWidget data={topComps} dataGrouped={topCompsGrouped} />
                     <LeadSourceWidget data={sourceData} />
                     <ClassificationWidget data={catGradeData} catToggle={catToggle} setCatToggle={setCatToggle} />
                     <StreamWidget data={streamData} streamToggle={streamToggle} setStreamToggle={setStreamToggle} />

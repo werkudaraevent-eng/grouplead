@@ -111,7 +111,7 @@ function FinancialCard({ lead }: { lead: Lead }) {
             <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Financials</h3>
             <div className="space-y-2">
                 <FinancialRow label="Estimated Value" value={lead.estimated_value} primary />
-                <FinancialRow label="Actual Value" value={lead.actual_value} primary />
+                <FinancialRow label="Confirmed Value" value={lead.actual_value} primary />
             </div>
         </div>
     )

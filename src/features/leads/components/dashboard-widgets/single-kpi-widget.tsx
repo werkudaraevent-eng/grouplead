@@ -20,7 +20,7 @@ function formatCompact(pct: number): string {
 function Sparkline({ data, color }: { data: number[]; color: string }) {
     const rawId = useId()
     const id = rawId.replace(/[^a-zA-Z0-9_-]/g, "")
-    const W = 52, H = 22, P = 2
+    const W = 68, H = 26, P = 2
     const max = Math.max(...data, 1)
     const min = Math.min(...data, 0)
     const range = max - min || 1
@@ -42,7 +42,7 @@ function Sparkline({ data, color }: { data: number[]; color: string }) {
         >
             <defs>
                 <linearGradient id={`spark-${id}`} x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0" stopColor={color} stopOpacity="0.16" />
+                    <stop offset="0" stopColor={color} stopOpacity="0.18" />
                     <stop offset="1" stopColor={color} stopOpacity="0" />
                 </linearGradient>
             </defs>
@@ -51,11 +51,11 @@ function Sparkline({ data, color }: { data: number[]; color: string }) {
                 points={line}
                 fill="none"
                 stroke={color}
-                strokeWidth="1.6"
+                strokeWidth="1.8"
                 strokeLinecap="round"
                 strokeLinejoin="round"
             />
-            <circle cx={last[0]} cy={last[1]} r="2" fill={color} />
+            <circle cx={last[0]} cy={last[1]} r="2.4" fill={color} />
         </svg>
     )
 }
@@ -68,6 +68,9 @@ export interface SingleKPIProps {
     vsTarget: number | null
     vsPrev: number | null
     accent: string
+    /** Exact icon-tile background hex from the reference palette (e.g.
+     *  "#EEF1FE"). Falls back to the accent at ~8% alpha when omitted. */
+    accentBg?: string
     icon: React.ComponentType<any>
     /** Optional sparkline data points (normalized 0-1 range or raw values) */
     sparkline?: number[]
@@ -97,11 +100,11 @@ function DeltaPill({ value, note, tone }: { value: number; note: string; tone: "
         <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
             <span
                 className={cn(
-                    "inline-flex items-center gap-[2px] rounded-full px-2 py-[3px]",
+                    "inline-flex items-center gap-[2px] rounded-[20px] px-2 py-[3px]",
                     "text-[11px] font-bold leading-none tabular-nums",
                     tone === "up" && "bg-[#ECFDF5] text-[#059669]",
                     tone === "down" && "bg-[#FEF2F2] text-[#DC2626]",
-                    tone === "flat" && "bg-[#F3F4F6] text-muted-foreground",
+                    tone === "flat" && "bg-[#F3F4F6] text-[#697080]",
                 )}
             >
                 {tone !== "flat" && (value >= 0 ? "↑" : "↓")}
@@ -112,7 +115,7 @@ function DeltaPill({ value, note, tone }: { value: number; note: string; tone: "
     )
 }
 
-export function SingleKPIWidget({ label, value, prefix = "", suffix = "", vsTarget, vsPrev, accent, icon: Icon, sparkline, basisLabel, basisInfo, supporting, invertDelta = false }: SingleKPIProps) {
+export function SingleKPIWidget({ label, value, prefix = "", suffix = "", vsTarget, vsPrev, accent, accentBg, icon: Icon, sparkline, basisLabel, basisInfo, supporting, invertDelta = false }: SingleKPIProps) {
     const hasWarning = !!basisLabel && /hidden|excluded|missing/i.test(basisLabel)
 
     // `invertDelta` flips the good/bad polarity for "up is worse" metrics
@@ -120,39 +123,49 @@ export function SingleKPIWidget({ label, value, prefix = "", suffix = "", vsTarg
     const isGood = (v: number) => (invertDelta ? v <= 0 : v >= 0)
     const tone = (v: number): "up" | "down" | "flat" => (v === 0 ? "flat" : isGood(v) ? "up" : "down")
 
+    // ONE chip in the value row (reference rule). Target is the primary
+    // comparison; if there's no target we fall back to the yoy figure.
+    const primaryDelta = vsTarget !== null
+        ? { value: vsTarget, note: "vs target" }
+        : vsPrev !== null
+            ? { value: vsPrev, note: "vs last year" }
+            : null
+
     // Footer is shown whenever there are supporting stats and/or a sparkline.
     const hasSpark = !!sparkline && sparkline.length >= 2
     const hasSupporting = !!supporting && supporting.length > 0
     const hasFooter = hasSupporting || hasSpark
 
+    const tileBg = accentBg ?? `${accent}14`
+
     return (
         <div
             className={cn(
-                "group relative bg-card rounded-[20px] min-w-0 overflow-hidden",
-                "p-[18px] flex flex-col",
-                "cursor-default h-full box-border border-0",
-                "shadow-[0_1px_3px_rgba(16,24,40,0.03),0_6px_20px_-8px_rgba(16,24,40,0.06)]",
-                "transition-all duration-200 ease-[cubic-bezier(0.23,1,0.32,1)]",
-                // Hover
-                "hover:shadow-[0_2px_6px_rgba(16,24,40,0.04),0_10px_28px_-10px_rgba(16,24,40,0.10)]",
-                "hover:-translate-y-[1px]",
+                "group relative bg-white rounded-[14px] min-w-0 overflow-hidden",
+                "px-[18px] pt-[18px] pb-[15px] flex flex-col",
+                "cursor-default h-full box-border border border-[#E7E9EE]",
+                "shadow-[0_1px_2px_rgba(16,20,28,0.05),0_1px_3px_rgba(16,20,28,0.04)]",
+                "transition-all duration-[220ms] ease-[cubic-bezier(0.23,1,0.32,1)]",
+                // Hover — exact reference shadow + lift
+                "hover:shadow-[0_8px_24px_rgba(16,20,28,0.08),0_2px_6px_rgba(16,20,28,0.05)]",
+                "hover:-translate-y-[2px]",
             )}
-            // Establish a container-query context so the hero value can scale
-            // with the card's own width (handles browser zoom / narrow grid
-            // columns) instead of wrapping to a second line.
+            // Container-query context so the hero value can shrink when the
+            // card itself gets narrow (heavy browser zoom narrows the grid
+            // columns while the row height stays fixed — without this the
+            // value stays 27px, the footer wraps, and the total overflows the
+            // fixed cell, clipping the bottom stats).
             style={{ containerType: "inline-size" }}
         >
-            {/* Header — icon (left) + label + info icon (appears on hover).
-                Icon tile is tinted with the card's own accent so each metric
-                reads at a glance (matches the reference's colored icons). */}
-            <div className="flex items-center gap-2.5 mb-3.5">
+            {/* Row 1 — header: 30×30 icon tile + label (12.5px/600) + hover info */}
+            <div className="flex items-center gap-[9px] mb-[15px]">
                 <div
-                    className="flex items-center justify-center w-[30px] h-[30px] rounded-[9px] shrink-0 transition-colors"
-                    style={{ backgroundColor: `${accent}14` }}
+                    className="flex items-center justify-center w-[30px] h-[30px] rounded-[8px] shrink-0"
+                    style={{ backgroundColor: tileBg }}
                 >
                     <Icon className="w-4 h-4" strokeWidth={1.9} style={{ color: accent }} />
                 </div>
-                <span className="flex-1 min-w-0 text-[12.5px] font-semibold text-muted-foreground truncate leading-tight">
+                <span className="flex-1 min-w-0 text-[12.5px] font-semibold text-[#697080] truncate leading-[1.2]">
                     {label}
                 </span>
                 {basisInfo && (
@@ -162,9 +175,9 @@ export function SingleKPIWidget({ label, value, prefix = "", suffix = "", vsTarg
                                 <button
                                     type="button"
                                     aria-label={`${label} — calculation details`}
-                                    className="shrink-0 inline-flex items-center justify-center text-slate-300 hover:text-slate-500 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity cursor-help"
+                                    className="shrink-0 inline-flex items-center justify-center text-[#9AA1B0] hover:text-[#697080] opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity cursor-help"
                                 >
-                                    <Info className="w-3.5 h-3.5" />
+                                    <Info className="w-[14px] h-[14px]" />
                                 </button>
                             </TooltipPrimitive.Trigger>
                             <TooltipPrimitive.Portal>
@@ -188,71 +201,66 @@ export function SingleKPIWidget({ label, value, prefix = "", suffix = "", vsTarg
                 )}
             </div>
 
-            {/* Middle zone — grows to fill leftover height and vertically
-                centers the hero value, so cards never show a dead gap between
-                the value and the footer regardless of how much content each
-                metric carries. */}
-            <div className="flex-1 flex flex-col justify-center min-w-0">
-                {/* Value row — hero number + inline delta pill. The hero font
-                    scales with the card width (cqw) and never wraps, so large
-                    currency values like "IDR 16.5B" stay on one line and shrink
-                    gracefully on zoom / narrow columns. */}
-                <div className="flex items-center gap-2 flex-wrap min-w-0">
-                    <span
-                        className="font-extrabold text-[#10141c] tracking-[-0.025em] leading-none tabular-nums min-w-0 whitespace-nowrap overflow-hidden text-ellipsis"
-                        style={{ fontSize: "clamp(19px, 8.5cqw, 28px)" }}
-                        title={`${prefix}${value}${suffix}`}
-                    >
-                        {prefix}{value}{suffix}
-                    </span>
-                    {vsTarget !== null && (
-                        <DeltaPill value={vsTarget} note="vs target" tone={tone(vsTarget)} />
-                    )}
-                    {vsTarget === null && vsPrev !== null && (
-                        <DeltaPill value={vsPrev} note="vs last year" tone={tone(vsPrev)} />
-                    )}
-                </div>
-
-                {/* Secondary delta — only when BOTH target and yoy exist; kept
-                    on a quiet second line so the value row stays uncluttered. */}
-                {vsTarget !== null && vsPrev !== null && (
-                    <div className="mt-1.5">
-                        <DeltaPill value={vsPrev} note="vs last year" tone={tone(vsPrev)} />
-                    </div>
-                )}
-
-                {/* Basis warning — when some leads are hidden because they lack
-                    the required date, surface it inline so the user knows the
-                    view is incomplete. The normal basis lives in the ⓘ tooltip. */}
-                {hasWarning && (
-                    <div className="mt-1.5 text-[9.5px] font-medium text-amber-600 truncate">
-                        {basisLabel}
-                    </div>
+            {/* Row 2 — value (27px/800) + ONE inline delta chip + chip note.
+                Font is 27px at normal width but scales down with the card via
+                cqw when heavy zoom narrows the column, so the value + wrapping
+                footer keep fitting inside the fixed-height cell. */}
+            <div className="flex items-center gap-2 flex-wrap min-w-0">
+                <span
+                    className="font-extrabold text-[#10141C] tracking-[-0.7px] leading-none tabular-nums min-w-0 whitespace-nowrap overflow-hidden text-ellipsis"
+                    style={{ fontSize: "clamp(17px, 12.5cqw, 27px)" }}
+                    title={`${prefix}${value}${suffix}`}
+                >
+                    {prefix}{value}{suffix}
+                </span>
+                {primaryDelta && (
+                    <DeltaPill value={primaryDelta.value} note={primaryDelta.note} tone={tone(primaryDelta.value)} />
                 )}
             </div>
 
-            {/* Footer — divider, then supporting stats (left) + sparkline
-                (right). Stats are inline flowing items: each "value label" pair
-                stays glued together (whitespace-nowrap) and the row wraps as a
-                whole, so on a narrow card the second stat drops to the line
-                below instead of getting truncated mid-word. The sparkline sits
-                right after with a small gap and auto-hides below 130px. */}
+            {/* Basis warning — only when data is excluded. Sits quietly under
+                the value; the normal date basis lives in the ⓘ tooltip. */}
+            {hasWarning && (
+                <div className="mt-1.5 text-[9.5px] font-medium text-amber-600 truncate">
+                    {basisLabel}
+                </div>
+            )}
+
+            {/* Row 3 — footer: ONE dotted stats line (left) + sparkline (right).
+                Pushed to the card bottom via mt-auto so all 5 cards share the
+                same footer baseline. The stats line does NOT truncate: like the
+                reference, it flows as inline text (line-height 1.6) and wraps to
+                2–3 rows when the card narrows (e.g. on zoom-in) so the numbers
+                stay readable instead of colliding with / hiding behind the
+                sparkline. Each value stays glued (whitespace-nowrap) so numbers
+                never break mid-figure; the sparkline is shrink-0 on the right. */}
             {hasFooter && (
-                <div className="shrink-0 mt-3 pt-3 border-t border-[#F1F2F5] flex items-center gap-2.5">
+                <div className="mt-auto pt-3 border-t border-[#F1F2F5] flex items-end justify-between gap-3">
                     {hasSupporting ? (
-                        <div className="flex-1 min-w-0 flex flex-wrap gap-x-3 gap-y-0.5 leading-[1.35] tabular-nums">
-                            {supporting!.map((s) => (
-                                <span key={s.label} className="inline">
-                                    <span className="text-[11px] font-bold text-[#10141c] whitespace-nowrap">{s.value}</span>{" "}
-                                    <span className="text-[9.5px] font-normal text-muted-foreground capitalize tracking-[0.01em]">{s.label}</span>
+                        <div className="flex-1 min-w-0 text-[11.5px] leading-[1.6] text-[#697080] tabular-nums">
+                            {supporting!.map((s, i) => (
+                                <span key={s.label}>
+                                    {i > 0 && (
+                                        <span className="inline-block w-[3px] h-[3px] rounded-full bg-[#C9CDD6] mx-[6px] align-middle" />
+                                    )}
+                                    <span className="font-bold text-[#10141C] whitespace-nowrap">{s.value}</span>{" "}
+                                    <span className="font-normal">{s.label}</span>
                                 </span>
                             ))}
                         </div>
                     ) : (
                         <span className="flex-1 min-w-0" />
                     )}
+                    {/* Sparkline lives in its own non-shrinking column. The flex
+                        `gap-3` is a hard minimum gap that the text can never
+                        cross (both are flex items, the spark is shrink-0). When
+                        the card gets too narrow to host both — heavy browser
+                        zoom — the spark column collapses (container query
+                        `@[170px]`) so the stats reclaim the full width, wrap
+                        across fewer lines, and stop overflowing the fixed cell.
+                        Result: at any zoom the text and spark never collide. */}
                     {hasSpark && (
-                        <div className="hidden @[130px]:block shrink-0">
+                        <div className="hidden @[170px]:block shrink-0">
                             <Sparkline data={sparkline!} color={accent} />
                         </div>
                     )}

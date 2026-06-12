@@ -19,6 +19,7 @@ import { ContactTimelineTab } from "./contact-timeline-tab"
 import { AddContactModal } from "./add-contact-modal"
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select"
 import { formatPhoneDisplay } from "@/lib/phone-normalize"
+import { InlineTextField } from "@/components/shared/inline-edit-field"
 
 // ═══════════════════════════════════════════════════════════════
 //  TYPES
@@ -374,12 +375,12 @@ export function ContactDetailPage({ contact, leads, lastModified, lastModifiedBy
                             </h3>
                         </div>
                         <div className="px-5 py-4 space-y-3">
-                            <InfoRow icon={Briefcase} label="Job Title" value={contact.job_title} />
+                            <InlineTextField table="contacts" id={contact.id} fieldPath="job_title" icon={Briefcase} label="Job Title" rawValue={contact.job_title} />
 
-                            <InfoRow icon={Mail} label="Email" value={contact.email} isEmail />
+                            <InlineTextField table="contacts" id={contact.id} fieldPath="email" icon={Mail} label="Email" rawValue={contact.email} inputType="text" />
                             <InfoRow icon={Mail} label="Secondary Email(s)" value={[contact.secondary_email, ...(contact.secondary_emails || [])].filter(Boolean).join("\n")} isEmail />
                             
-                            <InfoRow icon={Phone} label="Phone" value={contact.phone ? formatPhoneDisplay(contact.phone) : null} isPhone phoneRaw={contact.phone} />
+                            <InlineTextField table="contacts" id={contact.id} fieldPath="phone" icon={Phone} label="Phone" rawValue={contact.phone} displayValue={contact.phone ? formatPhoneDisplay(contact.phone) : null} inputType="phone" />
                             <InfoRow icon={Phone} label="Secondary Phone(s)" value={[contact.secondary_phone, ...(contact.secondary_phones || [])].filter(Boolean).map(p => formatPhoneDisplay(p as string)).join("\n")} isPhone phoneRaw={[contact.secondary_phone, ...(contact.secondary_phones || [])].filter(Boolean).join("\n")} />
                             
                             <InfoRow icon={CalendarDays} label="Date of Birth" value={fmtDate(contact.date_of_birth)} />
@@ -425,7 +426,7 @@ export function ContactDetailPage({ contact, leads, lastModified, lastModifiedBy
                 <div className="flex-1 min-w-0 h-full flex flex-col overflow-y-auto custom-scrollbar relative">
                     <Tabs defaultValue="notes" className="flex flex-col h-fit pb-12 pr-2">
                         {/* Tab Bar */}
-                        <TabsList className="w-full justify-start rounded-none! bg-white! gap-0! p-0! h-auto! shrink-0 shadow-none! sticky top-0 z-30 border-b border-slate-200">
+                        <TabsList className="w-full justify-start rounded-lg! bg-white! gap-0! p-0! h-auto! shrink-0 shadow-none! sticky top-0 z-30 border border-slate-200/80 overflow-hidden">
                             <TabBtn value="notes" icon={FileText} label="Notes" />
                             <TabBtn value="timeline" icon={Clock} label="Timeline" />
                             <TabBtn value="leads" icon={Target} label={`Leads (${leads.length})`} />

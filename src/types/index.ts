@@ -131,7 +131,7 @@ export interface Lead {
 
     // Joined relations
     company?: { id?: string; name: string } | null;
-    client_company?: { id?: string; name: string; line_industry?: string | null; area?: string | null; account_status?: string | null; industry?: string | null } | null;
+    client_company?: { id?: string; name: string; line_industry?: string | null; area?: string | null; account_status?: string | null; industry?: string | null; parent_id?: string | null; parent?: { id: string; name: string } | null } | null;
     contact?: { id?: string; salutation: string | null; full_name: string; email: string | null; phone: string | null } | null;
     pipeline_stage?: {
         id?: string

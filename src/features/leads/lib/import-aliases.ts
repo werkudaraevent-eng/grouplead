@@ -132,7 +132,7 @@ export const FIELD_ALIASES: FieldAliasMap = {
     ],
     actual_value: [
         "actual value", "actual revenue", "revenue", "nilai aktual",
-        "materialized", "nominal konfirmasi",
+        "materialized", "nominal konfirmasi", "confirmed value", "confirmed value (revenue)",
     ],
     closed_won_date: [
         "closed won date", "won date", "date won", "tanggal won",

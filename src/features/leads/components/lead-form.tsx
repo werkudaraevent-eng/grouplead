@@ -1017,13 +1017,15 @@ export function LeadForm({ onSuccess, onClose, pipelineId, defaultStageId, initi
                                                     )
                                                 case "native:target_close_date":
                                                     return (
-                                                        <div key={fieldId} className="sm:col-span-2 grid grid-cols-1 sm:grid-cols-3 gap-3 [&>*]:min-w-0">
-                                                            <TextField control={form.control} name="target_close_date" label="Target close date" required={isFieldMandatory(fieldId)} type="date" />
+                                                        <div key={fieldId} className="sm:col-span-2 space-y-3 [&>*]:min-w-0">
+                                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 [&>*]:min-w-0">
+                                                                <TextField control={form.control} name="target_close_date" label="Target close date" required={isFieldMandatory(fieldId)} type="date" />
+                                                            </div>
                                                             {initialData && (
-                                                                <>
+                                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 [&>*]:min-w-0">
                                                                     <TextField control={form.control} name="closed_won_date" label="Closed won date" type="date" />
                                                                     <TextField control={form.control} name="closed_lost_date" label="Closed lost date" type="date" />
-                                                                </>
+                                                                </div>
                                                             )}
                                                         </div>
                                                     )

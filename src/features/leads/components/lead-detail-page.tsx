@@ -27,6 +27,7 @@ import { NotesTab } from "@/features/leads/components/notes-tab"
 import { TimelineTab } from "@/features/leads/components/timeline-tab"
 import { StageHistoryTab } from "@/features/leads/components/stage-history-tab"
 import { HeaderMetricPopover } from "@/features/leads/components/header-metric-popover"
+import { InlineSelectPopover } from "@/features/leads/components/inline-select-popover"
 import { HeaderAssigneePopover } from "@/features/leads/components/header-assignee-popover"
 import { TasksTab } from "@/features/leads/components/tasks-tab"
 import { FilesTab } from "@/features/leads/components/files-tab"
@@ -467,7 +468,7 @@ export function LeadDetailPage({ lead, prevLeadId, nextLeadId, lastModifiedBy = 
                                 <button
                                     onClick={() => setEditOpen(true)}
                                     className="text-slate-400 hover:text-slate-600 transition-colors"
-                                    title="Edit deal info"
+                                    title="Edit all fields"
                                 >
                                     <Pencil className="h-3.5 w-3.5" />
                                 </button>
@@ -484,21 +485,76 @@ export function LeadDetailPage({ lead, prevLeadId, nextLeadId, lastModifiedBy = 
                                     </span>
                                 </div>
                             )}
-                            <KVRow icon={Wallet} label="Estimated Value" value={fmtCurrency(lead.estimated_value)} />
-                            <KVRow icon={CalendarDays} label="Target Close" value={fmtDate(lead.target_close_date)} />
+                            <EditableRow icon={Wallet} label="Estimated Value" readOnly={fmtCurrency(lead.estimated_value)}>
+                                <HeaderMetricPopover
+                                    leadId={lead.id}
+                                    fieldPath="estimated_value"
+                                    label="Estimated Value"
+                                    displayValue={lead.estimated_value != null ? fmtCurrency(lead.estimated_value) : "Set value"}
+                                    inputType="number"
+                                    rawValue={lead.estimated_value}
+                                    triggerClassName="flex-row-reverse text-[12px] font-medium text-[#292D30] hover:text-blue-600"
+                                />
+                            </EditableRow>
+                            {/* Actual Value — the booked revenue. Only relevant
+                                once the deal is Won (closed_won_date set); a lead
+                                still in the pipeline has no "actual" yet, so we
+                                hide the row entirely to keep open leads clean. */}
+                            {lead.closed_won_date && (
+                                <EditableRow icon={Wallet} label="Confirmed Value" readOnly={lead.actual_value != null ? fmtCurrency(lead.actual_value) : "—"}>
+                                    <HeaderMetricPopover
+                                        leadId={lead.id}
+                                        fieldPath="actual_value"
+                                        label="Confirmed Value"
+                                        displayValue={lead.actual_value != null ? fmtCurrency(lead.actual_value) : "Set value"}
+                                        inputType="number"
+                                        rawValue={lead.actual_value}
+                                        triggerClassName="flex-row-reverse text-[12px] font-medium text-[#292D30] hover:text-blue-600"
+                                    />
+                                </EditableRow>
+                            )}
+                            <EditableRow icon={CalendarDays} label="Target Close" readOnly={fmtDate(lead.target_close_date)}>
+                                <HeaderMetricPopover
+                                    leadId={lead.id}
+                                    fieldPath="target_close_date"
+                                    label="Target Close"
+                                    displayValue={fmtDate(lead.target_close_date)}
+                                    inputType="date"
+                                    rawValue={lead.target_close_date}
+                                    triggerClassName="flex-row-reverse text-[12px] font-medium text-[#292D30] hover:text-blue-600"
+                                />
+                            </EditableRow>
+                            {/* Closed Won / Lost are system-set on stage transition
+                                and the won date drives the revenue-recognition month
+                                on the dashboard — kept read-only here; change them by
+                                moving the stage in the Action Center. */}
                             {lead.closed_won_date && (
                                 <KVRow icon={CheckSquare} label="Closed Won" value={fmtDateTime(lead.closed_won_date)} highlight />
                             )}
                             {lead.closed_lost_date && (
                                 <KVRow icon={ThumbsDown} label="Closed Lost" value={fmtDateTime(lead.closed_lost_date)} />
                             )}
-                            <KVRow icon={MapPin} label="Lead Source" value={lead.lead_source} />
-                            <KVRow icon={Tags} label="Category" value={lead.category} highlight />
-                            <KVRow icon={Layers} label="Main Stream" value={lead.main_stream} />
-                            <KVRow icon={GitMerge} label="Stream Type" value={lead.stream_type} />
-                            <KVRow icon={Target} label="Business Purpose" value={lead.business_purpose} />
-                            <KVRow icon={Globe} label="Event Format" value={lead.event_format} />
-                            <KVRow icon={Briefcase} label="Grade" value={lead.grade_lead} />
+                            <EditableRow icon={MapPin} label="Lead Source" readOnly={lead.lead_source}>
+                                <InlineSelectPopover leadId={lead.id} fieldPath="lead_source" optionType="lead_source" label="Lead Source" rawValue={lead.lead_source} />
+                            </EditableRow>
+                            <EditableRow icon={Tags} label="Category" readOnly={lead.category}>
+                                <InlineSelectPopover leadId={lead.id} fieldPath="category" optionType="category" label="Category" rawValue={lead.category} />
+                            </EditableRow>
+                            <EditableRow icon={Layers} label="Main Stream" readOnly={lead.main_stream}>
+                                <InlineSelectPopover leadId={lead.id} fieldPath="main_stream" optionType="main_stream" label="Main Stream" rawValue={lead.main_stream} />
+                            </EditableRow>
+                            <EditableRow icon={GitMerge} label="Stream Type" readOnly={lead.stream_type}>
+                                <InlineSelectPopover leadId={lead.id} fieldPath="stream_type" optionType="stream_type" label="Stream Type" rawValue={lead.stream_type} />
+                            </EditableRow>
+                            <EditableRow icon={Target} label="Business Purpose" readOnly={lead.business_purpose}>
+                                <InlineSelectPopover leadId={lead.id} fieldPath="business_purpose" optionType="business_purpose" label="Business Purpose" rawValue={lead.business_purpose} />
+                            </EditableRow>
+                            <EditableRow icon={Globe} label="Event Format" readOnly={lead.event_format}>
+                                <InlineSelectPopover leadId={lead.id} fieldPath="event_format" optionType="event_format" label="Event Format" rawValue={lead.event_format} />
+                            </EditableRow>
+                            <EditableRow icon={Briefcase} label="Grade" readOnly={lead.grade_lead}>
+                                <InlineSelectPopover leadId={lead.id} fieldPath="grade_lead" optionType="grade_lead" label="Grade" rawValue={lead.grade_lead} />
+                            </EditableRow>
                         </div>
                     </div>
 
@@ -592,7 +648,7 @@ export function LeadDetailPage({ lead, prevLeadId, nextLeadId, lastModifiedBy = 
                             <div className="p-5 flex flex-col gap-3.5">
                                 <KVRow icon={CalendarDays} label="Start Date" value={fmtDate(lead.event_date_start)} />
                                 <KVRow icon={CalendarDays} label="End Date" value={fmtDate(lead.event_date_end)} />
-                                {lead.pax_count && <KVRow icon={User} label="Pax Count" value={lead.pax_count.toString()} />}
+                                {lead.pax_count ? <KVRow icon={User} label="Pax Count" value={lead.pax_count.toString()} /> : null}
                                 {lead.destinations && lead.destinations.length > 0 && (
                                     <div className="flex flex-col gap-1">
                                         <span className="text-[12px] text-slate-400 flex items-center gap-1.5">
@@ -812,6 +868,47 @@ function KVRow({
                     {value || "—"}
                 </span>
             )}
+        </div>
+    )
+}
+
+/**
+ * EditableRow — a Deal Information row that is inline-editable for users with
+ * `leads:update`, and a plain read-only KVRow for everyone else.
+ *
+ * The whole row gets a subtle hover background so it reads as interactive, and
+ * the inline editor (`children`) reveals a faint pencil on hover — the shared
+ * affordance that tells the user "click to edit". Non-editors never see the
+ * hover/pencil, so the same row degrades cleanly to read-only.
+ */
+function EditableRow({
+    icon: Icon,
+    label,
+    readOnly,
+    children,
+}: {
+    icon: typeof Building2
+    label: string
+    /** Display value used for the read-only (no-permission) fallback. */
+    readOnly: string | null | undefined
+    children: React.ReactNode
+}) {
+    return (
+        <div className="group/row flex items-center justify-between gap-3 rounded -mx-1.5 px-1.5 py-0.5 transition-colors hover:bg-slate-50">
+            <span className="text-[11px] text-slate-400 flex items-center gap-1.5 shrink-0">
+                <Icon className="h-3 w-3 text-slate-300" /> {label}
+            </span>
+            <PermissionGate
+                resource="leads"
+                action="update"
+                fallback={
+                    <span className={`text-[12px] font-medium text-right truncate ${readOnly && readOnly !== '—' ? 'text-[#292D30]' : 'text-slate-300'}`}>
+                        {readOnly || "—"}
+                    </span>
+                }
+            >
+                {children}
+            </PermissionGate>
         </div>
     )
 }

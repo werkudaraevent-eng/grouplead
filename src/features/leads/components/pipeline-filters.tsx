@@ -198,7 +198,7 @@ const FILTER_FIELDS: FilterFieldConfig[] = [
     },
     {
         key: 'actual_value',
-        label: 'Actual Value',
+        label: 'Confirmed Value',
         icon: DollarSign,
         type: 'number',
     },

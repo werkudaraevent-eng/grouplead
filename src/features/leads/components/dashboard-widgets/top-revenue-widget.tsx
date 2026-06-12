@@ -10,8 +10,12 @@ interface TopCompany {
 }
 
 interface TopRevenueWidgetProps {
-    /** ALL won-revenue companies for the period, pre-sorted descending. */
+    /** ALL won-revenue companies for the period, grouped by the leaf company
+     *  directly on each lead, pre-sorted descending. */
     data: TopCompany[]
+    /** Same set rolled up to the top-level / parent (group) company. When
+     *  omitted, the Company/Group switcher is hidden and only `data` shows. */
+    dataGrouped?: TopCompany[]
 }
 
 // How many leaderboard rows the user can choose to see. "All" still caps the
@@ -21,19 +25,31 @@ type ShowMode = "top10" | "top20" | "all"
 const SHOW_LIMIT: Record<ShowMode, number> = { top10: 10, top20: 20, all: 50 }
 const SHOW_LABELS: Record<ShowMode, string> = { top10: "Top 10", top20: "Top 20", all: "All" }
 
-export function TopRevenueWidget({ data }: TopRevenueWidgetProps) {
+// Which company level the leaderboard groups by. "group" rolls divisions up to
+// their parent/holding company; "company" shows each leaf company as-is.
+type GroupMode = "company" | "group"
+const GROUP_LABELS: Record<GroupMode, string> = { company: "Company", group: "Group" }
+
+export function TopRevenueWidget({ data, dataGrouped }: TopRevenueWidgetProps) {
     const { fmtAxis } = useCurrency()
     const [showMode, setShowMode] = useState<ShowMode>("top10")
+    const [groupMode, setGroupMode] = useState<GroupMode>("company")
 
-    // Totals are ALWAYS computed across every company so "Total Won" and the
-    // per-row % are honest and reconcile with the Won Revenue KPI — never
-    // relative to just the visible slice.
-    const totalRevenue = data.reduce((s, c) => s + c.revenue, 0)
-    const maxRevenue = data.length > 0 ? data[0].revenue : 1
+    // Grouping is only offered when a rolled-up set is supplied AND it actually
+    // differs from the leaf set (i.e. at least one parent exists). Otherwise the
+    // switcher would be a no-op, so we hide it.
+    const canGroup = !!dataGrouped && dataGrouped.length !== data.length
+    const data_ = canGroup && groupMode === "group" ? dataGrouped! : data
+
+    // Totals are ALWAYS computed across every row of the selected view so
+    // "Total Won" and the per-row % are honest and reconcile with the Won
+    // Revenue KPI — never relative to just the visible slice.
+    const totalRevenue = data_.reduce((s, c) => s + c.revenue, 0)
+    const maxRevenue = data_.length > 0 ? data_[0].revenue : 1
 
     const limit = SHOW_LIMIT[showMode]
-    const visible = data.slice(0, limit)
-    const hidden = data.slice(limit)
+    const visible = data_.slice(0, limit)
+    const hidden = data_.slice(limit)
     const hiddenCount = hidden.length
     const hiddenRevenue = hidden.reduce((s, c) => s + c.revenue, 0)
     const hiddenShare = totalRevenue > 0 ? (hiddenRevenue / totalRevenue) * 100 : 0
@@ -43,10 +59,22 @@ export function TopRevenueWidget({ data }: TopRevenueWidgetProps) {
             <div className="flex items-start justify-between mb-1 gap-2">
                 <div className="min-w-0">
                     <SectionTitle>Top Revenue Generators</SectionTitle>
-                    <SectionSub>Client companies by contribution</SectionSub>
+                    <SectionSub>{groupMode === "group" ? "By parent / group company" : "Client companies by contribution"}</SectionSub>
                 </div>
                 <div className="flex items-end gap-2.5 shrink-0">
-                    {data.length > 10 && (
+                    {canGroup && (
+                        <MiniSelect
+                            label="Level"
+                            value={groupMode}
+                            onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setGroupMode(e.target.value as GroupMode)}
+                            className="text-[10px]"
+                        >
+                            {(Object.keys(GROUP_LABELS) as GroupMode[]).map(mode => (
+                                <option key={mode} value={mode}>{GROUP_LABELS[mode]}</option>
+                            ))}
+                        </MiniSelect>
+                    )}
+                    {data_.length > 10 && (
                         <MiniSelect
                             label="Show"
                             value={showMode}

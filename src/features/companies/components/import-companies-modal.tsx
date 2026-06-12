@@ -61,6 +61,7 @@ import { parseAddress } from "@/lib/address-parser"
 // ── System fields for Companies ──
 const SYSTEM_FIELDS = [
     { key: "name", label: "Company Name", required: true, group: "Core Details", example: "PT Contoh Sukses" },
+    { key: "parent_company", label: "Parent Company", required: false, group: "Core Details", example: "PT Induk Holding" },
     { key: "industry", label: "Sector (Industry)", required: false, group: "Core Details", example: "Technology" },
     { key: "line_industry", label: "Line Industry", required: false, group: "Core Details", example: "Software Development" },
     { key: "phone", label: "Phone", required: false, group: "Contact", example: "+62811223344" },
@@ -131,7 +132,8 @@ export function ImportCompaniesModal({ open, onOpenChange, onSuccess }: ImportCo
             let found = rawHeaders.find((h) => h === field.label)
             if (!found) found = rawHeaders.find((h) => h.toLowerCase() === field.label.toLowerCase())
             if (!found) found = rawHeaders.find((h) => h.toLowerCase() === field.key.toLowerCase())
-            if (!found && field.key === "name") found = rawHeaders.find((h) => /company|organization|name/i.test(h))
+            if (!found && field.key === "name") found = rawHeaders.find((h) => /^(company|organization|name)/i.test(h) && !/parent|induk|holding/i.test(h))
+            if (!found && field.key === "parent_company") found = rawHeaders.find((h) => /parent|induk|holding/i.test(h))
             if (!found && field.key === "street_address") found = rawHeaders.find((h) => /address|alamat|street/i.test(h))
             if (!found && field.key === "industry") found = rawHeaders.find((h) => /industry|sector|sektor/i.test(h))
             if (found) mapping[field.key] = found
@@ -238,11 +240,15 @@ export function ImportCompaniesModal({ open, onOpenChange, onSuccess }: ImportCo
             for (let i = 0; i < parsedData.length; i++) {
                 const row = parsedData[i]
                 const payload: any = {}
+                let parentCompanyName = ""
                 for (const [fieldKey, excelHeader] of Object.entries(columnMapping)) {
                     let val = row[excelHeader]?.trim()
                     if (val) {
                         val = formatValue(fieldKey, val)
-                        if (fieldKey === "phone") {
+                        if (fieldKey === "parent_company") {
+                            // Not a real column — resolved to parent_id below.
+                            parentCompanyName = val
+                        } else if (fieldKey === "phone") {
                             payload[fieldKey] = normalizePhoneToE164(val) ?? val
                         } else {
                             payload[fieldKey] = val
@@ -251,6 +257,26 @@ export function ImportCompaniesModal({ open, onOpenChange, onSuccess }: ImportCo
                 }
 
                 if (userId) payload.owner_id = userId
+
+                // Resolve parent company name → parent_id (find existing or create it).
+                if (parentCompanyName) {
+                    const { data: parent } = await supabase
+                        .from("client_companies")
+                        .select("id")
+                        .ilike("name", parentCompanyName)
+                        .limit(1)
+                        .maybeSingle()
+                    if (parent) {
+                        payload.parent_id = parent.id
+                    } else {
+                        const { data: newParent } = await supabase
+                            .from("client_companies")
+                            .insert({ name: parentCompanyName, owner_id: userId })
+                            .select("id")
+                            .single()
+                        if (newParent) payload.parent_id = newParent.id
+                    }
+                }
 
                 // Smartly parse the street_address into city and postal_code if they are missing
                 if (payload.street_address) {

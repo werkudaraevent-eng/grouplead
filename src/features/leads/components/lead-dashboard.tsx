@@ -386,7 +386,7 @@ export function LeadDashboard() {
             'No', 'Manual ID', 'Subsidiary', 'Client', 'Contact Person', 'Project', 'Category',
             'Stream', 'Stream Type', 'Format', 'Stage', 'Grade', 'PIC Sales', 'Account Manager',
             'Lead Source', 'Referral Source', 'Business Purpose', 'Target Close Date',
-            'Event Dates', 'Pax Count', 'Destinations', 'Estimated Value', 'Actual Value',
+            'Event Dates', 'Pax Count', 'Destinations', 'Estimated Value', 'Confirmed Value',
         ]
         const csvRows = rows.map((lead, i) => [
             i + 1,

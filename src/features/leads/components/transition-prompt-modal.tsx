@@ -184,6 +184,13 @@ export function TransitionPromptModal({ prompt, onClose, onSuccess }: Transition
                 }
             }
 
+            // When closing a deal as WON, the amount entered is the confirmed
+            // (actual) value — mirror it into actual_value so won-revenue and
+            // goal attainment (which read actual_value only) count it.
+            if (destinationMeta?.closedStatus === "won" && payload.estimated_value !== undefined && payload.estimated_value !== "") {
+                payload.actual_value = payload.estimated_value
+            }
+
             // 2. Update the lead with the new form data
             if (Object.keys(payload).length > 0) {
                 const { error: updateErr } = await supabase
@@ -255,6 +262,7 @@ export function TransitionPromptModal({ prompt, onClose, onSuccess }: Transition
                                 onChange={setCloseDate}
                                 placeholder="Pick a date"
                                 clearable={false}
+                                className="bg-white"
                             />
                         </div>
                     )}
@@ -263,7 +271,9 @@ export function TransitionPromptModal({ prompt, onClose, onSuccess }: Transition
                         <div className="space-y-4">
                             <h4 className="text-sm font-medium border-b pb-1 text-slate-700">Required Information</h4>
                             {prompt.rule.required_fields.map((field) => {
-                                const label = FIELD_LABELS[`native:${field}`] || field.replace(/_/g, " ")
+                                const label = field === "estimated_value" && destinationMeta?.stageType === "closed"
+                                    ? "Confirmed Value"
+                                    : FIELD_LABELS[`native:${field}`] || field.replace(/_/g, " ")
                                 const optionType = DROPDOWN_FIELDS[field]
                                 const options = optionType ? masterOptions[optionType] || [] : []
                                 const isDropdown = !!optionType && options.length > 0
@@ -277,15 +287,17 @@ export function TransitionPromptModal({ prompt, onClose, onSuccess }: Transition
                                                 value={formData[field]}
                                                 onChange={(val) => setFormData({ ...formData, [field]: val })}
                                                 prefix="Rp"
+                                                className="bg-white"
                                             />
                                         ) : field === "event_dates" ? (
                                             <MultiDatePicker
                                                 value={formData[field] || []}
                                                 onChange={(val) => setFormData({ ...formData, [field]: val })}
+                                                className="bg-white"
                                             />
                                         ) : isDropdown ? (
                                             <Select value={formData[field] || ""} onValueChange={(val) => setFormData({ ...formData, [field]: val })}>
-                                                <SelectTrigger>
+                                                <SelectTrigger className="bg-white">
                                                     <SelectValue placeholder={`Select ${label.toLowerCase()}...`} />
                                                 </SelectTrigger>
                                                 <SelectContent>
@@ -300,12 +312,14 @@ export function TransitionPromptModal({ prompt, onClose, onSuccess }: Transition
                                                 onChange={(e) => setFormData({ ...formData, [field]: e.target.value })}
                                                 placeholder={`Enter ${label.toLowerCase()}...`}
                                                 rows={3}
+                                                className="bg-white"
                                             />
                                         ) : (
                                             <Input
                                                 value={formData[field] || ""}
                                                 onChange={(e) => setFormData({ ...formData, [field]: e.target.value })}
                                                 placeholder={`Enter ${label.toLowerCase()}`}
+                                                className="bg-white"
                                             />
                                         )}
                                     </div>

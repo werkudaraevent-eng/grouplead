@@ -87,7 +87,7 @@ const SYSTEM_FIELDS = [
 // lead was originally received, not the day the row is being imported.
 const HISTORICAL_FIELDS = [
     { key: "received_date", label: "Received Date", required: true, group: "Historical", example: "2024-03-15" },
-    { key: "actual_value", label: "Actual Value (Revenue)", required: false, group: "Historical", example: "175000000" },
+    { key: "actual_value", label: "Confirmed Value (Revenue)", required: false, group: "Historical", example: "175000000" },
 ]
 
 type ParsedRow = Record<string, string>
@@ -265,7 +265,7 @@ export function ImportLeadsModal({ open, onOpenChange, pipelineId, onSuccess }: 
                 ["Tips:"],
                 ["  \u2022 Use ISO format YYYY-MM-DD (e.g. 2024-03-15) for safety,"],
                 ["    or any date Excel recognises."],
-                ["  \u2022 Leave Actual Value blank for leads that didn't close Won."],
+                ["  \u2022 Leave Confirmed Value blank for leads that didn't close Won."],
                 ["  \u2022 If a lead is already in the system from a regular import,"],
                 ["    delete it first \u2014 re-importing as historical does NOT"],
                 ["    update existing rows."],

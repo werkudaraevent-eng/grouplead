@@ -38,9 +38,10 @@ function formatSummary(keys: string[]) {
 interface MultiDatePickerProps {
     value?: string[]
     onChange?: (dates: string[]) => void
+    className?: string
 }
 
-export function MultiDatePicker({ value = [], onChange }: MultiDatePickerProps) {
+export function MultiDatePicker({ value = [], onChange, className }: MultiDatePickerProps) {
     const today = new Date()
     const [viewYear, setViewYear] = useState(today.getFullYear())
     const [viewMonth, setViewMonth] = useState(today.getMonth())
@@ -110,7 +111,8 @@ export function MultiDatePicker({ value = [], onChange }: MultiDatePickerProps) 
                     <div
                         className={cn(
                             "min-h-9 flex flex-wrap items-center gap-1.5 px-3 py-1.5 border rounded-md cursor-pointer transition-all",
-                            calOpen ? "border-primary shadow-[0_0_0_2px_rgba(var(--primary),0.1)] bg-white" : "border-input bg-background hover:bg-accent/50"
+                            calOpen ? "border-primary shadow-[0_0_0_2px_rgba(var(--primary),0.1)] bg-white" : "border-input bg-background hover:bg-accent/50",
+                            className,
                         )}
                         onClick={(e) => {
                             // Don't toggle if clicking on a remove button (which calls stopPropagation)

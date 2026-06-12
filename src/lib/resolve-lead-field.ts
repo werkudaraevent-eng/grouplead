@@ -67,3 +67,24 @@ export function resolveCompanyName(lead: Lead): string | null {
   // For now, return null — can be expanded when contact join is enriched
   return null
 }
+
+/**
+ * Resolves the TOP-LEVEL (group / holding) company name for a lead.
+ *
+ * Client companies form a one-level "Holding → Division" hierarchy via
+ * `client_companies.parent_id` (see migration 20260311_client_company_hierarchy).
+ * When a lead's company has a parent, this returns the parent's name so the
+ * dashboard can roll up sibling divisions (e.g. "Bank Indonesia KPw Jabar",
+ * "Bank Indonesia Pusat") under one group ("Bank Indonesia"). When there is no
+ * parent, it falls back to the company's own name.
+ *
+ * NOTE: the dashboard query only joins ONE parent level. If deeper chains are
+ * introduced later, this needs to walk `parent_id` to the root instead.
+ *
+ * @returns Top-level company name, or null when no company is attached.
+ */
+export function resolveTopLevelCompanyName(lead: Lead): string | null {
+  const cc = lead.client_company
+  if (!cc) return null
+  return cc.parent?.name ?? cc.name ?? null
+}

@@ -43,6 +43,9 @@ const SYSTEM_FIELDS = [
     { key: "job_title", label: "Job Title", required: false, group: "Core Details", example: "Marketing Manager" },
     { key: "email", label: "Email Address", required: false, group: "Contact Info", example: "john@example.com" },
     { key: "phone", label: "Phone Number", required: false, group: "Contact Info", example: "+62811223344" },
+    { key: "secondary_email", label: "Secondary Email", required: false, group: "Contact Info", example: "john.alt@example.com" },
+    { key: "secondary_phone", label: "Secondary Phone", required: false, group: "Contact Info", example: "+62812334455" },
+    { key: "linkedin_url", label: "LinkedIn URL", required: false, group: "Other", example: "https://linkedin.com/in/johndoe" },
     { key: "notes", label: "Notes", required: false, group: "Other", example: "Key decision maker" },
 ]
 
