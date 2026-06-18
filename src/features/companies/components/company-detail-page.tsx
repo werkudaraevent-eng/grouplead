@@ -12,7 +12,8 @@ import {
     ArrowLeft, Pencil, Building2, Phone, Globe, MapPin,
     Briefcase, FileText, Clock, Folder, Users, Mail,
     Plus, Loader2, Upload, Target, TrendingUp,
-    CheckCircle2, XCircle, Search, ChevronLeft, ChevronRight
+    CheckCircle2, XCircle, Search, ChevronLeft, ChevronRight,
+    Network, Building, AlertTriangle
 } from "lucide-react"
 import { useCurrency } from "@/contexts/currency-context"
 import type { ClientCompany, Contact } from "@/types"
@@ -43,6 +44,7 @@ interface CompanyDetailPageProps {
     company: CompanyData
     leads: CompanyLead[]
     contactCount: number
+    subsidiaries?: { id: string; name: string }[]
     lastModified?: string
     lastModifiedBy?: string
     nextCompanyId?: string
@@ -61,7 +63,7 @@ interface CompanyNote {
 //  MAIN COMPONENT
 // ═══════════════════════════════════════════════════════════════
 
-export function CompanyDetailPage({ company, leads, contactCount, lastModified, lastModifiedBy, nextCompanyId, prevCompanyId }: CompanyDetailPageProps) {
+export function CompanyDetailPage({ company, leads, contactCount, subsidiaries = [], lastModified, lastModifiedBy, nextCompanyId, prevCompanyId }: CompanyDetailPageProps) {
     const router = useRouter()
     const supabase = createClient()
     const { fmt } = useCurrency()
@@ -280,6 +282,14 @@ export function CompanyDetailPage({ company, leads, contactCount, lastModified, 
                                     >
                                         <Pencil className="w-3.5 h-3.5" />
                                     </button>
+                                    {company.needs_enrichment && (
+                                        <span
+                                            className="inline-flex items-center gap-1 rounded-md bg-amber-50 border border-amber-200 px-2 py-0.5 text-[11px] font-semibold text-amber-700"
+                                            title="Auto-created from a lead import. Edit and save to complete this record and remove the flag."
+                                        >
+                                            <AlertTriangle className="w-3 h-3" /> Needs details
+                                        </span>
+                                    )}
                                 </div>
                             )}
 
@@ -355,30 +365,32 @@ export function CompanyDetailPage({ company, leads, contactCount, lastModified, 
             <div className="flex-1 flex gap-6 px-8 py-6 overflow-hidden min-h-0">
 
                 {/* ─── LEFT PANEL ─────────────────────────────────── */}
-                <div className="w-[340px] shrink-0 h-full overflow-y-auto custom-scrollbar pr-1 flex flex-col gap-5">
+                <div className="w-[340px] shrink-0 h-full pr-1 flex flex-col gap-5 min-h-0">
 
-                    {/* Company Information Card */}
-                    <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden shrink-0">
-                        <div className="px-5 py-3.5 border-b border-slate-100 flex items-center justify-between">
+                    {/* Company Information Card — header frozen, body scrolls inside */}
+                    <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden flex flex-col min-h-0 flex-1">
+                        <div className="shrink-0 px-5 py-3.5 border-b border-slate-100 flex items-center justify-between bg-white">
                             <h3 className="font-semibold text-[14px] text-slate-900 flex items-center gap-2">
                                 <Building2 className="w-4 h-4 text-slate-400" /> Company Information
                             </h3>
                         </div>
-                        <div className="px-5 py-4 space-y-3">
+                        <div className="px-5 py-4 space-y-3 overflow-y-auto custom-scrollbar min-h-0 flex-1">
                             <InlineSelectField table="client_companies" id={company.id} fieldPath="industry" icon={Briefcase} label="Sector" rawValue={company.industry} optionType="sector" />
                             <InlineSelectField table="client_companies" id={company.id} fieldPath="line_industry" icon={Building2} label="Line Industry" rawValue={company.line_industry} optionType="line_industry" parentValue={company.industry} />
                             <InlineTextField table="client_companies" id={company.id} fieldPath="phone" icon={Phone} label="Phone" rawValue={company.phone} displayValue={company.phone ? formatPhoneDisplay(company.phone) : null} inputType="phone" />
                             <InlineTextField table="client_companies" id={company.id} fieldPath="website" icon={Globe} label="Website" rawValue={company.website} inputType="url" />
                             <InlineSelectField table="client_companies" id={company.id} fieldPath="area" icon={MapPin} label="Area" rawValue={company.area} optionType="area" />
                             <InfoRow icon={MapPin} label="Address" value={[company.street_address, company.city, company.postal_code, company.country].filter(Boolean).join(", ") || company.address} />
-                            {company.parent?.name && (
-                                <InfoRow icon={Building2} label="Parent Company" value={company.parent.name} />
-                            )}
+                            <HierarchyRow
+                                parent={company.parent ?? null}
+                                subsidiaries={subsidiaries}
+                                onNavigate={(id) => router.push(`/companies/${id}`)}
+                            />
                         </div>
                     </div>
 
                     {/* Meta Footer */}
-                    <div className="text-[11px] text-slate-400 px-1 pb-2 shrink-0 flex flex-col gap-0.5 mt-auto">
+                    <div className="text-[11px] text-slate-400 px-1 pb-2 shrink-0 flex flex-col gap-0.5">
                         <p suppressHydrationWarning>Created: {company.created_at ? fmtDateTime(company.created_at) : "—"}</p>
                         <p suppressHydrationWarning>Last Modified: <span className="font-medium text-slate-500">{fmtDateTime(lastModified || company.created_at)}</span></p>
                         <p suppressHydrationWarning>By: <span className="font-medium text-slate-500">{lastModifiedBy || "System"}</span></p>
@@ -832,6 +844,87 @@ function InfoRow({ icon: Icon, label, value, isLink }: {
                     >{value}</a>
                 ) : (
                     <p className="text-[13px] text-slate-800">{value}</p>
+                )}
+            </div>
+        </div>
+    )
+}
+
+/**
+ * Always-visible company hierarchy row. Three states:
+ *   1. Subsidiary  → "Subsidiary of <parent>" (parent is a clickable link).
+ *   2. Parent      → "Parent company" + clickable list of subsidiaries.
+ *   3. Independent → "Independent company" (no parent, no children).
+ * A company can be both a subsidiary AND a parent (mid-tier in a tree).
+ */
+function HierarchyRow({ parent, subsidiaries, onNavigate }: {
+    parent: { id: string; name: string } | null
+    subsidiaries: { id: string; name: string }[]
+    onNavigate: (id: string) => void
+}) {
+    const hasParent = !!parent?.id
+    const childCount = subsidiaries.length
+    const isIndependent = !hasParent && childCount === 0
+
+    return (
+        <div className="flex items-start gap-3 py-1.5 border-t border-slate-100 mt-1 pt-3">
+            <Network className="w-4 h-4 text-slate-400 mt-0.5 shrink-0" />
+            <div className="min-w-0 flex-1">
+                <p className="text-[11px] text-slate-400 font-medium uppercase tracking-wider mb-1">Relationship</p>
+
+                {isIndependent && (
+                    <span className="inline-flex items-center gap-1.5 text-[13px] text-slate-600">
+                        <Building className="w-3.5 h-3.5 text-slate-400" />
+                        Independent company
+                    </span>
+                )}
+
+                {hasParent && (
+                    <div>
+                        <p className="text-[11px] text-slate-400 mb-1">Subsidiary of</p>
+                        <button
+                            type="button"
+                            onClick={() => onNavigate(parent!.id)}
+                            className="group flex w-full items-center gap-2 rounded-lg border border-slate-200 bg-slate-50/60 px-2.5 py-1.5 text-left transition-colors hover:border-blue-300 hover:bg-blue-50"
+                        >
+                            <Building2 className="w-3.5 h-3.5 shrink-0 text-slate-400 group-hover:text-blue-500" />
+                            <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-slate-700 group-hover:text-blue-700" title={parent!.name}>
+                                {parent!.name}
+                            </span>
+                            <ChevronRight className="w-4 h-4 shrink-0 text-slate-300 group-hover:text-blue-500" />
+                        </button>
+                    </div>
+                )}
+
+                {childCount > 0 && (
+                    <div className={hasParent ? "mt-2.5" : ""}>
+                        <p className="text-[11px] text-slate-400 mb-1">
+                            {hasParent ? "Also parent of" : "Parent of"}{" "}
+                            <span className="font-semibold text-slate-600">{childCount}</span>{" "}
+                            {childCount === 1 ? "subsidiary" : "subsidiaries"}
+                        </p>
+                        <div className="flex flex-col gap-1">
+                            {subsidiaries.slice(0, 5).map((s) => (
+                                <button
+                                    key={s.id}
+                                    type="button"
+                                    onClick={() => onNavigate(s.id)}
+                                    className="group flex w-full items-center gap-2 rounded-lg border border-slate-200 bg-slate-50/60 px-2.5 py-1.5 text-left transition-colors hover:border-blue-300 hover:bg-blue-50"
+                                >
+                                    <Building2 className="w-3.5 h-3.5 shrink-0 text-slate-400 group-hover:text-blue-500" />
+                                    <span className="min-w-0 flex-1 truncate text-[13px] text-slate-700 group-hover:text-blue-700" title={s.name}>
+                                        {s.name}
+                                    </span>
+                                    <ChevronRight className="w-4 h-4 shrink-0 text-slate-300 group-hover:text-blue-500" />
+                                </button>
+                            ))}
+                            {childCount > 5 && (
+                                <span className="px-2.5 py-1 text-[12px] text-slate-400">
+                                    +{childCount - 5} more
+                                </span>
+                            )}
+                        </div>
+                    </div>
                 )}
             </div>
         </div>

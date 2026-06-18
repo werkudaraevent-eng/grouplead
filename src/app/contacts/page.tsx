@@ -7,7 +7,7 @@ import {
     ArrowDown, ArrowUp, ArrowUpDown, Building2, Columns, Download,
     Eye, EyeOff, Facebook, Globe, GripVertical, Instagram, Link2,
     Linkedin, Mail, MoreHorizontal, Pencil, Phone, Plus, RotateCcw,
-    Search, Trash2, Twitter, Upload, Users,
+    Search, Trash2, Twitter, Upload, Users, AlertTriangle,
 } from "lucide-react"
 import { toast } from "sonner"
 
@@ -89,6 +89,7 @@ interface ContactRow {
     social_urls: { platform: string; url: string }[] | null
     owner_id: string | null
     owner?: { full_name: string } | null
+    needs_enrichment?: boolean
 }
 
 type ColId =
@@ -190,7 +191,7 @@ export default function ContactsPage() {
         setLoading(true)
         const { data, error } = await supabase
             .from("contacts")
-            .select("id, salutation, full_name, email, phone, job_title, created_at, client_company_id, secondary_email, secondary_phone, secondary_emails, secondary_phones, linkedin_url, notes, date_of_birth, address, social_urls, owner_id, client_company:client_company_id ( name ), owner:profiles!contacts_owner_id_fkey(full_name)")
+            .select("id, salutation, full_name, email, phone, job_title, created_at, client_company_id, secondary_email, secondary_phone, secondary_emails, secondary_phones, linkedin_url, notes, date_of_birth, address, social_urls, owner_id, needs_enrichment, client_company:client_company_id ( name ), owner:profiles!contacts_owner_id_fkey(full_name)")
             .order("full_name", { ascending: true })
 
         if (error) {
@@ -251,6 +252,7 @@ export default function ContactsPage() {
             accessor: (row) => (row as ContactRow).phone,
         },
         { field: "job_title", label: "Job title", type: "text", accessor: (row) => (row as ContactRow).job_title ?? "" },
+        { field: "needs_enrichment", label: "Needs details", type: "boolean", defaultOperator: "is_true", accessor: (row) => (row as ContactRow).needs_enrichment ?? false },
         { field: "created_at", label: "Created date", type: "date-range", accessor: (row) => (row as ContactRow).created_at },
         { field: "notes", label: "Notes", type: "text", accessor: (row) => (row as ContactRow).notes ?? "" },
     ], [uniqueCompanies, uniqueOwners])
@@ -425,6 +427,11 @@ export default function ContactsPage() {
                             {getInitials(contact.full_name)}
                         </div>
                         <span className="font-medium text-[13px] text-foreground group-hover:text-primary transition-colors truncate">{nameDisplay}</span>
+                        {contact.needs_enrichment && (
+                            <span title="Auto-created from a lead import. Edit and save to complete it." className="inline-flex items-center gap-0.5 rounded bg-amber-50 border border-amber-200 px-1 py-0 text-[10px] font-semibold text-amber-700 shrink-0">
+                                <AlertTriangle className="w-2.5 h-2.5" />Needs details
+                            </span>
+                        )}
                     </div>
                 )
             }

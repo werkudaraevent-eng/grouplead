@@ -11,7 +11,7 @@ import {
     ArrowLeft, Pencil, Building2, Phone, Globe, MapPin,
     Briefcase, FileText, Clock, Folder, Users, Mail,
     Target, TrendingUp, CheckCircle2, XCircle, Loader2, Linkedin,
-    CalendarDays, Link2, Upload, Search, ChevronLeft, ChevronRight, ArrowUpRight
+    CalendarDays, Link2, Upload, Search, ChevronLeft, ChevronRight, ArrowUpRight, AlertTriangle
 } from "lucide-react"
 import { useCurrency } from "@/contexts/currency-context"
 
@@ -58,6 +58,7 @@ interface ContactData {
     social_urls: SocialUrl[] | null
     client_company?: { id: string; name: string } | null
     owner?: { id: string; full_name: string; email: string } | null
+    needs_enrichment?: boolean
 }
 
 interface ContactDetailPageProps {
@@ -286,6 +287,14 @@ export function ContactDetailPage({ contact, leads, lastModified, lastModifiedBy
                                     >
                                         <Pencil className="w-3.5 h-3.5" />
                                     </button>
+                                    {contact.needs_enrichment && (
+                                        <span
+                                            className="inline-flex items-center gap-1 rounded-md bg-amber-50 border border-amber-200 px-2 py-0.5 text-[11px] font-semibold text-amber-700"
+                                            title="Auto-created from a lead import. Edit and save to complete this record and remove the flag."
+                                        >
+                                            <AlertTriangle className="w-3 h-3" /> Needs details
+                                        </span>
+                                    )}
                                 </div>
                             )}
                             

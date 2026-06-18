@@ -13,7 +13,7 @@ export default async function CompanyPage({ params }: { params: Promise<{ compan
         .from('client_companies')
         .select(`
             *,
-            parent:client_companies!parent_id(id, name),
+            parent:parent_id(id, name),
             owner:profiles!client_companies_owner_id_fkey(id, full_name, email)
         `)
         .eq('id', companyId)
@@ -22,7 +22,7 @@ export default async function CompanyPage({ params }: { params: Promise<{ compan
     if (error || !company) return notFound()
 
     // Fetch lead stats in parallel
-    const [leadsRes, contactCountRes, latestActivityRes, nextRes, prevRes] = await Promise.all([
+    const [leadsRes, contactCountRes, latestActivityRes, nextRes, prevRes, childrenRes] = await Promise.all([
         supabase
             .from('leads')
             .select('id, project_name, estimated_value, status, pipeline_stage:pipeline_stages!pipeline_stage_id(name, color), pic_sales_profile:profiles!pic_sales_id(full_name), target_close_date')
@@ -40,7 +40,13 @@ export default async function CompanyPage({ params }: { params: Promise<{ compan
             .limit(1)
             .maybeSingle(),
         supabase.from('client_companies').select('id').gt('name', company.name).order('name', { ascending: true }).limit(1).maybeSingle(),
-        supabase.from('client_companies').select('id').lt('name', company.name).order('name', { ascending: false }).limit(1).maybeSingle()
+        supabase.from('client_companies').select('id').lt('name', company.name).order('name', { ascending: false }).limit(1).maybeSingle(),
+        // Subsidiaries: companies whose parent_id points at this company.
+        supabase
+            .from('client_companies')
+            .select('id, name', { count: 'exact' })
+            .eq('parent_id', companyId)
+            .order('name', { ascending: true })
     ])
 
     const lastModified = latestActivityRes.data?.created_at || company.updated_at || company.created_at
@@ -57,6 +63,7 @@ export default async function CompanyPage({ params }: { params: Promise<{ compan
             company={company}
             leads={(leadsRes.data as any) ?? []}
             contactCount={contactCountRes.count ?? 0}
+            subsidiaries={(childrenRes.data as any) ?? []}
             lastModified={lastModified}
             lastModifiedBy={lastModifiedBy}
             nextCompanyId={nextRes.data?.id}

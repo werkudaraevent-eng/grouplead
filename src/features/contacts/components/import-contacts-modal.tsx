@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useMemo, useState, useRef, useTransition } from "react"
+import { useCallback, useEffect, useMemo, useState, useRef, useTransition } from "react"
 import { createClient } from "@/utils/supabase/client"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
@@ -19,6 +19,7 @@ import {
     RotateCcw,
 } from "lucide-react"
 import { normalizePhoneToE164 } from "@/lib/phone-normalize"
+import type { FormSchema } from "@/types"
 
 // ── Helper formatters ──
 const PRESERVE_UPPERCASE = ["IT", "HR", "MICE", "PR", "B2B", "B2C", "PT", "CV", "CEO", "CFO", "CTO", "CMO", "VP", "SVP", "EVP", "AVP", "IGO", "NGO", "MLM", "BUMN", "BUMD", "FMCG"]
@@ -36,7 +37,18 @@ function formatValue(key: string, val: string) {
     return val
 }
 
-const SYSTEM_FIELDS = [
+// ── Field definition shape (native + custom share this) ──
+type ImportField = {
+    key: string
+    label: string
+    required: boolean
+    group: string
+    example: string
+    /** true for per-tenant custom fields → value goes into custom_data JSONB. */
+    custom?: boolean
+}
+
+const SYSTEM_FIELDS: ImportField[] = [
     { key: "salutation", label: "Salutation", required: false, group: "Core Details", example: "Mr." },
     { key: "full_name", label: "Full Name", required: true, group: "Core Details", example: "John Doe" },
     { key: "company_name", label: "Company Name", required: false, group: "Core Details", example: "PT Contoh Sukses" },
@@ -46,6 +58,8 @@ const SYSTEM_FIELDS = [
     { key: "secondary_email", label: "Secondary Email", required: false, group: "Contact Info", example: "john.alt@example.com" },
     { key: "secondary_phone", label: "Secondary Phone", required: false, group: "Contact Info", example: "+62812334455" },
     { key: "linkedin_url", label: "LinkedIn URL", required: false, group: "Other", example: "https://linkedin.com/in/johndoe" },
+    { key: "date_of_birth", label: "Date of Birth", required: false, group: "Other", example: "1990-05-21" },
+    { key: "address", label: "Address", required: false, group: "Other", example: "Jl. Sudirman No 1, Jakarta" },
     { key: "notes", label: "Notes", required: false, group: "Other", example: "Key decision maker" },
 ]
 
@@ -73,6 +87,41 @@ export function ImportContactsModal({ open, onOpenChange, onSuccess }: ImportCon
     const [validations, setValidations] = useState<RowValidation[]>([])
     const [importResult, setImportResult] = useState<{ success: number; failed: number; errors: string[] }>({ success: 0, failed: 0, errors: [] })
 
+    // Per-tenant custom fields defined in form_schemas (module=contacts),
+    // stored on contacts.custom_data JSONB — mirrors the Add Contact form.
+    const [customFields, setCustomFields] = useState<ImportField[]>([])
+    // Live progress during import (X / Y + percent).
+    const [progress, setProgress] = useState<{ current: number; total: number }>({ current: 0, total: 0 })
+
+    useEffect(() => {
+        if (!open) return
+        let cancelled = false
+        const load = async () => {
+            const { data } = await supabase
+                .from("form_schemas")
+                .select("*")
+                .eq("module_name", "contacts")
+                .eq("is_active", true)
+                .order("sort_order")
+            if (cancelled || !data) return
+            setCustomFields((data as FormSchema[]).map((s) => ({
+                key: `custom:${s.field_key}`,
+                label: s.field_name,
+                required: s.is_required,
+                group: "Custom Fields",
+                example: "",
+                custom: true,
+            })))
+        }
+        load()
+        return () => { cancelled = true }
+    }, [open, supabase])
+
+    const allFields = useMemo<ImportField[]>(
+        () => [...SYSTEM_FIELDS, ...customFields],
+        [customFields],
+    )
+
     const resetState = useCallback(() => {
         setStep(1)
         setFileName("")
@@ -81,6 +130,7 @@ export function ImportContactsModal({ open, onOpenChange, onSuccess }: ImportCon
         setColumnMapping({})
         setValidations([])
         setImportResult({ success: 0, failed: 0, errors: [] })
+        setProgress({ current: 0, total: 0 })
     }, [])
 
     const handleClose = useCallback(() => {
@@ -89,34 +139,37 @@ export function ImportContactsModal({ open, onOpenChange, onSuccess }: ImportCon
     }, [resetState, onOpenChange])
 
     const downloadTemplate = useCallback(() => {
-        const headers = SYSTEM_FIELDS.map((c) => c.label)
-        const exampleRow = SYSTEM_FIELDS.map((c) => c.example)
+        const headers = allFields.map((c) => c.label)
+        const exampleRow = allFields.map((c) => c.example)
         const ws = XLSX.utils.aoa_to_sheet([headers, exampleRow])
-        ws["!cols"] = SYSTEM_FIELDS.map((c) => ({
+        ws["!cols"] = allFields.map((c) => ({
             wch: Math.max(c.label.length, c.example.length, 18)
         }))
         const wb = XLSX.utils.book_new()
         XLSX.utils.book_append_sheet(wb, ws, "Contacts Import Template")
         XLSX.writeFile(wb, "contacts_import_template.xlsx")
         toast.success("Template downloaded!")
-    }, [])
+    }, [allFields])
 
     const autoMapHeaders = useCallback((rawHeaders: string[]): ColumnMapping => {
         const mapping: ColumnMapping = {}
-        for (const field of SYSTEM_FIELDS) {
+        for (const field of allFields) {
+            const bareKey = field.custom ? field.key.replace("custom:", "") : field.key
             let found = rawHeaders.find((h) => h === field.label)
             if (!found) found = rawHeaders.find((h) => h.toLowerCase() === field.label.toLowerCase())
+            if (!found) found = rawHeaders.find((h) => h.toLowerCase() === bareKey.toLowerCase())
             if (!found && field.key === "full_name") found = rawHeaders.find((h) => /name|contact/i.test(h))
             if (!found && field.key === "company_name") found = rawHeaders.find((h) => /company|organization|client/i.test(h))
+            if (!found && field.key === "date_of_birth") found = rawHeaders.find((h) => /birth|dob|lahir/i.test(h))
             if (found) mapping[field.key] = found
         }
         return mapping
-    }, [])
+    }, [allFields])
 
     const validateData = useCallback((rows: ParsedRow[], mapping: ColumnMapping): RowValidation[] => {
         const errors: RowValidation[] = []
         rows.forEach((row, idx) => {
-            for (const field of SYSTEM_FIELDS.filter((f) => f.required)) {
+            for (const field of allFields.filter((f) => f.required)) {
                 const header = mapping[field.key]
                 const value = header ? row[header] : ""
                 if (!value || !String(value).trim()) {
@@ -125,7 +178,7 @@ export function ImportContactsModal({ open, onOpenChange, onSuccess }: ImportCon
             }
         })
         return errors
-    }, [])
+    }, [allFields])
 
     const parseXLSX = useCallback((buffer: ArrayBuffer): { headers: string[]; rows: ParsedRow[] } => {
         const workbook = XLSX.read(buffer, { type: "array", cellDates: true })
@@ -188,7 +241,7 @@ export function ImportContactsModal({ open, onOpenChange, onSuccess }: ImportCon
     }, [])
 
     const mappedCount = Object.keys(columnMapping).length
-    const unmappedRequired = SYSTEM_FIELDS.filter((f) => f.required && !columnMapping[f.key])
+    const unmappedRequired = allFields.filter((f) => f.required && !columnMapping[f.key])
 
     const proceedToPreview = useCallback(() => {
         const errors = validateData(parsedData, columnMapping)
@@ -205,6 +258,8 @@ export function ImportContactsModal({ open, onOpenChange, onSuccess }: ImportCon
             const { data: userData } = await supabase.auth.getUser()
             const userId = userData.user?.id
 
+            setProgress({ current: 0, total: parsedData.length })
+
             let successCount = 0
             let failedCount = 0
             const errs: string[] = []
@@ -212,24 +267,40 @@ export function ImportContactsModal({ open, onOpenChange, onSuccess }: ImportCon
             for (let i = 0; i < parsedData.length; i++) {
                 const row = parsedData[i]
                 const payload: any = {}
-                
+                const customData: Record<string, unknown> = {}
+
                 let companyName = ""
                 for (const [fieldKey, excelHeader] of Object.entries(columnMapping)) {
                     let val = row[excelHeader]?.trim()
                     if (val) {
                         val = formatValue(fieldKey, val)
-                        if (fieldKey === "company_name") companyName = val
-                        else if (fieldKey === "phone" || fieldKey === "secondary_phone") {
+                        if (fieldKey.startsWith("custom:")) {
+                            customData[fieldKey.replace("custom:", "")] = val
+                        } else if (fieldKey === "company_name") {
+                            companyName = val
+                        } else if (fieldKey === "phone") {
                             payload[fieldKey] = normalizePhoneToE164(val) ?? val
+                        } else if (fieldKey === "secondary_email") {
+                            // Detail/form read from the JSONB array, not the
+                            // legacy singular column. Write both so the value
+                            // shows up everywhere.
+                            payload.secondary_email = val
+                            payload.secondary_emails = [val.toLowerCase()]
+                        } else if (fieldKey === "secondary_phone") {
+                            const e164 = normalizePhoneToE164(val) ?? val
+                            payload.secondary_phone = e164
+                            payload.secondary_phones = [e164]
+                        } else {
+                            payload[fieldKey] = val
                         }
-                        else payload[fieldKey] = val
                     }
                 }
 
+                if (Object.keys(customData).length > 0) payload.custom_data = customData
                 if (userId) payload.owner_id = userId
 
                 if (companyName) {
-                    const { data: c } = await supabase.from("client_companies").select("id").ilike("name", companyName).single()
+                    const { data: c } = await supabase.from("client_companies").select("id").ilike("name", companyName).maybeSingle()
                     if (c) {
                         payload.client_company_id = c.id
                     } else {
@@ -245,6 +316,8 @@ export function ImportContactsModal({ open, onOpenChange, onSuccess }: ImportCon
                 } else {
                     successCount++
                 }
+
+                setProgress({ current: i + 1, total: parsedData.length })
             }
 
             setImportResult({ success: successCount, failed: failedCount, errors: errs })
@@ -264,13 +337,13 @@ export function ImportContactsModal({ open, onOpenChange, onSuccess }: ImportCon
     const usedHeaders = useMemo(() => new Set(Object.values(columnMapping)), [columnMapping])
 
     const fieldGroups = useMemo(() => {
-        const groups: Record<string, typeof SYSTEM_FIELDS> = {}
-        for (const f of SYSTEM_FIELDS) {
+        const groups: Record<string, ImportField[]> = {}
+        for (const f of allFields) {
             if (!groups[f.group]) groups[f.group] = []
             groups[f.group].push(f)
         }
         return groups
-    }, [])
+    }, [allFields])
 
     return (
         <Dialog open={open} onOpenChange={(v) => { if (!v) handleClose(); else onOpenChange(v) }}>
@@ -346,7 +419,7 @@ export function ImportContactsModal({ open, onOpenChange, onSuccess }: ImportCon
                             <div className="flex items-center gap-3 p-3 rounded-lg bg-blue-50/70 border border-blue-200/50">
                                 <Link2 className="h-4 w-4 text-blue-500 shrink-0" />
                                 <div className="text-xs">
-                                    <span className="font-semibold text-blue-800">{mappedCount} of {SYSTEM_FIELDS.length}</span>
+                                    <span className="font-semibold text-blue-800">{mappedCount} of {allFields.length}</span>
                                     <span className="text-blue-600"> fields mapped from </span>
                                     <span className="font-semibold text-blue-800">{excelHeaders.length} columns</span>
                                 </div>
@@ -409,7 +482,7 @@ export function ImportContactsModal({ open, onOpenChange, onSuccess }: ImportCon
                                 </div>
                                 <div className="flex flex-col items-center gap-1 p-3 rounded-lg border bg-emerald-50 text-emerald-600 border-emerald-200/50">
                                     <CheckCircle2 className="h-3.5 w-3.5" />
-                                    <span className="text-lg font-bold">{mappedCount}/{SYSTEM_FIELDS.length}</span>
+                                    <span className="text-lg font-bold">{mappedCount}/{allFields.length}</span>
                                     <span className="text-[10px] uppercase tracking-wider opacity-70">Mapped</span>
                                 </div>
                                 <div className={`flex flex-col items-center gap-1 p-3 rounded-lg border ${errorCount > 0 ? "bg-red-50 text-red-600 border-red-200/50" : "bg-emerald-50 text-emerald-600 border-emerald-200/50"}`}>
@@ -446,7 +519,7 @@ export function ImportContactsModal({ open, onOpenChange, onSuccess }: ImportCon
                                             <tr className="bg-slate-50/50 text-slate-500 border-b border-slate-200">
                                                 <th className="px-3 py-2 text-left font-medium">#</th>
                                                 {Object.entries(columnMapping).slice(0, 8).map(([key]) => (
-                                                    <th key={key} className="px-3 py-2 text-left font-medium">{SYSTEM_FIELDS.find(f => f.key === key)?.label}</th>
+                                                    <th key={key} className="px-3 py-2 text-left font-medium">{allFields.find(f => f.key === key)?.label}</th>
                                                 ))}
                                             </tr>
                                         </thead>
@@ -487,16 +560,35 @@ export function ImportContactsModal({ open, onOpenChange, onSuccess }: ImportCon
                 </div>
 
                 {/* FOOTER */}
-                <div className="px-6 py-4 border-t border-slate-100 bg-slate-50/50 flex items-center justify-between">
+                <div className="px-6 py-4 border-t border-slate-100 bg-slate-50/50 flex flex-col gap-3">
+                    {isPending && progress.total > 0 && (
+                        <div className="space-y-1.5">
+                            <div className="flex items-center justify-between text-xs font-medium text-slate-600">
+                                <span>Importing contacts…</span>
+                                <span className="tabular-nums">
+                                    {progress.current} / {progress.total}
+                                    {" "}({Math.round((progress.current / progress.total) * 100)}%)
+                                </span>
+                            </div>
+                            <div className="h-2 w-full rounded-full bg-slate-200 overflow-hidden">
+                                <div
+                                    className="h-full rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 transition-[width] duration-200 ease-out"
+                                    style={{ width: `${Math.round((progress.current / progress.total) * 100)}%` }}
+                                />
+                            </div>
+                        </div>
+                    )}
+                    <div className="flex items-center justify-between">
                     <div>
                         {step === 2 && <Button variant="ghost" size="sm" onClick={() => { setStep(1); setParsedData([]); setFileName(""); setExcelHeaders([]); setColumnMapping({}) }}><ArrowLeft className="h-3.5 w-3.5 mr-1.5" /> Back</Button>}
-                        {step === 3 && <Button variant="ghost" size="sm" onClick={() => setStep(2)}><ArrowLeft className="h-3.5 w-3.5 mr-1.5" /> Edit Mapping</Button>}
+                        {step === 3 && <Button variant="ghost" size="sm" disabled={isPending} onClick={() => setStep(2)}><ArrowLeft className="h-3.5 w-3.5 mr-1.5" /> Edit Mapping</Button>}
                         {step === 4 && <Button variant="ghost" size="sm" onClick={resetState}><RotateCcw className="h-3.5 w-3.5 mr-1.5" /> Import More</Button>}
                     </div>
                     <div className="flex items-center gap-2">
-                        <Button variant="outline" size="sm" onClick={handleClose}>{step === 4 ? "Close" : "Cancel"}</Button>
+                        <Button variant="outline" size="sm" onClick={handleClose} disabled={isPending && step === 3}>{step === 4 ? "Close" : "Cancel"}</Button>
                         {step === 2 && <Button size="sm" disabled={unmappedRequired.length > 0} onClick={proceedToPreview} className="gap-1.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white"><ArrowRight className="h-3.5 w-3.5" /> Preview Data</Button>}
-                        {step === 3 && <Button size="sm" disabled={!canImport || isPending} onClick={handleImport} className="gap-1.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white">{isPending ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Importing...</> : <><ArrowRight className="h-3.5 w-3.5" /> Import {parsedData.length}</>}</Button>}
+                        {step === 3 && <Button size="sm" disabled={!canImport || isPending} onClick={handleImport} className="gap-1.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white">{isPending ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Importing {progress.current}/{progress.total}</> : <><ArrowRight className="h-3.5 w-3.5" /> Import {parsedData.length}</>}</Button>}
+                    </div>
                     </div>
                 </div>
             </DialogContent>

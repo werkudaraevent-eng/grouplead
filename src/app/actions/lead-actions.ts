@@ -687,10 +687,11 @@ export async function importLeadsAction(
                 const nameKey = String(clientCompanyName).toLowerCase().trim()
                 let companyId = companyMap.get(nameKey)
                 if (!companyId) {
-                    // Auto-create the client company
+                    // Auto-create the client company. Flagged needs_enrichment
+                    // so admins can find + complete these thin records later.
                     const { data: newCompany, error: compErr } = await supabase
                         .from("client_companies")
-                        .insert({ name: String(clientCompanyName).trim() })
+                        .insert({ name: String(clientCompanyName).trim(), needs_enrichment: true })
                         .select("id")
                         .single()
                     if (newCompany && !compErr) {
@@ -715,9 +716,11 @@ export async function importLeadsAction(
                         raw.client_company_id = contact.client_company_id
                     }
                 } else {
-                    // Auto-create the contact, linked to client_company if available
+                    // Auto-create the contact, linked to client_company if available.
+                    // Flagged needs_enrichment (thin record — name only).
                     const contactPayload: Record<string, unknown> = {
                         full_name: String(contactName).trim(),
+                        needs_enrichment: true,
                     }
                     if (raw.client_company_id) {
                         contactPayload.client_company_id = raw.client_company_id
@@ -787,6 +790,39 @@ export async function importLeadsAction(
                 const iso = coerceDateToISO(raw.target_close_date)
                 if (iso) raw.target_close_date = iso
                 else delete raw.target_close_date
+            }
+
+            // ── Coerce received_date (optional in standard import) ──
+            // Drives the "Received Month" pipeline filter. When omitted the
+            // DB DEFAULT current_date applies (matches the form default for
+            // new leads). If a value is supplied but can't be parsed, drop it
+            // so the row still imports rather than failing on a bad cell.
+            if (raw.received_date != null && raw.received_date !== "") {
+                const iso = coerceDateToISO(raw.received_date)
+                if (iso) raw.received_date = iso.slice(0, 10)
+                else delete raw.received_date
+            }
+
+            // ── Normalize account_status against the allowed value set ──
+            // The lead form stores lower-case keys (new | repeater |
+            // contracted). Accept common label variants case-insensitively;
+            // unknown values are dropped with a warning so account_status
+            // falls back to the computed value rather than persisting garbage.
+            if (raw.account_status != null && raw.account_status !== "") {
+                const key = String(raw.account_status).toLowerCase().trim()
+                const aliasMap: Record<string, string> = {
+                    "new": "new", "new client": "new", "new account": "new",
+                    "repeater": "repeater", "repeat": "repeater", "existing": "repeater",
+                    "contracted": "contracted", "contract": "contracted",
+                }
+                const resolved = aliasMap[key]
+                if (resolved) {
+                    raw.account_status = resolved
+                    raw.account_status_source = "manual"
+                } else {
+                    warnings.push(`${rowLabel(i, raw)}: Account Status "${raw.account_status}" not recognized — auto-detecting instead`)
+                    delete raw.account_status
+                }
             }
 
             // ── Coerce closed dates (Excel serials + ISO + DD-MMM-YY) ──
@@ -1106,7 +1142,7 @@ export async function importHistoricalLeadsAction(
                 if (!companyId) {
                     const { data: newCompany, error: compErr } = await adminClient
                         .from("client_companies")
-                        .insert({ name: String(clientCompanyName).trim() })
+                        .insert({ name: String(clientCompanyName).trim(), needs_enrichment: true })
                         .select("id")
                         .single()
                     if (newCompany && !compErr) {
@@ -1127,7 +1163,7 @@ export async function importHistoricalLeadsAction(
                     raw.contact_id = contact.id
                     if (!raw.client_company_id && contact.client_company_id) raw.client_company_id = contact.client_company_id
                 } else {
-                    const contactPayload: Record<string, unknown> = { full_name: String(contactName).trim() }
+                    const contactPayload: Record<string, unknown> = { full_name: String(contactName).trim(), needs_enrichment: true }
                     if (raw.client_company_id) contactPayload.client_company_id = raw.client_company_id
                     const { data: newContact, error: cErr } = await adminClient
                         .from("contacts")
@@ -1171,6 +1207,25 @@ export async function importHistoricalLeadsAction(
                     if (result.warning) {
                         warnings.push(`${rowLabel(i, raw)}: ${result.warning}`)
                     }
+                }
+            }
+
+            // ── Normalize account_status against the allowed value set ──
+            // Same handling as importLeadsAction (new | repeater | contracted).
+            if (raw.account_status != null && raw.account_status !== "") {
+                const key = String(raw.account_status).toLowerCase().trim()
+                const aliasMap: Record<string, string> = {
+                    "new": "new", "new client": "new", "new account": "new",
+                    "repeater": "repeater", "repeat": "repeater", "existing": "repeater",
+                    "contracted": "contracted", "contract": "contracted",
+                }
+                const resolved = aliasMap[key]
+                if (resolved) {
+                    raw.account_status = resolved
+                    raw.account_status_source = "manual"
+                } else {
+                    warnings.push(`${rowLabel(i, raw)}: Account Status "${raw.account_status}" not recognized — auto-detecting instead`)
+                    delete raw.account_status
                 }
             }
 

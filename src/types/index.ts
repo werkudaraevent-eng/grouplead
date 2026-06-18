@@ -32,6 +32,8 @@ export interface ClientCompany {
     owner_id: string | null;
     /** Account relationship: new, repeater, contracted */
     account_status: string | null;
+    /** TRUE when auto-created by lead import (thin record needing completion). */
+    needs_enrichment?: boolean;
     created_at: string;
     custom_data?: any;
     parent?: { id: string; name: string } | null;
@@ -56,6 +58,8 @@ export interface Contact {
     date_of_birth: string | null;
     address: string | null;
     social_urls: { platform: string; url: string }[] | null;
+    /** TRUE when auto-created by lead import (thin record needing completion). */
+    needs_enrichment?: boolean;
 }
 
 export interface Pipeline {

@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useMemo, useState, useRef, useTransition } from "react"
+import { useCallback, useEffect, useMemo, useState, useRef, useTransition } from "react"
 import { createClient } from "@/utils/supabase/client"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
@@ -19,6 +19,7 @@ import {
     Sparkles, RotateCcw,
 } from "lucide-react"
 import { normalizePhoneToE164 } from "@/lib/phone-normalize"
+import type { FormSchema } from "@/types"
 
 // ── Helper formatters ──
 const PRESERVE_UPPERCASE = ["IT", "HR", "MICE", "PR", "B2B", "B2C", "PT", "CV", "TBK", "LLC", "INC", "LTD", "IGO", "NGO", "MLM", "BUMN", "BUMD", "FMCG"]
@@ -43,6 +44,12 @@ function toProperCase(str: string) {
 
 function formatValue(key: string, val: string) {
     if (!val) return val
+    if (key === "account_status") {
+        // DB stores lowercase tokens: new | repeater | contracted.
+        // Accept any casing from the sheet and coerce; unknown → "new".
+        const t = val.toLowerCase().trim()
+        return ["new", "repeater", "contracted"].includes(t) ? t : "new"
+    }
     if (key === "industry" || key === "line_industry") {
         // e.g. "BANKING" -> "Banking", "TOUR OPERATOR/ TR..." -> "Tour Operator/ Tr..."
         // A safer generic title casing that preserves non-word characters:
@@ -58,19 +65,30 @@ function formatValue(key: string, val: string) {
 
 import { parseAddress } from "@/lib/address-parser"
 
-// ── System fields for Companies ──
-const SYSTEM_FIELDS = [
+// ── Field definition shape (native + custom share this) ──
+type ImportField = {
+    key: string
+    label: string
+    required: boolean
+    group: string
+    example: string
+    /** true for per-tenant custom fields → value goes into custom_data JSONB. */
+    custom?: boolean
+}
+
+// ── System (native) fields for Companies ──
+const SYSTEM_FIELDS: ImportField[] = [
     { key: "name", label: "Company Name", required: true, group: "Core Details", example: "PT Contoh Sukses" },
     { key: "parent_company", label: "Parent Company", required: false, group: "Core Details", example: "PT Induk Holding" },
-    { key: "industry", label: "Sector (Industry)", required: false, group: "Core Details", example: "Technology" },
+    { key: "industry", label: "Sector", required: false, group: "Core Details", example: "Technology" },
     { key: "line_industry", label: "Line Industry", required: false, group: "Core Details", example: "Software Development" },
+    { key: "account_status", label: "Account Status", required: false, group: "Core Details", example: "New" },
     { key: "phone", label: "Phone", required: false, group: "Contact", example: "+62811223344" },
     { key: "website", label: "Website", required: false, group: "Contact", example: "www.contoh.com" },
     { key: "street_address", label: "Street Address", required: false, group: "Location", example: "Jl. Sudirman No 1" },
     { key: "city", label: "City", required: false, group: "Location", example: "Jakarta" },
     { key: "postal_code", label: "Postal Code", required: false, group: "Location", example: "10220" },
     { key: "country", label: "Country", required: false, group: "Location", example: "Indonesia" },
-    { key: "notes", label: "Notes", required: false, group: "Other", example: "Key client in APAC" },
 ]
 
 type ParsedRow = Record<string, string>
@@ -98,6 +116,50 @@ export function ImportCompaniesModal({ open, onOpenChange, onSuccess }: ImportCo
     const [validations, setValidations] = useState<RowValidation[]>([])
     const [importResult, setImportResult] = useState<{ success: number; failed: number; errors: string[] }>({ success: 0, failed: 0, errors: [] })
 
+    // Per-tenant custom fields (e.g. "Segment") defined in form_schemas.
+    // These are stored on the client_companies.custom_data JSONB column,
+    // mirroring the Add Company form so import stays in sync.
+    const [customFields, setCustomFields] = useState<ImportField[]>([])
+
+    // Live progress during the import loop so the user sees X of Y + percent
+    // instead of an indeterminate spinner.
+    const [progress, setProgress] = useState<{ current: number; total: number }>({ current: 0, total: 0 })
+
+    // Load active custom field schemas for the companies module once the
+    // modal opens. Mapped into ImportField so they slot into the same
+    // template / mapping / preview machinery as native fields.
+    useEffect(() => {
+        if (!open) return
+        let cancelled = false
+        const load = async () => {
+            const { data } = await supabase
+                .from("form_schemas")
+                .select("*")
+                .eq("module_name", "companies")
+                .eq("is_active", true)
+                .order("sort_order")
+            if (cancelled || !data) return
+            const fields: ImportField[] = (data as FormSchema[]).map((s) => ({
+                key: `custom:${s.field_key}`,
+                label: s.field_name,
+                required: s.is_required,
+                group: "Custom Fields",
+                example: "",
+                custom: true,
+            }))
+            setCustomFields(fields)
+        }
+        load()
+        return () => { cancelled = true }
+    }, [open, supabase])
+
+    // Native + custom fields combined — the single source of truth for the
+    // template, auto-mapping, validation, preview columns and insert.
+    const allFields = useMemo<ImportField[]>(
+        () => [...SYSTEM_FIELDS, ...customFields],
+        [customFields],
+    )
+
     const resetState = useCallback(() => {
         setStep(1)
         setFileName("")
@@ -106,6 +168,7 @@ export function ImportCompaniesModal({ open, onOpenChange, onSuccess }: ImportCo
         setColumnMapping({})
         setValidations([])
         setImportResult({ success: 0, failed: 0, errors: [] })
+        setProgress({ current: 0, total: 0 })
     }, [])
 
     const handleClose = useCallback(() => {
@@ -114,37 +177,41 @@ export function ImportCompaniesModal({ open, onOpenChange, onSuccess }: ImportCo
     }, [resetState, onOpenChange])
 
     const downloadTemplate = useCallback(() => {
-        const headers = SYSTEM_FIELDS.map((c) => c.label)
-        const exampleRow = SYSTEM_FIELDS.map((c) => c.example)
+        const headers = allFields.map((c) => c.label)
+        const exampleRow = allFields.map((c) => c.example)
         const ws = XLSX.utils.aoa_to_sheet([headers, exampleRow])
-        ws["!cols"] = SYSTEM_FIELDS.map((c) => ({
+        ws["!cols"] = allFields.map((c) => ({
             wch: Math.max(c.label.length, c.example.length, 18)
         }))
         const wb = XLSX.utils.book_new()
         XLSX.utils.book_append_sheet(wb, ws, "Companies Import Template")
         XLSX.writeFile(wb, "companies_import_template.xlsx")
         toast.success("Template downloaded!")
-    }, [])
+    }, [allFields])
 
     const autoMapHeaders = useCallback((rawHeaders: string[]): ColumnMapping => {
         const mapping: ColumnMapping = {}
-        for (const field of SYSTEM_FIELDS) {
+        for (const field of allFields) {
+            // For custom fields the key is "custom:<field_key>"; match the
+            // bare field_key portion against headers too.
+            const bareKey = field.custom ? field.key.replace("custom:", "") : field.key
             let found = rawHeaders.find((h) => h === field.label)
             if (!found) found = rawHeaders.find((h) => h.toLowerCase() === field.label.toLowerCase())
-            if (!found) found = rawHeaders.find((h) => h.toLowerCase() === field.key.toLowerCase())
+            if (!found) found = rawHeaders.find((h) => h.toLowerCase() === bareKey.toLowerCase())
             if (!found && field.key === "name") found = rawHeaders.find((h) => /^(company|organization|name)/i.test(h) && !/parent|induk|holding/i.test(h))
             if (!found && field.key === "parent_company") found = rawHeaders.find((h) => /parent|induk|holding/i.test(h))
             if (!found && field.key === "street_address") found = rawHeaders.find((h) => /address|alamat|street/i.test(h))
             if (!found && field.key === "industry") found = rawHeaders.find((h) => /industry|sector|sektor/i.test(h))
+            if (!found && field.key === "account_status") found = rawHeaders.find((h) => /account\s*status|status|tipe\s*akun|tipe\s*klien/i.test(h))
             if (found) mapping[field.key] = found
         }
         return mapping
-    }, [])
+    }, [allFields])
 
     const validateData = useCallback((rows: ParsedRow[], mapping: ColumnMapping): RowValidation[] => {
         const errors: RowValidation[] = []
         rows.forEach((row, idx) => {
-            for (const field of SYSTEM_FIELDS.filter((f) => f.required)) {
+            for (const field of allFields.filter((f) => f.required)) {
                 const header = mapping[field.key]
                 const value = header ? row[header] : ""
                 if (!value || !String(value).trim()) {
@@ -153,7 +220,7 @@ export function ImportCompaniesModal({ open, onOpenChange, onSuccess }: ImportCo
             }
         })
         return errors
-    }, [])
+    }, [allFields])
 
     const parseXLSX = useCallback((buffer: ArrayBuffer): { headers: string[]; rows: ParsedRow[] } => {
         const workbook = XLSX.read(buffer, { type: "array", cellDates: true })
@@ -216,7 +283,7 @@ export function ImportCompaniesModal({ open, onOpenChange, onSuccess }: ImportCo
     }, [])
 
     const mappedCount = Object.keys(columnMapping).length
-    const unmappedRequired = SYSTEM_FIELDS.filter((f) => f.required && !columnMapping[f.key])
+    const unmappedRequired = allFields.filter((f) => f.required && !columnMapping[f.key])
 
     const proceedToPreview = useCallback(() => {
         const errors = validateData(parsedData, columnMapping)
@@ -233,6 +300,8 @@ export function ImportCompaniesModal({ open, onOpenChange, onSuccess }: ImportCo
             const { data: userData } = await supabase.auth.getUser()
             const userId = userData.user?.id
 
+            setProgress({ current: 0, total: parsedData.length })
+
             let successCount = 0
             let failedCount = 0
             const errs: string[] = []
@@ -240,12 +309,16 @@ export function ImportCompaniesModal({ open, onOpenChange, onSuccess }: ImportCo
             for (let i = 0; i < parsedData.length; i++) {
                 const row = parsedData[i]
                 const payload: any = {}
+                const customData: Record<string, unknown> = {}
                 let parentCompanyName = ""
                 for (const [fieldKey, excelHeader] of Object.entries(columnMapping)) {
                     let val = row[excelHeader]?.trim()
                     if (val) {
                         val = formatValue(fieldKey, val)
-                        if (fieldKey === "parent_company") {
+                        if (fieldKey.startsWith("custom:")) {
+                            // Per-tenant custom field → goes into custom_data JSONB.
+                            customData[fieldKey.replace("custom:", "")] = val
+                        } else if (fieldKey === "parent_company") {
                             // Not a real column — resolved to parent_id below.
                             parentCompanyName = val
                         } else if (fieldKey === "phone") {
@@ -256,10 +329,18 @@ export function ImportCompaniesModal({ open, onOpenChange, onSuccess }: ImportCo
                     }
                 }
 
+                if (Object.keys(customData).length > 0) payload.custom_data = customData
                 if (userId) payload.owner_id = userId
 
                 // Resolve parent company name → parent_id (find existing or create it).
-                if (parentCompanyName) {
+                // NOTE: in this dataset a top-level company lists ITSELF as its
+                // own Parent Company (e.g. "Bali ES Tour" / "Bali ES Tour").
+                // Treat self-reference as top-level (parent_id = null) — never
+                // create a parent row for it (that caused the duplicate-name
+                // failures) and never let a company be its own parent (cycle).
+                const selfName = (payload.name as string | undefined)?.trim().toLowerCase()
+                const isSelfParent = parentCompanyName.trim().toLowerCase() === selfName
+                if (parentCompanyName && !isSelfParent) {
                     const { data: parent } = await supabase
                         .from("client_companies")
                         .select("id")
@@ -290,13 +371,54 @@ export function ImportCompaniesModal({ open, onOpenChange, onSuccess }: ImportCo
                     payload.address = [payload.street_address, payload.city, payload.postal_code, payload.country].filter(Boolean).join(", ")
                 }
 
-                const { error } = await supabase.from("client_companies").insert(payload)
+                // Idempotent by name: client_companies.name has a UNIQUE index
+                // (idx_client_companies_name). A plain INSERT throws on any name
+                // that already exists — either a repeat within this file or a
+                // row created by an earlier import. So look it up first and
+                // UPDATE the existing record (filling in details) instead of
+                // failing. Lets the import be re-run safely.
+                const companyName = (payload.name as string | undefined)?.trim()
+                if (!companyName) {
+                    failedCount++
+                    errs.push(`Row ${i + 1}: Company Name is required`)
+                    continue
+                }
+
+                const { data: existing } = await supabase
+                    .from("client_companies")
+                    .select("id, custom_data")
+                    .ilike("name", companyName)
+                    .limit(1)
+                    .maybeSingle()
+
+                let error
+                if (existing) {
+                    // Don't overwrite the canonical name casing; merge the rest.
+                    const { name: _omitName, ...updatable } = payload
+                    void _omitName
+                    if (existing.custom_data && payload.custom_data) {
+                        // Merge custom_data so we don't wipe existing keys.
+                        updatable.custom_data = { ...existing.custom_data, ...payload.custom_data }
+                    }
+                    ;({ error } = await supabase
+                        .from("client_companies")
+                        .update(updatable)
+                        .eq("id", existing.id))
+                } else {
+                    ;({ error } = await supabase.from("client_companies").insert(payload))
+                }
+
                 if (error) {
                     failedCount++
                     errs.push(`Row ${i + 1}: ${error.message}`)
                 } else {
                     successCount++
                 }
+
+                // Update progress after each row. Yield to the event loop
+                // every few rows so React can paint the bar (the loop is
+                // inside a transition but await points let state flush).
+                setProgress({ current: i + 1, total: parsedData.length })
             }
 
             setImportResult({ success: successCount, failed: failedCount, errors: errs })
@@ -316,13 +438,13 @@ export function ImportCompaniesModal({ open, onOpenChange, onSuccess }: ImportCo
     const usedHeaders = useMemo(() => new Set(Object.values(columnMapping)), [columnMapping])
 
     const fieldGroups = useMemo(() => {
-        const groups: Record<string, typeof SYSTEM_FIELDS> = {}
-        for (const f of SYSTEM_FIELDS) {
+        const groups: Record<string, ImportField[]> = {}
+        for (const f of allFields) {
             if (!groups[f.group]) groups[f.group] = []
             groups[f.group].push(f)
         }
         return groups
-    }, [])
+    }, [allFields])
 
     return (
         <Dialog open={open} onOpenChange={(v) => { if (!v) handleClose(); else onOpenChange(v) }}>
@@ -398,7 +520,7 @@ export function ImportCompaniesModal({ open, onOpenChange, onSuccess }: ImportCo
                             <div className="flex items-center gap-3 p-3 rounded-lg bg-blue-50/70 border border-blue-200/50">
                                 <Link2 className="h-4 w-4 text-blue-500 shrink-0" />
                                 <div className="text-xs">
-                                    <span className="font-semibold text-blue-800">{mappedCount} of {SYSTEM_FIELDS.length}</span>
+                                    <span className="font-semibold text-blue-800">{mappedCount} of {allFields.length}</span>
                                     <span className="text-blue-600"> fields mapped from </span>
                                     <span className="font-semibold text-blue-800">{excelHeaders.length} columns</span>
                                 </div>
@@ -461,7 +583,7 @@ export function ImportCompaniesModal({ open, onOpenChange, onSuccess }: ImportCo
                                 </div>
                                 <div className="flex flex-col items-center gap-1 p-3 rounded-lg border bg-emerald-50 text-emerald-600 border-emerald-200/50">
                                     <CheckCircle2 className="h-3.5 w-3.5" />
-                                    <span className="text-lg font-bold">{mappedCount}/{SYSTEM_FIELDS.length}</span>
+                                    <span className="text-lg font-bold">{mappedCount}/{allFields.length}</span>
                                     <span className="text-[10px] uppercase tracking-wider opacity-70">Mapped</span>
                                 </div>
                                 <div className={`flex flex-col items-center gap-1 p-3 rounded-lg border ${errorCount > 0 ? "bg-red-50 text-red-600 border-red-200/50" : "bg-emerald-50 text-emerald-600 border-emerald-200/50"}`}>
@@ -498,7 +620,7 @@ export function ImportCompaniesModal({ open, onOpenChange, onSuccess }: ImportCo
                                             <tr className="bg-slate-50/50 text-slate-500 border-b border-slate-200">
                                                 <th className="px-3 py-2 text-left font-medium">#</th>
                                                 {Object.entries(columnMapping).slice(0, 8).map(([key]) => (
-                                                    <th key={key} className="px-3 py-2 text-left font-medium">{SYSTEM_FIELDS.find(f => f.key === key)?.label}</th>
+                                                    <th key={key} className="px-3 py-2 text-left font-medium">{allFields.find(f => f.key === key)?.label}</th>
                                                 ))}
                                             </tr>
                                         </thead>
@@ -539,16 +661,35 @@ export function ImportCompaniesModal({ open, onOpenChange, onSuccess }: ImportCo
                 </div>
 
                 {/* FOOTER */}
-                <div className="px-6 py-4 border-t border-slate-100 bg-slate-50/50 flex items-center justify-between">
+                <div className="px-6 py-4 border-t border-slate-100 bg-slate-50/50 flex flex-col gap-3">
+                    {isPending && progress.total > 0 && (
+                        <div className="space-y-1.5">
+                            <div className="flex items-center justify-between text-xs font-medium text-slate-600">
+                                <span>Importing companies…</span>
+                                <span className="tabular-nums">
+                                    {progress.current} / {progress.total}
+                                    {" "}({Math.round((progress.current / progress.total) * 100)}%)
+                                </span>
+                            </div>
+                            <div className="h-2 w-full rounded-full bg-slate-200 overflow-hidden">
+                                <div
+                                    className="h-full rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 transition-[width] duration-200 ease-out"
+                                    style={{ width: `${Math.round((progress.current / progress.total) * 100)}%` }}
+                                />
+                            </div>
+                        </div>
+                    )}
+                    <div className="flex items-center justify-between">
                     <div>
                         {step === 2 && <Button variant="ghost" size="sm" onClick={() => { setStep(1); setParsedData([]); setFileName(""); setExcelHeaders([]); setColumnMapping({}) }}><ArrowLeft className="h-3.5 w-3.5 mr-1.5" /> Back</Button>}
-                        {step === 3 && <Button variant="ghost" size="sm" onClick={() => setStep(2)}><ArrowLeft className="h-3.5 w-3.5 mr-1.5" /> Edit Mapping</Button>}
+                        {step === 3 && <Button variant="ghost" size="sm" disabled={isPending} onClick={() => setStep(2)}><ArrowLeft className="h-3.5 w-3.5 mr-1.5" /> Edit Mapping</Button>}
                         {step === 4 && <Button variant="ghost" size="sm" onClick={resetState}><RotateCcw className="h-3.5 w-3.5 mr-1.5" /> Import More</Button>}
                     </div>
                     <div className="flex items-center gap-2">
-                        <Button variant="outline" size="sm" onClick={handleClose}>{step === 4 ? "Close" : "Cancel"}</Button>
+                        <Button variant="outline" size="sm" onClick={handleClose} disabled={isPending && step === 3}>{step === 4 ? "Close" : "Cancel"}</Button>
                         {step === 2 && <Button size="sm" disabled={unmappedRequired.length > 0} onClick={proceedToPreview} className="gap-1.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white"><ArrowRight className="h-3.5 w-3.5" /> Preview Data</Button>}
-                        {step === 3 && <Button size="sm" disabled={!canImport || isPending} onClick={handleImport} className="gap-1.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white">{isPending ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Importing...</> : <><ArrowRight className="h-3.5 w-3.5" /> Import {parsedData.length}</>}</Button>}
+                        {step === 3 && <Button size="sm" disabled={!canImport || isPending} onClick={handleImport} className="gap-1.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white">{isPending ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Importing {progress.current}/{progress.total}</> : <><ArrowRight className="h-3.5 w-3.5" /> Import {parsedData.length}</>}</Button>}
+                    </div>
                     </div>
                 </div>
             </DialogContent>

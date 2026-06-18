@@ -6,7 +6,7 @@ import * as XLSX from "xlsx"
 import {
     ArrowDown, ArrowUp, ArrowUpDown, Briefcase, Building2, Columns, Download,
     Eye, EyeOff, Globe, GripVertical, MoreHorizontal, Pencil, Phone,
-    Plus, RotateCcw, Search, Trash2, Upload, Users,
+    Plus, RotateCcw, Search, Trash2, Upload, Users, AlertTriangle,
 } from "lucide-react"
 import { toast } from "sonner"
 
@@ -155,7 +155,7 @@ export default function CompaniesPage() {
         setLoading(true)
         const { data, error } = await supabase
             .from("client_companies")
-            .select("id, name, industry, line_industry, website, phone, address, area, street_address, city, postal_code, country, parent_id, owner_id, created_at, account_status, custom_data, parent:parent_id(id, name), owner:profiles!client_companies_owner_id_fkey(full_name)")
+            .select("id, name, industry, line_industry, website, phone, address, area, street_address, city, postal_code, country, parent_id, owner_id, created_at, account_status, needs_enrichment, custom_data, parent:parent_id(id, name), owner:profiles!client_companies_owner_id_fkey(full_name)")
             .order("name", { ascending: true })
         if (error) {
             console.warn("[Companies Fetch]:", error.message || error)
@@ -182,6 +182,7 @@ export default function CompaniesPage() {
         { field: "phone", label: "Has phone", type: "boolean", defaultOperator: "is_not_empty", accessor: row => (row as CompanyRow).phone },
         { field: "website", label: "Has website", type: "boolean", defaultOperator: "is_not_empty", accessor: row => (row as CompanyRow).website },
         { field: "country", label: "Country", type: "select", options: uniqueCountries.map(v => ({ value: v, label: v })), accessor: row => (row as CompanyRow).country ?? "" },
+        { field: "needs_enrichment", label: "Needs details", type: "boolean", defaultOperator: "is_true", accessor: row => (row as CompanyRow).needs_enrichment ?? false },
         { field: "created_at", label: "Created date", type: "date-range", accessor: row => (row as CompanyRow).created_at },
     ], [uniqueSectors, uniqueLines, uniqueOwners, uniqueCountries])
 
@@ -248,7 +249,7 @@ export default function CompaniesPage() {
 
     const renderCellContent = (colId: ColId, company: CompanyRow) => {
         switch (colId) {
-            case "name": return <div className="flex items-center gap-3 min-w-0"><div className={cn("w-8 h-8 rounded-md border flex items-center justify-center text-[10px] font-semibold shrink-0", getAvatarColor(company.name))}>{getInitials(company.name)}</div><div className="min-w-0"><span className="font-medium text-[13px] text-foreground group-hover:text-primary transition-colors truncate block">{company.name}</span>{company.parent?.name && <p className="text-[11px] text-muted-foreground truncate">{company.parent.name}</p>}</div></div>
+            case "name": return <div className="flex items-center gap-3 min-w-0"><div className={cn("w-8 h-8 rounded-md border flex items-center justify-center text-[10px] font-semibold shrink-0", getAvatarColor(company.name))}>{getInitials(company.name)}</div><div className="min-w-0"><span className="font-medium text-[13px] text-foreground group-hover:text-primary transition-colors truncate block">{company.name}{company.needs_enrichment && <span title="Auto-created from a lead import. Edit and save to complete it." className="ml-1.5 inline-flex items-center gap-0.5 rounded bg-amber-50 border border-amber-200 px-1 py-0 text-[10px] font-semibold text-amber-700 align-middle"><AlertTriangle className="w-2.5 h-2.5" />Needs details</span>}</span>{company.parent?.name && <p className="text-[11px] text-muted-foreground truncate">{company.parent.name}</p>}</div></div>
             case "industry": return company.industry ? <div className="flex items-center gap-2"><Briefcase className="w-3 h-3 text-muted-foreground shrink-0" /><span className="truncate">{company.industry}</span></div> : <span className="text-muted-foreground/60">—</span>
             case "line_industry": return company.line_industry ? <span className="truncate">{company.line_industry}</span> : <span className="text-muted-foreground/60">—</span>
             case "phone": return company.phone ? <div className="flex items-center gap-2"><Phone className="w-3 h-3 text-muted-foreground shrink-0" /><span className="truncate">{formatPhoneDisplay(company.phone)}</span></div> : <span className="text-muted-foreground/60">—</span>
