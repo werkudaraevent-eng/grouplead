@@ -33,6 +33,7 @@ import { formatTabLabel, getVisibleTabIds } from "@/features/settings/lib/form-l
 import { DynamicField } from "./dynamic-field"
 import { FormFieldLabel } from "@/components/shared/form-field-label"
 import { SearchableSelect } from "@/components/shared/searchable-select"
+import { CityAutocomplete } from "@/components/shared/city-autocomplete"
 import { SegmentedControl } from "@/components/shared/segmented-control"
 import { DatePickerField } from "@/components/shared/date-picker-field"
 
@@ -1062,10 +1063,11 @@ export function LeadForm({ onSuccess, onClose, pipelineId, defaultStageId, initi
                                                                                 <FormItem className="space-y-1.5">
                                                                                     <FormFieldLabel required>City</FormFieldLabel>
                                                                                     <FormControl>
-                                                                                        <SearchableSelect
+                                                                                        <CityAutocomplete
                                                                                             value={field.value || null}
                                                                                             onChange={(v) => field.onChange(v ?? "")}
-                                                                                            options={eventCityOptions.map(opt => ({ value: opt.value, label: opt.label }))}
+                                                                                            cachedOptions={eventCityOptions.map(opt => ({ value: opt.value, label: opt.label }))}
+                                                                                            countryBias="ID"
                                                                                             placeholder="Select city"
                                                                                         />
                                                                                     </FormControl>
