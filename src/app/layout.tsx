@@ -36,17 +36,21 @@ export default async function RootLayout({
 }>) {
   const headersList = await headers();
   const pathname = headersList.get("x-pathname") || "";
-  const isLoginPage = pathname.startsWith("/login");
+  // Public auth pages render standalone (no sidebar/app shell) and skip the
+  // authenticated data fetch below.
+  const isAuthPage = ["/login", "/forgot-password", "/reset-password"].some(
+    (p) => pathname.startsWith(p)
+  );
   // Print routes render a standalone printable document — skip the app shell
   const isPrintPage = /^\/leads\/[^/]+\/print/.test(pathname);
-  const standalone = isLoginPage || isPrintPage;
+  const standalone = isAuthPage || isPrintPage;
 
   let initialCompany = null;
   let companies: Awaited<ReturnType<typeof getUserCompanies>> = [];
   let currencySettings: CurrencySettings = DEFAULT_CURRENCY_SETTINGS;
   let userProfile: { full_name: string | null; role: string | null; avatar_url: string | null } | null = null;
 
-  if (!isLoginPage) {
+  if (!isAuthPage) {
     try {
       const supabase = await createClient();
       const [activeResult, companiesResult, authResult] = await Promise.all([
