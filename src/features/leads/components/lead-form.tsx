@@ -327,6 +327,7 @@ export function LeadForm({ onSuccess, onClose, pipelineId, defaultStageId, initi
             referral_source: initialData.referral_source || null,
             pic_sales_id: initialData.pic_sales_id || null,
             target_close_date: initialData.target_close_date || "",
+            received_date: initialData.received_date ? initialData.received_date.split("T")[0] : "",
             month_event: initialData.month_event || null,
             tentative_month: (() => {
                 const me = initialData.month_event || ""
@@ -459,6 +460,7 @@ export function LeadForm({ onSuccess, onClose, pipelineId, defaultStageId, initi
                 referral_source: initialData.referral_source || null,
                 pic_sales_id: initialData.pic_sales_id || null,
             target_close_date: initialData.target_close_date || "",
+            received_date: initialData.received_date ? initialData.received_date.split("T")[0] : "",
             closed_won_date: initialData.closed_won_date ? initialData.closed_won_date.split("T")[0] : "",
             closed_lost_date: initialData.closed_lost_date ? initialData.closed_lost_date.split("T")[0] : "",
                 month_event: initialData.month_event || null,
