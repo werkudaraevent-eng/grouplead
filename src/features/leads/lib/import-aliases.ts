@@ -54,6 +54,11 @@ export const FIELD_ALIASES: FieldAliasMap = {
         "target close date", "est. closing date", "estimated closing date",
         "expected close date", "close date target", "tgl target close",
     ],
+    received_date: [
+        "received date", "date received", "month received lead",
+        "month receive lead", "lead received", "inquiry date",
+        "tgl time lead terima", "tanggal terima lead",
+    ],
 
     // ── Event tab ───────────────────────────────────────────────
     event_dates: [
@@ -126,9 +131,13 @@ export const FIELD_ALIASES: FieldAliasMap = {
     ],
 
     // ── Historical fields ───────────────────────────────────────
-    created_at: [        "received date", "month received lead", "date received",        "created date", "created at", "date created", "inquiry date",
-        "tanggal buat", "tanggal dibuat", "month receive lead",
-        "tgl time lead terima", "lead received", "year lead receive",
+    // NOTE: received-flavored aliases live on `received_date` above. Keep only
+    // genuinely created-date phrasings here so they don't shadow received_date
+    // (later object keys win in ALIAS_INDEX). The historical importer reads
+    // `received_date ?? created_at`, so received_date matches stay compatible.
+    created_at: [
+        "created date", "created at", "date created",
+        "tanggal buat", "tanggal dibuat", "year lead receive",
     ],
     actual_value: [
         "actual value", "actual revenue", "revenue", "nilai aktual",

@@ -36,7 +36,14 @@ describe("resolveFieldByAlias — sample-derived headers", () => {
         ["CANCEL/ LOST/ POST REASON", "lost_reason"],
         ["CATEGORY", "category"],
         ["AREA", "area"],
-        ["MONTH RECEIVE LEAD", "created_at"],
+        // Received-flavored headers now resolve to the dedicated received_date
+        // field (mappable in both standard + historical import). The
+        // historical importer reads `received_date ?? created_at`, so backfill
+        // behavior is preserved.
+        ["MONTH RECEIVE LEAD", "received_date"],
+        ["RECEIVED DATE", "received_date"],
+        // created_at keeps the genuinely creation-specific phrasings.
+        ["CREATED DATE", "created_at"],
     ]
 
     for (const [header, expected] of cases) {

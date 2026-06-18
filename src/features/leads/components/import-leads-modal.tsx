@@ -20,6 +20,7 @@ import {
     saveImportProfile,
     type ImportProfileRow,
 } from "@/app/actions/import-profile-actions"
+import type { FormSchema } from "@/types"
 
 import {
     Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
@@ -34,18 +35,38 @@ import {
     Sparkles, RotateCcw, Save, Workflow, Plus, Trash2,
 } from "lucide-react"
 
+// Shape of an import-mappable field. Native fields map straight onto lead
+// columns / resolver inputs; custom fields (sourced from `form_schemas`) are
+// flagged with `isCustom` so the payload builder routes them into
+// `custom_data` instead of a top-level column.
+type ImportField = {
+    key: string
+    label: string
+    required: boolean
+    group: string
+    example: string
+    fieldType?: "text" | "number" | "date" | "dropdown"
+    isCustom?: boolean
+}
+
+// Prefix used to namespace custom-field mapping keys so a custom field_key
+// can never collide with a native field key (e.g. a custom "status").
+const CUSTOM_KEY_PREFIX = "custom__"
+
 // ── System fields — aligned with Lead Form tabs ──
-const SYSTEM_FIELDS = [
+const SYSTEM_FIELDS: ImportField[] = [
     // Project Tab
     { key: "project_name", label: "Project Name", required: true, group: "Project", example: "Annual Gala Dinner 2026" },
     { key: "subsidiary_name", label: "Subsidiary / Business Unit", required: true, group: "Project", example: "Werkudara Nirwana Wisata" },
     { key: "category", label: "Category", required: false, group: "Project", example: "Hot Lead" },
     { key: "grade_lead", label: "Grade Lead", required: false, group: "Project", example: "Grade C (< 200 Jt)" },
     { key: "client_company_name", label: "Client Company", required: false, group: "Project", example: "PT Telkom Indonesia" },
+    { key: "account_status", label: "Account Status", required: false, group: "Project", example: "new" },
     { key: "contact_name", label: "Contact Person", required: false, group: "Project", example: "John Doe" },
     { key: "pic_sales_name", label: "PIC Sales", required: false, group: "Project", example: "Sales Person Name" },
     { key: "lead_source", label: "Lead Source", required: false, group: "Project", example: "Referral" },
     { key: "referral_source", label: "Referral Source", required: false, group: "Project", example: "John from XYZ Corp" },
+    { key: "received_date", label: "Received Date", required: false, group: "Project", example: "2026-06-01" },
     { key: "target_close_date", label: "Target Close Date", required: false, group: "Project", example: "2026-06-30" },
 
     // Event Tab
@@ -53,7 +74,7 @@ const SYSTEM_FIELDS = [
     { key: "pax_count", label: "Pax Count", required: false, group: "Event", example: "500" },
     { key: "event_format", label: "Event Format", required: false, group: "Event", example: "Onsite" },
     { key: "virtual_platform", label: "Virtual Platform", required: false, group: "Event", example: "Zoom" },
-    { key: "destination_city", label: "Destination City", required: false, group: "Event", example: "Bali" },
+    { key: "destination_city", label: "Destination City", required: false, group: "Event", example: "Bali, Surabaya" },
     { key: "destination_venue", label: "Destination Venue", required: false, group: "Event", example: "Mulia Resort" },
 
     // Classification Tab
@@ -82,11 +103,12 @@ const SYSTEM_FIELDS = [
 ]
 
 // ── Additional fields for historical import ──
-// `received_date` is REQUIRED — it sets the lead's "Received Month" used in
-// the pipeline filter. For backfilled rows it MUST reflect the date the
-// lead was originally received, not the day the row is being imported.
-const HISTORICAL_FIELDS = [
-    { key: "received_date", label: "Received Date", required: true, group: "Historical", example: "2024-03-15" },
+// `received_date` already lives in SYSTEM_FIELDS (optional). For historical
+// imports it becomes REQUIRED — it sets the lead's "Received Month" used in
+// the pipeline filter and MUST reflect the date the lead was originally
+// received, not the day the row is being imported. The required promotion is
+// applied in the `activeFields` memo below rather than duplicating the field.
+const HISTORICAL_FIELDS: ImportField[] = [
     { key: "actual_value", label: "Confirmed Value (Revenue)", required: false, group: "Historical", example: "175000000" },
 ]
 
@@ -103,8 +125,14 @@ interface ImportLeadsModalProps {
 
 export function ImportLeadsModal({ open, onOpenChange, pipelineId, onSuccess }: ImportLeadsModalProps) {
     const router = useRouter()
+    const { companies } = useCompany()
     const fileInputRef = useRef<HTMLInputElement>(null)
     const [isPending, startTransition] = useTransition()
+
+    // Custom lead fields (form_schemas). These mirror the dynamic fields the
+    // Add Lead modal renders, so the import template can represent them too.
+    // Values land in the lead's `custom_data` JSONB rather than a column.
+    const [customSchemas, setCustomSchemas] = useState<FormSchema[]>([])
 
     // Determinate progress while importing — driven by client-side batching
     // so the user sees real row counts instead of an indefinite spinner.
@@ -192,9 +220,70 @@ export function ImportLeadsModal({ open, onOpenChange, pipelineId, onSuccess }: 
         return () => { cancelled = true }
     }, [open, targetPipelineId])
 
-    // Active fields depend on mode — memoized to prevent re-render cascades
-    const COMBINED_FIELDS = useMemo(() => [...SYSTEM_FIELDS, ...HISTORICAL_FIELDS], [])
-    const activeFields = isHistorical ? COMBINED_FIELDS : SYSTEM_FIELDS
+    // Load active custom lead fields (form_schemas) so the template + mapping
+    // UI can represent them — mirrors the fetch in lead-form.tsx. Scoped to
+    // the user's companies plus global (company_id IS NULL) schemas.
+    useEffect(() => {
+        if (!open) {
+            setCustomSchemas([])
+            return
+        }
+        const supabase = createClient()
+        let cancelled = false
+        ;(async () => {
+            let query = supabase
+                .from("form_schemas").select("*")
+                .eq("module_name", "leads").eq("is_active", true).order("sort_order")
+            const companyIds = companies.map((c) => c.id)
+            if (companyIds.length > 0) {
+                const orClauses = companyIds.map((id) => `company_id.eq.${id}`).join(",")
+                query = query.or(`${orClauses},company_id.is.null`)
+            }
+            const { data } = await query
+            if (cancelled) return
+            setCustomSchemas((data ?? []) as FormSchema[])
+        })()
+        return () => { cancelled = true }
+    }, [open, companies])
+
+    // Map custom form-schema rows into ImportField entries. Each is grouped
+    // under "Custom Fields" and namespaced with CUSTOM_KEY_PREFIX so its key
+    // can't collide with a native field key.
+    const customFields = useMemo<ImportField[]>(() => {
+        const seen = new Set<string>()
+        const fields: ImportField[] = []
+        for (const s of customSchemas) {
+            if (!s.field_key || seen.has(s.field_key)) continue
+            seen.add(s.field_key)
+            const example =
+                s.field_type === "number" ? "100"
+                : s.field_type === "date" ? "2026-06-30"
+                : s.field_type === "dropdown" ? "Option A"
+                : "Sample text"
+            fields.push({
+                key: `${CUSTOM_KEY_PREFIX}${s.field_key}`,
+                label: s.field_name,
+                required: s.is_required,
+                group: "Custom Fields",
+                example,
+                fieldType: s.field_type,
+                isCustom: true,
+            })
+        }
+        return fields
+    }, [customSchemas])
+
+    // Active fields depend on mode — memoized to prevent re-render cascades.
+    // Historical mode adds backfill-only fields and promotes received_date to
+    // required. Custom fields are appended in both modes.
+    const activeFields = useMemo<ImportField[]>(() => {
+        const base = isHistorical
+            ? [...SYSTEM_FIELDS, ...HISTORICAL_FIELDS].map((f) =>
+                  f.key === "received_date" ? { ...f, required: true } : f,
+              )
+            : SYSTEM_FIELDS
+        return [...base, ...customFields]
+    }, [isHistorical, customFields])
 
     const resetState = useCallback(() => {
         setStep(1)
@@ -244,40 +333,90 @@ export function ImportLeadsModal({ open, onOpenChange, pipelineId, onSuccess }: 
         const sheetName = isHistorical ? "Historical Import Template" : "Lead Import Template"
         XLSX.utils.book_append_sheet(wb, ws, sheetName)
 
-        // For historical imports, add an Instructions sheet so users know
-        // exactly how to populate the Received Date column. Without this,
-        // users frequently leave it blank or fill it with today's date,
-        // which breaks the Received Month filter.
+        // ── Instructions sheet (always included) ──
+        // Documents how the parser interprets multi-value cells (Event Dates,
+        // Destination City) and date formats. Mirrors the real behaviour of
+        // parseSmartEventDates() and parseDestinations() so users format cells
+        // in a way the importer can actually understand.
+        const instructions: string[][] = [
+            ["Lead Import \u2014 How To Fill This Template"],
+            [""],
+            ["GENERAL"],
+            ["  \u2022 Row 1 is the header row \u2014 do not rename or delete it."],
+            ["  \u2022 Row 2 is a sample row \u2014 replace it with your real data or delete it."],
+            ["  \u2022 One lead per row. Leave a cell blank if you don't have the value."],
+            ["  \u2022 Project Name and Subsidiary / Business Unit are required."],
+            [""],
+            ["EVENT DATES (multiple days in ONE cell)"],
+            ["  The Event Dates column accepts several formats. You can put a"],
+            ["  whole event \u2014 even multi-day or multi-month \u2014 in a single cell:"],
+            [""],
+            ["  Format                          Example              Becomes"],
+            ["  Single day                      4 Feb 2026           1 date"],
+            ["  Day range (use a dash -)        3-5 Jan 2026         3,4,5 Jan"],
+            ["  Separate days (use comma ,)     3,5,8 Jan 2026       3 + 5 + 8 Jan"],
+            ["  Range + single mixed            3-5, 8 Jan 2026      3,4,5 + 8 Jan"],
+            ["  Across two months               19 Feb - 18 Mar 26   full span"],
+            ["  Two blocks (comma between)      3-5 Jan, 2-3 Feb 26  both blocks"],
+            ["  ISO list (comma or ;)           2026-01-03, 2026-01-05"],
+            [""],
+            ["  Rules:"],
+            ["    \u2022 Use a DASH ( - ) for a continuous range (3-5 = 3,4,5)."],
+            ["    \u2022 Use a COMMA ( , ) to list separate days or date blocks."],
+            ["    \u2022 Month names work in English or Indonesian (Jan / Januari)."],
+            ["    \u2022 Year can be 2 or 4 digits (26 = 2026)."],
+            [""],
+            ["DESTINATION CITY (multiple cities in ONE cell)"],
+            ["  Put several cities in one cell by separating them with a"],
+            ["  COMMA ( , ), SEMICOLON ( ; ), SLASH ( / ), or the word AND:"],
+            [""],
+            ["    Jakarta, Surabaya"],
+            ["    Bandung / Lombok / Lampung"],
+            ["    Bali AND Labuan Bajo"],
+            ["    Yogyakarta; Semarang"],
+            [""],
+            ["  Rules:"],
+            ["    \u2022 Comma is the recommended separator."],
+            ["    \u2022 Each city becomes a separate destination on the lead."],
+            ["    \u2022 The Destination Venue value applies to every city in the row."],
+            ["    \u2022 Cities not yet in master options still import (with a warning)."],
+            [""],
+            ["DATES (single-date columns)"],
+            ["  Received Date, Target Close Date, Closed Won/Lost Date:"],
+            ["    \u2022 Best format is YYYY-MM-DD (e.g. 2026-06-30)."],
+            ["    \u2022 Normal Excel date cells are also accepted."],
+            ["    \u2022 One date per cell (these are NOT multi-value columns)."],
+            [""],
+            ["NUMBERS"],
+            ["  Estimated Value, Confirmed Value, Pax Count:"],
+            ["    \u2022 Digits only \u2014 150000000 (dots/commas are tolerated but"],
+            ["      plain numbers are safest)."],
+            [""],
+            ["ACCOUNT STATUS"],
+            ["  Accepted values: new | repeater | contracted"],
+            ["  (left blank = auto-detected from the client's history)."],
+        ]
+
+        // For historical imports, prepend the backfill-specific guidance so
+        // users understand the Received Date column drives the Received Month
+        // filter and must reflect the original receipt date.
         if (isHistorical) {
-            const instructions = [
-                ["Historical Lead Import \u2014 Instructions"],
-                [""],
-                ["This template is for backfilling leads that were received in"],
-                ["PREVIOUS months. The Received Date column drives the"],
-                ["\"Received Month\" filter on the pipeline."],
-                [""],
-                ["Required:"],
-                ["  \u2022 Received Date (YYYY-MM-DD) \u2014 the date the lead was"],
+            const historicalNotes: string[][] = [
+                ["HISTORICAL IMPORT \u2014 IMPORTANT"],
+                ["  This mode backfills leads received in PREVIOUS months."],
+                ["  \u2022 Received Date is REQUIRED and must be the date the lead was"],
                 ["    originally received, NOT today's date."],
-                ["  \u2022 Project Name"],
-                ["  \u2022 Subsidiary / Business Unit"],
-                [""],
-                ["Tips:"],
-                ["  \u2022 Use ISO format YYYY-MM-DD (e.g. 2024-03-15) for safety,"],
-                ["    or any date Excel recognises."],
                 ["  \u2022 Leave Confirmed Value blank for leads that didn't close Won."],
-                ["  \u2022 If a lead is already in the system from a regular import,"],
-                ["    delete it first \u2014 re-importing as historical does NOT"],
-                ["    update existing rows."],
+                ["  \u2022 If a lead already exists from a regular import, delete it first"],
+                ["    \u2014 re-importing as historical does NOT update existing rows."],
                 [""],
-                ["Acceptable header aliases for Received Date:"],
-                ["  Received Date | Created Date | Inquiry Date |"],
-                ["  Month Received Lead | Lead Received | Tanggal Buat"],
             ]
-            const wsInfo = XLSX.utils.aoa_to_sheet(instructions)
-            wsInfo["!cols"] = [{ wch: 70 }]
-            XLSX.utils.book_append_sheet(wb, wsInfo, "Instructions")
+            instructions.splice(2, 0, ...historicalNotes)
         }
+
+        const wsInfo = XLSX.utils.aoa_to_sheet(instructions)
+        wsInfo["!cols"] = [{ wch: 78 }]
+        XLSX.utils.book_append_sheet(wb, wsInfo, "Instructions")
 
         XLSX.writeFile(wb, isHistorical ? "historical_lead_import_template.xlsx" : "lead_import_template.xlsx")
         toast.success("Template downloaded!")
@@ -353,11 +492,9 @@ export function ImportLeadsModal({ open, onOpenChange, pipelineId, onSuccess }: 
                 }
             }
             // Validate date formats for both standard and historical modes.
-            // Closed dates can appear in either context — historical adds
-            // received_date on top.
-            const dateFieldsForMode = isHistorical
-                ? ["target_close_date", "received_date", "closed_won_date", "closed_lost_date"]
-                : ["target_close_date", "closed_won_date", "closed_lost_date"]
+            // received_date can now appear in either context (optional for
+            // standard, required for historical).
+            const dateFieldsForMode = ["target_close_date", "received_date", "closed_won_date", "closed_lost_date"]
             for (const df of dateFieldsForMode) {
                 const header = mapping[df]
                 const value = header ? row[header] : ""
@@ -634,10 +771,29 @@ export function ImportLeadsModal({ open, onOpenChange, pipelineId, onSuccess }: 
 
     const handleImport = useCallback(() => {
         startTransition(async () => {
+            // Quick lookup of custom-field types so values land in custom_data
+            // with the right primitive (numbers coerced, others kept as text).
+            const customTypeByKey = new Map<string, FormSchema["field_type"]>()
+            for (const s of customSchemas) {
+                if (s.field_key) customTypeByKey.set(s.field_key, s.field_type)
+            }
+
             const rows = parsedData.map((row) => {
                 const mapped: Record<string, unknown> = {}
+                const customData: Record<string, unknown> = {}
                 for (const [fieldKey, excelHeader] of Object.entries(columnMapping)) {
                     let val: unknown = row[excelHeader]?.trim() || null
+
+                    // ── Custom fields → custom_data JSONB ──
+                    if (fieldKey.startsWith(CUSTOM_KEY_PREFIX)) {
+                        const realKey = fieldKey.slice(CUSTOM_KEY_PREFIX.length)
+                        if (val !== null && customTypeByKey.get(realKey) === "number") {
+                            val = coerceNumber(val)
+                        }
+                        if (val !== null) customData[realKey] = val
+                        continue
+                    }
+
                     if ((fieldKey === "estimated_value" || fieldKey === "actual_value") && val) {
                         val = coerceNumber(val)
                     }
@@ -646,6 +802,10 @@ export function ImportLeadsModal({ open, onOpenChange, pipelineId, onSuccess }: 
                     }
 
                     mapped[fieldKey] = val
+                }
+
+                if (Object.keys(customData).length > 0) {
+                    mapped.custom_data = customData
                 }
 
                 // ── Translate source status → pipeline_stage_id ──
@@ -731,14 +891,14 @@ export function ImportLeadsModal({ open, onOpenChange, pipelineId, onSuccess }: 
                 toast.error(`${aggregate.failed} lead(s) failed to import`)
             }
         })
-    }, [columnMapping, parsedData, pipelineId, historicalPipelineId, startTransition, onSuccess, router, isHistorical, stageMapping, statusSourceField, targetPipelineId, importResult])
+    }, [columnMapping, parsedData, pipelineId, historicalPipelineId, startTransition, onSuccess, router, isHistorical, stageMapping, statusSourceField, targetPipelineId, importResult, customSchemas])
 
     // Headers already used in mapping
     const usedHeaders = useMemo(() => new Set(Object.values(columnMapping)), [columnMapping])
 
     // Group system fields by category
     const fieldGroups = useMemo(() => {
-        const groups: Record<string, typeof SYSTEM_FIELDS> = {}
+        const groups: Record<string, ImportField[]> = {}
         for (const f of activeFields) {
             if (!groups[f.group]) groups[f.group] = []
             groups[f.group].push(f)
