@@ -38,12 +38,11 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
         )
     }
 
-    // Fetch pipelines (needs company_id for scoping)
-    let pipelinesQuery = supabase.from('pipelines').select('id, name, is_default, fiscal_year').order('created_at', { ascending: true })
-    if (activeCompany?.id) {
-        pipelinesQuery = pipelinesQuery.eq('company_id', activeCompany.id)
-    }
-    const { data: pipelinesData } = await pipelinesQuery
+    // Fetch pipelines — global definitions, shared across all business units.
+    const { data: pipelinesData } = await supabase
+        .from('pipelines')
+        .select('id, name, is_default, fiscal_year')
+        .order('created_at', { ascending: true })
     const pipelines = pipelinesData || []
 
     const defaultPipeline = pipelines.find(p => p.is_default) || pipelines[0]

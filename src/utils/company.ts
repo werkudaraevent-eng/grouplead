@@ -40,22 +40,29 @@ export async function getActiveCompany(): Promise<CompanyContext | null> {
     }
   }
 
-  // Try to find the company matching the cookie slug
+  // Try to find the company matching the cookie slug among the user's
+  // memberships. NOTE: we deliberately fetch all memberships and match in
+  // memory rather than using `.eq('companies.slug', ...)`. A PostgREST filter
+  // on an *embedded* resource column does not filter the parent rows unless
+  // the join is `!inner`, so the old `.single()` approach errored for any user
+  // with more than one membership and silently fell back to their first
+  // company — which made the company switcher appear to do nothing.
   if (activeCompanyCookie && activeCompanyCookie !== 'holding') {
-    const { data: membership } = await supabase
+    const { data: memberships } = await supabase
       .from('company_members')
-      .select('company_id, companies(id, slug, name, is_holding)')
+      .select('companies(id, slug, name, is_holding)')
       .eq('user_id', user.id)
-      .eq('companies.slug', activeCompanyCookie)
-      .single()
 
-    if (membership?.companies) {
-      const company = membership.companies as unknown as { id: string; slug: string; name: string; is_holding: boolean }
+    const match = (memberships ?? [])
+      .map(m => m.companies as unknown as { id: string; slug: string; name: string; is_holding: boolean } | null)
+      .find(c => c?.slug === activeCompanyCookie)
+
+    if (match) {
       return {
-        id: company.id,
-        slug: company.slug,
-        name: company.name,
-        isHolding: company.is_holding,
+        id: match.id,
+        slug: match.slug,
+        name: match.name,
+        isHolding: match.is_holding,
       }
     }
   }

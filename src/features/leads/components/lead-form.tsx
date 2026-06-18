@@ -133,6 +133,13 @@ const getDynamicSchema = (requiredIds: string[]) => {
 
 type AddLeadValues = z.infer<typeof addLeadSchema>
 
+// Ordinal suffix for a day-of-month, e.g. 1 → "1st", 22 → "22nd", 27 → "27th".
+function ordinal(n: number): string {
+    const s = ["th", "st", "nd", "rd"]
+    const v = n % 100
+    return `${n}${s[(v - 20) % 10] ?? s[v] ?? s[0]}`
+}
+
 interface LeadFormProps {
     onSuccess?: () => void
     onClose?: () => void
@@ -1147,7 +1154,11 @@ export function LeadForm({ onSuccess, onClose, pipelineId, defaultStageId, initi
                                             <DynamicSelectField control={form.control} name="tentative_month" label="Month" options={tentativeMonthOptions.map(o => o.value)} />
                                             <DynamicSelectField control={form.control} name="tentative_year" label="Year" options={tentativeYearOptions.map(o => o.value)} />
                                         </div>
-                                        <p className="text-[11px] text-muted-foreground mt-0">Defaults dynamically back to Event Dates if available.</p>
+                                        <p className="text-[11px] text-muted-foreground mt-0">
+                                            Auto-set from the event end date. Events ending after the{" "}
+                                            <span className="font-medium text-foreground">{ordinal(cutoffDate)}</span>{" "}
+                                            are recognized in the following month. You can override it above.
+                                        </p>
                                     </FieldSection>
                                 )}
                             </TabsContent>

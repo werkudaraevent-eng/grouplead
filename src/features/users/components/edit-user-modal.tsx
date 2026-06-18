@@ -152,6 +152,11 @@ export function EditUserSheet({ profile, open, onOpenChange, onSaved }: EditUser
             const toRemove = initialCompanyIds.filter(id => !selectedCompanyIds.includes(id))
             const toAdd = selectedCompanyIds.filter(id => !initialCompanyIds.includes(id))
 
+            // Resolve the membership user_type from the chosen role. The
+            // company_members.user_type CHECK constraint only allows these.
+            const VALID_USER_TYPES = ["staff", "leader", "executive", "admin", "super_admin"]
+            const memberType = VALID_USER_TYPES.includes(roleText || "") ? roleText! : "staff"
+
             if (toRemove.length > 0) {
                 const { error: delErr } = await supabase.from("company_members").delete()
                     .eq("user_id", profile.id)
@@ -162,10 +167,6 @@ export function EditUserSheet({ profile, open, onOpenChange, onSaved }: EditUser
                 }
             }
             if (toAdd.length > 0) {
-                // user_type CHECK constraint: staff, leader, executive, admin, super_admin
-                const VALID_USER_TYPES = ["staff", "leader", "executive", "admin", "super_admin"]
-                const memberType = VALID_USER_TYPES.includes(roleText || "") ? roleText! : "staff"
-
                 const { error: insErr } = await supabase.from("company_members")
                     .upsert(
                         toAdd.map(cid => ({
@@ -178,6 +179,23 @@ export function EditUserSheet({ profile, open, onOpenChange, onSaved }: EditUser
                 if (insErr) {
                     console.error("[EditUser] Failed to add company memberships:", insErr)
                     toast.error("Profile saved but failed to assign some business units")
+                }
+            }
+
+            // Re-sync user_type on memberships that were KEPT (not newly added).
+            // Without this, changing a user's role leaves stale user_type rows
+            // (e.g. an ex-super_admin keeps user_type='super_admin' on existing
+            // companies), and the permissions context keys off user_type — so
+            // the old role's access silently persists. Update every kept row.
+            const toUpdate = selectedCompanyIds.filter(id => initialCompanyIds.includes(id))
+            if (toUpdate.length > 0) {
+                const { error: updErr } = await supabase.from("company_members")
+                    .update({ user_type: memberType })
+                    .eq("user_id", profile.id)
+                    .in("company_id", toUpdate)
+                if (updErr) {
+                    console.error("[EditUser] Failed to re-sync membership roles:", updErr)
+                    toast.error("Profile saved but failed to update role on existing business units")
                 }
             }
 

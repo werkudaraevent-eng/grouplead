@@ -25,7 +25,7 @@ import {
 import { 
     Plus, LayoutGrid, Table, Loader2, GitBranch,
     MoreHorizontal, Trash2, PanelLeftClose, PanelLeft,
-    Copy, ListTree, ChevronRight, Pencil, X, Lock, Eye,
+    Copy, ListTree, ChevronRight, Pencil, X,
     Search, SlidersHorizontal, ChevronDown, ChevronUp,
     Archive, RotateCcw, Settings2, ArchiveRestore, Upload, Download,
     ChevronsLeft, ChevronsRight, TrendingUp, ArrowUpDown,
@@ -39,8 +39,6 @@ import { useRouter, usePathname } from "next/navigation"
 import { PermissionGate } from "@/features/users/components/permission-gate"
 import { usePermissions } from "@/contexts/permissions-context"
 import { Input } from "@/components/ui/input"
-import { Checkbox } from "@/components/ui/checkbox"
-import { Label } from "@/components/ui/label"
 
 import { useCompany } from "@/contexts/company-context"
 import { createClient } from "@/utils/supabase/client"
@@ -96,13 +94,22 @@ function setStoredPipelineId(scope: string, id: string) {
 }
 
 export function LeadDashboard() {
-    const { activeCompany, companies, isHoldingView } = useCompany()
+    const { activeCompany, isHoldingView } = useCompany()
+    // Tenant scope for lead queries. When the user is viewing "All units"
+    // (holding lens) we pass null and let RLS union every company they belong
+    // to. When focused on a single subsidiary we filter to that company_id.
+    // Pipelines themselves are global definitions and are NOT scoped here.
+    const leadScopeCompanyId = isHoldingView ? null : (activeCompany?.id ?? null)
     const { can } = usePermissions()
     const { fmt } = useCurrency()
     const supabase = createClient()
     const router = useRouter()
     const pathname = usePathname()
     const canDeleteLeads = can("leads", "delete")
+    // Pipeline definitions are global and admin-managed (DB RLS allows only
+    // super_admin/admin to mutate them). Gate the create/rename/delete UI on
+    // the same admin-config permission so operators don't see dead buttons.
+    const canManagePipelines = can("master_options", "update")
 
     // Pipeline state
     const [pipelines, setPipelines] = useState<Pipeline[]>([])
@@ -126,23 +133,10 @@ export function LeadDashboard() {
     const [renameIcon, setRenameIcon] = useState(DEFAULT_PIPELINE_ICON)
     const [cloning, setCloning] = useState(false)
     const [archiving, setArchiving] = useState(false)
-    const [newPipelineVisibility, setNewPipelineVisibility] = useState<'all_subs' | 'selected'>('all_subs')
-    const [selectedSubIds, setSelectedSubIds] = useState<string[]>([])
-    // Visibility Edit state
-    const [visibilityEditOpen, setVisibilityEditOpen] = useState(false)
-    const [visibilityEditTarget, setVisibilityEditTarget] = useState<Pipeline | null>(null)
-    const [editVisibility, setEditVisibility] = useState<'all_subs' | 'selected'>('all_subs')
-    const [editSubIds, setEditSubIds] = useState<string[]>([])
-    const [savingVisibility, setSavingVisibility] = useState(false)
-    // Pipeline access map: pipelineId -> company names for sidebar display
-    const [pipelineAccessMap, setPipelineAccessMap] = useState<Record<string, string[]>>({})
     // Archived pipelines
     const [archivedPipelines, setArchivedPipelines] = useState<Pipeline[]>([])
     const [showArchived, setShowArchived] = useState(false)
     const [restoringId, setRestoringId] = useState<string | null>(null)
-
-    // Derive subsidiary list for visibility picker (exclude holding itself)
-    const subsidiaryCompanies = companies.filter(c => !c.isHolding)
 
     // Lead state
     const [leads, setLeads] = useState<Lead[]>([])
@@ -422,117 +416,33 @@ export function LeadDashboard() {
         toast.success(`Exported ${rows.length} lead(s) to XLSX`)
     }
 
-    // ─── Fetch pipelines (visibility matrix) ───────────────────────────
-    const holdingCompanyId = companies.find(c => c.isHolding)?.id
-
+    // ─── Fetch pipelines (global definitions, shared by all users) ──────
     const fetchPipelines = useCallback(async () => {
         setPipelinesLoading(true)
 
-        if (isHoldingView) {
-            // Omniscient: Holding sees ALL pipelines across all accessible companies
-            let query = supabase.from('pipelines').select('*, company:companies(name, is_holding)').eq('is_active', true).order('created_at', { ascending: true })
-            const { data: sessionData } = await supabase.auth.getUser()
-            if (sessionData?.user) {
-                const { data: memberships } = await supabase
-                    .from('company_members')
-                    .select('company_id')
-                    .eq('user_id', sessionData.user.id)
-                if (memberships && memberships.length > 0) {
-                    query = query.in('company_id', memberships.map(m => m.company_id))
-                }
-            }
-            const { data } = await query
-            const fetched = (data ?? []) as Pipeline[]
-            setPipelines(fetched)
-            setActivePipeline((prev) => {
-                if (prev && fetched.find(p => p.id === prev.id)) return prev
-                const urlId = getUrlPipelineId()
-                const fromUrl = urlId ? fetched.find(p => p.id === urlId) : undefined
-                if (fromUrl) return fromUrl
-                const storedId = getStoredPipelineId('holding')
-                const stored = storedId ? fetched.find(p => p.id === storedId) : undefined
-                return stored ?? fetched[0] ?? null
-            })
+        // Pipelines are global: everyone sees the same active set. Lead rows
+        // are what get scoped per-subsidiary (see fetchLeads), not the pipeline
+        // definitions themselves.
+        const { data } = await supabase
+            .from('pipelines')
+            .select('*')
+            .eq('is_active', true)
+            .order('created_at', { ascending: true })
 
-            // Build access map for holding-owned pipelines with 'selected' visibility
-            const selectedPipelines = fetched.filter(p => p.visibility === 'selected')
-            if (selectedPipelines.length > 0) {
-                const { data: accessRows } = await supabase
-                    .from('pipeline_company_access')
-                    .select('pipeline_id, company:companies!company_id(name)')
-                    .in('pipeline_id', selectedPipelines.map(p => p.id))
-                const accessMap: Record<string, string[]> = {}
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                for (const row of (accessRows ?? []) as any[]) {
-                    const companyName = row.company?.name
-                    if (!companyName) continue
-                    if (!accessMap[row.pipeline_id]) accessMap[row.pipeline_id] = []
-                    accessMap[row.pipeline_id].push(companyName)
-                }
-                setPipelineAccessMap(accessMap)
-            } else {
-                setPipelineAccessMap({})
-            }
-        } else if (activeCompany?.id) {
-            // Subsidiary: own pipelines + visible holding pipelines
-            // Step 1: Get own pipelines
-            const { data: ownData } = await supabase
-                .from('pipelines')
-                .select('*, company:companies(name, is_holding)')
-                .eq('is_active', true)
-                .eq('company_id', activeCompany.id)
-                .order('created_at', { ascending: true })
-
-            // Step 2: Get holding pipelines visible to this sub
-            let holdingPipelines: Pipeline[] = []
-            if (holdingCompanyId && holdingCompanyId !== activeCompany.id) {
-                // 2a: all_subs holding pipelines
-                const { data: allSubsData } = await supabase
-                    .from('pipelines')
-                    .select('*, company:companies(name, is_holding)')
-                    .eq('is_active', true)
-                    .eq('company_id', holdingCompanyId)
-                    .eq('visibility', 'all_subs')
-                    .order('created_at', { ascending: true })
-
-                // 2b: selected holding pipelines — check junction table
-                const { data: selectedAccess } = await supabase
-                    .from('pipeline_company_access')
-                    .select('pipeline_id')
-                    .eq('company_id', activeCompany.id)
-                const selectedPipelineIds = (selectedAccess ?? []).map(a => a.pipeline_id)
-
-                let selectedData: Pipeline[] = []
-                if (selectedPipelineIds.length > 0) {
-                    const { data: selRes } = await supabase
-                        .from('pipelines')
-                        .select('*, company:companies(name, is_holding)')
-                        .eq('is_active', true)
-                        .eq('company_id', holdingCompanyId)
-                        .eq('visibility', 'selected')
-                        .in('id', selectedPipelineIds)
-                        .order('created_at', { ascending: true })
-                    selectedData = (selRes ?? []) as Pipeline[]
-                }
-
-                holdingPipelines = [...(allSubsData ?? []) as Pipeline[], ...selectedData]
-            }
-
-            const fetched = [...holdingPipelines, ...(ownData ?? []) as Pipeline[]]
-            setPipelines(fetched)
-            setActivePipeline((prev) => {
-                if (prev && fetched.find(p => p.id === prev.id)) return prev
-                const urlId = getUrlPipelineId()
-                const fromUrl = urlId ? fetched.find(p => p.id === urlId) : undefined
-                if (fromUrl) return fromUrl
-                const storedId = getStoredPipelineId(activeCompany.id)
-                const stored = storedId ? fetched.find(p => p.id === storedId) : undefined
-                return stored ?? fetched[0] ?? null
-            })
-        }
+        const fetched = (data ?? []) as Pipeline[]
+        setPipelines(fetched)
+        setActivePipeline((prev) => {
+            if (prev && fetched.find(p => p.id === prev.id)) return prev
+            const urlId = getUrlPipelineId()
+            const fromUrl = urlId ? fetched.find(p => p.id === urlId) : undefined
+            if (fromUrl) return fromUrl
+            const storedId = getStoredPipelineId('global')
+            const stored = storedId ? fetched.find(p => p.id === storedId) : undefined
+            return stored ?? fetched[0] ?? null
+        })
 
         setPipelinesLoading(false)
-    }, [activeCompany?.id, isHoldingView, holdingCompanyId])
+    }, [supabase])
 
     // ─── Pipeline Lifecycle Handlers ─────────────────────────────────
     const handleArchivePipeline = async (pipeline: Pipeline) => {
@@ -547,28 +457,12 @@ export function LeadDashboard() {
     }
 
     const fetchArchivedPipelines = async () => {
-        let query = supabase
+        // Pipelines are global — archived ones are shared too.
+        const { data } = await supabase
             .from('pipelines')
-            .select('*, company:companies(name, is_holding)')
+            .select('*')
             .eq('is_active', false)
             .order('created_at', { ascending: false })
-
-        if (isHoldingView) {
-            const { data: sessionData } = await supabase.auth.getUser()
-            if (sessionData?.user) {
-                const { data: memberships } = await supabase
-                    .from('company_members')
-                    .select('company_id')
-                    .eq('user_id', sessionData.user.id)
-                if (memberships && memberships.length > 0) {
-                    query = query.in('company_id', memberships.map(m => m.company_id))
-                }
-            }
-        } else if (activeCompany?.id) {
-            query = query.eq('company_id', activeCompany.id)
-        }
-
-        const { data } = await query
         setArchivedPipelines((data ?? []) as Pipeline[])
     }
 
@@ -583,42 +477,6 @@ export function LeadDashboard() {
             fetchArchivedPipelines()
         }
         setRestoringId(null)
-    }
-    const handleOpenVisibilityEdit = async (pipeline: Pipeline) => {
-        setVisibilityEditTarget(pipeline)
-        setEditVisibility(pipeline.visibility === 'selected' ? 'selected' : 'all_subs')
-        // Load existing access entries
-        const { data: accessRows } = await supabase
-            .from('pipeline_company_access')
-            .select('company_id')
-            .eq('pipeline_id', pipeline.id)
-        setEditSubIds((accessRows ?? []).map(r => r.company_id))
-        setVisibilityEditOpen(true)
-    }
-
-    const handleSaveVisibility = async () => {
-        if (!visibilityEditTarget) return
-        setSavingVisibility(true)
-
-        // Update visibility column
-        await supabase.from('pipelines').update({ visibility: editVisibility }).eq('id', visibilityEditTarget.id)
-
-        // Sync junction table: delete all, then re-insert if 'selected'
-        await supabase.from('pipeline_company_access').delete().eq('pipeline_id', visibilityEditTarget.id)
-        if (editVisibility === 'selected' && editSubIds.length > 0) {
-            await supabase.from('pipeline_company_access').insert(
-                editSubIds.map(companyId => ({
-                    pipeline_id: visibilityEditTarget.id,
-                    company_id: companyId,
-                }))
-            )
-        }
-
-        setSavingVisibility(false)
-        setVisibilityEditOpen(false)
-        setVisibilityEditTarget(null)
-        toast.success('Visibility updated')
-        fetchPipelines()
     }
     const handleTriggerDelete = async (pipeline: Pipeline) => {
         // Count deals tied to this pipeline's stages
@@ -661,11 +519,11 @@ export function LeadDashboard() {
         fetchPipelines()
     }
 
-    // ─── Fetch leads for active pipeline ─────────────────────────────
+    // ─── Fetch leads for active pipeline (scoped to current tenant lens) ──
     const fetchLeads = useCallback(async () => {
         if (!activePipeline) { setLeads([]); setLeadsLoading(false); return }
         setLeadsLoading(true)
-        const { data, error } = await supabase
+        let query = supabase
             .from('leads')
             .select(`
                 *,
@@ -677,13 +535,21 @@ export function LeadDashboard() {
                 account_manager_profile:profiles!account_manager_id(full_name)
             `)
             .eq('pipeline_id', activePipeline.id)
+
+        // Scope leads to the active subsidiary. In "All units" (holding) lens
+        // we leave it unfiltered and RLS unions every company the user can see.
+        if (leadScopeCompanyId) {
+            query = query.eq('company_id', leadScopeCompanyId)
+        }
+
+        const { data, error } = await query
             .order('kanban_sort_order', { ascending: false, nullsFirst: false })
             .order('created_at', { ascending: false })
 
         if (error) console.error('[Lead Fetch]', error.message)
         setLeads((data ?? []) as Lead[])
         setLeadsLoading(false)
-    }, [activePipeline?.id])
+    }, [activePipeline?.id, leadScopeCompanyId, supabase])
 
     useEffect(() => { fetchPipelines() }, [fetchPipelines])
     useEffect(() => { fetchLeads() }, [fetchLeads])
@@ -693,8 +559,7 @@ export function LeadDashboard() {
     // fallback when the URL has no param (matches usePersistentViewMode).
     useEffect(() => {
         if (!activePipeline) return
-        const scope = isHoldingView ? 'holding' : (activeCompany?.id ?? '')
-        setStoredPipelineId(scope, activePipeline.id)
+        setStoredPipelineId('global', activePipeline.id)
 
         if (typeof window === 'undefined') return
         const params = new URLSearchParams(window.location.search)
@@ -702,7 +567,7 @@ export function LeadDashboard() {
             params.set(PIPELINE_QUERY_KEY, activePipeline.id)
             router.replace(`${pathname}?${params.toString()}`, { scroll: false })
         }
-    }, [activePipeline?.id, isHoldingView, activeCompany?.id, pathname, router])
+    }, [activePipeline?.id, pathname, router])
 
     // ─── Fetch pipeline stages + transition rules for the active pipeline ──
     // Mirrors the kanban's own fetch so the table and the kanban share the
@@ -738,33 +603,20 @@ export function LeadDashboard() {
 
     // ─── Pipeline CRUD ───────────────────────────────────────────────
     const handleCreatePipeline = async () => {
-        if (!newPipelineName.trim() || !activeCompany?.id) return
+        if (!newPipelineName.trim()) return
         setCreating(true)
 
-        // Determine visibility — only relevant when creating from Holding
-        const visibility = isHoldingView ? newPipelineVisibility : 'owner_only'
-
+        // Pipelines are global definitions — no owner company, no visibility.
         const { data, error } = await supabase
             .from('pipelines')
             .insert({
                 name: newPipelineName.trim(),
-                company_id: activeCompany.id,
-                visibility,
+                company_id: null,
                 icon: newPipelineIcon,
             })
             .select('*')
             .single()
         if (error) { toast.error(error.message); setCreating(false); return }
-
-        // Insert junction rows for 'selected' visibility
-        if (visibility === 'selected' && selectedSubIds.length > 0) {
-            await supabase.from('pipeline_company_access').insert(
-                selectedSubIds.map(companyId => ({
-                    pipeline_id: data.id,
-                    company_id: companyId,
-                }))
-            )
-        }
 
         const defaultStages = [
             { name: 'Lead Masuk', color: 'blue', sort_order: 1, is_default: true },
@@ -782,19 +634,17 @@ export function LeadDashboard() {
         setActivePipeline(pipeline)
         setNewPipelineName("")
         setNewPipelineIcon(DEFAULT_PIPELINE_ICON)
-        setNewPipelineVisibility('all_subs')
-        setSelectedSubIds([])
         setCreateOpen(false)
         setCreating(false)
         toast.success(`Pipeline "${pipeline.name}" created with default stages`)
     }
 
     const handleClonePipeline = async () => {
-        if (!activePipeline || !activeCompany?.id) return
+        if (!activePipeline) return
         setCloning(true)
         const { data: newPipeline, error } = await supabase
             .from('pipelines')
-            .insert({ name: `${activePipeline.name} (Copy)`, company_id: activeCompany.id, icon: activePipeline.icon || DEFAULT_PIPELINE_ICON })
+            .insert({ name: `${activePipeline.name} (Copy)`, company_id: null, icon: activePipeline.icon || DEFAULT_PIPELINE_ICON })
             .select('*')
             .single()
         if (error || !newPipeline) { toast.error(error?.message || 'Clone failed'); setCloning(false); return }
@@ -917,8 +767,8 @@ export function LeadDashboard() {
                             <span className="text-[11px] font-medium">Hide</span>
                         </button>
                     </div>
-                    {/* Right: Create pipeline button — always visible */}
-                    <PermissionGate resource="leads" action="create">
+                    {/* Right: Create pipeline button — admin only */}
+                    {canManagePipelines && (
                         <Button
                             variant="ghost" size="sm"
                             className="h-7 w-7 p-0 hover:bg-muted shrink-0"
@@ -927,7 +777,7 @@ export function LeadDashboard() {
                         >
                             <Plus className="h-4 w-4" />
                         </Button>
-                    </PermissionGate>
+                    )}
                 </div>
 
                 {/* Pipeline List */}
@@ -943,49 +793,20 @@ export function LeadDashboard() {
                     ) : (
                         pipelines.map(pipeline => {
                             const isActive = activePipeline?.id === pipeline.id
-                            const isInherited = !isHoldingView && activeCompany?.id !== pipeline.company_id
                             return (
                                 <div key={pipeline.id} className="group relative">
                                     <button
                                         onClick={() => setActivePipeline(pipeline)}
-                                        className={`w-full flex flex-col gap-0.5 rounded-md px-3 py-2.5 text-left transition-all ${isActive
+                                        className={`w-full flex items-center gap-2 rounded-md pl-3 pr-9 py-2.5 text-left transition-all ${isActive
                                                 ? 'bg-primary text-primary-foreground shadow-sm'
                                                 : 'text-muted-foreground hover:bg-muted hover:text-foreground'
                                             }`}
                                     >
-                                        <div className="flex items-center gap-2">
-                                            <PipelineIcon icon={pipeline.icon} className="h-3.5 w-3.5 shrink-0 opacity-80" />
-                                            <span className="truncate text-sm font-medium">{pipeline.name}</span>
-                                            {isInherited && (
-                                                <Lock className={`h-2.5 w-2.5 shrink-0 ${isActive ? 'text-primary-foreground/50' : 'text-muted-foreground/50'}`} />
-                                            )}
-                                        </div>
-                                        {(isHoldingView || isInherited) && pipeline.company?.name && (
-                                            <span className={`text-[10px] font-medium ml-5.5 px-1.5 py-0.5 rounded-sm w-fit truncate ${
-                                                isActive
-                                                    ? 'bg-primary-foreground/20 text-primary-foreground/80'
-                                                    : 'bg-secondary text-muted-foreground'
-                                            }`}>
-                                                {pipeline.company.name}{isInherited ? ' · Inherited' : ''}
-                                            </span>
-                                        )}
-                                        {/* Visibility indicator for holding-owned pipelines */}
-                                        {isHoldingView && pipeline.company_id === holdingCompanyId && (
-                                            <span className={`text-[9px] ml-5.5 truncate ${
-                                                isActive ? 'text-primary-foreground/60' : 'text-muted-foreground/60'
-                                            }`}>
-                                                {pipeline.visibility === 'all_subs'
-                                                    ? '🌐 All Subs'
-                                                    : pipeline.visibility === 'selected' && pipelineAccessMap[pipeline.id]
-                                                        ? `📌 ${pipelineAccessMap[pipeline.id].map(n => n.split(' ').map(w => w[0]).join('')).join(' · ')}`
-                                                        : pipeline.visibility === 'owner_only'
-                                                            ? '🔒 Holding Only'
-                                                            : ''
-                                                }
-                                            </span>
-                                        )}
+                                        <PipelineIcon icon={pipeline.icon} className="h-3.5 w-3.5 shrink-0 opacity-80" />
+                                        <span className="truncate min-w-0 text-sm font-medium">{pipeline.name}</span>
                                     </button>
                                     {/* Context Menu */}
+                                    {canManagePipelines && (
                                     <DropdownMenu>
                                         <DropdownMenuTrigger asChild>
                                             <button className={`absolute top-2 right-1.5 h-6 w-6 rounded-md flex items-center justify-center transition-opacity ${
@@ -997,31 +818,22 @@ export function LeadDashboard() {
                                             </button>
                                         </DropdownMenuTrigger>
                                         <DropdownMenuContent align="end" className="w-48">
-                                            <DropdownMenuItem disabled={isInherited} onClick={() => { if (!isInherited) { setRenameValue(pipeline.name); setRenameIcon(pipeline.icon || DEFAULT_PIPELINE_ICON); setActivePipeline(pipeline); setRenameOpen(true) } }}>
+                                            <DropdownMenuItem onClick={() => { setRenameValue(pipeline.name); setRenameIcon(pipeline.icon || DEFAULT_PIPELINE_ICON); setActivePipeline(pipeline); setRenameOpen(true) }}>
                                                 <Pencil className="h-3.5 w-3.5 mr-2" /> Rename Pipeline
-                                                {isInherited && <Lock className="h-3 w-3 ml-auto text-muted-foreground/50" />}
                                             </DropdownMenuItem>
-                                            <DropdownMenuItem disabled={isInherited} onClick={() => { if (!isInherited) router.push(`/settings/pipeline?id=${pipeline.id}`) }}>
+                                            <DropdownMenuItem onClick={() => router.push(`/settings/pipeline?id=${pipeline.id}`)}>
                                                 <Settings2 className="h-3.5 w-3.5 mr-2" /> Manage Stages
-                                                {isInherited && <Lock className="h-3 w-3 ml-auto text-muted-foreground/50" />}
                                             </DropdownMenuItem>
-                                            {/* Edit Visibility — only for holding-owned pipelines in holding view */}
-                                            {isHoldingView && pipeline.company_id === holdingCompanyId && (
-                                                <DropdownMenuItem onClick={() => handleOpenVisibilityEdit(pipeline)}>
-                                                    <Eye className="h-3.5 w-3.5 mr-2" /> Edit Visibility
-                                                </DropdownMenuItem>
-                                            )}
                                             <DropdownMenuSeparator />
-                                            <DropdownMenuItem onClick={() => handleArchivePipeline(pipeline)} disabled={archiving || isInherited}>
+                                            <DropdownMenuItem onClick={() => handleArchivePipeline(pipeline)} disabled={archiving}>
                                                 <Archive className="h-3.5 w-3.5 mr-2" /> Archive Pipeline
-                                                {isInherited && <Lock className="h-3 w-3 ml-auto text-muted-foreground/50" />}
                                             </DropdownMenuItem>
-                                            <DropdownMenuItem className="text-destructive focus:text-destructive" disabled={isInherited} onClick={() => { if (!isInherited) handleTriggerDelete(pipeline) }}>
+                                            <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => handleTriggerDelete(pipeline)}>
                                                 <Trash2 className="h-3.5 w-3.5 mr-2" /> Delete Pipeline
-                                                {isInherited && <Lock className="h-3 w-3 ml-auto text-muted-foreground/50" />}
                                             </DropdownMenuItem>
                                         </DropdownMenuContent>
                                     </DropdownMenu>
+                                    )}
                                 </div>
                             )
                         })
@@ -1054,9 +866,6 @@ export function LeadDashboard() {
                                     <Archive className="h-3 w-3 shrink-0 opacity-50" />
                                     <div className="flex-1 min-w-0">
                                         <span className="text-[12px] line-through truncate block">{ap.name}</span>
-                                        {ap.company?.name && (
-                                            <span className="text-[9px] text-muted-foreground/40 truncate block">{ap.company.name}</span>
-                                        )}
                                     </div>
                                     <button
                                         onClick={() => handleRestorePipeline(ap)}
@@ -1124,11 +933,6 @@ export function LeadDashboard() {
                                 <h1 className="text-[18px] font-semibold tracking-tight leading-snug text-foreground truncate">
                                     {activePipeline?.name || "Select a Pipeline"}
                                 </h1>
-                                {(isHoldingView && activePipeline?.company?.name) && (
-                                    <p className="text-[12px] text-muted-foreground/80 truncate mt-0.5">
-                                        {activePipeline.company.name}
-                                    </p>
-                                )}
                             </div>
                             <span className="ml-1 inline-flex items-center justify-center min-w-[28px] h-6 px-2 rounded-full bg-muted text-muted-foreground text-[12px] font-medium tabular-nums">
                                 {leadsLoading ? "…" : filteredLeads.length}
@@ -1136,7 +940,7 @@ export function LeadDashboard() {
                         </div>
 
                         <div className="flex items-center gap-2 shrink-0">
-                            {activePipeline && !isHoldingView && (
+                            {activePipeline && canManagePipelines && (
                                 <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
                                         <Button variant="ghost" size="sm" className="h-9 w-9 p-0">
@@ -1440,13 +1244,13 @@ export function LeadDashboard() {
             />
 
             {/* Create Pipeline Dialog */}
-            <Dialog open={createOpen} onOpenChange={(open) => { setCreateOpen(open); if (!open) { setNewPipelineVisibility('all_subs'); setSelectedSubIds([]); setNewPipelineIcon(DEFAULT_PIPELINE_ICON) } }}>
+            <Dialog open={createOpen} onOpenChange={(open) => { setCreateOpen(open); if (!open) { setNewPipelineIcon(DEFAULT_PIPELINE_ICON) } }}>
                 <DialogContent className="sm:max-w-md">
                     <div className="space-y-4">
                         <DialogHeader>
                             <DialogTitle>Create Pipeline</DialogTitle>
                             <p className="text-sm text-muted-foreground mt-1">
-                                A new pipeline with default stages will be created{isHoldingView ? ' under Holding' : ''}.
+                                A new pipeline with default stages will be created. Pipelines are shared across all business units.
                             </p>
                         </DialogHeader>
                         <div>
@@ -1464,76 +1268,13 @@ export function LeadDashboard() {
                             </div>
                         </div>
 
-                        {/* Visibility Selector — only for Holding View */}
-                        {isHoldingView && (
-                            <div className="space-y-3">
-                                <Label className="text-sm font-medium">Subsidiary Visibility</Label>
-                                <div className="space-y-2">
-                                    <label className="flex items-center gap-2.5 cursor-pointer group">
-                                        <input
-                                            type="radio"
-                                            name="visibility"
-                                            checked={newPipelineVisibility === 'all_subs'}
-                                            onChange={() => setNewPipelineVisibility('all_subs')}
-                                            className="accent-primary"
-                                        />
-                                        <div>
-                                            <span className="text-sm font-medium">All Subsidiaries</span>
-                                            <p className="text-xs text-muted-foreground">Every subsidiary can see and use this pipeline</p>
-                                        </div>
-                                    </label>
-                                    <label className="flex items-center gap-2.5 cursor-pointer group">
-                                        <input
-                                            type="radio"
-                                            name="visibility"
-                                            checked={newPipelineVisibility === 'selected'}
-                                            onChange={() => setNewPipelineVisibility('selected')}
-                                            className="accent-primary"
-                                        />
-                                        <div>
-                                            <span className="text-sm font-medium">Selected Subsidiaries</span>
-                                            <p className="text-xs text-muted-foreground">Only chosen subsidiaries can access</p>
-                                        </div>
-                                    </label>
-                                </div>
-
-                                {/* Subsidiary Checkboxes */}
-                                {newPipelineVisibility === 'selected' && (
-                                    <div className="border border-border rounded-lg p-3 space-y-2 bg-muted/30 max-h-[180px] overflow-y-auto">
-                                        {subsidiaryCompanies.length === 0 ? (
-                                            <p className="text-xs text-muted-foreground text-center py-2">No subsidiaries found</p>
-                                        ) : subsidiaryCompanies.map(sub => (
-                                            <label key={sub.id} className="flex items-center gap-2.5 cursor-pointer hover:bg-muted/50 rounded-md px-2 py-1.5 transition-colors">
-                                                <Checkbox
-                                                    checked={selectedSubIds.includes(sub.id)}
-                                                    onCheckedChange={(checked) => {
-                                                        setSelectedSubIds(prev =>
-                                                            checked
-                                                                ? [...prev, sub.id]
-                                                                : prev.filter(id => id !== sub.id)
-                                                        )
-                                                    }}
-                                                />
-                                                <div className="flex items-center gap-2">
-                                                    <div className="h-5 w-5 rounded bg-primary/10 flex items-center justify-center">
-                                                        <span className="text-[9px] font-bold text-primary">{sub.name.charAt(0)}</span>
-                                                    </div>
-                                                    <span className="text-sm">{sub.name}</span>
-                                                </div>
-                                            </label>
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
-                        )}
-
                         <div className="flex justify-end gap-2">
                             <Button variant="outline" size="sm" onClick={() => setCreateOpen(false)}>
                                 Cancel
                             </Button>
                             <Button
                                 size="sm"
-                                disabled={!newPipelineName.trim() || creating || (isHoldingView && newPipelineVisibility === 'selected' && selectedSubIds.length === 0)}
+                                disabled={!newPipelineName.trim() || creating}
                                 onClick={handleCreatePipeline}
                             >
                                 {creating && <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />}
@@ -1578,93 +1319,6 @@ export function LeadDashboard() {
                                 onClick={handleRenamePipeline}
                             >
                                 Save
-                            </Button>
-                        </div>
-                    </div>
-                </DialogContent>
-            </Dialog>
-
-            {/* Edit Visibility Dialog */}
-            <Dialog open={visibilityEditOpen} onOpenChange={(open) => { setVisibilityEditOpen(open); if (!open) setVisibilityEditTarget(null) }}>
-                <DialogContent className="sm:max-w-md">
-                    <div className="space-y-4">
-                        <DialogHeader>
-                            <DialogTitle>Edit Visibility</DialogTitle>
-                            <p className="text-sm text-muted-foreground mt-1">
-                                Configure which subsidiaries can access &ldquo;{visibilityEditTarget?.name}&rdquo;
-                            </p>
-                        </DialogHeader>
-
-                        <div className="space-y-3">
-                            <Label className="text-sm font-medium">Subsidiary Visibility</Label>
-                            <div className="space-y-2">
-                                <label className="flex items-center gap-2.5 cursor-pointer">
-                                    <input
-                                        type="radio"
-                                        name="editVisibility"
-                                        checked={editVisibility === 'all_subs'}
-                                        onChange={() => setEditVisibility('all_subs')}
-                                        className="accent-primary"
-                                    />
-                                    <div>
-                                        <span className="text-sm font-medium">All Subsidiaries</span>
-                                        <p className="text-xs text-muted-foreground">Every subsidiary can see and use this pipeline</p>
-                                    </div>
-                                </label>
-                                <label className="flex items-center gap-2.5 cursor-pointer">
-                                    <input
-                                        type="radio"
-                                        name="editVisibility"
-                                        checked={editVisibility === 'selected'}
-                                        onChange={() => setEditVisibility('selected')}
-                                        className="accent-primary"
-                                    />
-                                    <div>
-                                        <span className="text-sm font-medium">Selected Subsidiaries</span>
-                                        <p className="text-xs text-muted-foreground">Only chosen subsidiaries can access</p>
-                                    </div>
-                                </label>
-                            </div>
-
-                            {editVisibility === 'selected' && (
-                                <div className="border border-border rounded-lg p-3 space-y-2 bg-muted/30 max-h-[180px] overflow-y-auto">
-                                    {subsidiaryCompanies.length === 0 ? (
-                                        <p className="text-xs text-muted-foreground text-center py-2">No subsidiaries found</p>
-                                    ) : subsidiaryCompanies.map(sub => (
-                                        <label key={sub.id} className="flex items-center gap-2.5 cursor-pointer hover:bg-muted/50 rounded-md px-2 py-1.5 transition-colors">
-                                            <Checkbox
-                                                checked={editSubIds.includes(sub.id)}
-                                                onCheckedChange={(checked) => {
-                                                    setEditSubIds(prev =>
-                                                        checked
-                                                            ? [...prev, sub.id]
-                                                            : prev.filter(id => id !== sub.id)
-                                                    )
-                                                }}
-                                            />
-                                            <div className="flex items-center gap-2">
-                                                <div className="h-5 w-5 rounded bg-primary/10 flex items-center justify-center">
-                                                    <span className="text-[9px] font-bold text-primary">{sub.name.charAt(0)}</span>
-                                                </div>
-                                                <span className="text-sm">{sub.name}</span>
-                                            </div>
-                                        </label>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-
-                        <div className="flex justify-end gap-2">
-                            <Button variant="outline" size="sm" onClick={() => setVisibilityEditOpen(false)}>
-                                Cancel
-                            </Button>
-                            <Button
-                                size="sm"
-                                disabled={savingVisibility || (editVisibility === 'selected' && editSubIds.length === 0)}
-                                onClick={handleSaveVisibility}
-                            >
-                                {savingVisibility && <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />}
-                                Save Changes
                             </Button>
                         </div>
                     </div>

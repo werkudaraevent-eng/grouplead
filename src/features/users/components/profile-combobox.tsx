@@ -13,6 +13,7 @@ interface ProfileOption {
     value: string
     label: string
     role: string | null
+    isActive: boolean
 }
 
 interface ProfileComboboxProps {
@@ -81,7 +82,7 @@ export function ProfileCombobox({ value, onChange, filterTierBelow, filterRoles,
 
             const { data, error } = await supabase
                 .from("profiles")
-                .select("id, full_name, role_tier, role")
+                .select("id, full_name, role_tier, role, is_active")
                 .order("full_name", { ascending: true })
 
             if (error) {
@@ -96,6 +97,10 @@ export function ProfileCombobox({ value, onChange, filterTierBelow, filterRoles,
             const filtered = (data ?? []).filter((p) => {
                 if (filterTierBelow && (p.role_tier == null || p.role_tier >= filterTierBelow)) return false
                 if (allowedRoles && !allowedRoles.includes(p.role)) return false
+                // Hide deactivated users so they can't be assigned to new leads.
+                // The currently-selected value is preserved separately below, so
+                // editing a lead whose PIC was later deactivated still shows them.
+                if (p.is_active === false && p.id !== value) return false
                 return true
             })
 
@@ -104,13 +109,14 @@ export function ProfileCombobox({ value, onChange, filterTierBelow, filterRoles,
                     value: p.id,
                     label: p.full_name || "Unnamed User",
                     role: p.role,
+                    isActive: p.is_active !== false,
                 }))
             )
             setIsLoading(false)
         }
 
         fetchProfiles()
-    }, [filterTierBelow, filterRolesKey])
+    }, [filterTierBelow, filterRolesKey, value])
 
     const selected = profiles.find((p) => p.value === value)
 
@@ -159,7 +165,12 @@ export function ProfileCombobox({ value, onChange, filterTierBelow, filterRoles,
                                             {getInitials(p.label)}
                                         </span>
                                         <span className="flex-1 min-w-0 flex flex-col">
-                                            <span className="text-[13px] text-foreground truncate">{p.label}</span>
+                                            <span className="text-[13px] text-foreground truncate">
+                                                {p.label}
+                                                {!p.isActive && (
+                                                    <span className="ml-1.5 text-[10px] text-amber-600">(inactive)</span>
+                                                )}
+                                            </span>
                                             {p.role && (
                                                 <span className="text-[10.5px] text-muted-foreground truncate">
                                                     {ROLE_LABELS[p.role] ?? p.role}

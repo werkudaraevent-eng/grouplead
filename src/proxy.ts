@@ -35,13 +35,19 @@ export async function proxy(request: NextRequest) {
     // Set pathname header for layout to read
     response.headers.set('x-pathname', request.nextUrl.pathname)
 
-    // If not authenticated and not on login page, redirect to login
-    if (!user && !request.nextUrl.pathname.startsWith('/login')) {
+    // Public auth routes that must be reachable without a session.
+    const publicPaths = ['/login', '/forgot-password', '/reset-password']
+    const isPublicPath = publicPaths.some((p) => request.nextUrl.pathname.startsWith(p))
+
+    // If not authenticated and not on a public auth page, redirect to login
+    if (!user && !isPublicPath) {
         const loginUrl = new URL('/login', request.url)
         return NextResponse.redirect(loginUrl)
     }
 
-    // If authenticated and on login page, redirect to home
+    // If authenticated and on the login page, redirect to home. We do NOT
+    // bounce away from /reset-password — a recovery session is technically
+    // "authenticated" but the user is mid-reset and must be allowed to finish.
     if (user && request.nextUrl.pathname.startsWith('/login')) {
         const homeUrl = new URL('/', request.url)
         return NextResponse.redirect(homeUrl)

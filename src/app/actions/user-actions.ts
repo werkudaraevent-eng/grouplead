@@ -135,6 +135,56 @@ export async function deactivateUserAction(
     }
 }
 
+export async function activateUserAction(
+    userId: string
+): Promise<ActionResult> {
+    try {
+        const guard = await requirePermission('members', 'update')
+        if (!guard.allowed) return guard.error
+
+        const supabase = createServiceClient()
+
+        // Lift the auth ban so the user can log in again
+        const { error: banError } = await supabase.auth.admin.updateUserById(
+            userId,
+            { ban_duration: "none" }
+        )
+
+        if (banError) {
+            return { success: false, error: banError.message }
+        }
+
+        // Mark profile as active
+        const { error: profileError } = await supabase
+            .from("profiles")
+            .update({ is_active: true })
+            .eq("id", userId)
+
+        if (profileError) {
+            return {
+                success: false,
+                error: `Auth unbanned but profile update failed: ${profileError.message}`,
+            }
+        }
+
+        // Audit log — await so the row is durable.
+        await logAuditEvent({
+            action: "user_management",
+            resource_type: "user",
+            resource_id: userId,
+            description: `reactivated user account`,
+        })
+
+        revalidatePath("/settings/users")
+        return { success: true }
+    } catch (err) {
+        return {
+            success: false,
+            error: err instanceof Error ? err.message : "Unknown error",
+        }
+    }
+}
+
 export async function deleteUserAction(
     userId: string
 ): Promise<ActionResult> {

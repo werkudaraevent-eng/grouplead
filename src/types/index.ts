@@ -65,10 +65,10 @@ export interface Contact {
 export interface Pipeline {
     id: string;
     name: string;
-    company_id: string;
+    /** Global pipelines have no owner company (null). Kept for legacy rows. */
+    company_id: string | null;
     created_at: string;
     is_active: boolean;
-    visibility: 'owner_only' | 'all_subs' | 'selected';
     icon: string;
     is_default?: boolean;
     company?: { name: string; is_holding?: boolean } | null;

@@ -15,6 +15,8 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Switch } from "@/components/ui/switch"
+import { Tooltip } from "@/components/ui/tooltip"
 import {
     ShieldCheck, Plus, Loader2, Search, Mail, MoreHorizontal, UserCog, KeyRound, Filter, X, UserX, Trash2,
 } from "lucide-react"
@@ -25,7 +27,7 @@ import { Profile } from "@/types"
 import { EditUserSheet } from "@/features/users/components/edit-user-modal"
 import { CreateUserModal } from "@/features/users/components/create-user-modal"
 import { adminResetUserPassword } from "@/app/actions/auth-actions"
-import { deactivateUserAction, deleteUserAction } from "@/app/actions/user-actions"
+import { activateUserAction, deactivateUserAction, deleteUserAction } from "@/app/actions/user-actions"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 
@@ -64,8 +66,9 @@ export default function UserManagementPage() {
     const [loading, setLoading] = useState(true)
     const [search, setSearch] = useState("")
     const [filterRole, setFilterRole] = useState<string>("all")
-    const [filterStatus, setFilterStatus] = useState<string>("all")
+    const [filterStatus, setFilterStatus] = useState<string>("active")
     const [filterBU, setFilterBU] = useState<string>(initialBU)
+    const [togglingId, setTogglingId] = useState<string | null>(null)
     const [inviteOpen, setInviteOpen] = useState(false)
     const [editProfile, setEditProfile] = useState<Profile | null>(null)
     const [editOpen, setEditOpen] = useState(false)
@@ -89,6 +92,28 @@ export default function UserManagementPage() {
             toast.error(result.error || "Failed to reset password")
         }
         setResetting(false)
+    }
+
+    const handleToggleActive = async (p: Profile, nextActive: boolean) => {
+        if (togglingId) return
+        // Optimistic update
+        setTogglingId(p.id)
+        setProfiles((prev) => prev.map((u) => u.id === p.id ? { ...u, is_active: nextActive } : u))
+        const result = nextActive
+            ? await activateUserAction(p.id)
+            : await deactivateUserAction(p.id)
+        if (result.success) {
+            toast.success(nextActive
+                ? `${p.full_name || "User"} reactivated`
+                : `${p.full_name || "User"} deactivated \u2014 login blocked`
+            )
+            fetchProfiles()
+        } else {
+            // Roll back on failure
+            setProfiles((prev) => prev.map((u) => u.id === p.id ? { ...u, is_active: !nextActive } : u))
+            toast.error(result.error || "Failed to update status")
+        }
+        setTogglingId(null)
     }
 
     const handleDeleteUser = async () => {
@@ -159,8 +184,11 @@ export default function UserManagementPage() {
             || roleStr.toLowerCase().includes(q) || companyStr.toLowerCase().includes(q)
     })
 
-    const hasActiveFilters = filterRole !== "all" || filterStatus !== "all" || filterBU !== "all"
-    const clearFilters = () => { setFilterRole("all"); setFilterStatus("all"); setFilterBU("all") }
+    const hasActiveFilters = filterRole !== "all" || filterStatus !== "active" || filterBU !== "all"
+    const clearFilters = () => { setFilterRole("all"); setFilterStatus("active"); setFilterBU("all") }
+
+    const activeCount = profiles.filter((p) => p.is_active !== false).length
+    const inactiveCount = profiles.length - activeCount
 
     const getInitials = (name: string | null) => name ? name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2) : "?"
 
@@ -244,7 +272,7 @@ export default function UserManagementPage() {
                     <div className="ml-auto">
                         {!loading && (
                             <span className="text-xs text-muted-foreground tabular-nums">
-                                {filtered.length} of {profiles.length} {profiles.length === 1 ? "user" : "users"}
+                                {activeCount} active · {inactiveCount} inactive
                             </span>
                         )}
                     </div>
@@ -260,7 +288,7 @@ export default function UserManagementPage() {
                             <TableHead className="font-semibold text-xs w-[120px]">Role</TableHead>
                             <TableHead className="font-semibold text-xs">Business unit</TableHead>
                             <TableHead className="font-semibold text-xs w-[160px]">Reports to</TableHead>
-                            <TableHead className="font-semibold text-xs w-[80px]">Status</TableHead>
+                            <TableHead className="font-semibold text-xs w-[110px]">Status</TableHead>
                             <TableHead className="w-[52px]" />
                         </TableRow>
                     </TableHeader>
@@ -296,29 +324,29 @@ export default function UserManagementPage() {
                             return (
                                 <TableRow
                                     key={p.id}
-                                    className={cn(
-                                        "group transition-colors",
-                                        inactive ? "opacity-40" : "hover:bg-muted/20"
-                                    )}
+                                    className="group transition-colors hover:bg-muted/20"
                                 >
                                     {/* User */}
-                                    <TableCell className="py-3">
+                                    <TableCell className="py-2">
                                         <div className="flex items-center gap-3">
                                             <div className={cn(
                                                 "w-8 h-8 rounded-lg flex items-center justify-center text-[11px] font-bold shrink-0 transition-transform group-hover:scale-105",
-                                                inactive ? "bg-muted text-muted-foreground" : getAvatarColor(p.full_name)
+                                                inactive ? "bg-muted text-muted-foreground/60" : getAvatarColor(p.full_name)
                                             )}>
                                                 {getInitials(p.full_name)}
                                             </div>
                                             <div className="min-w-0">
-                                                <p className="font-medium text-[13px] leading-tight truncate">{p.full_name || "Unnamed"}</p>
+                                                <p className={cn(
+                                                    "font-medium text-[13px] leading-tight truncate",
+                                                    inactive && "text-muted-foreground"
+                                                )}>{p.full_name || "Unnamed"}</p>
                                                 <p className="text-[11px] text-muted-foreground/70 truncate mt-0.5">{p.email}</p>
                                             </div>
                                         </div>
                                     </TableCell>
 
                                     {/* Role — fixed: no more clipping */}
-                                    <TableCell className="py-3">
+                                    <TableCell className="py-2">
                                         <span className={cn(
                                             "inline-flex items-center gap-1 text-[11px] font-semibold leading-none px-2 py-1.5 rounded-md whitespace-nowrap",
                                             role.bg, role.color
@@ -329,7 +357,7 @@ export default function UserManagementPage() {
                                     </TableCell>
 
                                     {/* Business Unit — if holding present, just show "All units" */}
-                                    <TableCell className="py-3">
+                                    <TableCell className="py-2">
                                         {(() => {
                                             const hasHolding = companies.some(cm => (cm.company as { is_holding?: boolean })?.is_holding)
                                             if (companies.length === 0) {
@@ -365,7 +393,7 @@ export default function UserManagementPage() {
                                     </TableCell>
 
                                     {/* Reports To */}
-                                    <TableCell className="py-3">
+                                    <TableCell className="py-2">
                                         {reportsToName ? (
                                             <span className="text-[13px]">{reportsToName}</span>
                                         ) : (
@@ -373,24 +401,52 @@ export default function UserManagementPage() {
                                         )}
                                     </TableCell>
 
-                                    {/* Status — dot indicator instead of loud badge */}
-                                    <TableCell className="py-3">
-                                        <div className="flex items-center gap-1.5">
-                                            <div className={cn(
-                                                "w-1.5 h-1.5 rounded-full shrink-0",
-                                                inactive ? "bg-red-400" : "bg-emerald-500"
-                                            )} />
-                                            <span className={cn(
-                                                "text-[11px] font-medium",
-                                                inactive ? "text-red-500" : "text-muted-foreground"
-                                            )}>
-                                                {inactive ? "Inactive" : "Active"}
-                                            </span>
-                                        </div>
+                                    {/* Status — interactive toggle (controls login access) */}
+                                    <TableCell className="py-2">
+                                        <PermissionGate
+                                            resource="members"
+                                            action="update"
+                                            fallback={
+                                                <div className="flex items-center gap-1.5">
+                                                    <div className={cn(
+                                                        "w-1.5 h-1.5 rounded-full shrink-0",
+                                                        inactive ? "bg-red-400" : "bg-emerald-500"
+                                                    )} />
+                                                    <span className={cn(
+                                                        "text-[11px] font-medium",
+                                                        inactive ? "text-red-500" : "text-muted-foreground"
+                                                    )}>
+                                                        {inactive ? "Inactive" : "Active"}
+                                                    </span>
+                                                </div>
+                                            }
+                                        >
+                                            <div className="flex items-center gap-2">
+                                                <Tooltip
+                                                    position="left"
+                                                    content={inactive
+                                                        ? "Inactive — cannot log in or be assigned leads"
+                                                        : "Active — can log in and be assigned leads"}
+                                                >
+                                                    <Switch
+                                                        checked={!inactive}
+                                                        disabled={togglingId === p.id}
+                                                        onCheckedChange={(checked) => handleToggleActive(p, checked)}
+                                                        aria-label={inactive ? "Activate user" : "Deactivate user"}
+                                                    />
+                                                </Tooltip>
+                                                <span className={cn(
+                                                    "text-[11px] font-medium w-[52px]",
+                                                    inactive ? "text-muted-foreground" : "text-emerald-600"
+                                                )}>
+                                                    {inactive ? "Inactive" : "Active"}
+                                                </span>
+                                            </div>
+                                        </PermissionGate>
                                     </TableCell>
 
                                     {/* Actions */}
-                                    <TableCell className="py-3">
+                                    <TableCell className="py-2">
                                         <DropdownMenu>
                                             <DropdownMenuTrigger asChild>
                                                 <Button
@@ -408,14 +464,6 @@ export default function UserManagementPage() {
                                                     <KeyRound className="h-3.5 w-3.5 mr-2" /> Reset password
                                                 </DropdownMenuItem>
                                                 <DropdownMenuSeparator />
-                                                {p.is_active !== false && (
-                                                    <DropdownMenuItem
-                                                        onClick={() => { setDeleteProfile(p); setDeleteMode("deactivate") }}
-                                                        className="text-amber-600 focus:text-amber-600"
-                                                    >
-                                                        <UserX className="h-3.5 w-3.5 mr-2" /> Deactivate
-                                                    </DropdownMenuItem>
-                                                )}
                                                 <DropdownMenuItem
                                                     onClick={() => { setDeleteProfile(p); setDeleteMode("delete") }}
                                                     className="text-red-600 focus:text-red-600"

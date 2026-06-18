@@ -49,7 +49,6 @@ export function ForecastSettings() {
       supabase
         .from("pipelines")
         .select("id, name")
-        .eq("company_id", activeCompany.id)
         .order("name"),
       supabase
         .from("pipeline_stages")

@@ -86,8 +86,8 @@ export function CompanySwitcherHeader() {
   const holdingCompany = companies.find(c => c.isHolding)
   const regularCompanies = companies.filter(c => !c.isHolding)
 
-  const displayName = isHoldingView ? 'Werkudara Group' : (activeCompany?.name ?? 'Werkudara')
-  const subtitle = isHoldingView ? 'Holding View' : 'Group Lead'
+  const displayName = isHoldingView ? 'All units' : (activeCompany?.name ?? 'Werkudara')
+  const subtitle = isHoldingView ? 'Every business unit' : 'Single unit'
 
   if (!isMounted) {
     return (
@@ -120,13 +120,13 @@ export function CompanySwitcherHeader() {
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" sideOffset={8} className="w-56">
-        <DropdownMenuLabel className="text-xs text-muted-foreground font-normal">Switch workspace</DropdownMenuLabel>
+        <DropdownMenuLabel className="text-xs text-muted-foreground font-normal">View data for</DropdownMenuLabel>
         <DropdownMenuSeparator />
         {holdingCompany && (
           <>
             <DropdownMenuItem onClick={() => switchCompany('holding')} className="flex items-center gap-2 cursor-pointer">
               <Globe className="h-4 w-4 text-muted-foreground" />
-              <span className="flex-1">Holding View</span>
+              <span className="flex-1">All units</span>
               {isHoldingView && <Check className="h-4 w-4 text-primary" />}
             </DropdownMenuItem>
             {regularCompanies.length > 0 && <DropdownMenuSeparator />}

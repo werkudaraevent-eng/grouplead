@@ -8,7 +8,6 @@ import { DndContext, closestCenter, PointerSensor, useDroppable, useSensor, useS
 import { arrayMove, SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { flushSync } from 'react-dom'
-import { useCompany } from "@/contexts/company-context"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -40,7 +39,6 @@ function getColorHex(color: string) {
 export default function PipelineOverviewPage() {
     const supabase = createClient()
     const router = useRouter()
-    const { activeCompany, isHoldingView } = useCompany()
 
     const [pipelines, setPipelines] = useState<Pipeline[]>([])
     const [allStages, setAllStages] = useState<PipelineStage[]>([])
@@ -91,11 +89,8 @@ export default function PipelineOverviewPage() {
     // ─── Load Data ───────────────────────────────────────────
     const loadData = useCallback(async () => {
         setLoading(true)
-        // Always scope by activeCompany - even in holding view, show the activeCompany's pipelines
-        let pQuery = supabase.from("pipelines").select("*").order("created_at", { ascending: true })
-        if (activeCompany?.id) {
-            pQuery = pQuery.eq("company_id", activeCompany.id)
-        }
+        // Pipelines are global definitions, shared across all business units.
+        const pQuery = supabase.from("pipelines").select("*").order("created_at", { ascending: true })
         const { data: pData } = await pQuery
         const fetchedPipelines = (pData ?? []) as Pipeline[]
         setPipelines(fetchedPipelines)
@@ -122,7 +117,7 @@ export default function PipelineOverviewPage() {
             setRestrictionsCount({})
         }
         setLoading(false)
-    }, [activeCompany?.id, supabase])
+    }, [supabase])
 
     useEffect(() => { loadData() }, [loadData])
 
@@ -200,7 +195,8 @@ export default function PipelineOverviewPage() {
     const confirmSetDefault = async () => {
         if (!setDefaultPipelineTarget) return
         const p = setDefaultPipelineTarget
-        await supabase.from("pipelines").update({ is_default: false }).eq("company_id", p.company_id)
+        // Pipelines are global — there is a single default across the system.
+        await supabase.from("pipelines").update({ is_default: false }).eq("is_default", true)
         await supabase.from("pipelines").update({ is_default: true }).eq("id", p.id)
         toast.success(`${p.name} is now the default pipeline`)
         setShowSetDefaultDialog(false)
@@ -238,15 +234,14 @@ export default function PipelineOverviewPage() {
     }
 
     const confirmCreatePipeline = async () => {
-        if (!newPipelineName.trim() || !activeCompany?.id) return
+        if (!newPipelineName.trim()) return
         if (newPipelineOpenStages.filter(s => s.name.trim()).length === 0) { toast.error("Add at least one open stage"); return }
 
         const { data: pipelineData, error: pError } = await supabase.from("pipelines").insert({
-            company_id: activeCompany.id,
+            company_id: null,
             name: newPipelineName.trim(),
             is_active: true,
             icon: "Briefcase",
-            visibility: "all_subs"
         }).select().single()
 
         if (pError || !pipelineData) { toast.error("Failed to create pipeline"); return }
