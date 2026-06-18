@@ -21,16 +21,22 @@ export default function ResetPasswordPage() {
     const [saving, setSaving] = useState(false)
     const [done, setDone] = useState(false)
 
-    // Establish the recovery session from the email link. The @supabase/ssr
-    // browser client uses the PKCE flow, so the link arrives with a `?code=`
-    // query param that must be exchanged for a session before we can update
-    // the password.
+    // Establish the recovery session from the email link. We support BOTH
+    // link formats for resilience:
+    //   1. token_hash + type=recovery  → verifyOtp(). NOT browser-bound, so it
+    //      works even when the link is opened on a different device/browser
+    //      than the one that requested the reset. Preferred.
+    //   2. PKCE ?code= → exchangeCodeForSession(). Browser-bound (needs the
+    //      code_verifier from the originating browser); kept as a fallback for
+    //      the default Supabase email template.
     useEffect(() => {
         let active = true
 
         const establish = async () => {
             const params = new URLSearchParams(window.location.search)
             const code = params.get("code")
+            const tokenHash = params.get("token_hash")
+            const type = params.get("type")
             const errDesc = params.get("error_description")
 
             if (errDesc) {
@@ -38,6 +44,25 @@ export default function ResetPasswordPage() {
                 return
             }
 
+            // 1. token_hash flow (device-independent)
+            if (tokenHash) {
+                const { error } = await supabase.auth.verifyOtp({
+                    type: (type as "recovery") || "recovery",
+                    token_hash: tokenHash,
+                })
+                if (!active) return
+                if (error) {
+                    setError("This reset link is invalid or has expired. Please request a new one.")
+                    setVerifying(false)
+                    return
+                }
+                window.history.replaceState({}, "", "/reset-password")
+                setValidSession(true)
+                setVerifying(false)
+                return
+            }
+
+            // 2. PKCE code flow (browser-bound fallback)
             if (code) {
                 const { error } = await supabase.auth.exchangeCodeForSession(code)
                 if (!active) return
@@ -53,7 +78,7 @@ export default function ResetPasswordPage() {
                 return
             }
 
-            // No code in URL — maybe a recovery session already exists.
+            // No token in URL — maybe a recovery session already exists.
             const { data } = await supabase.auth.getSession()
             if (!active) return
             if (data.session) {

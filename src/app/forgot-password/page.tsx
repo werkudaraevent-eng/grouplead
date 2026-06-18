@@ -57,7 +57,7 @@ export default function ForgotPasswordPage() {
                                 <h2 className="text-xl font-semibold text-foreground tracking-tight">Check your email</h2>
                                 <p className="text-sm text-muted-foreground leading-relaxed">
                                     If an account exists for <span className="font-medium text-foreground">{email}</span>,
-                                    we&apos;ve sent a link to reset your password. The link expires in 1 hour.
+                                    we&apos;ve sent a link to reset your password. Open it soon and use the most recent email if you requested more than once.
                                 </p>
                             </div>
                             <Link
