@@ -147,8 +147,8 @@ export interface Lead {
         closed_status?: 'won' | 'lost' | null
         stage_type?: 'open' | 'closed'
     } | null;
-    pic_sales_profile?: { id?: string; full_name: string } | null;
-    account_manager_profile?: { id?: string; full_name: string } | null;
+    pic_sales_profile?: { id?: string; full_name: string; avatar_url?: string | null } | null;
+    account_manager_profile?: { id?: string; full_name: string; avatar_url?: string | null } | null;
 
     // Project & Classification
     category: string | null;

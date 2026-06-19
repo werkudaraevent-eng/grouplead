@@ -233,8 +233,11 @@ export function Sidebar({ onCollapse, isSheet = false, collapsed = false, onTogg
                 {!collapsed && (
                     <div className="flex items-center gap-3 px-2 py-2 rounded-lg transition-colors hover:bg-sidebar-accent/50">
                         <Link href="/settings/profile" onClick={isSheet ? onCollapse : undefined} className="flex items-center gap-3 flex-1 min-w-0">
-                            <div className="w-9 h-9 rounded-full bg-sidebar-accent text-sidebar-accent-foreground flex items-center justify-center text-sm font-bold shrink-0">
-                                {getInitials(profile?.full_name ?? null)}
+                            <div className="w-9 h-9 rounded-full bg-sidebar-accent text-sidebar-accent-foreground flex items-center justify-center text-sm font-bold shrink-0 overflow-hidden">
+                                {profile?.avatar_url ? (
+                                    // eslint-disable-next-line @next/next/no-img-element
+                                    <img src={profile.avatar_url} alt={profile.full_name ?? "Avatar"} className="w-full h-full object-cover" />
+                                ) : getInitials(profile?.full_name ?? null)}
                             </div>
                             <div className="flex-1 min-w-0">
                                 <p className="text-sm font-semibold truncate leading-tight text-sidebar-accent-foreground">{profile?.full_name || "Loading..."}</p>
@@ -248,8 +251,11 @@ export function Sidebar({ onCollapse, isSheet = false, collapsed = false, onTogg
                 )}
                 {collapsed && (
                     <div className="flex flex-col items-center gap-2">
-                        <Link href="/settings/profile" className="w-9 h-9 rounded-full bg-sidebar-accent text-sidebar-accent-foreground flex items-center justify-center text-sm font-bold" title={profile?.full_name || "Profile"}>
-                            {getInitials(profile?.full_name ?? null)}
+                        <Link href="/settings/profile" className="w-9 h-9 rounded-full bg-sidebar-accent text-sidebar-accent-foreground flex items-center justify-center text-sm font-bold overflow-hidden" title={profile?.full_name || "Profile"}>
+                            {profile?.avatar_url ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img src={profile.avatar_url} alt={profile.full_name ?? "Avatar"} className="w-full h-full object-cover" />
+                            ) : getInitials(profile?.full_name ?? null)}
                         </Link>
                         <Button variant="ghost" size="icon" className="h-8 w-8 text-sidebar-foreground/30 hover:text-sidebar-foreground hover:bg-sidebar-accent" onClick={handleLogout} disabled={loggingOut} aria-label="Sign out">
                             {loggingOut ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogOut className="h-4 w-4" />}

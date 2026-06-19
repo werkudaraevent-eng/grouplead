@@ -293,11 +293,15 @@ export function getColumns(
         accessorFn: (row) => row.pic_sales_profile?.full_name ?? "",
         cell: ({ row }) => {
             const name = row.original.pic_sales_profile?.full_name
+            const avatar = row.original.pic_sales_profile?.avatar_url
             if (!name) return <span className="text-slate-300">—</span>
             return (
                 <div className="flex items-center gap-1.5">
-                    <div className="h-5 w-5 rounded-full bg-gradient-to-br from-slate-600 to-slate-800 text-white flex items-center justify-center text-[9px] font-bold shrink-0">
-                        {name.split(" ").map(w => w[0]).join("").slice(0, 2)}
+                    <div className="h-5 w-5 rounded-full bg-gradient-to-br from-slate-600 to-slate-800 text-white flex items-center justify-center text-[9px] font-bold shrink-0 overflow-hidden">
+                        {avatar ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={avatar} alt={name} className="w-full h-full object-cover" />
+                        ) : name.split(" ").map(w => w[0]).join("").slice(0, 2)}
                     </div>
                     <span className="text-[12px] text-slate-700 truncate max-w-[100px]">{name}</span>
                 </div>
@@ -311,11 +315,15 @@ export function getColumns(
         accessorFn: (row) => row.account_manager_profile?.full_name ?? "",
         cell: ({ row }) => {
             const name = row.original.account_manager_profile?.full_name
+            const avatar = row.original.account_manager_profile?.avatar_url
             if (!name) return <span className="text-slate-300">—</span>
             return (
                 <div className="flex items-center gap-1.5">
-                    <div className="h-5 w-5 rounded-full bg-gradient-to-br from-indigo-500 to-indigo-700 text-white flex items-center justify-center text-[9px] font-bold shrink-0">
-                        {name.split(" ").map(w => w[0]).join("").slice(0, 2)}
+                    <div className="h-5 w-5 rounded-full bg-gradient-to-br from-indigo-500 to-indigo-700 text-white flex items-center justify-center text-[9px] font-bold shrink-0 overflow-hidden">
+                        {avatar ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={avatar} alt={name} className="w-full h-full object-cover" />
+                        ) : name.split(" ").map(w => w[0]).join("").slice(0, 2)}
                     </div>
                     <span className="text-[12px] text-slate-700 truncate max-w-[100px]">{name}</span>
                 </div>

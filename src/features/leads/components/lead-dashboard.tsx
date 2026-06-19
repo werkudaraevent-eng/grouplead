@@ -531,8 +531,8 @@ export function LeadDashboard() {
                 client_company:client_companies!client_company_id(name),
                 contact:contacts!contact_id(salutation, full_name, email, phone),
                 pipeline_stage:pipeline_stages!pipeline_stage_id(name, color),
-                pic_sales_profile:profiles!pic_sales_id(full_name),
-                account_manager_profile:profiles!account_manager_id(full_name)
+                pic_sales_profile:profiles!pic_sales_id(full_name, avatar_url),
+                account_manager_profile:profiles!account_manager_id(full_name, avatar_url)
             `)
             .eq('pipeline_id', activePipeline.id)
 

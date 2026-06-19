@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -40,6 +41,7 @@ type PasswordValues = z.infer<typeof passwordSchema>
 
 export default function MyProfilePage() {
     const supabase = createClient()
+    const router = useRouter()
     const [loading, setLoading] = useState(true)
     const [savingProfile, setSavingProfile] = useState(false)
     const [savingPassword, setSavingPassword] = useState(false)
@@ -224,6 +226,9 @@ export default function MyProfilePage() {
                                         setAvatarUrl(publicUrl)
                                         toast.success("Avatar updated")
                                         setUploadingAvatar(false)
+                                        // Refresh server components (e.g. sidebar) so the new
+                                        // avatar shows everywhere without a manual reload.
+                                        router.refresh()
                                     }}
                                 />
                             </label>

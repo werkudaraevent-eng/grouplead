@@ -1034,6 +1034,8 @@ function KanbanCard({
     const { fmtAxis } = useCurrency()
     const picName = lead.pic_sales_profile?.full_name
     const amName = lead.account_manager_profile?.full_name
+    const picAvatar = lead.pic_sales_profile?.avatar_url
+    const amAvatar = lead.account_manager_profile?.avatar_url
 
     // Check configuration arrays
     const showGrade = config.badges.includes('grade_lead')
@@ -1317,13 +1319,19 @@ function KanbanCard({
                             })() : <span />}
                             <div className="flex items-center -space-x-1.5 shrink-0">
                                 {showAm && amName && (
-                                    <div title={amName} className="w-[22px] h-[22px] rounded-full bg-[#6EBDA1] flex items-center justify-center text-[9px] font-semibold text-white ring-2 ring-white">
-                                        {getInitials(amName)}
+                                    <div title={amName} className="w-[22px] h-[22px] rounded-full bg-[#6EBDA1] flex items-center justify-center text-[9px] font-semibold text-white ring-2 ring-white overflow-hidden">
+                                        {amAvatar ? (
+                                            // eslint-disable-next-line @next/next/no-img-element
+                                            <img src={amAvatar} alt={amName} className="w-full h-full object-cover" />
+                                        ) : getInitials(amName)}
                                     </div>
                                 )}
                                 {showPic && picName && (
-                                    <div title={picName} className="w-[22px] h-[22px] rounded-full bg-[#02378D] flex items-center justify-center text-[9px] font-semibold text-white ring-2 ring-white">
-                                        {getInitials(picName)}
+                                    <div title={picName} className="w-[22px] h-[22px] rounded-full bg-[#02378D] flex items-center justify-center text-[9px] font-semibold text-white ring-2 ring-white overflow-hidden">
+                                        {picAvatar ? (
+                                            // eslint-disable-next-line @next/next/no-img-element
+                                            <img src={picAvatar} alt={picName} className="w-full h-full object-cover" />
+                                        ) : getInitials(picName)}
                                     </div>
                                 )}
                             </div>
