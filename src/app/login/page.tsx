@@ -24,7 +24,7 @@ export default function LoginPage() {
         setError(null)
         setLoading(true)
 
-        const { error } = await supabase.auth.signInWithPassword({
+        const { data, error } = await supabase.auth.signInWithPassword({
             email,
             password,
         })
@@ -36,15 +36,22 @@ export default function LoginPage() {
             // Single active session: mint a fresh session id, persist it on the
             // profile and in this browser. Any older session will detect the
             // mismatch and sign itself out ("last login wins").
-            try {
-                const { data: { user } } = await supabase.auth.getUser()
-                if (user) {
-                    const sessionId = newSessionId()
+            //
+            // Use the user from the sign-in response directly — calling
+            // getUser() here would add a redundant round-trip to the auth
+            // server and slow the login down.
+            const user = data.user
+            if (user) {
+                const sessionId = newSessionId()
+                localStorage.setItem(ACTIVE_SESSION_STORAGE_KEY, sessionId)
+                // Await the DB write so the SessionGuard on the dashboard reads
+                // a consistent active_session_id (a stale read would otherwise
+                // mismatch our local id and sign the user straight back out).
+                try {
                     await supabase.from("profiles").update({ active_session_id: sessionId }).eq("id", user.id)
-                    localStorage.setItem(ACTIVE_SESSION_STORAGE_KEY, sessionId)
+                } catch {
+                    // Non-fatal — login still proceeds even if the stamp fails.
                 }
-            } catch {
-                // Non-fatal — login still proceeds even if the session stamp fails.
             }
             router.push("/")
             router.refresh()
