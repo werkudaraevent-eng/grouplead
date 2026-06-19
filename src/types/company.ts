@@ -75,4 +75,6 @@ export interface ActiveCompanyState {
   companies: CompanyContext[]
   isHoldingView: boolean
   switchCompany: (slug: string) => void
+  /** True while a company switch is re-fetching server data. */
+  isSwitching: boolean
 }

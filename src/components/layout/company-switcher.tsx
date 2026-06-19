@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Building2, Check, Globe, ChevronsUpDown, ChevronDown } from 'lucide-react'
+import { Building2, Check, Globe, ChevronsUpDown, ChevronDown, Loader2 } from 'lucide-react'
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
@@ -9,7 +9,7 @@ import {
 import { useCompany } from '@/contexts/company-context'
 
 export function CompanySwitcher() {
-  const { activeCompany, companies, isHoldingView, switchCompany } = useCompany()
+  const { activeCompany, companies, isHoldingView, switchCompany, isSwitching } = useCompany()
   const [isMounted, setIsMounted] = useState(false)
 
   useEffect(() => { setIsMounted(true) }, [])
@@ -26,7 +26,8 @@ export function CompanySwitcher() {
       <DropdownMenuTrigger asChild>
         <button
           id="company-switcher-trigger"
-          className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm font-semibold transition-all duration-150 group bg-sidebar-accent border border-sidebar-border text-sidebar-foreground hover:text-sidebar-accent-foreground hover:bg-sidebar-primary"
+          disabled={isSwitching}
+          className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm font-semibold transition-all duration-150 group bg-sidebar-accent border border-sidebar-border text-sidebar-foreground hover:text-sidebar-accent-foreground hover:bg-sidebar-primary disabled:opacity-70 disabled:cursor-wait"
         >
           <div className="flex items-center justify-center shrink-0">
             {isHoldingView
@@ -37,7 +38,10 @@ export function CompanySwitcher() {
           <span className="flex-1 text-left truncate text-sm">
             {isHoldingView ? 'Holding View' : (activeCompany?.name ?? 'Select Company')}
           </span>
-          <ChevronsUpDown className="h-3.5 w-3.5 shrink-0 text-sidebar-foreground/50 group-hover:text-sidebar-foreground" />
+          {isSwitching
+            ? <Loader2 className="h-3.5 w-3.5 shrink-0 text-sidebar-foreground/70 animate-spin" />
+            : <ChevronsUpDown className="h-3.5 w-3.5 shrink-0 text-sidebar-foreground/50 group-hover:text-sidebar-foreground" />
+          }
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-56">
@@ -78,7 +82,7 @@ export function CompanySwitcher() {
  * Logo + company name as a single clickable dropdown trigger.
  */
 export function CompanySwitcherHeader() {
-  const { activeCompany, companies, isHoldingView, switchCompany } = useCompany()
+  const { activeCompany, companies, isHoldingView, switchCompany, isSwitching } = useCompany()
   const [isMounted, setIsMounted] = useState(false)
 
   useEffect(() => { setIsMounted(true) }, [])
@@ -104,7 +108,7 @@ export function CompanySwitcherHeader() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button className="flex items-center gap-2.5 rounded-lg px-1.5 py-1.5 -ml-1.5 transition-colors duration-150 hover:bg-sidebar-accent/50 focus:outline-none focus-visible:outline-none group min-w-0 overflow-hidden">
+        <button disabled={isSwitching} className="flex items-center gap-2.5 rounded-lg px-1.5 py-1.5 -ml-1.5 transition-colors duration-150 hover:bg-sidebar-accent/50 focus:outline-none focus-visible:outline-none group min-w-0 overflow-hidden disabled:cursor-wait">
           <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center shrink-0">
             <span className="text-white font-bold text-sm">W</span>
           </div>
@@ -113,10 +117,13 @@ export function CompanySwitcherHeader() {
               {displayName}
             </p>
             <p className="text-[11px] font-medium text-sidebar-foreground/50 mt-0.5 truncate whitespace-nowrap">
-              {subtitle}
+              {isSwitching ? 'Loading\u2026' : subtitle}
             </p>
           </div>
-          <ChevronDown className="h-3 w-3 shrink-0 text-sidebar-foreground/40 group-hover:text-sidebar-foreground/70 transition-colors" />
+          {isSwitching
+            ? <Loader2 className="h-3 w-3 shrink-0 text-sidebar-foreground/60 animate-spin" />
+            : <ChevronDown className="h-3 w-3 shrink-0 text-sidebar-foreground/40 group-hover:text-sidebar-foreground/70 transition-colors" />
+          }
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" sideOffset={8} className="w-56">

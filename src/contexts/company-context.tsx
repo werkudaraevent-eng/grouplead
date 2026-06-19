@@ -1,6 +1,6 @@
 ﻿'use client'
 
-import { createContext, useContext, useState, useCallback } from 'react'
+import { createContext, useContext, useState, useCallback, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import type { CompanyContext, ActiveCompanyState } from '@/types/company'
 
@@ -16,6 +16,10 @@ export function CompanyProvider({ initialCompany, companies: initialCompanies, c
   const router = useRouter()
   const [activeCompany, setActiveCompany] = useState<CompanyContext | null>(initialCompany)
   const [companies] = useState<CompanyContext[]>(initialCompanies)
+  // useTransition tracks the async server re-fetch triggered by router.refresh()
+  // so the UI can show an accurate loading state that clears exactly when the
+  // new scoped data is ready (rather than guessing with a timer).
+  const [isSwitching, startTransition] = useTransition()
 
   const switchCompany = useCallback((slug: string) => {
     document.cookie = `active_company=${slug}; path=/; max-age=${60 * 60 * 24 * 365}; SameSite=Lax`
@@ -26,13 +30,15 @@ export function CompanyProvider({ initialCompany, companies: initialCompanies, c
       const company = companies.find(c => c.slug === slug)
       if (company) setActiveCompany(company)
     }
-    router.refresh()
+    startTransition(() => {
+      router.refresh()
+    })
   }, [companies, router])
 
   const isHoldingView = activeCompany?.isHolding === true
 
   return (
-    <CompanyCtx.Provider value={{ activeCompany, companies, isHoldingView, switchCompany }}>
+    <CompanyCtx.Provider value={{ activeCompany, companies, isHoldingView, switchCompany, isSwitching }}>
       {children}
     </CompanyCtx.Provider>
   )
