@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button"
 function formatDate(iso: string): string {
     const d = new Date(iso)
     if (isNaN(d.getTime())) return iso
-    return d.toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })
+    return d.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })
 }
 
 export default function ChangelogPage() {
@@ -56,9 +56,9 @@ export default function ChangelogPage() {
                         <Sparkles className="w-5 h-5 text-blue-600" />
                     </div>
                     <div className="min-w-0">
-                        <h1 className="text-2xl font-extrabold text-foreground tracking-tight">Apa yang baru</h1>
+                        <h1 className="text-2xl font-extrabold text-foreground tracking-tight">What's New</h1>
                         <p className="text-sm text-muted-foreground mt-1">
-                            Daftar pembaruan dan perbaikan terbaru pada aplikasi.
+                            The latest updates and improvements to the app.
                         </p>
                     </div>
                 </div>
@@ -117,7 +117,7 @@ export default function ChangelogPage() {
 
                     {/* Footer */}
                     <p className="mt-10 pt-5 border-t border-slate-100 text-[11px] text-slate-400">
-                        Pembaruan dicatat sejak {formatDate(entries[entries.length - 1]?.date ?? "")}.
+                        Tracking updates since {formatDate(entries[entries.length - 1]?.date ?? "")}.
                     </p>
                 </div>
             </div>

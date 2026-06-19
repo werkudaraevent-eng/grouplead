@@ -33,17 +33,17 @@ export const CHANGE_TYPE_META: Record<
     { label: string; emoji: string; className: string }
 > = {
     feature: {
-        label: "Baru",
+        label: "New",
         emoji: "✨",
         className: "bg-blue-50 text-blue-700 border-blue-100",
     },
     improvement: {
-        label: "Peningkatan",
+        label: "Improved",
         emoji: "💅",
         className: "bg-violet-50 text-violet-700 border-violet-100",
     },
     fix: {
-        label: "Perbaikan",
+        label: "Fixed",
         emoji: "🛠",
         className: "bg-emerald-50 text-emerald-700 border-emerald-100",
     },
@@ -52,49 +52,49 @@ export const CHANGE_TYPE_META: Record<
 export const CHANGELOG: ChangelogEntry[] = [
     {
         date: "2026-06-19",
-        title: "Avatar, kartu yang lebih rapi, dan unggah file",
+        title: "Avatars, tidier cards, and file uploads",
         items: [
             {
                 type: "feature",
-                text: "Halaman detail Company dan Contact sekarang punya tab Files yang berfungsi penuh — Anda bisa mengunggah kontrak, proposal, kartu nama, atau dokumen lain langsung dengan tarik-lepas (drag & drop) atau klik tombol unggah, lalu mengunduh atau menghapusnya kapan saja.",
+                text: "Company and Contact detail pages now have a fully working Files tab — you can upload contracts, proposals, business cards, or any other documents directly via drag & drop or the upload button, then download or delete them anytime.",
             },
             {
                 type: "improvement",
-                text: "Pemilik (owner) sekarang ditampilkan dengan foto profilnya di halaman detail Company & Contact, di pilihan dropdown, dan di tabel. Kalau belum ada foto, tampil inisial nama berwarna.",
+                text: "Owners are now shown with their profile photo on the Company & Contact detail pages, in dropdown menus, and in tables. If there's no photo yet, a colored initials avatar is shown instead.",
             },
             {
                 type: "improvement",
-                text: "Widget Sales Performance kini menampilkan avatar setiap sales, sehingga lebih mudah mengenali siapa yang ada di papan peringkat.",
+                text: "The Sales Performance widget now shows each rep's avatar, making it easier to recognise who's on the leaderboard.",
             },
             {
                 type: "improvement",
-                text: "Widget Top Revenue Generators dirapikan: peringkat 1–3 diberi lencana medali (emas/perak/perunggu) dan warna bar disederhanakan agar lebih enak dibaca.",
+                text: "The Top Revenue Generators widget was polished: ranks 1–3 get medal badges (gold/silver/bronze) and the bar colors were simplified for easier reading.",
             },
             {
                 type: "improvement",
-                text: "Kartu ringkasan di detail Company & Contact dibuat lebih rapi dan ditambah angka 'Won Value' (nilai deal yang menang).",
+                text: "Summary cards on the Company & Contact detail pages were tidied up and now include a 'Won Value' metric (total value of won deals).",
             },
             {
                 type: "fix",
-                text: "Memperbaiki grup 'Sector' pada widget Lead Classification yang sebelumnya selalu menampilkan 'Unspecified' — sekarang sektor diambil dengan benar dari data perusahaan klien.",
+                text: "Fixed the 'Sector' grouping in the Lead Classification widget that always showed 'Unspecified' — the sector is now correctly pulled from the client company's data.",
             },
             {
                 type: "improvement",
-                text: "Jarak antar tulisan di bagian atas dashboard dilonggarkan agar tidak terlalu padat dan lebih nyaman dibaca.",
+                text: "Loosened the spacing of the text at the top of the dashboard so it feels less cramped and is more comfortable to read.",
             },
         ],
     },
     {
         date: "2026-06-18",
-        title: "Tahapan pipeline yang lebih jelas di halaman lead",
+        title: "Clearer pipeline stages on the lead page",
         items: [
             {
                 type: "improvement",
-                text: "Penanda tahapan (stage) di halaman detail lead kini berlabel jelas: setiap tahap menampilkan namanya, dan jelas tahap mana yang sudah dilewati, sedang berjalan, atau belum tercapai. Memindahkan lead antar tahap jadi lebih gampang.",
+                text: "The stage tracker on the lead detail page is now clearly labeled: every stage shows its name, and it's obvious which stages are completed, in progress, or upcoming. Moving a lead between stages is much easier.",
             },
             {
                 type: "fix",
-                text: "Memperbaiki tampilan tahapan yang sempat berkedip-kedip (muncul-hilang) saat menggulir (scroll) di halaman detail lead.",
+                text: "Fixed the stage tracker flickering (showing and hiding rapidly) while scrolling on the lead detail page.",
             },
         ],
     },
