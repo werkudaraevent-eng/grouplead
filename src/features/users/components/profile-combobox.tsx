@@ -8,6 +8,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator } from "@/components/ui/command"
 import { Check, ChevronsUpDown, X } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { getInitials, getAvatarColor } from "@/lib/avatar"
 
 interface ProfileOption {
     value: string
@@ -24,33 +25,6 @@ interface ProfileComboboxProps {
     filterRoles?: string[]
     placeholder?: string
     disabled?: boolean
-}
-
-// Get initials from full name — e.g. "Hanung Sastria" → "HS"
-function getInitials(name: string): string {
-    return name
-        .split(" ")
-        .filter(Boolean)
-        .slice(0, 2)
-        .map(w => w[0]?.toUpperCase() ?? "")
-        .join("")
-}
-
-// Deterministic avatar color from name hash
-function getAvatarColor(name: string): string {
-    const colors = [
-        "bg-blue-100 text-blue-700",
-        "bg-emerald-100 text-emerald-700",
-        "bg-amber-100 text-amber-700",
-        "bg-violet-100 text-violet-700",
-        "bg-rose-100 text-rose-700",
-        "bg-cyan-100 text-cyan-700",
-        "bg-orange-100 text-orange-700",
-        "bg-pink-100 text-pink-700",
-    ]
-    let hash = 0
-    for (let i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) | 0
-    return colors[Math.abs(hash) % colors.length]
 }
 
 // Human-readable role labels

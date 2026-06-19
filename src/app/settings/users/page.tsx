@@ -30,6 +30,7 @@ import { adminResetUserPassword } from "@/app/actions/auth-actions"
 import { activateUserAction, deactivateUserAction, deleteUserAction } from "@/app/actions/user-actions"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
+import { getAvatarColor } from "@/lib/avatar"
 
 const ROLE_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
     super_admin: { label: "Super Admin", color: "text-red-600", bg: "bg-red-50" },
@@ -38,23 +39,6 @@ const ROLE_CONFIG: Record<string, { label: string; color: string; bg: string }> 
     leader: { label: "Leader", color: "text-emerald-600", bg: "bg-emerald-50" },
     sales: { label: "Sales", color: "text-amber-600", bg: "bg-amber-50" },
     staff: { label: "Staff", color: "text-slate-500", bg: "bg-slate-50" },
-}
-
-/** Avatar color based on name hash — consistent per user */
-const AVATAR_COLORS = [
-    "bg-indigo-100 text-indigo-700",
-    "bg-sky-100 text-sky-700",
-    "bg-emerald-100 text-emerald-700",
-    "bg-amber-100 text-amber-700",
-    "bg-rose-100 text-rose-700",
-    "bg-violet-100 text-violet-700",
-    "bg-teal-100 text-teal-700",
-    "bg-orange-100 text-orange-700",
-]
-const getAvatarColor = (name: string | null) => {
-    if (!name) return AVATAR_COLORS[0]
-    const hash = name.split("").reduce((a, c) => a + c.charCodeAt(0), 0)
-    return AVATAR_COLORS[hash % AVATAR_COLORS.length]
 }
 
 export default function UserManagementPage() {

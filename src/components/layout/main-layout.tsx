@@ -4,7 +4,6 @@ import { Suspense, useEffect, useState } from "react"
 import { Sidebar } from "@/components/layout/sidebar"
 import { TopLoader } from "@/components/layout/top-loader"
 import { CompanySwitchLoader } from "@/components/layout/company-switch-loader"
-import { ContentSwitchDim } from "@/components/layout/content-switch-dim"
 import { Sheet, SheetContent, SheetTitle, SheetDescription } from "@/components/ui/sheet"
 import { Button } from "@/components/ui/button"
 import { Menu } from "lucide-react"
@@ -55,6 +54,7 @@ export function MainLayout({ children, initialCompany, companies, currencySettin
 
 // Inner component that can access SidebarThemeContext
 import { useSidebarTheme } from "@/contexts/sidebar-theme-context"
+import { useCompany } from "@/contexts/company-context"
 
 function MainLayoutInner({
     children,
@@ -68,6 +68,7 @@ function MainLayoutInner({
     userProfile?: UserProfile | null
 }) {
     const { isDarkPanel } = useSidebarTheme()
+    const { isSwitching } = useCompany()
     const darkClass = isDarkPanel ? "sidebar-dark" : ""
     const [collapsed, setCollapsed] = useState(false)
 
@@ -129,7 +130,7 @@ function MainLayoutInner({
                         <span className="font-bold text-sm">Werkudara Group</span>
                     </div>
                 </div>
-                <main id="main-content" className="flex-1 overflow-y-auto overflow-x-auto bg-muted/30 thin-scrollbar min-w-[900px]"><ContentSwitchDim>{children}</ContentSwitchDim></main>
+                <main id="main-content" className={`flex-1 overflow-y-auto overflow-x-auto bg-muted/30 thin-scrollbar min-w-[900px] transition-opacity duration-200 ${isSwitching ? "opacity-60 pointer-events-none" : "opacity-100"}`}>{children}</main>
             </div>
         </div>
     )

@@ -6,10 +6,12 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { createClient } from "@/utils/supabase/client"
 import { toast } from "sonner"
 import { Pencil, Loader2, Search } from "lucide-react"
+import { getInitials, getAvatarColor } from "@/lib/avatar"
 
 interface Profile {
     id: string
     full_name: string
+    avatar_url?: string | null
 }
 
 interface HeaderAssigneePopoverProps {
@@ -18,6 +20,8 @@ interface HeaderAssigneePopoverProps {
     label: string
     displayValue: string
     rawValue: string | null | undefined
+    /** Avatar URL of the currently-assigned user, if any. */
+    avatarUrl?: string | null
 }
 
 export function HeaderAssigneePopover({
@@ -26,6 +30,7 @@ export function HeaderAssigneePopover({
     label,
     displayValue,
     rawValue,
+    avatarUrl,
 }: HeaderAssigneePopoverProps) {
     const supabase = createClient()
     const router = useRouter()
@@ -44,7 +49,7 @@ export function HeaderAssigneePopover({
 
     const fetchProfiles = async () => {
         setLoading(true)
-        const { data } = await supabase.from("profiles").select("id, full_name").order("full_name")
+        const { data } = await supabase.from("profiles").select("id, full_name, avatar_url").order("full_name")
         if (data) setProfiles(data)
         setLoading(false)
     }
@@ -75,6 +80,16 @@ export function HeaderAssigneePopover({
         <Popover open={open} onOpenChange={setOpen}>
             <PopoverTrigger asChild>
                 <button className="group flex items-center gap-1.5 text-[13px] font-semibold text-slate-800 hover:text-blue-600 transition-colors rounded px-1.5 py-0.5 -mx-1.5 hover:bg-blue-50">
+                    {rawValue && (
+                        avatarUrl ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={avatarUrl} alt={displayValue} className="w-5 h-5 rounded-full object-cover shrink-0" />
+                        ) : (
+                            <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-semibold shrink-0 ${getAvatarColor(displayValue)}`}>
+                                {getInitials(displayValue)}
+                            </span>
+                        )
+                    )}
                     <span className="truncate max-w-[150px] text-left block" title={displayValue}>{displayValue}</span>
                     <Pencil className="h-3 w-3 shrink-0 text-transparent group-hover:text-blue-500 transition-colors" />
                 </button>
@@ -104,7 +119,17 @@ export function HeaderAssigneePopover({
                                 onClick={() => handleSave(p.id)}
                                 className={`w-full flex items-center justify-between text-left px-3 py-2 text-[13px] hover:bg-slate-50 transition-colors ${p.id === rawValue ? 'font-semibold text-blue-600 bg-blue-50/50' : 'text-slate-700'}`}
                             >
-                                <span className="truncate">{p.full_name || 'Unnamed User'}</span>
+                                <span className="flex items-center gap-2 min-w-0">
+                                    {p.avatar_url ? (
+                                        // eslint-disable-next-line @next/next/no-img-element
+                                        <img src={p.avatar_url} alt={p.full_name || 'User'} className="w-6 h-6 rounded-full object-cover shrink-0" />
+                                    ) : (
+                                        <span className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-semibold shrink-0 ${getAvatarColor(p.full_name)}`}>
+                                            {getInitials(p.full_name)}
+                                        </span>
+                                    )}
+                                    <span className="truncate">{p.full_name || 'Unnamed User'}</span>
+                                </span>
                                 {savingId === p.id && <Loader2 className="h-3.5 w-3.5 animate-spin text-blue-600 shrink-0 ml-2" />}
                             </button>
                         ))}

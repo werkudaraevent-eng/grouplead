@@ -118,6 +118,25 @@ export function AnalyticsDashboard({
     const activePipeline = pipelines.find(p => p.id === activePipelineId)
     const chartYear = activePipeline?.fiscal_year ?? currentYear
     const [hasMounted, setHasMounted] = useState(false)
+    // First name of the signed-in user, for a personal dashboard greeting.
+    const [firstName, setFirstName] = useState<string | null>(null)
+    useEffect(() => {
+        let active = true
+        const supabase = createClient()
+        ;(async () => {
+            const { data: { user } } = await supabase.auth.getUser()
+            if (!user?.id || !active) return
+            const { data } = await supabase
+                .from("profiles")
+                .select("full_name")
+                .eq("id", user.id)
+                .maybeSingle()
+            if (active && data?.full_name) {
+                setFirstName(data.full_name.trim().split(" ")[0])
+            }
+        })()
+        return () => { active = false }
+    }, [])
     const [companyFilter, setCompanyFilter] = useState<string>("all")
     const [periodStr, setPeriodStr] = useState("this_quarter")
     const [customStart, setCustomStart] = useState("")
@@ -1400,11 +1419,11 @@ export function AnalyticsDashboard({
                             whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
                             transition: "font-size .25s cubic-bezier(0.23,1,0.32,1)",
                         }}>
-                            Performance Dashboard
+                            {firstName ? `Halo, ${firstName} 👋` : "Performance Dashboard"}
                         </h1>
                         {hasMounted && !scrolled && (() => {
                             const updated = formatRelativeTime(lastUpdatedIso)
-                            const parts = [activePipeline?.name, updated ? `Updated ${updated}` : null].filter(Boolean)
+                            const parts = [firstName ? "Performance Dashboard" : null, activePipeline?.name, updated ? `Updated ${updated}` : null].filter(Boolean)
                             if (parts.length === 0) return null
                             return (
                                 <p style={{

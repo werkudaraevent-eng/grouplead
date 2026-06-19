@@ -280,6 +280,7 @@ export function LeadDetailPage({ lead, prevLeadId, nextLeadId, lastModifiedBy = 
                                             label="PIC Sales"
                                             displayValue={lead.pic_sales_profile?.full_name || "Unassigned"}
                                             rawValue={lead.pic_sales_id}
+                                            avatarUrl={lead.pic_sales_profile?.avatar_url}
                                         />
                                     </div>
                                 </div>
