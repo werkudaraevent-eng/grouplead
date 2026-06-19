@@ -24,7 +24,7 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Loader2, Save, UserCog, Building2, X } from "lucide-react"
+import { Loader2, Save, UserCog, Building2, X, Camera, UserCircle } from "lucide-react"
 import { Profile } from "@/types"
 import type { Role } from "@/types/company"
 import { normalizePhoneToE164 } from "@/lib/phone-normalize"
@@ -56,6 +56,8 @@ interface EditUserSheetProps {
 export function EditUserSheet({ profile, open, onOpenChange, onSaved }: EditUserSheetProps) {
     const [saving, setSaving] = useState(false)
     const [showWarning, setShowWarning] = useState(false)
+    const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
+    const [uploadingAvatar, setUploadingAvatar] = useState(false)
     const [companies, setCompanies] = useState<CompanyOption[]>([])
     const [roles, setRoles] = useState<Role[]>([])
     const [managers, setManagers] = useState<ManagerOption[]>([])
@@ -108,6 +110,7 @@ export function EditUserSheet({ profile, open, onOpenChange, onSaved }: EditUser
                 reports_to: profile.reports_to,
                 is_active: profile.is_active ?? true,
             })
+            setAvatarUrl(profile.avatar_url ?? null)
         }
     }, [profile, open, form])
 
@@ -284,6 +287,65 @@ export function EditUserSheet({ profile, open, onOpenChange, onSaved }: EditUser
                                 <h3 className="text-[11px] font-semibold text-muted-foreground tracking-wide">
                                     User information
                                 </h3>
+                                {/* Avatar uploader — admin sets the photo for this user */}
+                                <div className="flex items-center gap-4 rounded-xl border border-border bg-card p-4">
+                                    <div className="relative group shrink-0">
+                                        {avatarUrl ? (
+                                            // eslint-disable-next-line @next/next/no-img-element
+                                            <img src={avatarUrl} alt={profile.full_name ?? "User"} className="w-16 h-16 rounded-full object-cover border-2 border-slate-200" />
+                                        ) : (
+                                            <div className="w-16 h-16 rounded-full bg-slate-100 border-2 border-slate-200 flex items-center justify-center">
+                                                <UserCircle className="h-8 w-8 text-slate-300" />
+                                            </div>
+                                        )}
+                                        <label className="absolute inset-0 flex items-center justify-center rounded-full bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+                                            {uploadingAvatar ? (
+                                                <Loader2 className="h-5 w-5 text-white animate-spin" />
+                                            ) : (
+                                                <Camera className="h-5 w-5 text-white" />
+                                            )}
+                                            <input
+                                                type="file"
+                                                accept="image/*"
+                                                className="hidden"
+                                                disabled={uploadingAvatar}
+                                                onChange={async (e) => {
+                                                    const file = e.target.files?.[0]
+                                                    if (!file || !profile) return
+                                                    setUploadingAvatar(true)
+                                                    const ext = file.name.split(".").pop()
+                                                    const path = `avatars/${profile.id}.${ext}`
+                                                    const { error: uploadErr } = await supabase.storage
+                                                        .from("avatars")
+                                                        .upload(path, file, { upsert: true })
+                                                    if (uploadErr) {
+                                                        toast.error("Upload failed: " + uploadErr.message)
+                                                        setUploadingAvatar(false)
+                                                        return
+                                                    }
+                                                    const { data: urlData } = supabase.storage.from("avatars").getPublicUrl(path)
+                                                    const publicUrl = urlData.publicUrl + "?t=" + Date.now()
+                                                    const { error: updErr } = await supabase.from("profiles").update({ avatar_url: publicUrl }).eq("id", profile.id)
+                                                    if (updErr) {
+                                                        toast.error("Could not save avatar: " + updErr.message)
+                                                        setUploadingAvatar(false)
+                                                        return
+                                                    }
+                                                    setAvatarUrl(publicUrl)
+                                                    toast.success("Avatar updated")
+                                                    setUploadingAvatar(false)
+                                                    router.refresh()
+                                                    if (e.target) e.target.value = ""
+                                                }}
+                                            />
+                                        </label>
+                                    </div>
+                                    <div className="min-w-0">
+                                        <p className="font-semibold text-[14px] text-slate-800 truncate">{profile.full_name || "User"}</p>
+                                        <p className="text-[12px] text-slate-500 truncate">{profile.email}</p>
+                                        <p className="text-[11px] text-slate-400 mt-1">Hover the photo to upload a new avatar</p>
+                                    </div>
+                                </div>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-4 rounded-xl border border-border bg-card p-4">
                                     <FormField control={form.control} name="full_name" render={({ field }) => (
                                         <FormItem className="space-y-1.5">

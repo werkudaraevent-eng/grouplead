@@ -55,6 +55,10 @@ export const CHANGELOG: ChangelogEntry[] = [
         title: "Avatars, tidier cards, and file uploads",
         items: [
             {
+                type: "feature",
+                text: "Admins can now set a profile photo for any user from the Edit User panel in Settings → Users — hover the photo and upload, no need to ask each person to do it themselves.",
+            },
+            {
                 type: "fix",
                 text: "Fixed the city search dropdown that was sometimes returning errors. City lookups are now powered by Google Places for faster, more reliable results, with the previous provider kept as a backup.",
             },
