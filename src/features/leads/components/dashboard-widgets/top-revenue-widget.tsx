@@ -30,6 +30,24 @@ const SHOW_LABELS: Record<ShowMode, string> = { top10: "Top 10", top20: "Top 20"
 type GroupMode = "company" | "group"
 const GROUP_LABELS: Record<GroupMode, string> = { company: "Company", group: "Group" }
 
+/** Circle rank badge. Top 3 get soft medal tints (gold/silver/bronze); the
+ *  rest get a muted grey chip. The circle shape rhymes with the avatar chips
+ *  in the Sales Performance widget next to it, so the two leaderboards read as
+ *  one family without forcing company logos. */
+function RankBadge({ rank }: { rank: number }) {
+    const medal: Record<number, string> = {
+        1: "bg-amber-100 text-amber-700 ring-1 ring-amber-200",
+        2: "bg-slate-200 text-slate-600 ring-1 ring-slate-300",
+        3: "bg-orange-100 text-orange-700 ring-1 ring-orange-200",
+    }
+    const cls = medal[rank] ?? "bg-slate-100 text-slate-400"
+    return (
+        <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold tabular-nums shrink-0 ${cls}`}>
+            {rank}
+        </span>
+    )
+}
+
 export function TopRevenueWidget({ data, dataGrouped }: TopRevenueWidgetProps) {
     const { fmtAxis } = useCurrency()
     const [showMode, setShowMode] = useState<ShowMode>("top10")
@@ -107,11 +125,9 @@ export function TopRevenueWidget({ data, dataGrouped }: TopRevenueWidgetProps) {
                     return (
                         <div key={company.name} className="group py-[5px] px-1 rounded hover:bg-muted/30 transition-colors">
                             {/* Rank + Name + Amount */}
-                            <div className="flex items-baseline justify-between mb-1">
-                                <div className="flex items-baseline gap-1.5 min-w-0 mr-2">
-                                    <span className={`text-[10px] font-bold tabular-nums shrink-0 ${isTop3 ? "text-[#02378D]" : "text-muted-foreground/50"}`}>
-                                        {idx + 1}.
-                                    </span>
+                            <div className="flex items-center justify-between mb-1">
+                                <div className="flex items-center gap-2 min-w-0 mr-2">
+                                    <RankBadge rank={idx + 1} />
                                     <span
                                         className={`text-[11.5px] font-medium truncate ${isUnknown ? "text-muted-foreground italic" : "text-[#292D30]"}`}
                                         title={company.name}
@@ -124,18 +140,18 @@ export function TopRevenueWidget({ data, dataGrouped }: TopRevenueWidgetProps) {
                                     <span className="text-[9px] text-muted-foreground">{share.toFixed(0)}%</span>
                                 </div>
                             </div>
-                            {/* Bar */}
+                            {/* Bar — single brand-blue hue across all rows; ranking
+                                emphasis is carried by the badge, not the bar colour. */}
                             <div className="h-[7px] bg-[#eef2f7] rounded-full overflow-hidden">
                                 <div
                                     className="h-full rounded-full"
                                     style={{
                                         width: `${barWidth}%`,
+                                        minWidth: company.revenue > 0 ? "4px" : undefined,
                                         background: isUnknown
                                             ? "#d1d5db"
-                                            : isTop3
-                                                ? "linear-gradient(90deg, #2069B4 0%, #02378D 100%)"
-                                                : "linear-gradient(90deg, #8AD3F5 0%, #5EC5F2 100%)",
-                                        opacity: isTop3 ? 1 : 0.75,
+                                            : "linear-gradient(90deg, #2069B4 0%, #02378D 100%)",
+                                        opacity: isTop3 ? 1 : 0.7,
                                         transition: "width 500ms cubic-bezier(0.23,1,0.32,1)",
                                     }}
                                 />

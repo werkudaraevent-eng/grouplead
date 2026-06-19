@@ -152,6 +152,7 @@ export function SalesPerfWidget({ data }: SalesPerfWidgetProps) {
                                     className="h-full rounded-full"
                                     style={{
                                         width: `${barWidth}%`,
+                                        minWidth: rep.actual > 0 ? "4px" : undefined,
                                         background: `linear-gradient(90deg, ${color}bb 0%, ${color} 100%)`,
                                         transition: "width 500ms cubic-bezier(0.23,1,0.32,1)",
                                     }}
