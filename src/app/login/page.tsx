@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Loader2, ArrowRight, BarChart3, Users, Target, TrendingUp, Eye, EyeOff } from "lucide-react"
+import { ACTIVE_SESSION_STORAGE_KEY, newSessionId } from "@/lib/session-guard"
 
 export default function LoginPage() {
     const [email, setEmail] = useState("")
@@ -32,6 +33,19 @@ export default function LoginPage() {
             setError(error.message)
             setLoading(false)
         } else {
+            // Single active session: mint a fresh session id, persist it on the
+            // profile and in this browser. Any older session will detect the
+            // mismatch and sign itself out ("last login wins").
+            try {
+                const { data: { user } } = await supabase.auth.getUser()
+                if (user) {
+                    const sessionId = newSessionId()
+                    await supabase.from("profiles").update({ active_session_id: sessionId }).eq("id", user.id)
+                    localStorage.setItem(ACTIVE_SESSION_STORAGE_KEY, sessionId)
+                }
+            } catch {
+                // Non-fatal — login still proceeds even if the session stamp fails.
+            }
             router.push("/")
             router.refresh()
         }

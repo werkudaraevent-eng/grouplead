@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState } from "react"
 import { Sidebar } from "@/components/layout/sidebar"
 import { TopLoader } from "@/components/layout/top-loader"
 import { CompanySwitchLoader } from "@/components/layout/company-switch-loader"
+import { SessionGuard } from "@/components/layout/session-guard"
 import { Sheet, SheetContent, SheetTitle, SheetDescription } from "@/components/ui/sheet"
 import { Button } from "@/components/ui/button"
 import { Menu } from "lucide-react"
@@ -39,6 +40,7 @@ export function MainLayout({ children, initialCompany, companies, currencySettin
             <PermissionsProvider>
                 <CurrencyProvider settings={currencySettings}>
                     <SidebarThemeProvider>
+                        <SessionGuard />
                         <Suspense fallback={null}>
                             <TopLoader />
                         </Suspense>

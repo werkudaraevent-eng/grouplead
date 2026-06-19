@@ -56,6 +56,10 @@ export const CHANGELOG: ChangelogEntry[] = [
         items: [
             {
                 type: "feature",
+                text: "For security, each account can now only be signed in on one device at a time. Signing in somewhere new automatically signs you out of the previous session.",
+            },
+            {
+                type: "feature",
                 text: "You can now show or hide your password with the eye icon on the sign-in, password reset, and Change Password screens — handy for double-checking what you typed.",
             },
             {
