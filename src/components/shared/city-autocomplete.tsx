@@ -2,7 +2,8 @@
 
 /**
  * City autocomplete — combines locally cached `master_options` (event_city)
- * with live GeoNames search so the list is always up to date.
+ * with live remote search (Google Places, GeoNames fallback) so the list is
+ * always up to date.
  *
  * Behaviour:
  *   • Empty / short query → shows cached DB cities (instant, offline-safe).
@@ -226,7 +227,7 @@ export function CityAutocomplete({
                             </CommandGroup>
                         )}
                         {merged.remoteOnly.length > 0 && (
-                            <CommandGroup heading="From GeoNames">
+                            <CommandGroup heading="Search results">
                                 {merged.remoteOnly.map((opt) => (
                                     <CommandItem
                                         key={`remote-${opt.value}-${opt.secondary ?? ""}`}

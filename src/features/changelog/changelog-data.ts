@@ -55,6 +55,10 @@ export const CHANGELOG: ChangelogEntry[] = [
         title: "Avatars, tidier cards, and file uploads",
         items: [
             {
+                type: "fix",
+                text: "Fixed the city search dropdown that was sometimes returning errors. City lookups are now powered by Google Places for faster, more reliable results, with the previous provider kept as a backup.",
+            },
+            {
                 type: "feature",
                 text: "For security, each account can now only be signed in on one device at a time. Signing in somewhere new automatically signs you out of the previous session.",
             },
