@@ -4,6 +4,7 @@ import { useState } from "react"
 import { useCurrency } from "@/contexts/currency-context"
 import { SectionCard, SectionTitle, SectionSub, InsightCallout, MiniSelect } from "./shared"
 import { EmptyState } from "@/components/shared/empty-state"
+import { getInitials, getAvatarColor } from "@/lib/avatar"
 import { Users } from "lucide-react"
 
 // Sort modes offered to the user. Default `achievement_asc` keeps the
@@ -23,7 +24,21 @@ interface SalesRep {
     name: string
     actual: number
     target: number
+    avatarUrl?: string | null
     hasRealTarget?: boolean
+}
+
+/** Small avatar chip — photo when available, else colored initials. */
+function RepAvatar({ name, avatarUrl, dim }: { name: string; avatarUrl?: string | null; dim?: boolean }) {
+    if (avatarUrl) {
+        // eslint-disable-next-line @next/next/no-img-element
+        return <img src={avatarUrl} alt={name} className={`w-5 h-5 rounded-full object-cover shrink-0 ${dim ? "opacity-70" : ""}`} />
+    }
+    return (
+        <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-bold shrink-0 ${getAvatarColor(name)} ${dim ? "opacity-70" : ""}`}>
+            {getInitials(name)}
+        </span>
+    )
 }
 
 interface SalesPerfWidgetProps {
@@ -121,8 +136,11 @@ export function SalesPerfWidget({ data }: SalesPerfWidgetProps) {
                     return (
                         <div key={rep.name} className="group py-[6px] px-1 rounded hover:bg-muted/30 transition-colors">
                             <div className="flex items-baseline justify-between mb-1">
-                                <span className="text-[11.5px] font-medium text-[#292D30] truncate mr-2" title={rep.name}>
-                                    {rep.name}
+                                <span className="flex items-center gap-2 min-w-0 mr-2">
+                                    <RepAvatar name={rep.name} avatarUrl={rep.avatarUrl} />
+                                    <span className="text-[11.5px] font-medium text-[#292D30] truncate" title={rep.name}>
+                                        {rep.name}
+                                    </span>
                                 </span>
                                 <div className="flex items-baseline gap-1.5 shrink-0 tabular-nums">
                                     <span className="text-[12px] font-bold" style={{ color }}>{pct.toFixed(0)}%</span>
@@ -159,8 +177,11 @@ export function SalesPerfWidget({ data }: SalesPerfWidgetProps) {
                             return (
                                 <div key={rep.name} className="group py-[6px] px-1 rounded hover:bg-muted/30 transition-colors opacity-70">
                                     <div className="flex items-baseline justify-between mb-1">
-                                        <span className="text-[11.5px] font-medium text-[#292D30]/70 truncate mr-2" title={rep.name}>
-                                            {rep.name}
+                                        <span className="flex items-center gap-2 min-w-0 mr-2">
+                                            <RepAvatar name={rep.name} avatarUrl={rep.avatarUrl} dim />
+                                            <span className="text-[11.5px] font-medium text-[#292D30]/70 truncate" title={rep.name}>
+                                                {rep.name}
+                                            </span>
                                         </span>
                                         <div className="flex items-baseline gap-1.5 shrink-0 tabular-nums">
                                             <span className="text-[12px] font-semibold text-[#292D30]/70">{fmtAxis(rep.actual)}</span>

@@ -13,6 +13,17 @@ const CLIENT_COMPANY_FIELDS = new Set([
 ])
 
 /**
+ * Some fields use a different column name on `client_companies` than on
+ * `leads`. The "Sector" dimension is stored as `sector` on a lead but as
+ * `industry` on a client company (the UI labels `industry` as "Sector").
+ * This maps the lead field key → the client_company column to read when
+ * falling back to the company relation.
+ */
+const CLIENT_COMPANY_FIELD_ALIAS: Record<string, string> = {
+  sector: 'industry',
+}
+
+/**
  * Resolves a field value from a lead, with multi-level relation fallback.
  *
  * Resolution order:
@@ -37,7 +48,9 @@ export function resolveLeadField(lead: Lead, field: string): string | null {
   if (CLIENT_COMPANY_FIELDS.has(field)) {
     const cc = lead.client_company as Record<string, unknown> | null
     if (cc) {
-      const relVal = cc[field]
+      // Honour column aliases (e.g. lead "sector" → company "industry").
+      const ccField = CLIENT_COMPANY_FIELD_ALIAS[field] ?? field
+      const relVal = cc[ccField]
       if (relVal != null && relVal !== '') return String(relVal)
     }
   }

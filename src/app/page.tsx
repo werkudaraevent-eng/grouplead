@@ -7,7 +7,7 @@ import type { Lead, PipelineStage } from "@/types"
 import type { GoalV2, GoalNode, GoalUserTarget, GoalSettingsV2 } from "@/types/goals"
 import type { CustomWidget } from "@/types/custom-widget"
 
-type SalesProfile = { id: string; full_name: string | null }
+type SalesProfile = { id: string; full_name: string | null; avatar_url?: string | null }
 
 const DASHBOARD_LEADS_LIMIT = 5000
 
@@ -63,7 +63,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
     const allPipelineIds = pipelines.map(p => p.id)
     const base = supabase
         .from('leads')
-        .select('*, client_company:client_companies!client_company_id(name, line_industry, area, account_status, industry, parent_id, parent:parent_id(id, name)), contact:contacts!contact_id(full_name, email, phone), pipeline_stage:pipeline_stages!pipeline_stage_id(name, color, closed_status, stage_type), pic_sales_profile:profiles!pic_sales_id(full_name)')
+        .select('*, client_company:client_companies!client_company_id(name, line_industry, area, account_status, industry, parent_id, parent:parent_id(id, name)), contact:contacts!contact_id(full_name, email, phone), pipeline_stage:pipeline_stages!pipeline_stage_id(name, color, closed_status, stage_type), pic_sales_profile:profiles!pic_sales_id(full_name, avatar_url)')
         .order('updated_at', { ascending: false })
         .limit(DASHBOARD_LEADS_LIMIT)
 
@@ -196,7 +196,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
                 Promise.resolve(
                     supabase
                         .from("profiles")
-                        .select("id, full_name")
+                        .select("id, full_name, avatar_url")
                         .in("id", Array.from(targetUserIds))
                 ).then(r => ({ data: (r.data as SalesProfile[] | null) ?? null })),
             )
@@ -206,7 +206,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
                 Promise.resolve(
                     supabase
                         .from("profiles")
-                        .select("id, full_name")
+                        .select("id, full_name, avatar_url")
                         .in("full_name", Array.from(breakdownSalesNames))
                 ).then(r => ({ data: (r.data as SalesProfile[] | null) ?? null })),
             )

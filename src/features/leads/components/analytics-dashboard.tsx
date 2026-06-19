@@ -91,7 +91,7 @@ interface AnalyticsDashboardProps {
     userTargets?: GoalUserTarget[]
     goalSettings?: GoalSettingsV2 | null
     customWidgets?: CustomWidget[]
-    salesProfiles?: { id: string; full_name: string | null }[]
+    salesProfiles?: { id: string; full_name: string | null; avatar_url?: string | null }[]
 }
 
 export function AnalyticsDashboard({
@@ -885,6 +885,7 @@ export function AnalyticsDashboard({
             actual: number
             target: number
             userId?: string
+            avatarUrl?: string | null
             hasRealTarget: boolean
         }
         const reps: Record<string, Rep> = {}
@@ -893,11 +894,13 @@ export function AnalyticsDashboard({
         // server cover reps that have targets but no leads in this period.
         const profileById = new Map<string, string>()
         const profileIdByName = new Map<string, string>()
+        const avatarById = new Map<string, string | null>()
         for (const p of salesProfiles) {
             if (p.full_name) {
                 profileById.set(p.id, p.full_name)
                 profileIdByName.set(p.full_name, p.id)
             }
+            if (p.id) avatarById.set(p.id, p.avatar_url ?? null)
         }
 
         const ensureRep = (userId: string, fallbackName?: string): Rep => {
@@ -908,6 +911,7 @@ export function AnalyticsDashboard({
                     actual: 0,
                     target: 0,
                     userId,
+                    avatarUrl: avatarById.get(userId) ?? null,
                     hasRealTarget: false,
                 }
             } else if (reps[userId].name === "Unknown" || reps[userId].name === "Unassigned") {
@@ -923,6 +927,11 @@ export function AnalyticsDashboard({
             const pic = l.pic_sales_profile?.full_name || "Unassigned"
             const picId = l.pic_sales_id || "unassigned"
             const rep = ensureRep(picId, pic)
+            // Backfill avatar from the lead's joined profile when the server
+            // profile lookup didn't cover this rep (e.g. has leads, no target).
+            if (!rep.avatarUrl && l.pic_sales_profile?.avatar_url) {
+                rep.avatarUrl = l.pic_sales_profile.avatar_url
+            }
             if (stage.includes("won")) {
                 rep.actual += (l.actual_value ?? l.estimated_value ?? 0)
             }
