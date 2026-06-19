@@ -1437,7 +1437,7 @@ export function AnalyticsDashboard({
                             return (
                                 <p style={{
                                     fontSize: 12.5, color: "#9AA1B0", fontWeight: 500,
-                                    margin: "3px 0 0", lineHeight: 1.2,
+                                    margin: "6px 0 0", lineHeight: 1.2,
                                     whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
                                 }}>
                                     {parts.join(" · ")}
@@ -1542,7 +1542,7 @@ export function AnalyticsDashboard({
                         alignItems: "center",
                         flexWrap: "wrap",
                         gap: 6,
-                        padding: "0 32px 14px",
+                        padding: "5px 32px 14px",
                     }}
                 >
                     {pipelines.length > 1 && (
