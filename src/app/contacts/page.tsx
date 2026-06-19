@@ -88,7 +88,7 @@ interface ContactRow {
     address: string | null
     social_urls: { platform: string; url: string }[] | null
     owner_id: string | null
-    owner?: { full_name: string } | null
+    owner?: { full_name: string; avatar_url?: string | null } | null
     needs_enrichment?: boolean
 }
 
@@ -191,7 +191,7 @@ export default function ContactsPage() {
         setLoading(true)
         const { data, error } = await supabase
             .from("contacts")
-            .select("id, salutation, full_name, email, phone, job_title, created_at, client_company_id, secondary_email, secondary_phone, secondary_emails, secondary_phones, linkedin_url, notes, date_of_birth, address, social_urls, owner_id, needs_enrichment, client_company:client_company_id ( name ), owner:profiles!contacts_owner_id_fkey(full_name)")
+            .select("id, salutation, full_name, email, phone, job_title, created_at, client_company_id, secondary_email, secondary_phone, secondary_emails, secondary_phones, linkedin_url, notes, date_of_birth, address, social_urls, owner_id, needs_enrichment, client_company:client_company_id ( name ), owner:profiles!contacts_owner_id_fkey(full_name, avatar_url)")
             .order("full_name", { ascending: true })
 
         if (error) {
@@ -413,9 +413,13 @@ export default function ContactsPage() {
             case "owner":
                 return contact.owner?.full_name ? (
                     <div className="flex items-center gap-2 min-w-0">
-                        <div className={cn("w-5 h-5 rounded-full border flex items-center justify-center text-[9px] font-bold shrink-0", getAvatarColor(contact.owner.full_name))}>
-                            {getInitials(contact.owner.full_name)}
-                        </div>
+                        {contact.owner.avatar_url ? (
+                            <img src={contact.owner.avatar_url} alt={contact.owner.full_name} className="w-5 h-5 rounded-full object-cover border shrink-0" />
+                        ) : (
+                            <div className={cn("w-5 h-5 rounded-full border flex items-center justify-center text-[9px] font-bold shrink-0", getAvatarColor(contact.owner.full_name))}>
+                                {getInitials(contact.owner.full_name)}
+                            </div>
+                        )}
                         <span className="truncate">{contact.owner.full_name}</span>
                     </div>
                 ) : <span className="text-muted-foreground/60">—</span>

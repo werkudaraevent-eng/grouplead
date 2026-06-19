@@ -14,7 +14,7 @@ export default async function ContactPage({ params }: { params: Promise<{ contac
         .select(`
             *,
             client_company:client_company_id(id, name),
-            owner:profiles!contacts_owner_id_fkey(id, full_name, email)
+            owner:profiles!contacts_owner_id_fkey(id, full_name, email, avatar_url)
         `)
         .eq('id', contactId)
         .single()
