@@ -14,6 +14,7 @@ interface ProfileOption {
     label: string
     role: string | null
     isActive: boolean
+    avatarUrl: string | null
 }
 
 interface ProfileComboboxProps {
@@ -82,7 +83,7 @@ export function ProfileCombobox({ value, onChange, filterTierBelow, filterRoles,
 
             const { data, error } = await supabase
                 .from("profiles")
-                .select("id, full_name, role_tier, role, is_active")
+                .select("id, full_name, role_tier, role, is_active, avatar_url")
                 .order("full_name", { ascending: true })
 
             if (error) {
@@ -110,6 +111,7 @@ export function ProfileCombobox({ value, onChange, filterTierBelow, filterRoles,
                     label: p.full_name || "Unnamed User",
                     role: p.role,
                     isActive: p.is_active !== false,
+                    avatarUrl: (p as { avatar_url?: string | null }).avatar_url ?? null,
                 }))
             )
             setIsLoading(false)
@@ -129,12 +131,17 @@ export function ProfileCombobox({ value, onChange, filterTierBelow, filterRoles,
                         <span className="text-muted-foreground truncate flex-1 text-left">Loading users...</span>
                     ) : selected ? (
                         <span className="flex items-center gap-2 truncate flex-1 text-left">
-                            <span className={cn(
-                                "w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-semibold shrink-0",
-                                getAvatarColor(selected.label)
-                            )}>
-                                {getInitials(selected.label)}
-                            </span>
+                            {selected.avatarUrl ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img src={selected.avatarUrl} alt={selected.label} className="w-5 h-5 rounded-full object-cover shrink-0" />
+                            ) : (
+                                <span className={cn(
+                                    "w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-semibold shrink-0",
+                                    getAvatarColor(selected.label)
+                                )}>
+                                    {getInitials(selected.label)}
+                                </span>
+                            )}
                             <span className="truncate">{selected.label}</span>
                         </span>
                     ) : (
@@ -158,12 +165,17 @@ export function ProfileCombobox({ value, onChange, filterTierBelow, filterRoles,
                                         onSelect={() => { onChange(p.value); setOpen(false) }}
                                         className="flex items-center gap-2.5 py-2"
                                     >
-                                        <span className={cn(
-                                            "w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-semibold shrink-0",
-                                            getAvatarColor(p.label)
-                                        )}>
-                                            {getInitials(p.label)}
-                                        </span>
+                                        {p.avatarUrl ? (
+                                            // eslint-disable-next-line @next/next/no-img-element
+                                            <img src={p.avatarUrl} alt={p.label} className="w-6 h-6 rounded-full object-cover shrink-0" />
+                                        ) : (
+                                            <span className={cn(
+                                                "w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-semibold shrink-0",
+                                                getAvatarColor(p.label)
+                                            )}>
+                                                {getInitials(p.label)}
+                                            </span>
+                                        )}
                                         <span className="flex-1 min-w-0 flex flex-col">
                                             <span className="text-[13px] text-foreground truncate">
                                                 {p.label}
