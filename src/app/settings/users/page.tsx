@@ -318,11 +318,11 @@ export default function UserManagementPage() {
                                                 <img
                                                     src={p.avatar_url}
                                                     alt={p.full_name || "User"}
-                                                    className="w-8 h-8 rounded-lg object-cover shrink-0 border border-border transition-transform group-hover:scale-105"
+                                                    className="w-8 h-8 rounded-full object-cover shrink-0 border border-border transition-transform group-hover:scale-105"
                                                 />
                                             ) : (
                                                 <div className={cn(
-                                                    "w-8 h-8 rounded-lg flex items-center justify-center text-[11px] font-bold shrink-0 transition-transform group-hover:scale-105",
+                                                    "w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0 transition-transform group-hover:scale-105",
                                                     inactive ? "bg-muted text-muted-foreground/60" : getAvatarColor(p.full_name)
                                                 )}>
                                                     {getInitials(p.full_name)}
