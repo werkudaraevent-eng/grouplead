@@ -361,7 +361,9 @@ export function AddCompanyModal({ open, onOpenChange, onCreated, initialData }: 
 
     const onError = (errors: any) => {
         toast.error("Please fill in all mandatory fields.")
-        console.error(errors)
+        if (errors && Object.keys(errors).length > 0) {
+            console.warn("[AddCompany] Validation errors:", errors)
+        }
         // Find the first errored input and scroll it into view so the
         // user knows exactly which field is missing. RHF marks
         // FormItem-rendered fields with `aria-invalid="true"`; we also

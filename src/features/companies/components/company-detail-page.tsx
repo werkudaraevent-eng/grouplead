@@ -11,7 +11,7 @@ import { toast } from "sonner"
 import {
     ArrowLeft, Pencil, Building2, Phone, Globe, MapPin,
     Briefcase, FileText, Clock, Folder, Users, Mail,
-    Plus, Loader2, Upload, Target, TrendingUp,
+    Plus, Loader2, Target, TrendingUp,
     CheckCircle2, XCircle, Search, ChevronLeft, ChevronRight,
     Network, Building, AlertTriangle
 } from "lucide-react"
@@ -19,7 +19,9 @@ import { useCurrency } from "@/contexts/currency-context"
 import type { ClientCompany, Contact } from "@/types"
 import { TimelineTab } from "./timeline-tab"
 import { AddCompanyModal } from "./add-company-modal"
+import { CompanyFilesTab } from "./company-files-tab"
 import { formatPhoneDisplay } from "@/lib/phone-normalize"
+import { getInitials, getAvatarColor } from "@/lib/avatar"
 import { InlineTextField, InlineSelectField } from "@/components/shared/inline-edit-field"
 // ═══════════════════════════════════════════════════════════════
 //  TYPES
@@ -37,7 +39,7 @@ interface CompanyLead {
 
 interface CompanyData extends ClientCompany {
     parent?: { id: string; name: string } | null
-    owner?: { id: string; full_name: string; email: string } | null
+    owner?: { id: string; full_name: string; email: string; avatar_url?: string | null } | null
 }
 
 interface CompanyDetailPageProps {
@@ -79,7 +81,7 @@ export function CompanyDetailPage({ company, leads, contactCount, subsidiaries =
     const [savingNote, setSavingNote] = useState(false)
 
     // ─── New: users for owner selection ──────────────────
-    const [allUsers, setAllUsers] = useState<{id: string, full_name: string}[]>([])
+    const [allUsers, setAllUsers] = useState<{id: string, full_name: string, avatar_url?: string | null}[]>([])
 
     // ─── Computed Stats ──────────────────────────────────
     const activeLeads = leads.filter(l => {
@@ -92,7 +94,7 @@ export function CompanyDetailPage({ company, leads, contactCount, subsidiaries =
 
     // ─── Fetch Users ─────────────────────────────────────
     const fetchUsers = useCallback(async () => {
-        const { data } = await supabase.from('profiles').select('id, full_name').eq('is_active', true).order('full_name')
+        const { data } = await supabase.from('profiles').select('id, full_name, avatar_url').eq('is_active', true).order('full_name')
         if (data) setAllUsers(data)
     }, [supabase])
 
@@ -296,14 +298,36 @@ export function CompanyDetailPage({ company, leads, contactCount, subsidiaries =
                             {/* RECORD OWNER - EDITABLE DROPDOWN */}
                             <div className="flex flex-wrap items-center gap-4 mt-1.5 text-[13px] text-slate-500">
                                 <Select value={company.owner_id || "unassigned"} onValueChange={handleSaveOwner}>
-                                    <SelectTrigger className="h-6 gap-1.5 font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 px-2.5 py-0.5 rounded-full border border-slate-200 text-[13px] shadow-none focus:ring-0 w-auto hover:text-blue-600 transition-colors">
-                                        <Users className="w-3.5 h-3.5" /> 
-                                        {company.owner?.full_name ? `Owner: ${company.owner.full_name}` : <span className="italic text-slate-500">Unassigned</span>}
+                                    <SelectTrigger className="h-7 gap-1.5 font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 pl-1 pr-2.5 py-0.5 rounded-full border border-slate-200 text-[13px] shadow-none focus:ring-0 w-auto hover:text-blue-600 transition-colors">
+                                        {company.owner?.full_name ? (
+                                            <span className="flex items-center gap-1.5">
+                                                {company.owner.avatar_url ? (
+                                                    <img src={company.owner.avatar_url} alt={company.owner.full_name} className="w-5 h-5 rounded-full object-cover shrink-0" />
+                                                ) : (
+                                                    <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold shrink-0 ${getAvatarColor(company.owner.full_name)}`}>{getInitials(company.owner.full_name)}</span>
+                                                )}
+                                                <span>Owner: {company.owner.full_name}</span>
+                                            </span>
+                                        ) : (
+                                            <span className="flex items-center gap-1.5">
+                                                <Users className="w-3.5 h-3.5 ml-1" />
+                                                <span className="italic text-slate-500">Unassigned</span>
+                                            </span>
+                                        )}
                                     </SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="unassigned" className="italic text-slate-400">Unassigned</SelectItem>
                                         {allUsers.map((u, i) => (
-                                            <SelectItem key={u.id || i} value={u.id}>{u.full_name}</SelectItem>
+                                            <SelectItem key={u.id || i} value={u.id}>
+                                                <span className="flex items-center gap-2">
+                                                    {u.avatar_url ? (
+                                                        <img src={u.avatar_url} alt={u.full_name} className="w-5 h-5 rounded-full object-cover shrink-0" />
+                                                    ) : (
+                                                        <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold shrink-0 ${getAvatarColor(u.full_name)}`}>{getInitials(u.full_name)}</span>
+                                                    )}
+                                                    <span>{u.full_name}</span>
+                                                </span>
+                                            </SelectItem>
                                         ))}
                                     </SelectContent>
                                 </Select>
@@ -352,11 +376,12 @@ export function CompanyDetailPage({ company, leads, contactCount, subsidiaries =
             </header>
 
             {/* ═══ STATS BAR ══════════════════════════════════════ */}
-            <div className="flex-none bg-white border-b border-slate-200 px-8 py-3">
-                <div className="flex items-center gap-8">
+            <div className="flex-none bg-white border-b border-slate-200 px-8 py-4">
+                <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3">
                     <StatBadge icon={Target} label="Active Leads" value={activeLeads.length.toString()} color="blue" />
                     <StatBadge icon={TrendingUp} label="Total Value" value={fmtCurrency(totalValue)} color="slate" />
                     <StatBadge icon={CheckCircle2} label="Won Deals" value={wonLeads.length.toString()} color="emerald" />
+                    <StatBadge icon={TrendingUp} label="Won Value" value={fmtCurrency(wonValue)} color="emerald" />
                     <StatBadge icon={Users} label="Contacts" value={contactCount.toString()} color="violet" />
                 </div>
             </div>
@@ -744,22 +769,7 @@ export function CompanyDetailPage({ company, leads, contactCount, subsidiaries =
 
                         {/* ── FILES TAB ── */}
                         <TabsContent value="files" className="m-0 pt-6">
-                            <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-                                <div className="px-5 py-3.5 border-b border-slate-100">
-                                    <h3 className="font-semibold text-[13px] text-slate-800 tracking-tight flex items-center gap-2">
-                                        <Folder className="w-4 h-4 text-slate-400" /> Files & Documents
-                                    </h3>
-                                </div>
-                                <div className="flex flex-col items-center justify-center py-14 text-center">
-                                    <div className="w-11 h-11 rounded-full bg-slate-100 flex items-center justify-center mb-3">
-                                        <Upload className="h-5 w-5 text-slate-300" />
-                                    </div>
-                                    <p className="text-[13px] text-slate-500 font-medium mb-0.5">No files attached</p>
-                                    <p className="text-[12px] text-slate-400 max-w-xs">
-                                        Upload contracts, proposals and supporting documents for this company.
-                                    </p>
-                                </div>
-                            </div>
+                            <CompanyFilesTab companyId={company.id} />
                         </TabsContent>
                     </Tabs>
                 </div>
@@ -786,19 +796,19 @@ function StatBadge({ icon: Icon, label, value, color }: {
     icon: typeof Target; label: string; value: string; color: string
 }) {
     const colorMap: Record<string, string> = {
-        blue: "bg-blue-50 text-blue-700",
-        slate: "bg-slate-100 text-slate-700",
-        emerald: "bg-emerald-50 text-emerald-700",
-        violet: "bg-violet-50 text-violet-700",
+        blue: "bg-blue-50 text-blue-600",
+        slate: "bg-slate-100 text-slate-600",
+        emerald: "bg-emerald-50 text-emerald-600",
+        violet: "bg-violet-50 text-violet-600",
     }
     return (
-        <div className="flex items-center gap-2.5">
-            <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${colorMap[color] || colorMap.slate}`}>
-                <Icon className="w-4 h-4" />
+        <div className="flex items-center gap-3 rounded-xl border border-slate-200/80 bg-white px-3.5 py-2.5 transition-colors hover:border-slate-300 hover:bg-slate-50/50">
+            <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${colorMap[color] || colorMap.slate}`}>
+                <Icon className="w-[18px] h-[18px]" />
             </div>
-            <div>
-                <p className="text-[11px] text-slate-400 font-medium uppercase tracking-wider">{label}</p>
-                <p className="text-[14px] font-semibold text-slate-900">{value}</p>
+            <div className="min-w-0">
+                <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider truncate">{label}</p>
+                <p className="text-[15px] font-bold text-slate-900 truncate" title={value}>{value}</p>
             </div>
         </div>
     )

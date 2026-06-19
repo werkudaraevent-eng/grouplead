@@ -14,7 +14,7 @@ export default async function CompanyPage({ params }: { params: Promise<{ compan
         .select(`
             *,
             parent:parent_id(id, name),
-            owner:profiles!client_companies_owner_id_fkey(id, full_name, email)
+            owner:profiles!client_companies_owner_id_fkey(id, full_name, email, avatar_url)
         `)
         .eq('id', companyId)
         .single()

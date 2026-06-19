@@ -61,7 +61,7 @@ import type { ClientCompany } from "@/types"
 
 type CompanyRow = ClientCompany & {
     lead_count: number
-    owner?: { full_name: string } | null
+    owner?: { full_name: string; avatar_url?: string | null } | null
     parent?: { id: string; name: string } | null
 }
 
@@ -155,7 +155,7 @@ export default function CompaniesPage() {
         setLoading(true)
         const { data, error } = await supabase
             .from("client_companies")
-            .select("id, name, industry, line_industry, website, phone, address, area, street_address, city, postal_code, country, parent_id, owner_id, created_at, account_status, needs_enrichment, custom_data, parent:parent_id(id, name), owner:profiles!client_companies_owner_id_fkey(full_name)")
+            .select("id, name, industry, line_industry, website, phone, address, area, street_address, city, postal_code, country, parent_id, owner_id, created_at, account_status, needs_enrichment, custom_data, parent:parent_id(id, name), owner:profiles!client_companies_owner_id_fkey(full_name, avatar_url)")
             .order("name", { ascending: true })
         if (error) {
             console.warn("[Companies Fetch]:", error.message || error)
@@ -254,7 +254,7 @@ export default function CompaniesPage() {
             case "line_industry": return company.line_industry ? <span className="truncate">{company.line_industry}</span> : <span className="text-muted-foreground/60">—</span>
             case "phone": return company.phone ? <div className="flex items-center gap-2"><Phone className="w-3 h-3 text-muted-foreground shrink-0" /><span className="truncate">{formatPhoneDisplay(company.phone)}</span></div> : <span className="text-muted-foreground/60">—</span>
             case "website": return company.website ? <a href={company.website.startsWith("http") ? company.website : `https://${company.website}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-primary hover:underline" onClick={e => e.stopPropagation()}><Globe className="w-3 h-3 shrink-0" /><span className="truncate">{company.website}</span></a> : <span className="text-muted-foreground/60">—</span>
-            case "owner": return company.owner?.full_name ? <div className="flex items-center gap-2"><div className={cn("w-5 h-5 rounded-full border flex items-center justify-center text-[9px] font-bold shrink-0", getAvatarColor(company.owner.full_name))}>{getInitials(company.owner.full_name)}</div><span className="truncate">{company.owner.full_name}</span></div> : <span className="text-muted-foreground/60">—</span>
+            case "owner": return company.owner?.full_name ? <div className="flex items-center gap-2">{company.owner.avatar_url ? <img src={company.owner.avatar_url} alt={company.owner.full_name} className="w-5 h-5 rounded-full object-cover border shrink-0" /> : <div className={cn("w-5 h-5 rounded-full border flex items-center justify-center text-[9px] font-bold shrink-0", getAvatarColor(company.owner.full_name))}>{getInitials(company.owner.full_name)}</div>}<span className="truncate">{company.owner.full_name}</span></div> : <span className="text-muted-foreground/60">—</span>
             case "parent": return company.parent?.name ? <span className="truncate">{company.parent.name}</span> : <span className="text-muted-foreground/60">—</span>
             case "address": return company.address ? <span className="truncate">{company.address}</span> : <span className="text-muted-foreground/60">—</span>
             case "city": return company.city ? <span className="truncate">{company.city}</span> : <span className="text-muted-foreground/60">—</span>

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Lead, PipelineStage, TransitionRule } from "@/types"
@@ -80,13 +80,49 @@ export function LeadDetailPage({ lead, prevLeadId, nextLeadId, lastModifiedBy = 
         rule: TransitionRule;
     } | null>(null)
 
+    // Mirror of isScrolled for synchronous reads inside the scroll handler.
+    const isScrolledRef = useRef(false)
+    // Ref to the right-panel scroll container so we can re-read scrollTop after
+    // the collapse animation settles.
+    const rightPaneRef = useRef<HTMLDivElement>(null)
+    // Ref to the collapsible stage-line block so we can measure how much vertical
+    // space hiding it frees up.
+    const stageLineRef = useRef<HTMLDivElement>(null)
+    // Lock that ignores scroll events fired by the collapse/expand layout reflow.
+    // Collapsing the stage line shrinks the header, which grows this scroll
+    // container and makes the browser clamp scrollTop — without this guard that
+    // reflow scroll event would immediately reverse the state, causing a rapid
+    // hide/show/hide flicker.
+    const scrollLockRef = useRef(false)
+
     const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
-        const top = e.currentTarget.scrollTop
-        setIsScrolled(prev => {
-            if (!prev && top > 60) return true
-            if (prev && top < 10) return false
-            return prev
-        })
+        if (scrollLockRef.current) return
+        const el = e.currentTarget
+        const top = el.scrollTop
+        const prev = isScrolledRef.current
+        let next = prev
+        if (!prev && top > 80) {
+            // The stage line lives in the header (above this pane). Collapsing it
+            // grows the pane by ~its own height and shrinks the available scroll
+            // distance. If the content isn't long enough to stay scrolled past the
+            // reveal threshold afterwards, scrollTop clamps back toward 0 and the
+            // line would pop straight back into view. So only hide when there's
+            // enough overflow to keep the collapse stable.
+            const stageH = stageLineRef.current?.offsetHeight ?? 0
+            const overflow = el.scrollHeight - el.clientHeight
+            if (overflow - stageH < 40) return
+            next = true
+        } else if (prev && top < 16) {
+            next = false
+        }
+        if (next !== prev) {
+            isScrolledRef.current = next
+            setIsScrolled(next)
+            // Hold the lock slightly longer than the 300ms collapse animation so
+            // the reflow-driven scroll events settle before we react again.
+            scrollLockRef.current = true
+            window.setTimeout(() => { scrollLockRef.current = false }, 350)
+        }
     }, [])
 
     const stageName = lead.pipeline_stage?.name || "Unknown"
@@ -363,7 +399,7 @@ export function LeadDetailPage({ lead, prevLeadId, nextLeadId, lastModifiedBy = 
                     </div>
 
                     {/* Row 2: Labeled Stage Stepper */}
-                    <div className={`transition-all duration-300 ease-in-out border-slate-100 ${isScrolled ? 'h-0 opacity-0 overflow-hidden' : 'opacity-100 mt-2 pt-2 border-t'}`}>
+                    <div ref={stageLineRef} className={`transition-all duration-300 ease-in-out border-slate-100 ${isScrolled ? 'h-0 opacity-0 overflow-hidden' : 'opacity-100 mt-2 pt-2 border-t'}`}>
                         {stages.length > 0 && (
                             <>
                                 {/* Helper caption — tells the user what this is and that it's interactive */}
@@ -697,6 +733,7 @@ export function LeadDetailPage({ lead, prevLeadId, nextLeadId, lastModifiedBy = 
 
                 {/* ─── RIGHT PANEL (Tabs) ─────────────────────────── */}
                 <div
+                    ref={rightPaneRef}
                     className="flex-1 min-w-0 h-full flex flex-col overflow-y-auto custom-scrollbar relative"
                     onScroll={handleScroll}
                 >
