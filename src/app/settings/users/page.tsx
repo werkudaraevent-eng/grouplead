@@ -313,12 +313,21 @@ export default function UserManagementPage() {
                                     {/* User */}
                                     <TableCell className="py-2">
                                         <div className="flex items-center gap-3">
-                                            <div className={cn(
-                                                "w-8 h-8 rounded-lg flex items-center justify-center text-[11px] font-bold shrink-0 transition-transform group-hover:scale-105",
-                                                inactive ? "bg-muted text-muted-foreground/60" : getAvatarColor(p.full_name)
-                                            )}>
-                                                {getInitials(p.full_name)}
-                                            </div>
+                                            {p.avatar_url && !inactive ? (
+                                                // eslint-disable-next-line @next/next/no-img-element
+                                                <img
+                                                    src={p.avatar_url}
+                                                    alt={p.full_name || "User"}
+                                                    className="w-8 h-8 rounded-lg object-cover shrink-0 border border-border transition-transform group-hover:scale-105"
+                                                />
+                                            ) : (
+                                                <div className={cn(
+                                                    "w-8 h-8 rounded-lg flex items-center justify-center text-[11px] font-bold shrink-0 transition-transform group-hover:scale-105",
+                                                    inactive ? "bg-muted text-muted-foreground/60" : getAvatarColor(p.full_name)
+                                                )}>
+                                                    {getInitials(p.full_name)}
+                                                </div>
+                                            )}
                                             <div className="min-w-0">
                                                 <p className={cn(
                                                     "font-medium text-[13px] leading-tight truncate",
