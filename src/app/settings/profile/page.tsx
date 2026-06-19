@@ -15,7 +15,7 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
-import { Loader2, Save, UserCircle, KeyRound, Shield, Mail, Camera, Settings2 } from "lucide-react"
+import { Loader2, Save, UserCircle, KeyRound, Shield, Mail, Camera, Settings2, Eye, EyeOff } from "lucide-react"
 import { SettingsPageHeader } from "@/components/layout/settings-page-header"
 import { PhoneInput } from "@/components/shared/phone-input"
 import { normalizePhoneToE164 } from "@/lib/phone-normalize"
@@ -45,6 +45,8 @@ export default function MyProfilePage() {
     const [loading, setLoading] = useState(true)
     const [savingProfile, setSavingProfile] = useState(false)
     const [savingPassword, setSavingPassword] = useState(false)
+    const [showNewPassword, setShowNewPassword] = useState(false)
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false)
     const [uploadingAvatar, setUploadingAvatar] = useState(false)
     const [email, setEmail] = useState("")
     const [roleName, setRoleName] = useState("")
@@ -364,14 +366,44 @@ export default function MyProfilePage() {
                             <FormField control={passwordForm.control} name="new_password" render={({ field }) => (
                                 <FormItem>
                                     <FormLabel>New Password</FormLabel>
-                                    <FormControl><Input type="password" placeholder="Minimum 8 characters" autoComplete="new-password" {...field} /></FormControl>
+                                    <FormControl>
+                                        <div className="relative">
+                                            <Input type={showNewPassword ? "text" : "password"} placeholder="Minimum 8 characters" autoComplete="new-password" className="pr-11" {...field} />
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowNewPassword((v) => !v)}
+                                                aria-label={showNewPassword ? "Hide password" : "Show password"}
+                                                aria-pressed={showNewPassword}
+                                                title={showNewPassword ? "Hide password" : "Show password"}
+                                                tabIndex={-1}
+                                                className="absolute right-2 top-1/2 -translate-y-1/2 inline-flex items-center justify-center h-7 w-7 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                                            >
+                                                {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                                            </button>
+                                        </div>
+                                    </FormControl>
                                     <FormMessage />
                                 </FormItem>
                             )} />
                             <FormField control={passwordForm.control} name="confirm_password" render={({ field }) => (
                                 <FormItem>
                                     <FormLabel>Confirm Password</FormLabel>
-                                    <FormControl><Input type="password" placeholder="Re-enter your new password" autoComplete="new-password" {...field} /></FormControl>
+                                    <FormControl>
+                                        <div className="relative">
+                                            <Input type={showConfirmPassword ? "text" : "password"} placeholder="Re-enter your new password" autoComplete="new-password" className="pr-11" {...field} />
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowConfirmPassword((v) => !v)}
+                                                aria-label={showConfirmPassword ? "Hide password" : "Show password"}
+                                                aria-pressed={showConfirmPassword}
+                                                title={showConfirmPassword ? "Hide password" : "Show password"}
+                                                tabIndex={-1}
+                                                className="absolute right-2 top-1/2 -translate-y-1/2 inline-flex items-center justify-center h-7 w-7 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                                            >
+                                                {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                                            </button>
+                                        </div>
+                                    </FormControl>
                                     <FormMessage />
                                 </FormItem>
                             )} />

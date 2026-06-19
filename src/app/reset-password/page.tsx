@@ -7,7 +7,7 @@ import { createClient } from "@/utils/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Loader2, ArrowLeft, CheckCircle2, KeyRound } from "lucide-react"
+import { Loader2, ArrowLeft, CheckCircle2, KeyRound, Eye, EyeOff } from "lucide-react"
 
 export default function ResetPasswordPage() {
     const router = useRouter()
@@ -17,6 +17,8 @@ export default function ResetPasswordPage() {
     const [validSession, setValidSession] = useState(false)
     const [password, setPassword] = useState("")
     const [confirm, setConfirm] = useState("")
+    const [showPassword, setShowPassword] = useState(false)
+    const [showConfirm, setShowConfirm] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [saving, setSaving] = useState(false)
     const [done, setDone] = useState(false)
@@ -192,32 +194,58 @@ export default function ResetPasswordPage() {
                                     <Label htmlFor="new-password" className="text-sm font-medium text-foreground">
                                         New password
                                     </Label>
-                                    <Input
-                                        id="new-password"
-                                        type="password"
-                                        placeholder="Minimum 8 characters"
-                                        value={password}
-                                        onChange={(e) => setPassword(e.target.value)}
-                                        required
-                                        autoComplete="new-password"
-                                        className="h-11 bg-muted/40 border-border/60 focus:bg-white transition-colors"
-                                    />
+                                    <div className="relative">
+                                        <Input
+                                            id="new-password"
+                                            type={showPassword ? "text" : "password"}
+                                            placeholder="Minimum 8 characters"
+                                            value={password}
+                                            onChange={(e) => setPassword(e.target.value)}
+                                            required
+                                            autoComplete="new-password"
+                                            className="h-11 bg-muted/40 border-border/60 focus:bg-white transition-colors pr-11"
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowPassword((v) => !v)}
+                                            aria-label={showPassword ? "Hide password" : "Show password"}
+                                            aria-pressed={showPassword}
+                                            title={showPassword ? "Hide password" : "Show password"}
+                                            tabIndex={-1}
+                                            className="absolute right-2 top-1/2 -translate-y-1/2 inline-flex items-center justify-center h-8 w-8 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                                        >
+                                            {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                                        </button>
+                                    </div>
                                 </div>
 
                                 <div className="space-y-1.5">
                                     <Label htmlFor="confirm-password" className="text-sm font-medium text-foreground">
                                         Confirm password
                                     </Label>
-                                    <Input
-                                        id="confirm-password"
-                                        type="password"
-                                        placeholder="Re-enter your new password"
-                                        value={confirm}
-                                        onChange={(e) => setConfirm(e.target.value)}
-                                        required
-                                        autoComplete="new-password"
-                                        className="h-11 bg-muted/40 border-border/60 focus:bg-white transition-colors"
-                                    />
+                                    <div className="relative">
+                                        <Input
+                                            id="confirm-password"
+                                            type={showConfirm ? "text" : "password"}
+                                            placeholder="Re-enter your new password"
+                                            value={confirm}
+                                            onChange={(e) => setConfirm(e.target.value)}
+                                            required
+                                            autoComplete="new-password"
+                                            className="h-11 bg-muted/40 border-border/60 focus:bg-white transition-colors pr-11"
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowConfirm((v) => !v)}
+                                            aria-label={showConfirm ? "Hide password" : "Show password"}
+                                            aria-pressed={showConfirm}
+                                            title={showConfirm ? "Hide password" : "Show password"}
+                                            tabIndex={-1}
+                                            className="absolute right-2 top-1/2 -translate-y-1/2 inline-flex items-center justify-center h-8 w-8 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                                        >
+                                            {showConfirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                                        </button>
+                                    </div>
                                 </div>
 
                                 <Button

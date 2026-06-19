@@ -56,6 +56,10 @@ export const CHANGELOG: ChangelogEntry[] = [
         items: [
             {
                 type: "feature",
+                text: "You can now show or hide your password with the eye icon on the sign-in, password reset, and Change Password screens — handy for double-checking what you typed.",
+            },
+            {
+                type: "feature",
                 text: "Company and Contact detail pages now have a fully working Files tab — you can upload contracts, proposals, business cards, or any other documents directly via drag & drop or the upload button, then download or delete them anytime.",
             },
             {
