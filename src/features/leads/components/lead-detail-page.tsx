@@ -362,92 +362,81 @@ export function LeadDetailPage({ lead, prevLeadId, nextLeadId, lastModifiedBy = 
                         </div>
                     </div>
 
-                    {/* Row 2: Compact Line Stepper */}
-                    <div className={`transition-all duration-300 ease-in-out border-slate-100 ${isScrolled ? 'h-0 opacity-0 overflow-hidden' : 'h-12 opacity-100 mt-2 pt-2 border-t'}`}>
+                    {/* Row 2: Labeled Stage Stepper */}
+                    <div className={`transition-all duration-300 ease-in-out border-slate-100 ${isScrolled ? 'h-0 opacity-0 overflow-hidden' : 'opacity-100 mt-2 pt-2 border-t'}`}>
                         {stages.length > 0 && (
-                            <div className="flex items-center w-full px-2">
-                                {stages.map((stage, idx) => {
-                                    const isPast = idx < currentStageIdx
-                                    const isCurrent = idx === currentStageIdx
-                                    const isLast = idx === stages.length - 1
+                            <>
+                                {/* Helper caption — tells the user what this is and that it's interactive */}
+                                <p className="px-2 mb-1 text-[11px] font-medium text-slate-400">
+                                    Pipeline stage <span className="text-slate-300">·</span> click a stage to move this lead
+                                </p>
+                                <div className="flex items-start w-full px-2 pt-3 pb-1 overflow-x-auto thin-scrollbar">
+                                    {stages.map((stage, idx) => {
+                                        const isPast = idx < currentStageIdx
+                                        const isCurrent = idx === currentStageIdx
+                                        const isLast = idx === stages.length - 1
 
-                                    const isStageWon = stage.name.toLowerCase().includes('won')
-                                    const isStageLost = ['lost', 'canceled', 'cancelled', 'postponed', 'turndown'].some(w => stage.name.toLowerCase().includes(w))
+                                        const isStageWon = stage.name.toLowerCase().includes('won')
+                                        const isStageLost = ['lost', 'canceled', 'cancelled', 'postponed', 'turndown'].some(w => stage.name.toLowerCase().includes(w))
 
-                                    return (
-                                        <div key={stage.id} className="contents">
-                                            {/* Stage Node */}
-                                            {isCurrent ? (
-                                                <div
-                                                    className={`relative flex items-center justify-center gap-1 px-2.5 py-1 rounded-full text-white shrink-0 min-w-0 max-w-[140px] md:max-w-[180px] ${activeColorClass}`}
-                                                    title="Current Pipeline Stage"
-                                                >
-                                                    <span className="text-[11px] font-semibold truncate">{stage.name}</span>
-                                                    {/* Terminal Icon Below */}
-                                                    {(isStageWon || isStageLost) && (
-                                                        <div className="absolute top-9 left-1/2 -translate-x-1/2">
-                                                            {isStageWon ?
-                                                                <ThumbsUp className="h-3.5 w-3.5 fill-emerald-500 text-emerald-500" strokeWidth={2} /> :
-                                                                <ThumbsDown className="h-3.5 w-3.5 fill-red-500 text-red-500" strokeWidth={2} />
-                                                            }
-                                                        </div>
-                                                    )}
+                                        // Circle visual per state
+                                        const circleBase = "w-7 h-7 rounded-full flex items-center justify-center shrink-0 transition-all border-2"
+                                        let circleClass: string
+                                        if (isCurrent) {
+                                            circleClass = `${activeColorClass} text-white border-transparent ring-4 ring-offset-1 ${isWon ? 'ring-emerald-200' : isLost ? 'ring-red-200' : 'ring-blue-200'} scale-110`
+                                        } else if (isPast) {
+                                            circleClass = `${activeColorClass} text-white border-transparent`
+                                        } else if (isStageWon) {
+                                            circleClass = "bg-white border-emerald-300 text-emerald-500 hover:border-emerald-500 hover:bg-emerald-50"
+                                        } else if (isStageLost) {
+                                            circleClass = "bg-white border-red-300 text-red-500 hover:border-red-500 hover:bg-red-50"
+                                        } else {
+                                            circleClass = "bg-white border-slate-300 text-slate-400 hover:border-blue-500 hover:text-blue-500"
+                                        }
+
+                                        // Label color per state
+                                        const labelClass = isCurrent
+                                            ? (isWon ? 'text-emerald-600 font-semibold' : isLost ? 'text-red-600 font-semibold' : 'text-blue-600 font-semibold')
+                                            : isPast ? 'text-slate-600' : 'text-slate-400'
+
+                                        return (
+                                            <div key={stage.id} className="contents">
+                                                <div className="flex flex-col items-center gap-1 shrink-0 w-[72px] md:w-[84px]">
+                                                    <button
+                                                        onClick={() => handleStageClick(stage)}
+                                                        disabled={movingStage || isCurrent}
+                                                        title={isCurrent ? `Current stage: ${stage.name}` : `Move to: ${stage.name}`}
+                                                        aria-current={isCurrent ? 'step' : undefined}
+                                                        className={`${circleBase} ${circleClass} ${isCurrent ? 'cursor-default' : 'cursor-pointer hover:scale-110'} disabled:opacity-100`}
+                                                    >
+                                                        {isCurrent ? (
+                                                            isStageWon ? <ThumbsUp className="h-3.5 w-3.5" strokeWidth={2.5} />
+                                                                : isStageLost ? <ThumbsDown className="h-3.5 w-3.5" strokeWidth={2.5} />
+                                                                    : <span className="w-2 h-2 rounded-full bg-white" />
+                                                        ) : isPast ? (
+                                                            <Check className="h-3.5 w-3.5" strokeWidth={2.5} />
+                                                        ) : isStageWon ? (
+                                                            <ThumbsUp className="h-3 w-3" strokeWidth={2} />
+                                                        ) : isStageLost ? (
+                                                            <ThumbsDown className="h-3 w-3" strokeWidth={2} />
+                                                        ) : (
+                                                            <span className="text-[10px] font-semibold">{idx + 1}</span>
+                                                        )}
+                                                    </button>
+                                                    <span className={`text-[10px] leading-tight text-center truncate max-w-full ${labelClass}`} title={stage.name}>
+                                                        {stage.name}
+                                                    </span>
                                                 </div>
-                                            ) : isPast ? (
-                                                <button
-                                                    onClick={() => handleStageClick(stage)}
-                                                    disabled={movingStage}
-                                                    className={`w-5 h-5 rounded-full flex flex-col items-center justify-center text-white shrink-0 transition-colors relative group cursor-pointer disabled:cursor-not-allowed ${activeColorClass}`}
-                                                >
-                                                    <Check className="h-3 w-3" />
-                                                    <div className="absolute top-10 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-slate-900 text-white text-[11px] px-2 py-1 rounded shadow-md pointer-events-none z-50">
-                                                        {stage.name}
-                                                    </div>
-                                                    {/* Terminal Icon Below */}
-                                                    {(isStageWon || isStageLost) && (
-                                                        <div className="absolute top-9">
-                                                            {isStageWon ?
-                                                                <ThumbsUp className="h-3.5 w-3.5 fill-emerald-500 text-emerald-500" strokeWidth={2} /> :
-                                                                <ThumbsDown className="h-3.5 w-3.5 fill-red-500 text-red-500" strokeWidth={2} />
-                                                            }
-                                                        </div>
-                                                    )}
-                                                </button>
-                                            ) : (
-                                                <button
-                                                    onClick={() => handleStageClick(stage)}
-                                                    disabled={movingStage}
-                                                    className={`w-4 h-4 rounded-full flex flex-col items-center justify-center hover:scale-110 ring-4 ring-white shrink-0 transition-all relative group cursor-pointer disabled:cursor-not-allowed ${isStageWon ? 'bg-emerald-100 border border-emerald-300' :
-                                                            isStageLost ? 'bg-red-100 border border-red-300' :
-                                                                'bg-slate-200 hover:bg-slate-300'
-                                                        }`}
-                                                >
-                                                    {isStageWon && <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full" />}
-                                                    {isStageLost && <div className="w-1.5 h-1.5 bg-red-500 rounded-full" />}
-                                                    <div className="absolute top-8 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-slate-900 text-white text-[11px] px-2 py-1 rounded shadow-md pointer-events-none z-50">
-                                                        {stage.name}
-                                                    </div>
-                                                    {/* Terminal Icon Below */}
-                                                    {(isStageWon || isStageLost) && (
-                                                        <div className="absolute top-6">
-                                                            {isStageWon ?
-                                                                <ThumbsUp className="h-3.5 w-3.5 text-emerald-400 opacity-60" strokeWidth={2} /> :
-                                                                <ThumbsDown className="h-3.5 w-3.5 text-red-400 opacity-60" strokeWidth={2} />
-                                                            }
-                                                        </div>
-                                                    )}
-                                                </button>
-                                            )}
 
-                                            {/* Connecting Line */}
-                                            {!isLast && (
-                                                <div className={`h-[2px] flex-1 shrink min-w-[8px] mx-1 md:mx-2 rounded-full transition-colors ${isPast ? activeLineClass : 'bg-slate-200'
-                                                    }`} />
-                                            )}
-                                        </div>
-                                    )
-                                })}
-                            </div>
+                                                {/* Connecting line — vertically aligned to circle center */}
+                                                {!isLast && (
+                                                    <div className={`h-[2px] flex-1 shrink min-w-[12px] mt-[13px] rounded-full transition-colors ${isPast ? activeLineClass : 'bg-slate-200'}`} />
+                                                )}
+                                            </div>
+                                        )
+                                    })}
+                                </div>
+                            </>
                         )}
                     </div>
                 </div>
