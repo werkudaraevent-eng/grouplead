@@ -31,6 +31,7 @@ import { normalizePhoneToE164 } from "@/lib/phone-normalize"
 import { PhoneInput } from "@/components/shared/phone-input"
 import { FormFieldLabel } from "@/components/shared/form-field-label"
 import { SearchableSelect } from "@/components/shared/searchable-select"
+import { propagateSalesOwnerRename } from "@/app/actions/goal-name-sync-actions"
 
 /* ─── Schema ─────────────────────────────────────────────────────────────── */
 const schema = z.object({
@@ -124,6 +125,11 @@ export function EditUserSheet({ profile, open, onOpenChange, onSaved }: EditUser
             const selectedRole = roles.find((r) => r.id === values.role_id)
             const roleText = selectedRole ? selectedRole.name.toLowerCase().replace(/\s+/g, "_") : profile.role
 
+            // Capture rename so we can propagate it into goal breakdown_config
+            // (which stores sales reps by display name, not user id).
+            const previousName = profile.full_name?.trim() ?? ""
+            const nextName = values.full_name.trim()
+
             // Build legacy business_unit from first selected company
             const primaryCompanyName = selectedCompanyIds.length > 0
                 ? companies.find(c => c.id === selectedCompanyIds[0])?.name || null
@@ -204,6 +210,17 @@ export function EditUserSheet({ profile, open, onOpenChange, onSaved }: EditUser
 
             // Update initial state so subsequent saves diff correctly
             setInitialCompanyIds([...selectedCompanyIds])
+
+            // Propagate a name change into goal breakdown_config so the Sales
+            // Performance widget keeps matching this rep's target to their
+            // won-deal revenue (otherwise the rep splits into two rows).
+            if (previousName && previousName !== nextName) {
+                const sync = await propagateSalesOwnerRename(previousName, nextName)
+                if (!sync.success) {
+                    console.error("[EditUser] Failed to sync rename into goals:", sync.error)
+                    toast.error("Profile saved but goal targets may still show the old name")
+                }
+            }
 
             toast.success(values.is_active ? "Profile updated successfully" : "User deactivated & profile updated")
             form.reset()
