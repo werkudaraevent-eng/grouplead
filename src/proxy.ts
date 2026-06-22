@@ -2,8 +2,16 @@ import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 export async function proxy(request: NextRequest) {
+    // Forward the current pathname to Server Components via a request header.
+    // Server Components read REQUEST headers (via next/headers `headers()`), so
+    // the pathname must live on the request — not the response — or the root
+    // layout can't tell it's on a public auth page and wrongly renders the
+    // app shell (sidebar) over /login etc.
+    const requestHeaders = new Headers(request.headers)
+    requestHeaders.set('x-pathname', request.nextUrl.pathname)
+
     let response = NextResponse.next({
-        request: { headers: request.headers },
+        request: { headers: requestHeaders },
     })
 
     const supabase = createServerClient(
@@ -19,7 +27,7 @@ export async function proxy(request: NextRequest) {
                         request.cookies.set(name, value)
                     )
                     response = NextResponse.next({
-                        request: { headers: request.headers },
+                        request: { headers: requestHeaders },
                     })
                     cookiesToSet.forEach(({ name, value, options }) =>
                         response.cookies.set(name, value, options)
@@ -32,7 +40,8 @@ export async function proxy(request: NextRequest) {
     // Refresh the session (important for token rotation)
     const { data: { user } } = await supabase.auth.getUser()
 
-    // Set pathname header for layout to read
+    // Also expose pathname on the response (harmless; some tooling/debugging
+    // reads it). The authoritative copy for Server Components is on the request.
     response.headers.set('x-pathname', request.nextUrl.pathname)
 
     // Public auth routes that must be reachable without a session.
