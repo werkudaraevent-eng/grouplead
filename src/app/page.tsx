@@ -164,11 +164,13 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
 
     // Names referenced by breakdown_config sales_owner level — these need
     // to be resolved against profiles.full_name to recover their user id.
+    // Newer goals also store `userId` per node (rename-proof); collect those
+    // straight into targetUserIds so the profile resolves regardless of name.
     const breakdownSalesNames = new Set<string>()
     type BreakdownLevel = {
         dimension?: string
-        nodes?: Array<{ name?: string }>
-        perParentNodes?: Record<string, Array<{ name?: string }> | undefined>
+        nodes?: Array<{ name?: string; userId?: string }>
+        perParentNodes?: Record<string, Array<{ name?: string; userId?: string }> | undefined>
     }
     // TS narrows `activeGoal` to `null` here because the actual assignment
     // happens inside a `.then()` callback. Re-widen via an explicit cast
@@ -178,12 +180,14 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
     for (const level of breakdownConfig) {
         if (level?.dimension !== "sales_owner") continue
         for (const node of level.nodes ?? []) {
-            if (node?.name) breakdownSalesNames.add(node.name)
+            if (node?.userId) targetUserIds.add(node.userId)
+            else if (node?.name) breakdownSalesNames.add(node.name)
         }
         const perParent = level.perParentNodes ?? {}
         for (const list of Object.values(perParent)) {
             for (const node of list ?? []) {
-                if (node?.name) breakdownSalesNames.add(node.name)
+                if (node?.userId) targetUserIds.add(node.userId)
+                else if (node?.name) breakdownSalesNames.add(node.name)
             }
         }
     }

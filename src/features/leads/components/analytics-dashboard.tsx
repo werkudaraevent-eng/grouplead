@@ -1018,18 +1018,31 @@ export function AnalyticsDashboard({
         // Fallback: apply targets from breakdown_config (sales_owner dimension).
         // For multi-level configs (e.g. industry × sales_owner) the target
         // for a given rep is the SUM of their nodes across every parent
-        // bucket. We resolve names to user ids via salesProfiles so reps
-        // with no leads in this period still get seeded.
+        // bucket. We key by the node's `userId` when present (rename-proof),
+        // else resolve the display name → user id via salesProfiles, else fall
+        // back to a name-based key so reps with no leads still get seeded.
         if (activeGoal?.breakdown_config && Array.isArray(activeGoal.breakdown_config)) {
-            // Aggregate: name → total raw target across the entire config
-            const breakdownTotals = new Map<string, number>()
-            const addNode = (node: { name?: string; pct?: number; value?: number }, parentTotal: number) => {
-                if (!node?.name) return
+            // Aggregate: repKey → { target, name } across the entire config.
+            // repKey is a user id whenever we can resolve one, so the target
+            // lands on the SAME rep bucket as their won-deal revenue (which is
+            // keyed by pic_sales_id). This prevents a renamed rep from splitting
+            // into two rows.
+            const breakdownTotals = new Map<string, { target: number; name: string }>()
+            const addNode = (node: { name?: string; pct?: number; value?: number; userId?: string }, parentTotal: number) => {
+                if (!node?.name && !node?.userId) return
                 const amt = (node.value && node.value > 0)
                     ? node.value
                     : parentTotal * ((node.pct ?? 0) / 100)
                 if (amt <= 0) return
-                breakdownTotals.set(node.name, (breakdownTotals.get(node.name) ?? 0) + amt)
+                const name = node.name ?? ""
+                const repKey = node.userId
+                    ?? profileIdByName.get(name)
+                    ?? `name:${name}`
+                const existing = breakdownTotals.get(repKey)
+                breakdownTotals.set(repKey, {
+                    target: (existing?.target ?? 0) + amt,
+                    name: existing?.name ?? name,
+                })
             }
 
             const totalTarget = activeGoal.target_amount || 0
@@ -1050,12 +1063,9 @@ export function AnalyticsDashboard({
                 }
             }
 
-            for (const [name, rawTarget] of breakdownTotals) {
+            for (const [repKey, { target: rawTarget, name }] of breakdownTotals) {
                 if (rawTarget <= 0) continue
-                // Resolve name → user id; fall back to a name-based key if
-                // no profile match so the rep still appears in the widget.
-                const userId = profileIdByName.get(name) ?? `name:${name}`
-                const rep = ensureRep(userId, name)
+                const rep = ensureRep(repKey, name)
                 if (rep.hasRealTarget) continue
                 const prorated = prorate(rawTarget)
                 if (prorated > 0) {

@@ -76,13 +76,14 @@ export function GoalConfigurationPage({ goal, dimensions }: { goal: GoalV2; dime
           pct: n.pct || 0,
           value: n.value || 0,
           monthlyWeights: n.monthlyWeights || null, // null = inherit from global
+          userId: n.userId || undefined, // rename-proof key for sales_owner
         })),
         // Restore per-parent node overrides if saved
         perParentNodes: lv.perParentNodes
           ? Object.fromEntries(
               Object.entries(lv.perParentNodes).map(([parentName, nodes]: [string, any[]]) => [
                 parentName,
-                (nodes || []).map((n: any) => ({ name: n.name || "", pct: n.pct || 0, value: n.value || 0, monthlyWeights: n.monthlyWeights || null })),
+                (nodes || []).map((n: any) => ({ name: n.name || "", pct: n.pct || 0, value: n.value || 0, monthlyWeights: n.monthlyWeights || null, userId: n.userId || undefined })),
               ])
             )
           : {},
@@ -229,6 +230,9 @@ export function GoalConfigurationPage({ goal, dimensions }: { goal: GoalV2; dime
       const dim = dimOverride || levels[idx]?.dimension;
       if (!dim) { setFetchingNodes(false); return; }
       let newNodes: string[] = [];
+      // For sales_owner, also capture the profile id so the dashboard can key
+      // targets by user id (rename-proof) instead of by display name.
+      const nameToUserId: Record<string, string> = {};
 
       if (dim === "month") {
         // Month dimension: auto-populate based on goal period (start-end)
@@ -278,9 +282,12 @@ export function GoalConfigurationPage({ goal, dimensions }: { goal: GoalV2; dime
         if (error) throw error;
         newNodes = data?.map(d => d.name) || [];
       } else if (dim === "sales_owner") {
-        const { data, error } = await supabase.from("profiles").select("full_name").eq("is_active", true);
+        const { data, error } = await supabase.from("profiles").select("id, full_name").eq("is_active", true);
         if (error) throw error;
         newNodes = data?.map(d => d.full_name) || [];
+        for (const d of data ?? []) {
+          if (d.full_name && d.id) nameToUserId[d.full_name] = d.id;
+        }
       } else if (dim.startsWith("segment:")) {
         toast.info("Segments must be added manually currently.");
       } else {
@@ -307,7 +314,7 @@ export function GoalConfigurationPage({ goal, dimensions }: { goal: GoalV2; dime
           const existingNames = new Set(next[idx].nodes.map(n => n.name));
           const added = newNodes.filter(n => !existingNames.has(n) && Boolean(n));
           if (added.length > 0) {
-            next[idx] = { ...next[idx], nodes: [...next[idx].nodes, ...added.map(name => ({ name, value: 0, pct: 0, monthlyWeights: null }))] };
+            next[idx] = { ...next[idx], nodes: [...next[idx].nodes, ...added.map(name => ({ name, value: 0, pct: 0, monthlyWeights: null, userId: nameToUserId[name] || undefined }))] };
             toast.success(`Auto-added ${added.length} options from DB!`);
           } else {
             toast.info("All options from DB are already here.");
@@ -345,13 +352,14 @@ export function GoalConfigurationPage({ goal, dimensions }: { goal: GoalV2; dime
           pct: n.pct,
           value: n.value,
           monthlyWeights: n.monthlyWeights || undefined,
+          userId: n.userId || undefined,
         })),
         // Save per-parent overrides when customize mode was used
         perParentNodes: lv.perParentNodes && Object.keys(lv.perParentNodes).length > 0
           ? Object.fromEntries(
               Object.entries(lv.perParentNodes).map(([parentName, nodes]: [string, any[]]) => [
                 parentName,
-                (nodes || []).map(n => ({ name: n.name, pct: n.pct, value: n.value, monthlyWeights: n.monthlyWeights || undefined })),
+                (nodes || []).map(n => ({ name: n.name, pct: n.pct, value: n.value, monthlyWeights: n.monthlyWeights || undefined, userId: n.userId || undefined })),
               ])
             )
           : undefined,
