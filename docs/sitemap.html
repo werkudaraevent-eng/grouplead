@@ -78,6 +78,33 @@
   }
   .hero .name { font-size: 16px; font-weight: 800; margin: 0; }
   .hero .what { font-size: 13.5px; color: #cdd8f2; margin: 5px 0 0; }
+
+  /* role badges */
+  .badges { display: inline-flex; gap: 5px; margin-left: 8px; vertical-align: middle; }
+  .badge {
+    font-size: 9.5px; font-weight: 800; letter-spacing: .04em;
+    padding: 2px 7px; border-radius: 999px; line-height: 1.4;
+    text-transform: uppercase;
+  }
+  .badge.admin { background: #ede9fe; color: #6d28d9; }
+  .badge.sales { background: #dcfce7; color: #15803d; }
+  .item .name { display: flex; align-items: center; flex-wrap: wrap; gap: 2px; }
+
+  /* comparison table */
+  .compare {
+    width: 100%; border-collapse: collapse; font-size: 13px;
+    background: var(--panel); border: 1px solid #e6e9ef;
+    border-radius: var(--radius); overflow: hidden;
+  }
+  .compare th, .compare td { padding: 12px 16px; text-align: left; border-bottom: 1px solid #eef0f4; }
+  .compare thead th { background: #f0f2f6; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+  .compare th.col-admin { color: #6d28d9; }
+  .compare th.col-sales { color: #15803d; }
+  .compare td.feat { font-weight: 600; }
+  .compare .yes { color: #15803d; font-weight: 700; }
+  .compare .no { color: #b91c1c; font-weight: 700; }
+  .compare .partial { color: #b45309; font-weight: 700; }
+  .compare tbody tr:last-child td { border-bottom: 0; }
 </style>
 </head>
 <body>
@@ -127,8 +154,8 @@
     </div>
 
     <div class="hero">
-      <p class="name">Beranda (Dashboard)</p>
-      <p class="what">Halaman pertama setelah login. Berisi ringkasan angka penting: target, pencapaian, dan grafik penjualan.</p>
+      <p class="name">Beranda (Dashboard) <span class="badges"><span class="badge admin">Admin</span><span class="badge sales">Sales</span></span></p>
+      <p class="what">Halaman pertama setelah login. Berisi ringkasan angka penting: target, pencapaian, dan grafik penjualan. Sales melihat data perusahaannya; Admin bisa melihat seluruh unit bisnis.</p>
     </div>
 
     <div class="groups">
@@ -137,7 +164,7 @@
       <div class="group">
         <p class="group-title">Pekerjaan Harian</p>
         <div class="item">
-          <p class="name">Pipeline</p>
+          <p class="name">Pipeline <span class="badges"><span class="badge admin">Admin</span><span class="badge sales">Sales</span></span></p>
           <p class="what">Papan calon pelanggan yang disusun per tahap penjualan.</p>
           <div class="sub">
             <div class="item">
@@ -151,7 +178,7 @@
           </div>
         </div>
         <div class="item">
-          <p class="name">Perusahaan</p>
+          <p class="name">Perusahaan <span class="badges"><span class="badge admin">Admin</span><span class="badge sales">Sales</span></span></p>
           <p class="what">Daftar perusahaan pelanggan.</p>
           <div class="sub">
             <div class="item">
@@ -161,7 +188,7 @@
           </div>
         </div>
         <div class="item">
-          <p class="name">Kontak</p>
+          <p class="name">Kontak <span class="badges"><span class="badge admin">Admin</span><span class="badge sales">Sales</span></span></p>
           <p class="what">Daftar orang atau narahubung.</p>
           <div class="sub">
             <div class="item">
@@ -171,14 +198,14 @@
           </div>
         </div>
         <div class="item">
-          <p class="name">Riwayat</p>
+          <p class="name">Riwayat <span class="badges"><span class="badge admin">Admin</span><span class="badge sales">Sales</span></span></p>
           <p class="what">Catatan semua aktivitas yang pernah terjadi.</p>
         </div>
       </div>
 
       <!-- Pengaturan -->
       <div class="group">
-        <p class="group-title">Pengaturan</p>
+        <p class="group-title">Pengaturan <span class="badge admin">Admin saja</span></p>
         <div class="item">
           <p class="name">Kolom &amp; tahap</p>
           <p class="what">Atur isian data, pilihan dropdown, dan tahap di papan Pipeline.</p>
@@ -200,14 +227,14 @@
           <p class="what">Atur siapa boleh melihat atau mengubah apa, dan format mata uang.</p>
         </div>
         <div class="item">
-          <p class="name">Profil saya</p>
-          <p class="what">Ubah data akun sendiri.</p>
+          <p class="name">Profil saya <span class="badges"><span class="badge admin">Admin</span><span class="badge sales">Sales</span></span></p>
+          <p class="what">Ubah data akun sendiri. Bisa dibuka semua peran lewat foto profil di pojok kiri bawah.</p>
         </div>
       </div>
 
       <!-- Lainnya -->
       <div class="group">
-        <p class="group-title">Lainnya</p>
+        <p class="group-title">Lainnya <span class="badge admin">Admin saja</span></p>
         <div class="item">
           <p class="name">Yang Baru</p>
           <p class="what">Daftar fitur dan perubahan terbaru di aplikasi.</p>
@@ -215,6 +242,78 @@
       </div>
 
     </div>
+  </div>
+
+  <!-- STAGE 3 -->
+  <div class="stage">
+    <div class="stage-head">
+      <div class="stage-num">3</div>
+      <div>
+        <h2>Beda Login Admin vs Sales</h2>
+        <p>Halaman yang muncul tergantung peran pengguna. Sales fokus ke pekerjaan harian; Admin mengatur seluruh sistem.</p>
+      </div>
+    </div>
+
+    <table class="compare">
+      <thead>
+        <tr>
+          <th>Halaman / Kemampuan</th>
+          <th class="col-admin">Admin</th>
+          <th class="col-sales">Sales</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="feat">Beranda (Dashboard)</td>
+          <td class="yes">Ya — seluruh unit bisnis</td>
+          <td class="partial">Ya — hanya perusahaannya</td>
+        </tr>
+        <tr>
+          <td class="feat">Pipeline (calon pelanggan)</td>
+          <td class="yes">Lihat, tambah, ubah, hapus</td>
+          <td class="partial">Lihat, tambah, ubah — tidak bisa hapus</td>
+        </tr>
+        <tr>
+          <td class="feat">Perusahaan &amp; Kontak</td>
+          <td class="yes">Lihat, tambah, ubah, hapus</td>
+          <td class="partial">Lihat data perusahaannya</td>
+        </tr>
+        <tr>
+          <td class="feat">Riwayat aktivitas</td>
+          <td class="yes">Ya</td>
+          <td class="yes">Ya</td>
+        </tr>
+        <tr>
+          <td class="feat">Profil saya</td>
+          <td class="yes">Ya</td>
+          <td class="yes">Ya</td>
+        </tr>
+        <tr>
+          <td class="feat">Menu Pengaturan (kolom, tahap, target)</td>
+          <td class="yes">Ya</td>
+          <td class="no">Tidak tampil</td>
+        </tr>
+        <tr>
+          <td class="feat">Kelola Pengguna &amp; Unit bisnis</td>
+          <td class="yes">Ya</td>
+          <td class="no">Tidak tampil</td>
+        </tr>
+        <tr>
+          <td class="feat">Atur Hak akses (peran)</td>
+          <td class="yes">Ya</td>
+          <td class="no">Tidak tampil</td>
+        </tr>
+        <tr>
+          <td class="feat">Yang Baru (catatan rilis)</td>
+          <td class="yes">Ya</td>
+          <td class="no">Tidak tampil</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p style="font-size:12.5px; color:var(--muted); margin-top:14px;">
+      Singkatnya: <b>Sales</b> melihat menu harian saja (Beranda, Pipeline, Perusahaan, Kontak, Riwayat) dan tidak bisa menghapus data. Seluruh bagian <b>Pengaturan</b> tidak muncul di layar Sales. <b>Admin</b> melihat semua dan bisa mengatur pengguna, peran, target, serta unit bisnis.
+    </p>
   </div>
 
 </div>
