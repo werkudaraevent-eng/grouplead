@@ -3,21 +3,20 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>LeadEngine — Sitemap</title>
+<title>LeadEngine — Peta Halaman (Sitemap)</title>
 <style>
   :root {
     --bg: #f4f5f7;
     --panel: #ffffff;
     --ink: #1f2330;
-    --muted: #6b7280;
-    --line: #c7cdd6;
-    --box: #eef0f3;
-    --box-stroke: #d6dae1;
+    --muted: #707784;
+    --line: #c2c8d2;
+    --box: #eef1f5;
+    --box-stroke: #d8dde4;
     --hub: #1e3a8a;
     --hub-ink: #ffffff;
-    --note: #ffffff;
-    --note-stroke: #e2e5ea;
-    --accent: #f59e0b;
+    --detail-bg: #fff7ed;
+    --detail-stroke: #f6d09a;
     --radius: 10px;
     --font: "Segoe UI", Roboto, system-ui, -apple-system, sans-serif;
   }
@@ -27,282 +26,287 @@
     background: var(--bg);
     color: var(--ink);
     font-family: var(--font);
-    padding: 48px 32px 80px;
+    padding: 48px 24px 80px;
   }
-  .page-title { max-width: 1100px; margin: 0 auto 8px; }
-  .page-title h1 { font-size: 26px; font-weight: 800; margin: 0 0 6px; }
-  .page-title p { color: var(--muted); font-size: 15px; margin: 0; }
+  .page-head { max-width: 1200px; margin: 0 auto 24px; }
+  .page-head h1 { font-size: 26px; font-weight: 800; margin: 0 0 8px; }
+  .page-head p { color: var(--muted); font-size: 15px; margin: 0; max-width: 720px; line-height: 1.5; }
+
+  .legend { max-width: 1200px; margin: 0 auto 28px; display:flex; gap: 22px; flex-wrap: wrap; font-size: 12.5px; color: var(--muted); }
+  .legend span { display:inline-flex; align-items:center; gap:7px; }
+  .swatch { width: 15px; height: 15px; border-radius: 4px; border:1px solid var(--box-stroke); display:inline-block; }
+  .sw-hub { background: var(--hub); border-color: var(--hub); }
+  .sw-page { background: var(--box); }
+  .sw-detail { background: var(--detail-bg); border-color: var(--detail-stroke); }
 
   .board {
-    max-width: 1280px;
-    margin: 32px auto;
+    max-width: 1200px;
+    margin: 0 auto 32px;
     background: var(--panel);
-    border: 1px solid var(--note-stroke);
+    border: 1px solid #e4e7ec;
     border-radius: 16px;
-    padding: 36px 32px 56px;
-    box-shadow: 0 1px 3px rgba(0,0,0,.05);
+    padding: 32px 24px 48px;
+    box-shadow: 0 1px 3px rgba(16,24,40,.05);
     overflow-x: auto;
   }
-  .board h2 {
-    font-size: 18px;
+  .board > h2 {
+    font-size: 17px;
     font-weight: 800;
-    margin: 0 0 36px;
-    letter-spacing: .01em;
+    margin: 0 0 4px;
   }
+  .board > .sub { font-size: 13px; color: var(--muted); margin: 0 0 28px; }
 
-  /* ---- tree primitives ---- */
-  .tree { display: flex; flex-direction: column; align-items: center; min-width: 1180px; }
-  .row { display: flex; justify-content: center; align-items: flex-start; gap: 28px; position: relative; }
+  /* ---------- ORG-CHART TREE ---------- */
+  .tree, .tree ul { display: flex; justify-content: center; }
+  .tree { min-width: max-content; padding-top: 4px; }
+  .tree ul { padding-top: 22px; position: relative; margin: 0; }
+  .tree li {
+    list-style: none;
+    position: relative;
+    padding: 22px 14px 0;
+    text-align: center;
+  }
+  /* connectors from each child up to the horizontal bus */
+  .tree li::before, .tree li::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    right: 50%;
+    width: 50%;
+    height: 22px;
+    border-top: 2px solid var(--line);
+  }
+  .tree li::after {
+    right: auto;
+    left: 50%;
+    border-left: 2px solid var(--line);
+  }
+  /* single child: straight line only */
+  .tree li:only-child::after, .tree li:only-child::before { display: none; }
+  .tree li:only-child { padding-top: 22px; }
+  /* trim outer side bars of first/last children */
+  .tree li:first-child::before, .tree li:last-child::after { border: 0 none; }
+  .tree li:last-child::before {
+    border-right: 2px solid var(--line);
+    border-radius: 0 6px 0 0;
+  }
+  .tree li:first-child::after { border-radius: 6px 0 0 0; }
+  /* downward line from a parent into the bus */
+  .tree ul::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 50%;
+    width: 0;
+    height: 22px;
+    border-left: 2px solid var(--line);
+    transform: translateX(-1px);
+  }
 
   .node {
-    background: var(--box);
+    display: inline-block;
     border: 1px solid var(--box-stroke);
+    background: var(--box);
     border-radius: var(--radius);
-    padding: 12px 18px;
-    font-size: 13px;
-    font-weight: 600;
-    text-align: center;
-    min-width: 150px;
-    color: var(--ink);
+    padding: 11px 16px;
+    min-width: 132px;
+    max-width: 188px;
+    text-align: left;
     position: relative;
   }
-  .node .path { display:block; font-size: 11px; color: var(--muted); font-weight: 500; margin-top: 3px; font-family: ui-monospace, "Cascadia Code", monospace; }
-  .node.hub { background: var(--hub); color: var(--hub-ink); border-color: var(--hub); }
-  .node.hub .path { color: #c7d2fe; }
-  .node.detail { background: #fff7ed; border-color: #fcd9a6; }
-
-  .note {
-    background: var(--note);
-    border: 1px solid var(--note-stroke);
-    border-radius: 8px;
-    padding: 10px 12px;
-    font-size: 11.5px;
-    line-height: 1.5;
-    color: #444b58;
-    max-width: 210px;
-    text-align: left;
+  .node .title { font-size: 13px; font-weight: 700; line-height: 1.25; display: block; }
+  .node .desc { font-size: 11.5px; color: var(--muted); line-height: 1.45; margin-top: 4px; display: block; font-weight: 400; }
+  .node.hub { background: var(--hub); border-color: var(--hub); color: var(--hub-ink); }
+  .node.hub .desc { color: #c5d2f0; }
+  .node.detail { background: var(--detail-bg); border-color: var(--detail-stroke); }
+  .node.group {
+    background: transparent;
+    border: 1.5px dashed #b9c0cb;
+    min-width: 100px;
+    text-align: center;
   }
-  .note ol { margin: 0; padding-left: 16px; }
-  .note li { margin-bottom: 3px; }
-
-  /* connectors */
-  .v { width: 2px; height: 30px; background: var(--line); margin: 0 auto; }
-  .v.short { height: 18px; }
-  .col { display: flex; flex-direction: column; align-items: center; }
-  .with-side { display: flex; align-items: flex-start; gap: 16px; }
-  .with-side .connector-h { width: 24px; height: 2px; background: var(--line); margin-top: 24px; }
-
-  /* horizontal bus for children */
-  .branch-wrap { display: flex; flex-direction: column; align-items: center; width: 100%; }
-  .bus { position: relative; width: 100%; height: 30px; }
-  .bus::before {
-    content:""; position:absolute; top:0; left:50%; width:2px; height:14px; background:var(--line); transform:translateX(-50%);
-  }
-  .children { display: flex; justify-content: center; gap: 32px; align-items: flex-start; }
-  .child { display: flex; flex-direction: column; align-items: center; }
-  .child .tick { width: 2px; height: 16px; background: var(--line); }
-
-  .hbar { height: 2px; background: var(--line); }
-
-  .legend { max-width: 1280px; margin: 0 auto; display:flex; gap: 20px; flex-wrap: wrap; font-size: 12px; color: var(--muted); }
-  .legend span { display:inline-flex; align-items:center; gap:6px; }
-  .swatch { width: 14px; height: 14px; border-radius: 4px; border:1px solid var(--box-stroke); display:inline-block; }
-  .sw-page { background: var(--box); }
-  .sw-hub { background: var(--hub); border-color: var(--hub); }
-  .sw-detail { background:#fff7ed; border-color:#fcd9a6; }
-
-  .section-label { max-width:1280px; margin: 40px auto 0; font-size: 13px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color: var(--muted); }
+  .node.group .title { color: #586172; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; }
 </style>
 </head>
 <body>
 
-  <div class="page-title">
-    <h1>Sitemap</h1>
-    <p>Ada dua sitemap. Sitemap untuk alur autentikasi (publik) dan sitemap untuk aplikasi utama (di balik login).</p>
+  <div class="page-head">
+    <h1>Peta Halaman LeadEngine</h1>
+    <p>Gambaran semua halaman di aplikasi dan untuk apa masing-masing. Ada dua bagian: halaman masuk (login) yang bisa dibuka tanpa akun, dan halaman aplikasi yang muncul setelah berhasil login.</p>
   </div>
 
   <div class="legend">
-    <span><i class="swatch sw-hub"></i> Hub / halaman utama</span>
-    <span><i class="swatch sw-page"></i> Halaman</span>
-    <span><i class="swatch sw-detail"></i> Halaman detail / dinamis</span>
+    <span><i class="swatch sw-hub"></i> Halaman utama</span>
+    <span><i class="swatch sw-page"></i> Halaman biasa</span>
+    <span><i class="swatch sw-detail"></i> Halaman rincian / tindakan</span>
   </div>
 
-  <!-- ============ AUTH FLOW ============ -->
+  <!-- ============ 1. LOGIN ============ -->
   <div class="board">
-    <h2>Auth Flow — Diagram Flow</h2>
+    <h2>1. Halaman Masuk</h2>
+    <p class="sub">Halaman yang bisa dibuka siapa saja sebelum login. Tujuannya cuma satu: masuk ke aplikasi.</p>
     <div class="tree">
-
-      <div class="node">User membuka aplikasi</div>
-      <div class="v"></div>
-      <div class="node hub">Cek sesi?</div>
-      <div class="v"></div>
-
-      <!-- split: ya / tidak -->
-      <div class="branch-wrap">
-        <div class="children">
-
-          <!-- TIDAK -> login flow -->
-          <div class="child">
-            <div class="with-side">
-              <div class="col">
-                <div class="node">Sign in<span class="path">/login</span></div>
+      <ul>
+        <li>
+          <div class="node hub">
+            <span class="title">Masuk</span>
+            <span class="desc">Isi email dan kata sandi untuk masuk. Kalau sudah login, langsung dibawa ke Beranda.</span>
+          </div>
+          <ul>
+            <li>
+              <div class="node">
+                <span class="title">Lupa kata sandi</span>
+                <span class="desc">Minta tautan ganti sandi yang dikirim ke email.</span>
               </div>
-              <div class="connector-h"></div>
-              <div class="note">Login pakai email + password. Kalau sudah login, langsung dilempar ke Dashboard.</div>
-            </div>
-            <div class="tick"></div>
-            <div class="with-side">
-              <div class="node">Lupa password<span class="path">/forgot-password</span></div>
-              <div class="connector-h"></div>
-              <div class="note">Kirim link reset ke email.</div>
-            </div>
-            <div class="tick"></div>
-            <div class="with-side">
-              <div class="node">Reset password<span class="path">/reset-password</span></div>
-              <div class="connector-h"></div>
-              <div class="note">Set password baru. Sesi recovery boleh tetap di sini sampai selesai, lalu balik ke Sign in.</div>
-            </div>
-          </div>
-
-          <!-- YA -> home -->
-          <div class="child">
-            <div class="node detail">Sudah login →<span class="path">/ (Dashboard)</span></div>
-          </div>
-
-        </div>
-      </div>
-
+              <ul>
+                <li>
+                  <div class="node">
+                    <span class="title">Buat sandi baru</span>
+                    <span class="desc">Pasang kata sandi baru, lalu kembali ke halaman Masuk.</span>
+                  </div>
+                </li>
+              </ul>
+            </li>
+          </ul>
+        </li>
+      </ul>
     </div>
   </div>
 
-  <!-- ============ MAIN APP FLOW ============ -->
+  <!-- ============ 2. APLIKASI ============ -->
   <div class="board">
-    <h2>Aplikasi Utama — Diagram Flow</h2>
+    <h2>2. Halaman Aplikasi</h2>
+    <p class="sub">Halaman yang muncul setelah login. Menu di samping kiri dibagi jadi dua: menu harian dan menu pengaturan.</p>
     <div class="tree">
-
-      <!-- root -->
-      <div class="node hub">Dashboard<span class="path">/</span></div>
-      <div class="v"></div>
-
-      <!-- two groups: MENU + ADMINISTRATION -->
-      <div class="branch-wrap">
-        <div class="hbar" style="width: 60%;"></div>
-      </div>
-      <div class="row" style="gap:120px; align-items:flex-start; margin-top:-1px;">
-
-        <!-- ===== MENU ===== -->
-        <div class="col">
-          <div class="tick"></div>
-          <div class="node hub">MENU (sidebar)</div>
-          <div class="v short"></div>
-          <div class="branch-wrap">
-            <div class="hbar" style="width: 100%;"></div>
+      <ul>
+        <li>
+          <div class="node hub">
+            <span class="title">Beranda / Dashboard</span>
+            <span class="desc">Ringkasan angka penting: target, pencapaian, dan grafik penjualan.</span>
           </div>
-          <div class="children" style="margin-top:-1px;">
+          <ul>
+            <!-- ====== MENU HARIAN ====== -->
+            <li>
+              <div class="node group"><span class="title">Menu Harian</span></div>
+              <ul>
+                <li>
+                  <div class="node">
+                    <span class="title">Pipeline</span>
+                    <span class="desc">Papan calon pelanggan (lead) yang disusun per tahap penjualan.</span>
+                  </div>
+                  <ul>
+                    <li>
+                      <div class="node detail">
+                        <span class="title">Rincian lead</span>
+                        <span class="desc">Detail satu calon pelanggan beserta riwayat aktivitasnya.</span>
+                      </div>
+                      <ul>
+                        <li>
+                          <div class="node detail">
+                            <span class="title">Versi cetak</span>
+                            <span class="desc">Tampilan rapi untuk dicetak atau simpan PDF.</span>
+                          </div>
+                        </li>
+                      </ul>
+                    </li>
+                  </ul>
+                </li>
+                <li>
+                  <div class="node">
+                    <span class="title">Perusahaan</span>
+                    <span class="desc">Daftar perusahaan pelanggan.</span>
+                  </div>
+                  <ul>
+                    <li>
+                      <div class="node detail">
+                        <span class="title">Rincian perusahaan</span>
+                        <span class="desc">Detail satu perusahaan pelanggan.</span>
+                      </div>
+                    </li>
+                  </ul>
+                </li>
+                <li>
+                  <div class="node">
+                    <span class="title">Kontak</span>
+                    <span class="desc">Daftar orang / narahubung.</span>
+                  </div>
+                  <ul>
+                    <li>
+                      <div class="node detail">
+                        <span class="title">Rincian kontak</span>
+                        <span class="desc">Detail satu kontak.</span>
+                      </div>
+                    </li>
+                  </ul>
+                </li>
+                <li>
+                  <div class="node">
+                    <span class="title">Riwayat</span>
+                    <span class="desc">Catatan semua aktivitas yang pernah terjadi.</span>
+                  </div>
+                </li>
+              </ul>
+            </li>
 
-            <div class="child">
-              <div class="tick"></div>
-              <div class="node">Pipeline<span class="path">/leads</span></div>
-              <div class="tick"></div>
-              <div class="node detail">Detail lead<span class="path">/leads/[leadId]</span></div>
-              <div class="tick"></div>
-              <div class="node detail">Cetak<span class="path">/leads/[leadId]/print</span></div>
-            </div>
-
-            <div class="child">
-              <div class="tick"></div>
-              <div class="node">Companies<span class="path">/companies</span></div>
-              <div class="tick"></div>
-              <div class="node detail">Detail company<span class="path">/companies/[companyId]</span></div>
-            </div>
-
-            <div class="child">
-              <div class="tick"></div>
-              <div class="node">Contacts<span class="path">/contacts</span></div>
-              <div class="tick"></div>
-              <div class="node detail">Detail kontak<span class="path">/contacts/[contactId]</span></div>
-            </div>
-
-            <div class="child">
-              <div class="tick"></div>
-              <div class="node">History<span class="path">/history</span></div>
-            </div>
-
-          </div>
-        </div>
-
-        <!-- ===== ADMINISTRATION ===== -->
-        <div class="col">
-          <div class="tick"></div>
-          <div class="node hub">ADMINISTRATION</div>
-          <div class="v short"></div>
-          <div class="branch-wrap">
-            <div class="hbar" style="width: 100%;"></div>
-          </div>
-          <div class="children" style="margin-top:-1px;">
-
-            <!-- Settings hub -->
-            <div class="child">
-              <div class="tick"></div>
-              <div class="node hub">Settings<span class="path">/settings</span></div>
-              <div class="v short"></div>
-              <div class="branch-wrap"><div class="hbar" style="width:100%;"></div></div>
-              <div class="children" style="margin-top:-1px;">
-
-                <!-- Configuration -->
-                <div class="child">
-                  <div class="tick"></div>
-                  <div class="node">Configuration</div>
-                  <div class="tick"></div>
-                  <div class="node">Lead fields & segments<span class="path">/settings/master-options</span></div>
-                  <div class="tick"></div>
-                  <div class="node">Pipeline & stages<span class="path">/settings/pipeline</span></div>
-                  <div class="tick"></div>
-                  <div class="node detail">Edit pipeline<span class="path">/settings/pipeline/[id]</span></div>
-                  <div class="tick"></div>
-                  <div class="node">Goals<span class="path">/settings/goals</span></div>
-                  <div class="tick"></div>
-                  <div class="node detail">Editor goal<span class="path">/settings/goals/[slug]</span></div>
-                </div>
-
-                <!-- Workspace -->
-                <div class="child">
-                  <div class="tick"></div>
-                  <div class="node">Workspace</div>
-                  <div class="tick"></div>
-                  <div class="node">Companies<span class="path">/settings/companies</span></div>
-                  <div class="tick"></div>
-                  <div class="node detail">Buat / detail<span class="path">/settings/companies/[slug]</span></div>
-                  <div class="tick"></div>
-                  <div class="node detail">Members<span class="path">/[slug]/members</span></div>
-                  <div class="tick"></div>
-                  <div class="node">Users<span class="path">/settings/users</span></div>
-                </div>
-
-                <!-- Administration -->
-                <div class="child">
-                  <div class="tick"></div>
-                  <div class="node">Administration</div>
-                  <div class="tick"></div>
-                  <div class="node">Roles & permissions<span class="path">/settings/permissions</span></div>
-                  <div class="tick"></div>
-                  <div class="node">Profil user<span class="path">/settings/profile</span></div>
-                </div>
-
-              </div>
-            </div>
-
-            <!-- What's New -->
-            <div class="child">
-              <div class="tick"></div>
-              <div class="node">What's New<span class="path">/changelog</span></div>
-            </div>
-
-          </div>
-        </div>
-
-      </div>
-
+            <!-- ====== MENU PENGATURAN ====== -->
+            <li>
+              <div class="node group"><span class="title">Menu Pengaturan</span></div>
+              <ul>
+                <li>
+                  <div class="node hub">
+                    <span class="title">Pengaturan</span>
+                    <span class="desc">Pusat pengaturan aplikasi.</span>
+                  </div>
+                  <ul>
+                    <li>
+                      <div class="node">
+                        <span class="title">Kolom &amp; tahap</span>
+                        <span class="desc">Atur isian data lead, pilihan dropdown, dan tahap di papan Pipeline.</span>
+                      </div>
+                    </li>
+                    <li>
+                      <div class="node">
+                        <span class="title">Target</span>
+                        <span class="desc">Atur periode dan aturan target penjualan.</span>
+                      </div>
+                    </li>
+                    <li>
+                      <div class="node">
+                        <span class="title">Unit bisnis</span>
+                        <span class="desc">Atur struktur perusahaan grup dan anggotanya.</span>
+                      </div>
+                    </li>
+                    <li>
+                      <div class="node">
+                        <span class="title">Pengguna</span>
+                        <span class="desc">Atur anggota tim, jabatan, dan kuota.</span>
+                      </div>
+                    </li>
+                    <li>
+                      <div class="node">
+                        <span class="title">Hak akses</span>
+                        <span class="desc">Atur siapa boleh lihat / ubah apa, dan format mata uang.</span>
+                      </div>
+                    </li>
+                    <li>
+                      <div class="node">
+                        <span class="title">Profil saya</span>
+                        <span class="desc">Ubah data akun sendiri.</span>
+                      </div>
+                    </li>
+                  </ul>
+                </li>
+                <li>
+                  <div class="node">
+                    <span class="title">Yang Baru</span>
+                    <span class="desc">Catatan fitur dan perubahan terbaru.</span>
+                  </div>
+                </li>
+              </ul>
+            </li>
+          </ul>
+        </li>
+      </ul>
     </div>
   </div>
 
