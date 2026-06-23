@@ -4,7 +4,7 @@ import { useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { usePermissions } from "@/contexts/permissions-context"
 import { CHANGELOG, CHANGE_TYPE_META } from "@/features/changelog/changelog-data"
-import { Sparkles, ShieldAlert, ArrowLeft } from "lucide-react"
+import { ScrollText, ShieldAlert, ArrowLeft } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
 function formatDate(iso: string): string {
@@ -53,10 +53,10 @@ export default function ChangelogPage() {
             <div className="pt-6 shrink-0 sticky top-0 z-10 bg-background/85 backdrop-blur-md">
                 <div className="mb-4 px-4 sm:px-6 lg:px-8 flex items-start gap-3 max-w-4xl mx-auto w-full">
                     <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center shrink-0">
-                        <Sparkles className="w-5 h-5 text-blue-600" />
+                        <ScrollText className="w-5 h-5 text-blue-600" />
                     </div>
                     <div className="min-w-0">
-                        <h1 className="text-2xl font-extrabold text-foreground tracking-tight">What's New</h1>
+                        <h1 className="text-2xl font-extrabold text-foreground tracking-tight">Changelog</h1>
                         <p className="text-sm text-muted-foreground mt-1">
                             The latest updates and improvements to the app.
                         </p>

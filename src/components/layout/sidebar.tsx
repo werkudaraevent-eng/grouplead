@@ -5,7 +5,7 @@ import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import {
     LayoutDashboard, KanbanSquare, Building2, Users,
-    LogOut, ChevronLeft, ChevronsLeft, Settings, Loader2, Moon, Sun, History, Sparkles,
+    LogOut, ChevronLeft, ChevronsLeft, Settings, Loader2, Moon, Sun, History, ScrollText,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { CompanySwitcherHeader } from "@/components/layout/company-switcher"
@@ -31,7 +31,7 @@ const mainNav = [
 
 const adminNav = [
     { href: "/settings", label: "Settings", icon: Settings },
-    { href: "/changelog", label: "What's New", icon: Sparkles },
+    { href: "/changelog", label: "Changelog", icon: ScrollText },
 ]
 
 interface UserProfile {

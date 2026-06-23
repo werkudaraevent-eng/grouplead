@@ -60,7 +60,7 @@ flowchart TD
 
     %% ---------- ADMINISTRATION ----------
     Admin --> Settings["/settings — Settings hub"]
-    Admin --> Changelog["/changelog — What's New<br/>Catatan rilis"]
+    Admin --> Changelog["/changelog — Changelog<br/>Catatan rilis"]
 
     Settings --> Config{{"Configuration"}}
     Settings --> Workspace{{"Workspace"}}
@@ -104,7 +104,7 @@ flowchart TD
 | Contacts | `/contacts` | `contacts.read` | Daftar kontak. |
 | History | `/history` | selalu tampil | Activity log lintas entitas. |
 | Settings | `/settings` | `settings.read` | Hub konfigurasi workspace. |
-| What's New | `/changelog` | `settings.read` | Catatan rilis / changelog. |
+| Changelog | `/changelog` | `settings.read` | Catatan rilis / changelog. |
 
 ### Halaman detail (dinamis)
 
