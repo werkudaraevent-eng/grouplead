@@ -51,7 +51,7 @@ export default function ChangelogPage() {
         <div className="flex flex-col h-full">
             {/* Sticky header — matches the Activity History page pattern */}
             <div className="pt-6 shrink-0 sticky top-0 z-10 bg-background/85 backdrop-blur-md">
-                <div className="mb-4 px-4 sm:px-6 lg:px-8 flex items-start gap-3">
+                <div className="mb-4 px-4 sm:px-6 lg:px-8 flex items-start gap-3 max-w-4xl mx-auto w-full">
                     <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center shrink-0">
                         <Sparkles className="w-5 h-5 text-blue-600" />
                     </div>
@@ -65,9 +65,9 @@ export default function ChangelogPage() {
                 <div className="border-b border-border" />
             </div>
 
-            {/* Scrollable body — left-aligned content column */}
+            {/* Scrollable body — centered content column */}
             <div className="flex-1 overflow-y-auto px-4 sm:px-6 lg:px-8 py-6">
-                <div className="max-w-3xl">
+                <div className="max-w-4xl mx-auto">
                     {/* Timeline */}
                     <div className="relative">
                         {/* Vertical line */}
