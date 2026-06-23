@@ -51,6 +51,20 @@ export const CHANGE_TYPE_META: Record<
 
 export const CHANGELOG: ChangelogEntry[] = [
     {
+        date: "2026-06-22",
+        title: "Sign-in polish and accurate sales numbers",
+        items: [
+            {
+                type: "fix",
+                text: "Fixed the sign-in page accidentally showing the app sidebar behind the login form. Login, forgot-password, and reset-password pages now display cleanly on their own.",
+            },
+            {
+                type: "fix",
+                text: "Fixed the Sales Performance widget splitting a person into two rows after their name was changed — their target and their closed revenue now always stay on a single row. Renaming a user no longer affects their dashboard numbers.",
+            },
+        ],
+    },
+    {
         date: "2026-06-19",
         title: "Avatars, tidier cards, and file uploads",
         items: [
