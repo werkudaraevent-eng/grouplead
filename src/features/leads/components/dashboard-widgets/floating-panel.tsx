@@ -42,7 +42,7 @@ export function FloatingPanel({
       {/* Main panel — always in DOM, visibility toggled */}
       <div style={{
         position: "fixed",
-        top: 70, right: 16,
+        bottom: 16, right: 16,
         width: 400, maxHeight: "calc(100vh - 90px)",
         background: "#fff",
         borderRadius: 12,
