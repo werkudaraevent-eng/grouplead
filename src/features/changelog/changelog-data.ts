@@ -114,4 +114,94 @@ export const CHANGELOG: ChangelogEntry[] = [
             },
         ],
     },
+    {
+        date: "2026-05-31",
+        title: "May 2026 — dashboards, smart import, and files",
+        items: [
+            {
+                type: "feature",
+                text: "The dashboard was rebuilt with a cleaner, management-friendly look: redesigned KPI cards, a funnel-style pipeline view, and refreshed Sales Performance, Top Revenue, Revenue Chart, and lead breakdown widgets.",
+            },
+            {
+                type: "feature",
+                text: "You can now save multiple named dashboard views, each with its own custom widgets — switch between layouts for different reporting needs.",
+            },
+            {
+                type: "feature",
+                text: "Introduced Smart Import for bulk-loading leads from spreadsheets: it matches sales rep names automatically, splits multi-city destinations, validates dates, and clearly separates warnings from real errors.",
+            },
+            {
+                type: "feature",
+                text: "Leads now have a Files tab — upload, list, download, and delete documents directly on a lead. You can also export a lead as a clean, form-filled PDF.",
+            },
+            {
+                type: "feature",
+                text: "Added richer lead filtering: by event start/end date, any day of the event, and Revenue Recognition Month.",
+            },
+            {
+                type: "feature",
+                text: "Company detail pages gained logo upload and an Edit button, and user profiles now have a photo, bio, and an activity history page.",
+            },
+            {
+                type: "improvement",
+                text: "User management was upgraded with role/status/business-unit filters, deactivate and delete actions, and a smarter holding-company toggle for assigning business units.",
+            },
+            {
+                type: "improvement",
+                text: "Applied Werkudara Group brand colors across the whole platform and added a page-loading bar for smoother navigation.",
+            },
+            {
+                type: "fix",
+                text: "Sales users no longer see the Settings menu, and access permissions were tightened so each role sees only what it should.",
+            },
+        ],
+    },
+    {
+        date: "2026-04-30",
+        title: "April 2026 — goals, targets, and currency",
+        items: [
+            {
+                type: "feature",
+                text: "Redesigned the goal system: you can now set sales targets and a Lead Conversion target, see them on goal cards, and track them on the KPI dashboard.",
+            },
+            {
+                type: "feature",
+                text: "Added configurable currency formatting per company, so amounts display the way each business unit expects.",
+            },
+            {
+                type: "feature",
+                text: "The dashboard layout is now editable, and won/lost closing dates are tracked on every lead for more accurate reporting.",
+            },
+            {
+                type: "improvement",
+                text: "A major dashboard overhaul improved layout, data connections, and overall readability — including consistent widget styling and chart labels that no longer get cut off.",
+            },
+            {
+                type: "fix",
+                text: "Fixed fields that showed 'Unspecified' by pulling values from the related company record when the lead itself was blank.",
+            },
+        ],
+    },
+    {
+        date: "2026-03-31",
+        title: "March 2026 — the first LeadEngine release",
+        items: [
+            {
+                type: "feature",
+                text: "Launched LeadEngine: a multi-company CRM with secure sign-in, a drag-and-drop Kanban pipeline, analytics, and configurable pipeline stages.",
+            },
+            {
+                type: "feature",
+                text: "Built the sales hierarchy and team structure: a users page, edit-user panel, target management, and lead assignment by sales rep.",
+            },
+            {
+                type: "feature",
+                text: "Added relational client companies and contacts with cascading dropdowns, so leads link cleanly to the right company and person.",
+            },
+            {
+                type: "feature",
+                text: "Admins can now create user accounts directly from within the app.",
+            },
+        ],
+    },
 ]
