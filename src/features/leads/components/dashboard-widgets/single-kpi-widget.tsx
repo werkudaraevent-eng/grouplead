@@ -158,7 +158,7 @@ export function SingleKPIWidget({ label, value, prefix = "", suffix = "", vsTarg
             style={{ containerType: "inline-size" }}
         >
             {/* Row 1 — header: 30×30 icon tile + label (12.5px/600) + hover info */}
-            <div className="flex items-center gap-[9px] mb-[15px]">
+            <div className="flex items-center gap-[9px] mb-[5px]">
                 <div
                     className="flex items-center justify-center w-[30px] h-[30px] rounded-[8px] shrink-0"
                     style={{ backgroundColor: tileBg }}
@@ -205,10 +205,10 @@ export function SingleKPIWidget({ label, value, prefix = "", suffix = "", vsTarg
                 Font is 27px at normal width but scales down with the card via
                 cqw when heavy zoom narrows the column, so the value + wrapping
                 footer keep fitting inside the fixed-height cell. */}
-            <div className="flex items-center gap-2 flex-wrap min-w-0">
+            <div className="flex-1 flex items-center gap-2 flex-wrap min-w-0">
                 <span
-                    className="font-extrabold text-[#10141C] tracking-[-0.7px] leading-none tabular-nums min-w-0 whitespace-nowrap overflow-hidden text-ellipsis"
-                    style={{ fontSize: "clamp(17px, 12.5cqw, 27px)" }}
+                    className="font-bold text-[#10141C] tracking-[-0.7px] leading-none tabular-nums min-w-0 whitespace-nowrap overflow-hidden text-ellipsis"
+                    style={{ fontSize: "clamp(20px, 14cqw, 32px)" }}
                     title={`${prefix}${value}${suffix}`}
                 >
                     {prefix}{value}{suffix}
@@ -235,7 +235,7 @@ export function SingleKPIWidget({ label, value, prefix = "", suffix = "", vsTarg
                 sparkline. Each value stays glued (whitespace-nowrap) so numbers
                 never break mid-figure; the sparkline is shrink-0 on the right. */}
             {hasFooter && (
-                <div className="mt-auto pt-3 border-t border-[#F1F2F5] flex items-end justify-between gap-3">
+                <div className="pt-3 border-t border-[#F1F2F5] flex items-end justify-between gap-3">
                     {hasSupporting ? (
                         <div className="flex-1 min-w-0 text-[11.5px] leading-[1.6] text-[#697080] tabular-nums">
                             {supporting!.map((s, i) => (

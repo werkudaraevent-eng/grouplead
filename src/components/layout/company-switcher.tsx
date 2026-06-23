@@ -94,7 +94,7 @@ export function CompanySwitcherHeader() {
   const holdingCompany = companies.find(c => c.isHolding)
   const regularCompanies = companies.filter(c => !c.isHolding)
 
-  const displayName = isHoldingView ? 'All units' : (activeCompany?.name ?? 'Werkudara')
+  const displayName = isHoldingView ? 'Werkudara Group' : (activeCompany?.name ?? 'Werkudara')
   const subtitle = isHoldingView ? 'Every business unit' : 'Single unit'
   const activeLogo = isHoldingView
     ? (holdingCompany?.logoUrl ?? null)
@@ -127,7 +127,7 @@ export function CompanySwitcherHeader() {
             <p className="font-semibold text-sm tracking-tight leading-none text-sidebar-accent-foreground truncate">
               {displayName}
             </p>
-            <p className="text-[11px] font-medium text-sidebar-foreground/50 mt-0.5 truncate whitespace-nowrap">
+            <p className="text-[11px] font-normal text-sidebar-foreground/50 mt-0.5 truncate whitespace-nowrap">
               {isSwitching ? 'Loading\u2026' : subtitle}
             </p>
           </div>
@@ -144,7 +144,7 @@ export function CompanySwitcherHeader() {
           <>
             <DropdownMenuItem onClick={() => switchCompany('holding')} className="flex items-center gap-2 cursor-pointer">
               <Globe className="h-4 w-4 text-muted-foreground" />
-              <span className="flex-1">All units</span>
+              <span className="flex-1">Werkudara Group</span>
               {isHoldingView && <Check className="h-4 w-4 text-primary" />}
             </DropdownMenuItem>
             {regularCompanies.length > 0 && <DropdownMenuSeparator />}

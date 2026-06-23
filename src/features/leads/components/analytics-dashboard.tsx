@@ -1211,7 +1211,7 @@ export function AnalyticsDashboard({
             value: String(stats.incomingCount),
             vsTarget: null,
             vsPrev: stats.incomingYoy,
-            accent: "#3F4DC4",
+            accent: "#c23d00",
             accentBg: "#EEF1FE",
             icon: Briefcase,
             sparkline: sparklines.leads,
@@ -1260,7 +1260,7 @@ export function AnalyticsDashboard({
             suffix: "%",
             vsTarget: goalMetrics.convTgt,
             vsPrev: stats.conversionYoy,
-            accent: "#7C3AED",
+            accent: "#e79f04",
             accentBg: "#F5F3FF",
             icon: RefreshCw,
             sparkline: sparklines.conversion,
@@ -1446,7 +1446,7 @@ export function AnalyticsDashboard({
                             if (parts.length === 0) return null
                             return (
                                 <p style={{
-                                    fontSize: 12.5, color: "#9AA1B0", fontWeight: 500,
+                                    fontSize: 10.5, color: "#9AA1B0", fontWeight: 400,
                                     margin: "6px 0 0", lineHeight: 1.2,
                                     whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
                                 }}>
