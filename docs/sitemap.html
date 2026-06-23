@@ -3,10 +3,10 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>LeadEngine — Diagram Flow (Admin & Sales)</title>
+<title>LeadEngine — Sitemap Slides (16:9)</title>
 <style>
   :root {
-    --bg: #fbfbfc;
+    --bg: #e9ecf1;
     --ink: #3a3f45;
     --muted: #8a929c;
     --line: #c5ccd4;
@@ -20,199 +20,251 @@
     --sales: #15803d;
     --sales-bg: #e9f9ef;
     --sales-stroke: #bfe8cd;
+    --brand: #1e3a8a;
     --font: "Segoe UI", Roboto, system-ui, -apple-system, sans-serif;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { background: var(--bg); font-family: var(--font); color: var(--ink); padding: 48px 32px 80px; }
-  h1 { font-size: 22px; font-weight: 800; color: #2f343a; margin: 0 0 8px; }
-  .lead { font-size: 14px; color: var(--muted); margin-bottom: 8px; max-width: 760px; }
+  body { background: var(--bg); font-family: var(--font); color: var(--ink); padding: 28px 16px; }
 
-  .board { margin: 40px 0 24px; }
-  .board-head { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
-  .board-head h2 { font-size: 18px; font-weight: 800; color: #2f343a; }
+  /* 16:9 slide */
+  .slide {
+    width: 1280px; height: 720px; max-width: 100%;
+    aspect-ratio: 16 / 9;
+    margin: 0 auto 26px; background: #fbfbfc;
+    border-radius: 14px; box-shadow: 0 8px 30px rgba(15,23,42,.10);
+    padding: 44px 52px; position: relative; overflow: hidden;
+    display: flex; flex-direction: column;
+  }
+  .tag { position: absolute; top: 22px; right: 30px; font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: #aeb5bf; }
+
+  /* cover */
+  .cover { background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%); color: #fff; justify-content: center; }
+  .cover::after { content:""; position:absolute; right:-90px; bottom:-90px; width:340px; height:340px; border-radius:50%; background:rgba(255,255,255,.07); }
+  .cover .logo { width: 56px; height: 56px; border-radius: 14px; background: rgba(255,255,255,.18); display:flex; align-items:center; justify-content:center; font-size:26px; font-weight:800; margin-bottom: 24px; }
+  .cover h1 { font-size: 46px; font-weight: 800; line-height: 1.1; }
+  .cover p { font-size: 17px; color: #cdd9f5; margin-top: 18px; max-width: 640px; line-height: 1.5; }
+  .cover .legend { display: flex; gap: 18px; margin-top: 30px; }
+  .cover .legend span { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: #dbe4f8; }
+  .cover .legend i { width: 14px; height: 14px; border-radius: 4px; display: inline-block; }
+
+  .slide-head { display: flex; align-items: center; gap: 12px; margin-bottom: 2px; }
+  .slide-head h2 { font-size: 24px; font-weight: 800; color: #2f343a; }
   .role-badge { font-size: 11px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; padding: 4px 12px; border-radius: 999px; }
   .role-badge.admin { background: var(--admin-bg); color: var(--admin); border: 1px solid var(--admin-stroke); }
   .role-badge.sales { background: var(--sales-bg); color: var(--sales); border: 1px solid var(--sales-stroke); }
-  .board-sub { font-size: 13px; color: var(--muted); margin-bottom: 8px; }
+  .slide-sub { font-size: 13.5px; color: var(--muted); margin-bottom: 6px; }
 
-  .canvas { min-width: max-content; overflow-x: auto; padding-bottom: 12px; }
+  /* fit tree into remaining space */
+  .stage { flex: 1; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+  .scaler { transform-origin: center center; }
 
   /* ---- org-chart tree ---- */
   .tree, .tree ul { display: flex; justify-content: center; }
-  .tree ul { position: relative; padding-top: 28px; }
-  .tree li { list-style: none; position: relative; padding: 28px 16px 0; text-align: center; }
+  .tree ul { position: relative; padding-top: 26px; }
+  .tree li { list-style: none; position: relative; padding: 26px 14px 0; text-align: center; }
   .tree li::before, .tree li::after {
     content: ""; position: absolute; top: 0; right: 50%;
-    width: 50%; height: 28px; border-top: 1.5px solid var(--line);
+    width: 50%; height: 26px; border-top: 1.5px solid var(--line);
   }
   .tree li::after { right: auto; left: 50%; border-left: 1.5px solid var(--line); }
   .tree li:only-child::before, .tree li:only-child::after { display: none; }
-  .tree li:only-child { padding-top: 28px; }
+  .tree li:only-child { padding-top: 26px; }
   .tree li:first-child::before, .tree li:last-child::after { border: 0 none; }
   .tree li:last-child::before { border-right: 1.5px solid var(--line); }
   .tree ul::before {
     content: ""; position: absolute; top: 0; left: 50%;
-    width: 0; height: 28px; border-left: 1.5px solid var(--line); transform: translateX(-0.75px);
+    width: 0; height: 26px; border-left: 1.5px solid var(--line); transform: translateX(-0.75px);
   }
 
   .node {
     display: inline-flex; flex-direction: column; align-items: center;
     background: var(--node); border: 1px solid var(--node-stroke);
-    border-radius: 8px; padding: 13px 20px; min-width: 130px;
+    border-radius: 8px; padding: 12px 18px; min-width: 124px;
     font-size: 12.5px; font-weight: 600; color: var(--ink); position: relative;
   }
   .tree li > .node.dot::before {
     content: ""; position: absolute; top: -6px; left: 50%; transform: translateX(-50%);
     width: 7px; height: 7px; border-radius: 50%; background: #b6bdc6;
   }
-  .node.pill { border-radius: 999px; padding: 12px 28px; }
+  .node.pill { border-radius: 999px; padding: 11px 26px; }
   .node.root { background: #e4e7ec; font-weight: 700; }
-  /* role-tinted menu nodes */
   .node.admin { background: var(--admin-bg); border-color: var(--admin-stroke); color: var(--admin); }
   .node.sales { background: var(--sales-bg); border-color: var(--sales-stroke); color: var(--sales); }
 
   .note {
-    margin: 18px auto 0; background: var(--card); border: 1px solid var(--card-stroke);
-    border-radius: 8px; padding: 12px 14px; max-width: 190px; min-width: 150px;
-    text-align: left; font-size: 11px; font-weight: 400; color: #5b626b; line-height: 1.55;
+    margin: 16px auto 0; background: var(--card); border: 1px solid var(--card-stroke);
+    border-radius: 8px; padding: 11px 13px; max-width: 180px; min-width: 144px;
+    text-align: left; font-size: 10.5px; font-weight: 400; color: #5b626b; line-height: 1.5;
     position: relative; box-shadow: 0 1px 2px rgba(16,24,40,.03);
   }
   .note::before {
-    content: ""; position: absolute; top: -18px; left: 50%; transform: translateX(-0.75px);
-    width: 0; height: 18px; border-left: 1.5px solid var(--line);
+    content: ""; position: absolute; top: -16px; left: 50%; transform: translateX(-0.75px);
+    width: 0; height: 16px; border-left: 1.5px solid var(--line);
   }
-  .note p { margin: 0 0 5px; } .note p:last-child { margin: 0; }
+  .note p { margin: 0 0 4px; } .note p:last-child { margin: 0; }
   .note .muted { color: #9aa1aa; }
 
-  hr { border: 0; border-top: 1px dashed #dfe3e8; margin: 8px 0; }
+  @media print {
+    @page { size: 1280px 720px; margin: 0; }
+    body { background: #fff; padding: 0; }
+    .slide { box-shadow: none; margin: 0; border-radius: 0; width: 1280px; height: 720px; page-break-after: always; }
+  }
 </style>
 </head>
 <body>
 
-  <h1>LeadEngine — Diagram Flow per Peran</h1>
-  <p class="lead">Halaman yang muncul setelah login berbeda tergantung peran. Login-nya sama untuk semua, tapi <b>Admin</b> melihat seluruh menu termasuk Pengaturan, sedangkan <b>Sales</b> hanya melihat menu harian.</p>
+  <!-- SLIDE 1 — COVER -->
+  <section class="slide cover">
+    <div class="logo">W</div>
+    <h1>Sitemap LeadEngine</h1>
+    <p>Alur halaman aplikasi per peran. Login sama untuk semua, tetapi menu setelah login berbeda antara Admin dan Sales.</p>
+    <div class="legend">
+      <span><i style="background:#c4b5fd"></i> Admin — akses penuh</span>
+      <span><i style="background:#86efac"></i> Sales — menu harian saja</span>
+    </div>
+  </section>
 
-  <!-- ============ ADMIN ============ -->
-  <div class="board">
-    <div class="board-head">
+  <!-- SLIDE 2 — ADMIN -->
+  <section class="slide">
+    <span class="tag">Sitemap · 1 / 2</span>
+    <div class="slide-head">
       <h2>Alur Admin</h2>
       <span class="role-badge admin">Akses penuh</span>
     </div>
-    <p class="board-sub">Bisa mengelola seluruh sistem: data, target, pengguna, dan hak akses.</p>
-    <div class="canvas">
-      <div class="tree">
-        <ul>
-          <li>
-            <div class="node root">Masuk</div>
-            <div class="note"><p>Login email &amp; kata sandi.</p></div>
-            <ul>
-              <li>
-                <div class="node dot">Lupa kata sandi</div>
-                <div class="note"><p>Kirim tautan reset ke email → buat sandi baru.</p></div>
-              </li>
-              <li>
-                <div class="node dot pill">Beranda / Dashboard</div>
-                <div class="note"><p>Ringkasan seluruh unit bisnis: target, pencapaian, grafik.</p></div>
-                <ul>
-                  <li>
-                    <div class="node dot pill">Pipeline</div>
-                    <div class="note"><p>Lihat, tambah, ubah, <b>hapus</b> lead. Buka rincian &amp; cetak PDF.</p></div>
-                  </li>
-                  <li>
-                    <div class="node dot pill">Perusahaan</div>
-                    <div class="note"><p>Kelola perusahaan pelanggan + dokumen.</p></div>
-                  </li>
-                  <li>
-                    <div class="node dot pill">Kontak</div>
-                    <div class="note"><p>Kelola narahubung + dokumen.</p></div>
-                  </li>
-                  <li>
-                    <div class="node dot pill">Riwayat</div>
-                    <div class="note"><p>Catatan semua aktivitas.</p></div>
-                  </li>
-                  <li>
-                    <div class="node dot pill admin">Pengaturan</div>
-                    <div class="note"><p class="muted">Hanya Admin.</p></div>
-                    <ul>
-                      <li>
-                        <div class="node admin">Kolom &amp; tahap</div>
-                        <div class="note"><p>Atur isian data, dropdown, tahap Pipeline.</p></div>
-                      </li>
-                      <li>
-                        <div class="node admin">Target</div>
-                        <div class="note"><p>Periode &amp; aturan target penjualan.</p></div>
-                      </li>
-                      <li>
-                        <div class="node admin">Pengguna &amp; unit bisnis</div>
-                        <div class="note"><p>Kelola tim, jabatan, kuota, struktur grup.</p></div>
-                      </li>
-                      <li>
-                        <div class="node admin">Hak akses</div>
-                        <div class="note"><p>Atur siapa boleh lihat / ubah apa.</p></div>
-                      </li>
-                    </ul>
-                  </li>
-                </ul>
-              </li>
-            </ul>
-          </li>
-        </ul>
+    <p class="slide-sub">Bisa mengelola seluruh sistem: data, target, pengguna, dan hak akses.</p>
+    <div class="stage">
+      <div class="scaler" id="scaler-admin">
+        <div class="tree">
+          <ul>
+            <li>
+              <div class="node root">Masuk</div>
+              <ul>
+                <li>
+                  <div class="node dot">Lupa kata sandi</div>
+                  <div class="note"><p>Reset via email → buat sandi baru.</p></div>
+                </li>
+                <li>
+                  <div class="node dot pill">Beranda / Dashboard</div>
+                  <div class="note"><p>Ringkasan seluruh unit bisnis: target, pencapaian, grafik.</p></div>
+                  <ul>
+                    <li>
+                      <div class="node dot pill">Pipeline</div>
+                      <div class="note"><p>Lihat, tambah, ubah, <b>hapus</b> lead. Rincian &amp; cetak PDF.</p></div>
+                    </li>
+                    <li>
+                      <div class="node dot pill">Perusahaan</div>
+                      <div class="note"><p>Kelola perusahaan pelanggan + dokumen.</p></div>
+                    </li>
+                    <li>
+                      <div class="node dot pill">Kontak</div>
+                      <div class="note"><p>Kelola narahubung + dokumen.</p></div>
+                    </li>
+                    <li>
+                      <div class="node dot pill">Riwayat</div>
+                      <div class="note"><p>Catatan semua aktivitas.</p></div>
+                    </li>
+                    <li>
+                      <div class="node dot pill admin">Pengaturan</div>
+                      <div class="note"><p class="muted">Hanya Admin.</p></div>
+                      <ul>
+                        <li>
+                          <div class="node admin">Kolom &amp; tahap</div>
+                          <div class="note"><p>Isian data, dropdown, tahap Pipeline.</p></div>
+                        </li>
+                        <li>
+                          <div class="node admin">Target</div>
+                          <div class="note"><p>Periode &amp; aturan target.</p></div>
+                        </li>
+                        <li>
+                          <div class="node admin">Pengguna &amp; unit bisnis</div>
+                          <div class="note"><p>Tim, jabatan, kuota, struktur grup.</p></div>
+                        </li>
+                        <li>
+                          <div class="node admin">Hak akses</div>
+                          <div class="note"><p>Siapa boleh lihat / ubah apa.</p></div>
+                        </li>
+                      </ul>
+                    </li>
+                  </ul>
+                </li>
+              </ul>
+            </li>
+          </ul>
+        </div>
       </div>
     </div>
-  </div>
+  </section>
 
-  <hr/>
-
-  <!-- ============ SALES ============ -->
-  <div class="board">
-    <div class="board-head">
+  <!-- SLIDE 3 — SALES -->
+  <section class="slide">
+    <span class="tag">Sitemap · 2 / 2</span>
+    <div class="slide-head">
       <h2>Alur Sales</h2>
       <span class="role-badge sales">Menu harian saja</span>
     </div>
-    <p class="board-sub">Fokus ke pekerjaan harian. Menu Pengaturan tidak muncul, dan tidak bisa menghapus data.</p>
-    <div class="canvas">
-      <div class="tree">
-        <ul>
-          <li>
-            <div class="node root">Masuk</div>
-            <div class="note"><p>Login email &amp; kata sandi.</p></div>
-            <ul>
-              <li>
-                <div class="node dot">Lupa kata sandi</div>
-                <div class="note"><p>Kirim tautan reset ke email → buat sandi baru.</p></div>
-              </li>
-              <li>
-                <div class="node dot pill">Beranda / Dashboard</div>
-                <div class="note"><p>Ringkasan data <b>perusahaannya saja</b>: target &amp; pencapaian.</p></div>
-                <ul>
-                  <li>
-                    <div class="node dot pill sales">Pipeline</div>
-                    <div class="note"><p>Lihat, tambah, ubah lead. <b>Tidak bisa hapus.</b> Buka rincian &amp; cetak.</p></div>
-                  </li>
-                  <li>
-                    <div class="node dot pill sales">Perusahaan</div>
-                    <div class="note"><p>Lihat perusahaan pelanggan + dokumen.</p></div>
-                  </li>
-                  <li>
-                    <div class="node dot pill sales">Kontak</div>
-                    <div class="note"><p>Lihat narahubung + dokumen.</p></div>
-                  </li>
-                  <li>
-                    <div class="node dot pill sales">Riwayat</div>
-                    <div class="note"><p>Catatan aktivitas.</p></div>
-                  </li>
-                  <li>
-                    <div class="node dot pill sales">Profil saya</div>
-                    <div class="note"><p>Ubah data akun sendiri (lewat foto profil).</p></div>
-                  </li>
-                </ul>
-              </li>
-            </ul>
-          </li>
-        </ul>
+    <p class="slide-sub">Fokus pekerjaan harian. Menu Pengaturan tidak muncul, dan tidak bisa menghapus data.</p>
+    <div class="stage">
+      <div class="scaler" id="scaler-sales">
+        <div class="tree">
+          <ul>
+            <li>
+              <div class="node root">Masuk</div>
+              <ul>
+                <li>
+                  <div class="node dot">Lupa kata sandi</div>
+                  <div class="note"><p>Reset via email → buat sandi baru.</p></div>
+                </li>
+                <li>
+                  <div class="node dot pill">Beranda / Dashboard</div>
+                  <div class="note"><p>Ringkasan data <b>perusahaannya saja</b>: target &amp; pencapaian.</p></div>
+                  <ul>
+                    <li>
+                      <div class="node dot pill sales">Pipeline</div>
+                      <div class="note"><p>Lihat, tambah, ubah lead. <b>Tidak bisa hapus.</b> Rincian &amp; cetak.</p></div>
+                    </li>
+                    <li>
+                      <div class="node dot pill sales">Perusahaan</div>
+                      <div class="note"><p>Lihat perusahaan pelanggan + dokumen.</p></div>
+                    </li>
+                    <li>
+                      <div class="node dot pill sales">Kontak</div>
+                      <div class="note"><p>Lihat narahubung + dokumen.</p></div>
+                    </li>
+                    <li>
+                      <div class="node dot pill sales">Riwayat</div>
+                      <div class="note"><p>Catatan aktivitas.</p></div>
+                    </li>
+                    <li>
+                      <div class="node dot pill sales">Profil saya</div>
+                      <div class="note"><p>Ubah data akun sendiri (lewat foto profil).</p></div>
+                    </li>
+                  </ul>
+                </li>
+              </ul>
+            </li>
+          </ul>
+        </div>
       </div>
     </div>
-  </div>
+  </section>
+
+  <script>
+    // Auto-fit each tree inside its 16:9 stage by scaling down if it overflows.
+    function fit(id) {
+      const scaler = document.getElementById(id);
+      if (!scaler) return;
+      const stage = scaler.parentElement;
+      scaler.style.transform = 'scale(1)';
+      const pad = 8;
+      const sw = (stage.clientWidth - pad) / scaler.scrollWidth;
+      const sh = (stage.clientHeight - pad) / scaler.scrollHeight;
+      const s = Math.min(1, sw, sh);
+      scaler.style.transform = 'scale(' + s + ')';
+    }
+    function fitAll() { fit('scaler-admin'); fit('scaler-sales'); }
+    window.addEventListener('load', fitAll);
+    window.addEventListener('resize', fitAll);
+  </script>
 
 </body>
 </html>
