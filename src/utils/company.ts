@@ -25,7 +25,7 @@ export async function getActiveCompany(): Promise<CompanyContext | null> {
       // Get the holding company details
       const { data: holdingCompany } = await supabase
         .from('companies')
-        .select('id, slug, name, is_holding')
+        .select('id, slug, name, is_holding, logo_url')
         .eq('is_holding', true)
         .single()
 
@@ -35,6 +35,7 @@ export async function getActiveCompany(): Promise<CompanyContext | null> {
           slug: holdingCompany.slug,
           name: holdingCompany.name,
           isHolding: true,
+          logoUrl: holdingCompany.logo_url,
         }
       }
     }
@@ -50,11 +51,11 @@ export async function getActiveCompany(): Promise<CompanyContext | null> {
   if (activeCompanyCookie && activeCompanyCookie !== 'holding') {
     const { data: memberships } = await supabase
       .from('company_members')
-      .select('companies(id, slug, name, is_holding)')
+      .select('companies(id, slug, name, is_holding, logo_url)')
       .eq('user_id', user.id)
 
     const match = (memberships ?? [])
-      .map(m => m.companies as unknown as { id: string; slug: string; name: string; is_holding: boolean } | null)
+      .map(m => m.companies as unknown as { id: string; slug: string; name: string; is_holding: boolean; logo_url: string | null } | null)
       .find(c => c?.slug === activeCompanyCookie)
 
     if (match) {
@@ -63,6 +64,7 @@ export async function getActiveCompany(): Promise<CompanyContext | null> {
         slug: match.slug,
         name: match.name,
         isHolding: match.is_holding,
+        logoUrl: match.logo_url,
       }
     }
   }
@@ -70,19 +72,20 @@ export async function getActiveCompany(): Promise<CompanyContext | null> {
   // Fallback: return the user's first company
   const { data: firstMembership } = await supabase
     .from('company_members')
-    .select('company_id, companies(id, slug, name, is_holding)')
+    .select('company_id, companies(id, slug, name, is_holding, logo_url)')
     .eq('user_id', user.id)
     .order('created_at', { ascending: true })
     .limit(1)
     .single()
 
   if (firstMembership?.companies) {
-    const company = firstMembership.companies as unknown as { id: string; slug: string; name: string; is_holding: boolean }
+    const company = firstMembership.companies as unknown as { id: string; slug: string; name: string; is_holding: boolean; logo_url: string | null }
     return {
       id: company.id,
       slug: company.slug,
       name: company.name,
       isHolding: company.is_holding,
+      logoUrl: company.logo_url,
     }
   }
 
@@ -100,7 +103,7 @@ export async function getUserCompanies(): Promise<CompanyContext[]> {
 
   const { data: memberships } = await supabase
     .from('company_members')
-    .select('companies(id, slug, name, is_holding)')
+    .select('companies(id, slug, name, is_holding, logo_url)')
     .eq('user_id', user.id)
     .order('created_at', { ascending: true })
 
@@ -109,12 +112,13 @@ export async function getUserCompanies(): Promise<CompanyContext[]> {
   return memberships
     .filter(m => m.companies)
     .map(m => {
-      const company = m.companies as unknown as { id: string; slug: string; name: string; is_holding: boolean }
+      const company = m.companies as unknown as { id: string; slug: string; name: string; is_holding: boolean; logo_url: string | null }
       return {
         id: company.id,
         slug: company.slug,
         name: company.name,
         isHolding: company.is_holding,
+        logoUrl: company.logo_url,
       }
     })
 }

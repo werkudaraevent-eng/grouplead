@@ -61,7 +61,11 @@ export function CompanySwitcher() {
           const isSelected = !isHoldingView && activeCompany?.id === company.id
           return (
             <DropdownMenuItem key={company.id} onClick={() => switchCompany(company.slug)} className="flex items-center gap-2 cursor-pointer">
-              <Building2 className="h-4 w-4 text-muted-foreground" />
+              {company.logoUrl
+                ? // eslint-disable-next-line @next/next/no-img-element
+                  <img src={company.logoUrl} alt={company.name} className="h-4 w-4 rounded object-cover shrink-0" />
+                : <Building2 className="h-4 w-4 text-muted-foreground" />
+              }
               <span className="flex-1 truncate">{company.name}</span>
               {isSelected && <Check className="h-4 w-4 text-primary" />}
             </DropdownMenuItem>
@@ -92,6 +96,9 @@ export function CompanySwitcherHeader() {
 
   const displayName = isHoldingView ? 'All units' : (activeCompany?.name ?? 'Werkudara')
   const subtitle = isHoldingView ? 'Every business unit' : 'Single unit'
+  const activeLogo = isHoldingView
+    ? (holdingCompany?.logoUrl ?? null)
+    : (activeCompany?.logoUrl ?? null)
 
   if (!isMounted) {
     return (
@@ -109,8 +116,12 @@ export function CompanySwitcherHeader() {
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <button disabled={isSwitching} className="flex items-center gap-2.5 rounded-lg px-1.5 py-1.5 -ml-1.5 transition-colors duration-150 hover:bg-sidebar-accent/50 focus:outline-none focus-visible:outline-none group min-w-0 overflow-hidden disabled:cursor-wait">
-          <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center shrink-0">
-            <span className="text-white font-bold text-sm">W</span>
+          <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center shrink-0 overflow-hidden">
+            {activeLogo
+              ? // eslint-disable-next-line @next/next/no-img-element
+                <img src={activeLogo} alt={displayName} className="w-full h-full object-cover" />
+              : <span className="text-white font-bold text-sm">W</span>
+            }
           </div>
           <div className="flex-1 min-w-0 text-left">
             <p className="font-semibold text-sm tracking-tight leading-none text-sidebar-accent-foreground truncate">
@@ -143,7 +154,11 @@ export function CompanySwitcherHeader() {
           const isSelected = !isHoldingView && activeCompany?.id === company.id
           return (
             <DropdownMenuItem key={company.id} onClick={() => switchCompany(company.slug)} className="flex items-center gap-2 cursor-pointer">
-              <Building2 className="h-4 w-4 text-muted-foreground" />
+              {company.logoUrl
+                ? // eslint-disable-next-line @next/next/no-img-element
+                  <img src={company.logoUrl} alt={company.name} className="h-4 w-4 rounded object-cover shrink-0" />
+                : <Building2 className="h-4 w-4 text-muted-foreground" />
+              }
               <span className="flex-1 truncate">{company.name}</span>
               {isSelected && <Check className="h-4 w-4 text-primary" />}
             </DropdownMenuItem>

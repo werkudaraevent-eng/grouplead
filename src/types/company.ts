@@ -68,6 +68,7 @@ export interface CompanyContext {
   slug: string
   name: string
   isHolding: boolean
+  logoUrl?: string | null
 }
 
 export interface ActiveCompanyState {
