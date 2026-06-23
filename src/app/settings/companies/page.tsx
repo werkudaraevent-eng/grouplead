@@ -172,7 +172,7 @@ export default function CompanyManagementPage() {
                   <TableCell className="py-3">
                     <div className="flex items-center gap-3">
                       <div className={cn(
-                        "w-8 h-8 rounded-lg flex items-center justify-center shrink-0 overflow-hidden transition-transform group-hover:scale-105",
+                        "w-8 h-8 rounded-full flex items-center justify-center shrink-0 overflow-hidden transition-transform group-hover:scale-105",
                         company.is_holding
                           ? "bg-indigo-100 text-indigo-600"
                           : "bg-sky-50 text-sky-600"
