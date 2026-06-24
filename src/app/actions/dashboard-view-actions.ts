@@ -2,6 +2,7 @@
 
 import { createClient } from "@/utils/supabase/server"
 import { revalidatePath } from "next/cache"
+import { requirePermission } from "@/lib/require-permission"
 import type { ActionResult } from "@/types/action-result"
 import type { DashboardView, DashboardViewInput } from "@/types/dashboard-view"
 
@@ -65,6 +66,9 @@ export async function listDashboardViewsAction(): Promise<ActionResult<Dashboard
 export async function createDashboardViewAction(
   input: DashboardViewInput,
 ): Promise<ActionResult<DashboardView>> {
+  const guard = await requirePermission("dashboard", "create")
+  if (!guard.allowed) return guard.error
+
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { success: false, error: "Not authenticated" }
@@ -116,6 +120,9 @@ export async function createDashboardViewAction(
 export async function updateDashboardViewAction(
   input: DashboardViewInput & { id: string },
 ): Promise<ActionResult<DashboardView>> {
+  const guard = await requirePermission("dashboard", "update")
+  if (!guard.allowed) return guard.error
+
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { success: false, error: "Not authenticated" }
@@ -149,6 +156,9 @@ export async function renameDashboardViewAction(
   id: string,
   newName: string,
 ): Promise<ActionResult<DashboardView>> {
+  const guard = await requirePermission("dashboard", "update")
+  if (!guard.allowed) return guard.error
+
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { success: false, error: "Not authenticated" }
@@ -177,6 +187,9 @@ export async function renameDashboardViewAction(
 export async function setDefaultDashboardViewAction(
   id: string,
 ): Promise<ActionResult> {
+  const guard = await requirePermission("dashboard", "update")
+  if (!guard.allowed) return guard.error
+
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { success: false, error: "Not authenticated" }
@@ -208,6 +221,9 @@ export async function setDefaultDashboardViewAction(
 export async function duplicateDashboardViewAction(
   id: string,
 ): Promise<ActionResult<DashboardView>> {
+  const guard = await requirePermission("dashboard", "create")
+  if (!guard.allowed) return guard.error
+
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { success: false, error: "Not authenticated" }
@@ -259,6 +275,9 @@ export async function duplicateDashboardViewAction(
 export async function deleteDashboardViewAction(
   id: string,
 ): Promise<ActionResult<{ newDefaultId?: string }>> {
+  const guard = await requirePermission("dashboard", "delete")
+  if (!guard.allowed) return guard.error
+
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { success: false, error: "Not authenticated" }

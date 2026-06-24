@@ -13,6 +13,7 @@ import {
     type WidgetId,
 } from "@/features/leads/lib/dashboard-layout"
 import type { CustomWidget } from "@/types/custom-widget"
+import { usePermissions } from "@/contexts/permissions-context"
 
 import "react-grid-layout/css/styles.css"
 import "react-resizable/css/styles.css"
@@ -78,6 +79,13 @@ export function DashboardGrid({
     addCustomWidgetRef,
 }: DashboardGridProps) {
     const [isEditing, setIsEditing] = useState(false)
+    // Dashboard editing (customize layout / add / remove widgets) is gated by
+    // the `dashboard` RBAC module. When the role has no create/update/delete
+    // grant the Edit button is hidden entirely — matching the permission UI
+    // promise that CUD-off disables editing. Personal "My Dashboard" views are
+    // still a write, so honoring the matrix here keeps behavior consistent.
+    const { can } = usePermissions()
+    const canEditDashboard = can("dashboard", "create") || can("dashboard", "update") || can("dashboard", "delete")
     const [layout, setLayout] = useState<LayoutItem[]>([...getDefaultLayout()])
     const [loaded, setLoaded] = useState(false)
     const [saving, setSaving] = useState(false)
@@ -497,6 +505,7 @@ export function DashboardGrid({
             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                 {/* Parent-injected controls (e.g. saved-view switcher). */}
                 {extraHeaderControls}
+                {canEditDashboard && (
                 <button
                     onClick={handleStartEdit}
                     style={{
@@ -514,6 +523,7 @@ export function DashboardGrid({
                 >
                     <Pencil style={{ width: 13, height: 13 }} /> Edit Dashboard
                 </button>
+                )}
             </div>
         )
     ) : null
