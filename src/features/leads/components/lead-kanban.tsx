@@ -122,6 +122,10 @@ export function LeadKanban({
     const canUpdateStage = can("pipeline", "update")
     const canDeleteStage = can("pipeline", "delete")
     const canManageStages = canCreateStage || canUpdateStage || canDeleteStage
+    // Moving a lead between stages (or reordering) is a leads.update write.
+    // When the role lacks that grant we disable drag entirely so the card
+    // can't be picked up at all — no failed server round-trip, no error toast.
+    const canMoveLeads = can("leads", "update")
     const [stages, setStages] = useState<PipelineStage[]>(FALLBACK_STAGES)
     const [leads, setLeads] = useState<Lead[]>(initialLeads)
     const [loading, setLoading] = useState(true)
@@ -312,10 +316,12 @@ export function LeadKanban({
     const activeLead = activeId ? leads.find((l) => l.id.toString() === activeId) : null
 
     const handleDragStart = useCallback((event: DragStartEvent) => {
+        if (!canMoveLeads) return
         setActiveId(String(event.active.id))
-    }, [])
+    }, [canMoveLeads])
 
     const handleDragOver = useCallback((event: DragOverEvent) => {
+        if (!canMoveLeads) return
         const { active, over } = event
         if (!over) return
 
@@ -383,7 +389,16 @@ export function LeadKanban({
             )
 
             if (!result.success) {
-                toast.error(`Failed to move lead: ${result.error}`)
+                // Map the technical guard message to a friendly one. The
+                // server returns "Forbidden: missing update permission on
+                // leads" when the role lacks leads.update — surface that as a
+                // plain "no permission" message instead of leaking internals.
+                const isPermissionError = /forbidden|permission/i.test(result.error ?? "")
+                toast.error(
+                    isPermissionError
+                        ? "You don't have permission to move leads"
+                        : "Couldn't move the lead. Please try again.",
+                )
                 setLeads(initialLeads)
                 return false
             }
@@ -410,6 +425,7 @@ export function LeadKanban({
     const handleDragEnd = useCallback(async (event: DragEndEvent) => {
         const { active, over } = event
         setActiveId(null)
+        if (!canMoveLeads) return
         if (!over) return
 
         const activeLeadId = parseInt(String(active.id), 10)
@@ -493,7 +509,7 @@ export function LeadKanban({
             newSortOrder,
             originalStageId,
         )
-    }, [leads, stages, initialLeads, transitionRules, executeStageTransition])
+    }, [leads, stages, initialLeads, transitionRules, executeStageTransition, canMoveLeads])
 
     const handleDragCancel = useCallback(() => {
         setActiveId(null)
@@ -504,6 +520,7 @@ export function LeadKanban({
     // Honors transition rules and backward warnings just like drag.
     const handleQuickMoveStage = useCallback(
         (lead: Lead, target: PipelineStage) => {
+            if (!canMoveLeads) return
             const originalStageId = lead.pipeline_stage_id
             if (!originalStageId || target.id === originalStageId) return
 
@@ -558,7 +575,7 @@ export function LeadKanban({
 
             void executeStageTransition(lead.id, target.id, newSortOrder, originalStageId)
         },
-        [leads, stages, transitionRules, executeStageTransition],
+        [leads, stages, transitionRules, executeStageTransition, canMoveLeads],
     )
 
     if (loading) {
@@ -759,9 +776,9 @@ export function LeadKanban({
                                                 isSelected={selectedIds.includes(lead.id.toString())}
                                                 onToggleSelect={onToggleSelect}
                                                 config={config}
-                                                dndEnabled={dndEnabled}
+                                                dndEnabled={dndEnabled && canMoveLeads}
                                                 stages={stages}
-                                                onQuickMoveStage={(target) => handleQuickMoveStage(lead, target)}
+                                                onQuickMoveStage={canMoveLeads ? (target) => handleQuickMoveStage(lead, target) : undefined}
                                             />
                                         ))}
                                     </DroppableColumn>
@@ -961,11 +978,13 @@ function SortableCard({
     return (
         <div
             ref={setNodeRef}
-            style={{ ...style, cursor: dndEnabled ? undefined : 'grab' }}
-            {...attributes}
-            {...listeners}
+            style={{ ...style, cursor: dndEnabled ? undefined : 'default' }}
+            {...(dndEnabled ? attributes : {})}
+            {...(dndEnabled ? listeners : {})}
             onPointerDown={(e) => {
-                listeners?.onPointerDown?.(e as unknown as React.PointerEvent<Element>)
+                if (dndEnabled) {
+                    listeners?.onPointerDown?.(e as unknown as React.PointerEvent<Element>)
+                }
                 handlePointerDown(e)
             }}
             onPointerUp={handlePointerUp}
