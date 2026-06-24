@@ -378,12 +378,12 @@ export function LeadDetailPage({ lead, prevLeadId, nextLeadId, lastModifiedBy = 
                                             <DropdownMenuItem
                                                 className="text-red-600 focus:bg-red-50 focus:text-red-700 cursor-pointer"
                                                 onClick={async () => {
-                                                    if (!confirm('Are you sure you want to delete this lead? This action cannot be undone.')) return
+                                                    if (!confirm('Move this lead to the Recycle Bin? An admin can restore it later.')) return
                                                     const result = await deleteLeadAction(lead.id)
                                                     if (!result.success) {
-                                                        toast.error(`Delete failed: ${result.error || "Permission denied"}`)
+                                                        toast.error(`Failed: ${result.error || "Permission denied"}`)
                                                     } else {
-                                                        toast.success('Lead deleted')
+                                                        toast.success('Lead moved to Recycle Bin')
                                                         router.push('/leads')
                                                     }
                                                 }}

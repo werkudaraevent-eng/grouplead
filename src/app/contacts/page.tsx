@@ -738,15 +738,15 @@ export default function ContactsPage() {
             <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
-                        <AlertDialogTitle>Delete selected contacts?</AlertDialogTitle>
+                        <AlertDialogTitle>Move to Recycle Bin?</AlertDialogTitle>
                         <AlertDialogDescription>
-                            This will permanently delete <strong className="text-foreground">{selectedIds.size}</strong> selected contact{selectedIds.size === 1 ? "" : "s"}. This action cannot be undone.
+                            This will move <strong className="text-foreground">{selectedIds.size}</strong> selected contact{selectedIds.size === 1 ? "" : "s"} to the Recycle Bin. An admin can restore them later.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                         <AlertDialogCancel>Cancel</AlertDialogCancel>
                         <AlertDialogAction onClick={(e) => { e.preventDefault(); executeBulkDelete() }} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                            Delete
+                            Move to Recycle Bin
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
@@ -754,15 +754,15 @@ export default function ContactsPage() {
             <AlertDialog open={!!contactToDelete} onOpenChange={(o) => { if (!o) setContactToDelete(null) }}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
-                        <AlertDialogTitle>Delete this contact?</AlertDialogTitle>
+                        <AlertDialogTitle>Move to Recycle Bin?</AlertDialogTitle>
                         <AlertDialogDescription>
-                            This will permanently delete <strong className="text-foreground">{contactToDelete?.full_name}</strong>. This action cannot be undone.
+                            This will move <strong className="text-foreground">{contactToDelete?.full_name}</strong> to the Recycle Bin. An admin can restore it later.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                         <AlertDialogCancel>Cancel</AlertDialogCancel>
                         <AlertDialogAction onClick={(e) => { e.preventDefault(); executeSingleDelete() }} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                            Delete
+                            Move to Recycle Bin
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>

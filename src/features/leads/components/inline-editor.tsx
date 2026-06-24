@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { toast } from "sonner"
 import { useRouter } from "next/navigation"
 import { updateLeadFieldAction } from "@/app/actions/lead-actions"
+import { usePermissions } from "@/contexts/permissions-context"
 import {
     Pencil, Check, X, Loader2, Plus,
     Bold, Italic, Underline as UnderlineIcon, List, ListOrdered,
@@ -145,6 +146,8 @@ export function InlineEditor({
 }: InlineEditorProps) {
     const supabase = createClient()
     const router = useRouter()
+    const { can } = usePermissions()
+    const canEdit = can("leads", "update")
     const [isEditing, setIsEditing] = useState(false)
     const [isSaving, setIsSaving] = useState(false)
 
@@ -206,6 +209,18 @@ export function InlineEditor({
         } else {
             setIsEditing(false)
         }
+    }
+
+    // ── READ-ONLY (no update permission) ──────────────────────
+    if (!canEdit) {
+        return hasValue ? (
+            <div
+                className="tiptap-readonly text-[14px] text-slate-700 leading-[1.75] select-text"
+                dangerouslySetInnerHTML={{ __html: htmlValue }}
+            />
+        ) : (
+            <p className="text-[12px] text-slate-400 italic py-2">No {label.toLowerCase()} added.</p>
+        )
     }
 
     // ── EDIT MODE ─────────────────────────────────────────────

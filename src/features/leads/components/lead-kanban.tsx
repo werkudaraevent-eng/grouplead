@@ -19,6 +19,8 @@ import { useDroppable } from "@dnd-kit/core"
 import { Lead, PipelineStage, TransitionRule } from "@/types"
 import { createClient } from "@/utils/supabase/client"
 import { useCurrency } from "@/contexts/currency-context"
+import { usePermissions } from "@/contexts/permissions-context"
+import { Tooltip } from "@/components/ui/tooltip"
 import { toast } from "sonner"
 import { updatePipelineStageAction } from "@/app/actions/lead-actions"
 import { Building2, CalendarDays, CheckCircle2, ChevronsRight, Copy, Edit2, Globe, Loader2, MoreHorizontal, Pencil, Trash2, User, XCircle, Clock, Check, ThumbsDown, ThumbsUp } from "lucide-react"
@@ -1032,6 +1034,9 @@ function KanbanCard({
     onQuickMoveStage?: (target: PipelineStage) => void
 }) {
     const { fmtAxis } = useCurrency()
+    const { can } = usePermissions()
+    const canEditLead = can("leads", "update")
+    const canDeleteLead = can("leads", "delete")
     const picName = lead.pic_sales_profile?.full_name
     const amName = lead.account_manager_profile?.full_name
     const picAvatar = lead.pic_sales_profile?.avatar_url
@@ -1191,15 +1196,27 @@ function KanbanCard({
                                     </button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end" className="w-36">
-                                    {onQuickEdit && (
+                                    {canEditLead ? (
                                         <DropdownMenuItem onClick={onQuickEdit} className="text-xs">
                                             <Edit2 className="w-3 h-3 mr-2" /> Edit
                                         </DropdownMenuItem>
+                                    ) : (
+                                        <Tooltip content="You don't have permission to edit" position="left">
+                                            <div className="flex items-center gap-2 rounded-sm px-2 py-1.5 text-xs cursor-not-allowed opacity-45 select-none" onClick={(e) => e.stopPropagation()}>
+                                                <Edit2 className="w-3 h-3 mr-1" /> Edit
+                                            </div>
+                                        </Tooltip>
                                     )}
-                                    {onDeleteLead && (
+                                    {canDeleteLead ? (
                                         <DropdownMenuItem onClick={onDeleteLead} className="text-red-600 focus:text-red-700 focus:bg-red-50 text-xs">
                                             <Trash2 className="w-3 h-3 mr-2" /> Delete
                                         </DropdownMenuItem>
+                                    ) : (
+                                        <Tooltip content="You don't have permission to delete" position="left">
+                                            <div className="flex items-center gap-2 rounded-sm px-2 py-1.5 text-xs cursor-not-allowed opacity-45 select-none text-red-600" onClick={(e) => e.stopPropagation()}>
+                                                <Trash2 className="w-3 h-3 mr-1" /> Delete
+                                            </div>
+                                        </Tooltip>
                                     )}
                                 </DropdownMenuContent>
                             </DropdownMenu>

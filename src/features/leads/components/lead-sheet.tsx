@@ -434,17 +434,17 @@ export function LeadSheet({ lead, open, onOpenChange }: LeadSheetProps) {
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle className="flex items-center gap-2">
-                            <AlertTriangle className="h-5 w-5 text-destructive" /> Delete Lead
+                            <AlertTriangle className="h-5 w-5 text-destructive" /> Move to Recycle Bin
                         </DialogTitle>
                         <DialogDescription>
-                            This will permanently delete &quot;{lead.project_name || "this lead"}&quot;. This action cannot be undone.
+                            This will move &quot;{lead.project_name || "this lead"}&quot; to the Recycle Bin. An admin can restore it later.
                         </DialogDescription>
                     </DialogHeader>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setDeleteOpen(false)}>Cancel</Button>
                         <Button variant="destructive" onClick={handleDelete} disabled={deleting}>
                             {deleting ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Trash2 className="h-4 w-4 mr-1.5" />}
-                            Delete Permanently
+                            Move to Recycle Bin
                         </Button>
                     </DialogFooter>
                 </DialogContent>

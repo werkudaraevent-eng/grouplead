@@ -16,6 +16,7 @@ import { toast } from "sonner"
 import { Pencil, Check, Loader2, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useMasterOptions } from "@/hooks/use-master-options"
+import { usePermissions } from "@/contexts/permissions-context"
 
 interface InlineSelectPopoverProps {
     leadId: number
@@ -57,6 +58,8 @@ export function InlineSelectPopover({
 }: InlineSelectPopoverProps) {
     const supabase = createClient()
     const router = useRouter()
+    const { can } = usePermissions()
+    const canEdit = can("leads", "update")
     const [open, setOpen] = useState(false)
     const [saving, setSaving] = useState(false)
     const { options, loading } = useMasterOptions(open ? optionType : undefined)
@@ -65,6 +68,18 @@ export function InlineSelectPopover({
     useEffect(() => () => setSaving(false), [])
 
     const shown = displayValue ?? rawValue ?? null
+
+    // No update permission → plain read-only text, no edit affordance.
+    if (!canEdit) {
+        return (
+            <span className={cn(
+                "inline-flex items-center px-1.5 py-0.5 -mx-1.5",
+                triggerClassName || "text-[12px] font-medium text-[#292D30]",
+            )}>
+                <span className={cn("truncate", !shown && "text-slate-300")}>{shown || "—"}</span>
+            </span>
+        )
+    }
 
     const handleSelect = async (next: string | null) => {
         if (next === (rawValue ?? null)) {

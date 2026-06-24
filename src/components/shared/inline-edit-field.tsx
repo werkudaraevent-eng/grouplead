@@ -15,6 +15,15 @@ import { cn } from "@/lib/utils"
 import { normalizePhoneToE164 } from "@/lib/phone-normalize"
 import { useCascadedOptions } from "@/hooks/use-cascaded-options"
 import type { LucideIcon } from "lucide-react"
+import { usePermissions } from "@/contexts/permissions-context"
+
+/** Map a DB table to its permission module so inline edits respect the matrix. */
+function moduleForTable(table: string): string {
+    if (table === "client_companies") return "companies"
+    if (table === "contacts") return "contacts"
+    if (table === "leads") return "leads"
+    return table
+}
 
 /**
  * Generic, table-agnostic inline editors for entity detail pages.
@@ -72,6 +81,8 @@ export function InlineTextField({
     inputType = "text", placeholder,
 }: InlineTextFieldProps) {
     const router = useRouter()
+    const { can } = usePermissions()
+    const canEdit = can(moduleForTable(table), "update")
     const [open, setOpen] = useState(false)
     const [value, setValue] = useState(rawValue?.toString() ?? "")
     const [saving, setSaving] = useState(false)
@@ -106,6 +117,16 @@ export function InlineTextField({
     }
 
     const shown = displayValue ?? rawValue ?? null
+
+    if (!canEdit) {
+        return (
+            <RowShell icon={icon} label={label}>
+                <span className={cn("text-[13px] break-words", shown ? "text-slate-800" : "text-slate-300")}>
+                    {shown || "—"}
+                </span>
+            </RowShell>
+        )
+    }
 
     return (
         <RowShell icon={icon} label={label}>
@@ -169,6 +190,8 @@ export function InlineSelectField({
     optionType, parentValue, clearable = true,
 }: InlineSelectFieldProps) {
     const router = useRouter()
+    const { can } = usePermissions()
+    const canEdit = can(moduleForTable(table), "update")
     const [open, setOpen] = useState(false)
     const [saving, setSaving] = useState(false)
     const { options, loading, isDisabledByParent } = useCascadedOptions(
@@ -177,6 +200,16 @@ export function InlineSelectField({
     )
 
     const shown = displayValue ?? rawValue ?? null
+
+    if (!canEdit) {
+        return (
+            <RowShell icon={icon} label={label}>
+                <span className={cn("text-[13px] break-words", shown ? "text-slate-800" : "text-slate-300")}>
+                    {shown || "—"}
+                </span>
+            </RowShell>
+        )
+    }
 
     const handleSelect = async (next: string | null) => {
         if ((next ?? null) === (rawValue ?? null)) { setOpen(false); return }

@@ -1147,7 +1147,7 @@ export function LeadDashboard() {
                             leads={filteredLeads}
                             onSelectLead={handleNavigateToLead}
                             onQuickEdit={handleQuickEdit}
-                            onDeleteLead={canDeleteLeads ? (id) => setDeleteLeadId(id) : undefined}
+                            onDeleteLead={(id) => setDeleteLeadId(id)}
                             pipelineId={activePipeline.id}
                             selectedIds={selectedLeadIds}
                             onToggleSelect={handleToggleSelect}
@@ -1371,9 +1371,9 @@ export function LeadDashboard() {
             <AlertDialog open={!!deleteLeadId} onOpenChange={(open) => !open && setDeleteLeadId(null)}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
-                        <AlertDialogTitle>Delete this lead?</AlertDialogTitle>
+                        <AlertDialogTitle>Move this lead to Recycle Bin?</AlertDialogTitle>
                         <AlertDialogDescription>
-                            This will permanently delete the lead and all associated data. This action cannot be undone.
+                            This will move the lead to the Recycle Bin. An admin can restore it later.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
@@ -1384,7 +1384,7 @@ export function LeadDashboard() {
                             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                         >
                             {deleting && <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />}
-                            {deleting ? 'Deleting…' : 'Delete Lead'}
+                            {deleting ? 'Moving…' : 'Move to Recycle Bin'}
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
@@ -1394,9 +1394,9 @@ export function LeadDashboard() {
             <AlertDialog open={bulkDeleteOpen} onOpenChange={(open) => { if (!open) { setBulkDeleteOpen(false); setBulkDeleteLeads([]) } }}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
-                        <AlertDialogTitle>Delete {bulkDeleteLeads.length} lead{bulkDeleteLeads.length !== 1 ? 's' : ''}?</AlertDialogTitle>
+                        <AlertDialogTitle>Move {bulkDeleteLeads.length} lead{bulkDeleteLeads.length !== 1 ? 's' : ''} to Recycle Bin?</AlertDialogTitle>
                         <AlertDialogDescription>
-                            This will permanently delete all selected leads and their associated data. This action cannot be undone.
+                            This will move all selected leads to the Recycle Bin. An admin can restore them later.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
@@ -1407,7 +1407,7 @@ export function LeadDashboard() {
                             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                         >
                             {deleting && <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />}
-                            {deleting ? 'Deleting…' : `Delete ${bulkDeleteLeads.length} Lead${bulkDeleteLeads.length !== 1 ? 's' : ''}`}
+                            {deleting ? 'Moving…' : `Move ${bulkDeleteLeads.length} Lead${bulkDeleteLeads.length !== 1 ? 's' : ''} to Recycle Bin`}
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>

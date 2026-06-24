@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input"
 import { createClient } from "@/utils/supabase/client"
 import { toast } from "sonner"
 import { Pencil, Loader2, Check, X } from "lucide-react"
+import { usePermissions } from "@/contexts/permissions-context"
 
 interface HeaderMetricPopoverProps {
     leadId: number
@@ -30,6 +31,8 @@ export function HeaderMetricPopover({
 }: HeaderMetricPopoverProps) {
     const supabase = createClient()
     const router = useRouter()
+    const { can } = usePermissions()
+    const canEdit = can("leads", "update")
     const [open, setOpen] = useState(false)
     const [value, setValue] = useState(rawValue?.toString() ?? "")
     const [saving, setSaving] = useState(false)
@@ -86,12 +89,18 @@ export function HeaderMetricPopover({
 
     return (
         <Popover open={open} onOpenChange={setOpen}>
+            {!canEdit ? (
+                <span suppressHydrationWarning className={triggerClassName || "text-[13px] font-semibold text-slate-800"}>
+                    <span suppressHydrationWarning className="truncate">{displayValue}</span>
+                </span>
+            ) : (
             <PopoverTrigger asChild>
                 <button suppressHydrationWarning className={`group flex items-center gap-1.5 transition-colors rounded px-1.5 py-0.5 -mx-1.5 hover:bg-blue-50 ${triggerClassName || "text-[13px] font-semibold text-slate-800 hover:text-blue-600"}`}>
                     <span suppressHydrationWarning className="truncate">{displayValue}</span>
                     <Pencil className="h-3 w-3 text-transparent group-hover:text-blue-500 shrink-0 transition-colors" />
                 </button>
             </PopoverTrigger>
+            )}
             <PopoverContent
                 className="w-64 p-3"
                 align="start"
