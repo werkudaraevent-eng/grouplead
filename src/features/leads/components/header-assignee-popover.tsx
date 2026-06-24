@@ -7,6 +7,7 @@ import { createClient } from "@/utils/supabase/client"
 import { toast } from "sonner"
 import { Pencil, Loader2, Search } from "lucide-react"
 import { getInitials, getAvatarColor } from "@/lib/avatar"
+import { usePermissions } from "@/contexts/permissions-context"
 
 interface Profile {
     id: string
@@ -34,6 +35,8 @@ export function HeaderAssigneePopover({
 }: HeaderAssigneePopoverProps) {
     const supabase = createClient()
     const router = useRouter()
+    const { can } = usePermissions()
+    const canEdit = can("leads", "update")
     const [open, setOpen] = useState(false)
     const [savingId, setSavingId] = useState<string | null>(null)
     const [profiles, setProfiles] = useState<Profile[]>([])
@@ -75,6 +78,25 @@ export function HeaderAssigneePopover({
     }
 
     const filtered = profiles.filter(p => !search || p.full_name?.toLowerCase().includes(search.toLowerCase()))
+
+    // Read-only when the user can't update leads: show the assignee, no editor.
+    if (!canEdit) {
+        return (
+            <span className="flex items-center gap-1.5 text-[13px] font-semibold text-slate-800">
+                {rawValue && (
+                    avatarUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={avatarUrl} alt={displayValue} className="w-5 h-5 rounded-full object-cover shrink-0" />
+                    ) : (
+                        <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-semibold shrink-0 ${getAvatarColor(displayValue)}`}>
+                            {getInitials(displayValue)}
+                        </span>
+                    )
+                )}
+                <span className="truncate max-w-[150px] text-left block" title={displayValue}>{displayValue}</span>
+            </span>
+        )
+    }
 
     return (
         <Popover open={open} onOpenChange={setOpen}>

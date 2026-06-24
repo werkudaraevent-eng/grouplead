@@ -1163,7 +1163,7 @@ export function LeadDashboard() {
                             <DataTable
                                 columns={columns}
                                 data={filteredLeads}
-                                onRowClick={handleQuickEdit}
+                                onRowClick={handleNavigateToLead}
                                 defaultHiddenColumns={DEFAULT_HIDDEN_COLUMNS}
                                 enableRowSelection
                                 getRowId={(row) => String((row as Lead).id)}

@@ -10,6 +10,7 @@ import { LeadForm } from "@/features/leads/components/lead-form"
 import { Sheet, SheetContent, SheetTitle, SheetDescription } from "@/components/ui/sheet"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { PermissionGate } from "@/features/users/components/permission-gate"
+import { usePermissions } from "@/contexts/permissions-context"
 import { createClient } from "@/utils/supabase/client"
 import { toast } from "sonner"
 import {
@@ -48,6 +49,8 @@ export function LeadDetailPage({ lead, prevLeadId, nextLeadId, lastModifiedBy = 
     const router = useRouter()
     const supabase = createClient()
     const { fmt } = useCurrency()
+    const { can } = usePermissions()
+    const canEditLead = can("leads", "update")
     const [editOpen, setEditOpen] = useState(false)
     const [deleteConfirm, setDeleteConfirm] = useState(false)
 
@@ -154,6 +157,8 @@ export function LeadDetailPage({ lead, prevLeadId, nextLeadId, lastModifiedBy = 
 
     const handleStageClick = async (stage: PipelineStage) => {
         if (stage.name === stageName || movingStage) return
+        // No update permission → stage moves are blocked (RLS also enforces).
+        if (!canEditLead) return
 
         // ── Check transition rules BEFORE moving ──
         const currentStageId = lead.pipeline_stage_id
@@ -404,7 +409,7 @@ export function LeadDetailPage({ lead, prevLeadId, nextLeadId, lastModifiedBy = 
                             <>
                                 {/* Helper caption — tells the user what this is and that it's interactive */}
                                 <p className="px-2 mb-1 text-[11px] font-medium text-slate-400">
-                                    Pipeline stage <span className="text-slate-300">·</span> click a stage to move this lead
+                                    Pipeline stage{canEditLead && <> <span className="text-slate-300">·</span> click a stage to move this lead</>}
                                 </p>
                                 <div className="flex items-start w-full px-2 pt-3 pb-1 overflow-x-auto thin-scrollbar">
                                     {stages.map((stage, idx) => {
@@ -440,8 +445,8 @@ export function LeadDetailPage({ lead, prevLeadId, nextLeadId, lastModifiedBy = 
                                                 <div className="flex flex-col items-center gap-1 shrink-0 w-[72px] md:w-[84px]">
                                                     <button
                                                         onClick={() => handleStageClick(stage)}
-                                                        disabled={movingStage || isCurrent}
-                                                        title={isCurrent ? `Current stage: ${stage.name}` : `Move to: ${stage.name}`}
+                                                        disabled={movingStage || isCurrent || !canEditLead}
+                                                        title={isCurrent ? `Current stage: ${stage.name}` : !canEditLead ? stage.name : `Move to: ${stage.name}`}
                                                         aria-current={isCurrent ? 'step' : undefined}
                                                         className={`${circleBase} ${circleClass} ${isCurrent ? 'cursor-default' : 'cursor-pointer hover:scale-110'} disabled:opacity-100`}
                                                     >
