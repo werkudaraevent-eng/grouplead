@@ -1,7 +1,6 @@
 "use client"
 
 import { useEffect, useRef } from "react"
-import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { getMaintenanceStatus } from "@/app/actions/maintenance-actions"
 import { usePermissions } from "@/contexts/permissions-context"
@@ -20,7 +19,6 @@ const REDIRECT_DELAY_MS = 6_000
  * Mount once inside the authenticated app shell.
  */
 export function MaintenanceWatcher() {
-    const router = useRouter()
     const { userType, loading } = usePermissions()
     const redirectingRef = useRef(false)
 
@@ -42,7 +40,13 @@ export function MaintenanceWatcher() {
                     duration: REDIRECT_DELAY_MS,
                 })
                 setTimeout(() => {
-                    if (active) router.push("/maintenance")
+                    if (!active) return
+                    // Hard navigation (full reload), NOT router.push: the App
+                    // Router root layout is persistent and won't re-evaluate
+                    // `standalone`, so a client-side push would leave the app
+                    // sidebar mounted over the maintenance page. A full load
+                    // re-runs middleware + layout so the shell is dropped.
+                    window.location.href = "/maintenance"
                 }, REDIRECT_DELAY_MS)
             }
         }
@@ -56,7 +60,7 @@ export function MaintenanceWatcher() {
             if (timer) clearTimeout(timer)
             clearInterval(interval)
         }
-    }, [userType, loading, router])
+    }, [userType, loading])
 
     return null
 }
