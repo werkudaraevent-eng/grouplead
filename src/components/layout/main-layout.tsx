@@ -5,6 +5,7 @@ import { Sidebar } from "@/components/layout/sidebar"
 import { TopLoader } from "@/components/layout/top-loader"
 import { CompanySwitchLoader } from "@/components/layout/company-switch-loader"
 import { SessionGuard } from "@/components/layout/session-guard"
+import { MaintenanceWatcher } from "@/features/settings/components/maintenance-watcher"
 import { Sheet, SheetContent, SheetTitle, SheetDescription } from "@/components/ui/sheet"
 import { Button } from "@/components/ui/button"
 import { Menu } from "lucide-react"
@@ -41,6 +42,7 @@ export function MainLayout({ children, initialCompany, companies, currencySettin
                 <CurrencyProvider settings={currencySettings}>
                     <SidebarThemeProvider>
                         <SessionGuard />
+                        <MaintenanceWatcher />
                         <Suspense fallback={null}>
                             <TopLoader />
                         </Suspense>

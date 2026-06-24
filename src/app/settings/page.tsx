@@ -13,6 +13,7 @@ import {
 } from "lucide-react"
 import { SettingsPageHeader } from "@/components/layout/settings-page-header"
 import { CurrencySettingsRow } from "@/features/settings/components/currency-settings-card"
+import { MaintenanceSection } from "@/features/settings/components/maintenance-section"
 import { usePermissions } from "@/contexts/permissions-context"
 
 type ModuleItem = {
@@ -142,6 +143,10 @@ export default function SettingsPage() {
                             </ul>
                         </section>
                     ))}
+
+                    {/* Super-admin-only platform controls (maintenance mode).
+                        Renders nothing for non-super-admins. */}
+                    {!loading && canAccessSettings && <MaintenanceSection />}
                 </div>
             </div>
         </div>

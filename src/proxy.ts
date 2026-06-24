@@ -62,6 +62,50 @@ export async function proxy(request: NextRequest) {
         return NextResponse.redirect(homeUrl)
     }
 
+    // ── Maintenance mode (full lockdown) ────────────────────────────────────
+    // When enabled, everyone EXCEPT super_admin is redirected to /maintenance.
+    // Runs only for authenticated users on non-public pages (public auth pages
+    // already returned above). FAIL-OPEN: any error reading the flag or the
+    // role is treated as "not in maintenance" so a transient DB hiccup can
+    // never lock the whole platform — including admins — out by accident.
+    const isMaintenancePage = request.nextUrl.pathname.startsWith('/maintenance')
+    if (user && !isPublicPath) {
+        try {
+            const { data: settings } = await supabase
+                .from('app_settings')
+                .select('maintenance_enabled')
+                .eq('id', 1)
+                .maybeSingle()
+
+            if (settings?.maintenance_enabled) {
+                // Resolve role; super_admin bypasses the lockdown entirely.
+                const { data: profile } = await supabase
+                    .from('profiles')
+                    .select('role')
+                    .eq('id', user.id)
+                    .maybeSingle()
+                const role = (profile?.role ?? '').toLowerCase().replace(/\s+/g, '_')
+                const isSuperAdmin = role === 'super_admin'
+
+                if (!isSuperAdmin && !isMaintenancePage) {
+                    // Non-admin during maintenance → send to the holding page.
+                    return NextResponse.redirect(new URL('/maintenance', request.url))
+                }
+                // Super admin landing on /maintenance has no reason to stay —
+                // bounce them back to the app so they can keep working.
+                if (isSuperAdmin && isMaintenancePage) {
+                    return NextResponse.redirect(new URL('/', request.url))
+                }
+            } else if (isMaintenancePage) {
+                // Maintenance is OFF but someone hit /maintenance directly —
+                // send them back into the app.
+                return NextResponse.redirect(new URL('/', request.url))
+            }
+        } catch {
+            // Fail-open: ignore and let the request proceed normally.
+        }
+    }
+
     return response
 }
 

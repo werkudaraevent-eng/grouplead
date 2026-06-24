@@ -43,7 +43,9 @@ export default async function RootLayout({
   );
   // Print routes render a standalone printable document — skip the app shell
   const isPrintPage = /^\/leads\/[^/]+\/print/.test(pathname);
-  const standalone = isAuthPage || isPrintPage;
+  // The maintenance holding page renders standalone (no sidebar/app shell).
+  const isMaintenancePage = pathname.startsWith("/maintenance");
+  const standalone = isAuthPage || isPrintPage || isMaintenancePage;
 
   let initialCompany = null;
   let companies: Awaited<ReturnType<typeof getUserCompanies>> = [];

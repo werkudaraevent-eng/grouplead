@@ -79,6 +79,27 @@ export async function requirePermission(
     return { allowed: true, userId: user.id, roleId: profile?.role_id ?? null, companyId: companyId ?? null }
   }
 
+  // 1b. Maintenance lockdown. When maintenance mode is on, only super_admin
+  // (handled above) may perform actions. Everyone else is denied at the
+  // server-action layer too — not just blocked in the UI by middleware — so
+  // a hand-crafted RPC can't slip a write through during maintenance.
+  // FAIL-OPEN: if the flag can't be read, allow the normal permission flow.
+  try {
+    const { data: appSettings } = await supabase
+      .from('app_settings')
+      .select('maintenance_enabled')
+      .eq('id', 1)
+      .maybeSingle()
+    if (appSettings?.maintenance_enabled) {
+      return {
+        allowed: false,
+        error: { success: false, error: 'The platform is under maintenance. Please try again later.' },
+      }
+    }
+  } catch {
+    // Fail-open: ignore and continue to the normal permission resolution.
+  }
+
   // 2. Resolve company scope.
   let scopedCompanyId = companyId ?? null
   if (!scopedCompanyId) {
