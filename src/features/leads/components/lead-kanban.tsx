@@ -776,7 +776,7 @@ export function LeadKanban({
                                                 isSelected={selectedIds.includes(lead.id.toString())}
                                                 onToggleSelect={onToggleSelect}
                                                 config={config}
-                                                dndEnabled={dndEnabled && canMoveLeads}
+                                                dndEnabled={canMoveLeads}
                                                 stages={stages}
                                                 onQuickMoveStage={canMoveLeads ? (target) => handleQuickMoveStage(lead, target) : undefined}
                                             />
