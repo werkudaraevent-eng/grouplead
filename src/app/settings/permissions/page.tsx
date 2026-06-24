@@ -46,7 +46,7 @@ const MODULE_GROUPS = [
   {
     title: "Settings",
     description: "Settings hub access and section-level controls.",
-    modules: ["settings", "master_options", "segment_settings", "goal_settings", "forecast_settings", "management_dashboard", "members", "permissions"],
+    modules: ["settings", "master_options", "pipeline", "segment_settings", "goal_settings", "forecast_settings", "management_dashboard", "members", "permissions"],
   },
 ] as const
 
@@ -64,6 +64,11 @@ const MODULE_DISPLAY: Record<string, { name: string; description: string; level?
   master_options: {
     name: "Master Options",
     description: "Lead fields, dropdown options, form layouts, and pipeline stage configuration.",
+    level: 1,
+  },
+  pipeline: {
+    name: "Pipeline Stages",
+    description: "Create, rename, recolor, reorder, and delete pipeline stages on the kanban and in Settings.",
     level: 1,
   },
   segment_settings: {

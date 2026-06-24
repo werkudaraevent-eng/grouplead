@@ -13,6 +13,13 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Plus, MoreVertical, Pencil, Trash2, CheckCircle2, GripVertical, AlertTriangle, Check, X, Loader2, Star } from "lucide-react"
 import { SettingsPageHeader } from "@/components/layout/settings-page-header"
+import { usePermissions } from "@/contexts/permissions-context"
+import {
+    createStageAction,
+    renameStageAction,
+    deleteStageAction,
+    changeStageColorAction,
+} from "@/app/actions/stage-actions"
 import {
     DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
@@ -39,6 +46,11 @@ function getColorHex(color: string) {
 export default function PipelineOverviewPage() {
     const supabase = createClient()
     const router = useRouter()
+    const { can } = usePermissions()
+    const canCreateStage = can("pipeline", "create")
+    const canUpdateStage = can("pipeline", "update")
+    const canDeleteStage = can("pipeline", "delete")
+    const canManageStages = canCreateStage || canUpdateStage || canDeleteStage
 
     const [pipelines, setPipelines] = useState<Pipeline[]>([])
     const [allStages, setAllStages] = useState<PipelineStage[]>([])
@@ -127,16 +139,18 @@ export default function PipelineOverviewPage() {
         if (!newName.trim()) return
         const stg = allStages.find(s => s.id === id)
         if (stg?.name === newName) return
+        if (!canUpdateStage) { toast.error("You don't have permission to rename stages"); return }
         setAllStages(prev => prev.map(s => s.id === id ? { ...s, name: newName.trim() } : s))
-        const { error } = await supabase.from("pipeline_stages").update({ name: newName.trim() }).eq("id", id)
-        if (error) { toast.error("Failed to rename stage"); loadData() }
+        const res = await renameStageAction(id, newName.trim())
+        if (!res.success) { toast.error(res.error || "Failed to rename stage"); loadData() }
     }
 
     const handleChangeColor = async (id: string, color: string) => {
         setColorPickerStage(null)
+        if (!canUpdateStage) { toast.error("You don't have permission to edit stages"); return }
         setAllStages(prev => prev.map(s => s.id === id ? { ...s, color } : s))
-        const { error } = await supabase.from("pipeline_stages").update({ color }).eq("id", id)
-        if (error) { toast.error("Failed to change color"); loadData() }
+        const res = await changeStageColorAction(id, color)
+        if (!res.success) { toast.error(res.error || "Failed to change color"); loadData() }
     }
 
     const openAddStage = (pipelineId: string, type: 'open' | 'closed') => {
@@ -150,25 +164,22 @@ export default function PipelineOverviewPage() {
 
     const confirmAddStage = async () => {
         if (!newStageName.trim() || !addStagePipelineId) return
+        if (!canCreateStage) { toast.error("You don't have permission to create stages"); setShowAddStageDialog(false); return }
         const pStages = allStages.filter(s => s.pipeline_id === addStagePipelineId && s.stage_type === addStageType)
         const maxSort = pStages.length > 0 ? Math.max(...pStages.map(s => s.sort_order)) : (addStageType === 'open' ? 0 : 900)
 
-        const insertData: any = {
-            pipeline_id: addStagePipelineId,
+        const res = await createStageAction({
+            pipelineId: addStagePipelineId,
             name: newStageName.trim(),
-            stage_type: addStageType,
+            stageType: addStageType,
             color: addStageType === 'open' ? newStageColor : (newStageClosedStatus === 'won' ? 'emerald' : 'red'),
-            sort_order: maxSort + 1,
-        }
-        if (addStageType === 'closed') {
-            insertData.closed_status = newStageClosedStatus
-        }
-
-        const { data, error } = await supabase.from("pipeline_stages").insert(insertData).select().single()
-        if (error) {
-            toast.error(error.message.includes("unique") ? "Stage name already exists" : "Failed to add stage")
-        } else if (data) {
-            setAllStages(prev => [...prev, data as PipelineStage])
+            sortOrder: maxSort + 1,
+            closedStatus: addStageType === 'closed' ? newStageClosedStatus : undefined,
+        })
+        if (!res.success) {
+            toast.error(res.error || "Failed to add stage")
+        } else if (res.data) {
+            setAllStages(prev => [...prev, res.data as PipelineStage])
             toast.success("Stage added")
         }
         setShowAddStageDialog(false)
@@ -176,14 +187,15 @@ export default function PipelineOverviewPage() {
 
     const confirmDeleteStage = async () => {
         if (!deleteStageId) return
+        if (!canDeleteStage) { toast.error("You don't have permission to delete stages"); setShowDeleteStageDialog(false); return }
         const { count } = await supabase.from("leads").select("id", { count: "exact", head: true }).eq("pipeline_stage_id", deleteStageId)
         if (count && count > 0) {
             toast.error(`Cannot delete — ${count} lead(s) are actively in this stage`)
             setShowDeleteStageDialog(false)
             return
         }
-        const { error } = await supabase.from("pipeline_stages").delete().eq("id", deleteStageId)
-        if (error) toast.error("Failed to delete stage")
+        const res = await deleteStageAction(deleteStageId)
+        if (!res.success) toast.error(res.error || "Failed to delete stage")
         else {
             setAllStages(prev => prev.filter(s => s.id !== deleteStageId))
             toast.success("Stage deleted")
@@ -287,6 +299,7 @@ export default function PipelineOverviewPage() {
     const handleDragEnd = async (event: DragEndEvent, pipelineId: string) => {
         const { active, over } = event
         if (!over) return
+        if (!canUpdateStage) { toast.error("You don't have permission to reorder stages"); return }
 
         const activeStage = allStages.find(s => s.id === active.id && s.pipeline_id === pipelineId)
         if (!activeStage) return
@@ -425,12 +438,13 @@ export default function PipelineOverviewPage() {
                             onKeyDown={e => { if (e.key === 'Enter') handleRenameStage(stage.id, editingStage.name); if (e.key === 'Escape') setEditingStage(null) }}
                         />
                     ) : (
-                        <div className="flex-1 text-[12.5px] font-medium text-[#0f1729] truncate" onDoubleClick={() => setEditingStage({ id: stage.id, name: stage.name })}>
+                        <div className="flex-1 text-[12.5px] font-medium text-[#0f1729] truncate" onDoubleClick={() => { if (canUpdateStage) setEditingStage({ id: stage.id, name: stage.name }) }}>
                             {stage.name}
                         </div>
                     )}
 
                     {/* Stage menu */}
+                    {canManageStages && (
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                             <Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 group-hover:opacity-100 text-slate-400 hover:text-slate-700 hover:bg-slate-100">
@@ -438,20 +452,27 @@ export default function PipelineOverviewPage() {
                             </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-36 text-xs">
-                            <DropdownMenuItem onClick={() => setEditingStage({ id: stage.id, name: stage.name })} className="text-xs gap-2 py-1.5">
-                                <Pencil className="h-3 w-3" /> Rename
-                            </DropdownMenuItem>
-                            {!isClosed && (
+                            {canUpdateStage && (
+                                <DropdownMenuItem onClick={() => setEditingStage({ id: stage.id, name: stage.name })} className="text-xs gap-2 py-1.5">
+                                    <Pencil className="h-3 w-3" /> Rename
+                                </DropdownMenuItem>
+                            )}
+                            {canUpdateStage && !isClosed && (
                                 <DropdownMenuItem onClick={(e) => { e.preventDefault(); setColorPickerStage(stage.id) }} className="text-xs gap-2 py-1.5">
                                     <div className="h-3 w-3 rounded-full" style={{ backgroundColor: getColorHex(stage.color) }} /> Change Color
                                 </DropdownMenuItem>
                             )}
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem onClick={() => { setDeleteStageId(stage.id); setShowDeleteStageDialog(true) }} className="text-xs gap-2 py-1.5 text-red-600 focus:text-red-700">
-                                <Trash2 className="h-3 w-3" /> Delete
-                            </DropdownMenuItem>
+                            {canDeleteStage && (
+                                <>
+                                    {canUpdateStage && <DropdownMenuSeparator />}
+                                    <DropdownMenuItem onClick={() => { setDeleteStageId(stage.id); setShowDeleteStageDialog(true) }} className="text-xs gap-2 py-1.5 text-red-600 focus:text-red-700">
+                                        <Trash2 className="h-3 w-3" /> Delete
+                                    </DropdownMenuItem>
+                                </>
+                            )}
                         </DropdownMenuContent>
                     </DropdownMenu>
+                    )}
 
                     {/* Color picker popover */}
                     {colorPickerStage === stage.id && !isClosed && (
@@ -569,7 +590,9 @@ export default function PipelineOverviewPage() {
                                                 </StageDropZone>
                                             </SortableContext>
                                             <div className="px-3.5 py-1.5 border-t border-[#f1f3f5]">
-                                                <button onClick={() => openAddStage(pipeline.id, 'open')} className="text-[11.5px] font-[500] text-[#6366f1] hover:bg-[#eef2ff] px-2 py-1 rounded transition-colors">+ Add Stage</button>
+                                                {canCreateStage && (
+                                                    <button onClick={() => openAddStage(pipeline.id, 'open')} className="text-[11.5px] font-[500] text-[#6366f1] hover:bg-[#eef2ff] px-2 py-1 rounded transition-colors">+ Add Stage</button>
+                                                )}
                                             </div>
                                         </div>
 
@@ -586,7 +609,9 @@ export default function PipelineOverviewPage() {
                                                 </StageDropZone>
                                             </SortableContext>
                                             <div className="px-3.5 py-1.5 border-t border-[#f1f3f5]">
-                                                <button onClick={() => openAddStage(pipeline.id, 'closed')} className="text-[11.5px] font-[500] text-[#6366f1] hover:bg-[#eef2ff] px-2 py-1 rounded transition-colors">+ Add Stage</button>
+                                                {canCreateStage && (
+                                                    <button onClick={() => openAddStage(pipeline.id, 'closed')} className="text-[11.5px] font-[500] text-[#6366f1] hover:bg-[#eef2ff] px-2 py-1 rounded transition-colors">+ Add Stage</button>
+                                                )}
                                             </div>
                                         </div>
                                     </DndContext>

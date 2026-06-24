@@ -23,6 +23,7 @@ import { usePermissions } from "@/contexts/permissions-context"
 import { Tooltip } from "@/components/ui/tooltip"
 import { toast } from "sonner"
 import { updatePipelineStageAction } from "@/app/actions/lead-actions"
+import { renameStageAction, cloneStageAction, deleteStageAction } from "@/app/actions/stage-actions"
 import { Building2, CalendarDays, CheckCircle2, ChevronsRight, Copy, Edit2, Globe, Loader2, MoreHorizontal, Pencil, Trash2, User, XCircle, Clock, Check, ThumbsDown, ThumbsUp } from "lucide-react"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
@@ -116,6 +117,11 @@ export function LeadKanban({
     dndEnabled = true,
 }: LeadKanbanProps) {
     const { fmt: formatCompact } = useCurrency()
+    const { can } = usePermissions()
+    const canCreateStage = can("pipeline", "create")
+    const canUpdateStage = can("pipeline", "update")
+    const canDeleteStage = can("pipeline", "delete")
+    const canManageStages = canCreateStage || canUpdateStage || canDeleteStage
     const [stages, setStages] = useState<PipelineStage[]>(FALLBACK_STAGES)
     const [leads, setLeads] = useState<Lead[]>(initialLeads)
     const [loading, setLoading] = useState(true)
@@ -243,72 +249,60 @@ export function LeadKanban({
     }, [stages, leads])
 
     // ─── Stage Management Handlers ───────────────────────────────
+    // All writes route through gated server actions (the `pipeline` RBAC
+    // module). Local state updates optimistically; on failure we surface the
+    // server's error and leave state untouched.
     const handleRenameStage = async (stageId: string, newName: string) => {
-        if (!newName.trim()) return
-        const { error } = await supabase
-            .from("pipeline_stages")
-            .update({ name: newName.trim() })
-            .eq("id", stageId)
-        if (error) {
-            toast.error(`Rename failed: ${error.message}`)
+        const name = newName.trim()
+        if (!name) { setRenameStageId(null); return }
+        if (!canUpdateStage) {
+            toast.error("You don't have permission to rename stages")
+            setRenameStageId(null)
+            return
+        }
+        const res = await renameStageAction(stageId, name)
+        if (!res.success) {
+            toast.error(`Rename failed: ${res.error}`)
         } else {
-            setStages(prev => prev.map(s => s.id === stageId ? { ...s, name: newName.trim() } : s))
+            setStages(prev => prev.map(s => s.id === stageId ? { ...s, name } : s))
             toast.success("Stage renamed")
         }
         setRenameStageId(null)
     }
 
     const handleCloneStage = async (stage: PipelineStage) => {
-        const maxSort = Math.max(...stages.map(s => s.sort_order), 0)
-        const { data, error } = await supabase
-            .from("pipeline_stages")
-            .insert({
-                name: `${stage.name} (Copy)`,
-                color: stage.color,
-                sort_order: maxSort + 1,
-                is_default: false,
-                stage_type: stage.stage_type,
-                pipeline_id: stage.pipeline_id ?? pipelineId,
-            })
-            .select()
-            .single()
-        if (error) {
-            toast.error(`Clone failed: ${error.message}`)
-        } else if (data) {
-            setStages(prev => [...prev, data as PipelineStage])
-            toast.success(`Stage "${data.name}" created`)
+        if (!canCreateStage) {
+            toast.error("You don't have permission to create stages")
+            return
+        }
+        const res = await cloneStageAction(stage.id)
+        if (!res.success) {
+            toast.error(`Clone failed: ${res.error}`)
+        } else if (res.data) {
+            setStages(prev => [...prev, res.data as PipelineStage])
+            toast.success(`Stage "${res.data.name}" created`)
         }
     }
 
     const handleDeleteStage = async (stageId: string) => {
+        if (!canDeleteStage) {
+            toast.error("You don't have permission to delete stages")
+            setDeleteStageTarget(null)
+            return
+        }
         // Move any leads in this stage to the first available stage
         const fallbackStage = stages.find(s => s.id !== stageId)
-        if (fallbackStage) {
-            const leadsInStage = leads.filter(l => l.pipeline_stage_id === stageId)
-            if (leadsInStage.length > 0) {
-                const { error: moveErr } = await supabase
-                    .from("leads")
-                    .update({ pipeline_stage_id: fallbackStage.id })
-                    .eq("pipeline_stage_id", stageId)
-                if (moveErr) {
-                    toast.error(`Failed to move leads: ${moveErr.message}`)
-                    return
-                }
-                // Update local state
+        const res = await deleteStageAction(stageId, fallbackStage?.id ?? null)
+        if (!res.success) {
+            toast.error(`Delete failed: ${res.error}`)
+        } else {
+            if (fallbackStage) {
                 setLeads(prev => prev.map(l =>
                     l.pipeline_stage_id === stageId
                         ? { ...l, pipeline_stage_id: fallbackStage.id }
                         : l
                 ))
             }
-        }
-        const { error } = await supabase
-            .from("pipeline_stages")
-            .delete()
-            .eq("id", stageId)
-        if (error) {
-            toast.error(`Delete failed: ${error.message}`)
-        } else {
             setStages(prev => prev.filter(s => s.id !== stageId))
             toast.success("Stage deleted")
         }
@@ -713,6 +707,7 @@ export function LeadKanban({
                                                 </span>
                                             )}
                                         </div>
+                                        {canManageStages && (
                                         <DropdownMenu>
                                             <DropdownMenuTrigger asChild>
                                                 <button type="button" className="h-7 w-7 inline-flex items-center justify-center rounded-md hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-all shrink-0 opacity-0 group-hover/stage:opacity-100">
@@ -720,25 +715,34 @@ export function LeadKanban({
                                                 </button>
                                             </DropdownMenuTrigger>
                                             <DropdownMenuContent align="end" className="w-44">
-                                                <DropdownMenuItem onClick={() => {
-                                                    setRenameValue(stage.name)
-                                                    setRenameStageId(stage.id)
-                                                }}>
-                                                    <Pencil className="mr-2 h-3.5 w-3.5" /> Rename
-                                                </DropdownMenuItem>
-                                                <DropdownMenuItem onClick={() => handleCloneStage(stage)}>
-                                                    <Copy className="mr-2 h-3.5 w-3.5" /> Clone Stage
-                                                </DropdownMenuItem>
-                                                <DropdownMenuSeparator />
-                                                <DropdownMenuItem
-                                                    className="text-red-600 focus:text-red-600 focus:bg-red-50"
-                                                    disabled={stages.length <= 1}
-                                                    onClick={() => setDeleteStageTarget(stage)}
-                                                >
-                                                    <Trash2 className="mr-2 h-3.5 w-3.5" /> Delete Stage
-                                                </DropdownMenuItem>
+                                                {canUpdateStage && (
+                                                    <DropdownMenuItem onClick={() => {
+                                                        setRenameValue(stage.name)
+                                                        setRenameStageId(stage.id)
+                                                    }}>
+                                                        <Pencil className="mr-2 h-3.5 w-3.5" /> Rename
+                                                    </DropdownMenuItem>
+                                                )}
+                                                {canCreateStage && (
+                                                    <DropdownMenuItem onClick={() => handleCloneStage(stage)}>
+                                                        <Copy className="mr-2 h-3.5 w-3.5" /> Clone Stage
+                                                    </DropdownMenuItem>
+                                                )}
+                                                {canDeleteStage && (
+                                                    <>
+                                                        {(canUpdateStage || canCreateStage) && <DropdownMenuSeparator />}
+                                                        <DropdownMenuItem
+                                                            className="text-red-600 focus:text-red-600 focus:bg-red-50"
+                                                            disabled={stages.length <= 1}
+                                                            onClick={() => setDeleteStageTarget(stage)}
+                                                        >
+                                                            <Trash2 className="mr-2 h-3.5 w-3.5" /> Delete Stage
+                                                        </DropdownMenuItem>
+                                                    </>
+                                                )}
                                             </DropdownMenuContent>
                                         </DropdownMenu>
+                                        )}
                                     </div>
                                 </div>
 
