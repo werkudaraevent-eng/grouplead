@@ -122,7 +122,7 @@ export function NodeBreakdownWidget({
       supabase.from("goal_nodes").select("*").eq("goal_id", goalId).order("sort_order"),
       supabase.from("leads").select(
         "id, actual_value, estimated_value, company_id, pic_sales_id, client_company_id, client_company:client_companies!client_company_id(id, name, line_industry), pipeline_stage:pipeline_stages!pipeline_stage_id(closed_status), category, lead_source, main_stream, grade_lead, stream_type, business_purpose, tipe, nationality, sector, area, referral_source, event_format, event_date_start, event_date_end, closed_won_date"
-      ).eq("company_id", activeCompany.id),
+      ).eq("company_id", activeCompany.id).is("deleted_at", null),
       supabase.from("goal_segments").select("*").eq("company_id", activeCompany.id),
     ])
 

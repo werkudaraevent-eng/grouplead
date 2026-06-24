@@ -535,6 +535,7 @@ export function LeadDashboard() {
                 account_manager_profile:profiles!account_manager_id(full_name, avatar_url)
             `)
             .eq('pipeline_id', activePipeline.id)
+            .is('deleted_at', null)
 
         // Scope leads to the active subsidiary. In "All units" (holding) lens
         // we leave it unfiltered and RLS unions every company the user can see.

@@ -139,7 +139,8 @@ export function useGoalData(options?: {
         .select(
           "id, actual_value, estimated_value, event_date_start, event_date_end, closed_won_date, pipeline_stage_id, company_id, pic_sales_id, client_company_id, client_company:client_companies!client_company_id(id, name, line_industry), pipeline_stage:pipeline_stages!pipeline_stage_id(id, closed_status), category, lead_source, main_stream, grade_lead, stream_type, business_purpose, tipe, nationality, sector, area, referral_source, event_format"
         )
-        .eq("company_id", activeCompany.id),
+        .eq("company_id", activeCompany.id)
+        .is("deleted_at", null),
     ])
 
     const stageWeights: StageWeightsMap = (settingsRes.data as GoalSettingsV2 | null)?.stage_weights ?? {}

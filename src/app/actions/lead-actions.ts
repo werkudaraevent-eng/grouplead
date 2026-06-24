@@ -422,7 +422,7 @@ export async function deleteLeadAction(
 
         const { error } = await supabase
             .from("leads")
-            .delete()
+            .update({ deleted_at: new Date().toISOString(), deleted_by: guard.userId })
             .eq("id", leadId)
 
         if (error) return { success: false, error: error.message }
@@ -430,11 +430,11 @@ export async function deleteLeadAction(
         // Audit log — await so the insert is durable before the action
         // returns; unawaited promises can be cancelled mid-flight.
         await logAuditEvent({
-            action: "delete",
+            action: "archive",
             resource_type: "lead",
             resource_id: String(leadId),
             resource_name: leadData?.project_name || "",
-            description: `deleted lead "${leadData?.project_name || leadId}"`,
+            description: `moved lead "${leadData?.project_name || leadId}" to the Recycle Bin`,
         })
 
         revalidatePath("/", "layout")
@@ -469,7 +469,7 @@ export async function bulkDeleteLeadsAction(
 
         const { error } = await supabase
             .from("leads")
-            .delete()
+            .update({ deleted_at: new Date().toISOString(), deleted_by: guard.userId })
             .in("id", ids)
 
         if (error) return { success: false, error: error.message }
@@ -479,11 +479,11 @@ export async function bulkDeleteLeadsAction(
         await Promise.all(
             (leadData ?? []).map((lead) =>
                 logAuditEvent({
-                    action: "delete",
+                    action: "archive",
                     resource_type: "lead",
                     resource_id: String(lead.id),
                     resource_name: lead.project_name || "",
-                    description: `deleted lead "${lead.project_name || lead.id}"`,
+                    description: `moved lead "${lead.project_name || lead.id}" to the Recycle Bin`,
                 })
             )
         )

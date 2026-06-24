@@ -195,6 +195,7 @@ export default function ContactsPage() {
         const { data, error } = await supabase
             .from("contacts")
             .select("id, salutation, full_name, email, phone, job_title, created_at, client_company_id, secondary_email, secondary_phone, secondary_emails, secondary_phones, linkedin_url, notes, date_of_birth, address, social_urls, owner_id, needs_enrichment, client_company:client_company_id ( name ), owner:profiles!contacts_owner_id_fkey(full_name, avatar_url)")
+            .is("deleted_at", null)
             .order("full_name", { ascending: true })
 
         if (error) {

@@ -412,7 +412,7 @@ export function GoalSegmentBreakdownWidget() {
       const supabase = createClient()
       const [segmentsRes, leadsRes] = await Promise.all([
         supabase.from("goal_segments").select("id, source_field, fallback_name, mappings").eq("company_id", activeCompany.id).limit(1),
-        supabase.from("leads").select("id, actual_value, pipeline_stage:pipeline_stages!pipeline_stage_id(closed_status), client_company:client_companies!client_company_id(line_industry, area, sector, nationality, industry), category, lead_source, main_stream, grade_lead, stream_type, business_purpose, tipe, nationality, sector, area, referral_source, event_format, line_industry").eq("company_id", activeCompany.id),
+        supabase.from("leads").select("id, actual_value, pipeline_stage:pipeline_stages!pipeline_stage_id(closed_status), client_company:client_companies!client_company_id(line_industry, area, sector, nationality, industry), category, lead_source, main_stream, grade_lead, stream_type, business_purpose, tipe, nationality, sector, area, referral_source, event_format, line_industry").eq("company_id", activeCompany.id).is("deleted_at", null),
       ])
 
       const segments = segmentsRes.data ?? []

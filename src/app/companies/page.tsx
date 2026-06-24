@@ -159,6 +159,7 @@ export default function CompaniesPage() {
         const { data, error } = await supabase
             .from("client_companies")
             .select("id, name, industry, line_industry, website, phone, address, area, street_address, city, postal_code, country, parent_id, owner_id, created_at, account_status, needs_enrichment, custom_data, parent:parent_id(id, name), owner:profiles!client_companies_owner_id_fkey(full_name, avatar_url)")
+            .is("deleted_at", null)
             .order("name", { ascending: true })
         if (error) {
             console.warn("[Companies Fetch]:", error.message || error)

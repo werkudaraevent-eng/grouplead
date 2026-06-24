@@ -10,6 +10,7 @@ import {
     ChevronRight,
     Database,
     ShieldAlert,
+    Trash2,
 } from "lucide-react"
 import { SettingsPageHeader } from "@/components/layout/settings-page-header"
 import { CurrencySettingsRow } from "@/features/settings/components/currency-settings-card"
@@ -90,6 +91,13 @@ const sections: ModuleSection[] = [
                 description: "Define global access control matrices for all system roles.",
                 href: "/settings/permissions",
                 icon: Shield,
+                permission: { module: "permissions", action: "read" },
+            },
+            {
+                title: "Recycle Bin",
+                description: "Restore or permanently remove deleted leads, companies, and contacts.",
+                href: "/settings/recycle-bin",
+                icon: Trash2,
                 permission: { module: "permissions", action: "read" },
             },
         ],

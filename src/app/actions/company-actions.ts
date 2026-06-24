@@ -71,14 +71,18 @@ export async function deleteClientCompaniesAction(
     if (!ids.length) return { success: true }
 
     const supabase = await createClient()
-    const { error } = await supabase.from("client_companies").delete().in("id", ids)
+    // Soft delete: move to the Recycle Bin instead of removing permanently.
+    const { error } = await supabase
+        .from("client_companies")
+        .update({ deleted_at: new Date().toISOString(), deleted_by: guard.userId })
+        .in("id", ids)
     if (error) return { success: false, error: error.message }
 
     await logAuditEvent({
-        action: "delete",
+        action: "archive",
         resource_type: "client_company",
         resource_id: ids.length === 1 ? ids[0] : undefined,
-        description: `deleted ${ids.length} client compan${ids.length === 1 ? "y" : "ies"}`,
+        description: `moved ${ids.length} client compan${ids.length === 1 ? "y" : "ies"} to the Recycle Bin`,
         metadata: { ids },
     })
     revalidatePath("/companies")

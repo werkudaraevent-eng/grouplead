@@ -79,14 +79,18 @@ export async function deleteContactsAction(
     if (!ids.length) return { success: true }
 
     const supabase = await createClient()
-    const { error } = await supabase.from("contacts").delete().in("id", ids)
+    // Soft delete: move to the Recycle Bin instead of removing permanently.
+    const { error } = await supabase
+        .from("contacts")
+        .update({ deleted_at: new Date().toISOString(), deleted_by: guard.userId })
+        .in("id", ids)
     if (error) return { success: false, error: error.message }
 
     await logAuditEvent({
-        action: "delete",
+        action: "archive",
         resource_type: "contact",
         resource_id: ids.length === 1 ? ids[0] : undefined,
-        description: `deleted ${ids.length} contact${ids.length === 1 ? "" : "s"}`,
+        description: `moved ${ids.length} contact${ids.length === 1 ? "" : "s"} to the Recycle Bin`,
         metadata: { ids },
     })
     revalidatePath("/contacts")
