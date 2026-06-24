@@ -5,6 +5,7 @@ import { useForm } from "react-hook-form"
 import { z } from "zod"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { createClient } from "@/utils/supabase/client"
+import { createClientCompanyAction, updateClientCompanyAction } from "@/app/actions/company-actions"
 import {
     Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription,
 } from "@/components/ui/sheet"
@@ -341,19 +342,19 @@ export function AddCompanyModal({ open, onOpenChange, onCreated, initialData }: 
         }
         
         if (isEditMode) {
-            const { error } = await supabase.from("client_companies").update(payload).eq("id", initialData!.id)
-            if (error) { toast.error(error.message); setSaving(false); return }
+            const result = await updateClientCompanyAction(initialData!.id, payload)
+            if (!result.success) { toast.error(result.error || "Failed to update company"); setSaving(false); return }
             toast.success("Company updated")
             setSaving(false)
             onOpenChange(false)
             onCreated?.(initialData!.id)
         } else {
-            const { data: newRec, error } = await supabase.from("client_companies").insert(payload).select("id").single()
-            if (error) { toast.error(error.message); setSaving(false); return }
+            const result = await createClientCompanyAction(payload)
+            if (!result.success || !result.data) { toast.error(result.error || "Failed to create company"); setSaving(false); return }
             toast.success("Company created")
             setSaving(false)
             onOpenChange(false)
-            onCreated?.(newRec.id)
+            onCreated?.(result.data.id)
         }
     }
 

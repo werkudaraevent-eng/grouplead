@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { createClient } from "@/utils/supabase/client"
+import { updateClientCompanyAction } from "@/app/actions/company-actions"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -210,9 +211,9 @@ export function CompanyDetailPage({ company, leads, contactCount, subsidiaries =
             return
         }
         setSavingName(true)
-        const { error } = await supabase.from('client_companies').update({ name: nameEdit.trim() }).eq('id', company.id)
-        if (error) {
-            toast.error("Failed to update company name")
+        const result = await updateClientCompanyAction(company.id, { name: nameEdit.trim() })
+        if (!result.success) {
+            toast.error(result.error || "Failed to update company name")
         } else {
             toast.success("Name updated")
             router.refresh()
@@ -224,10 +225,10 @@ export function CompanyDetailPage({ company, leads, contactCount, subsidiaries =
     const handleSaveOwner = async (newOwnerId: string) => {
         const val = newOwnerId === "unassigned" ? null : newOwnerId
         if (val === company.owner_id) return
-        
-        const { error } = await supabase.from('client_companies').update({ owner_id: val }).eq('id', company.id)
-        if (error) {
-            toast.error("Failed to update record owner")
+
+        const result = await updateClientCompanyAction(company.id, { owner_id: val })
+        if (!result.success) {
+            toast.error(result.error || "Failed to update record owner")
         } else {
             toast.success("Record owner updated")
             router.refresh()

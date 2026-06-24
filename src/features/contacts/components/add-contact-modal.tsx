@@ -5,6 +5,7 @@ import { useForm } from "react-hook-form"
 import { z } from "zod"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { createClient } from "@/utils/supabase/client"
+import { createContactAction, updateContactAction } from "@/app/actions/contact-actions"
 import { Loader2, Plus, Trash2, MapPin, Settings2 } from "lucide-react"
 import { toast } from "sonner"
 import Link from "next/link"
@@ -350,17 +351,17 @@ export function AddContactModal({ isOpen, onOpenChange, preselectedCompanyId, in
             const selectFields = "id, salutation, full_name, email, phone, job_title, created_at, client_company_id, secondary_email, secondary_phone, secondary_emails, secondary_phones, linkedin_url, notes, date_of_birth, address, social_urls, owner_id, custom_data, client_company:client_company_id ( name )"
 
             if (isEditMode) {
-                const { error } = await supabase.from("contacts").update(payload).eq("id", initialData!.id).select(selectFields).single()
-                if (error) throw error
+                const result = await updateContactAction(initialData!.id, payload, selectFields)
+                if (!result.success) throw new Error(result.error)
                 toast.success("Contact updated successfully")
                 resetAndClose()
                 onSuccess?.(initialData!.id)
             } else {
-                const { data, error } = await supabase.from("contacts").insert(payload).select(selectFields).single()
-                if (error) throw error
+                const result = await createContactAction(payload, selectFields)
+                if (!result.success || !result.data) throw new Error(result.error || "Failed to create contact")
                 toast.success("Contact created successfully")
                 resetAndClose()
-                onSuccess?.(data.id)
+                onSuccess?.(result.data.id)
             }
         } catch (err: any) {
             console.warn("[Contact Save]:", err.message || err)

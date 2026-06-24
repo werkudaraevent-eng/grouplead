@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { createClient } from "@/utils/supabase/client"
+import { updateContactAction } from "@/app/actions/contact-actions"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { toast } from "sonner"
@@ -116,8 +117,8 @@ export function ContactDetailPage({ contact, leads, lastModified, lastModifiedBy
             return
         }
         setSavingName(true)
-        const { error } = await supabase.from('contacts').update({ full_name: nameEdit.trim() }).eq('id', contact.id)
-        if (error) { toast.error("Failed to update contact name") }
+        const result = await updateContactAction(contact.id, { full_name: nameEdit.trim() })
+        if (!result.success) { toast.error(result.error || "Failed to update contact name") }
         else { toast.success("Name updated"); router.refresh() }
         setSavingName(false)
         setIsEditingName(false)
@@ -126,18 +127,18 @@ export function ContactDetailPage({ contact, leads, lastModified, lastModifiedBy
     const handleSaveOwner = async (newOwnerId: string) => {
         const val = newOwnerId === "unassigned" ? null : newOwnerId
         if (val === contact.owner?.id) return
-        
-        const { error } = await supabase.from('contacts').update({ owner_id: val }).eq('id', contact.id)
-        if (error) { toast.error("Failed to update record owner") }
+
+        const result = await updateContactAction(contact.id, { owner_id: val })
+        if (!result.success) { toast.error(result.error || "Failed to update record owner") }
         else { toast.success("Record owner updated"); router.refresh() }
     }
 
     const handleSaveCompany = async (newCompanyId: string) => {
         const val = newCompanyId === "unassigned" ? null : newCompanyId
         if (val === contact.client_company?.id) return
-        
-        const { error } = await supabase.from('contacts').update({ client_company_id: val }).eq('id', contact.id)
-        if (error) { toast.error("Failed to update company") }
+
+        const result = await updateContactAction(contact.id, { client_company_id: val })
+        if (!result.success) { toast.error(result.error || "Failed to update company") }
         else { toast.success("Company updated"); router.refresh() }
     }
 
