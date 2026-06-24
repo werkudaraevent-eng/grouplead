@@ -360,6 +360,14 @@ export function LeadKanban({
                 newIndex = overIndex >= 0 ? overIndex + (overIndex > activeIndex ? 1 : 0) : prev.length
             }
 
+            // Bail out when nothing actually changes. `handleDragOver` fires on
+            // every pointer move, so without this guard we allocate a fresh
+            // array (and re-render) even when the card is already where it
+            // would land. Cheapest possible no-op keeps dragging smooth.
+            if (newIndex === activeIndex && activeLead.pipeline_stage_id === overStageId) {
+                return prev
+            }
+
             const newLead = { ...prev[activeIndex], pipeline_stage_id: overStageId, status: newStage?.name ?? prev[activeIndex].status }
             const prevWithoutActive = prev.filter(l => l.id !== activeLeadId)
             
@@ -369,7 +377,7 @@ export function LeadKanban({
                 ...prevWithoutActive.slice(newIndex)
             ]
         })
-    }, [stages])
+    }, [stages, canMoveLeads])
 
     // Persist a stage transition to the server with optimistic-cleanup +
     // toast feedback. Extracted so both the drag handler and the backward
@@ -1055,7 +1063,7 @@ function getInitials(name: string): string {
 // KANBAN CARD — Banani-Style Enterprise Layout
 // ============================================================
 
-function KanbanCard({
+function KanbanCardBase({
     lead,
     onClick,
     onQuickEdit,
@@ -1404,5 +1412,18 @@ function KanbanCard({
         </div>
     )
 }
+
+// Memoize the card body. This is the heaviest leaf in the board (badges,
+// avatars, currency formatting, menus), so skipping its re-render is the
+// biggest win during drag. Compare only render-affecting data and ignore the
+// inline callbacks the parent recreates each render — they close over stable
+// handlers, so it's safe to skip them in the equality check.
+const KanbanCard = memo(KanbanCardBase, (prev, next) =>
+    prev.lead === next.lead &&
+    prev.isDragging === next.isDragging &&
+    prev.isSelected === next.isSelected &&
+    prev.config === next.config &&
+    prev.stages === next.stages,
+)
 
 
