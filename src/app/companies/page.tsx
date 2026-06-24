@@ -11,6 +11,7 @@ import {
 import { toast } from "sonner"
 
 import { createClient } from "@/utils/supabase/client"
+import { deleteClientCompaniesAction } from "@/app/actions/company-actions"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import {
@@ -224,8 +225,8 @@ export default function CompaniesPage() {
 
     const executeBulkDelete = async () => {
         const ids = Array.from(selectedIds)
-        const { error } = await supabase.from("client_companies").delete().in("id", ids)
-        if (error) { toast.error(error.message || "Failed to delete companies"); return }
+        const result = await deleteClientCompaniesAction(ids)
+        if (!result.success) { toast.error(result.error || "Failed to delete companies"); return }
         toast.success(`${ids.length} companies deleted`)
         setSelectedIds(new Set())
         setDeleteConfirmOpen(false)
@@ -233,8 +234,8 @@ export default function CompaniesPage() {
     }
     const handleDelete = async (company: CompanyRow) => {
         if (!confirm(`Delete ${company.name}? This cannot be undone.`)) return
-        const { error } = await supabase.from("client_companies").delete().eq("id", company.id)
-        if (error) { toast.error("Failed to delete company"); return }
+        const result = await deleteClientCompaniesAction([company.id])
+        if (!result.success) { toast.error(result.error || "Failed to delete company"); return }
         toast.success("Company deleted")
         fetchCompanies()
         if (selectedCompany?.id === company.id) setSheetOpen(false)

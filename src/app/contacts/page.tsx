@@ -12,6 +12,7 @@ import {
 import { toast } from "sonner"
 
 import { createClient } from "@/utils/supabase/client"
+import { deleteContactsAction } from "@/app/actions/contact-actions"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import {
@@ -349,9 +350,9 @@ export default function ContactsPage() {
 
     const executeBulkDelete = async () => {
         const ids = Array.from(selectedIds)
-        const { error } = await supabase.from("contacts").delete().in("id", ids)
-        if (error) {
-            toast.error(error.message || "Failed to delete contacts")
+        const result = await deleteContactsAction(ids)
+        if (!result.success) {
+            toast.error(result.error || "Failed to delete contacts")
             setDeleteConfirmOpen(false)
             return
         }
@@ -363,10 +364,10 @@ export default function ContactsPage() {
 
     const handleDelete = async (contact: ContactRow) => {
         if (!confirm(`Delete ${contact.full_name}? This cannot be undone.`)) return
-        const { error } = await supabase.from("contacts").delete().eq("id", contact.id)
-        if (error) {
-            console.warn("[Contact Delete]:", error.message || error)
-            toast.error("Failed to delete contact")
+        const result = await deleteContactsAction([contact.id])
+        if (!result.success) {
+            console.warn("[Contact Delete]:", result.error)
+            toast.error(result.error || "Failed to delete contact")
             return
         }
         toast.success("Contact deleted")
