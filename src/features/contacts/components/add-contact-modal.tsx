@@ -181,14 +181,14 @@ export function AddContactModal({ isOpen, onOpenChange, preselectedCompanyId, in
 
     useEffect(() => {
         if (!isOpen) return
-        supabase.from("client_companies").select("id, name").order("name").then(({ data }) => {
+        supabase.from("client_companies").select("id, name").is("deleted_at", null).order("name").then(({ data }) => {
             if (data) setCompanies(data as unknown as ClientCompany[])
         })
         // Fetch existing contacts for soft duplicate detection. Light
         // payload (id + full_name only) so it is cheap even for tens of
         // thousands of rows. Excludes the contact being edited so a
         // record can't match itself.
-        let q = supabase.from("contacts").select("id, full_name").order("full_name")
+        let q = supabase.from("contacts").select("id, full_name").is("deleted_at", null).order("full_name")
         if (initialData?.id) q = q.neq("id", initialData.id)
         q.then(({ data }) => {
             if (data) setExistingContacts(data as { id: string; full_name: string }[])

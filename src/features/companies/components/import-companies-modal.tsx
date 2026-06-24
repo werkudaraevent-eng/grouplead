@@ -400,6 +400,11 @@ export function ImportCompaniesModal({ open, onOpenChange, onSuccess }: ImportCo
                         // Merge custom_data so we don't wipe existing keys.
                         updatable.custom_data = { ...existing.custom_data, ...payload.custom_data }
                     }
+                    // Re-importing a name that's in the Recycle Bin restores it
+                    // (the UNIQUE name index spans trashed rows, so we update +
+                    // un-trash rather than fail on a duplicate).
+                    updatable.deleted_at = null
+                    updatable.deleted_by = null
                     ;({ error } = await supabase
                         .from("client_companies")
                         .update(updatable)

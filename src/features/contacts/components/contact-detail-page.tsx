@@ -104,7 +104,7 @@ export function ContactDetailPage({ contact, leads, lastModified, lastModifiedBy
     }, [supabase])
 
     const fetchCompanies = useCallback(async () => {
-        const { data } = await supabase.from('client_companies').select('id, name').order('name')
+        const { data } = await supabase.from('client_companies').select('id, name').is('deleted_at', null).order('name')
         if (data) setAllCompanies(data)
     }, [supabase])
 

@@ -37,8 +37,8 @@ export default async function ContactPage({ params }: { params: Promise<{ contac
             .order('created_at', { ascending: false })
             .limit(1)
             .maybeSingle(),
-        supabase.from('contacts').select('id').gt('full_name', contact.full_name).order('full_name', { ascending: true }).limit(1).maybeSingle(),
-        supabase.from('contacts').select('id').lt('full_name', contact.full_name).order('full_name', { ascending: false }).limit(1).maybeSingle()
+        supabase.from('contacts').select('id').gt('full_name', contact.full_name).is('deleted_at', null).order('full_name', { ascending: true }).limit(1).maybeSingle(),
+        supabase.from('contacts').select('id').lt('full_name', contact.full_name).is('deleted_at', null).order('full_name', { ascending: false }).limit(1).maybeSingle()
     ])
 
     const lastModified = latestActivityRes.data?.created_at || contact.updated_at || contact.created_at

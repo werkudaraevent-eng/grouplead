@@ -39,8 +39,8 @@ export default async function CompanyPage({ params }: { params: Promise<{ compan
             .order('created_at', { ascending: false })
             .limit(1)
             .maybeSingle(),
-        supabase.from('client_companies').select('id').gt('name', company.name).order('name', { ascending: true }).limit(1).maybeSingle(),
-        supabase.from('client_companies').select('id').lt('name', company.name).order('name', { ascending: false }).limit(1).maybeSingle(),
+        supabase.from('client_companies').select('id').gt('name', company.name).is('deleted_at', null).order('name', { ascending: true }).limit(1).maybeSingle(),
+        supabase.from('client_companies').select('id').lt('name', company.name).is('deleted_at', null).order('name', { ascending: false }).limit(1).maybeSingle(),
         // Subsidiaries: companies whose parent_id points at this company.
         supabase
             .from('client_companies')

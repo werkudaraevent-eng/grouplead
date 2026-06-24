@@ -278,7 +278,7 @@ export function GoalConfigurationPage({ goal, dimensions }: { goal: GoalV2; dime
         if (error) throw error;
         newNodes = data?.map(d => d.name) || [];
       } else if (dim === "client_company") {
-        const { data, error } = await supabase.from("client_companies").select("name").eq("company_id", goal.company_id);
+        const { data, error } = await supabase.from("client_companies").select("name").eq("company_id", goal.company_id).is("deleted_at", null);
         if (error) throw error;
         newNodes = data?.map(d => d.name) || [];
       } else if (dim === "sales_owner") {
