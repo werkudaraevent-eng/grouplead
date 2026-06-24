@@ -367,34 +367,35 @@ export async function updatePipelineStageAction(
             amount: leadRow.estimated_value ?? null,
         })
 
-        const { error: stageHistoryError } = await supabase
-            .from("lead_stage_history")
-            .insert(auditEntries.stageHistoryEntry)
-
-        if (stageHistoryError) return { success: false, error: stageHistoryError.message }
-
-        const { error: activityError } = await supabase
-            .from("lead_activities")
-            .insert(auditEntries.activityEntry)
-
-        if (activityError) return { success: false, error: activityError.message }
-
-        // Audit log — must await so the row lands before the server
-        // action returns; otherwise Next.js can drop the unawaited insert.
         const prevStage = (leadRow.pipeline_stage as unknown as { name: string } | null)?.name ?? "Unknown"
         const leadProjectName = (leadRow as { project_name?: string | null }).project_name ?? ""
-        await logAuditEvent({
-            action: "stage_change",
-            resource_type: "lead",
-            resource_id: String(leadId),
-            resource_name: leadProjectName,
-            description: `moved lead${leadProjectName ? ` "${leadProjectName}"` : ""} from "${prevStage}" to "${stageRow.name}"`,
-            metadata: { from: prevStage, to: stageRow.name },
-        })
 
-        revalidatePath("/", "layout")
+        // Run the three audit writes in parallel rather than sequentially —
+        // they're independent and each is its own round-trip. Serial awaits
+        // here were a big chunk of the post-drop latency. `logAuditEvent`
+        // swallows its own errors, so it never blocks the move.
+        const [stageHistoryRes, activityRes] = await Promise.all([
+            supabase.from("lead_stage_history").insert(auditEntries.stageHistoryEntry),
+            supabase.from("lead_activities").insert(auditEntries.activityEntry),
+            logAuditEvent({
+                action: "stage_change",
+                resource_type: "lead",
+                resource_id: String(leadId),
+                resource_name: leadProjectName,
+                description: `moved lead${leadProjectName ? ` "${leadProjectName}"` : ""} from "${prevStage}" to "${stageRow.name}"`,
+                metadata: { from: prevStage, to: stageRow.name },
+            }),
+        ])
+
+        if (stageHistoryRes.error) return { success: false, error: stageHistoryRes.error.message }
+        if (activityRes.error) return { success: false, error: activityRes.error.message }
+
+        // Only revalidate the pipeline route. The previous `revalidatePath("/",
+        // "layout")` forced Next.js to refetch the entire app shell + dashboard
+        // on every single drag-drop, which dominated the perceived delay. The
+        // board updates optimistically on the client, so a targeted revalidate
+        // of /leads is all that's needed to keep server data fresh.
         revalidatePath("/leads")
-        revalidatePath(`/leads/${leadId}`)
         return { success: true }
     } catch (err) {
         return {

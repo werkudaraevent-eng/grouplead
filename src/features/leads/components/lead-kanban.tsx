@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState, memo } from "react"
 import { createPortal } from "react-dom"
 import {
     DndContext,
@@ -382,6 +382,16 @@ export function LeadKanban({
             originalStageId: string,
         ) => {
             const destinationStage = stages.find((s) => s.id === destinationStageId)
+
+            // Optimistic feedback: the card already moved on drop, so confirm
+            // immediately rather than waiting for the server round-trip. This
+            // is what makes the board feel instant on global kanban apps. If
+            // the server later rejects, we roll back and show an error.
+            const movedToNewStage = originalStageId !== destinationStageId
+            if (movedToNewStage) {
+                toast.success(`Moved to ${destinationStage?.name || "stage"}`)
+            }
+
             const result = await updatePipelineStageAction(
                 activeLeadId,
                 destinationStageId,
@@ -401,11 +411,6 @@ export function LeadKanban({
                 )
                 setLeads(initialLeads)
                 return false
-            }
-
-            const stageName = destinationStage?.name || "stage"
-            if (originalStageId !== destinationStageId) {
-                toast.success(`Moved to ${stageName}`)
             }
 
             if (onLeadStageChange && destinationStage) {
@@ -919,7 +924,7 @@ function DroppableColumn({ stageId, isEmpty, children }: { stageId: string; isEm
 // SORTABLE CARD — draggable with transform binding
 // ============================================================
 
-function SortableCard({
+function SortableCardBase({
     lead,
     onClick,
     onQuickEdit,
@@ -1002,6 +1007,23 @@ function SortableCard({
         </div>
     )
 }
+
+// Memoize the card. The parent passes fresh inline callbacks on every render
+// (e.g. `() => onSelectLead(lead)`), so the default shallow compare would never
+// skip. We compare ONLY the data that affects rendering — the lead object
+// reference (stable across drag reorders since arrayMove preserves refs),
+// selection state, config, stages, and the dnd flag — and deliberately ignore
+// the function props (they're recreated each render but close over stable
+// parent handlers + the same stable `lead`). This is what keeps dragging
+// smooth on large boards: only the card whose data changed re-renders, not all
+// 100+ cards on every pointer move.
+const SortableCard = memo(SortableCardBase, (prev, next) =>
+    prev.lead === next.lead &&
+    prev.isSelected === next.isSelected &&
+    prev.config === next.config &&
+    prev.dndEnabled === next.dndEnabled &&
+    prev.stages === next.stages,
+)
 
 
 // ============================================================
