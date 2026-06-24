@@ -284,6 +284,9 @@ export async function updatePipelineStageAction(
     options?: { closedDate?: string | null }
 ): Promise<ActionResult> {
     try {
+        const guard = await requirePermission('leads', 'update')
+        if (!guard.allowed) return guard.error
+
         const supabase = await createClient()
 
         const [
@@ -1378,6 +1381,9 @@ export async function updateLeadFieldAction(
     label: string
 ): Promise<ActionResult<{ id: number }>> {
     try {
+        const guard = await requirePermission('leads', 'update')
+        if (!guard.allowed) return guard.error
+
         // Whitelist: only allow editable rich-text fields
         const ALLOWED_FIELDS = new Set(["general_brief", "production_sow", "special_remarks", "description", "remark"])
         if (!ALLOWED_FIELDS.has(fieldPath)) {

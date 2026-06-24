@@ -53,6 +53,7 @@ import {
 import { AddContactModal } from "@/features/contacts/components/add-contact-modal"
 import { ImportContactsModal } from "@/features/contacts/components/import-contacts-modal"
 import { PermissionGate } from "@/features/users/components/permission-gate"
+import { PermissionMenuItem } from "@/components/shared/permission-menu-item"
 import { BulkActionBar } from "@/components/shared/bulk-action-bar"
 import { FilterBuilder } from "@/components/shared/filter-builder"
 import {
@@ -165,6 +166,7 @@ export default function ContactsPage() {
     const [addContactOpen, setAddContactOpen] = React.useState(false)
     const [editingContact, setEditingContact] = React.useState<ContactRow | undefined>()
     const [deleteConfirmOpen, setDeleteConfirmOpen] = React.useState(false)
+    const [contactToDelete, setContactToDelete] = React.useState<ContactRow | null>(null)
     const [importOpen, setImportOpen] = React.useState(false)
 
     const [searchQuery, setSearchQuery] = React.useState("")
@@ -362,9 +364,14 @@ export default function ContactsPage() {
         fetchContacts()
     }
 
-    const handleDelete = async (contact: ContactRow) => {
-        if (!confirm(`Delete ${contact.full_name}? This cannot be undone.`)) return
-        const result = await deleteContactsAction([contact.id])
+    const handleDelete = (contact: ContactRow) => {
+        // Open the custom confirm dialog (no native confirm()).
+        setContactToDelete(contact)
+    }
+    const executeSingleDelete = async () => {
+        if (!contactToDelete) return
+        const result = await deleteContactsAction([contactToDelete.id])
+        setContactToDelete(null)
         if (!result.success) {
             console.warn("[Contact Delete]:", result.error)
             toast.error(result.error || "Failed to delete contact")
@@ -669,13 +676,9 @@ export default function ContactsPage() {
                                                         </Button>
                                                     </DropdownMenuTrigger>
                                                     <DropdownMenuContent align="end" className="w-40">
-                                                        <PermissionGate resource="contacts" action="update">
-                                                            <DropdownMenuItem onClick={() => openEditSheet(contact)}><Pencil className="w-4 h-4 mr-2" /> Edit</DropdownMenuItem>
-                                                        </PermissionGate>
-                                                        <PermissionGate resource="contacts" action="delete">
-                                                            <DropdownMenuSeparator />
-                                                            <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => handleDelete(contact)}><Trash2 className="w-4 h-4 mr-2" /> Delete</DropdownMenuItem>
-                                                        </PermissionGate>
+                                                        <PermissionMenuItem resource="contacts" action="update" onClick={() => openEditSheet(contact)}><Pencil className="w-4 h-4 mr-2" /> Edit</PermissionMenuItem>
+                                                        <DropdownMenuSeparator />
+                                                        <PermissionMenuItem resource="contacts" action="delete" className="text-destructive focus:text-destructive" onClick={() => handleDelete(contact)}><Trash2 className="w-4 h-4 mr-2" /> Delete</PermissionMenuItem>
                                                     </DropdownMenuContent>
                                                 </DropdownMenu>
                                             </TableCell>
@@ -742,6 +745,22 @@ export default function ContactsPage() {
                     <AlertDialogFooter>
                         <AlertDialogCancel>Cancel</AlertDialogCancel>
                         <AlertDialogAction onClick={(e) => { e.preventDefault(); executeBulkDelete() }} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                            Delete
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+            <AlertDialog open={!!contactToDelete} onOpenChange={(o) => { if (!o) setContactToDelete(null) }}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Delete this contact?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            This will permanently delete <strong className="text-foreground">{contactToDelete?.full_name}</strong>. This action cannot be undone.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={(e) => { e.preventDefault(); executeSingleDelete() }} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
                             Delete
                         </AlertDialogAction>
                     </AlertDialogFooter>
