@@ -24,6 +24,7 @@ import { CompanyFilesTab } from "./company-files-tab"
 import { formatPhoneDisplay } from "@/lib/phone-normalize"
 import { getInitials, getAvatarColor } from "@/lib/avatar"
 import { InlineTextField, InlineSelectField } from "@/components/shared/inline-edit-field"
+import { usePermissions } from "@/contexts/permissions-context"
 // ═══════════════════════════════════════════════════════════════
 //  TYPES
 // ═══════════════════════════════════════════════════════════════
@@ -199,6 +200,8 @@ export function CompanyDetailPage({ company, leads, contactCount, subsidiaries =
     useEffect(() => { setContactsPage(1) }, [contactsSearch])
 
     // ─── Editable Details Setup ────────────────────────────
+    const { can } = usePermissions()
+    const canEdit = can("companies", "update")
     const [isEditingName, setIsEditingName] = useState(false)
     const [nameEdit, setNameEdit] = useState(company.name)
     const [savingName, setSavingName] = useState(false)
@@ -253,7 +256,7 @@ export function CompanyDetailPage({ company, leads, contactCount, subsidiaries =
                             <ArrowLeft className="h-[18px] w-[18px]" />
                         </button>
                         <div className="flex-1 w-full relative group">
-                            {isEditingName ? (
+                            {isEditingName && canEdit ? (
                                 <div className="flex items-center gap-2 max-w-lg mb-1 relative">
                                     <input 
                                         type="text" 
@@ -272,19 +275,21 @@ export function CompanyDetailPage({ company, leads, contactCount, subsidiaries =
                             ) : (
                                 <div className="flex items-center gap-3">
                                     <h1 
-                                        className="text-xl font-semibold text-slate-900 hover:bg-slate-50 px-1 -ml-1 rounded cursor-pointer border border-transparent hover:border-slate-200 transition-colors inline-block"
+                                        className={canEdit ? "text-xl font-semibold text-slate-900 hover:bg-slate-50 px-1 -ml-1 rounded cursor-pointer border border-transparent hover:border-slate-200 transition-colors inline-block" : "text-xl font-semibold text-slate-900 px-1 -ml-1 inline-block"}
                                         style={{ height: '32px', lineHeight: '30px' }}
-                                        onClick={() => setIsEditingName(true)}
-                                        title="Click to edit"
+                                        onClick={canEdit ? () => setIsEditingName(true) : undefined}
+                                        title={canEdit ? "Click to edit" : undefined}
                                     >
                                         {company.name}
                                     </h1>
-                                    <button 
-                                        onClick={() => setIsEditingName(true)}
-                                        className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-blue-600 transition-opacity"
-                                    >
-                                        <Pencil className="w-3.5 h-3.5" />
-                                    </button>
+                                    {canEdit && (
+                                        <button 
+                                            onClick={() => setIsEditingName(true)}
+                                            className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-blue-600 transition-opacity"
+                                        >
+                                            <Pencil className="w-3.5 h-3.5" />
+                                        </button>
+                                    )}
                                     {company.needs_enrichment && (
                                         <span
                                             className="inline-flex items-center gap-1 rounded-md bg-amber-50 border border-amber-200 px-2 py-0.5 text-[11px] font-semibold text-amber-700"
@@ -298,7 +303,7 @@ export function CompanyDetailPage({ company, leads, contactCount, subsidiaries =
 
                             {/* RECORD OWNER - EDITABLE DROPDOWN */}
                             <div className="flex flex-wrap items-center gap-4 mt-1.5 text-[13px] text-slate-500">
-                                <Select value={company.owner_id || "unassigned"} onValueChange={handleSaveOwner}>
+                                <Select value={company.owner_id || "unassigned"} onValueChange={handleSaveOwner} disabled={!canEdit}>
                                     <SelectTrigger className="h-7 gap-1.5 font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 pl-1 pr-2.5 py-0.5 rounded-full border border-slate-200 text-[13px] shadow-none focus:ring-0 w-auto hover:text-blue-600 transition-colors">
                                         {company.owner?.full_name ? (
                                             <span className="flex items-center gap-1.5">
@@ -367,11 +372,13 @@ export function CompanyDetailPage({ company, leads, contactCount, subsidiaries =
                                 <ChevronRight className="w-4 h-4" />
                             </Link>
                         </div>
-                        <Button variant="outline" className="gap-2 text-[13px] h-9"
-                            onClick={() => setEditModalOpen(true)}
-                        >
-                            <Pencil className="w-3.5 h-3.5" /> Edit Details
-                        </Button>
+                        {canEdit && (
+                            <Button variant="outline" className="gap-2 text-[13px] h-9"
+                                onClick={() => setEditModalOpen(true)}
+                            >
+                                <Pencil className="w-3.5 h-3.5" /> Edit Details
+                            </Button>
+                        )}
                     </div>
                 </div>
             </header>

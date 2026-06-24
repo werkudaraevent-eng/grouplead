@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { createClient } from "@/utils/supabase/client"
 import { updateContactAction } from "@/app/actions/contact-actions"
+import { usePermissions } from "@/contexts/permissions-context"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { toast } from "sonner"
@@ -91,6 +92,8 @@ export function ContactDetailPage({ contact, leads, lastModified, lastModifiedBy
     const { fmt } = useCurrency()
 
     // ─── Editable Details Setup ────────────────────────────
+    const { can } = usePermissions()
+    const canEdit = can("contacts", "update")
     const [isEditingName, setIsEditingName] = useState(false)
     const [nameEdit, setNameEdit] = useState(contact.full_name)
     const [savingName, setSavingName] = useState(false)
@@ -258,7 +261,7 @@ export function ContactDetailPage({ contact, leads, lastModified, lastModifiedBy
                             <ArrowLeft className="h-[18px] w-[18px]" />
                         </button>
                         <div className="flex-1 w-full relative group">
-                            {isEditingName ? (
+                            {isEditingName && canEdit ? (
                                 <div className="flex items-center gap-2 max-w-lg mb-1 relative">
                                     {contact.salutation && <span className="text-xl font-semibold text-slate-500 mr-1">{contact.salutation}</span>}
                                     <input 
@@ -278,19 +281,21 @@ export function ContactDetailPage({ contact, leads, lastModified, lastModifiedBy
                             ) : (
                                 <div className="flex items-center gap-3">
                                     <h1 
-                                        className="text-xl font-semibold text-slate-900 hover:bg-slate-50 px-1 -ml-1 rounded cursor-pointer border border-transparent hover:border-slate-200 transition-colors inline-block"
+                                        className={canEdit ? "text-xl font-semibold text-slate-900 hover:bg-slate-50 px-1 -ml-1 rounded cursor-pointer border border-transparent hover:border-slate-200 transition-colors inline-block" : "text-xl font-semibold text-slate-900 px-1 -ml-1 inline-block"}
                                         style={{ height: '32px', lineHeight: '30px' }}
-                                        onClick={() => setIsEditingName(true)}
-                                        title="Click to edit"
+                                        onClick={canEdit ? () => setIsEditingName(true) : undefined}
+                                        title={canEdit ? "Click to edit" : undefined}
                                     >
                                         {nameDisplay}
                                     </h1>
-                                    <button 
-                                        onClick={() => setIsEditingName(true)}
-                                        className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-blue-600 transition-opacity"
-                                    >
-                                        <Pencil className="w-3.5 h-3.5" />
-                                    </button>
+                                    {canEdit && (
+                                        <button 
+                                            onClick={() => setIsEditingName(true)}
+                                            className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-blue-600 transition-opacity"
+                                        >
+                                            <Pencil className="w-3.5 h-3.5" />
+                                        </button>
+                                    )}
                                     {contact.needs_enrichment && (
                                         <span
                                             className="inline-flex items-center gap-1 rounded-md bg-amber-50 border border-amber-200 px-2 py-0.5 text-[11px] font-semibold text-amber-700"
@@ -303,7 +308,7 @@ export function ContactDetailPage({ contact, leads, lastModified, lastModifiedBy
                             )}
                             
                             <div className="flex flex-wrap items-center gap-4 mt-1.5 text-[13px] text-slate-500">
-                                <Select value={(contact as any).owner_id || "unassigned"} onValueChange={handleSaveOwner}>
+                                <Select value={(contact as any).owner_id || "unassigned"} onValueChange={handleSaveOwner} disabled={!canEdit}>
                                     <SelectTrigger className="h-7 gap-1.5 font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 pl-1 pr-2.5 py-0.5 rounded-full border border-slate-200 text-[13px] shadow-none focus:ring-0 w-auto hover:text-blue-600 transition-colors">
                                         {contact.owner?.full_name ? (
                                             <span className="flex items-center gap-1.5">
@@ -339,7 +344,7 @@ export function ContactDetailPage({ contact, leads, lastModified, lastModifiedBy
                                 </Select>
 
 
-                                <Select value={(contact as any).client_company?.id || "unassigned"} onValueChange={handleSaveCompany}>
+                                <Select value={(contact as any).client_company?.id || "unassigned"} onValueChange={handleSaveCompany} disabled={!canEdit}>
                                     <SelectTrigger className="h-6 gap-1.5 font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 px-2.5 py-0.5 rounded-full border border-slate-200 text-[13px] shadow-none focus:ring-0 w-auto hover:text-blue-600 transition-colors">
                                         <Building2 className="w-3.5 h-3.5" /> 
                                         {contact.client_company?.name ? contact.client_company.name : <span className="italic text-slate-500">Unassigned Company</span>}
@@ -378,11 +383,13 @@ export function ContactDetailPage({ contact, leads, lastModified, lastModifiedBy
                                 <ChevronRight className="w-4 h-4" />
                             </Link>
                         </div>
-                        <Button variant="outline" className="gap-2 text-[13px] h-9"
-                            onClick={() => setEditModalOpen(true)}
-                        >
-                            <Pencil className="w-3.5 h-3.5" /> Edit Details
-                        </Button>
+                        {canEdit && (
+                            <Button variant="outline" className="gap-2 text-[13px] h-9"
+                                onClick={() => setEditModalOpen(true)}
+                            >
+                                <Pencil className="w-3.5 h-3.5" /> Edit Details
+                            </Button>
+                        )}
                     </div>
                 </div>
             </header>
