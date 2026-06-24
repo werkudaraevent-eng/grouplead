@@ -19,7 +19,7 @@ function SortableHeader({ column, label, align = "left" }: { column: any; label:
     const sorted = column.getIsSorted()
     return (
         <button
-            className={`flex items-center gap-1 text-[12px] font-semibold text-slate-700 hover:text-slate-900 transition-colors group w-full ${
+            className={`flex items-center gap-1 text-[12px] font-medium text-slate-700 hover:text-slate-900 transition-colors group w-full ${
                 align === "right" ? "justify-end" : "justify-start"
             }`}
             onClick={() => column.toggleSorting(sorted === "asc")}
@@ -42,7 +42,7 @@ function SortableHeader({ column, label, align = "left" }: { column: any; label:
 // ── Static header (non-sortable) ──
 function StaticHeader({ label, align = "left" }: { label: string; align?: "left" | "right" }) {
     return (
-        <span className={`text-[12px] font-semibold text-slate-700 ${align === "right" ? "text-right block" : ""}`}>
+        <span className={`text-[12px] font-medium text-slate-700 ${align === "right" ? "text-right block" : ""}`}>
             {label}
         </span>
     )
