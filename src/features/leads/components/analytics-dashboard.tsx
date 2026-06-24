@@ -1687,6 +1687,7 @@ export function AnalyticsDashboard({
                     initialLayout={views.activeView?.layout_data ?? []}
                     initialHiddenWidgets={views.activeView?.hidden_widgets ?? []}
                     viewKey={views.activeView?.id ?? "none"}
+                    viewsLoading={views.loading}
                     onPersistLayout={handlePersistLayout}
                     onEditModeChange={setIsDashboardEditing}
                     activeViewName={views.activeView?.name}

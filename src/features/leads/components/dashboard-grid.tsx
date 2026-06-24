@@ -36,6 +36,11 @@ interface DashboardGridProps {
     initialHiddenWidgets?: WidgetId[]
     /** Opaque key to force re-seeding from props when active view changes. */
     viewKey?: string
+    /** True while the saved views are still being fetched. The grid shows its
+     *  loading spinner until this is false, so it never flashes the default
+     *  layout (e.g. all 5 KPI cards) before the active view's real hidden set
+     *  has loaded. */
+    viewsLoading?: boolean
     /** Called when the user clicks "Save" in edit mode. */
     onPersistLayout?: (layout: LayoutItem[], hiddenWidgets: WidgetId[]) => Promise<void> | void
     /** Called when user enters/exits edit mode (so parent can block view switching). */
@@ -65,6 +70,7 @@ export function DashboardGrid({
     initialLayout,
     initialHiddenWidgets,
     viewKey,
+    viewsLoading = false,
     onPersistLayout,
     onEditModeChange,
     extraHeaderControls,
@@ -406,7 +412,7 @@ export function DashboardGrid({
 
     const galleryCount = hiddenWidgets.size + addableCustomWidgets.length
 
-    const isReady = loaded && width > 0
+    const isReady = loaded && width > 0 && !viewsLoading
 
     // Build controls JSX — will be rendered by parent via renderControls callback
     const controlsJsx = isReady ? (
