@@ -1,6 +1,7 @@
 "use server"
 
 import { createClient } from "@/utils/supabase/server"
+import { createServiceClient } from "@/utils/supabase/service"
 import { requirePermission } from "@/lib/require-permission"
 import { logAuditEvent } from "@/app/actions/audit-actions"
 import { revalidatePath } from "next/cache"
@@ -78,8 +79,47 @@ export async function deleteContactsAction(
     if (!guard.allowed) return guard.error
     if (!ids.length) return { success: true }
 
-    const supabase = await createClient()
-    // Soft delete: move to the Recycle Bin instead of removing permanently.
+    // Read first under RLS so we only act on rows the user can actually see,
+    // and to enforce business-unit scoping before writing.
+    const readClient = await createClient()
+    const { data: rows, error: readError } = await readClient
+        .from("contacts")
+        .select("id, company_id")
+        .in("id", ids)
+    if (readError) return { success: false, error: readError.message }
+
+    const foundIds = new Set((rows ?? []).map(row => row.id as string))
+    const missingIds = ids.filter(id => !foundIds.has(id))
+    if (missingIds.length > 0) {
+        return { success: false, error: "Some contacts were not found or are not accessible" }
+    }
+
+    // Holding users may delete across business units; others are restricted to
+    // their own scope (NULL-company rows stay deletable by any member).
+    const scopedCompanyId = guard.companyId
+    const canWriteAllCompanies = await (async () => {
+        if (!scopedCompanyId) return false
+        const { data } = await readClient
+            .from("companies")
+            .select("is_holding")
+            .eq("id", scopedCompanyId)
+            .maybeSingle()
+        return data?.is_holding === true
+    })()
+
+    if (!canWriteAllCompanies) {
+        const forbidden = (rows ?? []).some(row => {
+            const rowCompanyId = row.company_id as string | null
+            return rowCompanyId !== null && rowCompanyId !== scopedCompanyId
+        })
+        if (forbidden) {
+            return { success: false, error: "Forbidden: contact belongs to another business unit" }
+        }
+    }
+
+    // Soft delete via the service client so RLS can't produce a false-negative
+    // on the UPDATE (the permission + scope checks above are the real gate).
+    const supabase = createServiceClient()
     const { error } = await supabase
         .from("contacts")
         .update({ deleted_at: new Date().toISOString(), deleted_by: guard.userId })
