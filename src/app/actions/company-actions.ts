@@ -1,6 +1,7 @@
 "use server"
 
 import { createClient } from "@/utils/supabase/server"
+import { createServiceClient } from "@/utils/supabase/service"
 import { requirePermission } from "@/lib/require-permission"
 import { logAuditEvent } from "@/app/actions/audit-actions"
 import { revalidatePath } from "next/cache"
@@ -70,7 +71,41 @@ export async function deleteClientCompaniesAction(
     if (!guard.allowed) return guard.error
     if (!ids.length) return { success: true }
 
-    const supabase = await createClient()
+    const readClient = await createClient()
+    const { data: rows, error: readError } = await readClient
+        .from("client_companies")
+        .select("id, company_id")
+        .in("id", ids)
+    if (readError) return { success: false, error: readError.message }
+
+    const foundIds = new Set((rows ?? []).map(row => row.id as string))
+    const missingIds = ids.filter(id => !foundIds.has(id))
+    if (missingIds.length > 0) {
+        return { success: false, error: "Some companies were not found or are not accessible" }
+    }
+
+    const scopedCompanyId = guard.companyId
+    const canWriteAllCompanies = await (async () => {
+        if (!scopedCompanyId) return false
+        const { data } = await readClient
+            .from("companies")
+            .select("is_holding")
+            .eq("id", scopedCompanyId)
+            .maybeSingle()
+        return data?.is_holding === true
+    })()
+
+    if (!canWriteAllCompanies) {
+        const forbidden = (rows ?? []).some(row => {
+            const rowCompanyId = row.company_id as string | null
+            return rowCompanyId !== null && rowCompanyId !== scopedCompanyId
+        })
+        if (forbidden) {
+            return { success: false, error: "Forbidden: company belongs to another business unit" }
+        }
+    }
+
+    const supabase = createServiceClient()
     // Soft delete: move to the Recycle Bin instead of removing permanently.
     const { error } = await supabase
         .from("client_companies")
