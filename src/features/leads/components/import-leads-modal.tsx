@@ -159,6 +159,13 @@ export function ImportLeadsModal({ open, onOpenChange, pipelineId, onSuccess }: 
     // exact, valid values into each dropdown column.
     const [optionsByType, setOptionsByType] = useState<Record<string, string[]>>({})
 
+    // Subsidiary (business unit) names + PIC Sales names for the options
+    // sheet. The importer resolves Subsidiary against the companies table and
+    // PIC Sales against profiles, so listing the exact names prevents skipped
+    // rows (subsidiary not found) and Unassigned leads (sales not matched).
+    const [subsidiaryNames, setSubsidiaryNames] = useState<string[]>([])
+    const [salesNames, setSalesNames] = useState<string[]>([])
+
     // Determinate progress while importing — driven by client-side batching
     // so the user sees real row counts instead of an indefinite spinner.
     const [importProgress, setImportProgress] = useState<{ done: number; total: number } | null>(null)
@@ -296,6 +303,51 @@ export function ImportLeadsModal({ open, onOpenChange, pipelineId, onSuccess }: 
                 ;(map[r.option_type] ??= []).push(r.label)
             }
             setOptionsByType(map)
+        })()
+        return () => { cancelled = true }
+    }, [open])
+
+    // Load subsidiaries (business units) + PIC Sales users once the modal
+    // opens, for the options sheet. Mirrors the importer's resolution
+    // targets: subsidiary_name → companies (non-holding), pic_sales_name →
+    // profiles with a sales/bu_manager role.
+    useEffect(() => {
+        if (!open) {
+            setSubsidiaryNames([])
+            setSalesNames([])
+            return
+        }
+        const supabase = createClient()
+        let cancelled = false
+        ;(async () => {
+            const [subRes, salesRes] = await Promise.all([
+                supabase
+                    .from("companies")
+                    .select("name, is_holding")
+                    .eq("is_holding", false)
+                    .order("name", { ascending: true }),
+                supabase
+                    .from("profiles")
+                    .select("full_name, role, is_active")
+                    .order("full_name", { ascending: true }),
+            ])
+            if (cancelled) return
+            if (subRes.data) {
+                setSubsidiaryNames(
+                    (subRes.data as { name: string | null }[])
+                        .map((c) => c.name)
+                        .filter((n): n is string => !!n),
+                )
+            }
+            if (salesRes.data) {
+                const allowed = new Set(["sales", "bu_manager"])
+                setSalesNames(
+                    (salesRes.data as { full_name: string | null; role: string | null; is_active: boolean | null }[])
+                        .filter((p) => p.is_active !== false && p.role && allowed.has(p.role))
+                        .map((p) => p.full_name)
+                        .filter((n): n is string => !!n),
+                )
+            }
         })()
         return () => { cancelled = true }
     }, [open])
@@ -482,6 +534,10 @@ export function ImportLeadsModal({ open, onOpenChange, pipelineId, onSuccess }: 
                 // Lead status is binary. The actual pipeline position is
                 // captured by the separate Pipeline Stage column.
                 values = ["Open", "Closed"]
+            } else if (f.key === "subsidiary_name") {
+                values = subsidiaryNames
+            } else if (f.key === "pic_sales_name") {
+                values = salesNames
             } else if (f.key === "pipeline_stage_name") {
                 values = pipelineStages.map((s) => s.name).filter(Boolean)
             } else if (FIELD_OPTION_TYPE[f.key]) {
@@ -521,7 +577,7 @@ export function ImportLeadsModal({ open, onOpenChange, pipelineId, onSuccess }: 
 
         XLSX.writeFile(wb, isHistorical ? "historical_lead_import_template.xlsx" : "lead_import_template.xlsx")
         toast.success("Template downloaded!")
-    }, [activeFields, isHistorical, optionsByType, pipelineStages])
+    }, [activeFields, isHistorical, optionsByType, pipelineStages, subsidiaryNames, salesNames])
 
     // ── Auto-map headers to system fields ──
     // 3-tier strategy:
