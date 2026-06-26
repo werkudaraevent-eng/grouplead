@@ -71,7 +71,6 @@ const FIELD_OPTION_TYPE: Record<string, string> = {
     destination_city: "event_city",
     event_format: "event_format",
     lost_reason: "lost_reason",
-    status: "status",
 }
 
 // ── System fields — aligned with Lead Form tabs ──
@@ -479,6 +478,10 @@ export function ImportLeadsModal({ open, onOpenChange, pipelineId, onSuccess }: 
             let values: string[] | null = null
             if (f.key === "account_status") {
                 values = ["new", "repeater", "contracted"]
+            } else if (f.key === "status") {
+                // Lead status is binary. The actual pipeline position is
+                // captured by the separate Pipeline Stage column.
+                values = ["Open", "Closed"]
             } else if (f.key === "pipeline_stage_name") {
                 values = pipelineStages.map((s) => s.name).filter(Boolean)
             } else if (FIELD_OPTION_TYPE[f.key]) {
@@ -487,7 +490,10 @@ export function ImportLeadsModal({ open, onOpenChange, pipelineId, onSuccess }: 
                 values = optionsByType[f.optionsCategory] ?? []
             }
             if (values && values.length > 0) {
-                dropdownColumns.push({ header: f.label, values })
+                // Dedupe by label — cascading taxonomies (e.g. business_purpose)
+                // legitimately repeat the same label under different parents,
+                // but the options sheet only shows labels for copy-paste.
+                dropdownColumns.push({ header: f.label, values: Array.from(new Set(values)) })
             }
         }
 

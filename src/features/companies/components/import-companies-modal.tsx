@@ -245,7 +245,9 @@ export function ImportCompaniesModal({ open, onOpenChange, onSuccess }: ImportCo
                 values = optionsByType[f.optionsCategory] ?? []
             }
             if (values && values.length > 0) {
-                dropdownColumns.push({ header: f.label, values })
+                // Dedupe by label — cascading taxonomies (e.g. line_industry)
+                // can repeat the same label under different parents.
+                dropdownColumns.push({ header: f.label, values: Array.from(new Set(values)) })
             }
         }
         if (dropdownColumns.length > 0) {

@@ -191,7 +191,7 @@ export function ImportContactsModal({ open, onOpenChange, onSuccess }: ImportCon
         for (const f of allFields) {
             if (f.custom && f.fieldType === "dropdown" && f.optionsCategory) {
                 const values = optionsByType[f.optionsCategory] ?? []
-                if (values.length > 0) dropdownColumns.push({ header: f.label, values })
+                if (values.length > 0) dropdownColumns.push({ header: f.label, values: Array.from(new Set(values)) })
             }
         }
         if (dropdownColumns.length > 0) {
