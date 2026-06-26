@@ -47,11 +47,32 @@ type ImportField = {
     example: string
     fieldType?: "text" | "number" | "date" | "dropdown"
     isCustom?: boolean
+    // For dropdown fields: the master_options option_type whose values are
+    // valid for this column. Used to build the "Dropdown Options" template
+    // sheet so users copy exact values instead of guessing.
+    optionsCategory?: string
 }
 
 // Prefix used to namespace custom-field mapping keys so a custom field_key
 // can never collide with a native field key (e.g. a custom "status").
 const CUSTOM_KEY_PREFIX = "custom__"
+
+// Maps a native field key → the master_options option_type that supplies its
+// dropdown values. Mirrors the useMasterOptions() calls in lead-form.tsx so
+// the template's options sheet stays in sync with what the form accepts.
+const FIELD_OPTION_TYPE: Record<string, string> = {
+    category: "category",
+    grade_lead: "grade_lead",
+    lead_source: "lead_source",
+    main_stream: "main_stream",
+    stream_type: "stream_type",
+    business_purpose: "business_purpose",
+    area: "area",
+    destination_city: "event_city",
+    event_format: "event_format",
+    lost_reason: "lost_reason",
+    status: "status",
+}
 
 // ── System fields — aligned with Lead Form tabs ──
 const SYSTEM_FIELDS: ImportField[] = [
@@ -133,6 +154,11 @@ export function ImportLeadsModal({ open, onOpenChange, pipelineId, onSuccess }: 
     // Add Lead modal renders, so the import template can represent them too.
     // Values land in the lead's `custom_data` JSONB rather than a column.
     const [customSchemas, setCustomSchemas] = useState<FormSchema[]>([])
+
+    // Active dropdown values keyed by master_options option_type. Powers the
+    // "Dropdown Options" sheet in the downloaded template so users can copy
+    // exact, valid values into each dropdown column.
+    const [optionsByType, setOptionsByType] = useState<Record<string, string[]>>({})
 
     // Determinate progress while importing — driven by client-side batching
     // so the user sees real row counts instead of an indefinite spinner.
@@ -246,6 +272,35 @@ export function ImportLeadsModal({ open, onOpenChange, pipelineId, onSuccess }: 
         return () => { cancelled = true }
     }, [open, companies])
 
+    // Load all active master options once the modal opens, grouped by
+    // option_type. master_options is global reference data (RLS allows all
+    // authenticated reads), so no company filter is needed. Used only to
+    // build the template's "Dropdown Options" sheet.
+    useEffect(() => {
+        if (!open) {
+            setOptionsByType({})
+            return
+        }
+        const supabase = createClient()
+        let cancelled = false
+        ;(async () => {
+            const { data } = await supabase
+                .from("master_options")
+                .select("option_type, label, sort_order")
+                .eq("is_active", true)
+                .order("sort_order", { ascending: true })
+                .order("label", { ascending: true })
+            if (cancelled || !data) return
+            const map: Record<string, string[]> = {}
+            for (const r of data as { option_type: string; label: string | null }[]) {
+                if (!r.option_type || !r.label) continue
+                ;(map[r.option_type] ??= []).push(r.label)
+            }
+            setOptionsByType(map)
+        })()
+        return () => { cancelled = true }
+    }, [open])
+
     // Map custom form-schema rows into ImportField entries. Each is grouped
     // under "Custom Fields" and namespaced with CUSTOM_KEY_PREFIX so its key
     // can't collide with a native field key.
@@ -268,6 +323,7 @@ export function ImportLeadsModal({ open, onOpenChange, pipelineId, onSuccess }: 
                 example,
                 fieldType: s.field_type,
                 isCustom: true,
+                optionsCategory: s.options_category ?? undefined,
             })
         }
         return fields
@@ -414,13 +470,52 @@ export function ImportLeadsModal({ open, onOpenChange, pipelineId, onSuccess }: 
             instructions.splice(2, 0, ...historicalNotes)
         }
 
+        // ── Dropdown Options sheet (sheet 2) ──
+        // One column per dropdown field, header = the import column label,
+        // rows below = every valid value. Users copy these verbatim so a
+        // typo'd category / stream / city can't silently import as free text.
+        const dropdownColumns: { header: string; values: string[] }[] = []
+        for (const f of activeFields) {
+            let values: string[] | null = null
+            if (f.key === "account_status") {
+                values = ["new", "repeater", "contracted"]
+            } else if (f.key === "pipeline_stage_name") {
+                values = pipelineStages.map((s) => s.name).filter(Boolean)
+            } else if (FIELD_OPTION_TYPE[f.key]) {
+                values = optionsByType[FIELD_OPTION_TYPE[f.key]] ?? []
+            } else if (f.isCustom && f.fieldType === "dropdown" && f.optionsCategory) {
+                values = optionsByType[f.optionsCategory] ?? []
+            }
+            if (values && values.length > 0) {
+                dropdownColumns.push({ header: f.label, values })
+            }
+        }
+
+        if (dropdownColumns.length > 0) {
+            const maxRows = Math.max(...dropdownColumns.map((c) => c.values.length))
+            const optionAoa: (string)[][] = [
+                ["Dropdown Options \u2014 valid values for each column"],
+                ["Copy these values EXACTLY into the matching column on the import sheet. Leave a cell blank if not applicable."],
+                [],
+                dropdownColumns.map((c) => c.header),
+            ]
+            for (let i = 0; i < maxRows; i++) {
+                optionAoa.push(dropdownColumns.map((c) => c.values[i] ?? ""))
+            }
+            const wsOptions = XLSX.utils.aoa_to_sheet(optionAoa)
+            wsOptions["!cols"] = dropdownColumns.map((c) => ({
+                wch: Math.max(c.header.length, ...c.values.map((v) => v.length), 12),
+            }))
+            XLSX.utils.book_append_sheet(wb, wsOptions, "Dropdown Options")
+        }
+
         const wsInfo = XLSX.utils.aoa_to_sheet(instructions)
         wsInfo["!cols"] = [{ wch: 78 }]
         XLSX.utils.book_append_sheet(wb, wsInfo, "Instructions")
 
         XLSX.writeFile(wb, isHistorical ? "historical_lead_import_template.xlsx" : "lead_import_template.xlsx")
         toast.success("Template downloaded!")
-    }, [activeFields, isHistorical])
+    }, [activeFields, isHistorical, optionsByType, pipelineStages])
 
     // ── Auto-map headers to system fields ──
     // 3-tier strategy:

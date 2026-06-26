@@ -46,6 +46,9 @@ type ImportField = {
     example: string
     /** true for per-tenant custom fields → value goes into custom_data JSONB. */
     custom?: boolean
+    fieldType?: string
+    /** master_options option_type that supplies this field's dropdown values. */
+    optionsCategory?: string
 }
 
 const SYSTEM_FIELDS: ImportField[] = [
@@ -90,6 +93,9 @@ export function ImportContactsModal({ open, onOpenChange, onSuccess }: ImportCon
     // Per-tenant custom fields defined in form_schemas (module=contacts),
     // stored on contacts.custom_data JSONB — mirrors the Add Contact form.
     const [customFields, setCustomFields] = useState<ImportField[]>([])
+    // Active dropdown values keyed by master_options option_type, used only to
+    // build the template's "Dropdown Options" sheet.
+    const [optionsByType, setOptionsByType] = useState<Record<string, string[]>>({})
     // Live progress during import (X / Y + percent).
     const [progress, setProgress] = useState<{ current: number; total: number }>({ current: 0, total: 0 })
 
@@ -111,9 +117,38 @@ export function ImportContactsModal({ open, onOpenChange, onSuccess }: ImportCon
                 group: "Custom Fields",
                 example: "",
                 custom: true,
+                fieldType: s.field_type,
+                optionsCategory: s.options_category ?? undefined,
             })))
         }
         load()
+        return () => { cancelled = true }
+    }, [open, supabase])
+
+    // Load all active master options once the modal opens, grouped by
+    // option_type (global reference data — RLS allows all authenticated
+    // reads). Used to build the template's "Dropdown Options" sheet.
+    useEffect(() => {
+        if (!open) {
+            setOptionsByType({})
+            return
+        }
+        let cancelled = false
+        ;(async () => {
+            const { data } = await supabase
+                .from("master_options")
+                .select("option_type, label, sort_order")
+                .eq("is_active", true)
+                .order("sort_order", { ascending: true })
+                .order("label", { ascending: true })
+            if (cancelled || !data) return
+            const map: Record<string, string[]> = {}
+            for (const r of data as { option_type: string; label: string | null }[]) {
+                if (!r.option_type || !r.label) continue
+                ;(map[r.option_type] ??= []).push(r.label)
+            }
+            setOptionsByType(map)
+        })()
         return () => { cancelled = true }
     }, [open, supabase])
 
@@ -147,9 +182,39 @@ export function ImportContactsModal({ open, onOpenChange, onSuccess }: ImportCon
         }))
         const wb = XLSX.utils.book_new()
         XLSX.utils.book_append_sheet(wb, ws, "Contacts Import Template")
+
+        // ── Dropdown Options sheet (sheet 2) ──
+        // Contacts have no native master-option dropdowns, but per-tenant
+        // custom dropdown fields do. List their valid values so users copy
+        // them verbatim instead of guessing.
+        const dropdownColumns: { header: string; values: string[] }[] = []
+        for (const f of allFields) {
+            if (f.custom && f.fieldType === "dropdown" && f.optionsCategory) {
+                const values = optionsByType[f.optionsCategory] ?? []
+                if (values.length > 0) dropdownColumns.push({ header: f.label, values })
+            }
+        }
+        if (dropdownColumns.length > 0) {
+            const maxRows = Math.max(...dropdownColumns.map((c) => c.values.length))
+            const optionAoa: string[][] = [
+                ["Dropdown Options \u2014 valid values for each column"],
+                ["Copy these values EXACTLY into the matching column on the import sheet. Leave a cell blank if not applicable."],
+                [],
+                dropdownColumns.map((c) => c.header),
+            ]
+            for (let i = 0; i < maxRows; i++) {
+                optionAoa.push(dropdownColumns.map((c) => c.values[i] ?? ""))
+            }
+            const wsOptions = XLSX.utils.aoa_to_sheet(optionAoa)
+            wsOptions["!cols"] = dropdownColumns.map((c) => ({
+                wch: Math.max(c.header.length, ...c.values.map((v) => v.length), 12),
+            }))
+            XLSX.utils.book_append_sheet(wb, wsOptions, "Dropdown Options")
+        }
+
         XLSX.writeFile(wb, "contacts_import_template.xlsx")
         toast.success("Template downloaded!")
-    }, [allFields])
+    }, [allFields, optionsByType])
 
     const autoMapHeaders = useCallback((rawHeaders: string[]): ColumnMapping => {
         const mapping: ColumnMapping = {}

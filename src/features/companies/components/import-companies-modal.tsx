@@ -74,6 +74,17 @@ type ImportField = {
     example: string
     /** true for per-tenant custom fields → value goes into custom_data JSONB. */
     custom?: boolean
+    fieldType?: string
+    /** master_options option_type that supplies this field's dropdown values. */
+    optionsCategory?: string
+}
+
+// Native field key → master_options option_type that supplies its dropdown
+// values. Mirrors the useMasterOptions() calls in add-company-modal.tsx so
+// the template's options sheet matches what the form accepts.
+const FIELD_OPTION_TYPE: Record<string, string> = {
+    industry: "sector",
+    line_industry: "line_industry",
 }
 
 // ── System (native) fields for Companies ──
@@ -121,9 +132,9 @@ export function ImportCompaniesModal({ open, onOpenChange, onSuccess }: ImportCo
     // mirroring the Add Company form so import stays in sync.
     const [customFields, setCustomFields] = useState<ImportField[]>([])
 
-    // Live progress during the import loop so the user sees X of Y + percent
-    // instead of an indeterminate spinner.
-    const [progress, setProgress] = useState<{ current: number; total: number }>({ current: 0, total: 0 })
+    // Active dropdown values keyed by master_options option_type, used only to
+    // build the template's "Dropdown Options" sheet.
+    const [optionsByType, setOptionsByType] = useState<Record<string, string[]>>({})
 
     // Load active custom field schemas for the companies module once the
     // modal opens. Mapped into ImportField so they slot into the same
@@ -146,10 +157,39 @@ export function ImportCompaniesModal({ open, onOpenChange, onSuccess }: ImportCo
                 group: "Custom Fields",
                 example: "",
                 custom: true,
+                fieldType: s.field_type,
+                optionsCategory: s.options_category ?? undefined,
             }))
             setCustomFields(fields)
         }
         load()
+        return () => { cancelled = true }
+    }, [open, supabase])
+
+    // Load all active master options once the modal opens, grouped by
+    // option_type (global reference data — RLS allows all authenticated
+    // reads). Used to build the template's "Dropdown Options" sheet.
+    useEffect(() => {
+        if (!open) {
+            setOptionsByType({})
+            return
+        }
+        let cancelled = false
+        ;(async () => {
+            const { data } = await supabase
+                .from("master_options")
+                .select("option_type, label, sort_order")
+                .eq("is_active", true)
+                .order("sort_order", { ascending: true })
+                .order("label", { ascending: true })
+            if (cancelled || !data) return
+            const map: Record<string, string[]> = {}
+            for (const r of data as { option_type: string; label: string | null }[]) {
+                if (!r.option_type || !r.label) continue
+                ;(map[r.option_type] ??= []).push(r.label)
+            }
+            setOptionsByType(map)
+        })()
         return () => { cancelled = true }
     }, [open, supabase])
 
@@ -159,6 +199,10 @@ export function ImportCompaniesModal({ open, onOpenChange, onSuccess }: ImportCo
         () => [...SYSTEM_FIELDS, ...customFields],
         [customFields],
     )
+
+    // Live progress during the import loop so the user sees X of Y + percent
+    // instead of an indeterminate spinner.
+    const [progress, setProgress] = useState<{ current: number; total: number }>({ current: 0, total: 0 })
 
     const resetState = useCallback(() => {
         setStep(1)
@@ -185,9 +229,46 @@ export function ImportCompaniesModal({ open, onOpenChange, onSuccess }: ImportCo
         }))
         const wb = XLSX.utils.book_new()
         XLSX.utils.book_append_sheet(wb, ws, "Companies Import Template")
+
+        // ── Dropdown Options sheet (sheet 2) ──
+        // One column per dropdown field, header = the import column label,
+        // rows below = every valid value. Users copy these verbatim so a
+        // typo'd sector / line industry can't silently import as free text.
+        const dropdownColumns: { header: string; values: string[] }[] = []
+        for (const f of allFields) {
+            let values: string[] | null = null
+            if (f.key === "account_status") {
+                values = ["new", "repeater", "contracted"]
+            } else if (FIELD_OPTION_TYPE[f.key]) {
+                values = optionsByType[FIELD_OPTION_TYPE[f.key]] ?? []
+            } else if (f.custom && f.fieldType === "dropdown" && f.optionsCategory) {
+                values = optionsByType[f.optionsCategory] ?? []
+            }
+            if (values && values.length > 0) {
+                dropdownColumns.push({ header: f.label, values })
+            }
+        }
+        if (dropdownColumns.length > 0) {
+            const maxRows = Math.max(...dropdownColumns.map((c) => c.values.length))
+            const optionAoa: string[][] = [
+                ["Dropdown Options \u2014 valid values for each column"],
+                ["Copy these values EXACTLY into the matching column on the import sheet. Leave a cell blank if not applicable."],
+                [],
+                dropdownColumns.map((c) => c.header),
+            ]
+            for (let i = 0; i < maxRows; i++) {
+                optionAoa.push(dropdownColumns.map((c) => c.values[i] ?? ""))
+            }
+            const wsOptions = XLSX.utils.aoa_to_sheet(optionAoa)
+            wsOptions["!cols"] = dropdownColumns.map((c) => ({
+                wch: Math.max(c.header.length, ...c.values.map((v) => v.length), 12),
+            }))
+            XLSX.utils.book_append_sheet(wb, wsOptions, "Dropdown Options")
+        }
+
         XLSX.writeFile(wb, "companies_import_template.xlsx")
         toast.success("Template downloaded!")
-    }, [allFields])
+    }, [allFields, optionsByType])
 
     const autoMapHeaders = useCallback((rawHeaders: string[]): ColumnMapping => {
         const mapping: ColumnMapping = {}
