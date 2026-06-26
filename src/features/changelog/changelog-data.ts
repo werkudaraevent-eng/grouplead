@@ -81,6 +81,76 @@ export const CHANGELOG: ChangelogEntry[] = [
         ],
     },
     {
+        date: "2026-06-25",
+        title: "Recycle Bin gets a cleaner table",
+        items: [
+            {
+                type: "improvement",
+                text: "The Recycle Bin was redesigned as a filterable table — switch between Leads, Companies, and Contacts, see a type badge on each item, and use the Restore / Delete actions that appear on hover. A loading skeleton shows while it fetches.",
+            },
+            {
+                type: "fix",
+                text: "Deleting companies and contacts now goes through a properly guarded path, so it always respects your role's permissions and the business unit you have access to.",
+            },
+        ],
+    },
+    {
+        date: "2026-06-24",
+        title: "Recycle Bin, permissions, and maintenance mode",
+        items: [
+            {
+                type: "feature",
+                text: "New Recycle Bin: deleted leads, companies, and contacts are no longer gone for good — they move to a Recycle Bin where admins can restore them or let them auto-delete after a set retention period. A scheduled daily cleanup removes anything past that period automatically.",
+            },
+            {
+                type: "improvement",
+                text: "Items in the Recycle Bin no longer show up in dropdowns, navigation, or goal configuration. Re-importing a deleted record brings it back automatically.",
+            },
+            {
+                type: "feature",
+                text: "Permissions are now fully enforced across Leads, Companies, and Contacts — create, edit, and delete actions respect each role's granted permissions, and buttons or menus are clearly disabled when you don't have access.",
+            },
+            {
+                type: "feature",
+                text: "Pipeline stage management and dashboard editing are now controlled by their own permission settings, so only the right people can change them.",
+            },
+            {
+                type: "feature",
+                text: "Added a Maintenance Mode: a super admin can put the whole app into a locked maintenance state when needed.",
+            },
+            {
+                type: "improvement",
+                text: "The Kanban board is faster and smoother — moving a card feels instant, with less flickering and re-loading.",
+            },
+            {
+                type: "fix",
+                text: "Fixed the dashboard KPI cards briefly flashing before your saved layout finished loading.",
+            },
+        ],
+    },
+    {
+        date: "2026-06-23",
+        title: "Company logos and dashboard polish",
+        items: [
+            {
+                type: "feature",
+                text: "Uploaded company logos now appear in the Companies list and the company switcher in the sidebar, making it easier to tell business units apart at a glance.",
+            },
+            {
+                type: "improvement",
+                text: "The holding view is now labeled 'Werkudara Group', and the dashboard KPI cards got accent and spacing tweaks for a cleaner look.",
+            },
+            {
+                type: "improvement",
+                text: "Renamed 'What's New' to 'Changelog' and centered its content so it no longer hugs the left edge.",
+            },
+            {
+                type: "fix",
+                text: "The AI assistant panel now stays anchored to the bottom-right corner like a chat widget instead of drifting.",
+            },
+        ],
+    },
+    {
         date: "2026-06-22",
         title: "Sign-in polish and accurate sales numbers",
         items: [
