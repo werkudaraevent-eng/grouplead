@@ -82,15 +82,15 @@ export const CHANGELOG: ChangelogEntry[] = [
     },
     {
         date: "2026-06-25",
-        title: "Recycle Bin gets a cleaner table",
+        title: "A cleaner Recycle Bin",
         items: [
             {
                 type: "improvement",
-                text: "The Recycle Bin was redesigned as a filterable table — switch between Leads, Companies, and Contacts, see a type badge on each item, and use the Restore / Delete actions that appear on hover. A loading skeleton shows while it fetches.",
+                text: "The Recycle Bin was redesigned into a cleaner list — switch between Leads, Companies, and Contacts with one click, see a small label on each item showing what it is, and use the Restore or Delete buttons that appear when you point at a row.",
             },
             {
                 type: "fix",
-                text: "Deleting companies and contacts now goes through a properly guarded path, so it always respects your role's permissions and the business unit you have access to.",
+                text: "Deleting companies and contacts now always respects your role's permissions and the business unit you have access to.",
             },
         ],
     },
