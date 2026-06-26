@@ -51,6 +51,36 @@ export const CHANGE_TYPE_META: Record<
 
 export const CHANGELOG: ChangelogEntry[] = [
     {
+        date: "2026-06-26",
+        title: "Safer imports and a tidier Recycle Bin",
+        items: [
+            {
+                type: "fix",
+                text: "Fixed 'Delete forever' in the Recycle Bin failing with an error when permanently removing a company or contact. Trashed items can now be deleted permanently as expected.",
+            },
+            {
+                type: "feature",
+                text: "The Excel import templates (Leads, Companies, Contacts) now include a second 'Dropdown Options' sheet that lists every valid value for each dropdown column — categories, stream types, business purpose, sectors, and more. Copy the values straight from this sheet so nothing gets rejected on upload.",
+            },
+            {
+                type: "feature",
+                text: "The Lead import template's options sheet now also lists the valid Business Unit names and PIC Sales names, so leads land in the right unit and get assigned to the right salesperson instead of coming in Unassigned.",
+            },
+            {
+                type: "improvement",
+                text: "Re-importing Contacts no longer creates duplicates — if a contact with the same name already exists (matched within the same company when provided), the import updates that record instead of adding a second copy. Company imports already worked this way.",
+            },
+            {
+                type: "improvement",
+                text: "The Status column in the lead import template now only offers 'Open' and 'Closed'. A lead's pipeline position is set separately by the Pipeline Stage column, which pulls the real stages from your pipeline.",
+            },
+            {
+                type: "fix",
+                text: "Cleaned up the Status options list that was mistakenly showing pipeline stage names (Lead Masuk, Closed Won, etc.). Status is now simply Open or Closed everywhere.",
+            },
+        ],
+    },
+    {
         date: "2026-06-22",
         title: "Sign-in polish and accurate sales numbers",
         items: [
