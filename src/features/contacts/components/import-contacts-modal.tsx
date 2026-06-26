@@ -374,7 +374,42 @@ export function ImportContactsModal({ open, onOpenChange, onSuccess }: ImportCon
                     }
                 }
 
-                const { error } = await supabase.from("contacts").insert(payload)
+                // Idempotent by name (scoped to company when available): update
+                // an existing contact instead of creating a duplicate, so the
+                // import can be re-run / overlaid safely. Contacts have no
+                // UNIQUE name index, so we look up first. When a Company is
+                // given we scope the match to that company — two people with
+                // the same name at different companies stay distinct.
+                const fullName = (payload.full_name as string | undefined)?.trim()
+                let error
+                if (fullName) {
+                    let lookup = supabase
+                        .from("contacts")
+                        .select("id, custom_data")
+                        .ilike("full_name", fullName)
+                    if (payload.client_company_id) {
+                        lookup = lookup.eq("client_company_id", payload.client_company_id)
+                    }
+                    const { data: existing } = await lookup.limit(1).maybeSingle()
+
+                    if (existing) {
+                        // Don't overwrite the canonical name casing; merge the rest.
+                        const { full_name: _omitName, ...updatable } = payload
+                        void _omitName
+                        if (existing.custom_data && payload.custom_data) {
+                            // Merge custom_data so we don't wipe existing keys.
+                            updatable.custom_data = { ...existing.custom_data, ...payload.custom_data }
+                        }
+                        // Re-importing a trashed contact restores it.
+                        updatable.deleted_at = null
+                        updatable.deleted_by = null
+                        ;({ error } = await supabase.from("contacts").update(updatable).eq("id", existing.id))
+                    } else {
+                        ;({ error } = await supabase.from("contacts").insert(payload))
+                    }
+                } else {
+                    ;({ error } = await supabase.from("contacts").insert(payload))
+                }
                 if (error) {
                     failedCount++
                     errs.push(`Row ${i + 1}: ${error.message}`)
