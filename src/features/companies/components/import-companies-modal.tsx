@@ -19,6 +19,7 @@ import {
     Sparkles, RotateCcw,
 } from "lucide-react"
 import { normalizePhoneToE164 } from "@/lib/phone-normalize"
+import { useCascadeRelations } from "@/hooks/use-cascade-relations"
 import type { FormSchema } from "@/types"
 
 // ── Helper formatters ──
@@ -87,6 +88,16 @@ const FIELD_OPTION_TYPE: Record<string, string> = {
     line_industry: "line_industry",
 }
 
+// Turn a raw option_type into a readable label as a last-resort fallback when
+// no import field supplies a nicer label (e.g. "custom_companies__segment" →
+// "Segment").
+function formatOptionTypeLabel(optionType: string): string {
+    return optionType
+        .replace(/^custom_[a-z]+__/, "")
+        .replace(/_/g, " ")
+        .replace(/\b\w/g, (c) => c.toUpperCase())
+}
+
 // ── System (native) fields for Companies ──
 const SYSTEM_FIELDS: ImportField[] = [
     { key: "name", label: "Company Name", required: true, group: "Core Details", example: "PT Contoh Sukses" },
@@ -136,6 +147,18 @@ export function ImportCompaniesModal({ open, onOpenChange, onSuccess }: ImportCo
     // build the template's "Dropdown Options" sheet.
     const [optionsByType, setOptionsByType] = useState<Record<string, string[]>>({})
 
+    // Raw active option rows (value + parent_value) keyed by option_type, used
+    // to reconstruct cascading hierarchies (e.g. Segment → Line Industry) for
+    // the template's breakdown sheet.
+    const [optionRowsByType, setOptionRowsByType] = useState<
+        Record<string, { label: string; value: string; parentValue: string | null }[]>
+    >({})
+
+    // Cascade relations (child option_type → parent option_type). Drives the
+    // Segment → Line Industry breakdown sheet so it always mirrors whatever
+    // hierarchy admins configure in Master Options.
+    const cascadeRelations = useCascadeRelations()
+
     // Load active custom field schemas for the companies module once the
     // modal opens. Mapped into ImportField so they slot into the same
     // template / mapping / preview machinery as native fields.
@@ -172,23 +195,31 @@ export function ImportCompaniesModal({ open, onOpenChange, onSuccess }: ImportCo
     useEffect(() => {
         if (!open) {
             setOptionsByType({})
+            setOptionRowsByType({})
             return
         }
         let cancelled = false
         ;(async () => {
             const { data } = await supabase
                 .from("master_options")
-                .select("option_type, label, sort_order")
+                .select("option_type, label, value, parent_value, sort_order")
                 .eq("is_active", true)
                 .order("sort_order", { ascending: true })
                 .order("label", { ascending: true })
             if (cancelled || !data) return
             const map: Record<string, string[]> = {}
-            for (const r of data as { option_type: string; label: string | null }[]) {
+            const rowMap: Record<string, { label: string; value: string; parentValue: string | null }[]> = {}
+            for (const r of data as { option_type: string; label: string | null; value: string | null; parent_value: string | null }[]) {
                 if (!r.option_type || !r.label) continue
                 ;(map[r.option_type] ??= []).push(r.label)
+                ;(rowMap[r.option_type] ??= []).push({
+                    label: r.label,
+                    value: r.value ?? r.label,
+                    parentValue: r.parent_value ?? null,
+                })
             }
             setOptionsByType(map)
+            setOptionRowsByType(rowMap)
         })()
         return () => { cancelled = true }
     }, [open, supabase])
@@ -268,9 +299,82 @@ export function ImportCompaniesModal({ open, onOpenChange, onSuccess }: ImportCo
             XLSX.utils.book_append_sheet(wb, wsOptions, "Dropdown Options")
         }
 
+        // ── Cascade breakdown sheet (e.g. Segment → Line Industry) ──
+        // For every configured cascade relation (child option_type → parent
+        // option_type) where the child field appears in the import template,
+        // emit a two-column sheet pairing each parent value with its children.
+        // This mirrors the "Cascading Hierarchy" tree in Master Options so
+        // users know which Line Industry belongs under which Segment before
+        // filling the sheet.
+        const fieldKeyToOptionType = (field: ImportField): string | null => {
+            if (FIELD_OPTION_TYPE[field.key]) return FIELD_OPTION_TYPE[field.key]
+            if (field.custom && field.optionsCategory) return field.optionsCategory
+            return null
+        }
+        const optionTypeToLabel: Record<string, string> = {}
+        for (const f of allFields) {
+            const ot = fieldKeyToOptionType(f)
+            if (ot) optionTypeToLabel[ot] = f.label
+        }
+        for (const [childType, parentType] of Object.entries(cascadeRelations)) {
+            // Only build a breakdown when the child field is part of this
+            // template (e.g. line_industry) and we have rows for both levels.
+            const childLabel = optionTypeToLabel[childType]
+            if (!childLabel) continue
+            const childRows = optionRowsByType[childType]
+            const parentRows = optionRowsByType[parentType]
+            if (!childRows?.length || !parentRows?.length) continue
+
+            const parentLabelByValue = new Map(parentRows.map((p) => [p.value, p.label]))
+            const parentDisplay = optionTypeToLabel[parentType] ?? formatOptionTypeLabel(parentType)
+
+            // Group children under their parent value, preserving sheet order.
+            const grouped = new Map<string, string[]>()
+            const ungrouped: string[] = []
+            for (const c of childRows) {
+                if (c.parentValue && parentLabelByValue.has(c.parentValue)) {
+                    const key = c.parentValue
+                    if (!grouped.has(key)) grouped.set(key, [])
+                    grouped.get(key)!.push(c.label)
+                } else {
+                    ungrouped.push(c.label)
+                }
+            }
+
+            const breakdownAoa: string[][] = [
+                [`${parentDisplay} \u2192 ${childLabel}`],
+                [`Each ${childLabel} belongs under one ${parentDisplay}. Use the ${childLabel} value exactly as listed.`],
+                [],
+                [parentDisplay, childLabel],
+            ]
+            for (const p of parentRows) {
+                const kids = grouped.get(p.value)
+                if (!kids?.length) continue
+                kids.forEach((kid, idx) => {
+                    breakdownAoa.push([idx === 0 ? p.label : "", kid])
+                })
+            }
+            if (ungrouped.length > 0) {
+                ungrouped.forEach((kid, idx) => {
+                    breakdownAoa.push([idx === 0 ? "(Unassigned)" : "", kid])
+                })
+            }
+
+            // Skip if nothing but headers (no actual hierarchy data).
+            if (breakdownAoa.length <= 4) continue
+
+            const wsBreakdown = XLSX.utils.aoa_to_sheet(breakdownAoa)
+            const parentWidth = Math.max(parentDisplay.length, ...parentRows.map((p) => p.label.length), 18)
+            const childWidth = Math.max(childLabel.length, ...childRows.map((c) => c.label.length), 18)
+            wsBreakdown["!cols"] = [{ wch: parentWidth }, { wch: childWidth }]
+            // Sheet names max 31 chars; keep it short + unique.
+            const sheetName = `${parentDisplay} to ${childLabel}`.slice(0, 31)
+            XLSX.utils.book_append_sheet(wb, wsBreakdown, sheetName)
+        }
+
         XLSX.writeFile(wb, "companies_import_template.xlsx")
         toast.success("Template downloaded!")
-    }, [allFields, optionsByType])
+    }, [allFields, optionsByType, optionRowsByType, cascadeRelations])
 
     const autoMapHeaders = useCallback((rawHeaders: string[]): ColumnMapping => {
         const mapping: ColumnMapping = {}
