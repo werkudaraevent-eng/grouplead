@@ -265,3 +265,113 @@ export function InlineSelectField({
         </RowShell>
     )
 }
+
+// ─────────────────────────────────────────────────────────────
+//  InlineCustomSelectField — master_options dropdown backed by a
+//  key inside a JSONB `custom_data` column (per-tenant custom
+//  fields like "Segment"). Reads/writes custom_data[customKey]
+//  while preserving the rest of the object.
+// ─────────────────────────────────────────────────────────────
+interface InlineCustomSelectFieldProps {
+    /** Supabase table to update, e.g. "client_companies". */
+    table: string
+    /** Primary key value of the row to update. */
+    id: string | number
+    /** Current full custom_data object (null when unset). */
+    customData: Record<string, unknown> | null | undefined
+    /** Key inside custom_data to read/write, e.g. "segment". */
+    customKey: string
+    icon: LucideIcon
+    label: string
+    /** master_options option_type to load choices from. */
+    optionType: string
+    /** Current value of the cascade parent field, when this option_type cascades. */
+    parentValue?: string | null
+    /** Allow clearing back to null. Default true. */
+    clearable?: boolean
+}
+
+export function InlineCustomSelectField({
+    table, id, customData, customKey, icon, label,
+    optionType, parentValue, clearable = true,
+}: InlineCustomSelectFieldProps) {
+    const router = useRouter()
+    const { can } = usePermissions()
+    const canEdit = can(moduleForTable(table), "update")
+    const [open, setOpen] = useState(false)
+    const [saving, setSaving] = useState(false)
+    const { options, loading, isDisabledByParent } = useCascadedOptions(
+        open ? optionType : "",
+        parentValue,
+    )
+
+    const rawValue = (customData?.[customKey] as string | null | undefined) ?? null
+    const shown = rawValue
+
+    if (!canEdit) {
+        return (
+            <RowShell icon={icon} label={label}>
+                <span className={cn("text-[13px] break-words", shown ? "text-slate-800" : "text-slate-300")}>
+                    {shown || "—"}
+                </span>
+            </RowShell>
+        )
+    }
+
+    const handleSelect = async (next: string | null) => {
+        if ((next ?? null) === (rawValue ?? null)) { setOpen(false); return }
+        setSaving(true)
+        const merged: Record<string, unknown> = { ...(customData ?? {}) }
+        if (next === null) delete merged[customKey]
+        else merged[customKey] = next
+        const { error } = await persist(table, id, { custom_data: merged })
+        if (error) toast.error(`Update failed: ${error.message}`)
+        else { toast.success(`${label} updated`); router.refresh() }
+        setSaving(false)
+        setOpen(false)
+    }
+
+    return (
+        <RowShell icon={icon} label={label}>
+            <Popover open={open} onOpenChange={setOpen}>
+                <PopoverTrigger asChild>
+                    <button
+                        type="button"
+                        disabled={saving}
+                        className="group/inline inline-flex items-center gap-1.5 rounded px-1.5 py-0.5 -mx-1.5 max-w-full transition-colors hover:bg-blue-50 text-left"
+                    >
+                        {saving
+                            ? <Loader2 className="h-3 w-3 animate-spin text-blue-500 shrink-0" />
+                            : <Pencil className="h-3 w-3 text-transparent group-hover/inline:text-blue-500 shrink-0 transition-colors order-2" />}
+                        <span className={cn("text-[13px] break-words", shown ? "text-slate-800" : "text-slate-300")}>
+                            {shown || "—"}
+                        </span>
+                    </button>
+                </PopoverTrigger>
+                <PopoverContent className="w-60 p-0" align="start" sideOffset={8}>
+                    <Command>
+                        <CommandInput placeholder={`Search ${label.toLowerCase()}…`} className="h-9 text-sm" />
+                        <CommandList>
+                            <CommandEmpty className="py-4 text-center text-[12px] text-muted-foreground">
+                                {loading ? "Loading…" : isDisabledByParent ? "Select the parent field first" : "No options"}
+                            </CommandEmpty>
+                            <CommandGroup>
+                                {clearable && (
+                                    <CommandItem value="__clear__" onSelect={() => handleSelect(null)} className="text-[12px] text-muted-foreground">
+                                        <X className="mr-2 h-3.5 w-3.5" /> Clear
+                                    </CommandItem>
+                                )}
+                                {options.map(opt => (
+                                    <CommandItem key={opt.id} value={opt.label} onSelect={() => handleSelect(opt.value)} className="text-[12px]">
+                                        <Check className={cn("mr-2 h-3.5 w-3.5", (rawValue ?? null) === opt.value ? "opacity-100 text-blue-600" : "opacity-0")} />
+                                        {opt.label}
+                                    </CommandItem>
+                                ))}
+                            </CommandGroup>
+                        </CommandList>
+                    </Command>
+                </PopoverContent>
+            </Popover>
+        </RowShell>
+    )
+}

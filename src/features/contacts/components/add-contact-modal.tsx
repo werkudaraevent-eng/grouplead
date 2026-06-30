@@ -70,7 +70,7 @@ interface AddContactModalProps {
 }
 
 const SOCIAL_PLATFORMS = ["LinkedIn", "Instagram", "Twitter", "Facebook", "TikTok", "Website", "Other"]
-const SALUTATIONS = ["Mr.", "Mrs.", "Ms.", "Miss", "Dr.", "Prof.", "Sir", "Madam"]
+const SALUTATIONS = ["Mr", "Mrs", "Ms", "Miss", "Dr", "Prof", "Sir", "Madam"]
 
 const EMPTY_DEFAULTS: ContactFormValues = {
     salutation: "", full_name: "", email: "", phone: "", job_title: "", client_company_id: "",

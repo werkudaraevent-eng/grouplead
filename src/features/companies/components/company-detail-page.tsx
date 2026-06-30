@@ -23,7 +23,7 @@ import { AddCompanyModal } from "./add-company-modal"
 import { CompanyFilesTab } from "./company-files-tab"
 import { formatPhoneDisplay } from "@/lib/phone-normalize"
 import { getInitials, getAvatarColor } from "@/lib/avatar"
-import { InlineTextField, InlineSelectField } from "@/components/shared/inline-edit-field"
+import { InlineTextField, InlineSelectField, InlineCustomSelectField } from "@/components/shared/inline-edit-field"
 import { usePermissions } from "@/contexts/permissions-context"
 // ═══════════════════════════════════════════════════════════════
 //  TYPES
@@ -409,7 +409,8 @@ export function CompanyDetailPage({ company, leads, contactCount, subsidiaries =
                         </div>
                         <div className="px-5 py-4 space-y-3 overflow-y-auto custom-scrollbar min-h-0 flex-1">
                             <InlineSelectField table="client_companies" id={company.id} fieldPath="industry" icon={Briefcase} label="Sector" rawValue={company.industry} optionType="sector" />
-                            <InlineSelectField table="client_companies" id={company.id} fieldPath="line_industry" icon={Building2} label="Line Industry" rawValue={company.line_industry} optionType="line_industry" parentValue={company.industry} />
+                            <InlineCustomSelectField table="client_companies" id={company.id} customData={company.custom_data} customKey="segment" icon={Network} label="Segment" optionType="custom_companies__segment" />
+                            <InlineSelectField table="client_companies" id={company.id} fieldPath="line_industry" icon={Building2} label="Line Industry" rawValue={company.line_industry} optionType="line_industry" parentValue={(company.custom_data?.segment as string | undefined) ?? null} />
                             <InlineTextField table="client_companies" id={company.id} fieldPath="phone" icon={Phone} label="Phone" rawValue={company.phone} displayValue={company.phone ? formatPhoneDisplay(company.phone) : null} inputType="phone" />
                             <InlineTextField table="client_companies" id={company.id} fieldPath="website" icon={Globe} label="Website" rawValue={company.website} inputType="url" />
                             <InlineSelectField table="client_companies" id={company.id} fieldPath="area" icon={MapPin} label="Area" rawValue={company.area} optionType="area" />
