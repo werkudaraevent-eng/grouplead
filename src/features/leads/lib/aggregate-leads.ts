@@ -84,6 +84,11 @@ function getMetricValue(lead: Record<string, any>, metricField: string): number 
   if (metricField === '_active_count') return isActive(lead) ? 1 : 0;
   if (metricField === '_pipeline_value') return isActive(lead) ? (lead.estimated_value || 0) : 0;
   if (metricField === '_lost_revenue') return isLost(lead) ? (lead.estimated_value || lead.actual_value || 0) : 0;
+  // "Won Revenue (Actual)": only closed-won leads count, and fall back to
+  // estimated_value when actual_value is unset. Mirrors the main dashboard
+  // Won Revenue KPI (analytics-dashboard.tsx) so the two never disagree —
+  // many won leads carry their value in estimated_value, not actual_value.
+  if (metricField === 'actual_value') return isWon(lead) ? (lead.actual_value ?? lead.estimated_value ?? 0) : 0;
   const val = lead[metricField];
   if (val === null || val === undefined) return 0;
   return typeof val === 'number' ? val : Number(val) || 0;

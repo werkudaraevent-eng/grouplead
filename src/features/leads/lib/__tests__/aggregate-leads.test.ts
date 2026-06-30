@@ -2,9 +2,9 @@ import { describe, it, expect } from 'vitest'
 import { aggregateLeads, type AggregateConfig } from '../aggregate-leads'
 
 const mockLeads = [
-  { id: 1, actual_value: 1000, estimated_value: 1500, pax_count: 50, lead_source: 'Phone', category: 'Hot Lead', pic_sales_id: 'u1', pic_sales_profile: { full_name: 'Alice' }, client_company: { name: 'Acme' }, client_company_id: 'c1' },
-  { id: 2, actual_value: 2000, estimated_value: 2500, pax_count: 100, lead_source: 'Email', category: 'Hot Lead', pic_sales_id: 'u1', pic_sales_profile: { full_name: 'Alice' }, client_company: { name: 'Beta' }, client_company_id: 'c2' },
-  { id: 3, actual_value: 500, estimated_value: 800, pax_count: 30, lead_source: 'Phone', category: 'Cold Lead', pic_sales_id: 'u2', pic_sales_profile: { full_name: 'Bob' }, client_company: { name: 'Acme' }, client_company_id: 'c1' },
+  { id: 1, actual_value: 1000, estimated_value: 1500, pax_count: 50, lead_source: 'Phone', category: 'Hot Lead', pic_sales_id: 'u1', pic_sales_profile: { full_name: 'Alice' }, client_company: { name: 'Acme' }, client_company_id: 'c1', pipeline_stage: { closed_status: 'won' } },
+  { id: 2, actual_value: 2000, estimated_value: 2500, pax_count: 100, lead_source: 'Email', category: 'Hot Lead', pic_sales_id: 'u1', pic_sales_profile: { full_name: 'Alice' }, client_company: { name: 'Beta' }, client_company_id: 'c2', pipeline_stage: { closed_status: 'won' } },
+  { id: 3, actual_value: 500, estimated_value: 800, pax_count: 30, lead_source: 'Phone', category: 'Cold Lead', pic_sales_id: 'u2', pic_sales_profile: { full_name: 'Bob' }, client_company: { name: 'Acme' }, client_company_id: 'c1', pipeline_stage: { closed_status: 'won' } },
   { id: 4, actual_value: null, estimated_value: 1200, pax_count: null, lead_source: null, category: 'Warm Lead', pic_sales_id: 'u2', pic_sales_profile: { full_name: 'Bob' }, client_company: null, client_company_id: null },
 ]
 
