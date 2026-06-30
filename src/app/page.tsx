@@ -63,7 +63,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
     const allPipelineIds = pipelines.map(p => p.id)
     const base = supabase
         .from('leads')
-        .select('*, client_company:client_companies!client_company_id(name, line_industry, area, account_status, industry, parent_id, parent:parent_id(id, name)), contact:contacts!contact_id(full_name, email, phone), pipeline_stage:pipeline_stages!pipeline_stage_id(name, color, closed_status, stage_type), pic_sales_profile:profiles!pic_sales_id(full_name, avatar_url)')
+        .select('*, client_company:client_companies!client_company_id(name, line_industry, area, account_status, industry, parent_id, custom_data, parent:parent_id(id, name)), contact:contacts!contact_id(full_name, email, phone), pipeline_stage:pipeline_stages!pipeline_stage_id(name, color, closed_status, stage_type), pic_sales_profile:profiles!pic_sales_id(full_name, avatar_url)')
         .is('deleted_at', null)
         .order('updated_at', { ascending: false })
         .limit(DASHBOARD_LEADS_LIMIT)

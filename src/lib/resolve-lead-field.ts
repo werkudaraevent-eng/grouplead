@@ -24,6 +24,16 @@ const CLIENT_COMPANY_FIELD_ALIAS: Record<string, string> = {
 }
 
 /**
+ * Company-module CUSTOM fields whose values live in
+ * `client_companies.custom_data` JSONB (keyed by field_key) rather than a
+ * native column. Resolved through the lead's client_company relation.
+ * "segment" is a custom company field (option_type custom_companies__segment).
+ */
+const COMPANY_CUSTOM_DATA_FIELDS = new Set([
+  'segment',
+])
+
+/**
  * Resolves a field value from a lead, with multi-level relation fallback.
  *
  * Resolution order:
@@ -43,6 +53,17 @@ export function resolveLeadField(lead: Lead, field: string): string | null {
   // Level 1: direct lead field
   const direct = (lead as unknown as Record<string, unknown>)[field]
   if (direct != null && direct !== '') return String(direct)
+
+  // Company custom-field dimensions: stored in client_company.custom_data JSONB
+  // (per-tenant custom fields like "Segment"). Resolved through the company
+  // relation since leads have no own column for them.
+  if (COMPANY_CUSTOM_DATA_FIELDS.has(field)) {
+    const cc = lead.client_company as Record<string, unknown> | null
+    const customData = cc?.custom_data as Record<string, unknown> | null | undefined
+    const cdVal = customData?.[field]
+    if (cdVal != null && cdVal !== '') return String(cdVal)
+    return null
+  }
 
   // Level 2: client_company relation
   if (CLIENT_COMPANY_FIELDS.has(field)) {

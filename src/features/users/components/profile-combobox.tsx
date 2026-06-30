@@ -70,12 +70,15 @@ export function ProfileCombobox({ value, onChange, filterTierBelow, filterRoles,
 
             const allowedRoles = filterRolesKey ? filterRolesKey.split(",") : null
             const filtered = (data ?? []).filter((p) => {
+                // Always keep the currently-selected value, even if it falls
+                // outside the role/tier/active filters (e.g. a contact owned by
+                // a super_admin while the picker only lists sales/bu_manager).
+                // Otherwise the field renders empty despite having a value.
+                if (p.id === value) return true
                 if (filterTierBelow && (p.role_tier == null || p.role_tier >= filterTierBelow)) return false
                 if (allowedRoles && !allowedRoles.includes(p.role)) return false
                 // Hide deactivated users so they can't be assigned to new leads.
-                // The currently-selected value is preserved separately below, so
-                // editing a lead whose PIC was later deactivated still shows them.
-                if (p.is_active === false && p.id !== value) return false
+                if (p.is_active === false) return false
                 return true
             })
 
