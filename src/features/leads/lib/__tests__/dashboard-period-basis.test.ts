@@ -121,3 +121,29 @@ describe("splitLeadsByBasis", () => {
         expect(r.previous.map(l => l.id)).toEqual([100])
     })
 })
+
+describe("splitLeadsByBasis custom range — local-date boundaries (timezone regression)", () => {
+    // Regression: a custom range of May 1–31 must NOT include a June-recognised
+    // lead. Previously `new Date("2026-05-31")` parsed as UTC midnight, so in
+    // +7 zones the range end landed at Jun 1 07:00 local while the June lead's
+    // revenue date is Jun 1 00:00 local — leaking it into May. See
+    // getRevenueDate + parseLocalDateInput.
+    const custom = { start: "2026-05-01", end: "2026-05-31" }
+
+    it("keeps a June revenue-month lead OUT of a May custom range", () => {
+        const leads: MinimalLead[] = [
+            { id: 1, month_event: "May 2026" },
+            { id: 2, month_event: "June 2026" },
+        ]
+        const r = splitLeadsByBasis(leads, "revenue", "custom", NOW, custom)
+        expect(r.current.map(l => l.id)).toEqual([1])
+    })
+
+    it("includes the last day of the range (May 31)", () => {
+        const leads: MinimalLead[] = [
+            { id: 1, event_date_end: "2026-05-31" },
+        ]
+        const r = splitLeadsByBasis(leads, "revenue", "custom", NOW, custom)
+        expect(r.current.map(l => l.id)).toEqual([1])
+    })
+})

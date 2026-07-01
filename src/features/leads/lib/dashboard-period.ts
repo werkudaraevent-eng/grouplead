@@ -131,9 +131,7 @@ export function getDateForBasis(lead: LeadWithDates, basis: DateBasis): Date | n
 
 function startOfMonth(date: Date) {
     return new Date(date.getFullYear(), date.getMonth(), 1)
-}
-
-function addMonths(date: Date, months: number) {
+}function addMonths(date: Date, months: number) {
     return new Date(date.getFullYear(), date.getMonth() + months, 1)
 }
 
@@ -144,6 +142,23 @@ function startOfQuarter(date: Date) {
 
 function addYears(date: Date, years: number) {
     return new Date(date.getFullYear() + years, date.getMonth(), date.getDate())
+}
+
+/**
+ * Parse a date-only input string ("YYYY-MM-DD" from <input type="date">) as
+ * LOCAL midnight. `new Date("2026-05-31")` parses as UTC midnight, which in
+ * +7 zones lands at 07:00 local — shifting range boundaries and letting
+ * leads from the next month (whose revenue date is built locally via
+ * `new Date(year, monthIdx, 1)`) leak into the wrong period. Building the
+ * Date from local parts keeps range boundaries consistent with those dates.
+ */
+function parseLocalDateInput(value: string): Date {
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value.trim())
+    if (m) {
+        return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]))
+    }
+    // Fallback for full ISO / other formats — preserve previous behaviour.
+    return new Date(value)
 }
 
 export function getDashboardPeriodRanges(period: DashboardPeriod, now: Date, customRange?: { start: string; end: string }): { current: DateRange; previous: DateRange } {
@@ -174,8 +189,8 @@ export function getDashboardPeriodRanges(period: DashboardPeriod, now: Date, cus
 
     // Custom range with explicit dates
     if (period === "custom" && customRange?.start && customRange?.end) {
-        const start = new Date(customRange.start)
-        const end = new Date(customRange.end)
+        const start = parseLocalDateInput(customRange.start)
+        const end = parseLocalDateInput(customRange.end)
         end.setDate(end.getDate() + 1) // Include end date
         const durationMs = end.getTime() - start.getTime()
         return {
