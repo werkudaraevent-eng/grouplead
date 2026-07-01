@@ -289,11 +289,16 @@ interface InlineCustomSelectFieldProps {
     parentValue?: string | null
     /** Allow clearing back to null. Default true. */
     clearable?: boolean
+    /** Other custom_data keys to clear when this value changes (cascade children). */
+    alsoClearCustomKeys?: string[]
+    /** Native columns to set null when this value changes (cascade children). */
+    alsoClearColumns?: string[]
 }
 
 export function InlineCustomSelectField({
     table, id, customData, customKey, icon, label,
     optionType, parentValue, clearable = true,
+    alsoClearCustomKeys, alsoClearColumns,
 }: InlineCustomSelectFieldProps) {
     const router = useRouter()
     const { can } = usePermissions()
@@ -324,7 +329,12 @@ export function InlineCustomSelectField({
         const merged: Record<string, unknown> = { ...(customData ?? {}) }
         if (next === null) delete merged[customKey]
         else merged[customKey] = next
-        const { error } = await persist(table, id, { custom_data: merged })
+        // Cascade: a change here invalidates dependent children (each child
+        // value belongs to exactly one parent), so clear them in the same write.
+        for (const k of alsoClearCustomKeys ?? []) delete merged[k]
+        const payload: Record<string, unknown> = { custom_data: merged }
+        for (const col of alsoClearColumns ?? []) payload[col] = null
+        const { error } = await persist(table, id, payload)
         if (error) toast.error(`Update failed: ${error.message}`)
         else { toast.success(`${label} updated`); router.refresh() }
         setSaving(false)

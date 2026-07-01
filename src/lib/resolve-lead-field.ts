@@ -31,6 +31,7 @@ const CLIENT_COMPANY_FIELD_ALIAS: Record<string, string> = {
  */
 const COMPANY_CUSTOM_DATA_FIELDS = new Set([
   'segment',
+  'segment_tier',
 ])
 
 /**

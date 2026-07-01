@@ -50,6 +50,7 @@ const GROUP_BY_OPTIONS = [
   { value: 'main_stream', label: 'Main Stream' },
   { value: 'business_purpose', label: 'Business Purpose' },
   { value: 'sector', label: 'Sector' },
+  { value: 'segment_tier', label: 'Segment Tier' },
   { value: 'segment', label: 'Segment' },
   { value: 'line_industry', label: 'Line Industry' },
   { value: 'area', label: 'Area' },

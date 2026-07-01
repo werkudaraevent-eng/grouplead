@@ -180,6 +180,14 @@ export function AddCompanyModal({ open, onOpenChange, onCreated, initialData }: 
     const liParentValue = liParentFieldKey ? (customValues[liParentFieldKey] as string | null) ?? null : null
     const { options: filteredLineIndustryOptions, isDisabledByParent: liDisabled } = useCascadedOptions("line_industry", liParentValue, companyIds)
 
+    // ── Generic cascading: detect parent for segment (e.g. segment_tier) ──
+    // Segment is a custom field; when its parent tier changes the previously
+    // chosen segment may belong to a different tier, so it must be cleared.
+    const { options: segmentAllOptions } = useMasterOptions("custom_companies__segment", companyIds)
+    const { parentCategory: segParentCat } = useCascadedOptions("custom_companies__segment", null, companyIds)
+    const segParentFieldKey = segParentCat ? segParentCat.replace(/^custom_[a-z]+__/, "") : null
+    const segParentValue = segParentFieldKey ? (customValues[segParentFieldKey] as string | null) ?? null : null
+
     // Memoize the dynamic resolver. We feed RHF a stable schema reference
     // and re-bind whenever any input it depends on changes — layout config
     // (`requiredOverrides`), the loaded custom schemas, or the live custom
@@ -317,6 +325,22 @@ export function AddCompanyModal({ open, onOpenChange, onCreated, initialData }: 
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [liParentValue])
+
+    // ── Cascade reset: clear segment when its parent (segment_tier) changes ──
+    // Clearing segment cascades into the line_industry reset above (its parent
+    // value derives from the segment custom field).
+    useEffect(() => {
+        if (!segParentFieldKey) return
+        const currentSeg = customValues["segment"] as string | null | undefined
+        if (!currentSeg) return
+        if (segParentValue) {
+            const isValid = segmentAllOptions.some(o => o.value === currentSeg && o.parent_value === segParentValue)
+            if (!isValid) setCustomValues(prev => ({ ...prev, segment: null }))
+        } else {
+            setCustomValues(prev => ({ ...prev, segment: null }))
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [segParentValue])
 
     const onSubmit = async (data: AddCompanyValues) => {
         setSaving(true)
