@@ -6,6 +6,7 @@ import { Lead, PipelineStage } from "@/types"
 import type { GoalV2, GoalNode, GoalUserTarget, GoalSettingsV2 } from "@/types/goals"
 import { GoalDataProvider } from "@/features/goals/contexts/goal-data-context"
 import { EmptyState } from "@/components/shared/empty-state"
+import { DateRangeFilter } from "@/components/shared/date-range-filter"
 import { buildDashboardStageSeries } from "@/features/leads/lib/dashboard-stage-series"
 import {
     splitDashboardLeadsByPeriod,
@@ -1379,7 +1380,6 @@ export function AnalyticsDashboard({
         stageDistribution: stageData.map(s => ({ name: s.name, current: s.count, previous: s.previousCount })),
     }), [periodStr, stats, goalMetrics, activeGoal, pipelineStages, periodLeads.length, previousPeriodLeads.length, monthlyRev, salesData, topComps, sourceData, stageData])
 
-    const isCustomPeriod = periodStr === "custom"
     const isDefaultPeriod = periodStr === "this_quarter" && companyFilter === "all"
     const handleResetPeriod = () => { setPeriodStr("this_quarter"); setCustomStart(""); setCustomEnd(""); setCompanyFilter("all") }
 
@@ -1623,25 +1623,12 @@ export function AnalyticsDashboard({
                         </Select>
                     )}
 
-                    <Select value={periodStr} onValueChange={setPeriodStr}>
-                        <SelectTrigger
-                            size="sm"
-                            className={`w-auto h-8 px-2.5 text-[12px] font-medium gap-1.5 shadow-none rounded-lg ${
-                                periodStr !== "this_quarter"
-                                    ? "bg-primary/10 border-primary/30 text-primary hover:bg-primary/15"
-                                    : "bg-white border-slate-200 hover:bg-slate-50"
-                            }`}
-                        >
-                            <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="this_month">This Month</SelectItem>
-                            <SelectItem value="this_quarter">This Quarter</SelectItem>
-                            <SelectItem value="this_year">This Year</SelectItem>
-                            <SelectItem value="all_time">All Time</SelectItem>
-                            <SelectItem value="custom">Custom Range</SelectItem>
-                        </SelectContent>
-                    </Select>
+                    <DateRangeFilter
+                        period={periodStr}
+                        customStart={customStart}
+                        customEnd={customEnd}
+                        onSelect={(p, s, e) => { setPeriodStr(p); setCustomStart(s); setCustomEnd(e) }}
+                    />
 
                     {/* Global note: each card uses its own date basis. The
                         info icon sits inline with the chips so the user
@@ -1659,32 +1646,6 @@ export function AnalyticsDashboard({
                             <Info className="w-3.5 h-3.5" />
                         </span>
                     </Tooltip>
-
-                    {isCustomPeriod && (
-                        <div style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-                            <input
-                                type="date"
-                                value={customStart}
-                                onChange={e => setCustomStart(e.target.value)}
-                                style={{
-                                    height: 32, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 6,
-                                    padding: "0 8px", fontSize: 12, fontWeight: 500, color: "#292D30",
-                                    fontFamily: "inherit",
-                                }}
-                            />
-                            <span style={{ fontSize: 11, color: "#94a3b8", fontWeight: 500 }}>—</span>
-                            <input
-                                type="date"
-                                value={customEnd}
-                                onChange={e => setCustomEnd(e.target.value)}
-                                style={{
-                                    height: 32, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 6,
-                                    padding: "0 8px", fontSize: 12, fontWeight: 500, color: "#292D30",
-                                    fontFamily: "inherit",
-                                }}
-                            />
-                        </div>
-                    )}
 
                     {!isDefaultPeriod && (
                         <button
