@@ -121,12 +121,23 @@ export function DateRangeFilter({
         setOpen(false)
     }
 
-    const handleRangeSelect = (range: DateRange | undefined) => {
-        setDraft(range)
-        if (range?.from && range?.to) {
-            onSelect("custom", iso(range.from), iso(range.to))
-            setOpen(false)
+    // Explicit two-click range selection. react-day-picker's default range
+    // behaviour treats a click as "complete the range" whenever a `from`
+    // already exists — so reopening with a prior range made the very first
+    // click commit against the stale anchor and close the popover. We take
+    // over: click 1 always starts a fresh range, click 2 sets the end + commits.
+    const handleDaySelect = (_range: DateRange | undefined, selectedDay: Date) => {
+        if (!draft?.from || (draft.from && draft.to)) {
+            // No range in progress, or a complete one exists → start over.
+            setDraft({ from: selectedDay, to: undefined })
+            return
         }
+        // A start is set and we're picking the end.
+        const from = draft.from
+        const [start, end] = selectedDay < from ? [selectedDay, from] : [from, selectedDay]
+        setDraft({ from: start, to: end })
+        onSelect("custom", iso(start), iso(end))
+        setOpen(false)
     }
 
     return (
@@ -176,7 +187,7 @@ export function DateRangeFilter({
                             mode="range"
                             numberOfMonths={2}
                             selected={draft}
-                            onSelect={handleRangeSelect}
+                            onSelect={handleDaySelect}
                             defaultMonth={selectedRange?.from ?? subMonths(now, 1)}
                             captionLayout="dropdown"
                         />
