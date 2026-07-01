@@ -2,7 +2,7 @@
 
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer, Cell,
-  PieChart, Pie,
+  PieChart, Pie, LabelList,
 } from "recharts"
 import { useRef } from "react"
 import { createPortal } from "react-dom"
@@ -237,6 +237,35 @@ function BarTooltip({ active, payload, coordinate, chartRef, metricField, aggreg
   )
 }
 
+// Value label drawn at the end of each horizontal bar. Sits INSIDE the bar
+// (white) when there's room, otherwise just OUTSIDE it (dark) — so the longest
+// bar (which reaches the chart edge) never gets its label clipped.
+function makeBarValueLabel(formatFn: (v: number) => string) {
+  return function BarValueLabel(props: any) {
+    const { x, y, width, height, value } = props
+    if (value == null || value === 0) return null
+    const text = formatFn(value)
+    const approxTextWidth = text.length * 6 + 8
+    const inside = width >= approxTextWidth
+    const tx = inside ? x + width - 6 : x + width + 6
+    const anchor = inside ? "end" : "start"
+    const fill = inside ? "#fff" : "#475569"
+    return (
+      <text
+        x={tx}
+        y={y + height / 2}
+        dy={3.5}
+        textAnchor={anchor}
+        fontSize={10}
+        fontWeight={600}
+        fill={fill}
+      >
+        {text}
+      </text>
+    )
+  }
+}
+
 function BarRenderer({ widget, data, filterNode }: CustomWidgetRendererProps & { filterNode?: React.ReactNode }) {
   const { fmt, fmtAxis } = useCurrency()
   const hasMounted = useHasMounted()
@@ -290,6 +319,7 @@ function BarRenderer({ widget, data, filterNode }: CustomWidgetRendererProps & {
                       {chartData.map((d, i) => (
                         <Cell key={i} fill={d.fill} />
                       ))}
+                      <LabelList dataKey="value" content={makeBarValueLabel((v) => formatValue(v, widget.metric_field, widget.aggregation, fmtAxis))} />
                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>
@@ -496,6 +526,7 @@ function ListRenderer({ widget, data, filterNode }: CustomWidgetRendererProps & 
                       {chartData.map((d, i) => (
                         <Cell key={i} fill={d.fill} />
                       ))}
+                      <LabelList dataKey="value" content={makeBarValueLabel((v) => formatValue(v, widget.metric_field, widget.aggregation, fmtAxis))} />
                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>
