@@ -4,6 +4,8 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer, Cell,
   PieChart, Pie,
 } from "recharts"
+import { useRef } from "react"
+import { createPortal } from "react-dom"
 import { SectionCard, SectionTitle, CHART_COLORS, EllipsisTick, StickyAxis } from "./shared"
 import { useHasMounted } from "@/hooks/use-has-mounted"
 import { useCurrency } from "@/contexts/currency-context"
@@ -135,26 +137,56 @@ function KPIRenderer({ widget, data }: CustomWidgetRendererProps) {
 }
 
 // ─── Bar Chart Renderer (Recharts) ──────────────────────────────────────────
-function BarTooltip({ active, payload, metricField, aggregation, fmt }: any) {
+// Renders tooltip content into document.body via a portal so it escapes the
+// widget's scroll containers (overflow-y:auto / overflow-x:hidden on the chart
+// scroll div AND SectionCard), which would otherwise clip it — the box looked
+// "tenggelam" under the widget edge. Positioned with fixed coords from the
+// chart's bounding rect + Recharts' `coordinate` (relative to the chart top,
+// so it stays correct even while the bar list is scrolled).
+function TooltipShell({
+  coordinate, chartRef, children,
+}: {
+  coordinate?: { x: number; y: number }
+  chartRef: React.RefObject<HTMLDivElement | null>
+  children: React.ReactNode
+}) {
+  if (typeof document === "undefined" || !coordinate || !chartRef.current) return null
+  const rect = chartRef.current.getBoundingClientRect()
+  const rawLeft = rect.left + coordinate.x + 14
+  const top = rect.top + coordinate.y + 14
+  // Keep the box on-screen horizontally — segment labels can be long.
+  const left = Math.max(8, Math.min(rawLeft, window.innerWidth - 288))
+  return createPortal(
+    <div style={{ position: "fixed", left, top, zIndex: 9999, pointerEvents: "none", maxWidth: 280 }}>
+      {children}
+    </div>,
+    document.body,
+  )
+}
+
+function BarTooltip({ active, payload, coordinate, chartRef, metricField, aggregation, fmt }: any) {
   if (!active || !payload?.length) return null
   const d = payload[0].payload
   return (
-    <div style={{
-      background: "#0f172a", color: "#fff", padding: "8px 11px", borderRadius: 8,
-      fontSize: 11, lineHeight: 1.6, boxShadow: "0 4px 16px rgba(0,0,0,.25)",
-    }}>
-      <div style={{ fontWeight: 700, marginBottom: 1 }}>{d.label}</div>
-      <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-        <div style={{ width: 6, height: 6, borderRadius: 2, background: d.fill, flexShrink: 0 }} />
-        <span>Value: {formatValue(d.value, metricField, aggregation, fmt)}</span>
+    <TooltipShell coordinate={coordinate} chartRef={chartRef}>
+      <div style={{
+        background: "#0f172a", color: "#fff", padding: "8px 11px", borderRadius: 8,
+        fontSize: 11, lineHeight: 1.6, boxShadow: "0 4px 16px rgba(0,0,0,.25)",
+      }}>
+        <div style={{ fontWeight: 700, marginBottom: 1 }}>{d.label}</div>
+        <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+          <div style={{ width: 6, height: 6, borderRadius: 2, background: d.fill, flexShrink: 0 }} />
+          <span>Value: {formatValue(d.value, metricField, aggregation, fmt)}</span>
+        </div>
       </div>
-    </div>
+    </TooltipShell>
   )
 }
 
 function BarRenderer({ widget, data }: CustomWidgetRendererProps) {
   const { fmt, fmtAxis } = useCurrency()
   const hasMounted = useHasMounted()
+  const chartRef = useRef<HTMLDivElement>(null)
 
   const chartData = data.groups.map((g, i) => ({
     ...g,
@@ -184,7 +216,7 @@ function BarRenderer({ widget, data }: CustomWidgetRendererProps) {
         <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
           <div className="thin-scrollbar" style={{ flex: 1, minHeight: 0, overflowY: "auto", overflowX: "hidden" }}>
             {hasMounted ? (
-              <div style={{ width: "100%", height: Math.max(chartData.length * 36, 80) }}>
+              <div ref={chartRef} style={{ width: "100%", height: Math.max(chartData.length * 36, 80) }}>
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={chartData} layout="vertical" margin={{ top: 4, right: 12, left: 0, bottom: 0 }}>
                     <XAxis type="number" hide domain={xDomain} />
@@ -197,7 +229,7 @@ function BarRenderer({ widget, data }: CustomWidgetRendererProps) {
                       width={80}
                     />
                     <RechartsTooltip
-                      content={<BarTooltip metricField={widget.metric_field} aggregation={widget.aggregation} fmt={fmt} />}
+                      content={<BarTooltip chartRef={chartRef} metricField={widget.metric_field} aggregation={widget.aggregation} fmt={fmt} />}
                       cursor={{ fill: "rgba(0,0,0,.03)" }}
                     />
                     <Bar dataKey="value" radius={[0, 4, 4, 0]} barSize={14}>
@@ -227,27 +259,30 @@ function BarRenderer({ widget, data }: CustomWidgetRendererProps) {
 }
 
 // ─── Pie/Donut Renderer (Recharts) ──────────────────────────────────────────
-function PieTooltip({ active, payload, metricField, aggregation, fmt }: any) {
+function PieTooltip({ active, payload, coordinate, chartRef, metricField, aggregation, fmt }: any) {
   if (!active || !payload?.length) return null
   const d = payload[0].payload
   return (
-    <div style={{
-      background: "#0f172a", color: "#fff", padding: "8px 11px", borderRadius: 8,
-      fontSize: 11, lineHeight: 1.6, boxShadow: "0 4px 16px rgba(0,0,0,.25)",
-    }}>
-      <div style={{ fontWeight: 700, marginBottom: 1 }}>{d.label}</div>
-      <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-        <div style={{ width: 6, height: 6, borderRadius: 2, background: d.fill, flexShrink: 0 }} />
-        <span>Value: {formatValue(d.value, metricField, aggregation, fmt)}</span>
+    <TooltipShell coordinate={coordinate} chartRef={chartRef}>
+      <div style={{
+        background: "#0f172a", color: "#fff", padding: "8px 11px", borderRadius: 8,
+        fontSize: 11, lineHeight: 1.6, boxShadow: "0 4px 16px rgba(0,0,0,.25)",
+      }}>
+        <div style={{ fontWeight: 700, marginBottom: 1 }}>{d.label}</div>
+        <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+          <div style={{ width: 6, height: 6, borderRadius: 2, background: d.fill, flexShrink: 0 }} />
+          <span>Value: {formatValue(d.value, metricField, aggregation, fmt)}</span>
+        </div>
+        <div style={{ opacity: 0.7 }}>{d.pctLabel}</div>
       </div>
-      <div style={{ opacity: 0.7 }}>{d.pctLabel}</div>
-    </div>
+    </TooltipShell>
   )
 }
 
 function PieRenderer({ widget, data }: CustomWidgetRendererProps) {
   const { fmt } = useCurrency()
   const hasMounted = useHasMounted()
+  const chartRef = useRef<HTMLDivElement>(null)
   const total = data.groups.reduce((s, g) => s + g.value, 0) || 1
 
   const chartData = data.groups.map((g, i) => ({
@@ -262,7 +297,7 @@ function PieRenderer({ widget, data }: CustomWidgetRendererProps) {
       <SectionTitle>{widget.title}</SectionTitle>
       <div style={{ display: 'flex', gap: 16, alignItems: 'stretch', flex: 1, minHeight: 0 }}>
         {/* Donut */}
-        <div style={{ width: '45%', flexShrink: 0, position: 'relative' }}>
+        <div ref={chartRef} style={{ width: '45%', flexShrink: 0, position: 'relative' }}>
           {hasMounted ? (
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
@@ -282,7 +317,7 @@ function PieRenderer({ widget, data }: CustomWidgetRendererProps) {
                   ))}
                 </Pie>
                 <RechartsTooltip
-                  content={<PieTooltip metricField={widget.metric_field} aggregation={widget.aggregation} fmt={fmt} />}
+                  content={<PieTooltip chartRef={chartRef} metricField={widget.metric_field} aggregation={widget.aggregation} fmt={fmt} />}
                 />
               </PieChart>
             </ResponsiveContainer>
@@ -321,20 +356,22 @@ function PieRenderer({ widget, data }: CustomWidgetRendererProps) {
 }
 
 // ─── Ranked List Renderer (Recharts) ────────────────────────────────────────
-function ListTooltip({ active, payload, metricField, aggregation, fmt }: any) {
+function ListTooltip({ active, payload, coordinate, chartRef, metricField, aggregation, fmt }: any) {
   if (!active || !payload?.length) return null
   const d = payload[0].payload
   return (
-    <div style={{
-      background: "#0f172a", color: "#fff", padding: "8px 11px", borderRadius: 8,
-      fontSize: 11, lineHeight: 1.6, boxShadow: "0 4px 16px rgba(0,0,0,.25)",
-    }}>
-      <div style={{ fontWeight: 700, marginBottom: 1 }}>#{d.rank} {d.label}</div>
-      <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-        <div style={{ width: 6, height: 6, borderRadius: 2, background: d.fill, flexShrink: 0 }} />
-        <span>Value: {formatValue(d.value, metricField, aggregation, fmt)}</span>
+    <TooltipShell coordinate={coordinate} chartRef={chartRef}>
+      <div style={{
+        background: "#0f172a", color: "#fff", padding: "8px 11px", borderRadius: 8,
+        fontSize: 11, lineHeight: 1.6, boxShadow: "0 4px 16px rgba(0,0,0,.25)",
+      }}>
+        <div style={{ fontWeight: 700, marginBottom: 1 }}>#{d.rank} {d.label}</div>
+        <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+          <div style={{ width: 6, height: 6, borderRadius: 2, background: d.fill, flexShrink: 0 }} />
+          <span>Value: {formatValue(d.value, metricField, aggregation, fmt)}</span>
+        </div>
       </div>
-    </div>
+    </TooltipShell>
   )
 }
 
@@ -358,6 +395,7 @@ function ListRankTick({ x, y, payload, data, width = 100, fontSize = 10.5 }: any
 function ListRenderer({ widget, data }: CustomWidgetRendererProps) {
   const { fmt, fmtAxis } = useCurrency()
   const hasMounted = useHasMounted()
+  const chartRef = useRef<HTMLDivElement>(null)
 
   const chartData = data.groups.map((g, i) => ({
     ...g,
@@ -384,7 +422,7 @@ function ListRenderer({ widget, data }: CustomWidgetRendererProps) {
         <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
           <div className="thin-scrollbar" style={{ flex: 1, minHeight: 0, overflowY: "auto", overflowX: "hidden" }}>
             {hasMounted ? (
-              <div style={{ width: "100%", height: Math.max(chartData.length * 36, 80) }}>
+              <div ref={chartRef} style={{ width: "100%", height: Math.max(chartData.length * 36, 80) }}>
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={chartData} layout="vertical" margin={{ top: 4, right: 12, left: 0, bottom: 0 }}>
                     <XAxis type="number" hide domain={xDomain} />
@@ -397,7 +435,7 @@ function ListRenderer({ widget, data }: CustomWidgetRendererProps) {
                       width={100}
                     />
                     <RechartsTooltip
-                      content={<ListTooltip metricField={widget.metric_field} aggregation={widget.aggregation} fmt={fmt} />}
+                      content={<ListTooltip chartRef={chartRef} metricField={widget.metric_field} aggregation={widget.aggregation} fmt={fmt} />}
                       cursor={{ fill: "rgba(0,0,0,.03)" }}
                     />
                     <Bar dataKey="value" radius={[0, 4, 4, 0]} barSize={14}>
