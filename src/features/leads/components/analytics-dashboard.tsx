@@ -42,7 +42,7 @@ import {
 } from "./dashboard-widgets"
 import { ContactAnalyticsWidget } from "@/features/contacts/components/dashboard"
 import type { CustomWidget } from "@/types/custom-widget"
-import { aggregateLeads } from "@/features/leads/lib/aggregate-leads"
+import { aggregateLeads, resolveField as resolveLeadDimension } from "@/features/leads/lib/aggregate-leads"
 import { CustomWidgetRenderer } from "./dashboard-widgets/custom-widget-renderer"
 import { WidgetConfiguratorModal } from "./dashboard-widgets/widget-configurator-modal"
 import { useDashboardTools } from "./dashboard-widgets/use-dashboard-tools"
@@ -377,11 +377,42 @@ export function AnalyticsDashboard({
     const [showConfigurator, setShowConfigurator] = useState(false)
     const [editingWidget, setEditingWidget] = useState<CustomWidget | null>(null)
 
+    // Ephemeral per-widget interactive filter selections (widgetId → value).
+    // Resets on reload by design; a null/absent value means "All".
+    const [widgetFilterValues, setWidgetFilterValues] = useState<Record<string, string | null>>({})
+
+    // Distinct values available for each widget's interactive filter field,
+    // derived from the current period's leads. Used to populate the dropdown.
+    const widgetFilterOptions = useMemo(() => {
+        const map = new Map<string, string[]>()
+        for (const w of customWidgetsList) {
+            const field = w.config?.filter?.field
+            if (!field) continue
+            const seen = new Set<string>()
+            for (const l of periodLeadBuckets.current) {
+                const v = resolveLeadDimension(l as Record<string, any>, field)
+                if (v) seen.add(v)
+            }
+            map.set(w.id, Array.from(seen).sort((a, b) => a.localeCompare(b)))
+        }
+        return map
+    }, [customWidgetsList, periodLeadBuckets])
+
     // Compute aggregation data for each custom widget
     const customWidgetData = useMemo(() => {
         const map = new Map<string, any>()
         for (const w of customWidgetsList) {
-            const result = aggregateLeads(periodLeadBuckets.current, {
+            // Apply the interactive filter (if configured + a value is picked)
+            // before aggregating. Selection resets to default/All on reload.
+            const filterField = w.config?.filter?.field
+            const selected = filterField
+                ? (widgetFilterValues[w.id] ?? w.config?.filter?.defaultValue ?? null)
+                : null
+            const sourceLeads = (filterField && selected)
+                ? periodLeadBuckets.current.filter(
+                    l => resolveLeadDimension(l as Record<string, any>, filterField) === selected)
+                : periodLeadBuckets.current
+            const result = aggregateLeads(sourceLeads, {
                 metricField: w.metric_field as any,
                 aggregation: w.aggregation as any,
                 groupBy: w.group_by,
@@ -390,7 +421,7 @@ export function AnalyticsDashboard({
             map.set(w.id, result)
         }
         return map
-    }, [customWidgetsList, periodLeadBuckets])
+    }, [customWidgetsList, periodLeadBuckets, widgetFilterValues])
 
     const handleSaveCustomWidget = useCallback(async (input: CustomWidgetInput) => {
         const supabase = createClient()
@@ -1744,6 +1775,9 @@ export function AnalyticsDashboard({
                             key={`custom-${w.id}`}
                             widget={w}
                             data={customWidgetData.get(w.id) || { total: 0, groups: [] }}
+                            filterOptions={widgetFilterOptions.get(w.id)}
+                            filterValue={widgetFilterValues[w.id] ?? w.config?.filter?.defaultValue ?? null}
+                            onFilterChange={(v) => setWidgetFilterValues(prev => ({ ...prev, [w.id]: v }))}
                         />
                     ))}
                 </DashboardGrid>

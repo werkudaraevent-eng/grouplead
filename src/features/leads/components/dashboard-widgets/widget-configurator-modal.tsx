@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react"
 import { X, BarChart3, PieChart, List, Hash } from "lucide-react"
-import { aggregateLeads, type AggregateConfig } from "@/features/leads/lib/aggregate-leads"
+import { aggregateLeads, resolveField, type AggregateConfig } from "@/features/leads/lib/aggregate-leads"
 import { CustomWidgetRenderer } from "./custom-widget-renderer"
 import type { CustomWidgetInput } from "@/types/custom-widget"
 
@@ -102,6 +102,11 @@ export function WidgetConfiguratorModal({
   const [title, setTitle] = useState(editWidget?.title || '')
   const [limit, setLimit] = useState(editWidget?.config?.limit || 10)
 
+  // Interactive filter (optional): a dropdown shown on the finished widget so
+  // viewers can narrow the data to one value of `filterField` before it's
+  // aggregated. "" = no interactive filter.
+  const [filterField, setFilterField] = useState(editWidget?.config?.filter?.field || '')
+
   // Auto-generate title
   const autoTitle = useMemo(() => {
     const metric = METRICS.find(m => m.value === metricField)?.label || metricField
@@ -112,7 +117,15 @@ export function WidgetConfiguratorModal({
 
   const displayTitle = title || autoTitle
 
-  // Live preview data
+  // Filter config object built from the selected filter field (or undefined).
+  const filterConfig = useMemo(() => {
+    if (!filterField) return undefined
+    const label = GROUP_BY_OPTIONS.find(g => g.value === filterField)?.label || filterField
+    return { field: filterField, label }
+  }, [filterField])
+
+  // Live preview data. When an interactive filter is set we don't pre-filter
+  // in the preview (default = "All"), so the builder sees the full dataset.
   const previewData = useMemo(() => {
     const config: AggregateConfig = {
       metricField: metricField as any,
@@ -131,8 +144,19 @@ export function WidgetConfiguratorModal({
     metric_field: metricField as any,
     aggregation: aggregation as any,
     group_by: groupBy || null,
-    config: { limit },
-  }), [displayTitle, widgetType, metricField, aggregation, groupBy, limit, editWidget])
+    config: { limit, filter: filterConfig },
+  }), [displayTitle, widgetType, metricField, aggregation, groupBy, limit, filterConfig, editWidget])
+
+  // Distinct values for the interactive-filter preview dropdown.
+  const previewFilterOptions = useMemo(() => {
+    if (!filterField) return []
+    const seen = new Set<string>()
+    for (const l of leads) {
+      const v = resolveField(l as Record<string, any>, filterField)
+      if (v) seen.add(v)
+    }
+    return Array.from(seen).sort((a, b) => a.localeCompare(b))
+  }, [leads, filterField])
 
   const handleSave = () => {
     onSave({
@@ -142,7 +166,7 @@ export function WidgetConfiguratorModal({
       metric_field: metricField as any,
       aggregation: aggregation as any,
       group_by: groupBy || null,
-      config: { limit },
+      config: { limit, filter: filterConfig },
     })
   }
 
@@ -297,6 +321,27 @@ export function WidgetConfiguratorModal({
               </select>
             </div>
 
+            {/* Interactive Filter (optional) — adds a dropdown on the finished
+                widget so viewers can narrow the data without editing it. */}
+            <div>
+              <label style={labelStyle}>Interactive Filter</label>
+              <select
+                value={filterField}
+                onChange={(e) => setFilterField(e.target.value)}
+                style={inputStyle}
+              >
+                <option value="">None (no viewer filter)</option>
+                {GROUP_BY_OPTIONS.filter(g => g.value).map(g => (
+                  <option key={g.value} value={g.value}>{g.label}</option>
+                ))}
+              </select>
+              <p style={{ fontSize: 9.5, color: '#94a3b8', marginTop: 3, lineHeight: 1.4 }}>
+                Adds a dropdown on the widget so viewers can switch which
+                {' '}{filterField ? (GROUP_BY_OPTIONS.find(g => g.value === filterField)?.label || 'value') : 'value'}
+                {' '}is shown. Resets to All on reload.
+              </p>
+            </div>
+
             {/* Limit (only for grouped) */}
             {groupBy && widgetType !== 'kpi' && (
               <div>
@@ -327,7 +372,13 @@ export function WidgetConfiguratorModal({
               border: '1px solid #e2e8f0',
               overflow: 'hidden',
             }}>
-              <CustomWidgetRenderer widget={previewWidget} data={previewData} />
+              <CustomWidgetRenderer
+                widget={previewWidget}
+                data={previewData}
+                filterOptions={previewFilterOptions}
+                filterValue={null}
+                onFilterChange={() => { /* preview only — selection is non-interactive here */ }}
+              />
             </div>
           </div>
         </div>

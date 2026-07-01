@@ -29,12 +29,64 @@ interface CustomWidgetConfig {
   metric_field: string
   aggregation: 'count' | 'sum' | 'avg'
   group_by: string | null
-  config: { limit?: number; color?: string }
+  config: { limit?: number; color?: string; filter?: { field: string; label: string; defaultValue?: string | null } }
 }
 
 interface CustomWidgetRendererProps {
   widget: CustomWidgetConfig
   data: AggregateResult
+  /** Distinct values for the interactive filter field (when configured). */
+  filterOptions?: string[]
+  /** Currently selected filter value (null = All). */
+  filterValue?: string | null
+  /** Called when the viewer changes the interactive filter. */
+  onFilterChange?: (value: string | null) => void
+}
+
+// ─── Interactive filter dropdown (widget header) ────────────────────────────
+// Shown only when the widget has config.filter set. Lets the viewer narrow the
+// data to one value of the filter field before aggregation. Ephemeral: state
+// lives in the parent and resets on reload.
+function WidgetFilterDropdown({
+  label, options, value, onChange,
+}: {
+  label: string
+  options: string[]
+  value: string | null
+  onChange: (v: string | null) => void
+}) {
+  return (
+    <select
+      value={value ?? ""}
+      onChange={(e) => onChange(e.target.value || null)}
+      title={label}
+      style={{
+        maxWidth: 180, height: 26, padding: "0 8px", fontSize: 11, fontWeight: 600,
+        color: "#334155", background: "#f8fafc", border: "1.5px solid #e2e8f0",
+        borderRadius: 6, cursor: "pointer", outline: "none", fontFamily: "inherit",
+        textOverflow: "ellipsis",
+      }}
+      onClick={(e) => e.stopPropagation()}
+    >
+      <option value="">All {label}</option>
+      {options.map((o) => (
+        <option key={o} value={o}>{o}</option>
+      ))}
+    </select>
+  )
+}
+
+// Chart widget header: title on the left, optional interactive filter on the
+// right. Used by bar/pie/list renderers so the filter dropdown sits inline
+// with the title without disturbing the existing layout.
+function WidgetHeader({ title, filterNode }: { title: string; filterNode?: React.ReactNode }) {
+  if (!filterNode) return <SectionTitle>{title}</SectionTitle>
+  return (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+      <SectionTitle>{title}</SectionTitle>
+      {filterNode}
+    </div>
+  )
 }
 
 function isCurrencyField(field: string): boolean {
@@ -78,7 +130,7 @@ function ChartPlaceholder() {
 }
 
 // ─── KPI Renderer (matches SingleKPIWidget design) ─────────────────────────
-function KPIRenderer({ widget, data }: CustomWidgetRendererProps) {
+function KPIRenderer({ widget, data, filterNode }: CustomWidgetRendererProps & { filterNode?: React.ReactNode }) {
   const { fmt } = useCurrency()
   const accentColor = widget.config.color || '#02378D'
   return (
@@ -106,14 +158,16 @@ function KPIRenderer({ widget, data }: CustomWidgetRendererProps) {
         <span style={{ fontSize: 10.5, fontWeight: 600, color: "#94a3b8", letterSpacing: ".15px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
           {widget.title}
         </span>
-        <span style={{
-          width: 22, height: 22, borderRadius: 6,
-          background: accentColor + "0c",
-          display: "flex", alignItems: "center", justifyContent: "center",
-          color: accentColor, flexShrink: 0, fontSize: 11, fontWeight: 700,
-        }}>
-          #
-        </span>
+        {filterNode ?? (
+          <span style={{
+            width: 22, height: 22, borderRadius: 6,
+            background: accentColor + "0c",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            color: accentColor, flexShrink: 0, fontSize: 11, fontWeight: 700,
+          }}>
+            #
+          </span>
+        )}
       </div>
 
       {/* Value */}
@@ -183,7 +237,7 @@ function BarTooltip({ active, payload, coordinate, chartRef, metricField, aggreg
   )
 }
 
-function BarRenderer({ widget, data }: CustomWidgetRendererProps) {
+function BarRenderer({ widget, data, filterNode }: CustomWidgetRendererProps & { filterNode?: React.ReactNode }) {
   const { fmt, fmtAxis } = useCurrency()
   const hasMounted = useHasMounted()
   const chartRef = useRef<HTMLDivElement>(null)
@@ -201,7 +255,7 @@ function BarRenderer({ widget, data }: CustomWidgetRendererProps) {
 
   return (
     <SectionCard>
-      <SectionTitle>{widget.title}</SectionTitle>
+      <WidgetHeader title={widget.title} filterNode={filterNode} />
       <div style={{ fontSize: 10, color: '#94a3b8', marginBottom: 10 }}>
         {data.groups.length} groups • Total: {formatValue(data.total, widget.metric_field, widget.aggregation, fmt)}
       </div>
@@ -279,7 +333,7 @@ function PieTooltip({ active, payload, coordinate, chartRef, metricField, aggreg
   )
 }
 
-function PieRenderer({ widget, data }: CustomWidgetRendererProps) {
+function PieRenderer({ widget, data, filterNode }: CustomWidgetRendererProps & { filterNode?: React.ReactNode }) {
   const { fmt } = useCurrency()
   const hasMounted = useHasMounted()
   const chartRef = useRef<HTMLDivElement>(null)
@@ -294,7 +348,7 @@ function PieRenderer({ widget, data }: CustomWidgetRendererProps) {
 
   return (
     <SectionCard>
-      <SectionTitle>{widget.title}</SectionTitle>
+      <WidgetHeader title={widget.title} filterNode={filterNode} />
       <div style={{ display: 'flex', gap: 16, alignItems: 'stretch', flex: 1, minHeight: 0 }}>
         {/* Donut */}
         <div ref={chartRef} style={{ width: '45%', flexShrink: 0, position: 'relative' }}>
@@ -392,7 +446,7 @@ function ListRankTick({ x, y, payload, data, width = 100, fontSize = 10.5 }: any
   )
 }
 
-function ListRenderer({ widget, data }: CustomWidgetRendererProps) {
+function ListRenderer({ widget, data, filterNode }: CustomWidgetRendererProps & { filterNode?: React.ReactNode }) {
   const { fmt, fmtAxis } = useCurrency()
   const hasMounted = useHasMounted()
   const chartRef = useRef<HTMLDivElement>(null)
@@ -409,7 +463,7 @@ function ListRenderer({ widget, data }: CustomWidgetRendererProps) {
 
   return (
     <SectionCard>
-      <SectionTitle>{widget.title}</SectionTitle>
+      <WidgetHeader title={widget.title} filterNode={filterNode} />
       <div style={{ fontSize: 10, color: '#94a3b8', marginBottom: 8 }}>
         Top {data.groups.length} • Total: {formatValue(data.total, widget.metric_field, widget.aggregation, fmt)}
       </div>
@@ -465,16 +519,27 @@ function ListRenderer({ widget, data }: CustomWidgetRendererProps) {
 }
 
 // ─── Main Renderer ──────────────────────────────────────────────────────────
-export function CustomWidgetRenderer({ widget, data }: CustomWidgetRendererProps) {
+export function CustomWidgetRenderer({ widget, data, filterOptions, filterValue, onFilterChange }: CustomWidgetRendererProps) {
+  // Build the interactive filter dropdown once (when configured) and hand it
+  // to each sub-renderer to place in its header.
+  const filterNode = widget.config?.filter && onFilterChange ? (
+    <WidgetFilterDropdown
+      label={widget.config.filter.label}
+      options={filterOptions ?? []}
+      value={filterValue ?? null}
+      onChange={onFilterChange}
+    />
+  ) : null
+
   switch (widget.widget_type) {
     case 'kpi':
-      return <KPIRenderer widget={widget} data={data} />
+      return <KPIRenderer widget={widget} data={data} filterNode={filterNode} />
     case 'bar':
-      return <BarRenderer widget={widget} data={data} />
+      return <BarRenderer widget={widget} data={data} filterNode={filterNode} />
     case 'pie':
-      return <PieRenderer widget={widget} data={data} />
+      return <PieRenderer widget={widget} data={data} filterNode={filterNode} />
     case 'list':
-      return <ListRenderer widget={widget} data={data} />
+      return <ListRenderer widget={widget} data={data} filterNode={filterNode} />
     default:
       return <SectionCard><div style={{ padding: 20, color: '#94a3b8' }}>Unknown widget type</div></SectionCard>
   }

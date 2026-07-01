@@ -25,7 +25,7 @@ import { resolveLeadField } from '@/lib/resolve-lead-field'
 import type { Lead } from '@/types'
 
 // Resolve a field value from a lead, handling joined relations + 2nd level fallback
-function resolveField(lead: Record<string, any>, field: string): string | null {
+export function resolveField(lead: Record<string, any>, field: string): string | null {
   // FK fields: resolve to joined relation name
   if (field === 'pic_sales_id' && lead.pic_sales_profile?.full_name) {
     return lead.pic_sales_profile.full_name
