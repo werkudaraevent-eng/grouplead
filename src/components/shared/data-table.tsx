@@ -95,25 +95,54 @@ export function DataTable<TData, TValue>({
     const [pageIndex, setPageIndex] = React.useState(0)
     const [rowSelection, setRowSelection] = React.useState<RowSelectionState>({})
 
-    // Persisted column widths (per user, keyed by `storageKey`). Resizing is
-    // only enabled when a storageKey is supplied.
+    // Persisted table layout (per user, keyed by `storageKey`): column widths,
+    // visibility (show/hide), and order. Loaded after mount (not in useState
+    // initializers) to avoid SSR hydration mismatches. Only active when a
+    // storageKey is supplied.
     const sizingStorageKey = storageKey ? `datatable:${storageKey}:sizing` : null
+    const visibilityStorageKey = storageKey ? `datatable:${storageKey}:visibility` : null
+    const orderStorageKey = storageKey ? `datatable:${storageKey}:order` : null
     const [columnSizing, setColumnSizing] = React.useState<ColumnSizingState>({})
+    // Guards so the save-effects don't clobber storage with defaults before the
+    // one-time load has run.
+    const layoutLoaded = React.useRef(false)
+
     React.useEffect(() => {
-        if (!sizingStorageKey) return
+        if (!storageKey) return
         try {
-            const raw = localStorage.getItem(sizingStorageKey)
-            if (raw) setColumnSizing(JSON.parse(raw))
+            const rawSizing = sizingStorageKey && localStorage.getItem(sizingStorageKey)
+            if (rawSizing) setColumnSizing(JSON.parse(rawSizing))
+            const rawVis = visibilityStorageKey && localStorage.getItem(visibilityStorageKey)
+            if (rawVis) setColumnVisibility(JSON.parse(rawVis))
+            const rawOrder = orderStorageKey && localStorage.getItem(orderStorageKey)
+            if (rawOrder) setColumnOrder(JSON.parse(rawOrder))
         } catch { /* ignore malformed cache */ }
-    }, [sizingStorageKey])
+        layoutLoaded.current = true
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [storageKey])
+
     React.useEffect(() => {
-        if (!sizingStorageKey) return
+        if (!sizingStorageKey || !layoutLoaded.current) return
         try {
             if (Object.keys(columnSizing).length > 0) {
                 localStorage.setItem(sizingStorageKey, JSON.stringify(columnSizing))
             }
         } catch { /* ignore quota errors */ }
     }, [sizingStorageKey, columnSizing])
+
+    React.useEffect(() => {
+        if (!visibilityStorageKey || !layoutLoaded.current) return
+        try {
+            localStorage.setItem(visibilityStorageKey, JSON.stringify(columnVisibility))
+        } catch { /* ignore quota errors */ }
+    }, [visibilityStorageKey, columnVisibility])
+
+    React.useEffect(() => {
+        if (!orderStorageKey || !layoutLoaded.current) return
+        try {
+            localStorage.setItem(orderStorageKey, JSON.stringify(columnOrder))
+        } catch { /* ignore quota errors */ }
+    }, [orderStorageKey, columnOrder])
 
     // DnD state for column reorder
     const [draggedCol, setDraggedCol] = React.useState<string | null>(null)
@@ -192,9 +221,11 @@ export function DataTable<TData, TValue>({
         setColumnVisibility(defaultHiddenColumns ?? {})
         setColumnOrder([])
         setColumnSizing({})
-        if (sizingStorageKey) {
-            try { localStorage.removeItem(sizingStorageKey) } catch { /* ignore */ }
-        }
+        try {
+            if (sizingStorageKey) localStorage.removeItem(sizingStorageKey)
+            if (visibilityStorageKey) localStorage.removeItem(visibilityStorageKey)
+            if (orderStorageKey) localStorage.removeItem(orderStorageKey)
+        } catch { /* ignore */ }
     }
 
     // Double-click a resize handle → auto-fit that column to the widest
