@@ -29,7 +29,7 @@ function SortableHeader({ column, label, align = "left" }: { column: any; label:
                     {sorted === "asc" ? <ArrowUp className="h-3 w-3" /> : sorted === "desc" ? <ArrowDown className="h-3 w-3" /> : <ArrowUpDown className="h-3 w-3" />}
                 </span>
             )}
-            <span>{label}</span>
+            <span className="tracking-tight">{label}</span>
             {align === "left" && (
                 <span className="text-slate-300 group-hover:text-slate-500 transition-colors">
                     {sorted === "asc" ? <ArrowUp className="h-3 w-3" /> : sorted === "desc" ? <ArrowDown className="h-3 w-3" /> : <ArrowUpDown className="h-3 w-3" />}
@@ -42,7 +42,7 @@ function SortableHeader({ column, label, align = "left" }: { column: any; label:
 // ── Static header (non-sortable) ──
 function StaticHeader({ label, align = "left" }: { label: string; align?: "left" | "right" }) {
     return (
-        <span className={`text-[12px] font-medium text-slate-700 ${align === "right" ? "text-right block" : ""}`}>
+        <span className={`text-[12px] font-medium text-slate-700 tracking-tight ${align === "right" ? "text-right block" : ""}`}>
             {label}
         </span>
     )
@@ -126,6 +126,7 @@ export function getColumns(
   return [
     {
         id: "subsidiary",
+        size: 190,
         header: ({ column }) => <SortableHeader column={column} label="Subsidiary" />,
         accessorFn: (row) => row.company?.name ?? "",
         cell: ({ row }) => {
@@ -133,11 +134,11 @@ export function getColumns(
             if (!name) return <span className="text-slate-300">—</span>
             const initial = name.split(" ").map(w => w[0]).filter(Boolean).slice(0, 2).join("").toUpperCase() || name.charAt(0).toUpperCase()
             return (
-                <div className="flex items-center gap-2 max-w-[180px]" title={name}>
+                <div className="flex items-center gap-2 w-full min-w-0" title={name}>
                     <div className="h-6 w-6 rounded-md bg-indigo-50 text-indigo-700 ring-1 ring-indigo-100 flex items-center justify-center text-[10px] font-semibold shrink-0">
                         {initial}
                     </div>
-                    <span className="text-[12.5px] font-medium text-slate-700 truncate">{name}</span>
+                    <span className="text-[12.5px] font-medium text-slate-700 truncate min-w-0">{name}</span>
                 </div>
             )
         },
@@ -145,18 +146,19 @@ export function getColumns(
     },
     {
         id: "client",
+        size: 200,
         header: ({ column }) => <SortableHeader column={column} label="Client" />,
         accessorFn: (row) => row.client_company?.name ?? "",
         cell: ({ row }) => {
             const name = row.original.client_company?.name
             return (
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 w-full min-w-0">
                     {name && (
                         <div className="h-6 w-6 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center text-[10px] font-bold shrink-0">
                             {name.charAt(0).toUpperCase()}
                         </div>
                     )}
-                    <span className="font-medium text-[13px] text-slate-800 truncate max-w-[160px]">
+                    <span className="font-medium text-[13px] text-slate-800 truncate min-w-0">
                         {name || "—"}
                     </span>
                 </div>
@@ -166,14 +168,15 @@ export function getColumns(
     {
         accessorKey: "project_name",
         id: "project_name",
+        size: 240,
         header: ({ column }) => <SortableHeader column={column} label="Project" />,
         cell: ({ row }) => {
             const val = row.getValue("project_name") as string
             const leadId = row.original.id
             return (
-                <div className="group/project flex items-center gap-1.5 max-w-[200px]">
+                <div className="group/project flex items-center gap-1.5 w-full min-w-0">
                     <span
-                        className="text-[13px] text-slate-700 truncate"
+                        className="text-[13px] text-slate-700 truncate min-w-0"
                         title={val}
                     >
                         {val || "—"}
@@ -275,11 +278,11 @@ export function getColumns(
             const contact = row.original.contact
             if (!contact?.full_name) return <span className="text-slate-300">—</span>
             return (
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1.5 w-full min-w-0">
                     <div className="h-5 w-5 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center text-[9px] font-bold shrink-0">
                         {contact.full_name.charAt(0).toUpperCase()}
                     </div>
-                    <span className="text-[12px] font-medium text-slate-700 truncate max-w-[130px]" title={`${contact.salutation ? contact.salutation + ' ' : ''}${contact.full_name}`}>
+                    <span className="text-[12px] font-medium text-slate-700 truncate min-w-0" title={`${contact.salutation ? contact.salutation + ' ' : ''}${contact.full_name}`}>
                         {contact.salutation ? `${contact.salutation} ` : ""}{contact.full_name}
                     </span>
                 </div>
@@ -303,7 +306,7 @@ export function getColumns(
                             <img src={avatar} alt={name} className="w-full h-full object-cover" />
                         ) : name.split(" ").map(w => w[0]).join("").slice(0, 2)}
                     </div>
-                    <span className="text-[12px] text-slate-700 truncate max-w-[100px]">{name}</span>
+                    <span className="text-[12px] text-slate-700 truncate min-w-0">{name}</span>
                 </div>
             )
         },
@@ -325,7 +328,7 @@ export function getColumns(
                             <img src={avatar} alt={name} className="w-full h-full object-cover" />
                         ) : name.split(" ").map(w => w[0]).join("").slice(0, 2)}
                     </div>
-                    <span className="text-[12px] text-slate-700 truncate max-w-[100px]">{name}</span>
+                    <span className="text-[12px] text-slate-700 truncate min-w-0">{name}</span>
                 </div>
             )
         },
@@ -350,7 +353,7 @@ export function getColumns(
             const val = row.getValue("referral_source") as string
             if (!val) return <span className="text-slate-300">—</span>
             return (
-                <span className="text-[12px] text-slate-600 truncate block max-w-[120px]" title={val}>
+                <span className="text-[12px] text-slate-600 truncate block w-full min-w-0" title={val}>
                     {val}
                 </span>
             )
@@ -432,7 +435,7 @@ export function getColumns(
             if (!dests || dests.length === 0) return <span className="text-slate-300">—</span>
             const displayText = dests.map(d => d.venue ? `${d.city} (${d.venue})` : d.city).join(", ")
             return (
-                <span className="text-[12px] text-slate-600 truncate block max-w-[160px]" title={displayText}>
+                <span className="text-[12px] text-slate-600 truncate block w-full min-w-0" title={displayText}>
                     {displayText}
                 </span>
             )

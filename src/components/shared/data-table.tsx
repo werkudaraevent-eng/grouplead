@@ -12,6 +12,7 @@ import {
     VisibilityState,
     ColumnOrderState,
     RowSelectionState,
+    ColumnSizingState,
 } from "@tanstack/react-table"
 import { useCurrency } from "@/contexts/currency-context"
 
@@ -65,6 +66,13 @@ interface DataTableProps<TData, TValue> {
      * duplicate state.
      */
     columnsPopoverSlot?: (props: { Trigger: React.ReactElement }) => React.ReactNode
+    /**
+     * When set, column widths are persisted to localStorage under this key
+     * (per user/browser). Also enables column resizing via drag handles on
+     * each header edge, plus double-click auto-fit. Omit to keep the table
+     * non-resizable (legacy behaviour).
+     */
+    storageKey?: string
 }
 
 export function DataTable<TData, TValue>({
@@ -78,6 +86,7 @@ export function DataTable<TData, TValue>({
     totalValueAccessor,
     totalValueLabel = "Total value",
     columnsPopoverSlot,
+    storageKey,
 }: DataTableProps<TData, TValue>) {
     const [sorting, setSorting] = React.useState<SortingState>([])
     const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>(defaultHiddenColumns ?? {})
@@ -85,6 +94,26 @@ export function DataTable<TData, TValue>({
     const [pageSize, setPageSize] = React.useState(15)
     const [pageIndex, setPageIndex] = React.useState(0)
     const [rowSelection, setRowSelection] = React.useState<RowSelectionState>({})
+
+    // Persisted column widths (per user, keyed by `storageKey`). Resizing is
+    // only enabled when a storageKey is supplied.
+    const sizingStorageKey = storageKey ? `datatable:${storageKey}:sizing` : null
+    const [columnSizing, setColumnSizing] = React.useState<ColumnSizingState>({})
+    React.useEffect(() => {
+        if (!sizingStorageKey) return
+        try {
+            const raw = localStorage.getItem(sizingStorageKey)
+            if (raw) setColumnSizing(JSON.parse(raw))
+        } catch { /* ignore malformed cache */ }
+    }, [sizingStorageKey])
+    React.useEffect(() => {
+        if (!sizingStorageKey) return
+        try {
+            if (Object.keys(columnSizing).length > 0) {
+                localStorage.setItem(sizingStorageKey, JSON.stringify(columnSizing))
+            }
+        } catch { /* ignore quota errors */ }
+    }, [sizingStorageKey, columnSizing])
 
     // DnD state for column reorder
     const [draggedCol, setDraggedCol] = React.useState<string | null>(null)
@@ -101,6 +130,10 @@ export function DataTable<TData, TValue>({
         onColumnOrderChange: setColumnOrder,
         onRowSelectionChange: enableRowSelection ? setRowSelection : undefined,
         enableRowSelection,
+        // Column resizing (only meaningful when persisted via storageKey).
+        enableColumnResizing: !!storageKey,
+        columnResizeMode: "onChange",
+        onColumnSizingChange: setColumnSizing,
         getRowId: getRowId ? (row) => getRowId(row) : undefined,
         onPaginationChange: (updater) => {
             const next = typeof updater === 'function'
@@ -114,6 +147,7 @@ export function DataTable<TData, TValue>({
             columnVisibility,
             columnOrder,
             pagination: { pageIndex, pageSize },
+            ...(storageKey ? { columnSizing } : {}),
             ...(enableRowSelection ? { rowSelection } : {}),
         },
     })
@@ -156,6 +190,25 @@ export function DataTable<TData, TValue>({
     const resetColumns = () => {
         setColumnVisibility(defaultHiddenColumns ?? {})
         setColumnOrder([])
+        setColumnSizing({})
+        if (sizingStorageKey) {
+            try { localStorage.removeItem(sizingStorageKey) } catch { /* ignore */ }
+        }
+    }
+
+    // Double-click a resize handle → auto-fit that column to the widest
+    // rendered content in the currently visible rows (spreadsheet behaviour).
+    // Measures the actual DOM cells for this column and sets an explicit size.
+    const autoFitColumn = (columnId: string) => {
+        if (typeof document === "undefined") return
+        const cells = document.querySelectorAll<HTMLElement>(`[data-col-id="${columnId}"] [data-autosize]`)
+        let max = 0
+        cells.forEach((el) => { max = Math.max(max, el.scrollWidth) })
+        if (max > 0) {
+            // + horizontal cell padding (px-4 = 32) and a small buffer.
+            const next = Math.min(Math.max(max + 40, 80), 640)
+            setColumnSizing((prev) => ({ ...prev, [columnId]: next }))
+        }
     }
 
     // Column reorder in popover via drag
@@ -334,12 +387,34 @@ export function DataTable<TData, TValue>({
                                         {headerGroup.headers.map((header) => (
                                             <TableHead
                                                 key={header.id}
-                                                className="h-10 px-4 text-[12px] font-semibold text-slate-700 whitespace-nowrap bg-[#FAFAFA]"
+                                                data-col-id={header.column.id}
+                                                className="h-10 px-4 text-[12px] font-semibold text-slate-700 whitespace-nowrap bg-[#FAFAFA] relative group/th"
                                                 style={{ width: header.getSize() !== 150 ? header.getSize() : undefined }}
                                             >
                                                 {header.isPlaceholder
                                                     ? null
                                                     : flexRender(header.column.columnDef.header, header.getContext())}
+                                                {/* Resize handle — drag to resize, double-click to auto-fit. */}
+                                                {storageKey && header.column.getCanResize() && (
+                                                    <span
+                                                        role="separator"
+                                                        aria-orientation="vertical"
+                                                        onMouseDown={header.getResizeHandler()}
+                                                        onTouchStart={header.getResizeHandler()}
+                                                        onDoubleClick={() => autoFitColumn(header.column.id)}
+                                                        onClick={(e) => e.stopPropagation()}
+                                                        className={`absolute top-0 right-0 h-full w-[6px] cursor-col-resize select-none touch-none opacity-0 group-hover/th:opacity-100 transition-opacity ${
+                                                            header.column.getIsResizing() ? "opacity-100" : ""
+                                                        }`}
+                                                        style={{ userSelect: "none" }}
+                                                    >
+                                                        <span
+                                                            className={`absolute right-0 top-1/2 -translate-y-1/2 h-5 w-[2px] rounded-full ${
+                                                                header.column.getIsResizing() ? "bg-blue-500" : "bg-slate-300"
+                                                            }`}
+                                                        />
+                                                    </span>
+                                                )}
                                             </TableHead>
                                         ))}
                                     </TableRow>
@@ -392,8 +467,15 @@ export function DataTable<TData, TValue>({
                                                     </div>
                                                 </TableCell>
                                                 {row.getVisibleCells().map((cell) => (
-                                                    <TableCell key={cell.id} className="px-4 py-2 text-sm h-[48px] align-middle">
-                                                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                                                    <TableCell
+                                                        key={cell.id}
+                                                        data-col-id={cell.column.id}
+                                                        className="px-4 py-2 text-sm h-[48px] align-middle"
+                                                        style={{ width: cell.column.getSize() !== 150 ? cell.column.getSize() : undefined }}
+                                                    >
+                                                        <div data-autosize className="w-full">
+                                                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                                                        </div>
                                                     </TableCell>
                                                 ))}
                                             </TableRow>

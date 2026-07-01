@@ -1166,6 +1166,7 @@ export function LeadDashboard() {
                                 onRowClick={handleNavigateToLead}
                                 defaultHiddenColumns={DEFAULT_HIDDEN_COLUMNS}
                                 enableRowSelection
+                                storageKey="leads"
                                 getRowId={(row) => String((row as Lead).id)}
                                 totalValueAccessor={(row) => (row as Lead).estimated_value || 0}
                                 totalValueLabel="Total value"
