@@ -134,6 +134,7 @@ export function DataTable<TData, TValue>({
         enableColumnResizing: !!storageKey,
         columnResizeMode: "onChange",
         onColumnSizingChange: setColumnSizing,
+        defaultColumn: { minSize: 60, maxSize: 640 },
         getRowId: getRowId ? (row) => getRowId(row) : undefined,
         onPaginationChange: (updater) => {
             const next = typeof updater === 'function'
@@ -353,7 +354,12 @@ export function DataTable<TData, TValue>({
             <div className="flex-1 relative overflow-hidden border-t border-b border-[#E5E7EB]">
                 {/* Single scroll layer: absolute fills full container, grid pushes scrollbar to bottom */}
                 <div className="absolute inset-0 overflow-auto data-table-scroll" style={{ display: 'grid', gridTemplateRows: 'auto 1fr' }}>
-                        <Table className="w-full" style={{ minWidth: '900px' }}>
+                        <Table
+                            className="w-full"
+                            style={storageKey
+                                ? { tableLayout: "fixed", width: (enableRowSelection ? 88 : 48) + table.getTotalSize(), minWidth: "100%" }
+                                : { minWidth: '900px' }}
+                        >
                             <TableHeader className="sticky top-0 z-10">
                                 {table.getHeaderGroups().map((headerGroup) => (
                                     <TableRow key={headerGroup.id} className="bg-[#FAFAFA] border-b-[1.5px] border-[#E5E7EB] hover:bg-[#FAFAFA]">
@@ -389,7 +395,7 @@ export function DataTable<TData, TValue>({
                                                 key={header.id}
                                                 data-col-id={header.column.id}
                                                 className="h-10 px-4 text-[12px] font-semibold text-slate-700 whitespace-nowrap bg-[#FAFAFA] relative group/th"
-                                                style={{ width: header.getSize() !== 150 ? header.getSize() : undefined }}
+                                                style={{ width: storageKey ? header.getSize() : (header.getSize() !== 150 ? header.getSize() : undefined) }}
                                             >
                                                 {header.isPlaceholder
                                                     ? null
@@ -471,7 +477,7 @@ export function DataTable<TData, TValue>({
                                                         key={cell.id}
                                                         data-col-id={cell.column.id}
                                                         className="px-4 py-2 text-sm h-[48px] align-middle"
-                                                        style={{ width: cell.column.getSize() !== 150 ? cell.column.getSize() : undefined }}
+                                                        style={{ width: storageKey ? cell.column.getSize() : (cell.column.getSize() !== 150 ? cell.column.getSize() : undefined) }}
                                                     >
                                                         <div data-autosize className="w-full">
                                                             {flexRender(cell.column.columnDef.cell, cell.getContext())}
