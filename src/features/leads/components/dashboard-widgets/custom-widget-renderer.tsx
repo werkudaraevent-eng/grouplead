@@ -98,7 +98,7 @@ function isCurrencyField(field: string): boolean {
 }
 
 function isPercentField(field: string): boolean {
-  return ['_win_rate', '_conversion_rate'].includes(field)
+  return ['_win_rate', '_win_rate_value', '_conversion_rate'].includes(field)
 }
 
 function isDaysField(field: string): boolean {

@@ -4,7 +4,7 @@
  */
 
 export interface AggregateConfig {
-  metricField: '_count' | '_won_count' | '_lost_count' | '_active_count' | 'actual_value' | 'estimated_value' | '_pipeline_value' | '_lost_revenue' | '_win_rate' | '_avg_deal_size' | '_sales_cycle_days' | '_conversion_rate' | 'pax_count' | string
+  metricField: '_count' | '_won_count' | '_lost_count' | '_active_count' | 'actual_value' | 'estimated_value' | '_pipeline_value' | '_lost_revenue' | '_win_rate' | '_win_rate_value' | '_avg_deal_size' | '_sales_cycle_days' | '_conversion_rate' | 'pax_count' | string
   aggregation: 'count' | 'sum' | 'avg'
   groupBy: string | null
   limit?: number
@@ -105,6 +105,20 @@ function computeRateMetric(leads: Record<string, any>[], metricField: string): n
     const won = closed.filter(l => isWon(l)).length;
     return (won / closed.length) * 100;
   }
+  // Revenue-weighted win rate: won revenue / (won + lost revenue) * 100.
+  // Unlike _win_rate (count of deals), this weights each deal by its value
+  // so a few large won deals move the rate more than many small ones.
+  if (metricField === '_win_rate_value') {
+    let wonRev = 0;
+    let lostRev = 0;
+    for (const l of leads) {
+      if (isWon(l)) wonRev += (l.actual_value ?? l.estimated_value ?? 0);
+      else if (isLost(l)) lostRev += (l.estimated_value ?? l.actual_value ?? 0);
+    }
+    const denom = wonRev + lostRev;
+    if (denom === 0) return 0;
+    return (wonRev / denom) * 100;
+  }
   if (metricField === '_avg_deal_size') {
     const wonLeads = leads.filter(l => isWon(l));
     if (wonLeads.length === 0) return 0;
@@ -138,7 +152,7 @@ export function aggregateLeads(
   const { metricField, aggregation, groupBy, limit = 10 } = config
 
   // Handle special computed metrics that need full-set calculation
-  const isComputedRate = ['_win_rate', '_avg_deal_size', '_sales_cycle_days', '_conversion_rate'].includes(metricField);
+  const isComputedRate = ['_win_rate', '_win_rate_value', '_avg_deal_size', '_sales_cycle_days', '_conversion_rate'].includes(metricField);
 
   // No group-by: return single total
   if (!groupBy) {

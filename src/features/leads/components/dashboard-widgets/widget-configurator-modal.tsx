@@ -27,7 +27,8 @@ const METRICS = [
   { value: '_pipeline_value' as const, label: 'Active Pipeline Value', defaultAgg: 'sum' as const },
   { value: '_lost_revenue' as const, label: 'Lost Revenue', defaultAgg: 'sum' as const },
   // Calculated metrics
-  { value: '_win_rate' as const, label: 'Win Rate (%)', defaultAgg: 'avg' as const },
+  { value: '_win_rate' as const, label: 'Win Rate (by count %)', defaultAgg: 'avg' as const },
+  { value: '_win_rate_value' as const, label: 'Win Rate (by revenue %)', defaultAgg: 'avg' as const },
   { value: '_avg_deal_size' as const, label: 'Avg Deal Size (Won)', defaultAgg: 'avg' as const },
   { value: '_sales_cycle_days' as const, label: 'Avg Sales Cycle (Days)', defaultAgg: 'avg' as const },
   { value: '_conversion_rate' as const, label: 'Conversion Rate (%)', defaultAgg: 'avg' as const },
