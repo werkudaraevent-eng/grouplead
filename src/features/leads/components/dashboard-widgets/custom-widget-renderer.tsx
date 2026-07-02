@@ -22,6 +22,8 @@ interface AggregateGroup {
 interface AggregateResult {
   total: number
   groups: AggregateGroup[]
+  /** Independently-computed value for the optional KPI footer metric. */
+  footerValue?: number
 }
 
 interface CustomWidgetConfig {
@@ -31,7 +33,7 @@ interface CustomWidgetConfig {
   metric_field: string
   aggregation: 'count' | 'sum' | 'avg'
   group_by: string | null
-  config: { limit?: number; color?: string; filter?: { field: string; label: string; defaultValue?: string | null } }
+  config: { limit?: number; color?: string; filter?: { field: string; label: string; defaultValue?: string | null }; footer?: { metric_field: string; aggregation: 'count' | 'sum' | 'avg'; label?: string } }
 }
 
 interface CustomWidgetRendererProps {
@@ -103,6 +105,12 @@ function isDaysField(field: string): boolean {
   return field === '_sales_cycle_days'
 }
 
+// Human-friendly caption for a footer metric when the user gives none.
+function footerAutoLabel(field: string): string {
+  if (field === '_count') return 'leads'
+  return field.replace(/^_/, '').replace(/_/g, ' ').trim()
+}
+
 function formatValue(value: number, metricField: string, aggregation: string, fmt?: (v: number) => string): string {
   if (isPercentField(metricField)) {
     return `${value.toFixed(1)}%`
@@ -148,6 +156,17 @@ function KPIRenderer({ widget, data, filterNode }: CustomWidgetRendererProps & {
     ? widget.metric_field.replace(/_/g, ' ').trim()
     : ''
 
+  // Footer: when a secondary metric is configured show its independently
+  // computed value (e.g. project count under a win-rate headline); otherwise
+  // fall back to the aggregation descriptor line.
+  const footer = widget.config.footer
+  const supporting = footer?.metric_field
+    ? [{
+        value: formatValue(data.footerValue ?? 0, footer.metric_field, footer.aggregation, fmt),
+        label: footer.label || footerAutoLabel(footer.metric_field),
+      }]
+    : [{ value: aggLabel, label: metricLabel }]
+
   return (
     <SingleKPIWidget
       label={widget.title}
@@ -156,7 +175,7 @@ function KPIRenderer({ widget, data, filterNode }: CustomWidgetRendererProps & {
       vsPrev={null}
       accent={accentColor}
       icon={Hash}
-      supporting={[{ value: aggLabel, label: metricLabel }]}
+      supporting={supporting}
       headerAction={filterNode}
     />
   )

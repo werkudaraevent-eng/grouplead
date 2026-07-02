@@ -23,6 +23,17 @@ export interface CustomWidget {
       label: string
       defaultValue?: string | null
     }
+    /**
+     * Optional secondary metric shown in the KPI card footer, computed
+     * independently from the main metric (same period + interactive filter).
+     * Lets a card pair e.g. a Win Rate % headline with a raw project count
+     * underneath. `label` overrides the auto-generated caption.
+     */
+    footer?: {
+      metric_field: string
+      aggregation: 'count' | 'sum' | 'avg'
+      label?: string
+    }
   }
   created_at: string
   updated_at: string

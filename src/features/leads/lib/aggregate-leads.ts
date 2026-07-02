@@ -19,6 +19,9 @@ export interface AggregateGroup {
 export interface AggregateResult {
   total: number
   groups: AggregateGroup[]
+  /** Independently-computed value for an optional KPI footer metric.
+   *  Set by the dashboard when a widget has config.footer configured. */
+  footerValue?: number
 }
 
 import { resolveLeadField } from '@/lib/resolve-lead-field'

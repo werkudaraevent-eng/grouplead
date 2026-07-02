@@ -107,6 +107,13 @@ export function WidgetConfiguratorModal({
   // aggregated. "" = no interactive filter.
   const [filterField, setFilterField] = useState(editWidget?.config?.filter?.field || '')
 
+  // Optional secondary footer metric (KPI cards only). Computed independently
+  // from the headline metric so a card can pair e.g. a Win Rate % on top with
+  // a raw project count below. "" = no footer metric.
+  const [footerField, setFooterField] = useState(editWidget?.config?.footer?.metric_field || '')
+  const [footerAgg, setFooterAgg] = useState<'count' | 'sum' | 'avg'>(editWidget?.config?.footer?.aggregation || 'count')
+  const [footerLabel, setFooterLabel] = useState(editWidget?.config?.footer?.label || '')
+
   // Auto-generate title
   const autoTitle = useMemo(() => {
     const metric = METRICS.find(m => m.value === metricField)?.label || metricField
@@ -124,6 +131,12 @@ export function WidgetConfiguratorModal({
     return { field: filterField, label }
   }, [filterField])
 
+  // Footer metric config (KPI only). undefined when no footer field chosen.
+  const footerConfig = useMemo(() => {
+    if (widgetType !== 'kpi' || !footerField) return undefined
+    return { metric_field: footerField, aggregation: footerAgg, label: footerLabel || undefined }
+  }, [widgetType, footerField, footerAgg, footerLabel])
+
   // Live preview data. When an interactive filter is set we don't pre-filter
   // in the preview (default = "All"), so the builder sees the full dataset.
   const previewData = useMemo(() => {
@@ -133,8 +146,17 @@ export function WidgetConfiguratorModal({
       groupBy: groupBy || null,
       limit,
     }
-    return aggregateLeads(leads, config)
-  }, [leads, metricField, aggregation, groupBy, limit])
+    const result = aggregateLeads(leads, config)
+    if (footerConfig?.metric_field) {
+      const footerResult = aggregateLeads(leads, {
+        metricField: footerConfig.metric_field as any,
+        aggregation: footerConfig.aggregation as any,
+        groupBy: null,
+      })
+      ;(result as any).footerValue = footerResult.total
+    }
+    return result
+  }, [leads, metricField, aggregation, groupBy, limit, footerConfig])
 
   // Preview widget config
   const previewWidget = useMemo(() => ({
@@ -144,8 +166,8 @@ export function WidgetConfiguratorModal({
     metric_field: metricField as any,
     aggregation: aggregation as any,
     group_by: groupBy || null,
-    config: { limit, filter: filterConfig },
-  }), [displayTitle, widgetType, metricField, aggregation, groupBy, limit, filterConfig, editWidget])
+    config: { limit, filter: filterConfig, footer: footerConfig },
+  }), [displayTitle, widgetType, metricField, aggregation, groupBy, limit, filterConfig, footerConfig, editWidget])
 
   // Distinct values for the interactive-filter preview dropdown.
   const previewFilterOptions = useMemo(() => {
@@ -166,7 +188,7 @@ export function WidgetConfiguratorModal({
       metric_field: metricField as any,
       aggregation: aggregation as any,
       group_by: groupBy || null,
-      config: { limit, filter: filterConfig },
+      config: { limit, filter: filterConfig, footer: footerConfig },
     })
   }
 
@@ -341,6 +363,56 @@ export function WidgetConfiguratorModal({
                 {' '}is shown. Resets to All on reload.
               </p>
             </div>
+
+            {/* Footer Metric (KPI only, optional) — a second number shown under
+                the headline value, computed independently. e.g. Win Rate % on
+                top, project count below. */}
+            {widgetType === 'kpi' && (
+              <div>
+                <label style={labelStyle}>Footer Metric</label>
+                <select
+                  value={footerField}
+                  onChange={(e) => {
+                    const val = e.target.value
+                    setFooterField(val)
+                    const m = METRICS.find(m => m.value === val)
+                    if (m) setFooterAgg(m.defaultAgg)
+                  }}
+                  style={inputStyle}
+                >
+                  <option value="">None (single metric)</option>
+                  {METRICS.map(m => (
+                    <option key={m.value} value={m.value}>{m.label}</option>
+                  ))}
+                </select>
+                {footerField && (
+                  <>
+                    {footerField !== '_count' && (
+                      <select
+                        value={footerAgg}
+                        onChange={(e) => setFooterAgg(e.target.value as any)}
+                        style={{ ...inputStyle, marginTop: 6 }}
+                      >
+                        {AGGREGATIONS.filter(a => a.value !== 'count').map(a => (
+                          <option key={a.value} value={a.value}>{a.label}</option>
+                        ))}
+                      </select>
+                    )}
+                    <input
+                      type="text"
+                      value={footerLabel}
+                      onChange={(e) => setFooterLabel(e.target.value)}
+                      placeholder="Footer label (optional)"
+                      style={{ ...inputStyle, marginTop: 6 }}
+                    />
+                  </>
+                )}
+                <p style={{ fontSize: 9.5, color: '#94a3b8', marginTop: 3, lineHeight: 1.4 }}>
+                  Shows a second number in the card footer, computed on its own.
+                  Independent from the headline metric above.
+                </p>
+              </div>
+            )}
 
             {/* Limit (only for grouped) */}
             {groupBy && widgetType !== 'kpi' && (

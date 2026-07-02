@@ -419,6 +419,18 @@ export function AnalyticsDashboard({
                 groupBy: w.group_by,
                 limit: w.config?.limit ?? 10,
             })
+            // Optional independent footer metric (KPI cards only). Computed on
+            // the same filtered leads but with its own metric/aggregation, so
+            // e.g. a Win Rate % headline can carry a raw project count below.
+            const footer = w.config?.footer
+            if (footer?.metric_field) {
+                const footerResult = aggregateLeads(sourceLeads, {
+                    metricField: footer.metric_field as any,
+                    aggregation: footer.aggregation as any,
+                    groupBy: null,
+                })
+                result.footerValue = footerResult.total
+            }
             map.set(w.id, result)
         }
         return map
