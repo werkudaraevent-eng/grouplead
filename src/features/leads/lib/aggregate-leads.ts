@@ -26,6 +26,7 @@ export interface AggregateResult {
 
 import { resolveLeadField } from '@/lib/resolve-lead-field'
 import type { Lead } from '@/types'
+import type { FormulaConfig, FormulaMeasure, FormulaCondition } from '@/types/custom-widget'
 
 // Resolve a field value from a lead, handling joined relations + 2nd level fallback
 export function resolveField(lead: Record<string, any>, field: string): string | null {
@@ -143,6 +144,55 @@ function computeRateMetric(leads: Record<string, any>[], metricField: string): n
     return (won / leads.length) * 100;
   }
   return 0;
+}
+
+// ─── Custom formula engine ──────────────────────────────────────────────────
+// Evaluate a single measure: aggregation(field) over the leads matching its
+// condition + optional dimension filter. 'count' ignores the field.
+function matchesCondition(lead: Record<string, any>, condition: FormulaCondition): boolean {
+  switch (condition) {
+    case 'won': return isWon(lead);
+    case 'lost': return isLost(lead);
+    case 'active': return isActive(lead);
+    case 'closed': return isWon(lead) || isLost(lead);
+    case 'all':
+    default: return true;
+  }
+}
+
+// Resolve the numeric value a measure sums for one lead. '_deal_value'
+// auto-resolves per outcome (opt B): won→actual (fallback estimated),
+// lost→estimated (fallback actual), otherwise estimated→actual.
+function measureFieldValue(lead: Record<string, any>, field?: string): number {
+  if (!field || field === '_deal_value') {
+    if (isWon(lead)) return lead.actual_value ?? lead.estimated_value ?? 0;
+    if (isLost(lead)) return lead.estimated_value ?? lead.actual_value ?? 0;
+    return lead.estimated_value ?? lead.actual_value ?? 0;
+  }
+  const v = lead[field];
+  return typeof v === 'number' ? v : Number(v) || 0;
+}
+
+function evalMeasure(leads: Record<string, any>[], m: FormulaMeasure): number {
+  let acc = 0;
+  for (const lead of leads) {
+    if (!matchesCondition(lead, m.condition)) continue;
+    if (m.filter?.field && m.filter?.value) {
+      if (resolveField(lead, m.filter.field) !== m.filter.value) continue;
+    }
+    acc += m.aggregation === 'count' ? 1 : measureFieldValue(lead, m.field);
+  }
+  return acc;
+}
+
+// Compute a full formula: numerator ÷ denominator (÷1 when no denominator).
+// Denominator 0 → 0 (per product decision). Percent scales the ratio ×100.
+export function computeFormula(leads: Record<string, any>[], formula: FormulaConfig): number {
+  const num = evalMeasure(leads, formula.numerator);
+  const den = formula.denominator ? evalMeasure(leads, formula.denominator) : 1;
+  if (den === 0) return 0;
+  const ratio = num / den;
+  return formula.format === 'percent' ? ratio * 100 : ratio;
 }
 
 export function aggregateLeads(

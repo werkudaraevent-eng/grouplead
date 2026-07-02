@@ -43,7 +43,7 @@ import {
 } from "./dashboard-widgets"
 import { ContactAnalyticsWidget } from "@/features/contacts/components/dashboard"
 import type { CustomWidget } from "@/types/custom-widget"
-import { aggregateLeads, resolveField as resolveLeadDimension } from "@/features/leads/lib/aggregate-leads"
+import { aggregateLeads, resolveField as resolveLeadDimension, computeFormula, type AggregateResult } from "@/features/leads/lib/aggregate-leads"
 import { CustomWidgetRenderer } from "./dashboard-widgets/custom-widget-renderer"
 import { WidgetConfiguratorModal } from "./dashboard-widgets/widget-configurator-modal"
 import { useDashboardTools } from "./dashboard-widgets/use-dashboard-tools"
@@ -413,12 +413,16 @@ export function AnalyticsDashboard({
                 ? periodLeadBuckets.current.filter(
                     l => resolveLeadDimension(l as Record<string, any>, filterField) === selected)
                 : periodLeadBuckets.current
-            const result = aggregateLeads(sourceLeads, {
-                metricField: w.metric_field as any,
-                aggregation: w.aggregation as any,
-                groupBy: w.group_by,
-                limit: w.config?.limit ?? 10,
-            })
+            // Custom formula metric (KPI only): compute numerator ÷ denominator
+            // directly, bypassing the preset metric engine.
+            const result: AggregateResult = (w.metric_field === '_formula' && w.config?.formula)
+                ? { total: computeFormula(sourceLeads, w.config.formula), groups: [] }
+                : aggregateLeads(sourceLeads, {
+                    metricField: w.metric_field as any,
+                    aggregation: w.aggregation as any,
+                    groupBy: w.group_by,
+                    limit: w.config?.limit ?? 10,
+                })
             // Optional independent footer metric (KPI cards only). Computed on
             // the same filtered leads but with its own metric/aggregation, so
             // e.g. a Win Rate % headline can carry a raw project count below.

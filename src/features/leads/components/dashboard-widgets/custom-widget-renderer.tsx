@@ -11,6 +11,7 @@ import { SectionCard, SectionTitle, CHART_COLORS, EllipsisTick, StickyAxis } fro
 import { SingleKPIWidget } from "./single-kpi-widget"
 import { useHasMounted } from "@/hooks/use-has-mounted"
 import { useCurrency } from "@/contexts/currency-context"
+import type { FormulaConfig } from "@/types/custom-widget"
 
 // Types (inline to avoid circular deps)
 interface AggregateGroup {
@@ -33,7 +34,7 @@ interface CustomWidgetConfig {
   metric_field: string
   aggregation: 'count' | 'sum' | 'avg'
   group_by: string | null
-  config: { limit?: number; color?: string; filter?: { field: string; label: string; defaultValue?: string | null }; footer?: { metric_field: string; aggregation: 'count' | 'sum' | 'avg'; label?: string } }
+  config: { limit?: number; color?: string; filter?: { field: string; label: string; defaultValue?: string | null }; footer?: { metric_field: string; aggregation: 'count' | 'sum' | 'avg'; label?: string }; formula?: FormulaConfig }
 }
 
 interface CustomWidgetRendererProps {
@@ -111,6 +112,17 @@ function footerAutoLabel(field: string): string {
   return field.replace(/^_/, '').replace(/_/g, ' ').trim()
 }
 
+// Format a custom-formula result per its chosen output format.
+function formatFormulaValue(value: number, format: FormulaConfig['format'], fmt?: (v: number) => string): string {
+  switch (format) {
+    case 'percent': return `${value.toFixed(1)}%`
+    case 'currency': return fmt ? fmt(value) : value.toLocaleString('id-ID')
+    case 'multiplier': return `${value.toFixed(2)}\u00d7`
+    case 'number':
+    default: return value.toLocaleString('id-ID', { maximumFractionDigits: 2 })
+  }
+}
+
 function formatValue(value: number, metricField: string, aggregation: string, fmt?: (v: number) => string): string {
   if (isPercentField(metricField)) {
     return `${value.toFixed(1)}%`
@@ -167,10 +179,16 @@ function KPIRenderer({ widget, data, filterNode }: CustomWidgetRendererProps & {
       }]
     : [{ value: aggLabel, label: metricLabel }]
 
+  // Headline value: a custom formula (metric_field === '_formula') is
+  // formatted by its own output format; otherwise use the preset formatter.
+  const headlineValue = (widget.metric_field === '_formula' && widget.config.formula)
+    ? formatFormulaValue(data.total, widget.config.formula.format, fmt)
+    : formatValue(data.total, widget.metric_field, widget.aggregation, fmt)
+
   return (
     <SingleKPIWidget
       label={widget.title}
-      value={formatValue(data.total, widget.metric_field, widget.aggregation, fmt)}
+      value={headlineValue}
       vsTarget={null}
       vsPrev={null}
       accent={accentColor}

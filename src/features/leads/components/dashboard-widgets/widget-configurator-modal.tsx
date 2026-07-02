@@ -2,9 +2,9 @@
 
 import { useState, useMemo } from "react"
 import { X, BarChart3, PieChart, List, Hash } from "lucide-react"
-import { aggregateLeads, resolveField, type AggregateConfig } from "@/features/leads/lib/aggregate-leads"
+import { aggregateLeads, resolveField, computeFormula, type AggregateConfig } from "@/features/leads/lib/aggregate-leads"
 import { CustomWidgetRenderer } from "./custom-widget-renderer"
-import type { CustomWidgetInput } from "@/types/custom-widget"
+import type { CustomWidgetInput, FormulaMeasure, FormulaCondition } from "@/types/custom-widget"
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
@@ -34,6 +34,36 @@ const METRICS = [
   { value: '_conversion_rate' as const, label: 'Conversion Rate (%)', defaultAgg: 'avg' as const },
   // Other fields
   { value: 'pax_count' as const, label: 'Pax Count', defaultAgg: 'sum' as const },
+  // User-built ratio (KPI only) — handled by the formula builder below
+  { value: '_formula' as const, label: '⚙ Custom Formula…', defaultAgg: 'sum' as const },
+]
+
+// ─── Formula builder option lists ─────────────────────────────────────────
+const FORMULA_AGGS = [
+  { value: 'count' as const, label: 'Count of leads' },
+  { value: 'sum' as const, label: 'Sum of value' },
+]
+
+const FORMULA_FIELDS = [
+  { value: '_deal_value' as const, label: 'Deal Value (auto)' },
+  { value: 'actual_value' as const, label: 'Actual Value' },
+  { value: 'estimated_value' as const, label: 'Estimated Value' },
+  { value: 'pax_count' as const, label: 'Pax Count' },
+]
+
+const FORMULA_CONDITIONS = [
+  { value: 'all' as const, label: 'All leads' },
+  { value: 'won' as const, label: 'Won only' },
+  { value: 'lost' as const, label: 'Lost only' },
+  { value: 'active' as const, label: 'Active (open) only' },
+  { value: 'closed' as const, label: 'Closed (won + lost)' },
+]
+
+const FORMULA_FORMATS = [
+  { value: 'percent' as const, label: 'Percentage (%)' },
+  { value: 'number' as const, label: 'Number' },
+  { value: 'currency' as const, label: 'Currency (IDR)' },
+  { value: 'multiplier' as const, label: 'Multiplier (×)' },
 ]
 
 const AGGREGATIONS = [
@@ -77,6 +107,108 @@ const labelStyle: React.CSSProperties = {
   marginBottom: 4, display: 'block',
 }
 
+// ─── Measure editor (formula builder sub-form) ───────────────────────────────
+// Edits one FormulaMeasure: aggregation(field) over a lead `condition`, plus an
+// optional dimension filter revealed behind a "+ filter" toggle. `leads` powers
+// the value dropdown so users pick real values instead of typing.
+function MeasureEditor({
+  label, measure, onChange, leads,
+}: {
+  label: string
+  measure: FormulaMeasure
+  onChange: (m: FormulaMeasure) => void
+  leads: Record<string, any>[]
+}) {
+  const set = (patch: Partial<FormulaMeasure>) => onChange({ ...measure, ...patch })
+  const filterOptions = useMemo(() => {
+    const field = measure.filter?.field
+    if (!field) return [] as string[]
+    const seen = new Set<string>()
+    for (const l of leads) {
+      const v = resolveField(l, field)
+      if (v) seen.add(v)
+    }
+    return Array.from(seen).sort((a, b) => a.localeCompare(b))
+  }, [leads, measure.filter?.field])
+
+  const miniSelect: React.CSSProperties = { ...inputStyle, padding: '6px 8px', fontSize: 11.5 }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <label style={{ ...labelStyle, marginBottom: 0, color: '#334155' }}>{label}</label>
+      <select
+        value={measure.aggregation}
+        onChange={(e) => set({ aggregation: e.target.value as 'count' | 'sum' })}
+        style={miniSelect}
+      >
+        {FORMULA_AGGS.map(a => <option key={a.value} value={a.value}>{a.label}</option>)}
+      </select>
+      {measure.aggregation === 'sum' && (
+        <select
+          value={measure.field || '_deal_value'}
+          onChange={(e) => set({ field: e.target.value as FormulaMeasure['field'] })}
+          style={miniSelect}
+        >
+          {FORMULA_FIELDS.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
+        </select>
+      )}
+      <select
+        value={measure.condition}
+        onChange={(e) => set({ condition: e.target.value as FormulaCondition })}
+        style={miniSelect}
+      >
+        {FORMULA_CONDITIONS.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+      </select>
+
+      {/* Optional dimension filter (hidden by default to avoid clutter). */}
+      {!measure.filter ? (
+        <button
+          type="button"
+          onClick={() => set({ filter: { field: 'lead_source', value: '' } })}
+          style={{
+            alignSelf: 'flex-start', fontSize: 10.5, fontWeight: 600,
+            color: '#6366f1', background: 'none', border: 'none',
+            cursor: 'pointer', padding: '2px 0', fontFamily: 'inherit',
+          }}
+        >
+          + add filter
+        </button>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 5, paddingLeft: 8, borderLeft: '2px solid #e2e8f0' }}>
+          <select
+            value={measure.filter.field}
+            onChange={(e) => set({ filter: { field: e.target.value, value: '' } })}
+            style={miniSelect}
+          >
+            {GROUP_BY_OPTIONS.filter(g => g.value).map(g => (
+              <option key={g.value} value={g.value}>{g.label}</option>
+            ))}
+          </select>
+          <select
+            value={measure.filter.value}
+            onChange={(e) => set({ filter: { field: measure.filter!.field, value: e.target.value } })}
+            style={miniSelect}
+          >
+            <option value="">Select value…</option>
+            {filterOptions.map(o => <option key={o} value={o}>{o}</option>)}
+          </select>
+          <button
+            type="button"
+            onClick={() => set({ filter: undefined })}
+            style={{
+              alignSelf: 'flex-start', fontSize: 10.5, fontWeight: 600,
+              color: '#ef4444', background: 'none', border: 'none',
+              cursor: 'pointer', padding: '2px 0', fontFamily: 'inherit',
+            }}
+          >
+            remove filter
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ─── Component ──────────────────────────────────────────────────────────────
 
 interface WidgetConfiguratorModalProps {
@@ -115,8 +247,25 @@ export function WidgetConfiguratorModal({
   const [footerAgg, setFooterAgg] = useState<'count' | 'sum' | 'avg'>(editWidget?.config?.footer?.aggregation || 'count')
   const [footerLabel, setFooterLabel] = useState(editWidget?.config?.footer?.label || '')
 
+  // Custom formula builder state (KPI only, active when metric === '_formula').
+  // numerator ÷ denominator, each an aggregation(field) over a condition.
+  const DEFAULT_MEASURE: FormulaMeasure = { aggregation: 'count', field: '_deal_value', condition: 'won' }
+  const [numMeasure, setNumMeasure] = useState<FormulaMeasure>(
+    editWidget?.config?.formula?.numerator ?? DEFAULT_MEASURE
+  )
+  const [denEnabled, setDenEnabled] = useState<boolean>(
+    !!editWidget?.config?.formula?.denominator
+  )
+  const [denMeasure, setDenMeasure] = useState<FormulaMeasure>(
+    editWidget?.config?.formula?.denominator ?? { aggregation: 'count', field: '_deal_value', condition: 'closed' }
+  )
+  const [formulaFormat, setFormulaFormat] = useState<'percent' | 'number' | 'currency' | 'multiplier'>(
+    editWidget?.config?.formula?.format ?? 'percent'
+  )
+
   // Auto-generate title
   const autoTitle = useMemo(() => {
+    if (metricField === '_formula') return 'Custom Metric'
     const metric = METRICS.find(m => m.value === metricField)?.label || metricField
     const group = GROUP_BY_OPTIONS.find(g => g.value === groupBy)?.label || ''
     if (!groupBy) return `${metric}`
@@ -138,9 +287,34 @@ export function WidgetConfiguratorModal({
     return { metric_field: footerField, aggregation: footerAgg, label: footerLabel || undefined }
   }, [widgetType, footerField, footerAgg, footerLabel])
 
+  // Formula config (KPI only, when metric === '_formula').
+  const isFormula = widgetType === 'kpi' && metricField === '_formula'
+  const formulaConfig = useMemo(() => {
+    if (!isFormula) return undefined
+    return {
+      numerator: numMeasure,
+      denominator: denEnabled ? denMeasure : null,
+      format: formulaFormat,
+    }
+  }, [isFormula, numMeasure, denEnabled, denMeasure, formulaFormat])
+
   // Live preview data. When an interactive filter is set we don't pre-filter
   // in the preview (default = "All"), so the builder sees the full dataset.
   const previewData = useMemo(() => {
+    // Formula metric: compute the ratio directly, bypass the preset engine.
+    if (isFormula && formulaConfig) {
+      const total = computeFormula(leads, formulaConfig)
+      const result: any = { total, groups: [] }
+      if (footerConfig?.metric_field) {
+        const footerResult = aggregateLeads(leads, {
+          metricField: footerConfig.metric_field as any,
+          aggregation: footerConfig.aggregation as any,
+          groupBy: null,
+        })
+        result.footerValue = footerResult.total
+      }
+      return result
+    }
     const config: AggregateConfig = {
       metricField: metricField as any,
       aggregation: aggregation as any,
@@ -157,7 +331,7 @@ export function WidgetConfiguratorModal({
       ;(result as any).footerValue = footerResult.total
     }
     return result
-  }, [leads, metricField, aggregation, groupBy, limit, footerConfig])
+  }, [leads, isFormula, formulaConfig, metricField, aggregation, groupBy, limit, footerConfig])
 
   // Preview widget config
   const previewWidget = useMemo(() => ({
@@ -167,8 +341,8 @@ export function WidgetConfiguratorModal({
     metric_field: metricField as any,
     aggregation: aggregation as any,
     group_by: groupBy || null,
-    config: { limit, filter: filterConfig, footer: footerConfig },
-  }), [displayTitle, widgetType, metricField, aggregation, groupBy, limit, filterConfig, footerConfig, editWidget])
+    config: { limit, filter: filterConfig, footer: footerConfig, formula: formulaConfig },
+  }), [displayTitle, widgetType, metricField, aggregation, groupBy, limit, filterConfig, footerConfig, formulaConfig, editWidget])
 
   // Distinct values for the interactive-filter preview dropdown.
   const previewFilterOptions = useMemo(() => {
@@ -189,7 +363,7 @@ export function WidgetConfiguratorModal({
       metric_field: metricField as any,
       aggregation: aggregation as any,
       group_by: groupBy || null,
-      config: { limit, filter: filterConfig, footer: footerConfig },
+      config: { limit, filter: filterConfig, footer: footerConfig, formula: formulaConfig },
     })
   }
 
@@ -308,14 +482,61 @@ export function WidgetConfiguratorModal({
                 onChange={(e) => handleMetricChange(e.target.value)}
                 style={inputStyle}
               >
-                {METRICS.map(m => (
+                {METRICS.filter(m => m.value !== '_formula' || widgetType === 'kpi').map(m => (
                   <option key={m.value} value={m.value}>{m.label}</option>
                 ))}
               </select>
             </div>
 
-            {/* Aggregation (hidden for _count) */}
-            {metricField !== '_count' && (
+            {/* Custom Formula builder (KPI only). Replaces Aggregation +
+                Group By: the metric is numerator ÷ denominator, each a
+                measure = aggregation(field) over a lead condition. */}
+            {isFormula && (
+              <div style={{
+                display: 'flex', flexDirection: 'column', gap: 10,
+                padding: '12px', borderRadius: 8,
+                border: '1.5px dashed #cbd5e1', background: '#f8fafc',
+              }}>
+                <MeasureEditor label="Numerator (top)" measure={numMeasure} onChange={setNumMeasure} leads={leads} />
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontSize: 18, fontWeight: 700, color: '#64748b' }}>÷</span>
+                  <label style={{ ...labelStyle, marginBottom: 0, display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={denEnabled}
+                      onChange={(e) => setDenEnabled(e.target.checked)}
+                      style={{ cursor: 'pointer' }}
+                    />
+                    Divide by a denominator
+                  </label>
+                </div>
+
+                {denEnabled && (
+                  <MeasureEditor label="Denominator (bottom)" measure={denMeasure} onChange={setDenMeasure} leads={leads} />
+                )}
+
+                <div>
+                  <label style={labelStyle}>Output Format</label>
+                  <select
+                    value={formulaFormat}
+                    onChange={(e) => setFormulaFormat(e.target.value as any)}
+                    style={inputStyle}
+                  >
+                    {FORMULA_FORMATS.map(f => (
+                      <option key={f.value} value={f.value}>{f.label}</option>
+                    ))}
+                  </select>
+                </div>
+                <p style={{ fontSize: 9.5, color: '#94a3b8', margin: 0, lineHeight: 1.4 }}>
+                  Result = numerator ÷ denominator. If the denominator is 0 the
+                  card shows 0. Give the card a Title above to name this metric.
+                </p>
+              </div>
+            )}
+
+            {/* Aggregation (hidden for _count and for formula) */}
+            {!isFormula && metricField !== '_count' && (
               <div>
                 <label style={labelStyle}>Aggregation</label>
                 <select
@@ -330,7 +551,8 @@ export function WidgetConfiguratorModal({
               </div>
             )}
 
-            {/* Group By */}
+            {/* Group By (hidden for formula — formula is single-value KPI) */}
+            {!isFormula && (
             <div>
               <label style={labelStyle}>Group By</label>
               <select
@@ -343,6 +565,7 @@ export function WidgetConfiguratorModal({
                 ))}
               </select>
             </div>
+            )}
 
             {/* Interactive Filter (optional) — adds a dropdown on the finished
                 widget so viewers can narrow the data without editing it. */}
