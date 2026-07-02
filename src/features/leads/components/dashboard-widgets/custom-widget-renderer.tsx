@@ -34,7 +34,7 @@ interface CustomWidgetConfig {
   metric_field: string
   aggregation: 'count' | 'sum' | 'avg'
   group_by: string | null
-  config: { limit?: number; color?: string; filter?: { field: string; label: string; defaultValue?: string | null }; footer?: { metric_field: string; aggregation: 'count' | 'sum' | 'avg'; label?: string }; formula?: FormulaConfig }
+  config: { limit?: number; color?: string; filter?: { field: string; label: string; defaultValue?: string | null }; footer?: { metric_field: string; aggregation: 'count' | 'sum' | 'avg'; label?: string }; formula?: FormulaConfig; tooltip?: string }
 }
 
 interface CustomWidgetRendererProps {
@@ -195,6 +195,7 @@ function KPIRenderer({ widget, data, filterNode }: CustomWidgetRendererProps & {
       icon={Hash}
       supporting={supporting}
       headerAction={filterNode}
+      basisInfo={widget.config.tooltip ? <span>{widget.config.tooltip}</span> : undefined}
     />
   )
 }

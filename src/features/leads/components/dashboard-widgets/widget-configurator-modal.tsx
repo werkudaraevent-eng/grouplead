@@ -247,6 +247,9 @@ export function WidgetConfiguratorModal({
   const [footerAgg, setFooterAgg] = useState<'count' | 'sum' | 'avg'>(editWidget?.config?.footer?.aggregation || 'count')
   const [footerLabel, setFooterLabel] = useState(editWidget?.config?.footer?.label || '')
 
+  // Optional hover tooltip text (KPI only). Shown behind the ⓘ icon on the card.
+  const [tooltip, setTooltip] = useState(editWidget?.config?.tooltip || '')
+
   // Custom formula builder state (KPI only, active when metric === '_formula').
   // numerator ÷ denominator, each an aggregation(field) over a condition.
   const DEFAULT_MEASURE: FormulaMeasure = { aggregation: 'count', field: '_deal_value', condition: 'won' }
@@ -341,8 +344,8 @@ export function WidgetConfiguratorModal({
     metric_field: metricField as any,
     aggregation: aggregation as any,
     group_by: groupBy || null,
-    config: { limit, filter: filterConfig, footer: footerConfig, formula: formulaConfig },
-  }), [displayTitle, widgetType, metricField, aggregation, groupBy, limit, filterConfig, footerConfig, formulaConfig, editWidget])
+    config: { limit, filter: filterConfig, footer: footerConfig, formula: formulaConfig, tooltip: (widgetType === 'kpi' && tooltip) ? tooltip : undefined },
+  }), [displayTitle, widgetType, metricField, aggregation, groupBy, limit, filterConfig, footerConfig, formulaConfig, tooltip, editWidget])
 
   // Distinct values for the interactive-filter preview dropdown.
   const previewFilterOptions = useMemo(() => {
@@ -363,7 +366,7 @@ export function WidgetConfiguratorModal({
       metric_field: metricField as any,
       aggregation: aggregation as any,
       group_by: groupBy || null,
-      config: { limit, filter: filterConfig, footer: footerConfig, formula: formulaConfig },
+      config: { limit, filter: filterConfig, footer: footerConfig, formula: formulaConfig, tooltip: (widgetType === 'kpi' && tooltip) ? tooltip : undefined },
     })
   }
 
@@ -634,6 +637,24 @@ export function WidgetConfiguratorModal({
                 <p style={{ fontSize: 9.5, color: '#94a3b8', marginTop: 3, lineHeight: 1.4 }}>
                   Shows a second number in the card footer, computed on its own.
                   Independent from the headline metric above.
+                </p>
+              </div>
+            )}
+
+            {/* Hover Tooltip (KPI only, optional) — text shown behind the ⓘ
+                icon that appears on card hover. Use it to explain the metric. */}
+            {widgetType === 'kpi' && (
+              <div>
+                <label style={labelStyle}>Hover Tooltip</label>
+                <textarea
+                  value={tooltip}
+                  onChange={(e) => setTooltip(e.target.value)}
+                  placeholder="Explain how this metric is calculated…"
+                  rows={3}
+                  style={{ ...inputStyle, resize: 'vertical', lineHeight: 1.5 }}
+                />
+                <p style={{ fontSize: 9.5, color: '#94a3b8', marginTop: 3, lineHeight: 1.4 }}>
+                  Shows an ⓘ icon on the card. Hovering it reveals this text.
                 </p>
               </div>
             )}

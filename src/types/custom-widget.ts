@@ -72,6 +72,12 @@ export interface CustomWidget {
      * instead of the preset metric. KPI cards only.
      */
     formula?: FormulaConfig
+    /**
+     * Optional explanation shown in a hover tooltip (ⓘ icon) on the KPI card,
+     * e.g. to describe how the metric is calculated or where the data comes
+     * from. Plain text. KPI cards only.
+     */
+    tooltip?: string
   }
   created_at: string
   updated_at: string
