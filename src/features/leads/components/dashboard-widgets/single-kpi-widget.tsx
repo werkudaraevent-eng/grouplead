@@ -204,6 +204,13 @@ export function SingleKPIWidget({ label, value, prefix = "", suffix = "", vsTarg
                     </TooltipPrimitive.Provider>
                 )}
                 {headerAction && <div className="shrink-0">{headerAction}</div>}
+            </div>
+
+            {/* Row 2 — value (27px/800) + ONE inline delta chip + chip note.
+                Font is 27px at normal width but scales down with the card via
+                cqw when heavy zoom narrows the column, so the value + wrapping
+                footer keep fitting inside the fixed-height cell. */}
+            <div className="flex-1 flex items-center gap-2 flex-wrap min-w-0">
                 <span
                     className="font-bold text-[#10141C] tracking-[-0.7px] leading-none tabular-nums min-w-0 whitespace-nowrap overflow-hidden text-ellipsis"
                     style={{ fontSize: "clamp(20px, 14cqw, 32px)" }}
