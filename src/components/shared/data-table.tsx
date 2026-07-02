@@ -103,9 +103,12 @@ export function DataTable<TData, TValue>({
     const visibilityStorageKey = storageKey ? `datatable:${storageKey}:visibility` : null
     const orderStorageKey = storageKey ? `datatable:${storageKey}:order` : null
     const [columnSizing, setColumnSizing] = React.useState<ColumnSizingState>({})
-    // Guards so the save-effects don't clobber storage with defaults before the
-    // one-time load has run.
-    const layoutLoaded = React.useRef(false)
+    // Gate the save-effects until the one-time load has applied to state.
+    // Using state (not a ref) is deliberate: a ref set synchronously inside the
+    // load effect would still be `true` when the save-effects run in the SAME
+    // commit pass, causing them to write the DEFAULT layout over the saved one.
+    // As state, saves only run on the re-render AFTER loaded values are applied.
+    const [hydrated, setHydrated] = React.useState(!storageKey)
 
     React.useEffect(() => {
         if (!storageKey) return
@@ -117,32 +120,32 @@ export function DataTable<TData, TValue>({
             const rawOrder = orderStorageKey && localStorage.getItem(orderStorageKey)
             if (rawOrder) setColumnOrder(JSON.parse(rawOrder))
         } catch { /* ignore malformed cache */ }
-        layoutLoaded.current = true
+        setHydrated(true)
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [storageKey])
 
     React.useEffect(() => {
-        if (!sizingStorageKey || !layoutLoaded.current) return
+        if (!sizingStorageKey || !hydrated) return
         try {
             if (Object.keys(columnSizing).length > 0) {
                 localStorage.setItem(sizingStorageKey, JSON.stringify(columnSizing))
             }
         } catch { /* ignore quota errors */ }
-    }, [sizingStorageKey, columnSizing])
+    }, [sizingStorageKey, columnSizing, hydrated])
 
     React.useEffect(() => {
-        if (!visibilityStorageKey || !layoutLoaded.current) return
+        if (!visibilityStorageKey || !hydrated) return
         try {
             localStorage.setItem(visibilityStorageKey, JSON.stringify(columnVisibility))
         } catch { /* ignore quota errors */ }
-    }, [visibilityStorageKey, columnVisibility])
+    }, [visibilityStorageKey, columnVisibility, hydrated])
 
     React.useEffect(() => {
-        if (!orderStorageKey || !layoutLoaded.current) return
+        if (!orderStorageKey || !hydrated) return
         try {
             localStorage.setItem(orderStorageKey, JSON.stringify(columnOrder))
         } catch { /* ignore quota errors */ }
-    }, [orderStorageKey, columnOrder])
+    }, [orderStorageKey, columnOrder, hydrated])
 
     // DnD state for column reorder
     const [draggedCol, setDraggedCol] = React.useState<string | null>(null)

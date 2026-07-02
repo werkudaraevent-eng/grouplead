@@ -1168,7 +1168,14 @@ export function LeadDashboard() {
                                 enableRowSelection
                                 storageKey="leads"
                                 getRowId={(row) => String((row as Lead).id)}
-                                totalValueAccessor={(row) => (row as Lead).estimated_value || 0}
+                                totalValueAccessor={(row) => {
+                                    const lead = row as Lead
+                                    // Confirmed (actual) value wins; fall back to
+                                    // estimated only when confirmed is unset.
+                                    return (lead.actual_value ?? null) != null && lead.actual_value !== 0
+                                        ? lead.actual_value!
+                                        : (lead.estimated_value || 0)
+                                }}
                                 totalValueLabel="Total value"
                                 bulkActions={{
                                     onBulkDelete: canDeleteLeads ? handleTableBulkDelete : undefined,
