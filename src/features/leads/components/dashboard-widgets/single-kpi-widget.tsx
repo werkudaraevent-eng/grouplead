@@ -90,6 +90,10 @@ export interface SingleKPIProps {
     /** When true, a positive delta is treated as bad (red) and negative as
      *  good (green). Use for metrics where "up is worse" — e.g. Lost count. */
     invertDelta?: boolean
+    /** Optional node rendered at the right edge of the header row (e.g. an
+     *  interactive filter dropdown for custom widgets). Sits after the label,
+     *  where the ⓘ info button would otherwise be. */
+    headerAction?: ReactNode
 }
 
 // Delta pill — a small rounded chip showing the % change with an arrow.
@@ -115,7 +119,7 @@ function DeltaPill({ value, note, tone }: { value: number; note: string; tone: "
     )
 }
 
-export function SingleKPIWidget({ label, value, prefix = "", suffix = "", vsTarget, vsPrev, accent, accentBg, icon: Icon, sparkline, basisLabel, basisInfo, supporting, invertDelta = false }: SingleKPIProps) {
+export function SingleKPIWidget({ label, value, prefix = "", suffix = "", vsTarget, vsPrev, accent, accentBg, icon: Icon, sparkline, basisLabel, basisInfo, supporting, invertDelta = false, headerAction }: SingleKPIProps) {
     const hasWarning = !!basisLabel && /hidden|excluded|missing/i.test(basisLabel)
 
     // `invertDelta` flips the good/bad polarity for "up is worse" metrics
@@ -199,13 +203,7 @@ export function SingleKPIWidget({ label, value, prefix = "", suffix = "", vsTarg
                         </TooltipPrimitive.Root>
                     </TooltipPrimitive.Provider>
                 )}
-            </div>
-
-            {/* Row 2 — value (27px/800) + ONE inline delta chip + chip note.
-                Font is 27px at normal width but scales down with the card via
-                cqw when heavy zoom narrows the column, so the value + wrapping
-                footer keep fitting inside the fixed-height cell. */}
-            <div className="flex-1 flex items-center gap-2 flex-wrap min-w-0">
+                {headerAction && <div className="shrink-0">{headerAction}</div>}
                 <span
                     className="font-bold text-[#10141C] tracking-[-0.7px] leading-none tabular-nums min-w-0 whitespace-nowrap overflow-hidden text-ellipsis"
                     style={{ fontSize: "clamp(20px, 14cqw, 32px)" }}

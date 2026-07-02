@@ -6,7 +6,9 @@ import {
 } from "recharts"
 import { useRef } from "react"
 import { createPortal } from "react-dom"
+import { Hash } from "lucide-react"
 import { SectionCard, SectionTitle, CHART_COLORS, EllipsisTick, StickyAxis } from "./shared"
+import { SingleKPIWidget } from "./single-kpi-widget"
 import { useHasMounted } from "@/hooks/use-has-mounted"
 import { useCurrency } from "@/contexts/currency-context"
 
@@ -129,64 +131,34 @@ function ChartPlaceholder() {
   )
 }
 
-// ─── KPI Renderer (matches SingleKPIWidget design) ─────────────────────────
+// ─── KPI Renderer ───────────────────────────────────────────────────────────
+// Reuses the built-in SingleKPIWidget so custom KPI cards are pixel-identical
+// to the default dashboard KPI cards (radius, padding, icon tile, typography,
+// footer baseline). The aggregation descriptor becomes the footer supporting
+// line; the optional filter dropdown is passed as the header action.
 function KPIRenderer({ widget, data, filterNode }: CustomWidgetRendererProps & { filterNode?: React.ReactNode }) {
   const { fmt } = useCurrency()
   const accentColor = widget.config.color || '#02378D'
+
+  const aggLabel =
+    widget.aggregation === 'avg' ? 'Average'
+      : widget.aggregation === 'sum' ? 'Total'
+        : 'Count'
+  const metricLabel = widget.metric_field !== '_count'
+    ? widget.metric_field.replace(/_/g, ' ').trim()
+    : ''
+
   return (
-    <div
-      style={{
-        background: "#fff", borderRadius: 10,
-        padding: "10px 14px 8px",
-        border: `1px solid #e5e8ed`,
-        display: "flex", flexDirection: "column", gap: 4, minWidth: 0,
-        position: "relative", overflow: "hidden", cursor: "default",
-        height: "100%", boxSizing: "border-box",
-        boxShadow: "0 1px 2px rgba(0,0,0,.03)",
-        transition: "all .25s ease",
-      }}
-    >
-      {/* Accent top bar — same as built-in KPI cards */}
-      <div style={{
-        position: "absolute", top: 0, left: 0, right: 0, height: 2.5,
-        background: `linear-gradient(90deg, ${accentColor}, ${accentColor}66)`,
-        opacity: 0.5, transition: "opacity .2s",
-      }} />
-
-      {/* Label */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <span style={{ fontSize: 10.5, fontWeight: 600, color: "#94a3b8", letterSpacing: ".15px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-          {widget.title}
-        </span>
-        {filterNode ?? (
-          <span style={{
-            width: 22, height: 22, borderRadius: 6,
-            background: accentColor + "0c",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            color: accentColor, flexShrink: 0, fontSize: 11, fontWeight: 700,
-          }}>
-            #
-          </span>
-        )}
-      </div>
-
-      {/* Value */}
-      <div style={{
-        fontSize: 22, fontWeight: 800, color: "#0f172a",
-        letterSpacing: "-0.5px", lineHeight: 1,
-        whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
-      }}>
-        {formatValue(data.total, widget.metric_field, widget.aggregation, fmt)}
-      </div>
-
-      {/* Subtitle */}
-      <div style={{ display: "flex", gap: 3, flexWrap: "wrap", marginTop: 2, minHeight: 20 }}>
-        <span style={{ fontSize: 9, color: "#cbd5e1", fontStyle: "italic" }}>
-          {widget.aggregation === 'avg' ? 'Average' : widget.aggregation === 'sum' ? 'Total' : 'Count'}
-          {widget.metric_field !== '_count' && ` • ${widget.metric_field.replace(/_/g, ' ')}`}
-        </span>
-      </div>
-    </div>
+    <SingleKPIWidget
+      label={widget.title}
+      value={formatValue(data.total, widget.metric_field, widget.aggregation, fmt)}
+      vsTarget={null}
+      vsPrev={null}
+      accent={accentColor}
+      icon={Hash}
+      supporting={[{ value: aggLabel, label: metricLabel }]}
+      headerAction={filterNode}
+    />
   )
 }
 
