@@ -9,7 +9,7 @@ import { StageCellEditor } from "@/features/leads/components/stage-cell-editor"
 
 // ── Badge helper ──
 const Badge = ({ children, className }: { children: React.ReactNode; className?: string }) => (
-    <span className={`inline-flex items-center rounded-md px-1.5 py-0.5 text-[11px] font-medium whitespace-nowrap max-w-[140px] truncate ${className ?? "bg-slate-100 text-slate-600"}`}>
+    <span className={`inline-flex items-center rounded-md px-1.5 py-0.5 text-[11px] font-medium whitespace-nowrap max-w-full truncate ${className ?? "bg-slate-100 text-slate-600"}`}>
         {children}
     </span>
 )
@@ -393,7 +393,7 @@ export function getColumns(
             const lead = row.original
             if (lead.event_dates && lead.event_dates.length > 0) {
                 const formatted = lead.event_dates.map(d => fmtDate(d)).join(", ")
-                return <span className="text-[12px] text-slate-500 whitespace-nowrap truncate max-w-[140px] block" title={formatted}>{formatted}</span>
+                return <span className="text-[12px] text-slate-500 whitespace-nowrap truncate w-full min-w-0 block" title={formatted}>{formatted}</span>
             }
             if (lead.event_date_start) {
                 const start = fmtDate(lead.event_date_start)
