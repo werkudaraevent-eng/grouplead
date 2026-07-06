@@ -120,6 +120,47 @@ export function getDefaultLayout(): Layout {
   ]
 }
 
+// ─── Custom Widget Size Presets ─────────────────────────────────────────────
+// Type-aware sizing for user-built custom widgets, mirroring how mature
+// dashboard platforms (Zoho Analytics, Salesforce Lightning) constrain each
+// widget kind differently instead of using one global minimum:
+//
+//   • KPI  — a single hero number. Shrinks to the same compact 2×2 floor as the
+//            built-in KPI cards; capped short (maxH:4) since extra height is
+//            just whitespace. Wide banner KPIs are allowed (maxW:6).
+//   • Bar/List — need vertical room for rows + horizontal room for category
+//            labels, so a 3×3 floor. Tall stretch allowed for long lists.
+//   • Pie  — donut + legend needs a squarer minimum footprint (3×3).
+//
+// The content itself is already responsive: SingleKPIWidget uses container
+// queries (font clamps + sparkline hides < 170px) and the chart renderers use
+// Recharts ResponsiveContainer, so shrinking a widget reflows its contents
+// rather than clipping them.
+export type CustomWidgetType = 'kpi' | 'bar' | 'pie' | 'list'
+
+export interface WidgetSizePreset {
+  w: number
+  h: number
+  minW: number
+  minH: number
+  maxW: number
+  maxH: number
+}
+
+export const CUSTOM_WIDGET_SIZE_PRESETS: Record<CustomWidgetType, WidgetSizePreset> = {
+  // Matches the built-in KPI cards: 2×2 min, 3×3 default, capped short.
+  kpi:  { w: 3, h: 3, minW: 2, minH: 2, maxW: 6,  maxH: 4  },
+  bar:  { w: 4, h: 5, minW: 3, minH: 3, maxW: 12, maxH: 12 },
+  pie:  { w: 4, h: 5, minW: 3, minH: 3, maxW: 12, maxH: 10 },
+  list: { w: 5, h: 5, minW: 3, minH: 3, maxW: 12, maxH: 12 },
+}
+
+/** Resolve the size preset for a custom widget type. Falls back to the compact
+ *  KPI preset for unknown types. */
+export function getCustomWidgetSize(type: CustomWidgetType | string | null | undefined): WidgetSizePreset {
+  return CUSTOM_WIDGET_SIZE_PRESETS[(type as CustomWidgetType)] ?? CUSTOM_WIDGET_SIZE_PRESETS.kpi
+}
+
 // ─── Local Storage (fast fallback) ──────────────────────────────────────────
 const LS_KEY = "dashboard-layout-v11" // v11: 5 KPI cards (incoming/events/conversion/won/lost), taller h:3
 

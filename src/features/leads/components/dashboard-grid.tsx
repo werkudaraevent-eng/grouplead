@@ -10,7 +10,9 @@ import {
     GRID_COLS,
     GRID_ROW_HEIGHT,
     WIDGET_LABELS,
+    getCustomWidgetSize,
     type WidgetId,
+    type CustomWidgetType,
 } from "@/features/leads/lib/dashboard-layout"
 import type { CustomWidget } from "@/types/custom-widget"
 import { usePermissions } from "@/contexts/permissions-context"
@@ -58,7 +60,7 @@ interface DashboardGridProps {
      * layout. This avoids computing placement from stale view data while
      * the user is mid-edit.
      */
-    addCustomWidgetRef?: React.MutableRefObject<((id: string, width?: number, height?: number) => void) | null>
+    addCustomWidgetRef?: React.MutableRefObject<((id: string, type?: CustomWidgetType) => void) | null>
 }
 
 export function DashboardGrid({
@@ -103,6 +105,35 @@ export function DashboardGrid({
 
     const customIds = useMemo(() => customWidgets.map(w => `custom-${w.id}`), [customWidgets])
     const allWidgetIds = useMemo(() => [...widgetIds, ...customIds], [widgetIds, customIds])
+
+    // Map of `custom-<id>` → widget_type for the user's custom widgets. Lets
+    // the grid resolve type-aware size presets (compact for KPI, taller for
+    // charts) both when inserting new widgets and when normalizing saved ones.
+    const customTypeById = useMemo(() => {
+        const m = new Map<string, CustomWidgetType>()
+        for (const cw of customWidgets) m.set(`custom-${cw.id}`, cw.widget_type)
+        return m
+    }, [customWidgets])
+
+    // Relax a saved custom widget's size constraints to its type's current
+    // preset so older widgets (persisted with the old global minW/minH:3) can
+    // now shrink to the type's real floor — e.g. a custom KPI down to 2×2 like
+    // the built-in KPI cards. We only widen the bounds; the user's saved
+    // position and size are preserved (max is nudged up to fit if needed) so
+    // loading never silently resizes or reflows an existing layout.
+    const normalizeCustomItem = useCallback((item: LayoutItem): LayoutItem => {
+        if (!item.i.startsWith("custom-")) return item
+        const type = customTypeById.get(item.i)
+        if (!type) return item
+        const preset = getCustomWidgetSize(type)
+        return {
+            ...item,
+            minW: preset.minW,
+            minH: preset.minH,
+            maxW: Math.max(preset.maxW, item.w),
+            maxH: Math.max(preset.maxH, item.h),
+        }
+    }, [customTypeById])
 
     useEffect(() => {
         if (!containerRef.current) return
@@ -171,10 +202,14 @@ export function DashboardGrid({
 
         // Preserve only custom widget layouts from saved. Anything else not in
         // defaults is a stale built-in id from an older version — drop it.
+        // Normalize each custom entry so its size constraints follow the
+        // current type preset (lets pre-existing custom KPIs shrink to 2×2).
         return merged.concat(
-            saved.filter(item => item.i.startsWith("custom-") && !defaults.some(d => d.i === item.i)),
+            saved
+                .filter(item => item.i.startsWith("custom-") && !defaults.some(d => d.i === item.i))
+                .map(normalizeCustomItem),
         )
-    }, [])
+    }, [normalizeCustomItem])
 
     // Seed layout/hidden from the active view whenever it changes.
     // `viewKey` changes when the parent switches to a different view, forcing a
@@ -211,14 +246,16 @@ export function DashboardGrid({
             // mergeWithDefaults after a widget rename) from being re-added here
             // straight from the raw saved layout.
             const validDefaultIds = new Set(getDefaultLayout().map(d => d.i))
-            const additions = initialLayout.filter(item =>
-                !prevIds.has(item.i) &&
-                (item.i.startsWith("custom-") || validDefaultIds.has(item.i)),
-            )
+            const additions = initialLayout
+                .filter(item =>
+                    !prevIds.has(item.i) &&
+                    (item.i.startsWith("custom-") || validDefaultIds.has(item.i)),
+                )
+                .map(normalizeCustomItem)
             if (additions.length === 0) return prev
             return [...prev, ...additions]
         })
-    }, [initialLayout, loaded])
+    }, [initialLayout, loaded, normalizeCustomItem])
 
     // IMPORTANT: Custom widgets are NOT auto-added to the layout anymore.
     // Previously this leaked widgets across views: creating a custom widget
@@ -314,13 +351,15 @@ export function DashboardGrid({
             }, 0)
 
         if (id.startsWith("custom-")) {
-            // Custom widget: insert a fresh layout entry at the bottom.
+            // Custom widget: insert a fresh layout entry at the bottom using the
+            // size preset for its type (compact for KPI, taller for charts).
+            const preset = getCustomWidgetSize(customTypeById.get(id))
             setLayout(prev => {
                 if (prev.some(item => item.i === id)) return prev
                 const maxY = computeMaxY(prev)
                 return [
                     ...prev,
-                    { i: id, x: 0, y: maxY, w: 4, h: 5, minW: 3, minH: 3 },
+                    { i: id, x: 0, y: maxY, w: preset.w, h: preset.h, minW: preset.minW, minH: preset.minH, maxW: preset.maxW, maxH: preset.maxH },
                 ]
             })
             return
@@ -339,15 +378,17 @@ export function DashboardGrid({
                 item.i === id ? { ...item, x: 0, y: maxY, w: defaultItem.w, h: defaultItem.h } : item
             ))
         }
-    }, [layout, hiddenWidgets])
+    }, [layout, hiddenWidgets, customTypeById])
 
     // Expose an imperative add so the parent can insert a newly-created custom
     // widget using the grid's own current layout (not stale DB state). This
     // prevents the widget from stacking on top of existing widgets when the
-    // parent tries to compute placement mid-edit.
+    // parent tries to compute placement mid-edit. The widget's type drives its
+    // initial size + min/max constraints via the shared preset table.
     useEffect(() => {
         if (!addCustomWidgetRef) return
-        addCustomWidgetRef.current = (id, width = 4, height = 5) => {
+        addCustomWidgetRef.current = (id, type) => {
+            const preset = getCustomWidgetSize(type)
             setLayout(prev => {
                 if (prev.some(item => item.i === id)) return prev
                 const maxY = prev.reduce((m, item) => {
@@ -356,7 +397,7 @@ export function DashboardGrid({
                 }, 0)
                 return [
                     ...prev,
-                    { i: id, x: 0, y: maxY, w: width, h: height, minW: 3, minH: 3 },
+                    { i: id, x: 0, y: maxY, w: preset.w, h: preset.h, minW: preset.minW, minH: preset.minH, maxW: preset.maxW, maxH: preset.maxH },
                 ]
             })
         }

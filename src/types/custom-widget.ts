@@ -78,6 +78,13 @@ export interface CustomWidget {
      * from. Plain text. KPI cards only.
      */
     tooltip?: string
+    /**
+     * Optional lucide icon key for the card's header tile (KPI cards only).
+     * Resolved via `resolveKpiIcon` in the icon registry. Defaults to the
+     * hash (#) icon when unset. Stored as a stable string so it survives
+     * component renames.
+     */
+    icon?: string
   }
   created_at: string
   updated_at: string

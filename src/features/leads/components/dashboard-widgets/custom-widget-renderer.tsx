@@ -6,9 +6,9 @@ import {
 } from "recharts"
 import { useRef } from "react"
 import { createPortal } from "react-dom"
-import { Hash } from "lucide-react"
 import { SectionCard, SectionTitle, CHART_COLORS, EllipsisTick, StickyAxis } from "./shared"
 import { SingleKPIWidget } from "./single-kpi-widget"
+import { resolveKpiIcon } from "./kpi-icons"
 import { useHasMounted } from "@/hooks/use-has-mounted"
 import { useCurrency } from "@/contexts/currency-context"
 import type { FormulaConfig } from "@/types/custom-widget"
@@ -34,7 +34,7 @@ interface CustomWidgetConfig {
   metric_field: string
   aggregation: 'count' | 'sum' | 'avg'
   group_by: string | null
-  config: { limit?: number; color?: string; filter?: { field: string; label: string; defaultValue?: string | null }; footer?: { metric_field: string; aggregation: 'count' | 'sum' | 'avg'; label?: string }; formula?: FormulaConfig; tooltip?: string }
+  config: { limit?: number; color?: string; icon?: string; filter?: { field: string; label: string; defaultValue?: string | null }; footer?: { metric_field: string; aggregation: 'count' | 'sum' | 'avg'; label?: string }; formula?: FormulaConfig; tooltip?: string }
 }
 
 interface CustomWidgetRendererProps {
@@ -159,6 +159,7 @@ function ChartPlaceholder() {
 function KPIRenderer({ widget, data, filterNode }: CustomWidgetRendererProps & { filterNode?: React.ReactNode }) {
   const { fmt } = useCurrency()
   const accentColor = widget.config.color || '#02378D'
+  const IconComponent = resolveKpiIcon(widget.config.icon)
 
   const aggLabel =
     widget.aggregation === 'avg' ? 'Average'
@@ -192,7 +193,7 @@ function KPIRenderer({ widget, data, filterNode }: CustomWidgetRendererProps & {
       vsTarget={null}
       vsPrev={null}
       accent={accentColor}
-      icon={Hash}
+      icon={IconComponent}
       supporting={supporting}
       headerAction={filterNode}
       basisInfo={widget.config.tooltip ? <span>{widget.config.tooltip}</span> : undefined}

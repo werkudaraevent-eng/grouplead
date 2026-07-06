@@ -4,6 +4,7 @@ import { useState, useMemo } from "react"
 import { X, BarChart3, PieChart, List, Hash } from "lucide-react"
 import { aggregateLeads, resolveField, computeFormula, type AggregateConfig } from "@/features/leads/lib/aggregate-leads"
 import { CustomWidgetRenderer } from "./custom-widget-renderer"
+import { KPI_ICONS, DEFAULT_KPI_ICON_KEY } from "./kpi-icons"
 import type { CustomWidgetInput, FormulaMeasure, FormulaCondition } from "@/types/custom-widget"
 
 // ─── Constants ──────────────────────────────────────────────────────────────
@@ -250,6 +251,10 @@ export function WidgetConfiguratorModal({
   // Optional hover tooltip text (KPI only). Shown behind the ⓘ icon on the card.
   const [tooltip, setTooltip] = useState(editWidget?.config?.tooltip || '')
 
+  // Icon shown in the card's header tile (KPI cards only). Persisted as a
+  // stable key in config.icon; defaults to the hash (#) icon.
+  const [iconKey, setIconKey] = useState(editWidget?.config?.icon || DEFAULT_KPI_ICON_KEY)
+
   // Custom formula builder state (KPI only, active when metric === '_formula').
   // numerator ÷ denominator, each an aggregation(field) over a condition.
   const DEFAULT_MEASURE: FormulaMeasure = { aggregation: 'count', field: '_deal_value', condition: 'won' }
@@ -344,8 +349,8 @@ export function WidgetConfiguratorModal({
     metric_field: metricField as any,
     aggregation: aggregation as any,
     group_by: groupBy || null,
-    config: { limit, filter: filterConfig, footer: footerConfig, formula: formulaConfig, tooltip: (widgetType === 'kpi' && tooltip) ? tooltip : undefined },
-  }), [displayTitle, widgetType, metricField, aggregation, groupBy, limit, filterConfig, footerConfig, formulaConfig, tooltip, editWidget])
+    config: { limit, filter: filterConfig, footer: footerConfig, formula: formulaConfig, tooltip: (widgetType === 'kpi' && tooltip) ? tooltip : undefined, icon: widgetType === 'kpi' ? iconKey : undefined },
+  }), [displayTitle, widgetType, metricField, aggregation, groupBy, limit, filterConfig, footerConfig, formulaConfig, tooltip, iconKey, editWidget])
 
   // Distinct values for the interactive-filter preview dropdown.
   const previewFilterOptions = useMemo(() => {
@@ -366,7 +371,7 @@ export function WidgetConfiguratorModal({
       metric_field: metricField as any,
       aggregation: aggregation as any,
       group_by: groupBy || null,
-      config: { limit, filter: filterConfig, footer: footerConfig, formula: formulaConfig, tooltip: (widgetType === 'kpi' && tooltip) ? tooltip : undefined },
+      config: { limit, filter: filterConfig, footer: footerConfig, formula: formulaConfig, tooltip: (widgetType === 'kpi' && tooltip) ? tooltip : undefined, icon: widgetType === 'kpi' ? iconKey : undefined },
     })
   }
 
@@ -637,6 +642,52 @@ export function WidgetConfiguratorModal({
                 <p style={{ fontSize: 9.5, color: '#94a3b8', marginTop: 3, lineHeight: 1.4 }}>
                   Shows a second number in the card footer, computed on its own.
                   Independent from the headline metric above.
+                </p>
+              </div>
+            )}
+
+            {/* Icon picker (KPI only) — the lucide icon shown in the card's
+                header tile. Persisted as a stable key in config.icon. */}
+            {widgetType === 'kpi' && (
+              <div>
+                <label style={labelStyle}>Card Icon</label>
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(8, 1fr)',
+                    gap: 6,
+                    padding: 8,
+                    border: '1.5px solid #e2e8f0',
+                    borderRadius: 8,
+                    background: '#fff',
+                  }}
+                >
+                  {KPI_ICONS.map(({ key, label, icon: Icon }) => {
+                    const selected = iconKey === key
+                    return (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => setIconKey(key)}
+                        title={label}
+                        aria-label={label}
+                        aria-pressed={selected}
+                        style={{
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          aspectRatio: '1 / 1', borderRadius: 7, cursor: 'pointer',
+                          border: selected ? '1.5px solid #02378D' : '1.5px solid #e8ebf0',
+                          background: selected ? '#eef3fb' : '#f8fafc',
+                          color: selected ? '#02378D' : '#64748b',
+                          transition: 'all .15s ease',
+                        }}
+                      >
+                        <Icon style={{ width: 16, height: 16 }} strokeWidth={1.9} />
+                      </button>
+                    )
+                  })}
+                </div>
+                <p style={{ fontSize: 9.5, color: '#94a3b8', marginTop: 3, lineHeight: 1.4 }}>
+                  Shown in the tile next to the card title.
                 </p>
               </div>
             )}

@@ -24,7 +24,7 @@ import { Briefcase, Trophy, RefreshCw, TrendingUp, Calendar, FileDown, Sparkles,
 import { useCurrency } from "@/contexts/currency-context"
 import { MONTHS_SHORT, getVsLastYearPct } from "./dashboard-widgets/shared"
 import { formatRelativeTime, latestTimestamp } from "@/lib/relative-time"
-import { WIDGET_IDS } from "@/features/leads/lib/dashboard-layout"
+import { WIDGET_IDS, type CustomWidgetType } from "@/features/leads/lib/dashboard-layout"
 import { DashboardGrid } from "./dashboard-grid"
 import {
     SingleKPIWidget,
@@ -163,7 +163,7 @@ export function AnalyticsDashboard({
     // Imperative handle injected by the grid: lets the parent insert a
     // freshly-created custom widget into the grid's live layout without
     // racing the seed effect or using stale DB state.
-    const addCustomWidgetRef = useRef<((id: string, width?: number, height?: number) => void) | null>(null)
+    const addCustomWidgetRef = useRef<((id: string, type?: CustomWidgetType) => void) | null>(null)
 
     // Track when filters have drifted from the active view's saved snapshot.
     const activeViewFilters = views.activeView?.filters ?? null
@@ -487,9 +487,9 @@ export function AnalyticsDashboard({
                 // through the imperative handle. Placement is computed from
                 // the user's current (possibly unsaved) layout rather than
                 // stale DB data, so it lands cleanly below the last widget
-                // with the configured 4x5 size. Persistence happens when the
-                // user clicks Save in edit mode.
-                addCustomWidgetRef.current?.(`custom-${data.id}`, 4, 5)
+                // sized per its type preset (compact for KPI, taller for
+                // charts). Persistence happens when the user clicks Save.
+                addCustomWidgetRef.current?.(`custom-${data.id}`, data.widget_type as CustomWidgetType)
             }
         }
         setShowConfigurator(false)

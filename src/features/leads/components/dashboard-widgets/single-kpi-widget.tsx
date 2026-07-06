@@ -3,7 +3,27 @@
 import { cn } from "@/lib/utils"
 import { Info } from "lucide-react"
 import { Tooltip as TooltipPrimitive } from "radix-ui"
-import { useId, type ReactNode } from "react"
+import { useEffect, useId, useRef, useState, type ReactNode } from "react"
+
+// ─── Density tiers ───────────────────────────────────────────────────────────
+// KPI cards live in a resizable grid where the cell height is fixed per row
+// span (h*50 + (h-1)*22 px). The card's own content stack has a hard minimum
+// (~130px), so at a 2-row span (122px) the footer used to overflow and clip.
+// Mirroring how mature dashboards (Zoho, Salesforce) handle shrinking tiles,
+// we shed secondary content as the card gets shorter instead of overflowing:
+//   • full    (≥185px) — icon + wrapped title + hero value + supporting + spark
+//   • compact (140–185px) — drop the sparkline, keep supporting stats
+//   • micro   (<140px, ~2-row span) — headline only: icon + title + value,
+//                                     tighter padding, title truncates+tooltips
+const MICRO_MAX_HEIGHT = 140
+const COMPACT_MAX_HEIGHT = 185
+type DensityTier = "full" | "compact" | "micro"
+
+function resolveTier(height: number): DensityTier {
+    if (height < MICRO_MAX_HEIGHT) return "micro"
+    if (height < COMPACT_MAX_HEIGHT) return "compact"
+    return "full"
+}
 
 // Format percentage compactly: "4.6%" for small, "2.6x" for >100%, "86%" for large
 function formatCompact(pct: number): string {
@@ -119,6 +139,7 @@ function DeltaPill({ value, note, tone }: { value: number; note: string; tone: "
     )
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- `accentBg` is kept in the props API (callers still pass a per-metric tile color) but the tile is now monochrome, so it's intentionally not read.
 export function SingleKPIWidget({ label, value, prefix = "", suffix = "", vsTarget, vsPrev, accent, accentBg, icon: Icon, sparkline, basisLabel, basisInfo, supporting, invertDelta = false, headerAction }: SingleKPIProps) {
     const hasWarning = !!basisLabel && /hidden|excluded|missing/i.test(basisLabel)
 
@@ -136,17 +157,45 @@ export function SingleKPIWidget({ label, value, prefix = "", suffix = "", vsTarg
             : null
 
     // Footer is shown whenever there are supporting stats and/or a sparkline.
-    const hasSpark = !!sparkline && sparkline.length >= 2
-    const hasSupporting = !!supporting && supporting.length > 0
-    const hasFooter = hasSupporting || hasSpark
+    // Height-aware density: observe the card's own box height and drop
+    // secondary content as it shrinks so the fixed grid cell never clips.
+    const cardRef = useRef<HTMLDivElement>(null)
+    const [tier, setTier] = useState<DensityTier>("full")
+    useEffect(() => {
+        const el = cardRef.current
+        if (!el) return
+        const measure = () => setTier(resolveTier(el.getBoundingClientRect().height))
+        measure()
+        const obs = new ResizeObserver(measure)
+        obs.observe(el)
+        return () => obs.disconnect()
+    }, [])
 
-    const tileBg = accentBg ?? `${accent}14`
+    const isMicro = tier === "micro"
+    const hasSparkData = !!sparkline && sparkline.length >= 2
+    const hasSupportingData = !!supporting && supporting.length > 0
+    // Sparkline is the first thing to go (needs the most room); supporting
+    // stats survive into compact; micro sheds the whole footer.
+    const showSpark = hasSparkData && tier === "full"
+    const showSupporting = hasSupportingData && tier !== "micro"
+    const hasFooter = showSupporting || showSpark
+
+    // Monochrome icon treatment (Linear / Vercel style): a quiet neutral tile
+    // instead of a vivid accent-tinted one. Enterprise dashboards keep the
+    // number as the hero and treat the icon as subtle context, not decoration.
+    // The card's `accent` is reserved for signals that actually carry meaning
+    // — the sparkline trend and the delta pill — not the icon chrome. This also
+    // stops N differently-colored tiles from turning a KPI row into confetti.
+    const TILE_BG = "#F4F5F7"
+    const ICON_COLOR = "#5A6273"
 
     return (
         <div
+            ref={cardRef}
             className={cn(
                 "group relative bg-white rounded-[14px] min-w-0 overflow-hidden",
-                "px-[18px] pt-[18px] pb-[15px] flex flex-col",
+                isMicro ? "px-[13px] pt-[10px] pb-[10px]" : "px-[16px] pt-[15px] pb-[13px]",
+                "flex flex-col",
                 "cursor-default h-full box-border border border-[#E7E9EE]",
                 "shadow-[0_1px_2px_rgba(16,20,28,0.05),0_1px_3px_rgba(16,20,28,0.04)]",
                 "transition-all duration-[220ms] ease-[cubic-bezier(0.23,1,0.32,1)]",
@@ -161,48 +210,78 @@ export function SingleKPIWidget({ label, value, prefix = "", suffix = "", vsTarg
             // fixed cell, clipping the bottom stats).
             style={{ containerType: "inline-size" }}
         >
-            {/* Row 1 — header: 30×30 icon tile + label (12.5px/600) + hover info */}
-            <div className="flex items-center gap-[9px] mb-[5px]">
+            {/* Row 1 — header: icon tile + label + hover info. The icon tile
+                shrinks in micro to reclaim width for the title; the label wraps
+                to 2 lines when there's vertical room (full/compact) and falls
+                back to a single truncated line in micro. `title` always carries
+                the full label so a truncated header stays readable on hover. */}
+            {/* Info ⓘ — absolutely positioned in the top-right corner so it
+                never consumes horizontal space in the header flow. It used to
+                sit inline with `shrink-0` and, even while invisible
+                (opacity-0), stole ~14px from the title's width. That made two
+                identically-named cards truncate differently depending on
+                whether one had a tooltip configured (the card 5 vs 6 anomaly).
+                Absolute = the title always gets the full header width. */}
+            {basisInfo && (
+                <TooltipPrimitive.Provider delayDuration={150}>
+                    <TooltipPrimitive.Root>
+                        <TooltipPrimitive.Trigger asChild>
+                            <button
+                                type="button"
+                                aria-label={`${label} — calculation details`}
+                                className="absolute top-[11px] right-[11px] z-20 inline-flex items-center justify-center text-[#9AA1B0] hover:text-[#697080] opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity cursor-help"
+                            >
+                                <Info className="w-[14px] h-[14px]" />
+                            </button>
+                        </TooltipPrimitive.Trigger>
+                        <TooltipPrimitive.Portal>
+                            <TooltipPrimitive.Content
+                                side="bottom"
+                                align="end"
+                                sideOffset={6}
+                                className={cn(
+                                    "z-50 max-w-[280px] p-3 text-[11px] leading-snug",
+                                    "bg-slate-900 text-white rounded-lg shadow-xl",
+                                    "animate-in fade-in-0 zoom-in-95",
+                                    "data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95",
+                                )}
+                            >
+                                {basisInfo}
+                                <TooltipPrimitive.Arrow className="fill-slate-900" width={10} height={5} />
+                            </TooltipPrimitive.Content>
+                        </TooltipPrimitive.Portal>
+                    </TooltipPrimitive.Root>
+                </TooltipPrimitive.Provider>
+            )}
+
+            {/* Row 1 — header: icon tile + label. `headerAction` (custom-widget
+                filter) stays in flow when present; the ⓘ button is absolute so
+                the title width is identical whether or not a tooltip exists. */}
+            <div className={cn("flex gap-[8px]", isMicro ? "items-center mb-[3px]" : "items-start mb-[5px]", basisInfo && !isMicro && "pr-[18px]")}>
                 <div
-                    className="flex items-center justify-center w-[30px] h-[30px] rounded-[8px] shrink-0"
-                    style={{ backgroundColor: tileBg }}
+                    className={cn(
+                        "flex items-center justify-center rounded-[8px] shrink-0",
+                        isMicro ? "w-[26px] h-[26px]" : "w-[30px] h-[30px]",
+                    )}
+                    style={{ backgroundColor: TILE_BG, border: "1px solid #ECEEF2" }}
                 >
-                    <Icon className="w-4 h-4" strokeWidth={1.9} style={{ color: accent }} />
+                    <Icon className={isMicro ? "w-[14px] h-[14px]" : "w-4 h-4"} strokeWidth={1.9} style={{ color: ICON_COLOR }} />
                 </div>
-                <span className="flex-1 min-w-0 text-[12.5px] font-semibold text-[#697080] truncate leading-[1.2]">
+                <span
+                    className={cn(
+                        "flex-1 min-w-0 text-[12.5px] font-semibold text-[#697080] leading-[1.25]",
+                        isMicro ? "truncate self-center" : "line-clamp-2",
+                    )}
+                    // In full/compact the title may wrap to 2 lines. Reserve
+                    // that height on every card so single- and double-line
+                    // titles align to the same baseline across a KPI row, and
+                    // allow breaking inside long single words so a narrow card
+                    // (6-up layout) wraps them instead of clipping mid-word.
+                    style={isMicro ? undefined : { overflowWrap: "anywhere", minHeight: "31px" }}
+                    title={label}
+                >
                     {label}
                 </span>
-                {basisInfo && (
-                    <TooltipPrimitive.Provider delayDuration={150}>
-                        <TooltipPrimitive.Root>
-                            <TooltipPrimitive.Trigger asChild>
-                                <button
-                                    type="button"
-                                    aria-label={`${label} — calculation details`}
-                                    className="shrink-0 inline-flex items-center justify-center text-[#9AA1B0] hover:text-[#697080] opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity cursor-help"
-                                >
-                                    <Info className="w-[14px] h-[14px]" />
-                                </button>
-                            </TooltipPrimitive.Trigger>
-                            <TooltipPrimitive.Portal>
-                                <TooltipPrimitive.Content
-                                    side="bottom"
-                                    align="start"
-                                    sideOffset={6}
-                                    className={cn(
-                                        "z-50 max-w-[280px] p-3 text-[11px] leading-snug",
-                                        "bg-slate-900 text-white rounded-lg shadow-xl",
-                                        "animate-in fade-in-0 zoom-in-95",
-                                        "data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95",
-                                    )}
-                                >
-                                    {basisInfo}
-                                    <TooltipPrimitive.Arrow className="fill-slate-900" width={10} height={5} />
-                                </TooltipPrimitive.Content>
-                            </TooltipPrimitive.Portal>
-                        </TooltipPrimitive.Root>
-                    </TooltipPrimitive.Provider>
-                )}
                 {headerAction && <div className="shrink-0">{headerAction}</div>}
             </div>
 
@@ -210,10 +289,19 @@ export function SingleKPIWidget({ label, value, prefix = "", suffix = "", vsTarg
                 Font is 27px at normal width but scales down with the card via
                 cqw when heavy zoom narrows the column, so the value + wrapping
                 footer keep fitting inside the fixed-height cell. */}
-            <div className="flex-1 flex items-center gap-2 flex-wrap min-w-0">
+            {/* Value + delta stack vertically (flex-col), so the gap between
+                the hero value and the "vs target" pill is a single predictable
+                vertical distance — controlled purely by `gap-[6px]` — instead
+                of the old horizontal-with-wrap layout whose spacing changed
+                depending on card width. Adjust the gap value to taste. */}
+            <div className="flex-1 flex flex-col items-start justify-center gap-[6px] min-w-0">
                 <span
-                    className="font-bold text-[#10141C] tracking-[-0.7px] leading-none tabular-nums min-w-0 whitespace-nowrap overflow-hidden text-ellipsis"
-                    style={{ fontSize: "clamp(20px, 14cqw, 32px)" }}
+                    className="font-bold text-[#10141C] tracking-[-0.7px] leading-none tabular-nums max-w-full whitespace-nowrap overflow-hidden text-ellipsis"
+                    // Cap capped at 27px (was 32) so a long value like
+                    // "IDR 910M" no longer towers over short ones like "43" or
+                    // "20.9%" — the row reads as one calm, uniform scale. Still
+                    // clamps down via cqw on very narrow cards to avoid overflow.
+                    style={{ fontSize: "clamp(23px, 12cqw, 27px)" }}
                     title={`${prefix}${value}${suffix}`}
                 >
                     {prefix}{value}{suffix}
@@ -241,21 +329,29 @@ export function SingleKPIWidget({ label, value, prefix = "", suffix = "", vsTarg
                 never break mid-figure; the sparkline is shrink-0 on the right. */}
             {hasFooter && (
                 <div className="pt-3 border-t border-[#F1F2F5] flex items-end justify-between gap-3">
-                    {hasSupporting ? (
-                        <div className="flex-1 min-w-0 text-[11.5px] leading-[1.6] text-[#697080] tabular-nums">
-                            {supporting!.map((s, i) => (
-                                <span key={s.label}>
-                                    {i > 0 && (
-                                        <span className="inline-block w-[3px] h-[3px] rounded-full bg-[#C9CDD6] mx-[6px] align-middle" />
-                                    )}
-                                    <span className="font-bold text-[#10141C] whitespace-nowrap">{s.value}</span>{" "}
-                                    <span className="font-normal">{s.label}</span>
-                                </span>
+                    {showSupporting ? (
+                        // Each supporting stat gets its own row (bold value +
+                        // muted label), left-aligned. Previously they flowed as
+                        // one inline string joined by a dot — when a card was
+                        // narrow the second stat wrapped and the dot got
+                        // stranded at the start of the next line ("· IDR 520M"),
+                        // which read as a messy floating bullet. Discrete rows
+                        // are the standard KPI-card treatment (Salesforce/Zoho)
+                        // and stay tidy at any width. min-h reserves two rows so
+                        // the divider stays level across cards with 1 vs 2 stats.
+                        <div className="flex-1 min-w-0 min-h-[37px] flex flex-col justify-end gap-[2px] text-[11.5px] leading-[1.35] text-[#697080] tabular-nums">
+                            {supporting!.map((s) => (
+                                <div key={s.label} className="flex items-baseline gap-[5px] min-w-0">
+                                    <span className="font-bold text-[#10141C] whitespace-nowrap">{s.value}</span>
+                                    <span className="font-normal truncate">{s.label}</span>
+                                </div>
                             ))}
                         </div>
                     ) : (
                         <span className="flex-1 min-w-0" />
                     )}
+                    {/* Sparkline: shown only in full tier AND when the card is
+                        wide enough (@[170px]); shed first as the card shrinks. */}
                     {/* Sparkline lives in its own non-shrinking column. The flex
                         `gap-3` is a hard minimum gap that the text can never
                         cross (both are flex items, the spark is shrink-0). When
@@ -264,7 +360,7 @@ export function SingleKPIWidget({ label, value, prefix = "", suffix = "", vsTarg
                         `@[170px]`) so the stats reclaim the full width, wrap
                         across fewer lines, and stop overflowing the fixed cell.
                         Result: at any zoom the text and spark never collide. */}
-                    {hasSpark && (
+                    {showSpark && (
                         <div className="hidden @[170px]:block shrink-0">
                             <Sparkline data={sparkline!} color={accent} />
                         </div>
