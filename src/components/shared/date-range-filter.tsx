@@ -38,6 +38,10 @@ interface DateRangeFilterProps {
     onSelect: (period: string, customStart: string, customEnd: string) => void
     /** "now" injection point for tests; defaults to new Date(). */
     now?: Date
+    /** Visually mute the trigger when another temporary exploration filter is taking precedence. */
+    muted?: boolean
+    /** Optional tooltip/title explaining why the date range is muted. */
+    mutedReason?: string
 }
 
 const iso = (d: Date) => format(d, "yyyy-MM-dd")
@@ -83,7 +87,7 @@ function formatActiveLabel(period: string, start: string, end: string): string {
 }
 
 export function DateRangeFilter({
-    period, customStart, customEnd, onSelect, now = new Date(),
+    period, customStart, customEnd, onSelect, now = new Date(), muted = false, mutedReason,
 }: DateRangeFilterProps) {
     const [open, setOpen] = React.useState(false)
 
@@ -146,8 +150,10 @@ export function DateRangeFilter({
                 <button
                     type="button"
                     aria-label="Select date range"
+                    title={muted ? mutedReason : undefined}
                     className={cn(
                         "inline-flex items-center gap-1.5 h-8 px-2.5 rounded-lg border text-[12px] font-medium transition-colors shadow-none",
+                        muted && "opacity-45 grayscale",
                         !isDefault
                             ? "bg-primary/10 border-primary/30 text-primary hover:bg-primary/15"
                             : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50",

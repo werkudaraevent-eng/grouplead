@@ -51,6 +51,24 @@ export const CHANGE_TYPE_META: Record<
 
 export const CHANGELOG: ChangelogEntry[] = [
     {
+        date: "2026-07-06",
+        title: "Interactive dashboard exploration",
+        items: [
+            {
+                type: "feature",
+                text: "Dashboard widgets can now be clicked to explore the data behind them. Click a revenue month, pipeline stage, lead source, classification slice, stream slice, or top revenue company to temporarily filter the rest of the dashboard.",
+            },
+            {
+                type: "improvement",
+                text: "Temporary chart filters now appear as clear 'Exploring' chips at the top of the dashboard, with quick remove controls so it is always obvious when the dashboard is being narrowed by a widget click.",
+            },
+            {
+                type: "fix",
+                text: "Fixed a dashboard filtering conflict where selecting a month from the revenue chart could combine with an unrelated date range and make every widget look empty.",
+            },
+        ],
+    },
+    {
         date: "2026-06-26",
         title: "Safer imports and a tidier Recycle Bin",
         items: [

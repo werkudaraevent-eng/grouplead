@@ -30,6 +30,8 @@ interface RevenueChartWidgetProps {
     hasMounted: boolean
     revenueBasis: RevenueBasis
     setRevenueBasis: (basis: RevenueBasis) => void
+    activeMonthIndex?: number | null
+    onMonthFilterToggle?: (monthIndex: number, monthLabel: string) => void
 }
 
 /** Compact axis formatter without currency prefix — avoids "IDR" repetition on Y-axis */
@@ -44,7 +46,15 @@ function axisOnly(amount: number): string {
     return `${sign}${abs}`
 }
 
-export function RevenueChartWidget({ data, currentYear, compareYear, setCompareYear, compareYears, hasMounted, revenueBasis, setRevenueBasis }: RevenueChartWidgetProps) {
+function getChartPayload(event: unknown): RevenueDataPoint | undefined {
+    if (!event || typeof event !== "object") return undefined
+    if ("month" in event) return event as RevenueDataPoint
+    const payload = (event as { payload?: unknown }).payload
+    if (!payload || typeof payload !== "object") return undefined
+    return payload as RevenueDataPoint
+}
+
+export function RevenueChartWidget({ data, currentYear, compareYear, setCompareYear, compareYears, hasMounted, revenueBasis, setRevenueBasis, activeMonthIndex = null, onMonthFilterToggle }: RevenueChartWidgetProps) {
     const { fmt, fmtAxis } = useCurrency()
     const basisLabel = revenueBasis === "revenue_recognition" ? "Revenue Recognition Month" : "Closed Won Date"
     const hasComparison = compareYear !== null
@@ -60,8 +70,15 @@ export function RevenueChartWidget({ data, currentYear, compareYear, setCompareY
     const ytdElapsedPct = ytdElapsedTarget > 0 ? (ytdActual / ytdElapsedTarget) * 100 : 0
     const ytdOnTrack = ytdElapsedPct >= 80 // "on track" if >=80% of elapsed target
 
+    const handleMonthClick = (payload: RevenueDataPoint | undefined) => {
+        if (!payload || !onMonthFilterToggle) return
+        const idx = data.findIndex(d => d.month === payload.month)
+        if (idx < 0) return
+        onMonthFilterToggle(idx, payload.month)
+    }
+
     return (
-        <SectionCard className="self-stretch">
+        <SectionCard className={activeMonthIndex !== null ? "self-stretch ring-2 ring-[#02378D]/35" : "self-stretch"}>
             <div className="flex justify-between items-start mb-2">
                 <div>
                     <SectionTitle>Monthly Revenue vs Target</SectionTitle>
@@ -115,10 +132,14 @@ export function RevenueChartWidget({ data, currentYear, compareYear, setCompareY
                 </div>
             )}
 
-            <div className="flex-1 min-h-0 w-full">
+            <div
+                className="flex-1 min-h-0 w-full select-none"
+                style={{ userSelect: "none", WebkitUserSelect: "none", WebkitTapHighlightColor: "transparent" }}
+                onMouseDown={(e) => e.preventDefault()}
+            >
                 {hasMounted ? (
                     <ResponsiveContainer width="100%" height="100%">
-                        <ComposedChart data={data} margin={{ top: 22, right: 12, left: 0, bottom: 4 }} barGap={3} barCategoryGap="26%">
+                        <ComposedChart accessibilityLayer={false} data={data} margin={{ top: 22, right: 12, left: 0, bottom: 4 }} barGap={3} barCategoryGap="26%">
                             <defs>
                                 {/* Actual — deep navy → bright blue vertical gradient */}
                                 <linearGradient id="revActualGrad" x1="0" y1="0" x2="0" y2="1">
@@ -157,19 +178,23 @@ export function RevenueChartWidget({ data, currentYear, compareYear, setCompareY
                                 strokeLinecap="round"
                                 dot={{ r: 2.5, fill: "#F9BB46", stroke: "#fff", strokeWidth: 1 }}
                                 activeDot={{ r: 4, fill: "#F9BB46", stroke: "#fff", strokeWidth: 1.5 }}
+                                onClick={(e: unknown) => handleMonthClick(getChartPayload(e))}
+                                style={{ cursor: onMonthFilterToggle ? "pointer" : "default" }}
                             />
                             {/* Actual bars — color changes based on vs target.
                                 Solid `fill` drives the legend swatch (gradients
                                 don't resolve in Recharts' separate legend SVG);
                                 per-Cell gradient fills drive the actual bars. */}
-                            <Bar yAxisId="left" dataKey="actual" name={`Actual ${currentYear}`} fill="#02378D" radius={[6, 6, 0, 0]} maxBarSize={34}>
+                            <Bar yAxisId="left" dataKey="actual" name={`Actual ${currentYear}`} fill="#02378D" radius={[6, 6, 0, 0]} maxBarSize={34} onClick={(e: unknown) => handleMonthClick(getChartPayload(e))} style={{ cursor: onMonthFilterToggle ? "pointer" : "default" }}>
                                 {data.map((entry, i) => {
                                     const aboveTarget = entry.actual >= entry.target && entry.target > 0
                                     const hasData = entry.actual > 0
+                                    const dimmed = activeMonthIndex !== null && activeMonthIndex !== i
                                     return (
                                         <Cell
                                             key={i}
                                             fill={!hasData ? "transparent" : aboveTarget ? "url(#revAboveGrad)" : "url(#revActualGrad)"}
+                                            opacity={dimmed ? 0.32 : 1}
                                         />
                                     )
                                 })}

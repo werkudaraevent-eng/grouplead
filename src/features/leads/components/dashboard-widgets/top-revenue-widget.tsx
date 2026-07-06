@@ -16,6 +16,9 @@ interface TopRevenueWidgetProps {
     /** Same set rolled up to the top-level / parent (group) company. When
      *  omitted, the Company/Group switcher is hidden and only `data` shows. */
     dataGrouped?: TopCompany[]
+    activeCompanyName?: string | null
+    activeGroupMode?: "company" | "group" | null
+    onCompanyClick?: (company: TopCompany, groupMode: "company" | "group") => void
 }
 
 // How many leaderboard rows the user can choose to see. "All" still caps the
@@ -48,7 +51,7 @@ function RankBadge({ rank }: { rank: number }) {
     )
 }
 
-export function TopRevenueWidget({ data, dataGrouped }: TopRevenueWidgetProps) {
+export function TopRevenueWidget({ data, dataGrouped, activeCompanyName = null, activeGroupMode = null, onCompanyClick }: TopRevenueWidgetProps) {
     const { fmtAxis } = useCurrency()
     const [showMode, setShowMode] = useState<ShowMode>("top10")
     const [groupMode, setGroupMode] = useState<GroupMode>("company")
@@ -121,9 +124,15 @@ export function TopRevenueWidget({ data, dataGrouped }: TopRevenueWidgetProps) {
                     const barWidth = maxRevenue > 0 ? (company.revenue / maxRevenue) * 100 : 0
                     const isTop3 = idx < 3
                     const isUnknown = company.name === "Unknown Company"
+                    const isActive = activeCompanyName === company.name && activeGroupMode === groupMode
+                    const isDimmed = activeCompanyName !== null && activeGroupMode === groupMode && !isActive
 
                     return (
-                        <div key={company.name} className="group py-[5px] px-1 rounded hover:bg-muted/30 transition-colors">
+                        <div
+                            key={company.name}
+                            onClick={() => onCompanyClick?.(company, groupMode)}
+                            className={`group py-[5px] px-1 rounded hover:bg-muted/30 transition-colors ${onCompanyClick ? "cursor-pointer" : ""} ${isActive ? "bg-[#EEF3FB]" : ""} ${isDimmed ? "opacity-45" : ""}`}
+                        >
                             {/* Rank + Name + Amount */}
                             <div className="flex items-center justify-between mb-1">
                                 <div className="flex items-center gap-2 min-w-0 mr-2">

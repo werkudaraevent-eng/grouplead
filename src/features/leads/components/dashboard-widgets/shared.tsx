@@ -65,6 +65,8 @@ export function DonutChart({
     centerLabel = "Total",
     maxSlices = 6,
     colorMap,
+    activeName = null,
+    onSliceClick,
 }: {
     data: DonutDatum[]
     centerLabel?: string
@@ -72,6 +74,8 @@ export function DonutChart({
     maxSlices?: number
     /** Per-name color overrides (semantic). Falls back to the navy→sky ramp. */
     colorMap?: Record<string, string>
+    activeName?: string | null
+    onSliceClick?: (datum: DonutDatum) => void
 }) {
     const positive = data.filter(d => d.value > 0)
     const total = positive.reduce((s, d) => s + d.value, 0)
@@ -104,10 +108,12 @@ export function DonutChart({
     let offsetAcc = 0
     const segments = colored.map(d => {
         const len = total > 0 ? (d.value / total) * circumference : 0
-        const seg = { color: d._color, dash: len, gap: circumference - len, offset: -offsetAcc }
+        const seg = { ...d, color: d._color, dash: len, gap: circumference - len, offset: -offsetAcc }
         offsetAcc += len
         return seg
     })
+
+    const canClick = (name: string) => !!onSliceClick && !/^\+\d+ others$/.test(name)
 
     if (total === 0) {
         return (
@@ -134,7 +140,9 @@ export function DonutChart({
                             strokeWidth={stroke}
                             strokeDasharray={`${s.dash} ${s.gap}`}
                             strokeDashoffset={s.offset}
-                            style={{ transition: "stroke-dasharray 600ms cubic-bezier(0.23,1,0.32,1)" }}
+                            opacity={activeName && activeName !== s.name ? 0.28 : 1}
+                            onClick={() => canClick(s.name) && onSliceClick?.(s)}
+                            style={{ transition: "stroke-dasharray 600ms cubic-bezier(0.23,1,0.32,1), opacity 150ms ease", cursor: canClick(s.name) ? "pointer" : "default" }}
                         />
                     ))}
                 </svg>
@@ -151,8 +159,19 @@ export function DonutChart({
             <div className="flex-1 min-w-0 space-y-[7px] overflow-y-auto thin-scrollbar max-h-full py-0.5">
                 {colored.map(d => {
                     const pct = total > 0 ? (d.value / total) * 100 : 0
+                    const isActive = activeName === d.name
+                    const isDimmed = activeName !== null && !isActive
                     return (
-                        <div key={d.name} className="flex items-center gap-2 min-w-0">
+                        <div
+                            key={d.name}
+                            onClick={() => canClick(d.name) && onSliceClick?.(d)}
+                            className={cn(
+                                "flex items-center gap-2 min-w-0 rounded-md px-1 py-0.5 transition-colors",
+                                canClick(d.name) && "cursor-pointer hover:bg-muted/40",
+                                isActive && "bg-[#EEF3FB]",
+                                isDimmed && "opacity-45",
+                            )}
+                        >
                             <span className="w-2.5 h-2.5 rounded-[3px] shrink-0" style={{ background: d._color }} />
                             <span className="text-[11.5px] font-medium text-[#292D30] truncate flex-1 min-w-0" title={d.name}>
                                 {d.name}

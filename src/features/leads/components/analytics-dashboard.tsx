@@ -60,6 +60,48 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select"
+
+type DashboardCrossFilter = {
+    field: "revenue_month" | "pipeline_stage_id" | "lead_source" | "dimension" | "top_revenue_company"
+    label: string
+    value: string
+    displayValue: string
+    sourceWidgetId: string
+    revenueBasis?: RevenueBasis
+    dimensionField?: string
+    groupMode?: "company" | "group"
+}
+
+const MONTH_NAMES_LONG = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
+
+function getRevenueBasisMonthIndex(lead: Lead, basis: RevenueBasis): number | null {
+    if (basis === "revenue_recognition") {
+        const monthEvent = lead.month_event
+        if (monthEvent && typeof monthEvent === "string") {
+            const parts = monthEvent.trim().split(/\s+/)
+            if (parts.length >= 2) {
+                const mi = MONTH_NAMES_LONG.indexOf(parts[0])
+                if (mi >= 0) return mi
+            }
+        }
+        const dateStr = lead.event_date_end ?? lead.event_date_start
+        if (dateStr) {
+            const d = new Date(dateStr)
+            if (!isNaN(d.getTime())) return d.getMonth()
+        }
+        return null
+    }
+
+    const dateStr = lead.closed_won_date ?? lead.updated_at
+    const d = new Date(dateStr)
+    return isNaN(d.getTime()) ? null : d.getMonth()
+}
+
+function fieldLabel(field: string): string {
+    return field
+        .replace(/_/g, " ")
+        .replace(/\b\w/g, c => c.toUpperCase())
+}
 import { Tooltip } from "@/components/ui/tooltip"
 import type { CustomWidgetInput } from "@/types/custom-widget"
 import { createClient } from "@/utils/supabase/client"
@@ -149,8 +191,25 @@ export function AnalyticsDashboard({
     // null = no comparison (default — chart shows current-year revenue + target only).
     const [compareYear, setCompareYear] = useState<number | null>(null)
     const [revenueBasis, setRevenueBasis] = useState<RevenueBasis>("revenue_recognition")
+    const [crossFilters, setCrossFilters] = useState<DashboardCrossFilter[]>([])
     const [scrolled, setScrolled] = useState(false)
     const scrollRef = useRef<HTMLElement | null>(null)
+
+    const toggleCrossFilter = useCallback((filter: DashboardCrossFilter) => {
+        setCrossFilters(prev => {
+            const sameSlot = (f: DashboardCrossFilter) =>
+                f.field === filter.field &&
+                (f.dimensionField ?? "") === (filter.dimensionField ?? "") &&
+                (f.groupMode ?? "") === (filter.groupMode ?? "")
+            const existing = prev.find(sameSlot)
+            if (existing?.value === filter.value && (existing.revenueBasis ?? "") === (filter.revenueBasis ?? "")) {
+                return prev.filter(f => !sameSlot(f))
+            }
+            return [...prev.filter(f => !sameSlot(f)), filter]
+        })
+    }, [])
+
+    const clearCrossFilters = useCallback(() => setCrossFilters([]), [])
 
     // ─── Dashboard views (saved layouts + filters) ────────────────────────
     const views = useDashboardViews()
@@ -209,6 +268,13 @@ export function AnalyticsDashboard({
             router.push(`${pathname}?${params.toString()}`)
         }
     }, [views.activeView, activePipelineId, pathname, router, searchParams])
+
+    // Cross-filters are exploratory, temporary UI state. Clear them whenever
+    // the user's base dashboard context changes so a hidden month filter never
+    // survives a view/pipeline/company/date/basis switch.
+    useEffect(() => {
+        setCrossFilters([])
+    }, [views.activeView?.id, activePipelineId, companyFilter, periodStr, customStart, customEnd, revenueBasis])
 
     const filtersEqualSnapshot = useCallback(
         (a: DashboardFiltersSnapshot | null, b: DashboardFiltersSnapshot): boolean => {
@@ -279,8 +345,9 @@ export function AnalyticsDashboard({
         [views, currentFiltersSnapshot],
     )
 
-    // Company-filtered leads (for holding view)
-    const filteredLeads = useMemo(() => {
+    // Company/pipeline-filtered leads (base dashboard context before
+    // temporary cross-filter interactions are applied).
+    const baseFilteredLeads = useMemo(() => {
         let result = leads
         // Scope to the active pipeline so KPI numbers match the pipeline view.
         // page.tsx deliberately loads leads across ALL pipelines (for YoY), so
@@ -295,6 +362,33 @@ export function AnalyticsDashboard({
         }
         return result
     }, [leads, isHoldingView, companyFilter, activePipelineId])
+
+    const applyCrossFilters = useCallback((source: Lead[]) => {
+        if (crossFilters.length === 0) return source
+        return source.filter(lead => crossFilters.every(filter => {
+            if (filter.field === "revenue_month") {
+                return getRevenueBasisMonthIndex(lead, filter.revenueBasis ?? revenueBasis) === Number(filter.value)
+            }
+            if (filter.field === "pipeline_stage_id") {
+                return lead.pipeline_stage_id === filter.value
+            }
+            if (filter.field === "lead_source") {
+                return (resolveLeadField(lead, "lead_source") || "Unspecified") === filter.value
+            }
+            if (filter.field === "dimension" && filter.dimensionField) {
+                return (resolveLeadField(lead, filter.dimensionField) || "Unspecified") === filter.value
+            }
+            if (filter.field === "top_revenue_company") {
+                const name = filter.groupMode === "group"
+                    ? resolveTopLevelCompanyName(lead)
+                    : resolveCompanyName(lead)
+                return (name || "Unknown Company") === filter.value
+            }
+            return true
+        }))
+    }, [crossFilters, revenueBasis])
+
+    const filteredLeads = useMemo(() => applyCrossFilters(baseFilteredLeads), [baseFilteredLeads, applyCrossFilters])
 
     // Data-freshness timestamp — the most recent change among the leads
     // currently in view. Drives the "Updated x ago" subtitle. Computed from
@@ -313,7 +407,7 @@ export function AnalyticsDashboard({
         () => findPriorYearPipelineId(pipelines, activePipelineId),
         [pipelines, activePipelineId],
     )
-    const priorYearLeads = useMemo(() => {
+    const basePriorYearLeads = useMemo(() => {
         if (!priorYearPipelineId) return [] as Lead[]
         let result = leads.filter(l => l.pipeline_id === priorYearPipelineId)
         if (isHoldingView && companyFilter !== "all") {
@@ -321,6 +415,14 @@ export function AnalyticsDashboard({
         }
         return result
     }, [leads, priorYearPipelineId, isHoldingView, companyFilter])
+    const priorYearLeads = useMemo(() => applyCrossFilters(basePriorYearLeads), [basePriorYearLeads, applyCrossFilters])
+    const activeRevenueMonthFilter = crossFilters.find(f => f.field === "revenue_month") ?? null
+    const activeRevenueMonthIndex = activeRevenueMonthFilter ? Number(activeRevenueMonthFilter.value) : null
+    const activePipelineStageFilter = crossFilters.find(f => f.field === "pipeline_stage_id") ?? null
+    const activeLeadSourceFilter = crossFilters.find(f => f.field === "lead_source") ?? null
+    const activeClassificationFilter = crossFilters.find(f => f.field === "dimension" && f.dimensionField === catToggle) ?? null
+    const activeStreamFilter = crossFilters.find(f => f.field === "dimension" && f.dimensionField === streamToggle) ?? null
+    const activeTopRevenueFilter = crossFilters.find(f => f.field === "top_revenue_company") ?? null
 
     // Revenue-chart compare overlay: leads from the pipeline whose fiscal_year
     // matches the user-picked compareYear. Same pipeline-scoped sourcing as the
@@ -338,13 +440,22 @@ export function AnalyticsDashboard({
         return result
     }, [leads, pipelines, compareYear, isHoldingView, companyFilter])
 
-    const periodLeadBuckets = useMemo(() => splitDashboardLeadsByPeriodWithPrior(
-        filteredLeads,
-        priorYearLeads,
-        periodStr as DashboardPeriod,
-        new Date(),
-        periodStr === "custom" && customStart && customEnd ? { start: customStart, end: customEnd } : undefined
-    ), [filteredLeads, priorYearLeads, periodStr, customStart, customEnd])
+    const periodLeadBuckets = useMemo(() => {
+        // A clicked revenue-chart month is a temporary exploration context.
+        // Do NOT intersect it with the currently selected date range (e.g.
+        // May AND Jul), or every widget goes empty. Once month cross-filter is
+        // active, the filtered lead set already represents the intended month.
+        if (activeRevenueMonthFilter) {
+            return { current: filteredLeads, previous: priorYearLeads }
+        }
+        return splitDashboardLeadsByPeriodWithPrior(
+            filteredLeads,
+            priorYearLeads,
+            periodStr as DashboardPeriod,
+            new Date(),
+            periodStr === "custom" && customStart && customEnd ? { start: customStart, end: customEnd } : undefined
+        )
+    }, [filteredLeads, priorYearLeads, periodStr, customStart, customEnd, activeRevenueMonthFilter])
     const periodLeads = periodLeadBuckets.current
     const previousPeriodLeads = periodLeadBuckets.previous
     const dashboardRange = useMemo(() => getDashboardPeriodRanges(
@@ -363,15 +474,24 @@ export function AnalyticsDashboard({
     const customRangeArg = periodStr === "custom" && customStart && customEnd
         ? { start: customStart, end: customEnd }
         : undefined
-    const receivedBuckets = useMemo(() => splitLeadsByBasisWithPrior(
-        filteredLeads, priorYearLeads, "received", periodStr as DashboardPeriod, new Date(), customRangeArg,
-    ), [filteredLeads, priorYearLeads, periodStr, customStart, customEnd]) // eslint-disable-line react-hooks/exhaustive-deps
-    const closeBuckets = useMemo(() => splitLeadsByBasisWithPrior(
-        filteredLeads, priorYearLeads, "close", periodStr as DashboardPeriod, new Date(), customRangeArg,
-    ), [filteredLeads, priorYearLeads, periodStr, customStart, customEnd]) // eslint-disable-line react-hooks/exhaustive-deps
-    const revenueBuckets = useMemo(() => splitLeadsByBasisWithPrior(
-        filteredLeads, priorYearLeads, "revenue", periodStr as DashboardPeriod, new Date(), customRangeArg,
-    ), [filteredLeads, priorYearLeads, periodStr, customStart, customEnd]) // eslint-disable-line react-hooks/exhaustive-deps
+    const receivedBuckets = useMemo(() => {
+        if (activeRevenueMonthFilter) return { current: filteredLeads, previous: priorYearLeads }
+        return splitLeadsByBasisWithPrior(
+            filteredLeads, priorYearLeads, "received", periodStr as DashboardPeriod, new Date(), customRangeArg,
+        )
+    }, [filteredLeads, priorYearLeads, periodStr, customStart, customEnd, activeRevenueMonthFilter]) // eslint-disable-line react-hooks/exhaustive-deps
+    const closeBuckets = useMemo(() => {
+        if (activeRevenueMonthFilter) return { current: filteredLeads, previous: priorYearLeads }
+        return splitLeadsByBasisWithPrior(
+            filteredLeads, priorYearLeads, "close", periodStr as DashboardPeriod, new Date(), customRangeArg,
+        )
+    }, [filteredLeads, priorYearLeads, periodStr, customStart, customEnd, activeRevenueMonthFilter]) // eslint-disable-line react-hooks/exhaustive-deps
+    const revenueBuckets = useMemo(() => {
+        if (activeRevenueMonthFilter) return { current: filteredLeads, previous: priorYearLeads }
+        return splitLeadsByBasisWithPrior(
+            filteredLeads, priorYearLeads, "revenue", periodStr as DashboardPeriod, new Date(), customRangeArg,
+        )
+    }, [filteredLeads, priorYearLeads, periodStr, customStart, customEnd, activeRevenueMonthFilter]) // eslint-disable-line react-hooks/exhaustive-deps
 
     // Custom widgets state
     const [customWidgetsList, setCustomWidgetsList] = useState<CustomWidget[]>(customWidgets ?? [])
@@ -738,9 +858,6 @@ export function AnalyticsDashboard({
     }, [activeGoal, goalSettings, receivedBuckets, closeBuckets, revenueBuckets])
 
     // ─── CHART DATA ─────────────────────────────────────────────────
-    // Parse "April 2026" → { month: 3, year: 2026 } for month_event field
-    const MONTH_NAMES_LONG = ["January","February","March","April","May","June","July","August","September","October","November","December"]
-
     const monthlyRev = useMemo(() => {
         const data = MONTHS_SHORT.map(m => ({ month: m, actual: 0, target: 0, prevYear: 0, overUnder: 0, vsLastYear: null as number | null }))
 
@@ -749,26 +866,7 @@ export function AnalyticsDashboard({
         // pipeline already defines the fiscal year, so we bucket purely by
         // month. Returns null when no usable date is present.
         const monthOf = (l: Lead): number | null => {
-            if (revenueBasis === "revenue_recognition") {
-                const monthEvent = l.month_event
-                if (monthEvent && typeof monthEvent === "string") {
-                    const parts = monthEvent.trim().split(/\s+/)
-                    if (parts.length >= 2) {
-                        const mi = MONTH_NAMES_LONG.indexOf(parts[0])
-                        if (mi >= 0) return mi
-                    }
-                }
-                const dateStr = l.event_date_end ?? l.event_date_start
-                if (dateStr) {
-                    const d = new Date(dateStr)
-                    if (!isNaN(d.getTime())) return d.getMonth()
-                }
-                return null
-            }
-            // closed_won basis: use closed_won_date, fallback to updated_at
-            const dateStr = l.closed_won_date ?? l.updated_at
-            const d = new Date(dateStr)
-            return isNaN(d.getTime()) ? null : d.getMonth()
+            return getRevenueBasisMonthIndex(l, revenueBasis)
         }
 
         const isWon = (l: Lead) => (l.pipeline_stage?.name || "").toLowerCase().includes("won")
@@ -776,7 +874,7 @@ export function AnalyticsDashboard({
 
         // Actual = the active pipeline (chartYear). Overlay = the compare-year
         // pipeline. Both bucketed by month so the chart compares like-for-like.
-        for (const l of filteredLeads) {
+        for (const l of baseFilteredLeads) {
             if (!isWon(l)) continue
             const m = monthOf(l)
             if (m !== null) data[m].actual += valueOf(l)
@@ -921,7 +1019,7 @@ export function AnalyticsDashboard({
             d.vsLastYear = getVsLastYearPct(d.actual, d.prevYear)
         })
         return data
-    }, [filteredLeads, compareYearLeads, compareYear, activeGoal, goalNodes, revenueBasis])
+    }, [baseFilteredLeads, compareYearLeads, compareYear, activeGoal, goalNodes, revenueBasis])
 
     const stageData = useMemo(() => {
         return buildDashboardStageSeries(pipelineStages, periodLeadBuckets.current, periodLeadBuckets.previous)
@@ -1644,6 +1742,8 @@ export function AnalyticsDashboard({
                         customStart={customStart}
                         customEnd={customEnd}
                         onSelect={(p, s, e) => { setPeriodStr(p); setCustomStart(s); setCustomEnd(e) }}
+                        muted={!!activeRevenueMonthFilter}
+                        mutedReason="Date range is temporarily bypassed while a chart month filter is active. Change the date range to clear exploration mode."
                     />
 
                     {/* Global note: each card uses its own date basis. The
@@ -1662,6 +1762,33 @@ export function AnalyticsDashboard({
                             <Info className="w-3.5 h-3.5" />
                         </span>
                     </Tooltip>
+
+                    {crossFilters.length > 0 && (
+                        <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", marginLeft: 4 }}>
+                            <span className="text-[10.5px] font-semibold text-slate-400">Exploring</span>
+                            {crossFilters.map(filter => (
+                                <button
+                                    key={`${filter.field}:${filter.value}:${filter.revenueBasis}`}
+                                    type="button"
+                                    onClick={() => toggleCrossFilter(filter)}
+                                    className="inline-flex h-7 items-center gap-1.5 rounded-md border border-[#02378D]/20 bg-[#EEF3FB] px-2.5 text-[11px] font-semibold text-[#02378D] hover:bg-[#E4ECFA]"
+                                    title="Click to remove this cross-filter"
+                                >
+                                    <span>{filter.label}: {filter.displayValue}</span>
+                                    <XCircle className="h-3.5 w-3.5 opacity-70" />
+                                </button>
+                            ))}
+                            {crossFilters.length > 1 && (
+                                <button
+                                    type="button"
+                                    onClick={clearCrossFilters}
+                                    className="h-7 rounded-md px-2 text-[11px] font-semibold text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+                                >
+                                    Clear all
+                                </button>
+                            )}
+                        </div>
+                    )}
 
                     {!isDefaultPeriod && (
                         <button
@@ -1718,6 +1845,15 @@ export function AnalyticsDashboard({
                         hasMounted={hasMounted}
                         revenueBasis={revenueBasis}
                         setRevenueBasis={setRevenueBasis}
+                        activeMonthIndex={activeRevenueMonthIndex}
+                        onMonthFilterToggle={(monthIndex, monthLabel) => toggleCrossFilter({
+                            field: "revenue_month",
+                            label: revenueBasis === "revenue_recognition" ? "Rev. month" : "Closed won month",
+                            value: String(monthIndex),
+                            displayValue: `${monthLabel} ${chartYear}`,
+                            sourceWidgetId: "revenue-chart",
+                            revenueBasis,
+                        })}
                     />
                     <PipelineWidget
                         data={stageData}
@@ -1725,12 +1861,69 @@ export function AnalyticsDashboard({
                         pipelines={pipelines}
                         activePipelineId={activePipelineId}
                         onPipelineChange={handlePipelineChange}
+                        activeStageId={activePipelineStageFilter?.value ?? null}
+                        onStageClick={(stage) => toggleCrossFilter({
+                            field: "pipeline_stage_id",
+                            label: "Stage",
+                            value: stage.id,
+                            displayValue: stage.name,
+                            sourceWidgetId: "pipeline",
+                        })}
                     />
                     <SalesPerfWidget data={salesData} />
-                    <TopRevenueWidget data={topComps} dataGrouped={topCompsGrouped} />
-                    <LeadSourceWidget data={sourceData} />
-                    <ClassificationWidget data={catGradeData} catToggle={catToggle} setCatToggle={setCatToggle} />
-                    <StreamWidget data={streamData} streamToggle={streamToggle} setStreamToggle={setStreamToggle} />
+                    <TopRevenueWidget
+                        data={topComps}
+                        dataGrouped={topCompsGrouped}
+                        activeCompanyName={activeTopRevenueFilter?.value ?? null}
+                        activeGroupMode={activeTopRevenueFilter?.groupMode ?? null}
+                        onCompanyClick={(company, groupMode) => toggleCrossFilter({
+                            field: "top_revenue_company",
+                            label: groupMode === "group" ? "Group" : "Company",
+                            value: company.name,
+                            displayValue: company.name,
+                            sourceWidgetId: "top-revenue",
+                            groupMode,
+                        })}
+                    />
+                    <LeadSourceWidget
+                        data={sourceData}
+                        activeSource={activeLeadSourceFilter?.value ?? null}
+                        onSourceClick={(source) => toggleCrossFilter({
+                            field: "lead_source",
+                            label: "Lead source",
+                            value: source.name,
+                            displayValue: source.name,
+                            sourceWidgetId: "lead-source",
+                        })}
+                    />
+                    <ClassificationWidget
+                        data={catGradeData}
+                        catToggle={catToggle}
+                        setCatToggle={setCatToggle}
+                        activeName={activeClassificationFilter?.value ?? null}
+                        onSliceClick={(item) => toggleCrossFilter({
+                            field: "dimension",
+                            label: fieldLabel(catToggle),
+                            value: item.name,
+                            displayValue: item.name,
+                            sourceWidgetId: "classification",
+                            dimensionField: catToggle,
+                        })}
+                    />
+                    <StreamWidget
+                        data={streamData}
+                        streamToggle={streamToggle}
+                        setStreamToggle={setStreamToggle}
+                        activeName={activeStreamFilter?.value ?? null}
+                        onSliceClick={(item) => toggleCrossFilter({
+                            field: "dimension",
+                            label: fieldLabel(streamToggle),
+                            value: item.name,
+                            displayValue: item.name,
+                            sourceWidgetId: "stream",
+                            dimensionField: streamToggle,
+                        })}
+                    />
                     {/* Contact analytics */}
                     <ContactAnalyticsWidget leads={periodLeads} />
                     {/* Goal widgets - each individually wrapped */}

@@ -26,6 +26,8 @@ interface PipelineWidgetProps {
     pipelines?: { id: string; name: string }[]
     activePipelineId?: string
     onPipelineChange?: (pipelineId: string) => void
+    activeStageId?: string | null
+    onStageClick?: (stage: PipelineStageData) => void
 }
 
 /** Classify stage as active, won, or lost */
@@ -36,7 +38,7 @@ function classifyStage(name: string): "active" | "won" | "lost" {
     return "active"
 }
 
-export function PipelineWidget({ data, comparisonLabel, pipelines = [], activePipelineId, onPipelineChange }: PipelineWidgetProps) {
+export function PipelineWidget({ data, comparisonLabel, pipelines = [], activePipelineId, onPipelineChange, activeStageId = null, onStageClick }: PipelineWidgetProps) {
     const [hoveredId, setHoveredId] = useState<string | null>(null)
 
     const totalLeads = data.reduce((s, d) => s + d.count, 0)
@@ -60,13 +62,16 @@ export function PipelineWidget({ data, comparisonLabel, pipelines = [], activePi
         const color = type === "won" ? "#6EBDA1" : type === "lost" ? "#ED6F22" : resolveStageColor(stage.color, CHART_COLORS[idx % CHART_COLORS.length])
         const barWidth = totalLeads > 0 ? Math.max((stage.count / maxCount) * 100, stage.count > 0 ? 3 : 0) : 0
         const isHovered = hoveredId === stage.id
+        const isActive = activeStageId === stage.id
+        const isDimmed = activeStageId !== null && !isActive
 
         return (
             <div
                 key={stage.id}
-                className="group relative"
+                className={`group relative rounded-md ${onStageClick ? "cursor-pointer" : ""} ${isActive ? "bg-[#EEF3FB]" : ""}`}
                 onMouseEnter={() => setHoveredId(stage.id)}
                 onMouseLeave={() => setHoveredId(null)}
+                onClick={() => onStageClick?.(stage)}
             >
                 <div className="flex items-center gap-2 py-[5px]">
                     {/* Stage name */}
@@ -84,7 +89,7 @@ export function PipelineWidget({ data, comparisonLabel, pipelines = [], activePi
                                     width: `${barWidth}%`,
                                     background: `linear-gradient(90deg, ${color}cc 0%, ${color} 100%)`,
                                     boxShadow: isHovered ? `0 1px 6px ${color}55` : "none",
-                                    opacity: isHovered ? 1 : 0.92,
+                                    opacity: isDimmed ? 0.35 : isHovered ? 1 : 0.92,
                                     transition: "width 500ms cubic-bezier(0.23,1,0.32,1), opacity 150ms ease, box-shadow 150ms ease",
                                 }}
                             />

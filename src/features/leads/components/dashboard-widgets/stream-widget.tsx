@@ -11,9 +11,11 @@ interface StreamWidgetProps {
     data: StreamItem[]
     streamToggle: string
     setStreamToggle: (v: string) => void
+    activeName?: string | null
+    onSliceClick?: (item: StreamItem) => void
 }
 
-export function StreamWidget({ data, streamToggle, setStreamToggle }: StreamWidgetProps) {
+export function StreamWidget({ data, streamToggle, setStreamToggle, activeName = null, onSliceClick }: StreamWidgetProps) {
     const total = data.reduce((s, d) => s + d.value, 0)
 
     return (
@@ -40,7 +42,7 @@ export function StreamWidget({ data, streamToggle, setStreamToggle }: StreamWidg
 
             {/* Donut — composition view. Top 5 + Others handles high-cardinality
                 groupings (Line Industry, Area, Nationality) without slivers. */}
-            <DonutChart data={data} centerLabel="Leads" colorMap={{ Unspecified: "#d1d5db" }} maxSlices={6} />
+            <DonutChart data={data} centerLabel="Leads" colorMap={{ Unspecified: "#d1d5db" }} maxSlices={6} activeName={activeName} onSliceClick={onSliceClick} />
 
             {/* Footer */}
             <div className="mt-1.5 pt-1.5 border-t border-border/50 text-[10px] text-muted-foreground shrink-0">

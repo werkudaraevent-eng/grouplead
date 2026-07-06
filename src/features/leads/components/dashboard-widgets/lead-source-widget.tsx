@@ -9,9 +9,11 @@ interface SourceItem {
 
 interface LeadSourceWidgetProps {
     data: SourceItem[]
+    activeSource?: string | null
+    onSourceClick?: (source: SourceItem) => void
 }
 
-export function LeadSourceWidget({ data }: LeadSourceWidgetProps) {
+export function LeadSourceWidget({ data, activeSource = null, onSourceClick }: LeadSourceWidgetProps) {
     const total = data.reduce((s, d) => s + d.value, 0)
     const maxVal = Math.max(...data.map(d => d.value), 1)
 
@@ -36,9 +38,15 @@ export function LeadSourceWidget({ data }: LeadSourceWidgetProps) {
                     const barWidth = maxVal > 0 ? (d.value / maxVal) * 100 : 0
                     // Single color (navy) with decreasing opacity for ranking effect
                     const opacity = Math.max(0.3, 1 - (i * 0.08))
+                    const isActive = activeSource === d.name
+                    const isDimmed = activeSource !== null && !isActive
 
                     return (
-                        <div key={d.name} className="py-[5px] px-1 rounded hover:bg-muted/30 transition-colors">
+                        <div
+                            key={d.name}
+                            onClick={() => onSourceClick?.(d)}
+                            className={`py-[5px] px-1 rounded hover:bg-muted/30 transition-colors ${onSourceClick ? "cursor-pointer" : ""} ${isActive ? "bg-[#EEF3FB]" : ""}`}
+                        >
                             <div className="flex items-baseline justify-between mb-1">
                                 <span className="text-[11.5px] font-medium text-[#292D30] truncate mr-2">{d.name}</span>
                                 <div className="flex items-baseline gap-1.5 shrink-0 tabular-nums">
@@ -52,7 +60,7 @@ export function LeadSourceWidget({ data }: LeadSourceWidgetProps) {
                                     style={{
                                         width: `${barWidth}%`,
                                         background: "linear-gradient(90deg, #2069B4 0%, #02378D 100%)",
-                                        opacity,
+                                        opacity: isDimmed ? 0.28 : opacity,
                                         transition: "width 500ms cubic-bezier(0.23,1,0.32,1)",
                                     }}
                                 />
