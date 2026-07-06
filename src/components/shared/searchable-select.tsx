@@ -67,18 +67,36 @@ export function SearchableSelect({
     contentWidth = "trigger",
 }: SearchableSelectProps) {
     const [open, setOpen] = React.useState(false)
-    const selected = options.find((o) => o.value === value)
+
+    // Defensive de-dupe by option value. Master data can accidentally contain
+    // duplicate rows (e.g. two active `lead_source = Sales Mission` records).
+    // cmdk identifies items by their value string; duplicates make multiple
+    // rows highlight/check together on hover/select. Keep the first occurrence
+    // as the canonical option so the UI renders one row per selectable value.
+    const uniqueOptions = React.useMemo(() => {
+        const seen = new Set<string>()
+        const next: SearchableOption[] = []
+        for (const opt of options) {
+            const key = opt.value.trim().toLowerCase()
+            if (seen.has(key)) continue
+            seen.add(key)
+            next.push(opt)
+        }
+        return next
+    }, [options])
+
+    const selected = uniqueOptions.find((o) => o.value === value)
 
     // Group options by `group` key when present. Maintains insertion order.
     const grouped = React.useMemo(() => {
         const map = new Map<string, SearchableOption[]>()
-        for (const opt of options) {
+        for (const opt of uniqueOptions) {
             const key = opt.group ?? ""
             if (!map.has(key)) map.set(key, [])
             map.get(key)!.push(opt)
         }
         return Array.from(map.entries())
-    }, [options])
+    }, [uniqueOptions])
 
     return (
         <Popover open={open} onOpenChange={setOpen} modal>
