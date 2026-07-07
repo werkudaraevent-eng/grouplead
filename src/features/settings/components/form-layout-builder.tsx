@@ -68,7 +68,7 @@ export const DEFAULT_LAYOUTS: Record<string, LayoutItemsMap> = {
         hidden: []
     },
     contacts: {
-        identity: ["native:salutation", "native:full_name", "native:client_company_id", "native:job_title"],
+        identity: ["native:salutation", "native:full_name", "native:client_company_id", "native:job_title", "native:contact_source"],
         contact_methods: ["native:email", "native:phone", "native:secondary_emails", "native:secondary_phones"],
         social: ["native:linkedin_url", "native:social_urls"],
         enrichment: ["native:date_of_birth", "native:address", "native:notes", "native:owner_id"],
@@ -116,6 +116,7 @@ export const FIELD_LABELS: Record<string, string> = {
     "native:salutation": "Salutation",
     "native:full_name": "Full Name",
     "native:job_title": "Job Title",
+    "native:contact_source": "Contact Source",
     "native:email": "Primary Email",
     "native:secondary_emails": "Secondary Emails",
     "native:secondary_phones": "Secondary Phones",

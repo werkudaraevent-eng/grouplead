@@ -39,6 +39,7 @@ import { mergeMissingNativeFields } from "@/features/settings/lib/layout-self-he
 import { formatTabLabel, getVisibleTabEntries } from "@/features/settings/lib/form-layout-tabs"
 import { DynamicField } from "@/features/leads/components/dynamic-field"
 import { useCompany } from "@/contexts/company-context"
+import { useMasterOptions } from "@/hooks/use-master-options"
 
 const contactSchema = z.object({
     salutation: z.string().nullable().optional(),
@@ -46,6 +47,7 @@ const contactSchema = z.object({
     email: z.string().email("Invalid email").or(z.literal("")).nullable().optional(),
     phone: z.string().nullable().optional(),
     job_title: z.string().nullable().optional(),
+    contact_source: z.string().nullable().optional(),
     client_company_id: z.string().nullable().optional(),
     date_of_birth: z.string().nullable().optional(),
     address: z.string().nullable().optional(),
@@ -74,7 +76,7 @@ const SALUTATIONS = ["Mr", "Mrs", "Ms", "Miss", "Dr", "Prof", "Sir", "Madam"]
 
 const EMPTY_DEFAULTS: ContactFormValues = {
     salutation: "", full_name: "", email: "", phone: "", job_title: "", client_company_id: "",
-    date_of_birth: "", address: "", notes: "", owner_id: null, custom_data: {}
+    contact_source: "", date_of_birth: "", address: "", notes: "", owner_id: null, custom_data: {}
 }
 
 /**
@@ -146,6 +148,7 @@ export function AddContactModal({ isOpen, onOpenChange, preselectedCompanyId, in
     const { can } = usePermissions()
     const canManageLayout = can("master_options", "update")
     const isEditMode = !!initialData?.id
+    const { options: contactSourceOptions } = useMasterOptions("contact_source")
     
     const [companies, setCompanies] = useState<ClientCompany[]>([])
     const [existingContacts, setExistingContacts] = useState<{ id: string; full_name: string }[]>([])
@@ -235,6 +238,7 @@ export function AddContactModal({ isOpen, onOpenChange, preselectedCompanyId, in
                 email: initialData.email || "",
                 phone: initialData.phone || "",
                 job_title: initialData.job_title || "",
+                contact_source: initialData.contact_source || "",
                 client_company_id: initialData.client_company_id || "",
                 date_of_birth: initialData.date_of_birth || "",
                 address: initialData.address || "",
@@ -316,6 +320,7 @@ export function AddContactModal({ isOpen, onOpenChange, preselectedCompanyId, in
                     })()
                     : null,
                 job_title: values.job_title || null,
+                contact_source: values.contact_source || null,
                 client_company_id: values.client_company_id || null,
                 date_of_birth: values.date_of_birth || null,
                 address: values.address || null,
@@ -348,7 +353,7 @@ export function AddContactModal({ isOpen, onOpenChange, preselectedCompanyId, in
                 return
             }
 
-            const selectFields = "id, salutation, full_name, email, phone, job_title, created_at, client_company_id, secondary_email, secondary_phone, secondary_emails, secondary_phones, linkedin_url, notes, date_of_birth, address, social_urls, owner_id, custom_data, client_company:client_company_id ( name )"
+            const selectFields = "id, salutation, full_name, email, phone, job_title, contact_source, created_at, client_company_id, secondary_email, secondary_phone, secondary_emails, secondary_phones, linkedin_url, notes, date_of_birth, address, social_urls, owner_id, custom_data, client_company:client_company_id ( name )"
 
             if (isEditMode) {
                 const result = await updateContactAction(initialData!.id, payload, selectFields)
@@ -452,6 +457,25 @@ export function AddContactModal({ isOpen, onOpenChange, preselectedCompanyId, in
                                     aria-required={required}
                                     {...field}
                                     value={field.value || ""}
+                                />
+                            </FormControl>
+                            <FormMessage className="text-[11px]" />
+                        </FormItem>
+                    )} />
+                )
+            case "native:contact_source":
+                return (
+                    <FormField key={fieldId} control={form.control} name="contact_source" render={({ field }) => (
+                        <FormItem className="sm:col-span-2 space-y-1.5">
+                            <FormFieldLabel required={required}>Contact source</FormFieldLabel>
+                            <FormControl>
+                                <SearchableSelect
+                                    value={field.value || null}
+                                    onChange={(v) => field.onChange(v ?? null)}
+                                    options={contactSourceOptions.map(o => ({ value: o.value, label: o.label }))}
+                                    placeholder="Select source…"
+                                    searchPlaceholder="Search source…"
+                                    emptyText="No contact sources configured"
                                 />
                             </FormControl>
                             <FormMessage className="text-[11px]" />

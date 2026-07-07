@@ -51,6 +51,7 @@ interface ContactData {
     email: string | null
     phone: string | null
     job_title: string | null
+    contact_source: string | null
     secondary_email: string | null
     secondary_phone: string | null
     secondary_emails: string[] | null
@@ -419,6 +420,7 @@ export function ContactDetailPage({ contact, leads, lastModified, lastModifiedBy
                         </div>
                         <div className="px-5 py-4 space-y-3">
                             <InlineTextField table="contacts" id={contact.id} fieldPath="job_title" icon={Briefcase} label="Job Title" rawValue={contact.job_title} />
+                            <InfoRow icon={Globe} label="Contact Source" value={contact.contact_source} />
 
                             <InlineTextField table="contacts" id={contact.id} fieldPath="email" icon={Mail} label="Email" rawValue={contact.email} inputType="text" />
                             <InfoRow icon={Mail} label="Secondary Email(s)" value={[contact.secondary_email, ...(contact.secondary_emails || [])].filter(Boolean).join("\n")} isEmail />

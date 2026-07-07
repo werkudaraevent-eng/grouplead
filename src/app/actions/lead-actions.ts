@@ -726,6 +726,7 @@ export async function importLeadsAction(
                         full_name: String(contactName).trim(),
                         needs_enrichment: true,
                     }
+                    if (raw.lead_source) contactPayload.contact_source = raw.lead_source
                     if (raw.client_company_id) {
                         contactPayload.client_company_id = raw.client_company_id
                     }
@@ -1168,6 +1169,7 @@ export async function importHistoricalLeadsAction(
                     if (!raw.client_company_id && contact.client_company_id) raw.client_company_id = contact.client_company_id
                 } else {
                     const contactPayload: Record<string, unknown> = { full_name: String(contactName).trim(), needs_enrichment: true }
+                    if (raw.lead_source) contactPayload.contact_source = raw.lead_source
                     if (raw.client_company_id) contactPayload.client_company_id = raw.client_company_id
                     const { data: newContact, error: cErr } = await adminClient
                         .from("contacts")

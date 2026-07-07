@@ -77,6 +77,7 @@ interface ContactRow {
     email: string | null
     phone: string | null
     job_title: string | null
+    contact_source: string | null
     created_at: string
     client_company_id: string | null
     client_company: { name: string } | null
@@ -99,6 +100,7 @@ type ColId =
     | "full_name"
     | "company"
     | "job_title"
+    | "contact_source"
     | "email"
     | "phone"
     | "secondary_email"
@@ -119,6 +121,7 @@ const DEFAULT_COLUMNS: ColumnDef[] = [
     { id: "full_name", label: "Contact name", visible: true, width: 220 },
     { id: "company", label: "Company", visible: true, width: 180 },
     { id: "job_title", label: "Job title", visible: true, width: 160 },
+    { id: "contact_source", label: "Source", visible: false, width: 150 },
     { id: "email", label: "Email", visible: true, width: 200 },
     { id: "phone", label: "Phone", visible: true, width: 160 },
     { id: "owner", label: "Owner", visible: false, width: 160 },
@@ -136,6 +139,14 @@ interface ContactsViewConfig {
     columns: ColumnDef[]
     itemsPerPage: number
     searchQuery: string
+}
+
+const CONTACTS_SELECT_WITH_SOURCE = "id, salutation, full_name, email, phone, job_title, contact_source, created_at, client_company_id, secondary_email, secondary_phone, secondary_emails, secondary_phones, linkedin_url, notes, date_of_birth, address, social_urls, owner_id, needs_enrichment, client_company:client_company_id ( name ), owner:profiles!contacts_owner_id_fkey(full_name, avatar_url)"
+const CONTACTS_SELECT_LEGACY = "id, salutation, full_name, email, phone, job_title, created_at, client_company_id, secondary_email, secondary_phone, secondary_emails, secondary_phones, linkedin_url, notes, date_of_birth, address, social_urls, owner_id, needs_enrichment, client_company:client_company_id ( name ), owner:profiles!contacts_owner_id_fkey(full_name, avatar_url)"
+
+function isMissingContactSourceColumn(error: unknown) {
+    const message = String((error as { message?: unknown })?.message ?? error ?? "").toLowerCase()
+    return message.includes("contact_source") && (message.includes("column") || message.includes("schema cache"))
 }
 
 function getInitials(name: string) {
@@ -192,11 +203,23 @@ export default function ContactsPage() {
 
     const fetchContacts = React.useCallback(async () => {
         setLoading(true)
-        const { data, error } = await supabase
+        const initial = await supabase
             .from("contacts")
-            .select("id, salutation, full_name, email, phone, job_title, created_at, client_company_id, secondary_email, secondary_phone, secondary_emails, secondary_phones, linkedin_url, notes, date_of_birth, address, social_urls, owner_id, needs_enrichment, client_company:client_company_id ( name ), owner:profiles!contacts_owner_id_fkey(full_name, avatar_url)")
+            .select(CONTACTS_SELECT_WITH_SOURCE)
             .is("deleted_at", null)
             .order("full_name", { ascending: true })
+        let data: unknown = initial.data
+        let error = initial.error
+
+        if (error && isMissingContactSourceColumn(error)) {
+            const retry = await supabase
+                .from("contacts")
+                .select(CONTACTS_SELECT_LEGACY)
+                .is("deleted_at", null)
+                .order("full_name", { ascending: true })
+            data = retry.data
+            error = retry.error
+        }
 
         if (error) {
             console.warn("[Contacts Fetch]:", error.message || error)
@@ -222,6 +245,10 @@ export default function ContactsPage() {
         return Array.from(new Set(contacts.map((c) => c.owner?.full_name).filter(Boolean))) as string[]
     }, [contacts])
 
+    const uniqueSources = React.useMemo(() => {
+        return Array.from(new Set(contacts.map((c) => c.contact_source).filter(Boolean))) as string[]
+    }, [contacts])
+
     const filterDefinitions = React.useMemo<FilterDefinition[]>(() => [
         {
             field: "client_company.name",
@@ -238,6 +265,14 @@ export default function ContactsPage() {
             pinned: true,
             options: uniqueOwners.map((o) => ({ value: o, label: o })),
             accessor: (row) => (row as ContactRow).owner?.full_name ?? "",
+        },
+        {
+            field: "contact_source",
+            label: "Contact source",
+            type: "select",
+            pinned: true,
+            options: uniqueSources.map((s) => ({ value: s, label: s })),
+            accessor: (row) => (row as ContactRow).contact_source ?? "",
         },
         {
             field: "email",
@@ -259,7 +294,7 @@ export default function ContactsPage() {
         { field: "needs_enrichment", label: "Needs details", type: "boolean", defaultOperator: "is_true", accessor: (row) => (row as ContactRow).needs_enrichment ?? false },
         { field: "created_at", label: "Created date", type: "date-range", accessor: (row) => (row as ContactRow).created_at },
         { field: "notes", label: "Notes", type: "text", accessor: (row) => (row as ContactRow).notes ?? "" },
-    ], [uniqueCompanies, uniqueOwners])
+    ], [uniqueCompanies, uniqueOwners, uniqueSources])
 
     const snapshot = React.useCallback((): ContactsViewConfig => ({
         filters,
@@ -295,6 +330,7 @@ export default function ContactsPage() {
                 item.email,
                 item.phone,
                 item.job_title,
+                item.contact_source,
                 item.client_company?.name,
                 item.secondary_email,
                 item.secondary_phone,
@@ -384,11 +420,12 @@ export default function ContactsPage() {
 
     const handleExport = (onlySelected = false) => {
         const source = onlySelected ? sortedData.filter((c) => selectedIds.has(c.id)) : sortedData
-        const headers = ["ID", "Name", "Job Title", "Company", "Email", "Phone", "Owner", "Notes"]
+        const headers = ["ID", "Name", "Job Title", "Contact Source", "Company", "Email", "Phone", "Owner", "Notes"]
         const rows = source.map((c) => [
             c.id,
             c.full_name || "",
             c.job_title || "",
+            c.contact_source || "",
             c.client_company?.name || "",
             c.email || "",
             c.phone || "",
@@ -452,6 +489,8 @@ export default function ContactsPage() {
                 return contact.client_company?.name ? <span className="truncate">{contact.client_company.name}</span> : <span className="text-muted-foreground/60">—</span>
             case "job_title":
                 return contact.job_title ? <span className="truncate">{contact.job_title}</span> : <span className="text-muted-foreground/60">—</span>
+            case "contact_source":
+                return contact.contact_source ? <span className="truncate">{contact.contact_source}</span> : <span className="text-muted-foreground/60">—</span>
             case "email":
                 return contact.email ? <span className="truncate hover:text-primary transition-colors">{contact.email}</span> : <span className="text-muted-foreground/60">—</span>
             case "phone":

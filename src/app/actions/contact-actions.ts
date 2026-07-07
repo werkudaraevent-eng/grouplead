@@ -7,6 +7,17 @@ import { logAuditEvent } from "@/app/actions/audit-actions"
 import { revalidatePath } from "next/cache"
 import type { ActionResult } from "@/types/action-result"
 
+function isMissingContactSourceColumn(error: { message?: string } | null | undefined) {
+    const message = (error?.message ?? "").toLowerCase()
+    return message.includes("contact_source") && (message.includes("column") || message.includes("schema cache"))
+}
+
+function withoutContactSource(payload: Record<string, unknown>) {
+    const next = { ...payload }
+    delete next.contact_source
+    return next
+}
+
 /**
  * Guarded write operations for contacts.
  *
@@ -25,11 +36,22 @@ export async function createContactAction(
     if (!guard.allowed) return guard.error
 
     const supabase = await createClient()
-    const { data, error } = await supabase
+    let { data, error } = await supabase
         .from("contacts")
         .insert(payload)
         .select(selectFields)
         .single()
+
+    if (error && isMissingContactSourceColumn(error)) {
+        const retrySelect = selectFields.replace(/\s*contact_source,?\s*/g, "")
+        const retry = await supabase
+            .from("contacts")
+            .insert(withoutContactSource(payload))
+            .select(retrySelect)
+            .single()
+        data = retry.data
+        error = retry.error
+    }
     if (error) return { success: false, error: error.message }
 
     const id = (data as unknown as { id: string }).id
@@ -53,12 +75,24 @@ export async function updateContactAction(
     if (!guard.allowed) return guard.error
 
     const supabase = await createClient()
-    const { data, error } = await supabase
+    let { data, error } = await supabase
         .from("contacts")
         .update(payload)
         .eq("id", id)
         .select(selectFields)
         .single()
+
+    if (error && isMissingContactSourceColumn(error)) {
+        const retrySelect = selectFields.replace(/\s*contact_source,?\s*/g, "")
+        const retry = await supabase
+            .from("contacts")
+            .update(withoutContactSource(payload))
+            .eq("id", id)
+            .select(retrySelect)
+            .single()
+        data = retry.data
+        error = retry.error
+    }
     if (error) return { success: false, error: error.message }
 
     await logAuditEvent({
