@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { createClient } from "@/utils/supabase/client"
@@ -18,6 +18,15 @@ export default function LoginPage() {
     const [loading, setLoading] = useState(false)
     const router = useRouter()
     const supabase = createClient()
+
+    useEffect(() => {
+        const errorCode = new URLSearchParams(window.location.search).get("error")
+        if (errorCode === "access_not_provisioned") {
+            setError("Your Microsoft account is not provisioned for LeadEngine. Ask an administrator to add your user and business-unit access.")
+        } else if (errorCode === "auth_callback_failed") {
+            setError("Microsoft sign-in could not be completed. Try again or contact an administrator.")
+        }
+    }, [])
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault()
@@ -55,6 +64,24 @@ export default function LoginPage() {
             }
             router.push("/")
             router.refresh()
+        }
+    }
+
+    const handleMicrosoftLogin = async () => {
+        setError(null)
+        setLoading(true)
+
+        const { error } = await supabase.auth.signInWithOAuth({
+            provider: "azure",
+            options: {
+                scopes: "email",
+                redirectTo: `${window.location.origin}/auth/callback`,
+            },
+        })
+
+        if (error) {
+            setError(error.message)
+            setLoading(false)
         }
     }
 
@@ -237,6 +264,31 @@ export default function LoginPage() {
                             ) : null}
                             {loading ? "Signing in..." : "Sign in"}
                             {!loading && <ArrowRight className="h-4 w-4 ml-2" />}
+                        </Button>
+
+                        <div className="relative py-1">
+                            <div className="absolute inset-0 flex items-center" aria-hidden="true">
+                                <div className="w-full border-t border-border/60" />
+                            </div>
+                            <div className="relative flex justify-center">
+                                <span className="bg-white px-3 text-xs text-muted-foreground">or</span>
+                            </div>
+                        </div>
+
+                        <Button
+                            type="button"
+                            variant="outline"
+                            className="w-full h-11 text-[15px] font-medium"
+                            disabled={loading}
+                            onClick={handleMicrosoftLogin}
+                        >
+                            <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24" aria-hidden="true">
+                                <path fill="#f35325" d="M1 1h10.5v10.5H1z" />
+                                <path fill="#81bc06" d="M12.5 1H23v10.5H12.5z" />
+                                <path fill="#05a6f0" d="M1 12.5h10.5V23H1z" />
+                                <path fill="#ffba08" d="M12.5 12.5H23V23H12.5z" />
+                            </svg>
+                            Continue with Microsoft
                         </Button>
                     </form>
 

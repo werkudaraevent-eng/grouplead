@@ -41,7 +41,7 @@ const MODULE_GROUPS = [
   {
     title: "Core CRM",
     description: "Daily sales workspace and customer records.",
-    modules: ["dashboard", "leads", "companies", "contacts"],
+    modules: ["dashboard", "leads", "companies", "contacts", "sales_mission"],
   },
   {
     title: "Settings",
@@ -54,6 +54,11 @@ const MODULE_DISPLAY: Record<string, { name: string; description: string; level?
   dashboard: {
     name: "Dashboard",
     description: "Main executive and sales performance dashboard.",
+    level: 0,
+  },
+  sales_mission: {
+    name: "Sales Mission",
+    description: "Mission scheduling, assignments, and visit results.",
     level: 0,
   },
   settings: {

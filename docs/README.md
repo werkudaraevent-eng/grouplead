@@ -30,6 +30,14 @@ topic-specific references.
 | [launch-import-sample-audit.md](launch-import-sample-audit.md) | Import sample data audit for launch. |
 | [journey-outline.md](journey-outline.md) | User journey outline. |
 | [laporan-mei-2026.md](laporan-mei-2026.md) | May 2026 progress report (Bahasa Indonesia). |
+| [sales-mission-mvp-spec.md](sales-mission-mvp-spec.md) | Draft MVP specification for separate Sales Mission application. |
+| [sales-mission-flows.md](sales-mission-flows.md) | Mermaid flow diagrams for management, Admin, and Sales. |
+
+### Decisions
+
+| Doc | What it covers |
+|-----|----------------|
+| [ADR-001-sales-mission-separate-application.md](decisions/ADR-001-sales-mission-separate-application.md) | Separate Sales Mission repository, deployment, database, and API boundary. |
 
 ## Site Map
 

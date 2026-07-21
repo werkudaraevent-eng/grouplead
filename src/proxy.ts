@@ -45,7 +45,10 @@ export async function proxy(request: NextRequest) {
     response.headers.set('x-pathname', request.nextUrl.pathname)
 
     // Public auth routes that must be reachable without a session.
-    const publicPaths = ['/login', '/forgot-password', '/reset-password']
+    // OAuth callback must be reachable before a local Supabase session exists.
+    // Otherwise the proxy redirects the provider callback back to /login and
+    // the route handler never gets a chance to exchange the authorization code.
+    const publicPaths = ['/login', '/forgot-password', '/reset-password', '/auth/callback']
     const isPublicPath = publicPaths.some((p) => request.nextUrl.pathname.startsWith(p))
 
     // If not authenticated and not on a public auth page, redirect to login
