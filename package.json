@@ -14,6 +14,7 @@
     "build:all": "npm run build --workspaces",
     "start": "npm run start --workspace=@werkudara/leadengine",
     "lint": "npm run lint --workspace=@werkudara/leadengine",
+    "lint:app": "npm run lint --workspace=@werkudara/leadengine -- --quiet",
     "typecheck": "npm run typecheck --workspace=@werkudara/leadengine",
     "test": "npm run test --workspace=@werkudara/leadengine",
     "test:e2e": "npm run test:e2e --workspace=@werkudara/leadengine",
