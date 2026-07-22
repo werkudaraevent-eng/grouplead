@@ -24,7 +24,7 @@
 import { createClient } from "@supabase/supabase-js"
 import * as dotenv from "dotenv"
 import { resolve } from "path"
-import { computeMonthEvent } from "../src/features/leads/lib/compute-month-event"
+import { computeMonthEvent } from "../features/leads/lib/compute-month-event"
 
 dotenv.config({ path: resolve(__dirname, "..", ".env.local") })
 

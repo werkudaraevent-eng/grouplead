@@ -26,10 +26,10 @@ jobs:
       - run: npm ci
 
       - name: Type check
-        run: npm run typecheck
+        run: npm run typecheck --workspace=@werkudara/leadengine
 
       - name: Lint
-        run: npm run lint
+        run: npm run lint --workspace=@werkudara/leadengine
 
   test:
     name: Unit Tests
@@ -45,7 +45,7 @@ jobs:
       - run: npm ci
 
       - name: Unit tests
-        run: npm test
+        run: npm test --workspace=@werkudara/leadengine
 
   build:
     name: Production Build
@@ -62,7 +62,7 @@ jobs:
       - run: npm ci
 
       - name: Build
-        run: npm run build
+        run: npm run build --workspace=@werkudara/leadengine
         env:
           NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
           NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-key-for-build

@@ -1,4 +1,28 @@
-# LeadEngine
+# Werkudara Platform
+
+Monorepo for Werkudara applications.
+
+```text
+apps/leadengine       LeadEngine CRM
+apps/sales-mission    Sales Mission app
+packages/             Shared UI, auth helpers, and API contracts
+```
+
+LeadEngine remains the current production app. Sales Mission will be added under `apps/sales-mission`.
+
+Both apps use one shared Supabase project and Microsoft Entra provider. Keep Sales Mission tables, migrations, RLS policies, and business logic domain-scoped.
+
+## Workspace commands
+
+```bash
+npm run dev:leadengine
+npm run dev:sales-mission
+npm run typecheck
+npm test
+npm run build
+```
+
+## LeadEngine
 
 Internal CRM and operations system for **Werkudara Group**, built with Next.js and Supabase.
 

@@ -2,13 +2,15 @@
 
 ## Overview
 
-Build `sales-mission` as a separate repository and deployment. Share identity and tenant membership with LeadEngine. Keep Sales Mission business data isolated and use versioned LeadEngine APIs for users, client companies, and contacts.
+Build `apps/sales-mission` inside this monorepo with a separate deployment and Supabase project. Share UI utilities, auth claim helpers, and API contracts with LeadEngine. Keep Sales Mission business data isolated and use versioned LeadEngine APIs for users, client companies, and contacts.
 
 ## Architecture decisions
 
-- Separate repository and deployment from LeadEngine.
-- Separate Sales Mission database.
-- Shared authentication identity and tenant context.
+- Monorepo with separate `apps/leadengine` and `apps/sales-mission` applications.
+- Separate deployment for each application.
+- Shared Supabase project and Microsoft Entra identity/session.
+- Separate Sales Mission business schema and RLS domain within shared database.
+- Shared UI, auth utilities, and validated API contracts only.
 - No direct database access across applications.
 - Company/contact master data remains in LeadEngine.
 - Mission result/reporting remains in Sales Mission.
