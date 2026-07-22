@@ -3,6 +3,7 @@ import { createClient } from "@/utils/supabase/server"
 import { resolveProviderDisplayName } from "@/lib/auth"
 import { getSalesMissionAccess } from "@/lib/sales-mission-access"
 import { redirect } from "next/navigation"
+import { AppSwitcher } from "./app-switcher"
 
 export const dynamic = "force-dynamic"
 
@@ -18,9 +19,12 @@ export default async function MissionHomePage() {
     <main className="min-h-screen px-6 py-10 sm:px-10 lg:px-16">
       <section className="mx-auto max-w-6xl">
         <header className="flex items-center justify-between border-b border-[var(--border)] pb-6">
-          <div>
+          <div className="flex items-center gap-3">
+            <AppSwitcher />
+            <div>
             <p className="text-sm font-semibold uppercase tracking-[0.16em] text-[var(--brand)]">Sales Mission</p>
             <h1 className="mt-2 text-3xl font-semibold tracking-tight">Mission workspace</h1>
+            </div>
           </div>
           <span className="text-sm text-[var(--muted)]">{displayName}</span>
         </header>

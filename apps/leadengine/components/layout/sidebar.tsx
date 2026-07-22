@@ -9,6 +9,7 @@ import {
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { CompanySwitcherHeader } from "@/components/layout/company-switcher"
+import { AppSwitcher } from "@/components/layout/app-switcher"
 import { usePermissions } from "@/contexts/permissions-context"
 import { useSidebarTheme } from "@/contexts/sidebar-theme-context"
 import { createClient } from "@/utils/supabase/client"
@@ -120,7 +121,12 @@ export function Sidebar({ onCollapse, isSheet = false, collapsed = false, onTogg
             <div className={`flex items-center h-14 shrink-0 border-b border-sidebar-border ${collapsed ? "justify-center px-2" : "justify-between px-3"}`}>
                 {/* Header: Logo + Company Switcher integrated (Notion/Linear style) */}
                 {!collapsed ? (
-                    <CompanySwitcherHeader />
+                    <div className="flex min-w-0 flex-1 items-center gap-1">
+                        <div className="min-w-0 flex-1">
+                            <CompanySwitcherHeader />
+                        </div>
+                        <AppSwitcher />
+                    </div>
                 ) : (
                     <Link href="/" className="flex items-center justify-center group-hover/sidebar:opacity-0 transition-opacity duration-150">
                         <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center shrink-0">
