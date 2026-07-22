@@ -115,7 +115,7 @@ export function CompanySwitcherHeader() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button disabled={isSwitching} className="flex items-center gap-2.5 rounded-lg px-1.5 py-1.5 -ml-1.5 transition-colors duration-150 hover:bg-sidebar-accent/50 focus:outline-none focus-visible:outline-none group min-w-0 overflow-hidden disabled:cursor-wait">
+        <button disabled={isSwitching} className="flex w-full min-w-0 max-w-full items-center gap-2.5 overflow-hidden rounded-lg px-1.5 py-1.5 transition-colors duration-150 hover:bg-sidebar-accent/50 focus:outline-none focus-visible:outline-none group disabled:cursor-wait">
           <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center shrink-0 overflow-hidden">
             {activeLogo
               ? // eslint-disable-next-line @next/next/no-img-element

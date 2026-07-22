@@ -118,13 +118,11 @@ export function Sidebar({ onCollapse, isSheet = false, collapsed = false, onTogg
 
     return (
         <div className="group/sidebar flex flex-col h-full transition-colors duration-300 bg-sidebar text-sidebar-foreground relative">
-            <div className={`flex min-h-14 shrink-0 border-b border-sidebar-border ${collapsed ? "flex-col items-center gap-2 px-2 py-2" : "items-center gap-2 px-3 py-2"}`}>
+            <div className={`relative min-h-14 shrink-0 border-b border-sidebar-border ${collapsed ? "flex flex-col items-center gap-2 px-2 py-2" : "grid grid-cols-[minmax(0,1fr)_2rem_1.75rem] items-center gap-1 px-3 py-2"}`}>
                 {/* Header: Logo + Company Switcher integrated (Notion/Linear style) */}
                 {!collapsed ? (
-                    <div className="min-w-0 flex-1">
-                        <div className="min-w-0 flex-1">
-                            <CompanySwitcherHeader />
-                        </div>
+                    <div className="min-w-0 overflow-hidden">
+                        <CompanySwitcherHeader />
                     </div>
                 ) : (
                     <Link href="/" className="flex items-center justify-center transition-opacity duration-150 group-hover/sidebar:opacity-0">
@@ -133,7 +131,7 @@ export function Sidebar({ onCollapse, isSheet = false, collapsed = false, onTogg
                         </div>
                     </Link>
                 )}
-                <div className={`flex shrink-0 items-center ${collapsed ? "flex-col gap-2" : "gap-1"}`}>
+                <div className={`flex shrink-0 items-center justify-center ${collapsed ? "flex-col gap-2" : ""}`}>
                     <AppSwitcher collapsed={collapsed} />
                     {!collapsed && onToggleCollapse && !isSheet && (
                         <button
