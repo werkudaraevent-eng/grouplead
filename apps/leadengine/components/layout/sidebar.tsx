@@ -118,10 +118,10 @@ export function Sidebar({ onCollapse, isSheet = false, collapsed = false, onTogg
 
     return (
         <div className="group/sidebar flex flex-col h-full transition-colors duration-300 bg-sidebar text-sidebar-foreground relative">
-            <div className={`relative min-h-14 shrink-0 border-b border-sidebar-border ${collapsed ? "flex flex-col items-center gap-2 px-2 py-2" : "grid grid-cols-[minmax(0,1fr)_2rem_1.75rem] items-center gap-1 px-3 py-2"}`}>
+            <div className={`relative min-h-14 shrink-0 border-b border-sidebar-border ${collapsed ? "flex flex-col items-center gap-2 px-2 py-2" : "flex items-center gap-2 py-2 pl-3 pr-0"}`}>
                 {/* Header: Logo + Company Switcher integrated (Notion/Linear style) */}
                 {!collapsed ? (
-                    <div className="min-w-0 overflow-hidden">
+                    <div className="min-w-0 flex-1 overflow-hidden">
                         <CompanySwitcherHeader />
                     </div>
                 ) : (
@@ -133,15 +133,6 @@ export function Sidebar({ onCollapse, isSheet = false, collapsed = false, onTogg
                 )}
                 <div className={`flex shrink-0 items-center justify-center ${collapsed ? "flex-col gap-2" : ""}`}>
                     <AppSwitcher collapsed={collapsed} />
-                    {!collapsed && onToggleCollapse && !isSheet && (
-                        <button
-                            onClick={onToggleCollapse}
-                            className="h-7 w-7 rounded-md flex items-center justify-center transition-colors duration-150 text-sidebar-foreground/50 hover:text-sidebar-foreground hover:bg-sidebar-accent"
-                            title="Collapse sidebar"
-                        >
-                            <ChevronsLeft className="h-[16px] w-[16px]" />
-                        </button>
-                    )}
                 </div>
                 {/* Collapse button — appears on sidebar hover */}
                 {/* Expand button — replaces logo on hover when collapsed */}
@@ -158,6 +149,15 @@ export function Sidebar({ onCollapse, isSheet = false, collapsed = false, onTogg
                     <Button variant="ghost" size="icon" onClick={onCollapse} className="h-8 w-8 text-sidebar-foreground/50 hover:text-sidebar-foreground" aria-label="Close sidebar">
                         <ChevronLeft className="h-4 w-4" />
                     </Button>
+                )}
+                {!collapsed && onToggleCollapse && !isSheet && (
+                    <button
+                        onClick={onToggleCollapse}
+                        className="-mr-px flex h-14 w-8 shrink-0 items-center justify-center rounded-l-lg text-sidebar-foreground/50 transition-colors duration-150 hover:bg-sidebar-accent hover:text-sidebar-foreground"
+                        title="Collapse sidebar"
+                    >
+                        <ChevronsLeft className="h-[16px] w-[16px]" />
+                    </button>
                 )}
             </div>
 
