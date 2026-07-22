@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react"
 import { Check, ExternalLink, LayoutDashboard, MapPinned } from "lucide-react"
 
-const leadEngineUrl = process.env.NEXT_PUBLIC_LEADENGINE_URL ?? "http://localhost:3000"
+const leadEngineUrl = process.env.NEXT_PUBLIC_LEADENGINE_URL?.trim() || null
 
 export function AppSwitcher() {
   const [open, setOpen] = useState(false)
@@ -26,11 +26,11 @@ export function AppSwitcher() {
       {open && (
         <div className="app-menu" role="menu">
           <p>Werkudara apps</p>
-          <a href={leadEngineUrl} role="menuitem" className="app-row">
+          {leadEngineUrl ? <a href={leadEngineUrl} role="menuitem" className="app-row">
             <span className="app-icon app-icon-blue"><LayoutDashboard size={16} /></span>
             <span><strong>LeadEngine</strong><small>CRM and pipeline operations</small></span>
             <ExternalLink size={14} aria-hidden="true" />
-          </a>
+          </a> : <div className="app-row" aria-disabled="true" title="Set NEXT_PUBLIC_LEADENGINE_URL to enable this app"><span className="app-icon app-icon-blue"><LayoutDashboard size={16} /></span><span><strong>LeadEngine</strong><small>App URL is not configured</small></span></div>}
           <a href="/" role="menuitem" className="app-row app-row-active" onClick={() => setOpen(false)}>
             <span className="app-icon app-icon-amber"><MapPinned size={16} /></span>
             <span><strong>Sales Mission</strong><small>Plan visits and capture results</small></span>

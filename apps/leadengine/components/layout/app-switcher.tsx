@@ -5,7 +5,7 @@ import { Check, ExternalLink, LayoutDashboard, MapPinned } from "lucide-react"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { usePermissions } from "@/contexts/permissions-context"
 
-const salesMissionUrl = process.env.NEXT_PUBLIC_SALES_MISSION_URL ?? "http://localhost:3001"
+const salesMissionUrl = process.env.NEXT_PUBLIC_SALES_MISSION_URL?.trim() || null
 
 function LauncherMark() {
     return (
@@ -18,7 +18,7 @@ function LauncherMark() {
     )
 }
 
-export function AppSwitcher() {
+export function AppSwitcher({ collapsed = false }: { collapsed?: boolean }) {
     const { can, loading } = usePermissions()
     const canOpenSalesMission = !loading && can("sales_mission", "read")
 
@@ -33,7 +33,7 @@ export function AppSwitcher() {
                     <LauncherMark />
                 </button>
             </PopoverTrigger>
-            <PopoverContent align="start" sideOffset={9} className="w-[318px] rounded-xl border-sidebar-border bg-sidebar p-2 text-sidebar-foreground shadow-xl duration-150">
+            <PopoverContent align="start" side={collapsed ? "right" : "bottom"} sideOffset={9} className="w-[318px] rounded-xl border-sidebar-border bg-sidebar p-2 text-sidebar-foreground shadow-xl duration-150">
                 <p className="px-2.5 pb-2 pt-1 text-[10px] font-bold uppercase tracking-[0.16em] text-sidebar-foreground/50">
                     Werkudara apps
                 </p>
@@ -47,11 +47,8 @@ export function AppSwitcher() {
                     </span>
                     <Check className="h-4 w-4 text-emerald-400" aria-label="Current app" />
                 </Link>
-                {canOpenSalesMission && (
-                    <a
-                        href={salesMissionUrl}
-                        className="mt-1 flex items-center gap-3 rounded-lg px-3 py-3 outline-none transition-colors duration-150 hover:bg-sidebar-accent focus-visible:bg-sidebar-accent focus-visible:ring-2 focus-visible:ring-primary"
-                    >
+                {canOpenSalesMission && salesMissionUrl && (
+                    <a href={salesMissionUrl} className="mt-1 flex items-center gap-3 rounded-lg px-3 py-3 outline-none transition-colors duration-150 hover:bg-sidebar-accent focus-visible:bg-sidebar-accent focus-visible:ring-2 focus-visible:ring-primary">
                         <span className="grid h-9 w-9 place-items-center rounded-lg bg-amber-400/15 text-amber-300">
                             <MapPinned className="h-4 w-4" />
                         </span>
@@ -61,6 +58,12 @@ export function AppSwitcher() {
                         </span>
                         <ExternalLink className="h-3.5 w-3.5 text-sidebar-foreground/40" aria-hidden="true" />
                     </a>
+                )}
+                {canOpenSalesMission && !salesMissionUrl && (
+                    <div className="mt-1 flex items-center gap-3 rounded-lg px-3 py-3 opacity-60" title="Set NEXT_PUBLIC_SALES_MISSION_URL to enable this app">
+                        <span className="grid h-9 w-9 place-items-center rounded-lg bg-amber-400/15 text-amber-300"><MapPinned className="h-4 w-4" /></span>
+                        <span className="min-w-0 flex-1"><span className="block text-sm font-semibold">Sales Mission</span><span className="block truncate text-xs text-sidebar-foreground/55">App URL is not configured</span></span>
+                    </div>
                 )}
             </PopoverContent>
         </Popover>
