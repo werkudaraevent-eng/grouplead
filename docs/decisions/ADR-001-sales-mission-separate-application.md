@@ -1,7 +1,7 @@
 # ADR-001: Sales Mission as Separate Application
 
 ## Status
-Accepted
+Superseded by ADR-002
 
 ## Date
 2026-07-21
@@ -43,7 +43,7 @@ Rejected. That application is used for internal room booking. Its existing activ
 
 ### Monorepo with separate apps
 
-Deferred. Polyrepo gives stronger application ownership and deployment isolation for this stage. Shared packages can be extracted later when contracts and UI patterns stabilize.
+Accepted later by ADR-002. This ADR records the original separate-repository decision.
 
 ## Consequences
 

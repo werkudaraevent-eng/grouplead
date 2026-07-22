@@ -1,6 +1,6 @@
 # Sales Mission Implementation Tasks
 
-- [ ] Task 1: Create separate `sales-mission` repository and application shell
+- [ ] Task 1: Create `apps/sales-mission` application shell inside monorepo
   - Acceptance: App boots independently from LeadEngine; environment and deployment docs exist.
   - Verify: `npm run build`; smoke test root route.
   - Dependencies: None.
