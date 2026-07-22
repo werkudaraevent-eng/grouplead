@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@/utils/supabase/server"
 import { resolveProviderDisplayName } from "@/lib/auth"
+import { getSalesMissionAccess } from "@/lib/sales-mission-access"
 
 export const dynamic = "force-dynamic"
 
@@ -23,18 +24,8 @@ export async function GET(request: Request) {
     await supabase.from("profiles").update({ full_name: fullName }).eq("id", user.id)
   }
 
-  const { data: profile, error: profileError } = await supabase
-    .from("profiles")
-    .select("is_active")
-    .eq("id", user.id)
-    .maybeSingle()
-  const { data: membership, error: membershipError } = await supabase
-    .from("company_members")
-    .select("id")
-    .eq("user_id", user.id)
-    .limit(1)
-
-  if (profileError || membershipError || profile?.is_active !== true || membership.length === 0) {
+  const access = await getSalesMissionAccess()
+  if (!access) {
     await supabase.auth.signOut()
     return NextResponse.redirect(`${origin}/login?error=access_not_provisioned`)
   }

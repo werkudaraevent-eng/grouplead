@@ -1,10 +1,15 @@
 import Link from "next/link"
 import { createClient } from "@/utils/supabase/server"
 import { resolveProviderDisplayName } from "@/lib/auth"
+import { getSalesMissionAccess } from "@/lib/sales-mission-access"
+import { redirect } from "next/navigation"
 
 export const dynamic = "force-dynamic"
 
 export default async function MissionHomePage() {
+  const access = await getSalesMissionAccess()
+  if (!access) redirect("/login?error=access_not_provisioned")
+
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   const displayName = resolveProviderDisplayName(user?.user_metadata ?? {})
