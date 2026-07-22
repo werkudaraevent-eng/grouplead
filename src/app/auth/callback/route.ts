@@ -28,6 +28,25 @@ export async function GET(request: Request) {
         return NextResponse.redirect(`${origin}/login?error=auth_callback_failed`)
     }
 
+    // Sync provider display name on every successful login. Do not fall back
+    // to email: an email address is an identifier, not a person's name.
+    const providerName = [
+        user.user_metadata?.full_name,
+        user.user_metadata?.name,
+        [user.user_metadata?.given_name, user.user_metadata?.family_name]
+            .filter((value): value is string => typeof value === "string" && value.trim().length > 0)
+            .join(" "),
+    ]
+        .find((value): value is string => typeof value === "string" && value.trim().length > 0)
+        ?.trim()
+    const userEmail = user.email?.trim().toLowerCase()
+    if (providerName && providerName.toLowerCase() !== userEmail) {
+        await supabase
+            .from("profiles")
+            .update({ full_name: providerName })
+            .eq("id", user.id)
+    }
+
     const [profileResult, membershipResult] = await Promise.all([
         supabase
             .from("profiles")

@@ -74,7 +74,9 @@ export default function LoginPage() {
         const { error } = await supabase.auth.signInWithOAuth({
             provider: "azure",
             options: {
-                scopes: "email",
+                // `profile` requests Entra's standard display-name claims.
+                // `email` alone can leave Supabase metadata without a name.
+                scopes: "openid profile email",
                 redirectTo: `${window.location.origin}/auth/callback`,
             },
         })
