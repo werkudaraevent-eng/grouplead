@@ -20,6 +20,7 @@ npm run dev:sales-mission
 npm run typecheck
 npm test
 npm run build
+npm run build:all
 ```
 
 ## LeadEngine
