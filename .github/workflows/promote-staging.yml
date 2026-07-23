@@ -1,0 +1,50 @@
+name: Promote staging to main
+
+on:
+  push:
+    branches: [staging]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  create-promotion-pr:
+    name: Create staging promotion PR
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create or reuse promotion PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -eu
+
+          existing_pr="$(gh pr list \
+            --repo "${GITHUB_REPOSITORY}" \
+            --base main \
+            --head staging \
+            --state open \
+            --json number \
+            --jq '.[0].number // empty')"
+
+          if [ -n "${existing_pr}" ]; then
+            echo "Promotion PR #${existing_pr} already exists."
+            exit 0
+          fi
+
+          body="$(cat <<'EOF'
+          ## Staging promotion
+
+          This PR was created automatically from the staging branch.
+
+          Review the staging deployment and merge manually after required checks pass.
+          EOF
+          )"
+
+          gh pr create \
+            --repo "${GITHUB_REPOSITORY}" \
+            --base main \
+            --head staging \
+            --title "chore: promote staging to main" \
+            --body "${body}"
