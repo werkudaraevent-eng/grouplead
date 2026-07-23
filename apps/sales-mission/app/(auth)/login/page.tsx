@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { createClient } from "@/utils/supabase/client"
 import { AZURE_SCOPES } from "@/lib/auth"
 
@@ -9,20 +9,41 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null)
   const supabase = createClient()
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const errorCode = params.get("error")
+    const errorDescription = params.get("error_description")
+
+    if (errorCode === "access_not_provisioned") {
+      setError("Microsoft login berhasil, tetapi akun belum diberi akses Sales Mission. Minta admin mengaktifkan permission Sales Mission dan company membership.")
+    } else if (errorCode === "auth_callback_failed") {
+      setError(errorDescription || "Microsoft login gagal saat callback. Coba lagi atau hubungi admin.")
+    } else if (errorCode === "auth_callback_missing_code") {
+      setError("Microsoft login tidak mengirim authorization code. Coba ulangi login.")
+    } else if (errorCode) {
+      setError(errorDescription || `Login gagal (${errorCode}). Coba lagi.`)
+    }
+  }, [])
+
   async function signInWithMicrosoft() {
     setLoading(true)
     setError(null)
 
-    const { error: authError } = await supabase.auth.signInWithOAuth({
-      provider: "azure",
-      options: {
-        scopes: AZURE_SCOPES,
-        redirectTo: `${window.location.origin}/auth/callback`,
-      },
-    })
+    try {
+      const { error: authError } = await supabase.auth.signInWithOAuth({
+        provider: "azure",
+        options: {
+          scopes: AZURE_SCOPES,
+          redirectTo: `${window.location.origin}/auth/callback`,
+        },
+      })
 
-    if (authError) {
-      setError(authError.message)
+      if (authError) {
+        setError(authError.message)
+        setLoading(false)
+      }
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Microsoft login tidak dapat dimulai. Coba lagi.")
       setLoading(false)
     }
   }
@@ -45,9 +66,14 @@ export default function LoginPage() {
           onClick={signInWithMicrosoft}
           type="button"
         >
-          {loading ? "Redirecting…" : "Continue with Microsoft"}
+          {loading ? "Opening Microsoft…" : "Continue with Microsoft"}
         </button>
-        {error ? <p className="mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-700" role="alert">{error}</p> : null}
+        {error ? (
+          <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700" role="alert">
+            <p>{error}</p>
+            <button className="mt-2 font-semibold underline" type="button" onClick={() => setError(null)}>Dismiss</button>
+          </div>
+        ) : null}
       </section>
     </main>
   )

@@ -10,14 +10,24 @@ export async function GET(request: Request) {
   const code = requestUrl.searchParams.get("code")
   const origin = requestUrl.origin
 
-  if (!code) return NextResponse.redirect(`${origin}/login?error=auth_callback_missing_code`)
+  if (!code) {
+    const providerError = requestUrl.searchParams.get("error_description")
+    const query = new URLSearchParams({ error: "auth_callback_missing_code" })
+    if (providerError) query.set("error_description", providerError)
+    return NextResponse.redirect(`${origin}/login?${query.toString()}`)
+  }
 
   const supabase = await createClient()
   const { error } = await supabase.auth.exchangeCodeForSession(code)
-  if (error) return NextResponse.redirect(`${origin}/login?error=auth_callback_failed`)
+  if (error) {
+    const query = new URLSearchParams({ error: "auth_callback_failed", error_description: error.message })
+    return NextResponse.redirect(`${origin}/login?${query.toString()}`)
+  }
 
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.redirect(`${origin}/login?error=auth_callback_failed`)
+  if (!user) {
+    return NextResponse.redirect(`${origin}/login?error=auth_callback_failed&error_description=Session%20user%20was%20not%20created`)
+  }
 
   const fullName = resolveProviderDisplayName(user.user_metadata ?? {})
   if (fullName !== "New User" && fullName.toLowerCase() !== user.email?.trim().toLowerCase()) {
