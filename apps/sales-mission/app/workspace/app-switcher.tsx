@@ -31,7 +31,7 @@ export function AppSwitcher() {
             <span><strong>LeadEngine</strong><small>CRM and pipeline operations</small></span>
             <ExternalLink size={14} aria-hidden="true" />
           </a> : <div className="app-row" aria-disabled="true" title="Set NEXT_PUBLIC_LEADENGINE_URL to enable this app"><span className="app-icon app-icon-blue"><LayoutDashboard size={16} /></span><span><strong>LeadEngine</strong><small>App URL is not configured</small></span></div>}
-          <a href="/" role="menuitem" className="app-row app-row-active" onClick={() => setOpen(false)}>
+          <a href="/workspace" role="menuitem" className="app-row app-row-active" onClick={() => setOpen(false)}>
             <span className="app-icon app-icon-amber"><MapPinned size={16} /></span>
             <span><strong>Sales Mission</strong><small>Plan visits and capture results</small></span>
             <Check size={16} aria-label="Current app" />
