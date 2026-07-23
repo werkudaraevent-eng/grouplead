@@ -8,12 +8,18 @@ export const dynamic = "force-dynamic"
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url)
   const code = requestUrl.searchParams.get("code")
+  const providerError = requestUrl.searchParams.get("error")
+  const providerErrorDescription = requestUrl.searchParams.get("error_description")
   const origin = requestUrl.origin
 
+  if (providerError) {
+    const query = new URLSearchParams({ error: "auth_callback_failed", error_description: providerErrorDescription || providerError })
+    return NextResponse.redirect(`${origin}/login?${query.toString()}`)
+  }
+
   if (!code) {
-    const providerError = requestUrl.searchParams.get("error_description")
     const query = new URLSearchParams({ error: "auth_callback_missing_code" })
-    if (providerError) query.set("error_description", providerError)
+    if (providerErrorDescription) query.set("error_description", providerErrorDescription)
     return NextResponse.redirect(`${origin}/login?${query.toString()}`)
   }
 
