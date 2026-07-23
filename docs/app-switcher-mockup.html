@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Werkudara App Switcher Mockup</title>
+  <style>
+    :root { --nav:#25282d; --nav-soft:#30343a; --ink:#1d2530; --muted:#87909d; --line:#e5e8ec; --paper:#f6f7f9; --blue:#4f6fd8; --blue-soft:#e9efff; --gold:#f2b94b; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:#dfe3e8; color:var(--ink); font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    button { font:inherit; }
+    .frame { min-height:100vh; padding:48px; display:grid; place-items:center; }
+    .browser { width:min(1380px, 100%); min-height:760px; display:grid; grid-template-columns:240px 1fr; overflow:hidden; background:white; border-radius:18px; box-shadow:0 32px 90px rgba(22,28,38,.22); }
+    .sidebar { position:relative; background:var(--nav); color:#eef1f5; padding:20px 14px; }
+    .brand-row { display:flex; align-items:center; justify-content:space-between; height:46px; padding:0 3px 16px; border-bottom:1px solid rgba(255,255,255,.08); }
+    .brand { display:flex; align-items:center; min-width:0; gap:10px; }
+    .logo { width:32px; height:32px; display:grid; place-items:center; flex:0 0 auto; border-radius:10px; background:#1f4fd2; color:white; font-weight:800; }
+    .brand-copy strong,.brand-copy span { display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .brand-copy strong { font-size:14px; }
+    .brand-copy span { margin-top:2px; color:#8e98a5; font-size:11px; }
+    .launcher { position:relative; width:34px; height:34px; display:grid; place-items:center; border:0; border-radius:9px; color:#ccd3dc; background:transparent; cursor:pointer; }
+    .launcher:hover,.launcher.active { background:var(--nav-soft); color:white; }
+    .grid-icon { width:16px; height:16px; display:grid; grid-template-columns:repeat(2,1fr); gap:3px; }
+    .grid-icon i { border-radius:3px; background:#67b4ef; }
+    .grid-icon i:nth-child(2){background:#a78bfa}.grid-icon i:nth-child(3){background:#f3bd58}.grid-icon i:nth-child(4){background:#5fd39c}
+    .nav-label { margin:28px 10px 9px; color:#8c96a2; font-size:10px; font-weight:800; letter-spacing:.15em; text-transform:uppercase; }
+    .nav-item { display:flex; align-items:center; gap:12px; height:42px; margin:3px 0; padding:0 12px; border-radius:10px; color:#c8ced7; font-size:14px; font-weight:600; }
+    .nav-item.active { color:#8dc9ff; background:#373b42; }
+    .nav-icon { width:18px; color:#8d98a6; font-size:17px; text-align:center; }
+    .nav-item.active .nav-icon { color:#65b8f5; }
+    .profile { position:absolute; left:14px; right:14px; bottom:18px; display:flex; align-items:center; gap:10px; padding:12px 10px; border-top:1px solid rgba(255,255,255,.08); color:#aab3bd; }
+    .avatar { width:32px; height:32px; display:grid; place-items:center; border-radius:50%; background:#1f4fd2; color:white; font-size:12px; font-weight:800; }
+    .profile strong,.profile span { display:block; }.profile strong{color:#eef1f5;font-size:13px}.profile span{font-size:11px;margin-top:2px}
+    .content { position:relative; background:var(--paper); }
+    .topbar { height:66px; display:flex; align-items:center; justify-content:space-between; padding:0 30px; background:white; border-bottom:1px solid var(--line); }
+    .crumb { color:#7b8490; font-size:13px; }.crumb b{color:#202934}
+    .user-actions { display:flex; align-items:center; gap:12px; color:#697481; font-size:13px; }
+    .content-inner { padding:34px 38px; }
+    .title-row { display:flex; align-items:flex-end; justify-content:space-between; }.title-row h1{margin:0;font-size:31px;letter-spacing:-.04em}.title-row p{margin:8px 0 0;color:var(--muted);font-size:13px}
+    .button { border:1px solid #d8dee7; border-radius:9px; padding:11px 15px; color:#5067b9; background:white; font-weight:700; }
+    .cards { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-top:30px; }.card{min-height:155px;padding:20px;background:white;border:1px solid var(--line);border-radius:14px}.card small{color:#8b95a2;font-size:11px}.card strong{display:block;margin-top:20px;font-size:29px;letter-spacing:-.04em}.card p{margin:7px 0 0;color:#89929e;font-size:12px}
+    .popover { position:absolute; z-index:10; top:51px; left:245px; width:350px; padding:10px; border:1px solid rgba(25,31,40,.14); border-radius:15px; background:#292d33; color:#eef1f5; box-shadow:0 22px 55px rgba(10,15,22,.35); }
+    .popover-heading { padding:8px 10px 10px; color:#8f9aa7; font-size:10px; font-weight:800; letter-spacing:.15em; text-transform:uppercase; }
+    .app { display:flex; align-items:center; gap:12px; width:100%; padding:12px 11px; border-radius:10px; text-align:left; }.app.current{background:#373c43}.app:hover{background:#343940}.app-mark{width:36px;height:36px;display:grid;place-items:center;border-radius:10px;font-weight:800}.app-mark.crm{background:#e8efff;color:#4b69ce}.app-mark.mission{background:#fff2d6;color:#a96d0d}.app-copy{flex:1;min-width:0}.app-copy strong,.app-copy span{display:block}.app-copy strong{font-size:13px}.app-copy span{margin-top:3px;color:#98a2ae;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.check{color:#68d19b;font-size:17px}.external{color:#9ba5b0;font-size:13px}.divider{height:1px;margin:8px 0;background:rgba(255,255,255,.1)}.manage{padding:9px 11px;color:#aab3bd;font-size:11px}
+    .annotation { position:absolute; top:9px; left:614px; padding:8px 11px; border:1px solid #e7bf68; border-radius:8px; color:#77530e; background:#fff8e7; font-size:11px; font-weight:700; box-shadow:0 5px 15px rgba(90,63,8,.1); }.annotation:after{content:"";position:absolute;left:22px;top:100%;width:1px;height:26px;background:#e7bf68}
+    .note { position:absolute; right:28px; bottom:22px; max-width:330px; padding:13px 15px; border-left:3px solid var(--gold); color:#697481; background:white; font-size:12px; line-height:1.5; box-shadow:0 8px 24px rgba(33,42,54,.08); }.note strong{display:block;margin-bottom:3px;color:#29323d}
+    @media(max-width:900px){.frame{padding:16px}.browser{grid-template-columns:76px 1fr}.brand-copy,.nav-label,.nav-item span:not(.nav-icon),.profile .profile-copy{display:none}.brand-row{justify-content:center}.brand{gap:0}.launcher{position:absolute;top:68px;left:21px}.nav-item{justify-content:center;padding:0}.popover{left:74px;top:68px}.content-inner{padding:28px 20px}.cards{grid-template-columns:1fr 1fr}}
+    @media(max-width:620px){.topbar{padding:0 16px}.content-inner{padding:24px 16px}.cards{grid-template-columns:1fr}.user-actions{display:none}.annotation{display:none}.popover{left:14px;top:68px;width:min(350px,calc(100vw - 28px))}}
+  </style>
+</head>
+<body>
+  <div class="frame">
+    <div class="browser">
+      <aside class="sidebar">
+        <div class="brand-row">
+          <div class="brand"><div class="logo">W</div><div class="brand-copy"><strong>Werkudara</strong><span>LeadEngine</span></div></div>
+          <button class="launcher active" aria-label="App switcher"><span class="grid-icon"><i></i><i></i><i></i><i></i></span></button>
+        </div>
+        <p class="nav-label">Menu</p>
+        <div class="nav-item active"><span class="nav-icon">▦</span><span>Dashboard</span></div>
+        <div class="nav-item"><span class="nav-icon">▤</span><span>Pipeline</span></div>
+        <div class="nav-item"><span class="nav-icon">⌂</span><span>Companies</span></div>
+        <div class="nav-item"><span class="nav-icon">♧</span><span>Contacts</span></div>
+        <div class="nav-item"><span class="nav-icon">◷</span><span>History</span></div>
+        <p class="nav-label">Administration</p>
+        <div class="nav-item"><span class="nav-icon">⚙</span><span>Settings</span></div>
+        <div class="profile"><div class="avatar">WS</div><div class="profile-copy"><strong>Werkudara</strong><span>Super Admin</span></div></div>
+      </aside>
+      <section class="content">
+        <div class="topbar"><div class="crumb"><b>LeadEngine</b> / Dashboard</div><div class="user-actions">⋯ &nbsp; ◇ &nbsp; My Dashboard⌄ &nbsp; <button class="button">Edit Dashboard</button></div></div>
+        <div class="content-inner"><div class="title-row"><div><h1>Good morning, Werkudara</h1><p>Performance Dashboard · Group Lead 2026 · Updated moments ago</p></div><button class="button">Update</button></div><div class="cards"><div class="card"><small>Incoming Lead</small><strong>43</strong><p>IDR 22.4B total</p></div><div class="card"><small>Lead Events</small><strong>24</strong><p>IDR 14.0B total</p></div><div class="card"><small>Win Rate</small><strong>37.5%</strong><p>9 won opportunities</p></div></div></div>
+        <div class="annotation">App launcher lives here — no new sidebar row.</div>
+        <div class="popover"><div class="popover-heading">Werkudara apps</div><div class="app current"><div class="app-mark crm">▦</div><div class="app-copy"><strong>LeadEngine</strong><span>CRM and pipeline operations</span></div><div class="check">✓</div></div><div class="app"><div class="app-mark mission">⌖</div><div class="app-copy"><strong>Sales Mission</strong><span>Plan visits and capture results</span></div><div class="external">↗</div></div><div class="divider"></div><div class="manage">Manage app access →</div></div>
+        <div class="note"><strong>Why this works</strong>App switching stays in one compact control. Sidebar keeps its current navigation. Sales Mission gets its own clean workspace.</div>
+      </section>
+    </div>
+  </div>
+</body>
+</html>

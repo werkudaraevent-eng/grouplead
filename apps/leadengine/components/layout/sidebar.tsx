@@ -9,6 +9,7 @@ import {
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { CompanySwitcherHeader } from "@/components/layout/company-switcher"
+import { AppSwitcher } from "@/components/layout/app-switcher"
 import { usePermissions } from "@/contexts/permissions-context"
 import { useSidebarTheme } from "@/contexts/sidebar-theme-context"
 import { createClient } from "@/utils/supabase/client"
@@ -117,27 +118,23 @@ export function Sidebar({ onCollapse, isSheet = false, collapsed = false, onTogg
 
     return (
         <div className="group/sidebar flex flex-col h-full transition-colors duration-300 bg-sidebar text-sidebar-foreground relative">
-            <div className={`flex items-center h-14 shrink-0 border-b border-sidebar-border ${collapsed ? "justify-center px-2" : "justify-between px-3"}`}>
+            <div className={`relative min-h-14 shrink-0 border-b border-sidebar-border ${collapsed ? "flex flex-col items-center gap-2 px-2 py-2" : "flex items-center gap-2 py-2 pl-3 pr-0"}`}>
                 {/* Header: Logo + Company Switcher integrated (Notion/Linear style) */}
                 {!collapsed ? (
-                    <CompanySwitcherHeader />
+                    <div className="min-w-0 flex-1 overflow-hidden">
+                        <CompanySwitcherHeader />
+                    </div>
                 ) : (
-                    <Link href="/" className="flex items-center justify-center group-hover/sidebar:opacity-0 transition-opacity duration-150">
+                    <Link href="/" className="flex items-center justify-center transition-opacity duration-150 group-hover/sidebar:opacity-0">
                         <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center shrink-0">
                             <span className="text-white font-bold text-sm">W</span>
                         </div>
                     </Link>
                 )}
+                <div className={`flex shrink-0 items-center justify-center ${collapsed ? "flex-col gap-2" : ""}`}>
+                    <AppSwitcher collapsed={collapsed} />
+                </div>
                 {/* Collapse button — appears on sidebar hover */}
-                {onToggleCollapse && !isSheet && !collapsed && (
-                    <button
-                        onClick={onToggleCollapse}
-                        className="h-7 w-7 rounded-md flex items-center justify-center transition-all duration-150 text-sidebar-foreground/50 hover:text-sidebar-foreground hover:bg-sidebar-accent opacity-0 group-hover/sidebar:opacity-100"
-                        title="Collapse sidebar"
-                    >
-                        <ChevronsLeft className="h-[16px] w-[16px]" />
-                    </button>
-                )}
                 {/* Expand button — replaces logo on hover when collapsed */}
                 {onToggleCollapse && !isSheet && collapsed && (
                     <button
@@ -152,6 +149,15 @@ export function Sidebar({ onCollapse, isSheet = false, collapsed = false, onTogg
                     <Button variant="ghost" size="icon" onClick={onCollapse} className="h-8 w-8 text-sidebar-foreground/50 hover:text-sidebar-foreground" aria-label="Close sidebar">
                         <ChevronLeft className="h-4 w-4" />
                     </Button>
+                )}
+                {!collapsed && onToggleCollapse && !isSheet && (
+                    <button
+                        onClick={onToggleCollapse}
+                        className="-mr-px flex h-14 w-8 shrink-0 items-center justify-center rounded-l-lg text-sidebar-foreground/50 transition-colors duration-150 hover:bg-sidebar-accent hover:text-sidebar-foreground"
+                        title="Collapse sidebar"
+                    >
+                        <ChevronsLeft className="h-[16px] w-[16px]" />
+                    </button>
                 )}
             </div>
 
