@@ -3,7 +3,7 @@ import { createClient } from "@/utils/supabase/server"
 import { resolveProviderDisplayName } from "@/lib/auth"
 import { getSalesMissionAccess } from "@/lib/sales-mission-access"
 import { redirect } from "next/navigation"
-import { AppSwitcher } from "./app-switcher"
+import { AppSwitcher } from "@/app/workspace/app-switcher"
 
 export const dynamic = "force-dynamic"
 

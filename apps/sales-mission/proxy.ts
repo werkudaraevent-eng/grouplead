@@ -23,7 +23,7 @@ export async function proxy(request: NextRequest) {
   const isPublic = pathname === "/" || pathname.startsWith("/login") || pathname.startsWith("/auth/callback")
 
   if (!user && !isPublic) return NextResponse.redirect(new URL("/login", request.url))
-  if (user && pathname.startsWith("/login")) return NextResponse.redirect(new URL("/", request.url))
+  if (user && pathname.startsWith("/login")) return NextResponse.redirect(new URL("/workspace", request.url))
 
   return response
 }

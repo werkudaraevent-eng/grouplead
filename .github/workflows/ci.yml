@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main, staging, develop]
   pull_request:
     branches: [main, develop]
 
@@ -47,10 +47,35 @@ jobs:
       - name: Unit tests
         run: npm test --workspace=@werkudara/leadengine
 
+  sales-mission:
+    name: Sales Mission
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - name: Type check
+        run: npm run typecheck --workspace=@werkudara/sales-mission
+
+      - name: Unit tests
+        run: npm test --workspace=@werkudara/sales-mission
+
+      - name: Build
+        run: npm run build --workspace=@werkudara/sales-mission
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-key-for-build
+
   build:
     name: Production Build
     runs-on: ubuntu-latest
-    needs: [quality, test]
+    needs: [quality, test, sales-mission]
     steps:
       - uses: actions/checkout@v4
 
