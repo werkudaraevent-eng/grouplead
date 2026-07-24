@@ -66,7 +66,7 @@ button, input { font: inherit; }
 .workspace-profile-name { min-width: 0; flex: 1; overflow: hidden; color: var(--foreground); font-size: 11px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
 .workspace-sidebar-dark .workspace-profile-name { color: #f4f6f8; }
 .workspace-logout { width: 26px; height: 26px; border-radius: 6px; color: #9aa4af; }
-.workspace-content { min-width: 0; flex: 1; }
+.workspace-content { min-width: 0; flex: 1; overflow-x: auto; }
 .workspace-mobile-bar { display: none; }
 .workspace-page { min-height: 100dvh; padding: 34px clamp(22px, 4vw, 58px) 56px; }
 .workspace-page-header { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; max-width: 1260px; margin: 0 auto; border-bottom: 1px solid var(--border); padding-bottom: 24px; }
@@ -120,9 +120,15 @@ button, input { font: inherit; }
 .workspace-secondary-button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; border: 1px solid var(--border); border-radius: 7px; background: #fff; padding: 9px 12px; color: var(--foreground); cursor: pointer; font-size: 11px; font-weight: 700; text-decoration: none; }
 .workspace-secondary-button:hover { background: var(--background); }
 .workspace-table-wrap { width: 100%; overflow-x: auto; }
-.workspace-table { width: 100%; min-width: 760px; border-collapse: collapse; text-align: left; }
+.workspace-table { width: 100%; min-width: 900px; border-collapse: collapse; table-layout: fixed; text-align: left; }
+.workspace-table th:nth-child(1), .workspace-table td:nth-child(1) { width: 28%; }
+.workspace-table th:nth-child(2), .workspace-table td:nth-child(2) { width: 17%; }
+.workspace-table th:nth-child(3), .workspace-table td:nth-child(3) { width: 16%; }
+.workspace-table th:nth-child(4), .workspace-table td:nth-child(4) { width: 13%; }
+.workspace-table th:nth-child(5), .workspace-table td:nth-child(5) { width: 19%; }
+.workspace-table th:nth-child(6), .workspace-table td:nth-child(6) { width: 7%; }
 .workspace-table th { border-bottom: 1px solid var(--border); padding: 12px 18px; color: #8a95a1; font-size: 10px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
-.workspace-table td { border-bottom: 1px solid #edf0f3; padding: 14px 18px; color: var(--muted); font-size: 11px; }
+.workspace-table td { border-bottom: 1px solid #edf0f3; padding: 14px 18px; color: var(--muted); font-size: 11px; vertical-align: top; }
 .workspace-table tr:last-child td { border-bottom: 0; }
 .workspace-table tr:hover td { background: #fbfcfd; }
 .workspace-table td:first-child { color: var(--foreground); }
@@ -208,12 +214,10 @@ button, input { font: inherit; }
 .workspace-activity > div > span { position: absolute; top: 0; left: -5px; width: 9px; height: 9px; border: 2px solid #fff; border-radius: 50%; background: var(--brand); box-shadow: 0 0 0 1px #b9cbe4; }
 .workspace-activity small { color: var(--muted); font-size: 10px; }
 .workspace-activity-muted { background: #b9c2ca !important; box-shadow: 0 0 0 1px #d8dee4 !important; }
-.workspace-sidebar-collapsed .workspace-sidebar-header { justify-content: center; padding: 10px 8px; }
-.workspace-sidebar-collapsed .workspace-sidebar-actions { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; pointer-events: none; }
+.workspace-sidebar-collapsed .workspace-sidebar-header { justify-content: space-between; padding: 10px 7px 10px 8px; }
+.workspace-sidebar-collapsed .workspace-sidebar-actions { position: static; display: flex; align-items: center; justify-content: center; pointer-events: auto; }
 .workspace-sidebar-collapsed .workspace-sidebar-actions .app-switcher { display: none; }
-.workspace-sidebar-collapsed .workspace-sidebar-actions .workspace-collapse-button { pointer-events: auto; opacity: 0; }
-.workspace-sidebar-collapsed:hover .workspace-sidebar-actions .workspace-collapse-button,
-.workspace-sidebar-collapsed .workspace-sidebar-actions .workspace-collapse-button:focus-visible { opacity: 1; }
+.workspace-sidebar-collapsed .workspace-sidebar-actions .workspace-collapse-button { width: 25px; height: 32px; opacity: 1; }
 .workspace-sidebar-collapsed .workspace-sidebar-actions .workspace-collapse-button:hover { background: var(--sidebar-accent); }
 
 .app-switcher { position: relative; }
