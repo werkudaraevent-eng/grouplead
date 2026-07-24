@@ -53,14 +53,6 @@ export function WorkspaceShell({ children, displayName }: { children: React.Reac
     setDarkPanel(localStorage.getItem("sales-mission-sidebar-dark") === "true")
   }, [])
 
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setMobileOpen(false)
-    }
-    document.addEventListener("keydown", handleKeyDown)
-    return () => document.removeEventListener("keydown", handleKeyDown)
-  }, [])
-
   const toggleCollapsed = () => {
     setCollapsed((value) => {
       const next = !value
@@ -119,9 +111,7 @@ export function WorkspaceShell({ children, displayName }: { children: React.Reac
         )}
         <div className="workspace-sidebar-actions">
           <AppSwitcher />
-          <button className="workspace-icon-button workspace-collapse-button" type="button" onClick={toggleCollapsed} aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"} title={collapsed ? "Expand sidebar" : "Collapse sidebar"}>
-            <ChevronsLeft size={16} className={collapsed ? "workspace-expand-icon" : ""} />
-          </button>
+          {!collapsed && <button className="workspace-icon-button" type="button" onClick={toggleCollapsed} aria-label="Collapse sidebar"><ChevronsLeft size={16} /></button>}
         </div>
       </div>
 
