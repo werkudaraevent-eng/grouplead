@@ -84,6 +84,24 @@ Both apps use the same Supabase project, so Supabase `user.id` is shared. Still 
 
 Do not trust client-provided role, tenant ID, or access flags.
 
+### Database namespace
+
+Sales Mission business tables live in the `sales_mission` Postgres schema, not `public`. LeadEngine owns `public` and must never read or write `sales_mission`.
+
+```ts
+// Mission data — explicit schema.
+supabase.schema("sales_mission").from("missions")
+
+// Identity/tenant data — stays in public, same client.
+supabase.from("profiles")
+```
+
+Never set the client's default schema to `sales_mission`. The same client reads `public` identity tables, and switching the default breaks them.
+
+New Sales Mission tables go in `sales_mission`, are tenant-scoped by `company_id`, and enable RLS. Grants are inherited from the schema's default privileges, so a plain `CREATE TABLE` is enough.
+
+`sales_mission` must be listed under Settings → API → Exposed schemas in the Supabase dashboard for PostgREST to serve it.
+
 ### Single active session
 
 Both apps share the `le_active_session_id` cookie on the parent domain ("last login wins"). Any new login path must write that cookie **before** stamping `profiles.active_session_id`, or the sibling app will read a stale id and sign itself out.
@@ -385,6 +403,7 @@ When available in the Sales Mission repository, treat these as product reference
 - `docs/sales-mission-flows.md`.
 - `docs/decisions/ADR-002-monorepo-with-shared-auth-and-shared-supabase.md` (current architecture).
 - `docs/decisions/ADR-003-supabase-password-as-only-sign-in.md` (current auth model).
+- `docs/decisions/ADR-004-schema-separation-instead-of-separate-database.md` (why one database, own schema).
 - `docs/decisions/ADR-001-sales-mission-separate-application.md` (superseded, historical).
 
 If implementation and a draft spec conflict, report conflict. Do not silently change business rules.

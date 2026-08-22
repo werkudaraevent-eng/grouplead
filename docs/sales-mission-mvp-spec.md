@@ -46,7 +46,8 @@ Sales Mission -> LeadEngine API for users, companies, and contacts
 
 - One monorepo, separate applications (`apps/leadengine`, `apps/sales-mission`). See ADR-002.
 - Separate deployment.
-- One shared Supabase project; Sales Mission owns its own tenant-scoped tables and RLS.
+- One shared Supabase project. Sales Mission owns the `sales_mission` Postgres schema, with its own tenant-scoped tables, RLS, and grants. LeadEngine keeps `public`.
+- `sales_mission` must be listed under Settings → API → Exposed schemas in the Supabase dashboard, or PostgREST will not serve those tables.
 - Shared authentication identity and session.
 - Auth session cookie is scoped to the parent domain (`NEXT_PUBLIC_AUTH_COOKIE_DOMAIN`) so one login covers both subdomains.
 - Tenant switch available in Sales Mission.
@@ -365,27 +366,31 @@ Notification delivery records keep recipient, event, channel, read/sent time, an
 
 ## 16. Conceptual data model
 
+Every table below lives in the `sales_mission` schema, so the redundant `mission_` prefix is dropped. Built so far: `missions`, `assignments`, `status_history`.
+
 ```text
-sales_missions
-mission_assignments
-mission_initial_contacts
-mission_contacts
-mission_supporting_notes
-mission_results
-mission_result_submissions
-mission_attachments
-mission_status_history
-mission_form_types
-mission_form_templates
-mission_form_template_versions
-mission_form_fields
-mission_settings
-mission_notifications
-company_link_reviews
-contact_link_reviews
+sales_mission.missions
+sales_mission.assignments
+sales_mission.initial_contacts
+sales_mission.contacts
+sales_mission.supporting_notes
+sales_mission.results
+sales_mission.result_submissions
+sales_mission.attachments
+sales_mission.status_history
+sales_mission.form_types
+sales_mission.form_templates
+sales_mission.form_template_versions
+sales_mission.form_fields
+sales_mission.settings
+sales_mission.notifications
+sales_mission.company_link_reviews
+sales_mission.contact_link_reviews
 ```
 
 All tables carrying business data include tenant scope. Submission versions are append-only; corrections create a new version or an explicit revision, never overwrite audit history.
+
+Query them with `supabase.schema("sales_mission").from("missions")`. Do not change the client's default schema: the same client also reads `public` identity tables (`profiles`, `company_members`, `role_permissions`), and switching the default would break those.
 
 ## 17. LeadEngine API contract baseline
 
