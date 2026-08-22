@@ -1,9 +1,26 @@
-import Link from "next/link"
-import { ArrowLeft, CalendarDays, MapPin, Plus } from "lucide-react"
+import { redirect } from "next/navigation"
+import { getSalesMissionAccess } from "@/lib/sales-mission-access"
+import { listTenantSales } from "@/lib/missions/mission-queries"
+import { MISSION_TIME_ZONE } from "@/lib/missions/mission-schema"
 import { BackLink, WorkspacePage } from "@/app/workspace/workspace-page"
+import { MissionForm } from "./mission-form"
 
-export default function NewMissionPage() {
-  return <WorkspacePage eyebrow="Sales Mission / Missions" title="Plan a mission" description="Capture a confirmed visit before assigning the right sales team." action={<BackLink />}>
-    <form className="workspace-form-panel" action="#"><div className="workspace-form-section"><div><p className="workspace-section-kicker">Visit details</p><h2>What is happening?</h2></div><div className="workspace-form-grid"><label><span>Client company</span><input required placeholder="Search client company" /></label><label><span>Mission type</span><select defaultValue="Meeting"><option>Meeting</option><option>Site visit</option><option>Proposal review</option><option>Follow-up</option></select></label><label><span>Date</span><input required type="date" defaultValue="2026-07-24" /></label><label><span>Start time</span><input required type="time" defaultValue="09:30" /></label><label><span>Location</span><div className="workspace-input-with-icon"><MapPin size={15} /><input required placeholder="South Jakarta" /></div></label><label><span>Objective</span><input placeholder="What should this visit achieve?" /></label></div></div><div className="workspace-form-section"><div><p className="workspace-section-kicker">Assignment</p><h2>Who will attend?</h2></div><div className="workspace-form-grid"><label><span>Primary sales</span><select defaultValue="Wg, Hanung"><option>Wg, Hanung</option><option>Nadia Prameswari</option><option>Raka Adinata</option></select></label><label><span>Supporting sales</span><select defaultValue="none"><option value="none">No supporting sales</option><option>Nadia Prameswari</option><option>Raka Adinata</option></select></label></div></div><div className="workspace-form-footer"><Link className="workspace-secondary-button" href="/workspace/missions">Cancel</Link><button className="workspace-primary-button" type="submit"><Plus size={16} /> Save mission</button></div></form>
-  </WorkspacePage>
+export default async function NewMissionPage() {
+  const access = await getSalesMissionAccess()
+  if (!access) redirect("/login?error=access_not_provisioned")
+
+  const salesOptions = await listTenantSales(access)
+  // Default to today in Werkudara's timezone, not the server's.
+  const defaultDate = new Intl.DateTimeFormat("en-CA", { timeZone: MISSION_TIME_ZONE }).format(new Date())
+
+  return (
+    <WorkspacePage
+      eyebrow="Sales Mission / Missions"
+      title="Plan a mission"
+      description="Capture a confirmed visit before assigning the right sales team."
+      action={<BackLink />}
+    >
+      <MissionForm salesOptions={salesOptions} defaultDate={defaultDate} />
+    </WorkspacePage>
+  )
 }
