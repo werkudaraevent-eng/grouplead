@@ -22,7 +22,7 @@ export default function HomePage() {
               Plan client missions, coordinate sales assignments, and capture visit results in one focused workspace.
             </p>
             <Link className="mt-9 inline-flex rounded-lg bg-[var(--brand)] px-5 py-3 font-semibold text-white transition hover:bg-[#012d73]" href="/login">
-              Continue with Microsoft
+              Sign in
             </Link>
           </div>
 

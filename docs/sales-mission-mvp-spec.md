@@ -44,10 +44,11 @@ Shared identity and tenant context
 Sales Mission -> LeadEngine API for users, companies, and contacts
 ```
 
-- Separate repository.
+- One monorepo, separate applications (`apps/leadengine`, `apps/sales-mission`). See ADR-002.
 - Separate deployment.
-- Separate Sales Mission business database.
-- Shared authentication identity.
+- One shared Supabase project; Sales Mission owns its own tenant-scoped tables and RLS.
+- Shared authentication identity and session.
+- Auth session cookie is scoped to the parent domain (`NEXT_PUBLIC_AUTH_COOKIE_DOMAIN`) so one login covers both subdomains.
 - Tenant switch available in Sales Mission.
 - Every Sales Mission business query is tenant-scoped.
 - `company_id` means internal tenant; `client_company_id` means visited customer company.
@@ -444,4 +445,12 @@ Requirements:
 
 ## 20. Implementation boundary
 
-Build Sales Mission in a new repository and deployment. This repository contains only this specification and diagrams until the new application repository is created.
+Build Sales Mission in this monorepo under `apps/sales-mission`, with its own deployment. It shares the Supabase project, Auth provider, and session with LeadEngine, and owns its `sales_mission_*` tables, migrations, and RLS policies.
+
+Boundary rules that survive the shared database:
+
+- Sales Mission never reads or writes LeadEngine CRM tables (`client_companies`, `contacts`, leads, pipeline) directly. It goes through the versioned LeadEngine API.
+- LeadEngine never reads or writes `sales_mission_*` tables.
+- Shared identity/tenant tables (`profiles`, `companies`, `company_members`, `role_permissions`) stay owned by LeadEngine. Sales Mission reads them under RLS and never writes them. `profiles.full_name` is the single source for a person's name and is never overwritten from a login provider (ADR-003).
+
+ADR-001 recorded the original separate-repository/separate-database decision. ADR-002 supersedes it.

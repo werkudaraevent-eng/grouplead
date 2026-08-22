@@ -1,7 +1,7 @@
 # ADR-002: Monorepo with Shared Auth and One Supabase Project
 
 ## Status
-Accepted
+Accepted. The Entra/Azure provider choice is superseded by ADR-003; the monorepo, one-Supabase-project, and shared-session decisions still stand.
 
 ## Date
 2026-07-22
@@ -45,7 +45,15 @@ One Supabase project increases database blast radius. Enforce table ownership, t
 
 ## Authentication model
 
-The same Supabase user session can authenticate into both apps when cookie/domain deployment strategy supports it. Both apps use the same Supabase user ID.
+The same Supabase user session authenticates into both apps. Both apps use the same Supabase user ID.
+
+Sharing one Supabase project gives one `auth.users` row, not one session. Supabase's SSR cookie is host-bound by default, so `crm.werkudara.com` and `mission.werkudara.com` would each hold a separate session. Both apps therefore set an explicit parent cookie domain through `NEXT_PUBLIC_AUTH_COOKIE_DOMAIN` (`authCookieOptions()` in `utils/supabase/cookie-options.ts`), applied to the browser, server, and proxy clients.
+
+Local development leaves the value empty. Cookies ignore ports, so `localhost:3000` and `localhost:3001` already share a jar and behave as if SSO worked — which means a missing production value fails only in production. Treat the variable as required in every deployed environment, and keep it identical in both apps or they write two different cookies.
+
+### Rollout note
+
+Switching an environment from host-only to parent-domain cookies leaves the old host-only cookie in place. The browser then sends two cookies with the same name and the app may read the stale one. On first deploy of this change, expire the old cookies or have users sign out once.
 
 Both apps use the same Supabase Auth provider and profile. Cross-app authorization still checks app access, tenant membership, role, and RLS. LeadEngine remains authority for CRM users and tenant membership.
 
@@ -74,4 +82,6 @@ Entra `tid + oid` can be retained for audit and future migrations. It is not req
 - API responses are schema-validated.
 - Client-provided tenant IDs never determine authorization.
 - Both apps use the same Supabase URL and anon key; service-role use remains server-only.
+- A shared session grants no authorization by itself. App access, tenant membership, role, and RLS are still checked per request.
+- The shared cookie domain covers every subdomain under it. Do not host untrusted applications on a sibling subdomain.
 - Shared packages contain no application-specific database queries.

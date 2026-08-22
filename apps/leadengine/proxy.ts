@@ -1,5 +1,6 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import { authCookieOptions } from '@/utils/supabase/cookie-options'
 
 export async function proxy(request: NextRequest) {
     // Forward the current pathname to Server Components via a request header.
@@ -18,6 +19,7 @@ export async function proxy(request: NextRequest) {
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
         {
+            cookieOptions: authCookieOptions(),
             cookies: {
                 getAll() {
                     return request.cookies.getAll()
@@ -45,10 +47,9 @@ export async function proxy(request: NextRequest) {
     response.headers.set('x-pathname', request.nextUrl.pathname)
 
     // Public auth routes that must be reachable without a session.
-    // OAuth callback must be reachable before a local Supabase session exists.
-    // Otherwise the proxy redirects the provider callback back to /login and
-    // the route handler never gets a chance to exchange the authorization code.
-    const publicPaths = ['/login', '/forgot-password', '/reset-password', '/auth/callback']
+    // `/reset-password` must stay public: the recovery link is opened before a
+    // normal session exists, and the page establishes one from the token itself.
+    const publicPaths = ['/login', '/forgot-password', '/reset-password']
     const isPublicPath = publicPaths.some((p) => request.nextUrl.pathname.startsWith(p))
 
     // If not authenticated and not on a public auth page, redirect to login

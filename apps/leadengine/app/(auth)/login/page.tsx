@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Loader2, ArrowRight, BarChart3, Users, Target, TrendingUp, Eye, EyeOff } from "lucide-react"
-import { ACTIVE_SESSION_STORAGE_KEY, newSessionId } from "@/lib/session-guard"
+import { newSessionId, writeActiveSessionId } from "@/lib/session-guard"
 
 export default function LoginPage() {
     const [email, setEmail] = useState("")
@@ -22,9 +22,7 @@ export default function LoginPage() {
     useEffect(() => {
         const errorCode = new URLSearchParams(window.location.search).get("error")
         if (errorCode === "access_not_provisioned") {
-            setError("Your Microsoft account is not provisioned for LeadEngine. Ask an administrator to add your user and business-unit access.")
-        } else if (errorCode === "auth_callback_failed") {
-            setError("Microsoft sign-in could not be completed. Try again or contact an administrator.")
+            setError("Your account is not provisioned for LeadEngine. Ask an administrator to add your user and business-unit access.")
         }
     }, [])
 
@@ -52,7 +50,10 @@ export default function LoginPage() {
             const user = data.user
             if (user) {
                 const sessionId = newSessionId()
-                localStorage.setItem(ACTIVE_SESSION_STORAGE_KEY, sessionId)
+                // Write the shared cookie before the DB update. A sibling app
+                // reacting to the profile change re-reads this cookie, and a
+                // stale read there would sign that app out.
+                writeActiveSessionId(sessionId)
                 // Await the DB write so the SessionGuard on the dashboard reads
                 // a consistent active_session_id (a stale read would otherwise
                 // mismatch our local id and sign the user straight back out).
@@ -64,26 +65,6 @@ export default function LoginPage() {
             }
             router.push("/")
             router.refresh()
-        }
-    }
-
-    const handleMicrosoftLogin = async () => {
-        setError(null)
-        setLoading(true)
-
-        const { error } = await supabase.auth.signInWithOAuth({
-            provider: "azure",
-            options: {
-                // `profile` requests Entra's standard display-name claims.
-                // `email` alone can leave Supabase metadata without a name.
-                scopes: "openid profile email",
-                redirectTo: `${window.location.origin}/auth/callback`,
-            },
-        })
-
-        if (error) {
-            setError(error.message)
-            setLoading(false)
         }
     }
 
@@ -266,31 +247,6 @@ export default function LoginPage() {
                             ) : null}
                             {loading ? "Signing in..." : "Sign in"}
                             {!loading && <ArrowRight className="h-4 w-4 ml-2" />}
-                        </Button>
-
-                        <div className="relative py-1">
-                            <div className="absolute inset-0 flex items-center" aria-hidden="true">
-                                <div className="w-full border-t border-border/60" />
-                            </div>
-                            <div className="relative flex justify-center">
-                                <span className="bg-white px-3 text-xs text-muted-foreground">or</span>
-                            </div>
-                        </div>
-
-                        <Button
-                            type="button"
-                            variant="outline"
-                            className="w-full h-11 text-[15px] font-medium"
-                            disabled={loading}
-                            onClick={handleMicrosoftLogin}
-                        >
-                            <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24" aria-hidden="true">
-                                <path fill="#f35325" d="M1 1h10.5v10.5H1z" />
-                                <path fill="#81bc06" d="M12.5 1H23v10.5H12.5z" />
-                                <path fill="#05a6f0" d="M1 12.5h10.5V23H1z" />
-                                <path fill="#ffba08" d="M12.5 12.5H23V23H12.5z" />
-                            </svg>
-                            Continue with Microsoft
                         </Button>
                     </form>
 

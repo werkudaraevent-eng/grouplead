@@ -19,6 +19,7 @@ import {
 } from "lucide-react"
 import { AppSwitcher } from "@/app/workspace/app-switcher"
 import { createClient } from "@/utils/supabase/client"
+import { clearActiveSessionId } from "@/lib/session-guard"
 
 type NavItem = {
   href: string
@@ -78,6 +79,9 @@ export function WorkspaceShell({ children, displayName }: { children: React.Reac
   }
 
   const signOut = async () => {
+    // Clear the shared session id too — leaving it behind would make the
+    // sibling app compare against an id this browser no longer owns.
+    clearActiveSessionId()
     await createClient().auth.signOut()
     router.push("/login")
     router.refresh()

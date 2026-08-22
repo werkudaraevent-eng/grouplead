@@ -2,13 +2,14 @@
 
 ## Overview
 
-Build `apps/sales-mission` inside this monorepo with a separate deployment and Supabase project. Share UI utilities, auth claim helpers, and API contracts with LeadEngine. Keep Sales Mission business data isolated and use versioned LeadEngine APIs for users, client companies, and contacts.
+Build `apps/sales-mission` inside this monorepo with a separate deployment, on the Supabase project shared with LeadEngine (ADR-002). Share UI utilities, auth claim helpers, and API contracts with LeadEngine. Keep Sales Mission business data isolated by table ownership, tenant scope, and RLS, and use versioned LeadEngine APIs for users, client companies, and contacts.
 
 ## Architecture decisions
 
 - Monorepo with separate `apps/leadengine` and `apps/sales-mission` applications.
 - Separate deployment for each application.
-- Shared Supabase project and Microsoft Entra identity/session.
+- Shared Supabase project and one Supabase identity/session. Sign-in is email + password only (ADR-003).
+- Shared auth cookie scoped to the parent domain so one login covers both subdomains.
 - Separate Sales Mission business schema and RLS domain within shared database.
 - Shared UI, auth utilities, and validated API contracts only.
 - No direct database access across applications.
@@ -109,7 +110,6 @@ Reporting and notifications
 ## Open questions
 
 - LeadEngine API authentication mechanism and final endpoint contract.
-- Shared identity/session implementation across domains.
-- Hosting and deployment platform for new repository.
+- Production hosting for the second app and its `mission.werkudara.com` domain. No deploy workflow exists in the repo yet.
 - Attachment storage provider and limits.
 - Final notification provider for email and WhatsApp.

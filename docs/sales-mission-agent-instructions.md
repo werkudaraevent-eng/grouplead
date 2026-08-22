@@ -51,80 +51,46 @@ Sales Mission remains source of truth for:
 
 LeadEngine and Sales Mission use **one shared Supabase project** and live in one monorepo.
 
-Both applications use the **same Microsoft Entra App Registration** and shared Supabase Auth configuration.
+Sign-in is **Supabase email + password only**. Microsoft/Entra sign-in was removed — see ADR-003.
 
 ```text
 LeadEngine
   → shared Supabase project
-  → Azure provider
+  → email + password
 
 Sales Mission
   → shared Supabase project
-  → same Azure provider
+  → email + password
 
 Both
-  → same Microsoft Entra App Registration
+  → same auth.users row per person
+  → session cookie shared on the parent domain
 ```
 
-Configure Azure provider once in the shared Supabase project. Add its callback URL to the Entra App Registration:
+Rules:
 
-```text
-https://<SHARED_PROJECT_REF>.supabase.co/auth/v1/callback
-```
+- One account per human. Accounts are never shared or handed down — mission attribution depends on `auth.users.id` being one real person.
+- Each app keeps its own login page. A user may enter the platform from either app.
+- No OAuth callback routes exist. Password recovery runs through `/reset-password`.
+- `NEXT_PUBLIC_AUTH_COOKIE_DOMAIN` scopes the session cookie to the parent domain so one login covers both apps.
 
-Each app also needs its own application callback, for example:
+### Display name
 
-```text
-https://crm.werkudara.com/auth/callback
-https://mission.werkudara.com/auth/callback
-```
-
-Use OAuth scopes:
-
-```text
-openid profile email
-```
-
-Entra optional claims currently target:
-
-```text
-given_name
-family_name
-```
-
-`name` may not exist in optional claims. Do not depend on it.
-
-Never use email as `full_name`. Resolve display name in this order:
-
-1. `full_name`.
-2. `name`.
-3. `given_name + family_name`.
-4. Safe neutral fallback such as `New User`.
-
-If provider metadata differs from this assumption, inspect real Supabase `auth.users` metadata and identity data before changing code.
+`profiles.full_name` is the only source for a person's name. Never derive it from a login provider claim, and never fall back to email — an email address is an identifier, not a name. Fall back to email only for display when `full_name` is empty, and treat that as a data gap to fix.
 
 ### Cross-application identity
 
-Both apps use the same Supabase project, so Supabase `user.id` is shared. Still validate app access and tenant membership server-side.
+Both apps use the same Supabase project, so Supabase `user.id` is shared. Still validate app access and tenant membership server-side on every request.
 
-Use a verified Entra identity key, preferably:
+Do not trust client-provided role, tenant ID, or access flags.
 
-```text
-tenant_id + object_id (oid)
-```
+### Single active session
 
-Also retain:
-
-- Shared Supabase user ID.
-- Email as non-authoritative profile attribute.
-- Display name as non-authoritative profile attribute.
-- Issuer/provider information when available.
-
-Verify claim availability from the actual Supabase provider metadata before adding schema constraints. Do not trust client-provided `oid`, `tid`, role, tenant ID, or access flags.
+Both apps share the `le_active_session_id` cookie on the parent domain ("last login wins"). Any new login path must write that cookie **before** stamping `profiles.active_session_id`, or the sibling app will read a stale id and sign itself out.
 
 ## Authorization and access
 
-Microsoft login proves identity only. It does not grant Sales Mission access.
+A valid sign-in proves identity only. It does not grant Sales Mission access.
 
 After Sales Mission login, server-side authorization must verify:
 
@@ -405,8 +371,8 @@ Do not start mission UI immediately. First produce an app audit containing:
 5. Existing route and server-action conventions.
 6. Existing test and build commands.
 7. Missing LeadEngine API contract and authentication mechanism.
-8. Entra redirect URIs required for local, preview, and production.
-9. Proposed cross-app identity mapping using verified Entra claims.
+8. Supabase Redirect URLs required for local, preview, and production (password recovery links are validated against this allow-list).
+9. `NEXT_PUBLIC_AUTH_COOKIE_DOMAIN` value per environment, identical across both apps.
 10. Foundation slice acceptance tests.
 
 Then wait for approval before applying schema or authentication changes.
@@ -417,6 +383,8 @@ When available in the Sales Mission repository, treat these as product reference
 
 - `docs/sales-mission-mvp-spec.md`.
 - `docs/sales-mission-flows.md`.
-- `docs/decisions/ADR-001-sales-mission-separate-application.md`.
+- `docs/decisions/ADR-002-monorepo-with-shared-auth-and-shared-supabase.md` (current architecture).
+- `docs/decisions/ADR-003-supabase-password-as-only-sign-in.md` (current auth model).
+- `docs/decisions/ADR-001-sales-mission-separate-application.md` (superseded, historical).
 
 If implementation and a draft spec conflict, report conflict. Do not silently change business rules.

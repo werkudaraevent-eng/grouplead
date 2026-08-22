@@ -13,6 +13,7 @@ import { AppSwitcher } from "@/components/layout/app-switcher"
 import { usePermissions } from "@/contexts/permissions-context"
 import { useSidebarTheme } from "@/contexts/sidebar-theme-context"
 import { createClient } from "@/utils/supabase/client"
+import { clearActiveSessionId } from "@/lib/session-guard"
 
 interface SidebarProps {
     onCollapse?: () => void
@@ -70,6 +71,9 @@ export function Sidebar({ onCollapse, isSheet = false, collapsed = false, onTogg
     const handleLogout = async () => {
         setLoggingOut(true)
         const supabase = createClient()
+        // Clear the shared session id too — leaving it behind would make the
+        // sibling app compare against an id this browser no longer owns.
+        clearActiveSessionId()
         await supabase.auth.signOut()
         router.push("/login")
         router.refresh()

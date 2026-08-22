@@ -3,14 +3,16 @@ import { createClient } from "@/utils/supabase/server"
 export interface SalesMissionAccess {
   userId: string
   companyId: string
+  displayName: string
 }
 
 /**
  * Authenticates and authorizes access to Sales Mission.
  *
  * Authentication comes from shared Supabase Auth. App access comes from the
- * existing `sales_mission` permission module, so a valid Microsoft login alone
- * never grants access to this app.
+ * existing `sales_mission` permission module, so a valid sign-in alone never
+ * grants access to this app — the session is shared with LeadEngine, the
+ * authorization is not.
  */
 export async function getSalesMissionAccess(): Promise<SalesMissionAccess | null> {
   const supabase = await createClient()
@@ -21,7 +23,7 @@ export async function getSalesMissionAccess(): Promise<SalesMissionAccess | null
   const [profileResult, membershipResult] = await Promise.all([
     supabase
       .from("profiles")
-      .select("is_active, role, role_id")
+      .select("is_active, role, role_id, full_name")
       .eq("id", user.id)
       .maybeSingle(),
     supabase
@@ -38,9 +40,14 @@ export async function getSalesMissionAccess(): Promise<SalesMissionAccess | null
     return null
   }
 
+  // The profile row is the only source for a person's name. Provider claims are
+  // not used: a handed-down account would keep overwriting the corrected name
+  // with the previous holder's.
+  const displayName = profile.full_name?.trim() || user.email?.trim() || "Unknown user"
+
   const globalRole = (profile.role ?? "").toLowerCase().replace(/\s+/g, "_")
   if (globalRole === "super_admin") {
-    return { userId: user.id, companyId: membership.company_id }
+    return { userId: user.id, companyId: membership.company_id, displayName }
   }
 
   let permission: { can_read: string } | null = null
@@ -70,6 +77,6 @@ export async function getSalesMissionAccess(): Promise<SalesMissionAccess | null
   }
 
   return permission?.can_read && permission.can_read !== "none"
-    ? { userId: user.id, companyId: membership.company_id }
+    ? { userId: user.id, companyId: membership.company_id, displayName }
     : null
 }

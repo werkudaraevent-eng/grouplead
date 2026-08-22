@@ -4,14 +4,14 @@ import { useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/utils/supabase/client"
 import { toast } from "sonner"
-import { ACTIVE_SESSION_STORAGE_KEY } from "@/lib/session-guard"
+import { clearActiveSessionId, readActiveSessionId, writeActiveSessionId } from "@/lib/session-guard"
 
 /**
  * Enforces a single active session per account ("last login wins").
  *
  * How it works:
  *  - On login we store a fresh session id in `profiles.active_session_id`
- *    and in this browser's localStorage.
+ *    and in a cookie shared by every Werkudara app on this domain.
  *  - This guard (mounted once in the app shell) does two things:
  *      1. On mount, compares the DB value with the local value. If the local
  *         id is missing or stale, this browser is an older session → sign out.
@@ -33,7 +33,7 @@ export function SessionGuard() {
             if (signingOut.current) return
             signingOut.current = true
             try {
-                localStorage.removeItem(ACTIVE_SESSION_STORAGE_KEY)
+                clearActiveSessionId()
                 await supabase.auth.signOut()
             } catch {
                 // ignore
@@ -47,7 +47,7 @@ export function SessionGuard() {
             const { data: { user } } = await supabase.auth.getUser()
             if (!user || cancelled) return
 
-            const localId = localStorage.getItem(ACTIVE_SESSION_STORAGE_KEY)
+            const localId = readActiveSessionId()
 
             // Read the current active session id from the profile.
             const { data: profile } = await supabase
@@ -72,8 +72,8 @@ export function SessionGuard() {
                 // session elsewhere. Treat this browser as the stale one only if
                 // it truly isn't the active session. Since we can't prove it is,
                 // adopt the db id to avoid logging the user out on a refresh that
-                // cleared localStorage right after login.
-                localStorage.setItem(ACTIVE_SESSION_STORAGE_KEY, dbId)
+                // cleared the cookie right after login.
+                writeActiveSessionId(dbId)
                 return
             }
 
@@ -96,7 +96,10 @@ export function SessionGuard() {
                     },
                     (payload) => {
                         const next = (payload.new as { active_session_id?: string | null })?.active_session_id
-                        const mine = localStorage.getItem(ACTIVE_SESSION_STORAGE_KEY)
+                        // Re-read the cookie rather than closing over the mounted
+                        // value: a sign-in on a sibling app updates the shared
+                        // cookie, and that must not read as a foreign login.
+                        const mine = readActiveSessionId()
                         if (next && mine && next !== mine) {
                             forceSignOut()
                         }

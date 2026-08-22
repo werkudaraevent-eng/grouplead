@@ -10,7 +10,9 @@ packages/             Shared UI, auth helpers, and API contracts
 
 LeadEngine remains the current production app. Sales Mission will be added under `apps/sales-mission`.
 
-Both apps use one shared Supabase project and Microsoft Entra provider. Keep Sales Mission tables, migrations, RLS policies, and business logic domain-scoped.
+Both apps use one shared Supabase project. Sign-in is Supabase email + password — Microsoft sign-in was removed (ADR-003). Keep Sales Mission tables, migrations, RLS policies, and business logic domain-scoped.
+
+One login covers both apps: the Supabase session cookie is scoped to the parent domain via `NEXT_PUBLIC_AUTH_COOKIE_DOMAIN`. A shared session still grants nothing on its own — app access, tenant membership, and RLS are checked per request.
 
 ## Workspace commands
 
@@ -115,6 +117,7 @@ Copy `.env.example` to `.env.local` and set:
 | `NEXT_PUBLIC_SUPABASE_URL`      | Yes          | Supabase project URL (client + server).                        |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes          | Supabase anon key (browser client, RLS-enforced).              |
 | `SUPABASE_SERVICE_ROLE_KEY`     | Server-only  | Admin key for server actions + `scripts/` (bypasses RLS). Never expose to the browser. |
+| `NEXT_PUBLIC_AUTH_COOKIE_DOMAIN`| Deployed env | Parent domain for the shared auth cookie (`.werkudara.com`), so one login covers both apps. Both apps must use the same value. Empty locally. |
 | `GEONAMES_USERNAME`             | Optional     | Enables the Event City autocomplete via GeoNames.              |
 | `GOOGLE_PLACES_API_KEY`         | Optional     | Alternative city provider for the same autocomplete.           |
 | `OPENAI_API_KEY`                | Optional     | AI dashboard analysis features.                                |
