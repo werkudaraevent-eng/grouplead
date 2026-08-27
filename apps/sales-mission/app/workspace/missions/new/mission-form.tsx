@@ -3,10 +3,25 @@
 import { useActionState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { Loader2, MapPin, Plus } from "lucide-react"
+import { AlertCircle, Loader2, Plus } from "lucide-react"
 import { createMission, type CreateMissionState } from "@/app/actions/mission-actions"
 import { MISSION_TYPES } from "@/lib/missions/mission-schema"
 import type { TenantSalesOption } from "@/lib/missions/mission-queries"
+import { Button } from "@/components/ui/button"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { EmptyState } from "@/app/workspace/workspace-page"
+
+function Section({ kicker, title, children }: { kicker: string; title: string; children: React.ReactNode }) {
+  return (
+    <div className="border-b px-5 py-6 last:border-b-0 sm:px-6">
+      <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">{kicker}</p>
+      <h2 className="mt-1 text-base font-semibold text-foreground">{title}</h2>
+      <div className="mt-5">{children}</div>
+    </div>
+  )
+}
 
 export function MissionForm({ salesOptions, defaultDate }: { salesOptions: TenantSalesOption[]; defaultDate: string }) {
   const [state, formAction, pending] = useActionState<CreateMissionState, FormData>(createMission, null)
@@ -21,92 +36,109 @@ export function MissionForm({ salesOptions, defaultDate }: { salesOptions: Tenan
 
   if (salesOptions.length === 0) {
     return (
-      <div className="workspace-empty-state" role="status">
-        <h2>Belum ada anggota tim</h2>
-        <p>Mission butuh minimal satu sales untuk ditugaskan. Minta admin menambahkan anggota ke unit bisnis ini lebih dulu.</p>
-        <Link className="workspace-secondary-button" href="/workspace/missions">Kembali</Link>
-      </div>
+      <EmptyState
+        title="Belum ada anggota tim"
+        description="Mission butuh minimal satu sales untuk ditugaskan. Minta admin menambahkan anggota ke unit bisnis ini lebih dulu."
+        action={
+          <Button asChild variant="outline" size="sm">
+            <Link href="/workspace/missions">Kembali ke missions</Link>
+          </Button>
+        }
+      />
     )
   }
 
   return (
-    <form className="workspace-form-panel" action={formAction}>
+    <form action={formAction} className="mx-auto max-w-3xl overflow-hidden rounded-xl border bg-card">
       {state?.error ? (
-        <div className="workspace-form-error" role="alert">{state.error}</div>
+        <div className="flex items-start gap-2.5 border-b bg-destructive/10 px-5 py-4 text-sm text-destructive sm:px-6" role="alert">
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+          <p>{state.error}</p>
+        </div>
       ) : null}
 
-      <div className="workspace-form-section">
-        <div>
-          <p className="workspace-section-kicker">Visit details</p>
-          <h2>What is happening?</h2>
-        </div>
-        <div className="workspace-form-grid">
-          <label>
-            <span>Client company</span>
-            <input name="clientCompanyName" required maxLength={200} placeholder="Nama perusahaan klien" />
-          </label>
-          <label>
-            <span>Mission type</span>
-            <select name="missionType" defaultValue="Meeting">
+      <Section kicker="Visit details" title="What is happening?">
+        <div className="grid gap-5 sm:grid-cols-2">
+          <div className="space-y-1.5 sm:col-span-2">
+            <Label htmlFor="clientCompanyName">Client company</Label>
+            <Input id="clientCompanyName" name="clientCompanyName" required maxLength={200} placeholder="Nama perusahaan klien" />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="missionType">Mission type</Label>
+            <select
+              id="missionType"
+              name="missionType"
+              defaultValue="Meeting"
+              className="h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-[color,box-shadow] outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+            >
               {MISSION_TYPES.map((type) => <option key={type} value={type}>{type}</option>)}
             </select>
-          </label>
-          <label>
-            <span>Date</span>
-            <input name="date" required type="date" defaultValue={defaultDate} />
-          </label>
-          <label>
-            <span>Start time</span>
-            <input name="startTime" required type="time" defaultValue="09:30" />
-          </label>
-          <label>
-            <span>End time <small>(opsional)</small></span>
-            <input name="endTime" type="time" />
-          </label>
-          <label>
-            <span>Location</span>
-            <div className="workspace-input-with-icon">
-              <MapPin size={15} />
-              <input name="location" maxLength={300} placeholder="Jakarta Selatan" />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="location">Location</Label>
+            <Input id="location" name="location" maxLength={300} placeholder="Jakarta Selatan" />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="date">Date</Label>
+            <Input id="date" name="date" required type="date" defaultValue={defaultDate} />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="startTime">Start time</Label>
+              <Input id="startTime" name="startTime" required type="time" defaultValue="09:30" />
             </div>
-          </label>
-          <label>
-            <span>Objective</span>
-            <input name="objective" maxLength={1000} placeholder="Apa yang ingin dicapai dari kunjungan ini?" />
-          </label>
+            <div className="space-y-1.5">
+              <Label htmlFor="endTime">End time</Label>
+              <Input id="endTime" name="endTime" type="time" />
+            </div>
+          </div>
+          <div className="space-y-1.5 sm:col-span-2">
+            <Label htmlFor="objective">Objective</Label>
+            <Input id="objective" name="objective" maxLength={1000} placeholder="Apa yang ingin dicapai dari kunjungan ini?" />
+          </div>
         </div>
-      </div>
+      </Section>
 
-      <div className="workspace-form-section">
-        <div>
-          <p className="workspace-section-kicker">Assignment</p>
-          <h2>Who will attend?</h2>
-        </div>
-        <div className="workspace-form-grid">
-          <label>
-            <span>Primary sales</span>
-            <select name="primarySalesId" required defaultValue="">
+      <Section kicker="Assignment" title="Who will attend?">
+        <div className="grid gap-6 sm:grid-cols-2">
+          <div className="space-y-1.5">
+            <Label htmlFor="primarySalesId">Primary sales</Label>
+            <select
+              id="primarySalesId"
+              name="primarySalesId"
+              required
+              defaultValue=""
+              className="h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-[color,box-shadow] outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+            >
               <option value="" disabled>Pilih sales utama</option>
               {salesOptions.map((option) => <option key={option.id} value={option.id}>{option.name}</option>)}
             </select>
-          </label>
-          <fieldset className="workspace-checkbox-group">
-            <legend>Supporting sales <small>(opsional)</small></legend>
-            {salesOptions.map((option) => (
-              <label className="workspace-checkbox" key={option.id}>
-                <input type="checkbox" name="supportingSalesIds" value={option.id} />
-                <span>{option.name}</span>
-              </label>
-            ))}
+            <p className="text-xs text-muted-foreground">Primary sales harus menerima sebelum mission berjalan.</p>
+          </div>
+
+          <fieldset className="space-y-2.5">
+            <legend className="text-sm font-medium">
+              Supporting sales <span className="font-normal text-muted-foreground">(opsional)</span>
+            </legend>
+            <div className="max-h-44 space-y-2.5 overflow-y-auto custom-scrollbar pr-1">
+              {salesOptions.map((option) => (
+                <div className="flex items-center gap-2.5" key={option.id}>
+                  <Checkbox id={`supporting-${option.id}`} name="supportingSalesIds" value={option.id} />
+                  <Label htmlFor={`supporting-${option.id}`} className="font-normal">{option.name}</Label>
+                </div>
+              ))}
+            </div>
           </fieldset>
         </div>
-      </div>
+      </Section>
 
-      <div className="workspace-form-footer">
-        <Link className="workspace-secondary-button" href="/workspace/missions">Cancel</Link>
-        <button className="workspace-primary-button" type="submit" disabled={pending}>
-          {pending ? <><Loader2 size={16} className="workspace-spin" /> Menyimpan…</> : <><Plus size={16} /> Save mission</>}
-        </button>
+      <div className="flex justify-end gap-2 bg-muted/30 px-5 py-4 sm:px-6">
+        <Button asChild variant="outline" type="button">
+          <Link href="/workspace/missions">Cancel</Link>
+        </Button>
+        <Button type="submit" disabled={pending}>
+          {pending ? <><Loader2 className="h-4 w-4 animate-spin" /> Menyimpan…</> : <><Plus className="h-4 w-4" /> Save mission</>}
+        </Button>
       </div>
     </form>
   )

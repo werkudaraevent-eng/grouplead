@@ -1,43 +1,72 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import Link from "next/link"
 import { Check, ExternalLink, LayoutDashboard, MapPinned } from "lucide-react"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+
+/**
+ * Mirror of LeadEngine's app switcher, with the active app swapped. Keep the
+ * two in sync — this is the one control that appears identically in both apps,
+ * so any drift reads as two unrelated products.
+ */
 
 const leadEngineUrl = process.env.NEXT_PUBLIC_LEADENGINE_URL?.trim() || null
 
-export function AppSwitcher() {
-  const [open, setOpen] = useState(false)
-  const containerRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    if (!open) return
-    const close = (event: PointerEvent) => {
-      if (!containerRef.current?.contains(event.target as Node)) setOpen(false)
-    }
-    document.addEventListener("pointerdown", close)
-    return () => document.removeEventListener("pointerdown", close)
-  }, [open])
-
+function LauncherMark() {
   return (
-    <div className="app-switcher" ref={containerRef}>
-      <button className="app-launcher" type="button" onClick={() => setOpen((value) => !value)} aria-expanded={open} aria-haspopup="menu" aria-label="Switch Werkudara app">
-        <span className="launcher-mark" aria-hidden="true"><i /><i /><i /><i /></span>
-      </button>
-      {open && (
-        <div className="app-menu" role="menu">
-          <p>Werkudara apps</p>
-          {leadEngineUrl ? <a href={leadEngineUrl} role="menuitem" className="app-row">
-            <span className="app-icon app-icon-blue"><LayoutDashboard size={16} /></span>
-            <span><strong>LeadEngine</strong><small>CRM and pipeline operations</small></span>
-            <ExternalLink size={14} aria-hidden="true" />
-          </a> : <div className="app-row" aria-disabled="true" title="Set NEXT_PUBLIC_LEADENGINE_URL to enable this app"><span className="app-icon app-icon-blue"><LayoutDashboard size={16} /></span><span><strong>LeadEngine</strong><small>App URL is not configured</small></span></div>}
-          <a href="/workspace" role="menuitem" className="app-row app-row-active" onClick={() => setOpen(false)}>
-            <span className="app-icon app-icon-amber"><MapPinned size={16} /></span>
-            <span><strong>Sales Mission</strong><small>Plan visits and capture results</small></span>
-            <Check size={16} aria-label="Current app" />
+    <span className="grid h-4 w-4 grid-cols-2 gap-[3px]" aria-hidden="true">
+      <span className="rounded-[2px] bg-sky-400" />
+      <span className="rounded-[2px] bg-violet-400" />
+      <span className="rounded-[2px] bg-amber-400" />
+      <span className="rounded-[2px] bg-emerald-400" />
+    </span>
+  )
+}
+
+export function AppSwitcher({ collapsed = false }: { collapsed?: boolean }) {
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-sidebar-foreground/60 transition-[background-color,color,transform] duration-150 ease-out hover:bg-sidebar-accent hover:text-sidebar-foreground active:scale-[0.96]"
+          aria-label="Switch Werkudara app"
+        >
+          <LauncherMark />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="start" side={collapsed ? "right" : "bottom"} sideOffset={9} className="w-[318px] rounded-xl border-sidebar-border bg-sidebar p-2 text-sidebar-foreground shadow-xl duration-150">
+        <p className="px-2.5 pb-2 pt-1 text-[10px] font-bold uppercase tracking-[0.16em] text-sidebar-foreground/50">
+          Werkudara apps
+        </p>
+        {leadEngineUrl ? (
+          <a href={leadEngineUrl} className="flex items-center gap-3 rounded-lg px-3 py-3 outline-none transition-colors duration-150 hover:bg-sidebar-accent focus-visible:bg-sidebar-accent focus-visible:ring-2 focus-visible:ring-primary">
+            <span className="grid h-9 w-9 place-items-center rounded-lg bg-primary/15 text-primary">
+              <LayoutDashboard className="h-4 w-4" />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm font-semibold">LeadEngine</span>
+              <span className="block truncate text-xs text-sidebar-foreground/55">CRM and pipeline operations</span>
+            </span>
+            <ExternalLink className="h-3.5 w-3.5 text-sidebar-foreground/40" aria-hidden="true" />
           </a>
-        </div>
-      )}
-    </div>
+        ) : (
+          <div className="flex items-center gap-3 rounded-lg px-3 py-3 opacity-60" title="Set NEXT_PUBLIC_LEADENGINE_URL to enable this app">
+            <span className="grid h-9 w-9 place-items-center rounded-lg bg-primary/15 text-primary"><LayoutDashboard className="h-4 w-4" /></span>
+            <span className="min-w-0 flex-1"><span className="block text-sm font-semibold">LeadEngine</span><span className="block truncate text-xs text-sidebar-foreground/55">App URL is not configured</span></span>
+          </div>
+        )}
+        <Link href="/workspace" className="mt-1 flex items-center gap-3 rounded-lg bg-sidebar-accent px-3 py-3 outline-none focus-visible:ring-2 focus-visible:ring-primary">
+          <span className="grid h-9 w-9 place-items-center rounded-lg bg-amber-400/15 text-amber-500">
+            <MapPinned className="h-4 w-4" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-sm font-semibold">Sales Mission</span>
+            <span className="block truncate text-xs text-sidebar-foreground/55">Plan visits and capture results</span>
+          </span>
+          <Check className="h-4 w-4 text-emerald-400" aria-label="Current app" />
+        </Link>
+      </PopoverContent>
+    </Popover>
   )
 }

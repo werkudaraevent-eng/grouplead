@@ -3,9 +3,12 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
+import { CheckCircle2, Eye, EyeOff, KeyRound, Loader2 } from "lucide-react"
 import { createClient } from "@/utils/supabase/client"
 import { clearActiveSessionId } from "@/lib/session-guard"
-import { ArrowLeft, CheckCircle2, Eye, EyeOff, KeyRound, Loader2 } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 
 const INVALID_LINK = "Tautan reset ini tidak valid atau sudah kedaluwarsa. Minta tautan baru."
 
@@ -103,39 +106,64 @@ export default function ResetPasswordPage() {
   }
 
   return (
-    <main className="grid min-h-screen place-items-center bg-[#f7f8fa] px-6 py-12">
-      <div className="w-full max-w-md">
-        <div className="mb-8 flex items-center gap-3">
-          <div className="grid h-10 w-10 place-items-center rounded-xl bg-[#02378D] text-lg font-bold text-white">W</div>
-          <div><p className="font-semibold">Werkudara Group</p><p className="text-sm text-[var(--muted)]">Sales Mission</p></div>
+    <div className="flex min-h-screen items-center justify-center bg-muted/30 px-6 py-12">
+      <div className="w-full max-w-[400px] space-y-8">
+        <div className="flex items-center justify-center gap-3">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary">
+            <span className="text-base font-bold text-primary-foreground">W</span>
+          </div>
+          <span className="text-base font-semibold tracking-tight text-foreground">Werkudara Group</span>
         </div>
 
-        <div className="rounded-2xl border border-[#e2e6eb] bg-white p-7 shadow-sm">
+        <div className="space-y-6 rounded-2xl border border-border/60 bg-white p-8 shadow-sm">
           {verifying ? (
-            <div className="flex items-center gap-3 text-[var(--muted)]" role="status">
-              <Loader2 className="h-4 w-4 animate-spin" /> Memeriksa tautan…
+            <div className="flex flex-col items-center gap-3 py-6" role="status">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground/60" />
+              <p className="text-sm text-muted-foreground">Memeriksa tautan reset…</p>
             </div>
           ) : done ? (
-            <div role="status">
-              <span className="grid h-11 w-11 place-items-center rounded-xl bg-green-50 text-green-600"><CheckCircle2 size={20} /></span>
-              <h1 className="mt-5 text-2xl font-bold tracking-[-0.03em] text-[#17202a]">Password diperbarui</h1>
-              <p className="mt-3 leading-7 text-[var(--muted)]">Mengarahkan ke halaman login…</p>
+            <div className="space-y-5 text-center" role="status">
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-50">
+                <CheckCircle2 className="h-6 w-6 text-emerald-600" />
+              </div>
+              <div className="space-y-2">
+                <h2 className="text-xl font-semibold tracking-tight text-foreground">Password diperbarui</h2>
+                <p className="text-sm leading-relaxed text-muted-foreground">Mengarahkan ke halaman login…</p>
+              </div>
             </div>
-          ) : validSession ? (
+          ) : !validSession ? (
+            <div className="space-y-5 text-center" role="alert">
+              <div className="space-y-2">
+                <h2 className="text-xl font-semibold tracking-tight text-foreground">Tautan tidak berlaku</h2>
+                <p className="text-sm leading-relaxed text-muted-foreground">{error ?? INVALID_LINK}</p>
+              </div>
+              <Link href="/forgot-password" className="inline-flex items-center justify-center gap-1.5 text-sm font-medium text-primary transition-colors hover:text-primary/80">
+                Minta tautan baru
+              </Link>
+            </div>
+          ) : (
             <>
-              <span className="grid h-11 w-11 place-items-center rounded-xl bg-[#02378D]/10 text-[#02378D]"><KeyRound size={20} /></span>
-              <h1 className="mt-5 text-2xl font-bold tracking-[-0.03em] text-[#17202a]">Buat password baru</h1>
-              <p className="mt-3 leading-7 text-[var(--muted)]">Minimal 8 karakter. Password ini berlaku untuk LeadEngine dan Sales Mission.</p>
+              <div className="space-y-2">
+                <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+                  <KeyRound className="h-5 w-5 text-primary" />
+                </div>
+                <h2 className="text-xl font-semibold tracking-tight text-foreground">Buat password baru</h2>
+                <p className="text-sm leading-relaxed text-muted-foreground">
+                  Minimal 8 karakter. Password ini berlaku untuk LeadEngine dan Sales Mission.
+                </p>
+              </div>
 
-              {error ? (
-                <div className="mt-6 rounded-xl border border-red-200 bg-red-50 p-4 text-sm leading-6 text-red-700" role="alert">{error}</div>
-              ) : null}
+              <form onSubmit={handleSubmit} className="space-y-5">
+                {error && (
+                  <div className="rounded-lg border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive" role="alert">
+                    {error}
+                  </div>
+                )}
 
-              <form className="mt-6 space-y-5" onSubmit={handleSubmit}>
                 <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-[#17202a]" htmlFor="password">Password baru</label>
+                  <Label htmlFor="password">Password baru</Label>
                   <div className="relative">
-                    <input
+                    <Input
                       id="password"
                       type={showPassword ? "text" : "password"}
                       value={password}
@@ -143,7 +171,7 @@ export default function ResetPasswordPage() {
                       required
                       autoComplete="new-password"
                       placeholder="••••••••"
-                      className="h-11 w-full rounded-lg border border-[#e2e6eb] bg-[#f7f8fa] px-3.5 pr-11 text-[15px] outline-none transition focus:border-[#02378D] focus:bg-white focus:ring-2 focus:ring-[#02378D]/15"
+                      className="h-11 border-border/60 bg-muted/40 pr-11 transition-colors focus:bg-white"
                     />
                     <button
                       type="button"
@@ -151,16 +179,16 @@ export default function ResetPasswordPage() {
                       aria-label={showPassword ? "Sembunyikan password" : "Tampilkan password"}
                       aria-pressed={showPassword}
                       tabIndex={-1}
-                      className="absolute right-2 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-md text-[var(--muted)] transition hover:bg-[#eef1f4] hover:text-[#17202a]"
+                      className="absolute right-2 top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                     >
-                      {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
                   </div>
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-[#17202a]" htmlFor="confirm">Ulangi password</label>
-                  <input
+                  <Label htmlFor="confirm">Ulangi password</Label>
+                  <Input
                     id="confirm"
                     type={showPassword ? "text" : "password"}
                     value={confirm}
@@ -168,30 +196,19 @@ export default function ResetPasswordPage() {
                     required
                     autoComplete="new-password"
                     placeholder="••••••••"
-                    className="h-11 w-full rounded-lg border border-[#e2e6eb] bg-[#f7f8fa] px-3.5 text-[15px] outline-none transition focus:border-[#02378D] focus:bg-white focus:ring-2 focus:ring-[#02378D]/15"
+                    className="h-11 border-border/60 bg-muted/40 transition-colors focus:bg-white"
                   />
                 </div>
 
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="flex h-12 w-full items-center justify-center rounded-lg bg-[#02378D] px-4 font-semibold text-white shadow-lg shadow-[#02378D]/20 transition hover:bg-[#012d73] active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {saving ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Menyimpan…</> : "Simpan password"}
-                </button>
+                <Button type="submit" disabled={saving} className="h-11 w-full text-[15px] font-medium">
+                  {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                  {saving ? "Menyimpan…" : "Simpan password"}
+                </Button>
               </form>
             </>
-          ) : (
-            <div role="alert">
-              <h1 className="text-2xl font-bold tracking-[-0.03em] text-[#17202a]">Tautan tidak berlaku</h1>
-              <p className="mt-3 leading-7 text-[var(--muted)]">{error ?? INVALID_LINK}</p>
-              <Link className="mt-7 inline-flex items-center gap-2 text-sm font-semibold text-[#02378D] hover:underline" href="/forgot-password">
-                <ArrowLeft size={15} /> Minta tautan baru
-              </Link>
-            </div>
           )}
         </div>
       </div>
-    </main>
+    </div>
   )
 }

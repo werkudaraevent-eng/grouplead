@@ -13,6 +13,7 @@ import {
   shiftMonth,
 } from "@/lib/missions/mission-calendar"
 import { WorkspacePage } from "@/app/workspace/workspace-page"
+import { cn } from "@/lib/utils"
 
 export const dynamic = "force-dynamic"
 
@@ -52,70 +53,107 @@ export default async function CalendarPage({
       title="Calendar"
       description="See your team schedule and keep travel time visible before assigning work."
     >
-      <section className="workspace-calendar-layout">
-        <div className="workspace-panel workspace-calendar-panel">
-          <div className="workspace-panel-header">
-            <div><p className="workspace-section-kicker">Month view</p><h2>{formatMonthLabel(month)}</h2></div>
-            <div className="workspace-calendar-arrows">
-              <Link href={`/workspace/calendar?month=${shiftMonth(month, -1)}`} aria-label="Bulan sebelumnya"><ChevronLeft size={15} /></Link>
-              <Link href={`/workspace/calendar?month=${shiftMonth(month, 1)}`} aria-label="Bulan berikutnya"><ChevronRight size={15} /></Link>
+      <section className="grid gap-4 lg:grid-cols-[1.4fr_1fr]">
+        <article className="rounded-xl border bg-card">
+          <div className="flex items-center justify-between border-b px-5 py-4">
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Month view</p>
+              <h2 className="mt-1 text-base font-semibold text-foreground">{formatMonthLabel(month)}</h2>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <Link
+                href={`/workspace/calendar?month=${shiftMonth(month, -1)}`}
+                aria-label="Bulan sebelumnya"
+                className="grid h-8 w-8 place-items-center rounded-md border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Link>
+              <Link
+                href={`/workspace/calendar?month=${shiftMonth(month, 1)}`}
+                aria-label="Bulan berikutnya"
+                className="grid h-8 w-8 place-items-center rounded-md border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Link>
             </div>
           </div>
 
-          <div className="workspace-calendar-preview">
-            <div className="workspace-calendar-grid">
+          <div className="p-5">
+            <div className="grid grid-cols-7 gap-1.5">
               {WEEKDAYS.map((day, index) => (
-                <span className="workspace-calendar-day workspace-calendar-weekday" key={`weekday-${index}`}>{day}</span>
+                <span key={`weekday-${index}`} className="grid h-7 place-items-center text-[10px] font-bold uppercase text-muted-foreground">
+                  {day}
+                </span>
               ))}
               {Array.from({ length: grid.leadingBlanks }, (_, index) => (
-                <span className="workspace-calendar-day" key={`blank-${index}`} aria-hidden="true" />
+                <span key={`blank-${index}`} aria-hidden="true" className="h-11" />
               ))}
-              {grid.days.map((day) => {
-                const classes = [
-                  "workspace-calendar-day",
-                  day.isToday ? "workspace-calendar-today" : "",
-                  day.missionCount > 0 ? "workspace-calendar-has-event" : "",
-                  day.date === selectedDay ? "workspace-calendar-selected" : "",
-                ].filter(Boolean).join(" ")
-
-                return (
-                  <Link
-                    className={classes}
-                    key={day.date}
-                    href={`/workspace/calendar?month=${month}&day=${day.date}`}
-                    aria-label={`${day.dayOfMonth}, ${day.missionCount} mission`}
-                    aria-current={day.date === selectedDay ? "date" : undefined}
-                  >
-                    {day.dayOfMonth}
-                  </Link>
-                )
-              })}
+              {grid.days.map((day) => (
+                <Link
+                  key={day.date}
+                  href={`/workspace/calendar?month=${month}&day=${day.date}`}
+                  aria-label={`${day.dayOfMonth}, ${day.missionCount} mission`}
+                  aria-current={day.date === selectedDay ? "date" : undefined}
+                  className={cn(
+                    "relative grid h-11 place-items-center rounded-lg border border-transparent text-xs transition-colors",
+                    day.date === selectedDay
+                      ? "bg-primary font-bold text-primary-foreground"
+                      : day.isToday
+                        ? "border-primary font-bold text-primary hover:bg-muted"
+                        : "text-foreground hover:bg-muted"
+                  )}
+                >
+                  {day.dayOfMonth}
+                  {day.missionCount > 0 && (
+                    <span
+                      className={cn(
+                        "absolute bottom-1.5 h-1 w-1 rounded-full",
+                        day.date === selectedDay ? "bg-primary-foreground" : "bg-accent"
+                      )}
+                    />
+                  )}
+                </Link>
+              ))}
             </div>
-            <div className="workspace-calendar-note">
-              <CalendarDays size={15} /> {dayMissions.length} mission pada hari terpilih
-              <Link href="/workspace/missions">View missions</Link>
-            </div>
-          </div>
-        </div>
 
-        <aside className="workspace-panel workspace-day-panel">
-          <div className="workspace-panel-header">
-            <div><p className="workspace-section-kicker">{dayLabel}</p><h2>{selectedDay === today ? "Hari ini" : "Jadwal"}</h2></div>
-          </div>
-          <div className="workspace-day-list">
-            {dayMissions.map((mission) => (
-              <Link href={`/workspace/missions/${mission.id}`} key={mission.id}>
-                <strong>{formatMissionSchedule(mission.scheduledStart, now).split(", ").pop()}</strong>
-                <span>
-                  <b>{mission.clientCompanyName}</b>
-                  <small>{[mission.location, mission.primarySalesName].filter(Boolean).join(" · ") || mission.missionType}</small>
-                </span>
+            <div className="mt-5 flex items-center gap-2 border-t pt-4 text-xs text-muted-foreground">
+              <CalendarDays className="h-3.5 w-3.5" />
+              {dayMissions.length} mission pada hari terpilih
+              <Link href="/workspace/missions" className="ml-auto font-semibold text-primary hover:underline">
+                View missions
               </Link>
-            ))}
-            {dayMissions.length === 0 ? (
-              <div className="workspace-day-empty"><CalendarDays size={16} /><span>Tidak ada mission pada hari ini</span></div>
-            ) : null}
+            </div>
           </div>
+        </article>
+
+        <aside className="rounded-xl border bg-card">
+          <div className="border-b px-5 py-4">
+            <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">{dayLabel}</p>
+            <h2 className="mt-1 text-base font-semibold text-foreground">{selectedDay === today ? "Hari ini" : "Jadwal"}</h2>
+          </div>
+
+          {dayMissions.length > 0 ? (
+            <div className="divide-y">
+              {dayMissions.map((mission) => (
+                <Link key={mission.id} href={`/workspace/missions/${mission.id}`} className="flex gap-3 px-5 py-4 transition-colors hover:bg-muted/50">
+                  <span className="w-12 shrink-0 font-mono text-xs text-muted-foreground">
+                    {formatMissionSchedule(mission.scheduledStart, now).split(", ").pop()}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-semibold text-foreground">{mission.clientCompanyName}</span>
+                    <span className="block truncate text-xs text-muted-foreground">
+                      {[mission.location, mission.primarySalesName].filter(Boolean).join(" · ") || mission.missionType}
+                    </span>
+                  </span>
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 px-5 py-6 text-sm text-muted-foreground">
+              <CalendarDays className="h-4 w-4" />
+              Tidak ada mission pada hari ini
+            </div>
+          )}
         </aside>
       </section>
     </WorkspacePage>
