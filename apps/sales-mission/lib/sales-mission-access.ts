@@ -4,6 +4,8 @@ export interface SalesMissionAccess {
   userId: string
   companyId: string
   displayName: string
+  /** Bypasses mission-level ownership checks. Sourced from `profiles.role`. */
+  isSuperAdmin: boolean
 }
 
 /**
@@ -46,8 +48,9 @@ export async function getSalesMissionAccess(): Promise<SalesMissionAccess | null
   const displayName = profile.full_name?.trim() || user.email?.trim() || "Unknown user"
 
   const globalRole = (profile.role ?? "").toLowerCase().replace(/\s+/g, "_")
-  if (globalRole === "super_admin") {
-    return { userId: user.id, companyId: membership.company_id, displayName }
+  const isSuperAdmin = globalRole === "super_admin"
+  if (isSuperAdmin) {
+    return { userId: user.id, companyId: membership.company_id, displayName, isSuperAdmin }
   }
 
   let permission: { can_read: string } | null = null
@@ -77,6 +80,6 @@ export async function getSalesMissionAccess(): Promise<SalesMissionAccess | null
   }
 
   return permission?.can_read && permission.can_read !== "none"
-    ? { userId: user.id, companyId: membership.company_id, displayName }
+    ? { userId: user.id, companyId: membership.company_id, displayName, isSuperAdmin }
     : null
 }

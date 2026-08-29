@@ -6,6 +6,13 @@ import {
   type MissionListItem,
   type MissionRow,
 } from "./mission-schema"
+import type {
+  InterestLevel,
+  NextActionType,
+  ReportContactInput,
+  ReportStatus,
+  VisitOutcome,
+} from "./visit-report-schema"
 
 /**
  * Read side of the mission domain.
@@ -90,6 +97,137 @@ export async function getMission(
   const names = await resolveNames(supabase, assignments.map((row) => row.user_id))
 
   return mapMissions([missionRow as MissionRow], assignments, names)[0] ?? null
+}
+
+export type MissionRole = "PRIMARY" | "SUPPORTING" | null
+
+/**
+ * This viewer's role on a mission.
+ *
+ * Drives who may write what: only the primary records what happened in the
+ * room. Supporting sales — including anyone who joined the mission themselves —
+ * add their own notes instead.
+ */
+export async function getMissionRole(
+  access: SalesMissionAccess,
+  missionId: string
+): Promise<MissionRole> {
+  const { missions } = await missionSchema()
+
+  const { data } = await missions
+    .from("assignments")
+    .select("assignment_role")
+    .eq("company_id", access.companyId)
+    .eq("mission_id", missionId)
+    .eq("user_id", access.userId)
+    .maybeSingle()
+
+  return (data?.assignment_role as MissionRole) ?? null
+}
+
+export interface VisitReportRecord {
+  id: string
+  missionId: string
+  status: ReportStatus
+  visitOutcome: VisitOutcome | null
+  meetingSummary: string
+  clientNeeds: string[]
+  productInterest: string[]
+  interestLevel: InterestLevel | null
+  opportunityExists: boolean
+  estimatedValue: number | null
+  competitorMentioned: string
+  nextActionType: NextActionType
+  nextActionOwner: string | null
+  followUpDate: string | null
+  clarificationNote: string | null
+  submittedAt: string | null
+  contacts: ReportContactInput[]
+}
+
+export interface SupportingNoteRecord {
+  id: string
+  authorName: string
+  note: string
+  createdAt: string
+}
+
+/** The report for a mission, with its contacts. Null when none exists yet. */
+export async function getVisitReport(
+  access: SalesMissionAccess,
+  missionId: string
+): Promise<VisitReportRecord | null> {
+  const { missions } = await missionSchema()
+
+  const { data: report } = await missions
+    .from("visit_reports")
+    .select(
+      "id, mission_id, status, visit_outcome, meeting_summary, client_needs, product_interest, interest_level, opportunity_exists, estimated_value, competitor_mentioned, next_action_type, next_action_owner, follow_up_date, clarification_note, submitted_at"
+    )
+    .eq("company_id", access.companyId)
+    .eq("mission_id", missionId)
+    .maybeSingle()
+
+  if (!report) return null
+
+  const { data: contacts } = await missions
+    .from("report_contacts")
+    .select("full_name, job_title, phone, email, is_decision_maker")
+    .eq("company_id", access.companyId)
+    .eq("report_id", report.id)
+    .order("created_at")
+
+  return {
+    id: report.id as string,
+    missionId: report.mission_id as string,
+    status: report.status as ReportStatus,
+    visitOutcome: (report.visit_outcome as VisitOutcome | null) ?? null,
+    meetingSummary: (report.meeting_summary as string | null) ?? "",
+    clientNeeds: (report.client_needs as string[] | null) ?? [],
+    productInterest: (report.product_interest as string[] | null) ?? [],
+    interestLevel: (report.interest_level as InterestLevel | null) ?? null,
+    opportunityExists: Boolean(report.opportunity_exists),
+    estimatedValue: report.estimated_value === null ? null : Number(report.estimated_value),
+    competitorMentioned: (report.competitor_mentioned as string | null) ?? "",
+    nextActionType: (report.next_action_type as NextActionType) ?? "NONE",
+    nextActionOwner: (report.next_action_owner as string | null) ?? null,
+    followUpDate: (report.follow_up_date as string | null) ?? null,
+    clarificationNote: (report.clarification_note as string | null) ?? null,
+    submittedAt: (report.submitted_at as string | null) ?? null,
+    contacts: (contacts ?? []).map((row) => ({
+      fullName: row.full_name as string,
+      jobTitle: (row.job_title as string | null) ?? "",
+      phone: (row.phone as string | null) ?? "",
+      email: (row.email as string | null) ?? "",
+      isDecisionMaker: Boolean(row.is_decision_maker),
+    })),
+  }
+}
+
+/** Supporting notes for a mission, oldest first, with author names resolved. */
+export async function listSupportingNotes(
+  access: SalesMissionAccess,
+  missionId: string
+): Promise<SupportingNoteRecord[]> {
+  const { supabase, missions } = await missionSchema()
+
+  const { data: rows } = await missions
+    .from("supporting_notes")
+    .select("id, author_id, note, created_at")
+    .eq("company_id", access.companyId)
+    .eq("mission_id", missionId)
+    .order("created_at")
+
+  if (!rows?.length) return []
+
+  const names = await resolveNames(supabase, rows.map((row) => row.author_id as string))
+
+  return rows.map((row) => ({
+    id: row.id as string,
+    authorName: names.get(row.author_id as string) ?? "Nama tidak diketahui",
+    note: row.note as string,
+    createdAt: row.created_at as string,
+  }))
 }
 
 export interface TenantSalesOption {
