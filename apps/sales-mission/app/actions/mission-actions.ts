@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache"
 import { createClient } from "@/utils/supabase/server"
-import { getSalesMissionAccess } from "@/lib/sales-mission-access"
+import { canPerform, getSalesMissionAccess } from "@/lib/sales-mission-access"
 import { createMissionSchema, toMissionTimestamp } from "@/lib/missions/mission-schema"
 import type { ActionResult } from "@/types/action-result"
 
@@ -23,6 +23,12 @@ export async function createMission(
 ): Promise<ActionResult<{ id: string }>> {
   const access = await getSalesMissionAccess()
   if (!access) return { success: false, error: "Anda tidak punya akses Sales Mission." }
+
+  // Lets an admin restrict a pure field-sales role to responding to missions
+  // rather than creating them. Unconfigured means unrestricted.
+  if (!(await canPerform(access, "sales_mission_mission", "create"))) {
+    return { success: false, error: "Anda tidak punya izin membuat mission." }
+  }
 
   const parsed = createMissionSchema.safeParse({
     clientCompanyName: formData.get("clientCompanyName"),

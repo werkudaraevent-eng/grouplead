@@ -44,6 +44,11 @@ const MODULE_GROUPS = [
     modules: ["dashboard", "leads", "companies", "contacts", "sales_mission"],
   },
   {
+    title: "Sales Mission",
+    description: "Fine-grained controls inside the Sales Mission app. A module left unconfigured is not restricted — access to the app itself is governed by the Sales Mission module above.",
+    modules: ["sales_mission_mission", "sales_mission_result", "sales_mission_contact", "sales_mission_settings"],
+  },
+  {
     title: "Settings",
     description: "Settings hub access and section-level controls.",
     modules: ["settings", "master_options", "pipeline", "segment_settings", "goal_settings", "forecast_settings", "management_dashboard", "members", "permissions"],
@@ -58,8 +63,28 @@ const MODULE_DISPLAY: Record<string, { name: string; description: string; level?
   },
   sales_mission: {
     name: "Sales Mission",
-    description: "Mission scheduling, assignments, and visit results.",
+    description: "Opens the Sales Mission app. Without this, nothing inside it is reachable.",
     level: 0,
+  },
+  sales_mission_mission: {
+    name: "Missions",
+    description: "Create and edit missions. Revoke create to leave a role responding to missions rather than scheduling them.",
+    level: 1,
+  },
+  sales_mission_result: {
+    name: "Visit reports",
+    description: "Visit report access. The report itself is always written by the mission's primary sales — this controls the wider role.",
+    level: 1,
+  },
+  sales_mission_contact: {
+    name: "Mission contacts",
+    description: "Contacts captured during a visit.",
+    level: 1,
+  },
+  sales_mission_settings: {
+    name: "Mission settings",
+    description: "Travel buffer, conflict rules, and the supporting-sales cap.",
+    level: 1,
   },
   settings: {
     name: "Settings hub",

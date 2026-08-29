@@ -83,3 +83,86 @@ export async function getSalesMissionAccess(): Promise<SalesMissionAccess | null
     ? { userId: user.id, companyId: membership.company_id, displayName, isSuperAdmin }
     : null
 }
+
+export type SalesMissionModule =
+  | "sales_mission_mission"
+  | "sales_mission_result"
+  | "sales_mission_contact"
+  | "sales_mission_settings"
+
+export type ModuleAction = "create" | "read" | "update" | "delete"
+
+/**
+ * Fine-grained permission inside Sales Mission.
+ *
+ * These are sub-permissions of an app the user already holds — they passed the
+ * `sales_mission` gate to get here. So an unconfigured module means "not
+ * restricted", not "denied": a tenant that has never opened the permission
+ * matrix must not find the app broken. Admins tighten from there.
+ *
+ * Note this is deliberately weaker than the `sales_mission` gate itself, which
+ * denies by default. Losing app access should lock you out; losing a
+ * sub-permission that nobody has configured should not.
+ */
+export async function canPerform(
+  access: SalesMissionAccess,
+  moduleId: SalesMissionModule,
+  action: ModuleAction
+): Promise<boolean> {
+  if (access.isSuperAdmin) return true
+
+  const supabase = await createClient()
+  const { data: auth } = await supabase.auth.getUser()
+  if (!auth.user) return false
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role, role_id")
+    .eq("id", auth.user.id)
+    .maybeSingle()
+
+  const columns = "can_create, can_read, can_update, can_delete"
+  let permission: Record<string, unknown> | null = null
+
+  if (profile?.role_id) {
+    const { data } = await supabase
+      .from("role_permissions")
+      .select(columns)
+      .eq("role_id", profile.role_id)
+      .eq("company_id", access.companyId)
+      .eq("module_id", moduleId)
+      .maybeSingle()
+    permission = data
+  }
+
+  if (!permission) {
+    const { data: membership } = await supabase
+      .from("company_members")
+      .select("user_type")
+      .eq("user_id", auth.user.id)
+      .eq("company_id", access.companyId)
+      .maybeSingle()
+
+    const userType = membership?.user_type ?? (profile?.role ?? "").toLowerCase().replace(/\s+/g, "_")
+    if (userType) {
+      const { data } = await supabase
+        .from("role_permissions")
+        .select(columns)
+        .eq("user_type", userType)
+        .eq("company_id", access.companyId)
+        .eq("module_id", moduleId)
+        .maybeSingle()
+      permission = data
+    }
+  }
+
+  // Unconfigured module — see the note above.
+  if (!permission) return true
+
+  if (action === "read") {
+    const scope = permission.can_read as string | null
+    return Boolean(scope) && scope !== "none"
+  }
+
+  return permission[`can_${action}`] === true
+}

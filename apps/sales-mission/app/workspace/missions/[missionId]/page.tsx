@@ -6,13 +6,23 @@ import {
   getMission,
   getMissionRole,
   getMissionSettings,
+  getPendingReschedule,
   getVisitReport,
   listMissionTeam,
   listMissions,
   listSupportingNotes,
 } from "@/lib/missions/mission-queries"
 import { annotateJoinStatus, joinBlockedReason } from "@/lib/missions/mission-join"
-import { formatMissionSchedule } from "@/lib/missions/mission-schema"
+import { canRespond } from "@/lib/missions/assignment-workflow"
+import {
+  AssignmentResponsePanel,
+  RescheduleDecision,
+} from "./assignment-response"
+import {
+  formatMissionSchedule,
+  MISSION_TIME_ZONE,
+  type AssignmentResponse,
+} from "@/lib/missions/mission-schema"
 import {
   INTEREST_LEVEL_LABELS,
   NEXT_ACTION_LABELS,
@@ -72,6 +82,7 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
     getMissionSettings(access),
     listMissions(access),
   ])
+  const pendingReschedule = await getPendingReschedule(access, missionId)
 
   const isAssigned = role !== null
   const canWriteReport = role === "PRIMARY" || access.isSuperAdmin
@@ -82,6 +93,13 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
   // needs the tenant's missions rather than this one alone.
   const joinStatus = annotateJoinStatus(allMissions, settings).find((item) => item.id === missionId)?.joinStatus ?? "CLOSED"
   const blockedReason = joinBlockedReason(joinStatus, settings.maxSupporting)
+
+  const myResponse = (team.find((member) => member.userId === access.userId)?.response ?? "PENDING") as AssignmentResponse
+  // Seed the reschedule form with the mission's own day rather than today, so
+  // the common case of nudging a visit by an hour needs one field changed.
+  const defaultRescheduleDate = mission.scheduledStart
+    ? new Intl.DateTimeFormat("en-CA", { timeZone: MISSION_TIME_ZONE }).format(new Date(mission.scheduledStart))
+    : new Intl.DateTimeFormat("en-CA", { timeZone: MISSION_TIME_ZONE }).format(new Date())
 
   return (
     <WorkspacePage
@@ -111,6 +129,38 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
               </h2>
             </div>
           </article>
+
+          {(isAssigned || pendingReschedule) && (
+            <article className="overflow-hidden rounded-xl border bg-card">
+              <div className="border-b px-5 py-4">
+                <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Penugasan</p>
+                <h2 className="mt-1 text-base font-semibold text-foreground">Jawaban dan jadwal</h2>
+              </div>
+              <div className="space-y-5 px-5 py-5">
+                {pendingReschedule && canManageTeam && <RescheduleDecision request={pendingReschedule} />}
+
+                {pendingReschedule && !canManageTeam && (
+                  <p className="rounded-lg border border-dashed px-4 py-3 text-sm text-muted-foreground">
+                    {pendingReschedule.requestedByName} meminta jadwal ulang. Menunggu keputusan sales utama atau admin.
+                  </p>
+                )}
+
+                {isAssigned && canRespond(mission.status) && (
+                  <AssignmentResponsePanel
+                    missionId={missionId}
+                    myResponse={myResponse}
+                    defaultDate={defaultRescheduleDate}
+                  />
+                )}
+
+                {isAssigned && !canRespond(mission.status) && (
+                  <p className="text-sm text-muted-foreground">
+                    Mission ini sudah tidak menerima perubahan jawaban.
+                  </p>
+                )}
+              </div>
+            </article>
+          )}
 
           <article className="overflow-hidden rounded-xl border bg-card">
             <div className="flex items-center justify-between gap-3 border-b px-5 py-4">

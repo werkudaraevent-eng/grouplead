@@ -192,6 +192,46 @@ export async function listMissionTeam(
     .sort((a, b) => (a.role === b.role ? a.name.localeCompare(b.name) : a.role === "PRIMARY" ? -1 : 1))
 }
 
+export interface PendingReschedule {
+  id: string
+  requestedByName: string
+  requestedById: string
+  proposedStart: string
+  proposedEnd: string | null
+  reason: string
+  createdAt: string
+}
+
+/** The open reschedule request for a mission, if any. At most one by design. */
+export async function getPendingReschedule(
+  access: SalesMissionAccess,
+  missionId: string
+): Promise<PendingReschedule | null> {
+  const { supabase, missions } = await missionSchema()
+
+  const { data } = await missions
+    .from("reschedule_requests")
+    .select("id, requested_by, proposed_start, proposed_end, reason, created_at")
+    .eq("company_id", access.companyId)
+    .eq("mission_id", missionId)
+    .eq("status", "PENDING")
+    .maybeSingle()
+
+  if (!data) return null
+
+  const names = await resolveNames(supabase, [data.requested_by as string])
+
+  return {
+    id: data.id as string,
+    requestedById: data.requested_by as string,
+    requestedByName: names.get(data.requested_by as string) ?? "Nama tidak diketahui",
+    proposedStart: data.proposed_start as string,
+    proposedEnd: (data.proposed_end as string | null) ?? null,
+    reason: data.reason as string,
+    createdAt: data.created_at as string,
+  }
+}
+
 export interface VisitReportRecord {
   id: string
   missionId: string
