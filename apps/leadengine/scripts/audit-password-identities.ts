@@ -59,8 +59,43 @@ async function listAllUsers(): Promise<AuthUser[]> {
     return users
 }
 
+/**
+ * Fetch identities per user.
+ *
+ * `listUsers` does not populate `identities`, so reading it from the list
+ * reports every account as having no password — which would send a reset email
+ * to people who never needed one, and worse, suggest they are locked out when
+ * they are not. `getUserById` does return them, at the cost of one call each.
+ */
+async function withIdentities(users: AuthUser[]): Promise<AuthUser[]> {
+    const detailed: AuthUser[] = []
+
+    for (const user of users) {
+        const { data, error } = await supabase.auth.admin.getUserById(user.id)
+        if (error || !data.user) {
+            console.log(`  WARN could not read identities for ${user.email ?? user.id}`)
+            continue
+        }
+        detailed.push(data.user as AuthUser)
+    }
+
+    return detailed
+}
+
 async function main() {
-    const users = await listAllUsers()
+    const roster = await listAllUsers()
+    const users = await withIdentities(roster)
+
+    // If nothing anywhere has an identity, the API shape changed rather than
+    // every account losing its login. Refuse to report instead of confidently
+    // telling an admin that the whole company is locked out.
+    const anyIdentities = users.some((user) => (user.identities ?? []).length > 0)
+    if (users.length > 0 && !anyIdentities) {
+        console.error('❌ No identities returned for any user.')
+        console.error('   The Supabase API is not reporting identity data, so this audit')
+        console.error('   cannot tell who has a password. Aborting rather than guessing.')
+        process.exit(1)
+    }
 
     const withPassword: AuthUser[] = []
     const withoutPassword: AuthUser[] = []
