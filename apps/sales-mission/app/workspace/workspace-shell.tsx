@@ -12,6 +12,7 @@ import {
   LogOut,
   MapPinned,
   Menu,
+  MonitorPlay,
   Moon,
   Settings,
   Sun,
@@ -40,6 +41,7 @@ const mainNav: NavItem[] = [
   { href: "/workspace/missions", label: "Missions", icon: ClipboardList },
   { href: "/workspace/calendar", label: "Calendar", icon: CalendarDays },
   { href: "/workspace/assignments", label: "Assignments", icon: UsersRound },
+  { href: "/workspace/board", label: "Papan live", icon: MonitorPlay },
 ]
 
 const adminNav: NavItem[] = [{ href: "/workspace/settings", label: "Settings", icon: Settings }]

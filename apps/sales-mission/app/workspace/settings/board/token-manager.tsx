@@ -1,0 +1,164 @@
+"use client"
+
+import { useState, useTransition } from "react"
+import { useRouter } from "next/navigation"
+import { toast } from "sonner"
+import { Copy, Loader2, Plus, ShieldOff, TriangleAlert } from "lucide-react"
+import { createBoardToken, revokeBoardToken } from "@/app/actions/board-token-actions"
+import { MISSION_TIME_ZONE } from "@/lib/missions/mission-schema"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+
+export interface BoardTokenRow {
+  id: string
+  label: string
+  createdAt: string
+  expiresAt: string | null
+  revokedAt: string | null
+  lastUsedAt: string | null
+}
+
+function formatWhen(iso: string | null) {
+  if (!iso) return "—"
+  return new Intl.DateTimeFormat("id-ID", {
+    timeZone: MISSION_TIME_ZONE,
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(iso))
+}
+
+export function BoardTokenManager({ tokens, boardBaseUrl }: { tokens: BoardTokenRow[]; boardBaseUrl: string }) {
+  const [label, setLabel] = useState("")
+  const [expiresInDays, setExpiresInDays] = useState("")
+  const [issued, setIssued] = useState<string | null>(null)
+  const [pending, start] = useTransition()
+  const router = useRouter()
+
+  const issuedUrl = issued ? `${boardBaseUrl}/board?token=${issued}` : null
+
+  const create = () => {
+    start(async () => {
+      const days = expiresInDays ? Number(expiresInDays) : undefined
+      const result = await createBoardToken(label, Number.isFinite(days) ? days : undefined)
+      if (result.success && result.data) {
+        setIssued(result.data.token)
+        setLabel("")
+        setExpiresInDays("")
+        router.refresh()
+      } else {
+        toast.error(result.error ?? "Tautan gagal dibuat")
+      }
+    })
+  }
+
+  const revoke = (tokenId: string) => {
+    start(async () => {
+      const result = await revokeBoardToken(tokenId)
+      if (result.success) {
+        toast.success("Tautan dicabut")
+        router.refresh()
+      } else {
+        toast.error(result.error ?? "Gagal mencabut tautan")
+      }
+    })
+  }
+
+  return (
+    <div className="space-y-4">
+      {issuedUrl && (
+        <div className="rounded-xl border border-[var(--warning-foreground)]/20 bg-[var(--warning)] p-5">
+          <p className="flex items-center gap-2 text-sm font-semibold text-[var(--warning-foreground)]">
+            <TriangleAlert className="h-4 w-4" /> Salin sekarang — tautan ini tidak ditampilkan lagi
+          </p>
+          <p className="mt-1 text-sm text-[var(--warning-foreground)]">
+            Hanya hash-nya yang kami simpan, jadi tautan ini tidak bisa dilihat ulang. Kalau hilang, cabut lalu buat baru.
+          </p>
+          <div className="mt-3 flex gap-2">
+            <Input readOnly value={issuedUrl} className="h-11 bg-white font-mono text-xs" onFocus={(e) => e.currentTarget.select()} />
+            <Button
+              type="button"
+              variant="outline"
+              className="h-11 shrink-0 bg-white"
+              onClick={async () => {
+                await navigator.clipboard.writeText(issuedUrl)
+                toast.success("Tautan disalin")
+              }}
+            >
+              <Copy className="h-4 w-4" /> Salin
+            </Button>
+          </div>
+          <Button variant="ghost" size="sm" className="mt-2" onClick={() => setIssued(null)}>Tutup</Button>
+        </div>
+      )}
+
+      <div className="overflow-hidden rounded-xl border bg-card">
+        <div className="border-b px-5 py-4">
+          <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Tautan baru</p>
+          <h2 className="mt-1 text-base font-semibold text-foreground">Buat tautan papan</h2>
+        </div>
+
+        <div className="grid gap-4 px-5 py-5 sm:grid-cols-[2fr_1fr_auto] sm:items-end">
+          <div className="space-y-1.5">
+            <Label htmlFor="token-label">Nama layar</Label>
+            <Input id="token-label" className="h-11" value={label} maxLength={100} onChange={(e) => setLabel(e.target.value)} placeholder="TV lobi lantai 3" />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="token-expiry">Berlaku (hari)</Label>
+            <Input id="token-expiry" className="h-11" inputMode="numeric" value={expiresInDays} onChange={(e) => setExpiresInDays(e.target.value.replace(/[^\d]/g, ""))} placeholder="Kosong = tanpa batas" />
+          </div>
+          <Button className="h-11" onClick={create} disabled={pending || !label.trim()}>
+            {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />} Buat
+          </Button>
+        </div>
+      </div>
+
+      <div className="overflow-hidden rounded-xl border bg-card">
+        <div className="border-b px-5 py-4">
+          <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Tautan aktif</p>
+          <h2 className="mt-1 text-base font-semibold text-foreground">{tokens.length} tautan</h2>
+        </div>
+
+        {tokens.length > 0 ? (
+          <ul className="divide-y">
+            {tokens.map((token) => {
+              const expired = token.expiresAt !== null && new Date(token.expiresAt).getTime() <= Date.now()
+              const dead = Boolean(token.revokedAt) || expired
+
+              return (
+                <li key={token.id} className="flex flex-wrap items-center gap-3 px-5 py-4">
+                  <div className="min-w-0 flex-1">
+                    <p className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                      {token.label}
+                      {token.revokedAt && (
+                        <span className="rounded-full bg-destructive/10 px-2 py-0.5 text-[10px] font-bold uppercase text-destructive">Dicabut</span>
+                      )}
+                      {!token.revokedAt && expired && (
+                        <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-bold uppercase text-muted-foreground">Kedaluwarsa</span>
+                      )}
+                    </p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      Dibuat {formatWhen(token.createdAt)} · Terakhir dipakai {formatWhen(token.lastUsedAt)}
+                      {token.expiresAt ? ` · Berlaku sampai ${formatWhen(token.expiresAt)}` : ""}
+                    </p>
+                  </div>
+
+                  {!dead && (
+                    <Button size="sm" variant="outline" disabled={pending} onClick={() => revoke(token.id)}>
+                      <ShieldOff className="h-4 w-4" /> Cabut
+                    </Button>
+                  )}
+                </li>
+              )
+            })}
+          </ul>
+        ) : (
+          <p className="px-5 py-6 text-sm text-muted-foreground">Belum ada tautan papan.</p>
+        )}
+      </div>
+    </div>
+  )
+}

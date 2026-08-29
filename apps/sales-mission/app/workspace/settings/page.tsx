@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { ArrowUpRight, Bell, Building2, ListChecks, ShieldCheck } from "lucide-react"
+import { ArrowUpRight, Bell, Building2, ListChecks, MonitorPlay, ShieldCheck } from "lucide-react"
 import { WorkspacePage } from "@/app/workspace/workspace-page"
 
 const SETTING_CARDS = [
@@ -9,6 +9,13 @@ const SETTING_CARDS = [
     title: "Form mission",
     description: "Tambah, ubah, urutkan, dan tentukan field wajib pada form buat mission.",
     href: "/workspace/settings/form",
+  },
+  {
+    icon: MonitorPlay,
+    tone: "bg-[var(--success)] text-[var(--success-foreground)]",
+    title: "Papan live",
+    description: "Tautan papan untuk layar kantor, dan tampilan internal untuk tim.",
+    href: "/workspace/settings/board",
   },
   {
     icon: Building2,

@@ -24,7 +24,9 @@ export async function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname
   // `/reset-password` must stay public: the recovery link is opened before a
   // normal session exists, and the page establishes one from the token itself.
-  const publicPaths = ["/login", "/forgot-password", "/reset-password"]
+  // `/board` likewise: a TV in the office has no session, and the page
+  // authorises itself from its own token.
+  const publicPaths = ["/login", "/forgot-password", "/reset-password", "/board"]
   const isPublic = pathname === "/" || publicPaths.some((path) => pathname.startsWith(path))
 
   if (!user && !isPublic) return NextResponse.redirect(new URL("/login", request.url))
