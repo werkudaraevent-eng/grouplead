@@ -59,7 +59,10 @@ export function formatMonthLabel(month: string): string {
   )
 }
 
-export function buildMonthGrid(month: string, missions: MissionListItem[], now: Date): MonthGrid {
+/** Only the schedule matters here, so callers keep whatever else they carry. */
+type Schedulable = Pick<MissionListItem, "scheduledStart">
+
+export function buildMonthGrid(month: string, missions: Schedulable[], now: Date): MonthGrid {
   const year = Number(month.slice(0, 4))
   const monthIndex = Number(month.slice(5, 7)) - 1
 
@@ -95,7 +98,7 @@ export function buildMonthGrid(month: string, missions: MissionListItem[], now: 
 }
 
 /** Missions scheduled on a given mission-time day, earliest first. */
-export function missionsOnDay(missions: MissionListItem[], day: string): MissionListItem[] {
+export function missionsOnDay<T extends Schedulable>(missions: T[], day: string): T[] {
   return missions
     .filter((mission) => {
       if (!mission.scheduledStart) return false

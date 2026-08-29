@@ -5,9 +5,13 @@ import { getSalesMissionAccess } from "@/lib/sales-mission-access"
 import {
   getMission,
   getMissionRole,
+  getMissionSettings,
   getVisitReport,
+  listMissionTeam,
+  listMissions,
   listSupportingNotes,
 } from "@/lib/missions/mission-queries"
+import { annotateJoinStatus, joinBlockedReason } from "@/lib/missions/mission-join"
 import { formatMissionSchedule } from "@/lib/missions/mission-schema"
 import {
   INTEREST_LEVEL_LABELS,
@@ -15,8 +19,14 @@ import {
   VISIT_OUTCOME_LABELS,
   canPushLead,
 } from "@/lib/missions/visit-report-schema"
-import { BackLink, StatusBadge, WorkspacePage } from "@/app/workspace/workspace-page"
+import { BackLink, JoinStatusChip, StatusBadge, WorkspacePage } from "@/app/workspace/workspace-page"
 import { Button } from "@/components/ui/button"
+import {
+  AllowJoinToggle,
+  JoinButton,
+  LeaveButton,
+  RemoveMemberButton,
+} from "@/app/workspace/missions/join-controls"
 import { SupportingNotes } from "./supporting-notes"
 
 export const dynamic = "force-dynamic"
@@ -57,10 +67,21 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
     getVisitReport(access, missionId),
     listSupportingNotes(access, missionId),
   ])
+  const [team, settings, allMissions] = await Promise.all([
+    listMissionTeam(access, missionId),
+    getMissionSettings(access),
+    listMissions(access),
+  ])
 
   const isAssigned = role !== null
   const canWriteReport = role === "PRIMARY" || access.isSuperAdmin
+  const canManageTeam = role === "PRIMARY" || access.isSuperAdmin
   const reportSubmitted = report?.status === "SUBMITTED"
+
+  // Join eligibility is computed against the viewer's whole calendar, so it
+  // needs the tenant's missions rather than this one alone.
+  const joinStatus = annotateJoinStatus(allMissions, settings).find((item) => item.id === missionId)?.joinStatus ?? "CLOSED"
+  const blockedReason = joinBlockedReason(joinStatus, settings.maxSupporting)
 
   return (
     <WorkspacePage
@@ -175,23 +196,49 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
 
         <div className="space-y-4">
           <aside className="rounded-xl border bg-card">
-            <div className="border-b px-5 py-4">
-              <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Assignment</p>
-              <h2 className="mt-1 text-base font-semibold text-foreground">Supporting sales</h2>
+            <div className="flex items-center justify-between gap-3 border-b px-5 py-4">
+              <div>
+                <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Tim mission</p>
+                <h2 className="mt-1 text-base font-semibold text-foreground">
+                  {team.length} orang
+                  <span className="ml-1 font-normal text-muted-foreground">
+                    (maks {settings.maxSupporting} pendukung)
+                  </span>
+                </h2>
+              </div>
+              <JoinStatusChip status={joinStatus} />
             </div>
-            {mission.supportingSalesNames.length > 0 ? (
-              <ul className="divide-y">
-                {mission.supportingSalesNames.map((name) => (
-                  <li key={name} className="flex items-center gap-3 px-5 py-3.5 text-sm">
-                    <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-muted text-[11px] font-bold text-muted-foreground">
-                      {name.split(" ").map((part) => part[0]).join("").toUpperCase().slice(0, 2)}
+
+            <ul className="divide-y">
+              {team.map((member) => (
+                <li key={member.userId} className="flex items-center gap-3 px-5 py-3.5 text-sm">
+                  <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-muted text-[11px] font-bold text-muted-foreground">
+                    {member.name.split(" ").map((part) => part[0]).join("").toUpperCase().slice(0, 2)}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate font-medium text-foreground">{member.name}</span>
+                    <span className="block text-xs text-muted-foreground">
+                      {member.role === "PRIMARY" ? "Sales utama" : "Sales pendukung"}
                     </span>
-                    <span className="truncate font-medium text-foreground">{name}</span>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="px-5 py-6 text-sm text-muted-foreground">Tidak ada sales pendukung untuk mission ini.</p>
+                  </span>
+                  {canManageTeam && member.role === "SUPPORTING" && (
+                    <RemoveMemberButton missionId={missionId} userId={member.userId} name={member.name} />
+                  )}
+                </li>
+              ))}
+              {team.length === 0 && (
+                <li className="px-5 py-6 text-sm text-muted-foreground">Belum ada yang ditugaskan.</li>
+              )}
+            </ul>
+
+            <div className="flex flex-wrap items-center gap-2 border-t bg-muted/30 px-5 py-4">
+              {role === "SUPPORTING" && <LeaveButton missionId={missionId} />}
+              {role === null && <JoinButton missionId={missionId} status={joinStatus} maxSupporting={settings.maxSupporting} />}
+              {canManageTeam && <AllowJoinToggle missionId={missionId} allowJoin={mission.allowJoin} />}
+            </div>
+
+            {role === null && blockedReason && (
+              <p className="border-t px-5 py-3 text-xs text-muted-foreground">{blockedReason}</p>
             )}
           </aside>
 

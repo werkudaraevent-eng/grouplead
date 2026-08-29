@@ -109,6 +109,7 @@ export interface MissionRow {
   location: string | null
   scheduled_start: string | null
   scheduled_end: string | null
+  allow_join: boolean
   created_by: string
   created_at: string
 }
@@ -132,6 +133,11 @@ export interface MissionListItem {
   scheduledEnd: string | null
   primarySalesName: string | null
   supportingSalesNames: string[]
+  /** Primary can close a sensitive meeting to further joiners. */
+  allowJoin: boolean
+  supportingCount: number
+  /** This viewer's own role on the mission, if any. */
+  viewerRole: "PRIMARY" | "SUPPORTING" | null
 }
 
 /**
@@ -144,7 +150,8 @@ export interface MissionListItem {
 export function mapMissions(
   missions: MissionRow[],
   assignments: AssignmentRow[],
-  namesByUserId: Map<string, string>
+  namesByUserId: Map<string, string>,
+  viewerId?: string
 ): MissionListItem[] {
   const byMission = new Map<string, AssignmentRow[]>()
   for (const assignment of assignments) {
@@ -156,6 +163,8 @@ export function mapMissions(
   return missions.map((mission) => {
     const missionAssignments = byMission.get(mission.id) ?? []
     const primary = missionAssignments.find((item) => item.assignment_role === "PRIMARY")
+    const supporting = missionAssignments.filter((item) => item.assignment_role === "SUPPORTING")
+    const viewer = viewerId ? missionAssignments.find((item) => item.user_id === viewerId) : undefined
 
     return {
       id: mission.id,
@@ -166,9 +175,12 @@ export function mapMissions(
       objective: mission.objective,
       scheduledStart: mission.scheduled_start,
       scheduledEnd: mission.scheduled_end,
+      // Missions created before the column existed default to open.
+      allowJoin: mission.allow_join !== false,
+      supportingCount: supporting.length,
+      viewerRole: (viewer?.assignment_role as "PRIMARY" | "SUPPORTING" | undefined) ?? null,
       primarySalesName: primary ? namesByUserId.get(primary.user_id) ?? null : null,
-      supportingSalesNames: missionAssignments
-        .filter((item) => item.assignment_role === "SUPPORTING")
+      supportingSalesNames: supporting
         .map((item) => namesByUserId.get(item.user_id))
         .filter((name): name is string => Boolean(name)),
     }

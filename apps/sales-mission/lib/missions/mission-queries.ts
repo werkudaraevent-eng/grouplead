@@ -23,7 +23,7 @@ import type {
  */
 
 const MISSION_COLUMNS =
-  "id, client_company_name_snapshot, client_company_id, mission_type, status, objective, location, scheduled_start, scheduled_end, created_by, created_at"
+  "id, client_company_name_snapshot, client_company_id, mission_type, status, objective, location, scheduled_start, scheduled_end, allow_join, created_by, created_at"
 
 /** Mission tables live in their own schema; identity tables stay in `public`. */
 async function missionSchema() {
@@ -69,7 +69,40 @@ export async function listMissions(access: SalesMissionAccess): Promise<MissionL
   const assignments = (assignmentRows ?? []) as AssignmentRow[]
   const names = await resolveNames(supabase, assignments.map((row) => row.user_id))
 
-  return mapMissions(missionRows as MissionRow[], assignments, names)
+  return mapMissions(missionRows as MissionRow[], assignments, names, access.userId)
+}
+
+export interface MissionSettings {
+  conflictCheckEnabled: boolean
+  travelBufferMinutes: number
+  allowSameLocationBackToBack: boolean
+  maxSupporting: number
+}
+
+/**
+ * Operational settings for this tenant.
+ *
+ * A tenant that has never configured anything has no row, so the documented
+ * defaults apply. Those defaults must match the `enforce_supporting_cap`
+ * trigger, or the UI and the database would disagree about when a mission is
+ * full.
+ */
+export async function getMissionSettings(access: SalesMissionAccess): Promise<MissionSettings> {
+  const supabase = await createClient()
+
+  const { data } = await supabase
+    .schema("sales_mission")
+    .from("mission_settings")
+    .select("conflict_check_enabled, default_travel_buffer_minutes, allow_same_location_back_to_back, max_supporting_per_mission")
+    .eq("company_id", access.companyId)
+    .maybeSingle()
+
+  return {
+    conflictCheckEnabled: data?.conflict_check_enabled ?? true,
+    travelBufferMinutes: data?.default_travel_buffer_minutes ?? 30,
+    allowSameLocationBackToBack: data?.allow_same_location_back_to_back ?? false,
+    maxSupporting: data?.max_supporting_per_mission ?? 2,
+  }
 }
 
 export async function getMission(
@@ -96,7 +129,7 @@ export async function getMission(
   const assignments = (assignmentRows ?? []) as AssignmentRow[]
   const names = await resolveNames(supabase, assignments.map((row) => row.user_id))
 
-  return mapMissions([missionRow as MissionRow], assignments, names)[0] ?? null
+  return mapMissions([missionRow as MissionRow], assignments, names, access.userId)[0] ?? null
 }
 
 export type MissionRole = "PRIMARY" | "SUPPORTING" | null
@@ -123,6 +156,40 @@ export async function getMissionRole(
     .maybeSingle()
 
   return (data?.assignment_role as MissionRole) ?? null
+}
+
+export interface MissionTeamMember {
+  userId: string
+  name: string
+  role: "PRIMARY" | "SUPPORTING"
+  response: string
+}
+
+/** Everyone assigned to a mission, primary first. */
+export async function listMissionTeam(
+  access: SalesMissionAccess,
+  missionId: string
+): Promise<MissionTeamMember[]> {
+  const { supabase, missions } = await missionSchema()
+
+  const { data: rows } = await missions
+    .from("assignments")
+    .select("user_id, assignment_role, response")
+    .eq("company_id", access.companyId)
+    .eq("mission_id", missionId)
+
+  if (!rows?.length) return []
+
+  const names = await resolveNames(supabase, rows.map((row) => row.user_id as string))
+
+  return rows
+    .map((row) => ({
+      userId: row.user_id as string,
+      name: names.get(row.user_id as string) ?? "Nama tidak diketahui",
+      role: row.assignment_role as "PRIMARY" | "SUPPORTING",
+      response: row.response as string,
+    }))
+    .sort((a, b) => (a.role === b.role ? a.name.localeCompare(b.name) : a.role === "PRIMARY" ? -1 : 1))
 }
 
 export interface VisitReportRecord {

@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { cn } from "@/lib/utils"
 import { formatMissionSchedule, type MissionListItem } from "@/lib/missions/mission-schema"
+import { JOIN_STATUS_LABELS, type JoinStatus } from "@/lib/missions/mission-join"
 
 /**
  * Shared page furniture, matching LeadEngine's list-page language: same
@@ -78,6 +79,26 @@ export function StatusBadge({ status }: { status: string }) {
   )
 }
 
+const JOIN_TONES: Record<JoinStatus, string> = {
+  ASSIGNED: "bg-secondary text-secondary-foreground",
+  CONFLICT: "bg-destructive/10 text-destructive",
+  JOINABLE: "bg-[var(--success)] text-[var(--success-foreground)]",
+  FULL: "bg-muted text-muted-foreground",
+  CLOSED: "bg-muted text-muted-foreground",
+}
+
+/**
+ * Where this viewer stands on a mission. Colour carries the meaning at a
+ * glance, and the label repeats it so the chip is not colour-only.
+ */
+export function JoinStatusChip({ status }: { status: JoinStatus }) {
+  return (
+    <span className={cn("inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide", JOIN_TONES[status])}>
+      {JOIN_STATUS_LABELS[status]}
+    </span>
+  )
+}
+
 export function NewMissionAction() {
   return (
     <Button asChild size="sm">
@@ -98,7 +119,13 @@ export function BackLink({ href = "/workspace/missions" }: { href?: string }) {
   )
 }
 
-export function MissionTable({ missions, now }: { missions: MissionListItem[]; now: Date }) {
+export function MissionTable({
+  missions,
+  now,
+}: {
+  missions: Array<MissionListItem & { joinStatus?: JoinStatus }>
+  now: Date
+}) {
   if (missions.length === 0) {
     return (
       <EmptyState
@@ -119,6 +146,7 @@ export function MissionTable({ missions, now }: { missions: MissionListItem[]; n
             <TableHead>Location</TableHead>
             <TableHead>Status</TableHead>
             <TableHead>Assigned to</TableHead>
+            <TableHead>Tim</TableHead>
             <TableHead className="w-10"><span className="sr-only">Open</span></TableHead>
           </TableRow>
         </TableHeader>
@@ -133,6 +161,7 @@ export function MissionTable({ missions, now }: { missions: MissionListItem[]; n
               <TableCell className="text-sm text-muted-foreground">{mission.location ?? "—"}</TableCell>
               <TableCell><StatusBadge status={mission.status} /></TableCell>
               <TableCell className="text-sm">{mission.primarySalesName ?? <span className="text-muted-foreground">Belum ditugaskan</span>}</TableCell>
+              <TableCell>{mission.joinStatus ? <JoinStatusChip status={mission.joinStatus} /> : null}</TableCell>
               <TableCell>
                 <Link
                   href={`/workspace/missions/${mission.id}`}

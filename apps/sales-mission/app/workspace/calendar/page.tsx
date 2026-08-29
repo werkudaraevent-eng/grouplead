@@ -2,7 +2,8 @@ import Link from "next/link"
 import { redirect } from "next/navigation"
 import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react"
 import { getSalesMissionAccess } from "@/lib/sales-mission-access"
-import { listMissions } from "@/lib/missions/mission-queries"
+import { getMissionSettings, listMissions } from "@/lib/missions/mission-queries"
+import { annotateJoinStatus } from "@/lib/missions/mission-join"
 import { formatMissionSchedule, MISSION_TIME_ZONE } from "@/lib/missions/mission-schema"
 import {
   buildMonthGrid,
@@ -12,7 +13,7 @@ import {
   resolveMonth,
   shiftMonth,
 } from "@/lib/missions/mission-calendar"
-import { WorkspacePage } from "@/app/workspace/workspace-page"
+import { JoinStatusChip, WorkspacePage } from "@/app/workspace/workspace-page"
 import { cn } from "@/lib/utils"
 
 export const dynamic = "force-dynamic"
@@ -30,7 +31,10 @@ export default async function CalendarPage({
   const params = await searchParams
   const now = new Date()
   const month = resolveMonth(params.month, now)
-  const missions = await listMissions(access)
+  const [rawMissions, settings] = await Promise.all([listMissions(access), getMissionSettings(access)])
+  // The day panel doubles as the join surface, so each entry carries where the
+  // viewer stands relative to it.
+  const missions = annotateJoinStatus(rawMissions, settings)
   const grid = buildMonthGrid(month, missions, now)
 
   // A selected day outside the shown month would render an empty panel with no
@@ -144,6 +148,7 @@ export default async function CalendarPage({
                     <span className="block truncate text-xs text-muted-foreground">
                       {[mission.location, mission.primarySalesName].filter(Boolean).join(" · ") || mission.missionType}
                     </span>
+                    <span className="mt-1.5 block"><JoinStatusChip status={mission.joinStatus} /></span>
                   </span>
                 </Link>
               ))}

@@ -88,6 +88,7 @@ describe("mapMissions", () => {
       location: "Jakarta Selatan",
       scheduled_start: "2026-08-25T02:30:00.000Z",
       scheduled_end: null,
+      allow_join: true,
       created_by: PRIMARY_ID,
       created_at: "2026-08-22T01:00:00.000Z",
     },
@@ -101,6 +102,7 @@ describe("mapMissions", () => {
       location: null,
       scheduled_start: null,
       scheduled_end: null,
+      allow_join: false,
       created_by: PRIMARY_ID,
       created_at: "2026-08-22T01:00:00.000Z",
     },
@@ -136,6 +138,39 @@ describe("mapMissions", () => {
   it("returns one item per mission, preserving order", () => {
     const result = mapMissions(missions, assignments, names)
     expect(result.map((item) => item.id)).toEqual(["mission-1", "mission-2"])
+  })
+
+  it("counts supporting sales even when a name cannot be resolved", () => {
+    // The count drives the join cap, so it must not shrink just because a
+    // profile row is missing a name.
+    const [first] = mapMissions(missions, assignments, new Map([[PRIMARY_ID, "Wg, Hanung"]]))
+    expect(first.supportingCount).toBe(1)
+    expect(first.supportingSalesNames).toEqual([])
+  })
+
+  it("reports the viewer's own role, and null when they are not assigned", () => {
+    const asPrimary = mapMissions(missions, assignments, names, PRIMARY_ID)
+    expect(asPrimary[0].viewerRole).toBe("PRIMARY")
+    expect(asPrimary[1].viewerRole).toBeNull()
+
+    const asSupport = mapMissions(missions, assignments, names, SUPPORT_ID)
+    expect(asSupport[0].viewerRole).toBe("SUPPORTING")
+
+    const asStranger = mapMissions(missions, assignments, names, "33333333-3333-4333-8333-333333333333")
+    expect(asStranger[0].viewerRole).toBeNull()
+  })
+
+  it("carries allow_join through, defaulting a missing value to open", () => {
+    const result = mapMissions(missions, assignments, names)
+    expect(result[0].allowJoin).toBe(true)
+    expect(result[1].allowJoin).toBe(false)
+
+    const legacy = mapMissions(
+      [{ ...missions[0], allow_join: undefined as unknown as boolean }],
+      assignments,
+      names
+    )
+    expect(legacy[0].allowJoin).toBe(true)
   })
 })
 
