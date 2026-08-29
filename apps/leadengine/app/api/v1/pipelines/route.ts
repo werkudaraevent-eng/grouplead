@@ -35,20 +35,31 @@ export async function GET(request: Request) {
 
     if (error) return apiError(500, 'pipelines_unavailable', 'Could not load pipelines.')
 
-    // Stages are global rather than per-pipeline in the current schema, so they
-    // are fetched once and attached to every pipeline.
+    // Stages belong to a pipeline. Attaching every stage to every pipeline
+    // produces combinations the database rejects: a trigger refuses a lead whose
+    // pipeline_id and stage disagree, so a picker offering 2025's stages under
+    // the 2026 pipeline fails only at the moment of saving.
     const { data: stages } = await supabase
         .from('pipeline_stages')
-        .select('id, name, sort_order, is_default, stage_type')
+        .select('id, name, sort_order, is_default, stage_type, pipeline_id')
         .order('sort_order', { ascending: true })
 
-    const openStages = (stages ?? []).filter((stage) => stage.stage_type !== 'closed')
+    const stagesByPipeline = new Map<string, typeof stages>()
+    for (const stage of stages ?? []) {
+        // Closed stages are where deals end, not where a fresh lead starts.
+        if (stage.stage_type === 'closed') continue
+        const key = stage.pipeline_id as string | null
+        if (!key) continue
+        const bucket = stagesByPipeline.get(key) ?? []
+        bucket.push(stage)
+        stagesByPipeline.set(key, bucket)
+    }
 
     return NextResponse.json({
         pipelines: (pipelines ?? []).map((pipeline) => ({
             id: pipeline.id,
             name: pipeline.name,
-            stages: openStages.map((stage) => ({
+            stages: (stagesByPipeline.get(pipeline.id as string) ?? []).map((stage) => ({
                 id: stage.id,
                 name: stage.name,
                 sortOrder: stage.sort_order,
