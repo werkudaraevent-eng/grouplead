@@ -49,6 +49,13 @@ const TIME_PATTERN = /^\d{2}:\d{2}$/
 export const createMissionSchema = z
   .object({
     clientCompanyName: z.string().trim().min(1, "Nama perusahaan klien wajib diisi").max(200),
+    /**
+     * LeadEngine master id when the company was picked from live search.
+     * Null keeps a typed-in name as a snapshot, which is legitimate — the CRM
+     * review flow links it later. But the lead-push owner and duplicate guards
+     * can only run once this is set.
+     */
+    clientCompanyId: z.string().uuid().nullish(),
     missionType: z.enum(MISSION_TYPES),
     date: z.string().regex(DATE_PATTERN, "Tanggal tidak valid"),
     startTime: z.string().regex(TIME_PATTERN, "Jam mulai tidak valid"),

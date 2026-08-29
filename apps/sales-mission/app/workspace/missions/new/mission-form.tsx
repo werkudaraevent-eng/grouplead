@@ -12,6 +12,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { EmptyState } from "@/app/workspace/workspace-page"
+import { CompanyPicker } from "./company-picker"
 
 function Section({ kicker, title, children }: { kicker: string; title: string; children: React.ReactNode }) {
   return (
@@ -59,10 +60,7 @@ export function MissionForm({ salesOptions, defaultDate }: { salesOptions: Tenan
 
       <Section kicker="Visit details" title="What is happening?">
         <div className="grid gap-5 sm:grid-cols-2">
-          <div className="space-y-1.5 sm:col-span-2">
-            <Label htmlFor="clientCompanyName">Client company</Label>
-            <Input id="clientCompanyName" name="clientCompanyName" required maxLength={200} placeholder="Nama perusahaan klien" />
-          </div>
+          <CompanyPicker />
           <div className="space-y-1.5">
             <Label htmlFor="missionType">Mission type</Label>
             <select

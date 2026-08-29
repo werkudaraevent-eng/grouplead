@@ -32,6 +32,7 @@ export async function createMission(
 
   const parsed = createMissionSchema.safeParse({
     clientCompanyName: formData.get("clientCompanyName"),
+    clientCompanyId: formData.get("clientCompanyId") || undefined,
     missionType: formData.get("missionType"),
     date: formData.get("date"),
     startTime: formData.get("startTime"),
@@ -73,6 +74,7 @@ export async function createMission(
     .insert({
       company_id: access.companyId,
       client_company_name_snapshot: input.clientCompanyName,
+      client_company_id: input.clientCompanyId ?? null,
       mission_type: input.missionType,
       status: "ASSIGNED",
       objective: input.objective || null,

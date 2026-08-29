@@ -63,6 +63,21 @@ describe("createMissionSchema", () => {
   it("rejects a non-uuid primary sales id", () => {
     expect(createMissionSchema.safeParse(validInput({ primarySalesId: "wg-hanung" })).success).toBe(false)
   })
+
+  it("accepts a mission with no linked company — a typed name is legitimate", () => {
+    expect(createMissionSchema.safeParse(validInput()).success).toBe(true)
+    expect(createMissionSchema.safeParse(validInput({ clientCompanyId: null })).success).toBe(true)
+  })
+
+  it("carries a linked company id through when one was picked", () => {
+    const linked = validInput({ clientCompanyId: "44444444-4444-4444-8444-444444444444" })
+    const result = createMissionSchema.safeParse(linked)
+    expect(result.success && result.data.clientCompanyId).toBe("44444444-4444-4444-8444-444444444444")
+  })
+
+  it("rejects a malformed company id rather than silently dropping the link", () => {
+    expect(createMissionSchema.safeParse(validInput({ clientCompanyId: "not-a-uuid" })).success).toBe(false)
+  })
 })
 
 describe("toMissionTimestamp", () => {
