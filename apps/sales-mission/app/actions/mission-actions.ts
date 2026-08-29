@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache"
 import { createClient } from "@/utils/supabase/server"
 import { canPerform, getSalesMissionAccess } from "@/lib/sales-mission-access"
 import { createMissionSchema, toMissionTimestamp } from "@/lib/missions/mission-schema"
+import { listFormFields } from "@/lib/missions/form-field-queries"
+import { validateFieldAnswers, type FieldAnswer } from "@/lib/missions/form-fields"
 import type { ActionResult } from "@/types/action-result"
 
 /**
@@ -111,6 +113,51 @@ export async function createMission(
     // Move both inserts into a Postgres function when this grows further.
     await missions.from("missions").delete().eq("id", mission.id)
     return { success: false, error: "Penugasan sales gagal disimpan. Mission dibatalkan." }
+  }
+
+  // Admin-configured fields. Validation uses the tenant's current configuration
+  // rather than anything hardcoded, so a field made mandatory this morning is
+  // mandatory this afternoon.
+  const customFields = (await listFormFields(access, "mission")).filter((field) => !field.isCore)
+
+  if (customFields.length > 0) {
+    const answers: Record<string, FieldAnswer> = {}
+    for (const field of customFields) {
+      const name = `custom__${field.reportingKey}`
+      if (field.fieldType === "MULTI_SELECT") {
+        answers[field.reportingKey] = formData.getAll(name).map(String)
+      } else if (field.fieldType === "BOOLEAN") {
+        answers[field.reportingKey] = formData.get(name) === "true"
+      } else {
+        const raw = formData.get(name)
+        answers[field.reportingKey] = typeof raw === "string" && raw !== "" ? raw : null
+      }
+    }
+
+    const validation = validateFieldAnswers(customFields, answers)
+    if (!validation.ok) {
+      // The mission row exists but its answers are invalid. Undo rather than
+      // keep a mission that violates the tenant's own form rules.
+      await missions.from("missions").delete().eq("id", mission.id)
+      return { success: false, error: Object.values(validation.errors)[0] ?? "Isian tambahan belum lengkap." }
+    }
+
+    const rows = customFields
+      .filter((field) => {
+        const value = answers[field.reportingKey]
+        return value !== null && value !== "" && !(Array.isArray(value) && value.length === 0)
+      })
+      .map((field) => ({
+        mission_id: mission.id,
+        company_id: access.companyId,
+        field_id: field.id,
+        reporting_key: field.reportingKey,
+        value: answers[field.reportingKey],
+      }))
+
+    if (rows.length > 0) {
+      await missions.from("mission_field_values").insert(rows)
+    }
   }
 
   // Best-effort audit trail: losing a history row must not fail a saved mission.
