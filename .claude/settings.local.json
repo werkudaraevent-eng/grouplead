@@ -8,7 +8,9 @@
       "Bash(git add *)",
       "Bash(git commit *)",
       "Bash(NEXT_PUBLIC_SUPABASE_URL=https://placeholder.supabase.co NEXT_PUBLIC_SUPABASE_ANON_KEY=placeholder-key-for-build npm run build --workspace=@werkudara/leadengine)",
-      "Bash(NEXT_PUBLIC_SUPABASE_URL=https://placeholder.supabase.co NEXT_PUBLIC_SUPABASE_ANON_KEY=placeholder-key-for-build SUPABASE_SERVICE_ROLE_KEY=placeholder npm run build --workspace=@werkudara/sales-mission)"
+      "Bash(NEXT_PUBLIC_SUPABASE_URL=https://placeholder.supabase.co NEXT_PUBLIC_SUPABASE_ANON_KEY=placeholder-key-for-build SUPABASE_SERVICE_ROLE_KEY=placeholder npm run build --workspace=@werkudara/sales-mission)",
+      "Read(//tmp/**)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code} redirect: %{redirect_url}\\\\n\" \"http://localhost:3001/workspace/board\")"
     ]
   }
 }

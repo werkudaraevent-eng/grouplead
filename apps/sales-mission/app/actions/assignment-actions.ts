@@ -3,7 +3,14 @@
 import { revalidatePath } from "next/cache"
 import { createClient } from "@/utils/supabase/server"
 import { getSalesMissionAccess } from "@/lib/sales-mission-access"
-import { getMissionRole, getMissionSettings, listMissions } from "@/lib/missions/mission-queries"
+import {
+  getMission,
+  getMissionRole,
+  getMissionSettings,
+  listMissionTeam,
+  listMissions,
+} from "@/lib/missions/mission-queries"
+import { notify } from "@/lib/notifications/notification-queries"
 import { annotateJoinStatus, canJoin, joinBlockedReason } from "@/lib/missions/mission-join"
 import {
   applyRescheduleApproval,
@@ -82,6 +89,16 @@ export async function joinMission(missionId: string): Promise<ActionResult> {
     changed_by: access.userId,
     reason: `${access.displayName} bergabung sebagai sales pendukung`,
   })
+
+  // The primary is accountable for who is in the room, so they hear about a
+  // joiner immediately rather than discovering them on the day.
+  const team = await listMissionTeam(access, missionId)
+  await notify(
+    access,
+    "MISSION_JOINED",
+    team.map((member) => member.userId),
+    { missionId, clientName: target.clientCompanyName }
+  )
 
   revalidatePath("/workspace/missions")
   revalidatePath("/workspace/calendar")
@@ -255,6 +272,17 @@ export async function respondToAssignment(
     `${access.displayName} ${response === "ACCEPTED" ? "menerima" : "menolak"} penugasan`
   )
 
+  const [team, missionDetail] = await Promise.all([
+    listMissionTeam(access, missionId),
+    getMission(access, missionId),
+  ])
+  await notify(
+    access,
+    response === "ACCEPTED" ? "ASSIGNMENT_ACCEPTED" : "ASSIGNMENT_REJECTED",
+    team.map((member) => member.userId),
+    { missionId, clientName: missionDetail?.clientCompanyName ?? "Mission" }
+  )
+
   revalidatePath("/workspace")
   revalidatePath("/workspace/missions")
   revalidatePath(`/workspace/missions/${missionId}`)
@@ -316,6 +344,17 @@ export async function requestReschedule(missionId: string, input: unknown): Prom
     missionId,
     access.userId,
     `${access.displayName} meminta jadwal ulang`
+  )
+
+  const [rescheduleTeam, rescheduleMission] = await Promise.all([
+    listMissionTeam(access, missionId),
+    getMission(access, missionId),
+  ])
+  await notify(
+    access,
+    "RESCHEDULE_REQUESTED",
+    rescheduleTeam.map((member) => member.userId),
+    { missionId, clientName: rescheduleMission?.clientCompanyName ?? "Mission" }
   )
 
   revalidatePath("/workspace/missions")
@@ -411,6 +450,14 @@ export async function decideReschedule(
     missionId,
     access.userId,
     decision === "APPROVED" ? "Permintaan jadwal ulang disetujui" : "Permintaan jadwal ulang ditolak"
+  )
+
+  const decisionMission = await getMission(access, missionId)
+  await notify(
+    access,
+    decision === "APPROVED" ? "RESCHEDULE_APPROVED" : "RESCHEDULE_REJECTED",
+    assignments.map((item) => item.userId),
+    { missionId, clientName: decisionMission?.clientCompanyName ?? "Mission" }
   )
 
   revalidatePath("/workspace")

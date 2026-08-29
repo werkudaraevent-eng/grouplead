@@ -4,6 +4,8 @@ import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
 import {
+  BarChart3,
+  Bell,
   CalendarDays,
   ChevronsLeft,
   ClipboardList,
@@ -34,6 +36,8 @@ type NavItem = {
   href: string
   label: string
   icon: typeof LayoutDashboard
+  /** Renders an unread count beside the label. */
+  badgeKey?: "notifications"
 }
 
 const mainNav: NavItem[] = [
@@ -42,6 +46,8 @@ const mainNav: NavItem[] = [
   { href: "/workspace/calendar", label: "Calendar", icon: CalendarDays },
   { href: "/workspace/assignments", label: "Assignments", icon: UsersRound },
   { href: "/workspace/board", label: "Papan live", icon: MonitorPlay },
+  { href: "/workspace/reports", label: "Laporan", icon: BarChart3 },
+  { href: "/workspace/notifications", label: "Notifikasi", icon: Bell, badgeKey: "notifications" },
 ]
 
 const adminNav: NavItem[] = [{ href: "/workspace/settings", label: "Settings", icon: Settings }]
@@ -52,12 +58,14 @@ function initials(name: string) {
 
 function SidebarBody({
   displayName,
+  unreadCount,
   collapsed,
   onToggleCollapse,
   isSheet = false,
   onNavigate,
 }: {
   displayName: string
+  unreadCount: number
   collapsed: boolean
   onToggleCollapse?: () => void
   isSheet?: boolean
@@ -111,16 +119,29 @@ function SidebarBody({
   const renderNav = (items: NavItem[]) =>
     items.map((item) => {
       const isActive = item.href === "/workspace" ? pathname === item.href : pathname.startsWith(item.href)
+      const badge = item.badgeKey === "notifications" ? unreadCount : 0
+
       return (
         <Link
           key={item.href}
           href={item.href}
           onClick={onNavigate}
           className={collapsed ? collapsedItemClasses(isActive) : menuItemClasses(isActive)}
-          title={collapsed ? item.label : undefined}
+          title={collapsed ? `${item.label}${badge > 0 ? ` (${badge})` : ""}` : undefined}
         >
-          <item.icon className={iconClasses(isActive)} />
-          {!collapsed && <span>{item.label}</span>}
+          <span className="relative shrink-0">
+            <item.icon className={iconClasses(isActive)} />
+            {/* Collapsed, the count has nowhere to sit, so it becomes a dot. */}
+            {collapsed && badge > 0 && (
+              <span className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-destructive" aria-hidden="true" />
+            )}
+          </span>
+          {!collapsed && <span className="flex-1">{item.label}</span>}
+          {!collapsed && badge > 0 && (
+            <span className="rounded-full bg-destructive px-1.5 py-0.5 text-[10px] font-bold text-white">
+              {badge > 99 ? "99+" : badge}
+            </span>
+          )}
         </Link>
       )
     })
@@ -222,7 +243,15 @@ function SidebarBody({
   )
 }
 
-export function WorkspaceShell({ children, displayName }: { children: React.ReactNode; displayName: string }) {
+export function WorkspaceShell({
+  children,
+  displayName,
+  unreadCount = 0,
+}: {
+  children: React.ReactNode
+  displayName: string
+  unreadCount?: number
+}) {
   const [collapsed, setCollapsed] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
 
@@ -244,14 +273,14 @@ export function WorkspaceShell({ children, displayName }: { children: React.Reac
         data-sidebar
         className={`relative hidden shrink-0 flex-none overflow-hidden bg-sidebar transition-[width] duration-200 ease-out lg:flex lg:flex-col ${collapsed ? "lg:w-[60px]" : "lg:w-[220px]"}`}
       >
-        <SidebarBody displayName={displayName} collapsed={collapsed} onToggleCollapse={toggleCollapse} />
+        <SidebarBody displayName={displayName} unreadCount={unreadCount} collapsed={collapsed} onToggleCollapse={toggleCollapse} />
       </aside>
 
       <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
         <SheetContent side="left" className="w-72 border-r-0 p-0">
           <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
           <SheetDescription className="sr-only">Main navigation sidebar for mobile devices.</SheetDescription>
-          <SidebarBody displayName={displayName} collapsed={false} isSheet onNavigate={() => setMobileOpen(false)} />
+          <SidebarBody displayName={displayName} unreadCount={unreadCount} collapsed={false} isSheet onNavigate={() => setMobileOpen(false)} />
         </SheetContent>
       </Sheet>
 

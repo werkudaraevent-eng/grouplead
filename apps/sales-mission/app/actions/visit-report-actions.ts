@@ -3,7 +3,8 @@
 import { revalidatePath } from "next/cache"
 import { createClient } from "@/utils/supabase/server"
 import { getSalesMissionAccess } from "@/lib/sales-mission-access"
-import { getMissionRole } from "@/lib/missions/mission-queries"
+import { getMission, getMissionRole, listMissionTeam } from "@/lib/missions/mission-queries"
+import { notify } from "@/lib/notifications/notification-queries"
 import {
   visitReportDraftSchema,
   visitReportSubmitSchema,
@@ -237,6 +238,19 @@ export async function submitVisitReport(
     changed_by: access.userId,
     reason: "Laporan kunjungan dikirim",
   })
+
+  // The team hears that the visit is on record, so supporting sales know their
+  // notes have been read and folded in.
+  const [team, mission] = await Promise.all([
+    listMissionTeam(access, missionId),
+    getMission(access, missionId),
+  ])
+  await notify(
+    access,
+    "RESULT_SUBMITTED",
+    team.map((member) => member.userId),
+    { missionId, clientName: mission?.clientCompanyName ?? "Mission" }
+  )
 
   revalidatePath("/workspace")
   revalidatePath("/workspace/missions")
