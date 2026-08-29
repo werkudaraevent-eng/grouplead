@@ -39,6 +39,28 @@ export function isChoiceType(type: FieldType): boolean {
   return type === "SELECT" || type === "MULTI_SELECT"
 }
 
+/**
+ * The locked core fields every tenant starts with.
+ *
+ * Defined here rather than only in SQL so the seed runs through the same
+ * client, RLS and types as everything else — a Postgres function would need its
+ * own schema targeting and EXECUTE grants to reach, which is three ways to fail
+ * for something this simple.
+ */
+export const CORE_MISSION_FIELDS: Array<
+  Pick<FormField, "reportingKey" | "label" | "fieldType" | "isRequired" | "displayOrder">
+> = [
+  { reportingKey: "client_company", label: "Client company", fieldType: "TEXT", isRequired: true, displayOrder: 10 },
+  { reportingKey: "mission_type", label: "Mission type", fieldType: "SELECT", isRequired: true, displayOrder: 20 },
+  { reportingKey: "location", label: "Location", fieldType: "TEXT", isRequired: false, displayOrder: 30 },
+  { reportingKey: "date", label: "Date", fieldType: "DATE", isRequired: true, displayOrder: 40 },
+  { reportingKey: "start_time", label: "Start time", fieldType: "TIME", isRequired: true, displayOrder: 50 },
+  { reportingKey: "end_time", label: "End time", fieldType: "TIME", isRequired: false, displayOrder: 60 },
+  { reportingKey: "objective", label: "Objective", fieldType: "TEXT", isRequired: false, displayOrder: 70 },
+  { reportingKey: "primary_sales", label: "Primary sales", fieldType: "SELECT", isRequired: true, displayOrder: 80 },
+  { reportingKey: "supporting_sales", label: "Supporting sales", fieldType: "MULTI_SELECT", isRequired: false, displayOrder: 90 },
+]
+
 export interface FormField {
   id: string
   reportingKey: string

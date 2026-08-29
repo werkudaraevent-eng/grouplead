@@ -1,6 +1,7 @@
 "use server"
 
 import { revalidatePath } from "next/cache"
+import { redirect } from "next/navigation"
 import { createClient } from "@/utils/supabase/server"
 import { canPerform, getSalesMissionAccess } from "@/lib/sales-mission-access"
 import { createMissionSchema, toMissionTimestamp } from "@/lib/missions/mission-schema"
@@ -172,5 +173,9 @@ export async function createMission(
   revalidatePath("/workspace")
   revalidatePath("/workspace/missions")
 
-  return { success: true, data: { id: mission.id } }
+  // Redirect from the server rather than reacting to the result on the client.
+  // `revalidatePath` above refreshes the tree, which remounts the form and
+  // discards `useActionState` before an effect could navigate — the mission
+  // saved, but the page sat there looking as though nothing had happened.
+  redirect(`/workspace/missions/${mission.id}`)
 }

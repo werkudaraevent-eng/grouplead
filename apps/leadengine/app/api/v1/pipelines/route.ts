@@ -22,10 +22,15 @@ export async function GET(request: Request) {
 
     const { supabase } = auth.context
 
+    // Pipelines are shared across business units in practice: `company_id` is
+    // nullable and every existing pipeline leaves it null. Filtering on the
+    // tenant alone returned nothing at all, which emptied the picker in the
+    // lead-push modal. Include the global ones alongside any tenant-specific
+    // ones, matching how LeadEngine's own settings screen reads them.
     const { data: pipelines, error } = await supabase
         .from('pipelines')
         .select('id, name, company_id')
-        .eq('company_id', companyId)
+        .or(`company_id.is.null,company_id.eq.${companyId}`)
         .order('created_at', { ascending: true })
 
     if (error) return apiError(500, 'pipelines_unavailable', 'Could not load pipelines.')

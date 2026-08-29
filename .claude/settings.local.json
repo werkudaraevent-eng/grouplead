@@ -10,7 +10,18 @@
       "Bash(NEXT_PUBLIC_SUPABASE_URL=https://placeholder.supabase.co NEXT_PUBLIC_SUPABASE_ANON_KEY=placeholder-key-for-build npm run build --workspace=@werkudara/leadengine)",
       "Bash(NEXT_PUBLIC_SUPABASE_URL=https://placeholder.supabase.co NEXT_PUBLIC_SUPABASE_ANON_KEY=placeholder-key-for-build SUPABASE_SERVICE_ROLE_KEY=placeholder npm run build --workspace=@werkudara/sales-mission)",
       "Read(//tmp/**)",
-      "Bash(curl -s -o /dev/null -w \"%{http_code} redirect: %{redirect_url}\\\\n\" \"http://localhost:3001/workspace/board\")"
+      "Bash(curl -s -o /dev/null -w \"%{http_code} redirect: %{redirect_url}\\\\n\" \"http://localhost:3001/workspace/board\")",
+      "Bash(netstat -ano)",
+      "Bash(curl -s \"http://localhost:3000/login\")",
+      "Bash(curl -s -o /dev/null -w \"login HTTP %{http_code}\\\\n\" http://localhost:3000/login)",
+      "Bash(curl -s \"http://localhost:3001/login\")",
+      "Bash(curl -s -o /dev/null -w \"login HTTP %{http_code}\\\\n\" http://localhost:3001/login)",
+      "Bash(curl -s -o /dev/null -w \"workspace HTTP %{http_code} -> %{redirect_url}\\\\n\" http://localhost:3001/workspace)",
+      "Bash(curl -s -w \"\\\\nHTTP %{http_code}\\\\n\" http://localhost:3000/api/v1/pipelines)",
+      "Bash(curl -s -w \"\\\\nHTTP %{http_code}\\\\n\" http://localhost:3000/api/v1/pipelines -H \"Authorization: Bearer not-a-real-token\")",
+      "Bash(curl -s -o /dev/null -w \"HTTP %{http_code}\\\\n\" http://localhost:3000/api/v1/pipelines -H \"Authorization: Basic abc\")",
+      "Bash(curl -s -o /dev/null -w \"HTTP %{http_code}\\\\n\" -X POST http://localhost:3000/api/v1/leads -H \"Content-Type: application/json\" -d '{}')",
+      "Bash(curl -s -o /dev/null -w \"leadengine up: %{http_code}\\\\n\" http://localhost:3000/login)"
     ]
   }
 }

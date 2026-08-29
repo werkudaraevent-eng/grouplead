@@ -1,7 +1,6 @@
 "use client"
 
-import { useActionState, useEffect } from "react"
-import { useRouter } from "next/navigation"
+import { useActionState } from "react"
 import Link from "next/link"
 import { AlertCircle, Loader2, Plus } from "lucide-react"
 import { createMission, type CreateMissionState } from "@/app/actions/mission-actions"
@@ -134,15 +133,9 @@ export function MissionForm({
   defaultDate: string
   fields: FormField[]
 }) {
+  // On success the action redirects server-side, so this state only ever holds
+  // a failure worth showing.
   const [state, formAction, pending] = useActionState<CreateMissionState, FormData>(createMission, null)
-  const router = useRouter()
-
-  useEffect(() => {
-    if (state?.success && state.data?.id) {
-      router.push(`/workspace/missions/${state.data.id}`)
-      router.refresh()
-    }
-  }, [state, router])
 
   if (salesOptions.length === 0) {
     return (

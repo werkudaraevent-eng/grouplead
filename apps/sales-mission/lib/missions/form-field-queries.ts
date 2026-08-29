@@ -1,6 +1,6 @@
 import { createClient } from "@/utils/supabase/server"
 import type { SalesMissionAccess } from "@/lib/sales-mission-access"
-import type { FieldType, FormField } from "./form-fields"
+import { CORE_MISSION_FIELDS, type FieldType, type FormField } from "./form-fields"
 
 /** Read side of the form builder. */
 
@@ -57,7 +57,22 @@ export async function listFormFields(
   let fields = await read()
 
   if (fields.length === 0 && formKey === "mission") {
-    await supabase.rpc("seed_core_mission_fields", { target_company_id: access.companyId })
+    // `ignoreDuplicates` makes this safe to race: two people opening the form
+    // at once both attempt the seed, and the unique key decides.
+    await schema.from("form_fields").upsert(
+      CORE_MISSION_FIELDS.map((field) => ({
+        company_id: access.companyId,
+        form_key: "mission",
+        reporting_key: field.reportingKey,
+        label: field.label,
+        field_type: field.fieldType,
+        is_required: field.isRequired,
+        is_core: true,
+        display_order: field.displayOrder,
+      })),
+      { onConflict: "company_id,form_key,reporting_key", ignoreDuplicates: true }
+    )
+
     fields = await read()
   }
 

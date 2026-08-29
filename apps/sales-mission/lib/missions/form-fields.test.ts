@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest"
 import {
+  CORE_MISSION_FIELDS,
   describeCoreFieldViolation,
   fieldDefinitionSchema,
   isChoiceType,
@@ -222,6 +223,47 @@ describe("reorderField", () => {
       { id: "id-c", displayOrder: 10 },
       { id: "id-a", displayOrder: 20 },
     ])
+  })
+})
+
+describe("CORE_MISSION_FIELDS", () => {
+  it("covers every core key the mission form renders", () => {
+    // The form maps these keys to purpose-built inputs; a key here with no
+    // branch there renders nothing at all, which is how the form once came up
+    // completely empty.
+    expect(CORE_MISSION_FIELDS.map((field) => field.reportingKey)).toEqual([
+      "client_company",
+      "mission_type",
+      "location",
+      "date",
+      "start_time",
+      "end_time",
+      "objective",
+      "primary_sales",
+      "supporting_sales",
+    ])
+  })
+
+  it("keeps the fields conflict detection and the calendar depend on required", () => {
+    const required = new Set(
+      CORE_MISSION_FIELDS.filter((field) => field.isRequired).map((field) => field.reportingKey)
+    )
+    expect(required.has("client_company")).toBe(true)
+    expect(required.has("date")).toBe(true)
+    expect(required.has("start_time")).toBe(true)
+    expect(required.has("primary_sales")).toBe(true)
+  })
+
+  it("uses keys the database constraint accepts", () => {
+    for (const field of CORE_MISSION_FIELDS) {
+      expect(field.reportingKey).toMatch(/^[a-z][a-z0-9_]*$/)
+    }
+  })
+
+  it("orders fields distinctly so the initial form is stable", () => {
+    const orders = CORE_MISSION_FIELDS.map((field) => field.displayOrder)
+    expect(new Set(orders).size).toBe(orders.length)
+    expect([...orders].sort((a, b) => a - b)).toEqual(orders)
   })
 })
 
