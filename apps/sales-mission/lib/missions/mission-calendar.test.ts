@@ -13,6 +13,7 @@ function mission(id: string, scheduledStart: string | null): MissionListItem {
   return {
     id,
     clientCompanyName: `Client ${id}`,
+    clientCompanyId: null,
     missionType: "Meeting",
     status: "ASSIGNED",
     location: null,

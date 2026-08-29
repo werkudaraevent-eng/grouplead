@@ -55,8 +55,16 @@ export async function requirePermission(
   module: string,
   action: Action,
   companyId?: string,
+  /**
+   * Supabase client to evaluate the grant against. Defaults to the cookie-based
+   * server client used by Server Actions. The `/api/v1` routes pass a
+   * bearer-token client instead: a cross-origin call from Sales Mission carries
+   * no cookies, but the grant must still be evaluated as that same user rather
+   * than bypassed with a service key.
+   */
+  client?: Awaited<ReturnType<typeof createClient>>,
 ): Promise<PermissionGuard> {
-  const supabase = await createClient()
+  const supabase = client ?? (await createClient())
 
   const { data: auth } = await supabase.auth.getUser()
   const user = auth?.user

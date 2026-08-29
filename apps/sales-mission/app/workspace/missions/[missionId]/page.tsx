@@ -11,6 +11,7 @@ import {
   listMissionTeam,
   listMissions,
   listSupportingNotes,
+  listTenantSales,
 } from "@/lib/missions/mission-queries"
 import { annotateJoinStatus, joinBlockedReason } from "@/lib/missions/mission-join"
 import { canRespond } from "@/lib/missions/assignment-workflow"
@@ -37,6 +38,7 @@ import {
   LeaveButton,
   RemoveMemberButton,
 } from "@/app/workspace/missions/join-controls"
+import { PushLeadPanel } from "./push-lead"
 import { SupportingNotes } from "./supporting-notes"
 
 export const dynamic = "force-dynamic"
@@ -82,7 +84,11 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
     getMissionSettings(access),
     listMissions(access),
   ])
-  const pendingReschedule = await getPendingReschedule(access, missionId)
+  const [pendingReschedule, salesOptions] = await Promise.all([
+    getPendingReschedule(access, missionId),
+    listTenantSales(access),
+  ])
+  const leadEngineUrl = process.env.NEXT_PUBLIC_LEADENGINE_URL?.trim() || null
 
   const isAssigned = role !== null
   const canWriteReport = role === "PRIMARY" || access.isSuperAdmin
@@ -215,9 +221,9 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
                   </div>
                 )}
 
-                {canPushLead(report) && (
+                {canPushLead(report) && !canWriteReport && (
                   <p className="rounded-lg border border-dashed bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
-                    Laporan ini menandai adanya peluang. Pengiriman ke LeadEngine tersedia di fase berikutnya.
+                    Laporan ini menandai adanya peluang. Sales utama dapat mengirimkannya ke LeadEngine.
                   </p>
                 )}
               </div>
@@ -227,6 +233,22 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
                   ? "Isi laporan setelah kunjungan selesai."
                   : "Laporan diisi oleh sales utama."}
               </p>
+            )}
+
+            {report && canPushLead(report) && canWriteReport && (
+              <div className="border-t">
+                <div className="border-b bg-muted/30 px-5 py-4">
+                  <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Integrasi</p>
+                  <h3 className="mt-1 text-base font-semibold text-foreground">Kirim ke LeadEngine</h3>
+                </div>
+                <PushLeadPanel
+                  missionId={missionId}
+                  clientName={mission.clientCompanyName}
+                  salesOptions={salesOptions}
+                  defaultProjectName={mission.objective?.slice(0, 120) || `${mission.missionType} — ${mission.clientCompanyName}`}
+                  leadEngineUrl={leadEngineUrl}
+                />
+              </div>
             )}
 
             {/* Once submitted the report is shown in full above, so there is

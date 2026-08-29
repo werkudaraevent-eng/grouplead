@@ -46,6 +46,13 @@ export async function proxy(request: NextRequest) {
     // reads it). The authoritative copy for Server Components is on the request.
     response.headers.set('x-pathname', request.nextUrl.pathname)
 
+    // The versioned API authenticates itself from a bearer token, not cookies.
+    // Redirecting it to /login would answer a cross-app API call with an HTML
+    // page instead of the 401 the caller can act on.
+    if (request.nextUrl.pathname.startsWith('/api/v1')) {
+        return response
+    }
+
     // Public auth routes that must be reachable without a session.
     // `/reset-password` must stay public: the recovery link is opened before a
     // normal session exists, and the page establishes one from the token itself.

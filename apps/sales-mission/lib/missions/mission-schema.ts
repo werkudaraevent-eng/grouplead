@@ -125,6 +125,8 @@ export interface AssignmentRow {
 export interface MissionListItem {
   id: string
   clientCompanyName: string
+  /** LeadEngine master id, null while the company is only a snapshot name. */
+  clientCompanyId: string | null
   missionType: string
   status: MissionStatus
   location: string | null
@@ -169,6 +171,7 @@ export function mapMissions(
     return {
       id: mission.id,
       clientCompanyName: mission.client_company_name_snapshot,
+      clientCompanyId: mission.client_company_id,
       missionType: mission.mission_type,
       status: mission.status as MissionStatus,
       location: mission.location,
