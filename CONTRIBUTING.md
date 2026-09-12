@@ -45,10 +45,19 @@ feature code in `src/features/*/lib/__tests__/`.
 
 ## Database changes
 
-- Add timestamped SQL files to `supabase/migrations/`
+- Add timestamped SQL files to `apps/leadengine/supabase/migrations/`
   (`YYYYMMDDHHMMSS_description.sql`). Make them idempotent where possible.
-- Apply with the Supabase CLI: `supabase db push --linked`
-  (preview first with `--dry-run`).
+- **All migrations live there, including Sales Mission's.** Both apps share one
+  Supabase project, and `apps/leadengine/supabase/config.toml` is the only
+  linked project directory — the CLI cannot see migrations anywhere else. Sales
+  Mission migrations used to sit under `apps/sales-mission/supabase/`, where
+  `db push` silently ignored them and the migration history never recorded a
+  single one.
+- Apply with the Supabase CLI, run from `apps/leadengine`:
+  `supabase db push --linked` (preview first with `--dry-run`).
+- Never apply a migration by hand through the dashboard or a service-role
+  script. The change lands but the history does not record it, and the next
+  person cannot tell what a fresh environment would actually build.
 - There is **no single schema file** — the schema is the cumulative result of
   all migrations. `schema.sql` is a legacy snapshot; do not treat it as current.
 
