@@ -33,11 +33,11 @@ export default async function BoardPage({
 
   if (!resolved) {
     return (
-      <main className="grid min-h-screen place-items-center bg-[#0d1117] px-8 text-center text-white">
+      <main className="grid min-h-screen place-items-center bg-[var(--board-bg)] px-8 text-center text-[var(--board-text)]">
         <div>
-          <p className="text-sm font-bold uppercase tracking-[0.2em] text-[#F9BB46]">Sales Mission</p>
+          <p className="text-sm font-bold uppercase tracking-[0.2em] text-[var(--board-accent)]">Sales Mission</p>
           <h1 className="mt-3 text-3xl font-bold">Papan tidak dapat dibuka</h1>
-          <p className="mt-3 max-w-md text-white/50">
+          <p className="mt-3 max-w-md text-[var(--board-text-dim)]">
             Tautan papan tidak berlaku, sudah dicabut, atau kedaluwarsa. Minta admin membuat tautan baru
             dari Pengaturan.
           </p>
@@ -51,7 +51,12 @@ export default async function BoardPage({
 
   return (
     <>
-      {/* No client component needed for a page that only has to reload itself. */}
+      {/*
+        A document reload is the right tool here and only here: the TV has no
+        shell to lose, nobody interacts with it, and a hard reload recovers the
+        screen if the page has crashed overnight. The internal board uses
+        router.refresh() instead — see app/workspace/board/auto-refresh.tsx.
+      */}
       <meta httpEquiv="refresh" content="30" />
       <BoardView snapshot={snapshot} subtitle={resolved.label} now={now} />
     </>

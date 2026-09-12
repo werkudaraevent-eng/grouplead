@@ -23,8 +23,21 @@ function mission(id: string, scheduledStart: string | null): MissionListItem {
     primarySalesName: null,
     supportingSalesNames: [],
     allowJoin: true,
+    appointment: {
+      salutation: null,
+      contactId: null,
+      name: null,
+      jobTitle: null,
+      division: null,
+      phone: null,
+      email: null,
+      building: null,
+      notes: null,
+    },
     supportingCount: 0,
     viewerRole: null,
+    viewerResponse: null,
+    pendingResponses: 0,
   }
 }
 

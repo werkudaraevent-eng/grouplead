@@ -1,5 +1,6 @@
 import { z } from "zod"
 import type { AssignmentResponse, MissionStatus } from "./mission-schema"
+import { STATUS_LABELS } from "./status-labels"
 
 /**
  * Assignment responses and mission status.
@@ -9,11 +10,15 @@ import type { AssignmentResponse, MissionStatus } from "./mission-schema"
  * answered. Pure and tested here; the server action applies the result.
  */
 
+/**
+ * Kept as a narrowed view of the shared map rather than its own copy: an
+ * ACCEPTED assignment and an ACCEPTED mission must never read differently.
+ */
 export const RESPONSE_LABELS: Record<AssignmentResponse, string> = {
-  PENDING: "Menunggu jawaban",
-  ACCEPTED: "Diterima",
-  REJECTED: "Ditolak",
-  RESCHEDULE_REQUESTED: "Minta jadwal ulang",
+  PENDING: STATUS_LABELS.PENDING,
+  ACCEPTED: STATUS_LABELS.ACCEPTED,
+  REJECTED: STATUS_LABELS.REJECTED,
+  RESCHEDULE_REQUESTED: STATUS_LABELS.RESCHEDULE_REQUESTED,
 }
 
 /** Statuses that are the end of the line — nothing derived may move them. */

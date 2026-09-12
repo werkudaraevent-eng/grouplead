@@ -1,11 +1,11 @@
 "use client"
 
-import { useActionState } from "react"
+import { useActionState, useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { AlertCircle, Loader2, Plus } from "lucide-react"
 import { createMission, type CreateMissionState } from "@/app/actions/mission-actions"
-import { MISSION_TYPES } from "@/lib/missions/mission-schema"
-import { isChoiceType, visibleFields, type FormField } from "@/lib/missions/form-fields"
+import { CONTACT_SALUTATIONS, MISSION_TYPES } from "@/lib/missions/mission-schema"
+import { visibleFields, type FormField } from "@/lib/missions/form-fields"
 import type { TenantSalesOption } from "@/lib/missions/mission-queries"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -13,34 +13,163 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { EmptyState } from "@/app/workspace/workspace-page"
 import { CompanyPicker } from "./company-picker"
+import { PeopleMultiPicker, PersonPicker } from "./people-picker"
+import { ContactPicker, EMPTY_CONTACT, type ContactDraft } from "./contact-picker"
+import { LocationPicker } from "./location-picker"
 
 /**
  * Mission form, rendered from the tenant's field configuration.
  *
  * Order and labels come from the config, so an admin reordering or relabelling
- * a field — core or custom — changes this form without a deploy. Core fields
- * keep purpose-built inputs; everything else is generic by type.
+ * a field, core or custom, changes this form without a deploy. Core fields keep
+ * purpose-built inputs; everything else is generic by type.
  */
 
 const SELECT_CLASS =
-  "h-11 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-xs outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+  "h-12 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-xs outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
 
+const PLACEHOLDER_JOBTITLE = "GM, Direktur, dan sebagainya"
+const PLACEHOLDER_PHONE = "08…"
+const PLACEHOLDER_EMAIL = "nama@perusahaan.com"
+
+const TEXTAREA_CLASS =
+  "w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+
+/**
+ * How much of the row a field takes.
+ *
+ * Sized to its content rather than packed two-per-row: a time input holds five
+ * characters and looked lost in half a page, while the three schedule fields
+ * belong on one line because they are read as one answer. The grid is six
+ * columns so both halves (3) and thirds (2) land on it exactly.
+ */
+type Span = "full" | "half" | "third"
+
+const SPAN_CLASS: Record<Span, string> = {
+  full: "sm:col-span-6",
+  half: "sm:col-span-3",
+  third: "sm:col-span-2",
+}
+
+const CORE_SPANS: Record<string, Span> = {
+  client_company: "full",
+  mission_type: "half",
+  location: "half",
+  date: "third",
+  start_time: "third",
+  end_time: "third",
+  objective: "full",
+  primary_sales: "half",
+  supporting_sales: "full",
+  contact_name: "full",
+  contact_job_title: "half",
+  contact_division: "half",
+  contact_phone: "half",
+  contact_email: "half",
+  building: "full",
+  appointment_notes: "full",
+}
+
+/**
+ * Sections, so sixteen fields read as three answerable questions instead of one
+ * long run: what the visit is, who goes, and who is being met.
+ *
+ * A heading is emitted whenever the section changes while walking the admin's
+ * configured order, rather than by regrouping the fields. The admin's ordering
+ * stays the ordering; if they interleave, the headings repeat and show them
+ * exactly that.
+ */
+const CORE_SECTIONS: Record<string, string> = {
+  client_company: "Kunjungan",
+  mission_type: "Kunjungan",
+  location: "Kunjungan",
+  date: "Kunjungan",
+  start_time: "Kunjungan",
+  end_time: "Kunjungan",
+  objective: "Kunjungan",
+  primary_sales: "Tim yang berangkat",
+  supporting_sales: "Tim yang berangkat",
+  contact_name: "Janji temu",
+  contact_job_title: "Janji temu",
+  contact_division: "Janji temu",
+  contact_phone: "Janji temu",
+  contact_email: "Janji temu",
+  building: "Janji temu",
+  appointment_notes: "Janji temu",
+}
+
+/**
+ * Where a linked contact's detail came from.
+ *
+ * Without this the form said "Tertaut ke kontak di LeadEngine" above two empty
+ * boxes, and the rep could not tell a CRM that holds nothing from a link that
+ * half failed. Four in ten contacts in this CRM have no job title, so that
+ * ambiguity was the common case rather than the edge.
+ */
+function ContactSource({ crmValue }: { crmValue: string | null | undefined }) {
+  return (
+    <p className="text-xs text-muted-foreground">
+      {crmValue ? "Dari CRM." : "Belum ada di CRM. Yang Anda isi bisa dikirim balik saat lead dibuat."}
+    </p>
+  )
+}
+
+function sectionOf(field: FormField): string {
+  return field.isCore ? CORE_SECTIONS[field.reportingKey] ?? "Lainnya" : "Tambahan"
+}
+
+function spanOf(field: FormField): Span {
+  if (field.isCore) return CORE_SPANS[field.reportingKey] ?? "half"
+  if (field.fieldType === "LONG_TEXT" || field.fieldType === "MULTI_SELECT" || field.fieldType === "BOOLEAN") {
+    return "full"
+  }
+  return "half"
+}
+
+/**
+ * Required is marked, optional is not.
+ *
+ * The form used to do the opposite, tagging eleven of sixteen fields
+ * "(opsional)" and leaving the five that actually block submission unmarked.
+ * The reader had to work out what was mandatory by elimination. Marking the
+ * smaller set is both quieter and the thing people scan for.
+ */
 function FieldShell({
   field,
   children,
-  wide = false,
+  span,
+  as = "field",
 }: {
   field: FormField
   children: React.ReactNode
-  wide?: boolean
+  span?: Span
+  /**
+   * "group" for a set of checkboxes, which has no single control to point at.
+   * A `for` naming an id nothing renders leaves the label attached to nothing:
+   * clicking it focuses nothing, and a screen reader announces each checkbox
+   * with no idea which question it answers.
+   */
+  as?: "field" | "group"
 }) {
+  const labelId = `label-${field.reportingKey}`
+
   return (
-    <div className={wide ? "space-y-1.5 sm:col-span-2" : "space-y-1.5"}>
-      <Label htmlFor={`field-${field.reportingKey}`}>
-        {field.label}
-        {!field.isRequired && <span className="ml-1 font-normal text-muted-foreground">(opsional)</span>}
+    <div className={`space-y-2 ${SPAN_CLASS[span ?? spanOf(field)]}`}>
+      <Label id={labelId} htmlFor={as === "field" ? `field-${field.reportingKey}` : undefined}>
+        {/* One span, so the shared Label's `gap-2` does not push the marker
+            10px clear of the word it qualifies. */}
+        <span>
+          {field.label}
+          {field.isRequired && (
+            <span className="ml-0.5 text-[var(--danger-foreground)]" aria-hidden="true">*</span>
+          )}
+        </span>
       </Label>
-      {children}
+      {as === "group" ? (
+        <div role="group" aria-labelledby={labelId}>{children}</div>
+      ) : (
+        children
+      )}
       {field.helpText && <p className="text-xs text-muted-foreground">{field.helpText}</p>}
     </div>
   )
@@ -53,7 +182,7 @@ function CustomField({ field }: { field: FormField }) {
 
   if (field.fieldType === "BOOLEAN") {
     return (
-      <div className="space-y-1.5 sm:col-span-2">
+      <div className={`space-y-2 ${SPAN_CLASS.full}`}>
         <div className="flex items-center gap-2.5">
           <Checkbox id={id} name={name} value="true" />
           <Label htmlFor={id} className="font-normal">{field.label}</Label>
@@ -65,7 +194,7 @@ function CustomField({ field }: { field: FormField }) {
 
   if (field.fieldType === "MULTI_SELECT") {
     return (
-      <FieldShell field={field} wide>
+      <FieldShell field={field} as="group">
         <div className="flex flex-wrap gap-x-5 gap-y-2.5">
           {field.options.map((option) => (
             <div className="flex items-center gap-2.5" key={option}>
@@ -91,7 +220,7 @@ function CustomField({ field }: { field: FormField }) {
 
   if (field.fieldType === "LONG_TEXT") {
     return (
-      <FieldShell field={field} wide>
+      <FieldShell field={field}>
         <textarea
           id={id}
           name={name}
@@ -99,7 +228,7 @@ function CustomField({ field }: { field: FormField }) {
           rows={3}
           maxLength={4000}
           placeholder={field.placeholder ?? ""}
-          className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+          className={TEXTAREA_CLASS}
         />
       </FieldShell>
     )
@@ -118,7 +247,7 @@ function CustomField({ field }: { field: FormField }) {
         inputMode={inputMode}
         required={field.isRequired}
         placeholder={field.placeholder ?? ""}
-        className="h-11"
+        className="h-12"
       />
     </FieldShell>
   )
@@ -137,6 +266,25 @@ export function MissionForm({
   // a failure worth showing.
   const [state, formAction, pending] = useActionState<CreateMissionState, FormData>(createMission, null)
 
+  // Tracked so the supporting list can exclude whoever is leading the visit.
+  const [primarySalesId, setPrimarySalesId] = useState("")
+  const [supportingIds, setSupportingIds] = useState<string[]>([])
+
+  // The CRM link, lifted out of the company picker so the contact field can
+  // offer that company's known people.
+  const [clientCompanyId, setClientCompanyId] = useState<string | null>(null)
+  const [contact, setContact] = useState<ContactDraft>(EMPTY_CONTACT)
+
+  const errorRef = useRef<HTMLDivElement>(null)
+
+  // The alert sits at the top of a form that is taller than the screen, so on a
+  // phone a failed submit used to look like nothing had happened at all.
+  useEffect(() => {
+    if (!state?.error) return
+    errorRef.current?.scrollIntoView({ block: "center", behavior: "smooth" })
+    errorRef.current?.focus()
+  }, [state])
+
   if (salesOptions.length === 0) {
     return (
       <EmptyState
@@ -144,7 +292,7 @@ export function MissionForm({
         description="Mission butuh minimal satu sales untuk ditugaskan. Minta admin menambahkan anggota ke unit bisnis ini lebih dulu."
         action={
           <Button asChild variant="outline" size="sm">
-            <Link href="/workspace/missions">Kembali ke missions</Link>
+            <Link href="/workspace/missions">Kembali ke daftar mission</Link>
           </Button>
         }
       />
@@ -156,95 +304,290 @@ export function MissionForm({
   const coreField = (field: FormField): React.ReactNode => {
     switch (field.reportingKey) {
       case "client_company":
-        return <CompanyPicker key={field.id} />
+        return (
+          <FieldShell field={field} key={field.id}>
+            <CompanyPicker
+              label={field.label}
+              required={field.isRequired}
+              onLink={(id) => {
+                setClientCompanyId(id)
+                // A different company means a different set of people, so a
+                // contact picked from the previous one is no longer theirs.
+                setContact((prev) => (prev.id ? EMPTY_CONTACT : prev))
+              }}
+            />
+          </FieldShell>
+        )
       case "mission_type":
         return (
           <FieldShell field={field} key={field.id}>
-            <select id="field-mission_type" name="missionType" defaultValue="Meeting" className={SELECT_CLASS}>
-              {MISSION_TYPES.map((type) => <option key={type} value={type}>{type}</option>)}
+            {/* Options come from the tenant's configuration, not from code, so
+                a type added in Pengaturan appears here without a deploy. The
+                fallback covers a tenant seeded before the options existed. */}
+            <select
+              id="field-mission_type"
+              name="missionType"
+              defaultValue={(field.options.length > 0 ? field.options : MISSION_TYPES)[0]}
+              className={SELECT_CLASS}
+            >
+              {(field.options.length > 0 ? field.options : MISSION_TYPES).map((type) => (
+                <option key={type} value={type}>{type}</option>
+              ))}
             </select>
           </FieldShell>
         )
       case "location":
         return (
           <FieldShell field={field} key={field.id}>
-            <Input id="field-location" name="location" maxLength={300} required={field.isRequired} placeholder={field.placeholder ?? "Jakarta Selatan"} className="h-11" />
+            <LocationPicker
+              id="field-location"
+              required={field.isRequired}
+              placeholder={field.placeholder ?? "Jakarta Selatan"}
+            />
           </FieldShell>
         )
       case "date":
         return (
           <FieldShell field={field} key={field.id}>
-            <Input id="field-date" name="date" type="date" required defaultValue={defaultDate} className="h-11" />
+            <Input id="field-date" name="date" type="date" required defaultValue={defaultDate} className="h-12" />
           </FieldShell>
         )
       case "start_time":
         return (
           <FieldShell field={field} key={field.id}>
-            <Input id="field-start_time" name="startTime" type="time" required defaultValue="09:30" className="h-11" />
+            <Input id="field-start_time" name="startTime" type="time" required defaultValue="09:30" className="h-12" />
           </FieldShell>
         )
       case "end_time":
         return (
           <FieldShell field={field} key={field.id}>
-            <Input id="field-end_time" name="endTime" type="time" required={field.isRequired} className="h-11" />
+            <Input id="field-end_time" name="endTime" type="time" required={field.isRequired} className="h-12" />
           </FieldShell>
         )
       case "objective":
         return (
-          <FieldShell field={field} key={field.id} wide>
-            <Input id="field-objective" name="objective" maxLength={1000} required={field.isRequired} placeholder={field.placeholder ?? "Apa yang ingin dicapai dari kunjungan ini?"} className="h-11" />
+          <FieldShell field={field} key={field.id}>
+            <Input id="field-objective" name="objective" maxLength={1000} required={field.isRequired} placeholder={field.placeholder ?? "Apa yang ingin dicapai dari kunjungan ini?"} className="h-12" />
           </FieldShell>
         )
       case "primary_sales":
         return (
           <FieldShell field={field} key={field.id}>
-            <select id="field-primary_sales" name="primarySalesId" required defaultValue="" className={SELECT_CLASS}>
-              <option value="" disabled>Pilih sales utama</option>
-              {salesOptions.map((option) => <option key={option.id} value={option.id}>{option.name}</option>)}
-            </select>
+            <PersonPicker
+              id="field-primary_sales"
+              name="primarySalesId"
+              required
+              people={salesOptions}
+              value={primarySalesId}
+              onChange={(id) => {
+                setPrimarySalesId(id)
+                // Whoever now leads cannot also support. Dropping them here
+                // rather than only hiding them stops a stale hidden input
+                // submitting a person the schema will reject.
+                setSupportingIds((prev) => prev.filter((item) => item !== id))
+              }}
+              placeholder="Pilih sales utama"
+            />
           </FieldShell>
         )
-      case "supporting_sales":
+      case "contact_name":
         return (
-          <FieldShell field={field} key={field.id} wide>
-            <div className="flex flex-wrap gap-x-5 gap-y-2.5">
-              {salesOptions.map((option) => (
-                <div className="flex items-center gap-2.5" key={option.id}>
-                  <Checkbox id={`supporting-${option.id}`} name="supportingSalesIds" value={option.id} />
-                  <Label htmlFor={`supporting-${option.id}`} className="font-normal">{option.name}</Label>
-                </div>
-              ))}
-            </div>
+          <FieldShell field={field} key={field.id}>
+            {/* Salutation stacks above the name below 400px rather than
+                squeezing it: a 112px select next to a name field leaves too
+                little room to read what you typed on the narrowest phones. */}
+            <ContactPicker
+              clientCompanyId={clientCompanyId}
+              value={contact}
+              onChange={setContact}
+              required={field.isRequired}
+              placeholder={field.placeholder ?? "Nama lengkap"}
+              selectClassName={`${SELECT_CLASS} min-[400px]:w-28 min-[400px]:shrink-0`}
+            />
           </FieldShell>
         )
+      case "contact_job_title":
+        return (
+          <FieldShell field={field} key={field.id}>
+            <Input id="field-contact_job_title" name="contactJobTitle" maxLength={150} required={field.isRequired} placeholder={field.placeholder ?? PLACEHOLDER_JOBTITLE} value={contact.jobTitle} onChange={(e) => setContact({ ...contact, jobTitle: e.target.value })} className="h-12" />
+            {contact.id && <ContactSource crmValue={contact.crm?.jobTitle} />}
+          </FieldShell>
+        )
+      case "contact_division":
+        return (
+          <FieldShell field={field} key={field.id}>
+            <Input id="field-contact_division" name="contactDivision" maxLength={150} required={field.isRequired} placeholder={field.placeholder ?? "Marketing, Procurement, dan sebagainya"} className="h-12" />
+          </FieldShell>
+        )
+      case "contact_phone":
+        return (
+          <FieldShell field={field} key={field.id}>
+            <Input id="field-contact_phone" name="contactPhone" type="tel" inputMode="tel" autoComplete="tel" maxLength={50} required={field.isRequired} placeholder={field.placeholder ?? PLACEHOLDER_PHONE} value={contact.phone} onChange={(e) => setContact({ ...contact, phone: e.target.value })} className="h-12" />
+            {contact.id && <ContactSource crmValue={contact.crm?.phone} />}
+          </FieldShell>
+        )
+      case "contact_email":
+        return (
+          <FieldShell field={field} key={field.id}>
+            <Input id="field-contact_email" name="contactEmail" type="email" inputMode="email" autoComplete="email" maxLength={200} required={field.isRequired} placeholder={field.placeholder ?? PLACEHOLDER_EMAIL} value={contact.email} onChange={(e) => setContact({ ...contact, email: e.target.value })} className="h-12" />
+            {contact.id && <ContactSource crmValue={contact.crm?.email} />}
+          </FieldShell>
+        )
+      case "building":
+        return (
+          <FieldShell field={field} key={field.id}>
+            <Input id="field-building" name="building" maxLength={300} required={field.isRequired} placeholder={field.placeholder ?? "Menara BCA lt. 21"} className="h-12" />
+          </FieldShell>
+        )
+      case "appointment_notes":
+        return (
+          <FieldShell field={field} key={field.id}>
+            <textarea
+              id="field-appointment_notes"
+              name="appointmentNotes"
+              rows={4}
+              maxLength={4000}
+              required={field.isRequired}
+              placeholder={field.placeholder ?? "Apa yang sudah dibicarakan saat membuat janji: permintaan klien, materi yang diminta, siapa lagi yang akan hadir."}
+              className={TEXTAREA_CLASS}
+            />
+          </FieldShell>
+        )
+      case "supporting_sales": {
+        // The primary drops out of this list. One person cannot hold both roles
+        // on a mission (the schema rejects it and the assignments table has a
+        // unique key on mission_id and user_id), so offering the choice only
+        // invites an error after the form is filled in.
+        const supportingOptions = salesOptions.filter((option) => option.id !== primarySalesId)
+
+        return (
+          <FieldShell field={field} key={field.id}>
+            <PeopleMultiPicker
+              id="field-supporting_sales"
+              name="supportingSalesIds"
+              people={supportingOptions}
+              value={supportingIds.filter((item) => item !== primarySalesId)}
+              onChange={setSupportingIds}
+              placeholder="Tambah sales pendukung"
+              // Only reachable when the tenant has exactly one member and they
+              // are the primary; the form already refuses to render with none.
+              emptyLabel="Belum ada anggota lain di unit bisnis ini."
+            />
+          </FieldShell>
+        )
+      }
       default:
         return null
     }
   }
 
+  const ordered = visibleFields(fields)
+  const requiredCount = ordered.filter((field) => field.isRequired).length
+
+  /*
+    Cut the configured order into consecutive runs of the same section, so each
+    run becomes ONE grid.
+
+    Emitting a heading inline while mapping looked equivalent and was not: it
+    gave every field its own grid container, and a column span only means
+    something among siblings. Every field would have rendered on its own row at
+    a third or half width, with the rest of the row empty, which is the opposite
+    of the fix. Building the runs first is also what removes the render-time
+    mutation of a `lastSection` variable.
+  */
+  const blocks: Array<{ section: string; fields: FormField[] }> = []
+  for (const field of ordered) {
+    const section = sectionOf(field)
+    const current = blocks[blocks.length - 1]
+    if (current && current.section === section) current.fields.push(field)
+    else blocks.push({ section, fields: [field] })
+  }
+
   return (
-    <form action={formAction} className="mx-auto max-w-3xl overflow-hidden rounded-xl border bg-card">
+    // Left-aligned, not centred. The page title sits at the left edge, so a
+    // centred card left the heading and the thing it describes on different
+    // axes with a stripe of empty page between them.
+    // overflow-clip, not overflow-hidden. Both clip to the rounded corners, but
+    // `hidden` also makes this element a scroll container, and a sticky child
+    // resolves against its nearest scrollport. The form's content exactly fills
+    // it, so there was no scrollable range and the action bar below never
+    // pinned: measured 107px below the fold on a phone-height viewport.
+    <form action={formAction} className="max-w-3xl overflow-clip rounded-xl border bg-card">
       {state?.error ? (
-        <div className="flex items-start gap-2.5 border-b bg-destructive/10 px-5 py-4 text-sm text-destructive sm:px-6" role="alert">
+        <div
+          ref={errorRef}
+          tabIndex={-1}
+          className="flex items-start gap-2.5 border-b bg-[var(--danger)] px-5 py-4 text-sm text-[var(--danger-foreground)] outline-none sm:px-6"
+          role="alert"
+        >
           <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
           <p>{state.error}</p>
         </div>
       ) : null}
 
-      <div className="px-5 py-6 sm:px-6">
-        <div className="grid gap-5 sm:grid-cols-2">
-          {visibleFields(fields).map((field) =>
-            field.isCore ? coreField(field) : <CustomField key={field.id} field={field} />
-          )}
-        </div>
+      {requiredCount > 0 && (
+        <p className="border-b px-5 py-3 text-xs text-muted-foreground sm:px-6">
+          Bertanda <span className="text-[var(--danger-foreground)]">*</span> wajib diisi. Sisanya boleh dilewati.
+        </p>
+      )}
+
+      {/*
+        A section title has to outrank a field label, and it did not.
+
+        The first attempt used an uppercase, wide-tracked eyebrow, which is the
+        generic look this project already rejects elsewhere. Replacing it with
+        `text-sm font-semibold` swung too far the other way: the field labels are
+        `text-sm font-medium`, so the only difference left was one weight step at
+        the same size, which nobody can see.
+
+        Material's type scale puts a title a step above a label rather than a
+        shade bolder, so the heading is 16px against the label's 14px. The
+        divider does the rest: separating sections with a rule is how M3 breaks
+        up a long list, and it is a structural cue rather than a typographic one,
+        which is what "this is a new part of the form" actually needs.
+      */}
+      <div className="space-y-6 px-5 py-6 sm:px-6">
+        {blocks.map((block, index) => (
+          <section
+            key={`${block.section}-${index}`}
+            className={index > 0 ? "space-y-4 border-t pt-6" : "space-y-4"}
+          >
+            <h2 className="text-base font-semibold tracking-tight text-foreground">
+              {block.section}
+            </h2>
+            <div className="grid gap-x-4 gap-y-5 sm:grid-cols-6">
+              {block.fields.map((field) =>
+                field.isCore ? coreField(field) : <CustomField key={field.id} field={field} />
+              )}
+            </div>
+          </section>
+        ))}
       </div>
 
-      <div className="flex justify-end gap-2 bg-muted/30 px-5 py-4 sm:px-6">
-        <Button asChild variant="outline" type="button">
-          <Link href="/workspace/missions">Cancel</Link>
+      {/* Sticks to the bottom of the viewport on a phone, where sixteen fields
+          put the save button a long scroll away from wherever you finished.
+          The 44px target is held until md, not sm: a 640px screen is still a
+          thumb more often than a mouse. */}
+      {/*
+        Pinned on a phone only, and opaque while it is pinned.
+
+        Two things were wrong. It stayed sticky on desktop, where the form is
+        768px in a tall window and the save button was never far away, so a bar
+        parked over the fields solved nothing and covered them. And the desktop
+        background was `bg-muted/30`, 30% alpha, so the fields underneath showed
+        straight through it: that transparency is what made it read as floating
+        rather than as a bar.
+
+        Below sm it pins with an opaque card background. From sm up it goes back
+        to being the last row of the form, where the muted tint is safe because
+        nothing scrolls beneath it.
+      */}
+      <div className="sticky bottom-0 flex flex-col gap-2 border-t bg-card px-5 py-4 sm:static sm:flex-row sm:justify-end sm:bg-muted/30 sm:px-6">
+        <Button asChild variant="outline" type="button" className="h-12 md:h-10">
+          <Link href="/workspace/missions">Batal</Link>
         </Button>
-        <Button type="submit" disabled={pending}>
-          {pending ? <><Loader2 className="h-4 w-4 animate-spin" /> Menyimpan…</> : <><Plus className="h-4 w-4" /> Save mission</>}
+        <Button type="submit" disabled={pending} className="h-12 md:h-10">
+          {pending ? <><Loader2 className="h-4 w-4 animate-spin" /> Menyimpan…</> : <><Plus className="h-4 w-4" /> Simpan mission</>}
         </Button>
       </div>
     </form>

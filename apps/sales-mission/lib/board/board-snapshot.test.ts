@@ -17,6 +17,19 @@ function mission(overrides: Partial<MissionListItem> & { id: string }): MissionL
     allowJoin: true,
     supportingCount: 0,
     viewerRole: null,
+    viewerResponse: null,
+    pendingResponses: 0,
+    appointment: {
+      salutation: null,
+      contactId: null,
+      name: null,
+      jobTitle: null,
+      division: null,
+      phone: null,
+      email: null,
+      building: null,
+      notes: null,
+    },
     ...overrides,
   }
 }

@@ -61,7 +61,10 @@
   --secondary: #C3E6F5;
   --secondary-foreground: #02378D;
   --muted: #f4f6f8;
-  --muted-foreground: #8a95a1;
+  /* Carries every hint, timestamp, and description in the app, so it is held to
+     the AA bar against the *page* background (#EFEFEF), not just against white.
+     The previous #8a95a1 was 2.65:1 there. */
+  --muted-foreground: #5F6B76;
   --accent: #F9BB46;
   --accent-foreground: #3b2b00;
   --destructive: #ED6F22;
@@ -82,10 +85,36 @@
   --sidebar-border: rgba(0, 0, 0, 0.08);
   --sidebar-ring: #02378D;
   /* ── Semantic Colors ── */
+  /* Each pair is a tinted surface plus text that is legible on it. --destructive
+     stays the brand orange for fills and icons; it is far too light to be read
+     as text on its own tint (#ED6F22 on a 10% tint is 2.73:1), so error copy
+     uses --danger-foreground instead. */
   --success: #e8f5ef;
   --success-foreground: #3d7a5c;
   --warning: #fef8ec;
   --warning-foreground: #7a5900;
+  --danger: #fdeee6;
+  --danger-foreground: #93400a;
+
+  /* ── Live board (TV + internal) ──
+     The board is read across a room on a dark screen, so it cannot reuse the
+     light-surface tokens above. It gets its own declared ramp rather than
+     colours scattered through the component: the palette stays one system even
+     though this surface is inverted. Every pair below clears 4.5:1 on
+     --board-bg. */
+  --board-bg: #0d1117;
+  --board-panel: rgba(255, 255, 255, 0.04);
+  --board-panel-raised: rgba(255, 255, 255, 0.06);
+  --board-line: rgba(255, 255, 255, 0.10);
+  --board-text: #ffffff;
+  --board-text-dim: #9ea6b0;
+  --board-accent: #F9BB46;
+  --board-done: #6ee7b7;
+  --board-done-surface: rgba(16, 185, 129, 0.15);
+  --board-active: #7dd3fc;
+  --board-active-surface: rgba(14, 165, 233, 0.15);
+  --board-running: #fcd34d;
+  --board-running-surface: rgba(245, 158, 11, 0.15);
 }
 
 /* ── Dark Sidebar Panel (Bigin-style) ── */
@@ -100,39 +129,19 @@
   --sidebar-ring: #5EC5F2;
 }
 
-.dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
-}
+/*
+ * There is deliberately no `.dark` palette here.
+ *
+ * The app ships light, with an optional dark sidebar panel (`.sidebar-dark-mode`
+ * above). A full `.dark` block used to sit at this spot carrying shadcn's stock
+ * neutral greys — never reachable, because nothing sets the class, but one line
+ * away from replacing the whole Werkudara palette with generic grey if someone
+ * ever wired up a theme toggle.
+ *
+ * The `dark:` variants still present in components/ui are inert for the same
+ * reason. If a real dark mode is wanted, define it from the brand palette here
+ * first; do not restore a stock one.
+ */
 
 @layer base {
   * {
@@ -141,10 +150,11 @@
   body {
     @apply bg-background text-foreground;
   }
-  /* Global placeholder visibility safety net */
+  /* Placeholders follow the muted token rather than a hardcoded slate, so they
+     are held to the same contrast bar as every other secondary text. */
   input::placeholder,
   textarea::placeholder {
-    color: #94a3b8; /* slate-400 — guaranteed visible on white/light backgrounds */
+    color: var(--muted-foreground);
     opacity: 1; /* Override browser default opacity reduction */
   }
 }
