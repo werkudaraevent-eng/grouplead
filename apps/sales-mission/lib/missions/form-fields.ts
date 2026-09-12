@@ -9,6 +9,14 @@ import { z } from "zod"
  * apply exactly the same rules.
  */
 
+/**
+ * Starting options for "Jenis mission".
+ *
+ * A default, not a rule. The mission form renders whatever the tenant has
+ * configured; this is only what a tenant is handed before anyone edits it.
+ */
+export const DEFAULT_MISSION_TYPES = ["Meeting", "Visit", "Survey", "Follow Up"] as const
+
 export const FIELD_TYPES = [
   "TEXT",
   "LONG_TEXT",
@@ -40,6 +48,45 @@ export function isChoiceType(type: FieldType): boolean {
 }
 
 /**
+ * Where a choice field's options come from.
+ *
+ *   config    — the admin maintains the list on the settings screen, and the
+ *               mission form renders exactly that list.
+ *   directory — the list is people, read from the tenant's users. There is
+ *               nothing to type here, and an options editor would be a control
+ *               that changes nothing.
+ *
+ * This distinction did not exist before, so the settings screen hid the options
+ * editor from every core field. "Jenis mission" therefore showed as a single
+ * choice field with no choices and no way to add one, while the real list sat
+ * hardcoded in MISSION_TYPES where no admin could reach it.
+ */
+export type OptionSource = "config" | "directory"
+
+const CORE_OPTION_SOURCES: Record<string, OptionSource> = {
+  mission_type: "config",
+  primary_sales: "directory",
+  supporting_sales: "directory",
+}
+
+export function optionSource(
+  field: Pick<FormField, "isCore" | "reportingKey" | "fieldType">
+): OptionSource | null {
+  if (!isChoiceType(field.fieldType)) return null
+  if (!field.isCore) return "config"
+  // An unlisted core choice field is treated as directory-owned: refusing to
+  // edit a list we do not understand is the safe default.
+  return CORE_OPTION_SOURCES[field.reportingKey] ?? "directory"
+}
+
+/** Whether this field's options are the admin's to edit. */
+export function canEditOptions(
+  field: Pick<FormField, "isCore" | "reportingKey" | "fieldType">
+): boolean {
+  return optionSource(field) === "config"
+}
+
+/**
  * The locked core fields every tenant starts with.
  *
  * Defined here rather than only in SQL so the seed runs through the same
@@ -48,17 +95,31 @@ export function isChoiceType(type: FieldType): boolean {
  * for something this simple.
  */
 export const CORE_MISSION_FIELDS: Array<
-  Pick<FormField, "reportingKey" | "label" | "fieldType" | "isRequired" | "displayOrder">
+  Pick<FormField, "reportingKey" | "label" | "fieldType" | "isRequired" | "displayOrder"> & {
+    options?: string[]
+  }
 > = [
-  { reportingKey: "client_company", label: "Client company", fieldType: "TEXT", isRequired: true, displayOrder: 10 },
-  { reportingKey: "mission_type", label: "Mission type", fieldType: "SELECT", isRequired: true, displayOrder: 20 },
-  { reportingKey: "location", label: "Location", fieldType: "TEXT", isRequired: false, displayOrder: 30 },
-  { reportingKey: "date", label: "Date", fieldType: "DATE", isRequired: true, displayOrder: 40 },
-  { reportingKey: "start_time", label: "Start time", fieldType: "TIME", isRequired: true, displayOrder: 50 },
-  { reportingKey: "end_time", label: "End time", fieldType: "TIME", isRequired: false, displayOrder: 60 },
-  { reportingKey: "objective", label: "Objective", fieldType: "TEXT", isRequired: false, displayOrder: 70 },
-  { reportingKey: "primary_sales", label: "Primary sales", fieldType: "SELECT", isRequired: true, displayOrder: 80 },
-  { reportingKey: "supporting_sales", label: "Supporting sales", fieldType: "MULTI_SELECT", isRequired: false, displayOrder: 90 },
+  { reportingKey: "client_company", label: "Perusahaan klien", fieldType: "TEXT", isRequired: true, displayOrder: 10 },
+  // Seeded with the list the mission form used to hardcode, so switching it to
+  // config changes nothing on day one and everything after.
+  { reportingKey: "mission_type", label: "Jenis mission", fieldType: "SELECT", isRequired: true, displayOrder: 20, options: [...DEFAULT_MISSION_TYPES] },
+  { reportingKey: "location", label: "Lokasi", fieldType: "TEXT", isRequired: false, displayOrder: 30 },
+  { reportingKey: "date", label: "Tanggal", fieldType: "DATE", isRequired: true, displayOrder: 40 },
+  { reportingKey: "start_time", label: "Jam mulai", fieldType: "TIME", isRequired: true, displayOrder: 50 },
+  { reportingKey: "end_time", label: "Jam selesai", fieldType: "TIME", isRequired: false, displayOrder: 60 },
+  { reportingKey: "objective", label: "Tujuan kunjungan", fieldType: "TEXT", isRequired: false, displayOrder: 70 },
+  { reportingKey: "primary_sales", label: "Sales utama", fieldType: "SELECT", isRequired: true, displayOrder: 80 },
+  { reportingKey: "supporting_sales", label: "Sales pendukung", fieldType: "MULTI_SELECT", isRequired: false, displayOrder: 90 },
+  // Appointment block. Often filled by the appointment team rather than the rep
+  // who will attend, so it is the only place the rep learns who they are
+  // meeting and what was already agreed.
+  { reportingKey: "contact_name", label: "Bertemu dengan", fieldType: "TEXT", isRequired: false, displayOrder: 100 },
+  { reportingKey: "contact_job_title", label: "Jabatan", fieldType: "TEXT", isRequired: false, displayOrder: 110 },
+  { reportingKey: "contact_division", label: "Divisi", fieldType: "TEXT", isRequired: false, displayOrder: 120 },
+  { reportingKey: "contact_phone", label: "Telepon", fieldType: "TEXT", isRequired: false, displayOrder: 130 },
+  { reportingKey: "contact_email", label: "Email", fieldType: "TEXT", isRequired: false, displayOrder: 140 },
+  { reportingKey: "building", label: "Gedung / lantai", fieldType: "TEXT", isRequired: false, displayOrder: 150 },
+  { reportingKey: "appointment_notes", label: "Catatan janji temu", fieldType: "LONG_TEXT", isRequired: false, displayOrder: 160 },
 ]
 
 export interface FormField {
@@ -104,14 +165,6 @@ export const fieldDefinitionSchema = z
     options: z.array(z.string().trim().min(1)).default([]),
   })
   .superRefine((value, ctx) => {
-    if (isChoiceType(value.fieldType) && value.options.length === 0) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["options"],
-        message: "Field pilihan butuh minimal satu opsi",
-      })
-    }
-
     const unique = new Set(value.options)
     if (unique.size !== value.options.length) {
       ctx.addIssue({ code: "custom", path: ["options"], message: "Opsi tidak boleh terduplikasi" })
@@ -121,16 +174,47 @@ export const fieldDefinitionSchema = z
 export type FieldDefinitionInput = z.infer<typeof fieldDefinitionSchema>
 
 /**
+ * The "a choice field needs choices" rule, which only applies where the admin
+ * owns the list.
+ *
+ * It cannot live in the zod schema: "Sales utama" is a required core SELECT
+ * whose options are people, so it legitimately stores an empty array, and a
+ * blanket rule would make that field unsaveable. The same function backs the
+ * client's inline validation and the server's refusal.
+ */
+export function describeOptionsViolation(
+  field: Pick<FormField, "isCore" | "reportingKey" | "fieldType">,
+  options: string[]
+): string | null {
+  if (!canEditOptions(field)) return null
+  if (options.length === 0) return "Field pilihan butuh minimal satu opsi"
+
+  // Compared trimmed, because that is what gets stored: fieldDefinitionSchema
+  // trims each option before it reaches the database. Comparing raw let
+  // "Meeting" and "Meeting " through the Save button and only failed once the
+  // server had normalised them, with an error that named no row.
+  const normalised = options.map((option) => option.trim())
+  if (normalised.some((option) => option.length === 0)) return "Opsi tidak boleh kosong"
+  if (new Set(normalised).size !== normalised.length) return "Opsi tidak boleh terduplikasi"
+  return null
+}
+
+/**
  * Whether an edit to a core field is allowed.
  *
  * Core fields carry conflict detection, the calendar, KPI and the lead push.
  * Admins may relabel and reorder them, and may tighten an optional one into a
  * required one — tightening only ever adds information. Loosening or removing
  * would break those features silently.
+ *
+ * The type stays fixed for a concrete reason, not out of caution: the schedule
+ * columns feed overlap detection, and `missions.mission_type` is a single text
+ * column that a MULTI_SELECT could not fit. Options are a different question,
+ * and are allowed wherever the field owns its list (see optionSource).
  */
 export function describeCoreFieldViolation(
-  field: Pick<FormField, "isCore" | "isRequired" | "fieldType">,
-  change: { isRequired?: boolean; fieldType?: FieldType; archive?: boolean }
+  field: Pick<FormField, "isCore" | "isRequired" | "fieldType" | "reportingKey">,
+  change: { isRequired?: boolean; fieldType?: FieldType; archive?: boolean; options?: string[] }
 ): string | null {
   if (!field.isCore) return null
 
@@ -140,6 +224,9 @@ export function describeCoreFieldViolation(
   }
   if (change.isRequired === false && field.isRequired) {
     return "Field inti yang wajib tidak bisa dijadikan opsional."
+  }
+  if (change.options && !canEditOptions(field)) {
+    return "Pilihan pada field ini diambil dari daftar pengguna, bukan diatur di sini."
   }
 
   return null

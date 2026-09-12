@@ -56,24 +56,68 @@ export async function listFormFields(
 
   let fields = await read()
 
-  if (fields.length === 0 && formKey === "mission") {
-    // `ignoreDuplicates` makes this safe to race: two people opening the form
-    // at once both attempt the seed, and the unique key decides.
-    await schema.from("form_fields").upsert(
-      CORE_MISSION_FIELDS.map((field) => ({
-        company_id: access.companyId,
-        form_key: "mission",
-        reporting_key: field.reportingKey,
-        label: field.label,
-        field_type: field.fieldType,
-        is_required: field.isRequired,
-        is_core: true,
-        display_order: field.displayOrder,
-      })),
-      { onConflict: "company_id,form_key,reporting_key", ignoreDuplicates: true }
+  if (formKey === "mission") {
+    // Seed whatever core fields this tenant is missing, not just the whole set
+    // on an empty form. A tenant seeded before a core field existed would
+    // otherwise never see it: the old "only when empty" check meant new core
+    // fields reached new tenants and nobody else.
+    const present = new Set(fields.map((field) => field.reportingKey))
+    const missing = CORE_MISSION_FIELDS.filter((field) => !present.has(field.reportingKey))
+
+    if (missing.length > 0) {
+      // `ignoreDuplicates` makes this safe to race: two people opening the form
+      // at once both attempt the seed, and the unique key decides. It also
+      // means an admin's relabelled field is never overwritten.
+      await schema.from("form_fields").upsert(
+        missing.map((field) => ({
+          company_id: access.companyId,
+          form_key: "mission",
+          reporting_key: field.reportingKey,
+          label: field.label,
+          field_type: field.fieldType,
+          is_required: field.isRequired,
+          is_core: true,
+          // Seeded so a choice field arrives with choices. Without this the
+          // mission form would open a dropdown with nothing in it.
+          options: field.options ?? [],
+          display_order: field.displayOrder,
+        })),
+        { onConflict: "company_id,form_key,reporting_key", ignoreDuplicates: true }
+      )
+
+      fields = await read()
+    }
+
+    // Repair a core choice field that exists but has no choices.
+    //
+    // The seed above only inserts fields that are missing, so a tenant seeded
+    // before "Jenis mission" carried options would keep an empty list forever:
+    // the settings screen would show a single-choice field with nothing to
+    // choose, which is the defect this whole change is about. Doing it here as
+    // well as in the migration means the fix does not depend on deploy order,
+    // and costs one write per tenant, once.
+    const repairs = CORE_MISSION_FIELDS.filter(
+      (core) =>
+        (core.options?.length ?? 0) > 0 &&
+        fields.some(
+          (field) => field.reportingKey === core.reportingKey && field.options.length === 0
+        )
     )
 
-    fields = await read()
+    if (repairs.length > 0) {
+      await Promise.all(
+        repairs.map((core) =>
+          schema
+            .from("form_fields")
+            .update({ options: core.options })
+            .eq("company_id", access.companyId)
+            .eq("form_key", "mission")
+            .eq("reporting_key", core.reportingKey)
+        )
+      )
+
+      fields = await read()
+    }
   }
 
   return fields

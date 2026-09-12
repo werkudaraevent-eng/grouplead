@@ -8,9 +8,23 @@ import { z } from "zod"
  * be reused by a server action, a route handler, or a future API client.
  */
 
-/** Built-in mission types (spec §11). Admin-defined types arrive with templates. */
-export const MISSION_TYPES = ["Meeting", "Visit", "Survey", "Follow Up"] as const
-export type MissionType = (typeof MISSION_TYPES)[number]
+/**
+ * Kept as the seed default only. The mission form renders the tenant's
+ * configured options and the action validates against those, so a type added in
+ * Pengaturan works without a deploy.
+ */
+export { DEFAULT_MISSION_TYPES as MISSION_TYPES } from "./form-fields"
+export type MissionType = string
+
+/**
+ * Salutations offered beside the appointment contact's name.
+ *
+ * Constrained rather than free text because it decides how a rep addresses
+ * someone in the room, and it is checked by a CHECK constraint on the column
+ * too — this list and that constraint have to agree.
+ */
+export const CONTACT_SALUTATIONS = ["Bapak", "Ibu", "Mr", "Mrs", "Ms"] as const
+export type ContactSalutation = (typeof CONTACT_SALUTATIONS)[number]
 
 /** Mission lifecycle (spec §6). Mirrors the CHECK constraint on the table. */
 export const MISSION_STATUSES = [
@@ -56,7 +70,9 @@ export const createMissionSchema = z
      * can only run once this is set.
      */
     clientCompanyId: z.string().uuid().nullish(),
-    missionType: z.enum(MISSION_TYPES),
+    // Validated against the tenant's configured list in createMission, not
+    // against a compile-time enum: the options are admin-editable now.
+    missionType: z.string().trim().min(1, "Pilih jenis mission").max(100),
     date: z.string().regex(DATE_PATTERN, "Tanggal tidak valid"),
     startTime: z.string().regex(TIME_PATTERN, "Jam mulai tidak valid"),
     endTime: z.string().regex(TIME_PATTERN, "Jam selesai tidak valid").optional().or(z.literal("")),
@@ -64,6 +80,25 @@ export const createMissionSchema = z
     objective: z.string().trim().max(1000).optional().or(z.literal("")),
     primarySalesId: z.string().uuid("Pilih sales utama"),
     supportingSalesIds: z.array(z.string().uuid()).default([]),
+    // Appointment block. All optional: a rep can be sent to a company before
+    // anyone has a name, and refusing to save the mission over a missing phone
+    // number would just push people to type junk into it.
+    contactSalutation: z.enum(CONTACT_SALUTATIONS).optional().or(z.literal("")),
+    /** LeadEngine contacts.id when the name was picked from the CRM, empty when typed. */
+    contactId: z.string().uuid().optional().or(z.literal("")),
+    contactName: z.string().trim().max(150).optional().or(z.literal("")),
+    contactJobTitle: z.string().trim().max(150).optional().or(z.literal("")),
+    contactDivision: z.string().trim().max(150).optional().or(z.literal("")),
+    contactPhone: z.string().trim().max(50).optional().or(z.literal("")),
+    contactEmail: z
+      .string()
+      .trim()
+      .max(200)
+      .email("Format email kontak tidak valid")
+      .optional()
+      .or(z.literal("")),
+    building: z.string().trim().max(300).optional().or(z.literal("")),
+    appointmentNotes: z.string().trim().max(4000).optional().or(z.literal("")),
   })
   .superRefine((value, ctx) => {
     if (value.endTime && value.endTime <= value.startTime) {
@@ -88,6 +123,16 @@ export const createMissionSchema = z
         code: "custom",
         path: ["supportingSalesIds"],
         message: "Sales pendukung terduplikasi",
+      })
+    }
+
+    // A salutation with nobody attached is a leftover from a cleared field, not
+    // information. Catching it here keeps "Bapak —" off the mission detail page.
+    if (value.contactSalutation && !value.contactName) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["contactName"],
+        message: "Isi nama kontak, atau kosongkan sapaannya",
       })
     }
   })
@@ -119,6 +164,48 @@ export interface MissionRow {
   allow_join: boolean
   created_by: string
   created_at: string
+  contact_salutation: string | null
+  contact_id: string | null
+  contact_name: string | null
+  contact_job_title: string | null
+  contact_division: string | null
+  contact_phone: string | null
+  contact_email: string | null
+  building: string | null
+  appointment_notes: string | null
+}
+
+/** Who the appointment is with, and what was already agreed with them. */
+export interface MissionAppointment {
+  salutation: string | null
+  /** LeadEngine contacts.id when this person was picked from the CRM. */
+  contactId: string | null
+  name: string | null
+  jobTitle: string | null
+  division: string | null
+  phone: string | null
+  email: string | null
+  building: string | null
+  notes: string | null
+}
+
+/** Nothing worth rendering an appointment block for. */
+export function hasAppointmentDetails(appointment: MissionAppointment): boolean {
+  return Boolean(
+    appointment.name ||
+      appointment.jobTitle ||
+      appointment.division ||
+      appointment.phone ||
+      appointment.email ||
+      appointment.building ||
+      appointment.notes
+  )
+}
+
+/** "Bapak Andi" — the salutation is dropped when there is no name to carry it. */
+export function formatContactName(appointment: MissionAppointment): string | null {
+  if (!appointment.name) return null
+  return appointment.salutation ? `${appointment.salutation} ${appointment.name}` : appointment.name
 }
 
 export interface AssignmentRow {
@@ -144,9 +231,21 @@ export interface MissionListItem {
   supportingSalesNames: string[]
   /** Primary can close a sensitive meeting to further joiners. */
   allowJoin: boolean
+  /** Who the appointment is with. Empty on missions booked before this existed. */
+  appointment: MissionAppointment
   supportingCount: number
   /** This viewer's own role on the mission, if any. */
   viewerRole: "PRIMARY" | "SUPPORTING" | null
+  /** This viewer's own answer, so the list can say "you still owe an answer". */
+  viewerResponse: AssignmentResponse | null
+  /**
+   * How many people on this mission have not answered yet.
+   *
+   * Carried on the list because chasing answers used to be a separate screen
+   * that re-read the same assignments and pivoted them per person. The question
+   * ("who is holding this mission up") belongs next to the mission it is about.
+   */
+  pendingResponses: number
 }
 
 /**
@@ -187,8 +286,21 @@ export function mapMissions(
       scheduledEnd: mission.scheduled_end,
       // Missions created before the column existed default to open.
       allowJoin: mission.allow_join !== false,
+      appointment: {
+        salutation: mission.contact_salutation ?? null,
+        contactId: mission.contact_id ?? null,
+        name: mission.contact_name ?? null,
+        jobTitle: mission.contact_job_title ?? null,
+        division: mission.contact_division ?? null,
+        phone: mission.contact_phone ?? null,
+        email: mission.contact_email ?? null,
+        building: mission.building ?? null,
+        notes: mission.appointment_notes ?? null,
+      },
       supportingCount: supporting.length,
       viewerRole: (viewer?.assignment_role as "PRIMARY" | "SUPPORTING" | undefined) ?? null,
+      viewerResponse: (viewer?.response as AssignmentResponse | undefined) ?? null,
+      pendingResponses: missionAssignments.filter((item) => item.response === "PENDING").length,
       primarySalesName: primary ? namesByUserId.get(primary.user_id) ?? null : null,
       supportingSalesNames: supporting
         .map((item) => namesByUserId.get(item.user_id))
@@ -203,6 +315,25 @@ export function mapMissions(
  * `now` is injected rather than read from the clock so the relative wording is
  * deterministic — a server render and the test suite agree on what "today" is.
  */
+/**
+ * Clock time alone, in mission time.
+ *
+ * For a card already grouped under "Hari ini", `formatMissionSchedule` would
+ * repeat the day back at the reader.
+ */
+export function formatMissionTime(scheduledStart: string | null): string {
+  if (!scheduledStart) return "—"
+
+  const start = new Date(scheduledStart)
+  if (Number.isNaN(start.getTime())) return "—"
+
+  return new Intl.DateTimeFormat("id-ID", {
+    timeZone: MISSION_TIME_ZONE,
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(start)
+}
+
 export function formatMissionSchedule(scheduledStart: string | null, now: Date): string {
   if (!scheduledStart) return "Belum dijadwalkan"
 

@@ -29,6 +29,57 @@ describe("createMissionSchema", () => {
     expect(result.success).toBe(true)
   })
 
+  describe("appointment details", () => {
+    it("accepts a mission with no appointment details at all", () => {
+      // A rep can be sent to a company before anyone has a name.
+      expect(createMissionSchema.safeParse(validInput()).success).toBe(true)
+    })
+
+    it("accepts a full appointment block", () => {
+      const result = createMissionSchema.safeParse(
+        validInput({
+          contactSalutation: "Bapak",
+          contactName: "Andi Wijaya",
+          contactJobTitle: "GM Procurement",
+          contactDivision: "Procurement",
+          contactPhone: "08123456789",
+          contactEmail: "andi@arunika.co.id",
+          building: "Menara BCA lt. 21",
+          appointmentNotes: "Minta proposal gathering 300 pax.",
+        })
+      )
+      expect(result.success).toBe(true)
+    })
+
+    it("rejects a salutation left behind after the name was cleared", () => {
+      const result = createMissionSchema.safeParse(
+        validInput({ contactSalutation: "Ibu", contactName: "" })
+      )
+      expect(result.success).toBe(false)
+      expect(result.success === false && result.error.issues[0]?.message).toContain("nama kontak")
+    })
+
+    it("allows a name with no salutation", () => {
+      expect(createMissionSchema.safeParse(validInput({ contactName: "Andi" })).success).toBe(true)
+    })
+
+    it("rejects a salutation outside the list the column allows", () => {
+      const result = createMissionSchema.safeParse(
+        validInput({ contactSalutation: "Tuan", contactName: "Andi" })
+      )
+      expect(result.success).toBe(false)
+    })
+
+    it("rejects a malformed contact email", () => {
+      const result = createMissionSchema.safeParse(validInput({ contactEmail: "andi.arunika" }))
+      expect(result.success).toBe(false)
+    })
+
+    it("treats an empty email as absent rather than invalid", () => {
+      expect(createMissionSchema.safeParse(validInput({ contactEmail: "" })).success).toBe(true)
+    })
+  })
+
   it("trims the client company name", () => {
     const result = createMissionSchema.safeParse(validInput({ clientCompanyName: "  PT Arunika  " }))
     expect(result.success && result.data.clientCompanyName).toBe("PT Arunika")
@@ -106,6 +157,15 @@ describe("mapMissions", () => {
       allow_join: true,
       created_by: PRIMARY_ID,
       created_at: "2026-08-22T01:00:00.000Z",
+      contact_salutation: null,
+  contact_id: null,
+      contact_name: null,
+      contact_job_title: null,
+      contact_division: null,
+      contact_phone: null,
+      contact_email: null,
+      building: null,
+      appointment_notes: null,
     },
     {
       id: "mission-2",
@@ -120,6 +180,15 @@ describe("mapMissions", () => {
       allow_join: false,
       created_by: PRIMARY_ID,
       created_at: "2026-08-22T01:00:00.000Z",
+      contact_salutation: null,
+  contact_id: null,
+      contact_name: null,
+      contact_job_title: null,
+      contact_division: null,
+      contact_phone: null,
+      contact_email: null,
+      building: null,
+      appointment_notes: null,
     },
   ]
 

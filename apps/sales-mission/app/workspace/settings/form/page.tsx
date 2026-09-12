@@ -13,7 +13,7 @@ export default async function MissionFormSettingsPage() {
   if (!(await canPerform(access, "sales_mission_settings", "update"))) {
     return (
       <WorkspacePage
-        eyebrow="Sales Mission / Administration"
+        eyebrow="Sales Mission / Administrasi"
         title="Form mission"
         description="Atur field pada form buat mission."
         action={<BackLink href="/workspace/settings" />}
@@ -30,16 +30,27 @@ export default async function MissionFormSettingsPage() {
 
   return (
     <WorkspacePage
-      eyebrow="Sales Mission / Administration"
+      eyebrow="Sales Mission / Administrasi"
       title="Form mission"
       description="Tambah, ubah, urutkan, dan tentukan field mana yang wajib diisi saat membuat mission."
       action={<BackLink href="/workspace/settings" />}
     >
-      <div className="mb-4 rounded-xl border border-dashed bg-muted/40 px-5 py-4 text-sm text-muted-foreground">
-        Field bertanda <strong className="text-foreground">Inti</strong> menopang deteksi konflik jadwal, kalender,
-        laporan KPI, dan pengiriman lead ke LeadEngine. Label dan urutannya bisa diubah, dan yang opsional bisa
-        dijadikan wajib — tetapi tidak bisa dihapus atau dilonggarkan, karena empat fitur itu akan berhenti bekerja
-        tanpa pemberitahuan.
+      {/*
+        Says what an admin may change before they try, listing the three levels
+        separately. The old version stopped at "tidak bisa diubah", which read as
+        a blanket refusal and left the impression that a core dropdown's choices
+        were untouchable too.
+      */}
+      <div className="mb-4 space-y-2 rounded-xl border border-dashed bg-muted/40 px-5 py-4 text-sm text-muted-foreground">
+        <p>
+          Field bertanda <strong className="text-foreground">Inti</strong> menopang deteksi konflik jadwal, kalender,
+          laporan KPI, dan pengiriman lead ke LeadEngine.
+        </p>
+        <ul className="ml-5 list-disc space-y-1">
+          <li><strong className="text-foreground">Bisa diubah:</strong> label, urutan, placeholder, teks bantuan, dan daftar pilihan seperti Jenis mission.</li>
+          <li><strong className="text-foreground">Bisa diperketat:</strong> field opsional dijadikan wajib.</li>
+          <li><strong className="text-foreground">Terkunci:</strong> tipe field dan penghapusan, karena empat fitur di atas akan berhenti bekerja tanpa pemberitahuan.</li>
+        </ul>
       </div>
 
       <FieldManager fields={fields} />

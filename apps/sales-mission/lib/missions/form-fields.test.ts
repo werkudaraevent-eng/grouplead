@@ -9,6 +9,9 @@ import {
   toReportingKey,
   validateFieldAnswers,
   visibleFields,
+  canEditOptions,
+  describeOptionsViolation,
+  optionSource,
   type FormField,
 } from "./form-fields"
 
@@ -50,8 +53,12 @@ describe("fieldDefinitionSchema", () => {
     expect(fieldDefinitionSchema.safeParse(base).success).toBe(true)
   })
 
-  it("requires at least one option on a choice field", () => {
-    expect(fieldDefinitionSchema.safeParse({ ...base, fieldType: "SELECT" }).success).toBe(false)
+  it("accepts a choice field with no options, because the field decides", () => {
+    // "A choice field needs choices" moved to describeOptionsViolation: it is
+    // true of a list the admin owns and false of "Sales utama", whose options
+    // are people and are correctly stored as an empty array. The schema cannot
+    // tell those apart from the payload alone.
+    expect(fieldDefinitionSchema.safeParse({ ...base, fieldType: "SELECT" }).success).toBe(true)
     expect(
       fieldDefinitionSchema.safeParse({ ...base, fieldType: "SELECT", options: ["A"] }).success
     ).toBe(true)
@@ -72,8 +79,8 @@ describe("fieldDefinitionSchema", () => {
 })
 
 describe("describeCoreFieldViolation", () => {
-  const core = { isCore: true, isRequired: true, fieldType: "DATE" as const }
-  const custom = { isCore: false, isRequired: true, fieldType: "DATE" as const }
+  const core = { isCore: true, isRequired: true, fieldType: "DATE" as const, reportingKey: "date" }
+  const custom = { isCore: false, isRequired: true, fieldType: "DATE" as const, reportingKey: "budget" }
 
   it("blocks deleting a core field", () => {
     expect(describeCoreFieldViolation(core, { archive: true })).toContain("tidak bisa dihapus")
@@ -88,7 +95,7 @@ describe("describeCoreFieldViolation", () => {
   })
 
   it("allows tightening an optional core field", () => {
-    const optionalCore = { isCore: true, isRequired: false, fieldType: "TEXT" as const }
+    const optionalCore = { isCore: true, isRequired: false, fieldType: "TEXT" as const, reportingKey: "location" }
     expect(describeCoreFieldViolation(optionalCore, { isRequired: true })).toBeNull()
   })
 
@@ -241,6 +248,13 @@ describe("CORE_MISSION_FIELDS", () => {
       "objective",
       "primary_sales",
       "supporting_sales",
+      "contact_name",
+      "contact_job_title",
+      "contact_division",
+      "contact_phone",
+      "contact_email",
+      "building",
+      "appointment_notes",
     ])
   })
 
@@ -273,5 +287,112 @@ describe("isChoiceType", () => {
     expect(isChoiceType("MULTI_SELECT")).toBe(true)
     expect(isChoiceType("TEXT")).toBe(false)
     expect(isChoiceType("BOOLEAN")).toBe(false)
+  })
+})
+
+describe("optionSource", () => {
+  it("is null for anything that is not a choice field", () => {
+    expect(optionSource({ isCore: false, reportingKey: "budget", fieldType: "TEXT" })).toBeNull()
+    expect(optionSource({ isCore: true, reportingKey: "date", fieldType: "DATE" })).toBeNull()
+  })
+
+  it("gives every custom choice field its own list", () => {
+    expect(optionSource({ isCore: false, reportingKey: "channel", fieldType: "SELECT" })).toBe("config")
+    expect(optionSource({ isCore: false, reportingKey: "tags", fieldType: "MULTI_SELECT" })).toBe("config")
+  })
+
+  it("lets the admin own the mission type list", () => {
+    expect(optionSource({ isCore: true, reportingKey: "mission_type", fieldType: "SELECT" })).toBe("config")
+    expect(canEditOptions({ isCore: true, reportingKey: "mission_type", fieldType: "SELECT" })).toBe(true)
+  })
+
+  it("keeps people out of the options editor", () => {
+    expect(optionSource({ isCore: true, reportingKey: "primary_sales", fieldType: "SELECT" })).toBe("directory")
+    expect(canEditOptions({ isCore: true, reportingKey: "supporting_sales", fieldType: "MULTI_SELECT" })).toBe(false)
+  })
+
+  it("treats an unknown core choice field as directory-owned", () => {
+    // Safer default: refuse to edit a list whose meaning we do not know.
+    expect(optionSource({ isCore: true, reportingKey: "invented", fieldType: "SELECT" })).toBe("directory")
+  })
+})
+
+describe("describeOptionsViolation", () => {
+  const owned = { isCore: false, reportingKey: "channel", fieldType: "SELECT" as const }
+
+  it("requires at least one option on a list the admin owns", () => {
+    expect(describeOptionsViolation(owned, [])).toContain("minimal satu opsi")
+  })
+
+  it("rejects blank and duplicate options", () => {
+    expect(describeOptionsViolation(owned, ["Email", "  "])).toContain("kosong")
+    expect(describeOptionsViolation(owned, ["Email", "Email"])).toContain("terduplikasi")
+  })
+
+  it("accepts a real list", () => {
+    expect(describeOptionsViolation(owned, ["Email", "Telepon"])).toBeNull()
+  })
+
+  it("stays silent on a directory-backed field, which legitimately has none", () => {
+    // "Sales utama" is a required core SELECT whose options are people, so an
+    // empty array is correct and a blanket rule would make it unsaveable.
+    const directory = { isCore: true, reportingKey: "primary_sales", fieldType: "SELECT" as const }
+    expect(describeOptionsViolation(directory, [])).toBeNull()
+  })
+})
+
+describe("describeCoreFieldViolation, options", () => {
+  it("allows editing the mission type list", () => {
+    const field = { isCore: true, isRequired: true, fieldType: "SELECT" as const, reportingKey: "mission_type" }
+    expect(describeCoreFieldViolation(field, { options: ["Meeting", "Audit"] })).toBeNull()
+  })
+
+  it("refuses to edit a list that comes from the user directory", () => {
+    const field = { isCore: true, isRequired: true, fieldType: "SELECT" as const, reportingKey: "primary_sales" }
+    expect(describeCoreFieldViolation(field, { options: ["Budi"] })).toContain("daftar pengguna")
+  })
+})
+
+describe("converting a field's type, judged by the submitted type", () => {
+  // updateFormField resolves an "effective type" before asking who owns the
+  // options. Judging by the STORED type made the ordinary TEXT -> SELECT
+  // conversion impossible: the field was still TEXT, so it did not own options,
+  // the submitted list was dropped, and the row hit the database's
+  // form_fields_choices_present constraint.
+  const storedAsText = { isCore: false, reportingKey: "sumber_lead", fieldType: "TEXT" as const }
+
+  it("owns its options once the submitted type is a choice type", () => {
+    expect(canEditOptions(storedAsText)).toBe(false)
+    expect(canEditOptions({ ...storedAsText, fieldType: "SELECT" })).toBe(true)
+  })
+
+  it("requires options for the type being saved, not the one on record", () => {
+    expect(describeOptionsViolation(storedAsText, [])).toBeNull()
+    expect(describeOptionsViolation({ ...storedAsText, fieldType: "SELECT" }, [])).toContain(
+      "minimal satu opsi"
+    )
+    expect(
+      describeOptionsViolation({ ...storedAsText, fieldType: "SELECT" }, ["Inbound", "Outbound"])
+    ).toBeNull()
+  })
+
+  it("stops requiring options when a choice field becomes plain text", () => {
+    const storedAsSelect = { isCore: false, reportingKey: "sumber_lead", fieldType: "SELECT" as const }
+    expect(describeOptionsViolation({ ...storedAsSelect, fieldType: "TEXT" }, [])).toBeNull()
+  })
+})
+
+describe("describeOptionsViolation, whitespace", () => {
+  const owned = { isCore: false, reportingKey: "channel", fieldType: "SELECT" as const }
+
+  it("catches duplicates that differ only by whitespace", () => {
+    // The schema trims before storing, so these are the same option. Comparing
+    // raw let them past the Save button and failed on the server instead.
+    expect(describeOptionsViolation(owned, ["Meeting", "Meeting "])).toContain("terduplikasi")
+    expect(describeOptionsViolation(owned, [" Visit", "Visit"])).toContain("terduplikasi")
+  })
+
+  it("still accepts genuinely different options", () => {
+    expect(describeOptionsViolation(owned, ["Meeting", "Meeting Ulang"])).toBeNull()
   })
 })
