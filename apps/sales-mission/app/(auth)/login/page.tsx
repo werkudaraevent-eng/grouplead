@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { ArrowRight, CalendarCheck, ClipboardList, Eye, EyeOff, Loader2, MapPinned, Users } from "lucide-react"
+import { CalendarCheck, ClipboardList, Eye, EyeOff, Loader2, MapPinned, Users } from "lucide-react"
 import { createClient } from "@/utils/supabase/client"
 import { clearActiveSessionId, newSessionId, writeActiveSessionId } from "@/lib/session-guard"
 import { Button } from "@/components/ui/button"
@@ -71,8 +71,8 @@ export default function LoginPage() {
   return (
     <div className="flex h-screen overflow-hidden">
       {/* Left Panel — Branding & Visual */}
-      <div className="relative hidden overflow-hidden bg-[#02378D] lg:flex lg:w-[55%]">
-        <div className="absolute inset-0 bg-gradient-to-br from-[#02378D] via-[#0247b3] to-[#013a91]" />
+      <div className="relative hidden overflow-hidden bg-primary lg:flex lg:w-[55%]">
+        <div className="absolute inset-0 bg-gradient-to-br from-primary via-[#0247b3] to-[#013a91]" />
         <div
           className="absolute inset-0 opacity-[0.04]"
           style={{
@@ -80,7 +80,7 @@ export default function LoginPage() {
           }}
         />
         <div className="absolute left-20 top-20 h-72 w-72 rounded-full bg-white/5 blur-3xl" />
-        <div className="absolute bottom-32 right-16 h-96 w-96 rounded-full bg-[#F9BB46]/10 blur-3xl" />
+        <div className="absolute bottom-32 right-16 h-96 w-96 rounded-full bg-accent/10 blur-3xl" />
 
         <div className="relative z-10 flex h-full w-full flex-col justify-between p-8 xl:p-12">
           <div className="flex items-center gap-3">
@@ -93,31 +93,31 @@ export default function LoginPage() {
           <div className="space-y-6">
             <div className="space-y-3">
               <h1 className="text-3xl font-bold leading-tight tracking-tight text-white xl:text-4xl">
-                Coordinate visits.<br />
-                Capture momentum.<br />
-                <span className="text-[#F9BB46]">Move together.</span>
+                Atur kunjungan.<br />
+                Rekam hasilnya.<br />
+                <span className="text-accent">Bergerak bersama.</span>
               </h1>
               <p className="max-w-sm text-base leading-relaxed text-white/60">
-                A focused workspace for planning client missions and turning every visit into a clear next action.
+                Ruang kerja untuk merencanakan kunjungan klien dan mengubah setiap pertemuan jadi langkah lanjutan yang jelas.
               </p>
             </div>
 
             <div className="grid max-w-sm grid-cols-2 gap-2.5">
               <div className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.07] px-3 py-2.5 backdrop-blur-sm">
-                <ClipboardList className="h-3.5 w-3.5 text-[#F9BB46]" />
-                <span className="text-xs font-medium text-white/80">Mission Planning</span>
+                <ClipboardList className="h-3.5 w-3.5 text-accent" />
+                <span className="text-xs font-medium text-white/80">Rencana kunjungan</span>
               </div>
               <div className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.07] px-3 py-2.5 backdrop-blur-sm">
-                <Users className="h-3.5 w-3.5 text-[#C3E6F5]" />
-                <span className="text-xs font-medium text-white/80">Team Assignment</span>
+                <Users className="h-3.5 w-3.5 text-secondary" />
+                <span className="text-xs font-medium text-white/80">Penugasan tim</span>
               </div>
               <div className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.07] px-3 py-2.5 backdrop-blur-sm">
-                <CalendarCheck className="h-3.5 w-3.5 text-[#F9BB46]" />
-                <span className="text-xs font-medium text-white/80">Field Schedule</span>
+                <CalendarCheck className="h-3.5 w-3.5 text-accent" />
+                <span className="text-xs font-medium text-white/80">Jadwal lapangan</span>
               </div>
               <div className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.07] px-3 py-2.5 backdrop-blur-sm">
-                <MapPinned className="h-3.5 w-3.5 text-[#C3E6F5]" />
-                <span className="text-xs font-medium text-white/80">Visit Results</span>
+                <MapPinned className="h-3.5 w-3.5 text-secondary" />
+                <span className="text-xs font-medium text-white/80">Hasil kunjungan</span>
               </div>
             </div>
           </div>
@@ -138,13 +138,13 @@ export default function LoginPage() {
 
           <div className="space-y-2">
             <p className="text-xs font-bold uppercase tracking-[0.18em] text-primary">Sales Mission</p>
-            <h2 className="text-2xl font-semibold tracking-tight text-foreground">Welcome back</h2>
+            <h2 className="text-2xl font-semibold tracking-tight text-foreground">Selamat datang</h2>
             <p className="text-[15px] text-muted-foreground">Masuk dengan akun Werkudara Anda.</p>
           </div>
 
           <form onSubmit={handleLogin} className="space-y-5">
             {error && (
-              <div className="rounded-lg border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive" role="alert">
+              <div className="rounded-lg border border-[var(--danger-foreground)]/20 bg-[var(--danger)] px-4 py-3 text-sm text-[var(--danger-foreground)]" role="alert">
                 <p>{error}</p>
                 {signedInButRejected && (
                   <button className="mt-2 font-semibold underline" type="button" onClick={handleSignOut}>
@@ -155,7 +155,7 @@ export default function LoginPage() {
             )}
 
             <div className="space-y-1.5">
-              <Label htmlFor="email">Email address</Label>
+              <Label htmlFor="email">Alamat email</Label>
               <Input
                 id="email"
                 type="email"
@@ -170,9 +170,9 @@ export default function LoginPage() {
 
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
-                <Label htmlFor="password">Password</Label>
+                <Label htmlFor="password">Kata sandi</Label>
                 <Link href="/forgot-password" className="text-xs font-medium text-primary transition-colors hover:text-primary/80">
-                  Forgot password?
+                  Lupa kata sandi?
                 </Link>
               </div>
               <div className="relative">
@@ -205,14 +205,13 @@ export default function LoginPage() {
               className="h-11 w-full text-[15px] font-medium shadow-lg shadow-primary/20 transition-all duration-200 hover:shadow-xl hover:shadow-primary/30"
             >
               {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-              {loading ? "Signing in..." : "Sign in"}
-              {!loading && <ArrowRight className="h-4 w-4" />}
+              {loading ? "Memproses…" : "Masuk"}
             </Button>
           </form>
 
           <div className="border-t border-border/40 pt-4">
             <p className="text-center text-xs text-muted-foreground">
-              Access is managed by Werkudara Group administrators.
+              Akses diatur oleh administrator Werkudara Group.
               <br />
               <span className="text-muted-foreground/70">© {new Date().getFullYear()} Werkudara Group. All rights reserved.</span>
             </p>

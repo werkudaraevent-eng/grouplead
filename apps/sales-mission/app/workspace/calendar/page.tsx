@@ -2,6 +2,7 @@ import Link from "next/link"
 import { redirect } from "next/navigation"
 import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react"
 import { getSalesMissionAccess } from "@/lib/sales-mission-access"
+import { requireModule } from "@/lib/missions/nav-access"
 import { getMissionSettings, listMissions } from "@/lib/missions/mission-queries"
 import { annotateJoinStatus } from "@/lib/missions/mission-join"
 import { formatMissionSchedule, MISSION_TIME_ZONE } from "@/lib/missions/mission-schema"
@@ -27,6 +28,7 @@ export default async function CalendarPage({
 }) {
   const access = await getSalesMissionAccess()
   if (!access) redirect("/login?error=access_not_provisioned")
+  await requireModule(access, "sales_mission_mission")
 
   const params = await searchParams
   const now = new Date()
@@ -53,15 +55,15 @@ export default async function CalendarPage({
 
   return (
     <WorkspacePage
-      eyebrow="Sales Mission / Calendar"
-      title="Calendar"
-      description="See your team schedule and keep travel time visible before assigning work."
+      eyebrow="Sales Mission / Kalender"
+      title="Kalender"
+      description="Lihat jadwal tim dan waktu perjalanan sebelum menugaskan kunjungan baru."
     >
       <section className="grid gap-4 lg:grid-cols-[1.4fr_1fr]">
         <article className="rounded-xl border bg-card">
           <div className="flex items-center justify-between border-b px-5 py-4">
             <div>
-              <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Month view</p>
+              <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Tampilan bulan</p>
               <h2 className="mt-1 text-base font-semibold text-foreground">{formatMonthLabel(month)}</h2>
             </div>
             <div className="flex items-center gap-1.5">

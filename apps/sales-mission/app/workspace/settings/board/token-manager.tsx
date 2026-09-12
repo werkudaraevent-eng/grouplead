@@ -134,7 +134,7 @@ export function BoardTokenManager({ tokens, boardBaseUrl }: { tokens: BoardToken
                     <p className="flex items-center gap-2 text-sm font-semibold text-foreground">
                       {token.label}
                       {token.revokedAt && (
-                        <span className="rounded-full bg-destructive/10 px-2 py-0.5 text-[10px] font-bold uppercase text-destructive">Dicabut</span>
+                        <span className="rounded-full bg-[var(--danger)] px-2 py-0.5 text-[10px] font-bold uppercase text-[var(--danger-foreground)]">Dicabut</span>
                       )}
                       {!token.revokedAt && expired && (
                         <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-bold uppercase text-muted-foreground">Kedaluwarsa</span>

@@ -1,4 +1,7 @@
 import Link from "next/link"
+import { redirect } from "next/navigation"
+import { getSalesMissionAccess } from "@/lib/sales-mission-access"
+import { requireModule } from "@/lib/missions/nav-access"
 import { ArrowUpRight, Bell, Building2, ListChecks, MonitorPlay, ShieldCheck } from "lucide-react"
 import { WorkspacePage } from "@/app/workspace/workspace-page"
 
@@ -37,7 +40,13 @@ const SETTING_CARDS = [
   },
 ]
 
-export default function SettingsPage() {
+export const dynamic = "force-dynamic"
+
+export default async function SettingsPage() {
+  const access = await getSalesMissionAccess()
+  if (!access) redirect("/login?error=access_not_provisioned")
+  await requireModule(access, "sales_mission_settings")
+
   return (
     <WorkspacePage
       eyebrow="Sales Mission / Administration"

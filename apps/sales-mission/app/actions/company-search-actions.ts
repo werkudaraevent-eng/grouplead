@@ -1,6 +1,6 @@
 "use server"
 
-import { getSalesMissionAccess } from "@/lib/sales-mission-access"
+import { canPerform, getSalesMissionAccess } from "@/lib/sales-mission-access"
 import { LeadEngineError, searchClientCompanies } from "@/lib/leadengine/client"
 
 export interface CompanySuggestion {
@@ -22,10 +22,17 @@ export interface CompanySearchResult {
  * create duplicates. A failure returns an explanatory message rather than
  * throwing — the rep can still type a name and continue, and the company gets
  * linked through the CRM review flow later.
+ *
+ * Held to the same grant as the one form that uses it. Read-only does not mean
+ * harmless: this walks LeadEngine's client list a prefix at a time, and the
+ * only screen offering it is the one guarded by mission `create`.
  */
 export async function searchCompanies(query: string): Promise<CompanySearchResult> {
   const access = await getSalesMissionAccess()
   if (!access) return { companies: [], error: "Sesi tidak valid." }
+  if (!(await canPerform(access, "sales_mission_mission", "create"))) {
+    return { companies: [], error: "Anda tidak punya izin membuat mission." }
+  }
 
   const trimmed = query.trim()
   if (trimmed.length < 2) return { companies: [], error: null }

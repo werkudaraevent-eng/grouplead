@@ -1,5 +1,6 @@
 import { notFound, redirect } from "next/navigation"
 import { getSalesMissionAccess } from "@/lib/sales-mission-access"
+import { requireModule } from "@/lib/missions/nav-access"
 import { getMission, getMissionRole, getVisitReport, listTenantSales } from "@/lib/missions/mission-queries"
 import { getReportOptions } from "@/lib/missions/report-options"
 import { BackLink, EmptyState, WorkspacePage } from "@/app/workspace/workspace-page"
@@ -10,6 +11,7 @@ export const dynamic = "force-dynamic"
 export default async function VisitReportPage({ params }: { params: Promise<{ missionId: string }> }) {
   const access = await getSalesMissionAccess()
   if (!access) redirect("/login?error=access_not_provisioned")
+  await requireModule(access, "sales_mission_result")
 
   const { missionId } = await params
   const mission = await getMission(access, missionId)

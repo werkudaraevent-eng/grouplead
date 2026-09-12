@@ -53,6 +53,13 @@ type Draft = {
 
 type SyncState = "idle" | "saving" | "saved" | "pending"
 
+/** How long typing has to settle before the first save attempt. */
+const AUTOSAVE_DELAY_MS = 1200
+/** Backoff for retries, doubling until the ceiling, so a phone with no signal
+ *  is not hammered while the rep walks back to the car. */
+const RETRY_BASE_MS = 2000
+const RETRY_CEILING_MS = 30_000
+
 const EMPTY_CONTACT: ReportContactInput = {
   fullName: "",
   jobTitle: "",
@@ -217,6 +224,8 @@ export function VisitReportForm({
   const router = useRouter()
   const [draft, setDraft] = useState<Draft>(() => toDraft(report))
   const [sync, setSync] = useState<SyncState>("idle")
+  /** 0 = normal debounce; higher values are consecutive failed saves. */
+  const [attempt, setAttempt] = useState(0)
   const [error, setError] = useState<string | null>(null)
   const [submitting, startSubmit] = useTransition()
 
@@ -226,29 +235,45 @@ export function VisitReportForm({
 
   const update = useCallback(<K extends keyof Draft>(key: K, value: Draft[K]) => {
     dirty.current = true
+    // A fresh edit returns to the fast path instead of inheriting the backoff
+    // left over from an earlier failure.
+    setAttempt(0)
     setDraft((previous) => ({ ...previous, [key]: value }))
   }, [])
 
   // Autosave on a trailing timer rather than on every keystroke: a phone on a
   // weak connection should not fire a request per character.
+  //
+  // A failed save schedules the next one by bumping `attempt`, which re-runs
+  // this effect. Without that the draft would never be retried: `draft` stops
+  // changing the moment the rep finishes typing, and that is exactly when a
+  // dropped connection leaves the report unsaved behind a "Menunggu koneksi"
+  // banner that never resolves.
   useEffect(() => {
     if (!dirty.current) return
+
+    const delay =
+      attempt === 0
+        ? AUTOSAVE_DELAY_MS
+        : Math.min(RETRY_CEILING_MS, RETRY_BASE_MS * 2 ** (attempt - 1))
 
     const timer = setTimeout(async () => {
       setSync("saving")
       const result = await saveVisitReportDraft(missionId, latest.current)
       if (result.success) {
         dirty.current = false
+        setAttempt(0)
         setSync("saved")
       } else {
         // Keep the draft on screen. Nothing typed is discarded because the
-        // request failed — the next autosave retries it.
+        // request failed.
         setSync("pending")
+        setAttempt((value) => value + 1)
       }
-    }, 1200)
+    }, delay)
 
     return () => clearTimeout(timer)
-  }, [draft, missionId])
+  }, [draft, missionId, attempt])
 
   const toggleIn = (key: "clientNeeds" | "productInterest") => (option: string) => {
     const current = draft[key]
@@ -281,8 +306,12 @@ export function VisitReportForm({
   // once they press the button.
   const missing = missingSubmitFields(draft)
 
+  // The bottom padding below clears the pinned action bar. That bar grows when
+  // the "belum lengkap" hint wraps or a submit error appears, so the padding
+  // reserves headroom for the tallest case rather than the resting one — at
+  // pb-28 the error state overlapped the last section.
   return (
-    <div className="mx-auto max-w-3xl pb-28">
+    <div className="mx-auto max-w-3xl pb-40">
       {report?.clarificationNote && (
         <div className="mb-4 flex items-start gap-2.5 rounded-xl border border-[var(--warning-foreground)]/20 bg-[var(--warning)] px-4 py-3.5 text-sm text-[var(--warning-foreground)]">
           <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
@@ -462,7 +491,7 @@ export function VisitReportForm({
         )}
 
         {error && (
-          <div className="mx-auto mt-2 flex max-w-3xl items-start gap-2 text-xs text-destructive">
+          <div className="mx-auto mt-2 flex max-w-3xl items-start gap-2 text-xs text-[var(--danger-foreground)]">
             <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
             <p>{error}</p>
           </div>

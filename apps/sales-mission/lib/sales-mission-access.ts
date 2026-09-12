@@ -65,7 +65,11 @@ export async function getSalesMissionAccess(): Promise<SalesMissionAccess | null
     permission = data
   }
 
-  if (!permission) {
+  // Only a profile with no role at all consults the legacy user_type grants.
+  // Falling back whenever the role happened to lack a row let a configured role
+  // inherit access the permission matrix never showed and could not revoke.
+  // Mirrors leadengine's require-permission.ts.
+  if (!permission && !profile.role_id) {
     const userType = membership.user_type ?? globalRole
     if (userType) {
       const { data } = await supabase
@@ -84,6 +88,21 @@ export async function getSalesMissionAccess(): Promise<SalesMissionAccess | null
     : null
 }
 
+/**
+ * What each module governs, so the admin matrix and the code agree:
+ *
+ *   mission  — the mission record and its team. Every write in
+ *              assignment-actions asks for `update`; only creating a mission
+ *              asks for `create`.
+ *   result   — the visit report on all four of its surfaces: the detail page,
+ *              the reporting screen, the CSV export, and the LeadEngine push.
+ *   contact  — reading client people: the appointment block and the "ketemu
+ *              siapa" list. Writing them is deliberately NOT separate: contacts
+ *              are collected inside the visit report, which requires at least
+ *              one, so a role that could write reports but not contacts could
+ *              never submit anything. Report writes answer to `result`.
+ *   settings — the Pengaturan screen.
+ */
 export type SalesMissionModule =
   | "sales_mission_mission"
   | "sales_mission_result"
@@ -135,7 +154,8 @@ export async function canPerform(
     permission = data
   }
 
-  if (!permission) {
+  // Same rule as the app gate above: a role answers for itself.
+  if (!permission && !profile?.role_id) {
     const { data: membership } = await supabase
       .from("company_members")
       .select("user_type")

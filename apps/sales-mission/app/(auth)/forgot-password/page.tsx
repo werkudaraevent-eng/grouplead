@@ -47,8 +47,8 @@ export default function ForgotPasswordPage() {
         <div className="space-y-6 rounded-2xl border border-border/60 bg-white p-8 shadow-sm">
           {sent ? (
             <div className="space-y-5 text-center" role="status">
-              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-50">
-                <MailCheck className="h-6 w-6 text-emerald-600" />
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-[var(--success)]">
+                <MailCheck className="h-6 w-6 text-[var(--success-foreground)]" />
               </div>
               <div className="space-y-2">
                 <h2 className="text-xl font-semibold tracking-tight text-foreground">Cek email Anda</h2>
@@ -67,7 +67,7 @@ export default function ForgotPasswordPage() {
           ) : (
             <>
               <div className="space-y-2">
-                <h2 className="text-xl font-semibold tracking-tight text-foreground">Lupa password</h2>
+                <h2 className="text-xl font-semibold tracking-tight text-foreground">Lupa kata sandi</h2>
                 <p className="text-sm leading-relaxed text-muted-foreground">
                   Masukkan email Anda. Kami kirim tautan untuk membuat password baru.
                 </p>
@@ -75,13 +75,13 @@ export default function ForgotPasswordPage() {
 
               <form onSubmit={handleSubmit} className="space-y-5">
                 {error && (
-                  <div className="rounded-lg border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive" role="alert">
+                  <div className="rounded-lg border border-[var(--danger-foreground)]/20 bg-[var(--danger)] px-4 py-3 text-sm text-[var(--danger-foreground)]" role="alert">
                     {error}
                   </div>
                 )}
 
                 <div className="space-y-1.5">
-                  <Label htmlFor="email">Email address</Label>
+                  <Label htmlFor="email">Alamat email</Label>
                   <Input
                     id="email"
                     type="email"

@@ -3,10 +3,11 @@
 import { useEffect, useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
-import { AlertTriangle, ExternalLink, Loader2, Send, TriangleAlert } from "lucide-react"
+import { AlertTriangle, Building2, ExternalLink, Loader2, Send, TriangleAlert } from "lucide-react"
 import { getPushPrecheck, pushMissionToLeadEngine, type PushPrecheck } from "@/app/actions/lead-push-actions"
 import type { TenantSalesOption } from "@/lib/missions/mission-queries"
 import { Button } from "@/components/ui/button"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 
@@ -42,7 +43,21 @@ export function PushLeadPanel({
     ownerUserId: "",
     estimatedValue: "" as string,
     remark: "",
+    /** Empty means "register the typed name as a new CRM company". */
+    linkedCompanyId: "",
   })
+
+  /**
+   * Contacts ticked for registration in the CRM.
+   *
+   * Starts empty, so nothing is created unless the rep says so. Defaulting these
+   * on would make "push a lead" quietly mean "write four contacts too", which is
+   * exactly the automatic behaviour that fills a CRM with typos.
+   */
+  const [registerContacts, setRegisterContacts] = useState<string[]>([])
+
+  /** CRM contacts whose gaps the rep agreed to fill. Also opt-in. */
+  const [enrichContacts, setEnrichContacts] = useState<string[]>([])
 
   useEffect(() => {
     let active = true
@@ -89,7 +104,7 @@ export function PushLeadPanel({
 
   if (precheck.integrationError) {
     return (
-      <div className="flex items-start gap-2.5 px-5 py-5 text-sm text-destructive">
+      <div className="flex items-start gap-2.5 px-5 py-5 text-sm text-[var(--danger-foreground)]">
         <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
         <p>{precheck.integrationError}</p>
       </div>
@@ -114,7 +129,10 @@ export function PushLeadPanel({
         ownerUserId: form.ownerUserId,
         estimatedValue: form.estimatedValue ? Number(form.estimatedValue) : null,
         remark: form.remark,
-        clientCompanyId: precheck.companyContext?.company.id ?? null,
+        registerContactNames: registerContacts,
+        enrichContactIds: enrichContacts,
+        // Empty falls through to the server, which registers the typed name.
+        clientCompanyId: form.linkedCompanyId || precheck.companyContext?.company.id || null,
       })
 
       if (result.success) {
@@ -128,6 +146,131 @@ export function PushLeadPanel({
 
   return (
     <div className="space-y-5 px-5 py-5">
+      {precheck.contactEnrichments.length > 0 && (
+        <div className="rounded-lg border bg-muted/40 p-4">
+          <p className="text-sm font-semibold text-foreground">
+            Lengkapi kontak yang sudah ada di CRM
+          </p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Kunjungan ini tahu hal yang belum dicatat CRM. Hanya kolom yang masih kosong
+            yang akan diisi, yang sudah terisi tidak akan ditimpa.
+          </p>
+          <ul className="mt-3 space-y-2">
+            {precheck.contactEnrichments.map((item) => {
+              const checked = enrichContacts.includes(item.contactId)
+              return (
+                <li key={item.contactId}>
+                  <label className="flex min-h-11 cursor-pointer items-center gap-2.5 rounded-md px-1 text-sm">
+                    <Checkbox
+                      checked={checked}
+                      onCheckedChange={(next) =>
+                        setEnrichContacts((prev) =>
+                          next === true
+                            ? [...prev, item.contactId]
+                            : prev.filter((id) => id !== item.contactId)
+                        )
+                      }
+                    />
+                    <span className="min-w-0">
+                      <span className="block truncate font-medium text-foreground">{item.fullName}</span>
+                      <span className="block truncate text-xs text-muted-foreground">
+                        Isi {item.fills.join(", ")}
+                      </span>
+                    </span>
+                  </label>
+                </li>
+              )
+            })}
+          </ul>
+        </div>
+      )}
+
+      {precheck.unlinkedContacts.length > 0 && (
+        <div className="rounded-lg border bg-muted/40 p-4">
+          <p className="text-sm font-semibold text-foreground">
+            {precheck.unlinkedContacts.length} kontak belum ada di CRM
+          </p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Centang yang ingin didaftarkan. Yang tidak dicentang tetap tersimpan di laporan
+            kunjungan, hanya tidak masuk ke daftar kontak CRM.
+          </p>
+          <ul className="mt-3 space-y-2">
+            {precheck.unlinkedContacts.map((contact) => {
+              const checked = registerContacts.includes(contact.fullName)
+              return (
+                <li key={contact.fullName}>
+                  <label className="flex min-h-11 cursor-pointer items-center gap-2.5 rounded-md px-1 text-sm">
+                    <Checkbox
+                      checked={checked}
+                      onCheckedChange={(next) =>
+                        setRegisterContacts((prev) =>
+                          next === true
+                            ? [...prev, contact.fullName]
+                            : prev.filter((name) => name !== contact.fullName)
+                        )
+                      }
+                    />
+                    <span className="min-w-0">
+                      <span className="block truncate font-medium text-foreground">{contact.fullName}</span>
+                      {(contact.jobTitle || contact.email) && (
+                        <span className="block truncate text-xs text-muted-foreground">
+                          {[contact.jobTitle, contact.email].filter(Boolean).join(" · ")}
+                        </span>
+                      )}
+                    </span>
+                  </label>
+                </li>
+              )
+            })}
+          </ul>
+        </div>
+      )}
+
+      {precheck.unlinkedCompanyName && (
+        <div className="rounded-lg border bg-muted/40 p-4">
+          <p className="flex items-center gap-2 text-sm font-semibold text-foreground">
+            <Building2 className="h-4 w-4 shrink-0" />
+            &ldquo;{precheck.unlinkedCompanyName}&rdquo; belum ada di CRM
+          </p>
+
+          {precheck.companySuggestions.length > 0 ? (
+            <div className="mt-3 space-y-1.5">
+              <Label htmlFor="push-company">Tautkan ke perusahaan yang sudah ada</Label>
+              <select
+                id="push-company"
+                value={form.linkedCompanyId}
+                onChange={(event) => setForm({ ...form, linkedCompanyId: event.target.value })}
+                className="h-11 w-full rounded-md border border-input bg-card px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+              >
+                <option value="">Daftarkan sebagai perusahaan baru</option>
+                {precheck.companySuggestions.map((company) => (
+                  <option key={company.id} value={company.id}>
+                    {company.name}
+                    {company.industry ? ` — ${company.industry}` : ""}
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-muted-foreground">
+                Nama mirip sering berarti perusahaan yang sama. Menautkan lebih baik daripada
+                menambah data kembar yang tidak ada yang merapikan.
+              </p>
+            </div>
+          ) : (
+            <p className="mt-2 text-sm text-muted-foreground">
+              Tidak ada nama serupa di CRM.
+            </p>
+          )}
+
+          {!form.linkedCompanyId && (
+            <p className="mt-3 text-xs text-muted-foreground">
+              Perusahaan akan didaftarkan saat lead dikirim, ditandai{" "}
+              <span className="font-semibold">&ldquo;Needs details&rdquo;</span> agar admin CRM bisa
+              melengkapinya dari halaman Companies.
+            </p>
+          )}
+        </div>
+      )}
+
       {openLeads.length > 0 && (
         <div className="rounded-lg border border-[var(--warning-foreground)]/20 bg-[var(--warning)] p-4 text-sm text-[var(--warning-foreground)]">
           <p className="flex items-center gap-2 font-semibold">

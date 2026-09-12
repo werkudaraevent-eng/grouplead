@@ -147,7 +147,19 @@ export async function requirePermission(
     perm = data ?? null
   }
 
-  if (!perm) {
+  /*
+    Only people with no role at all fall back to the legacy user_type grants.
+
+    This used to run per module whenever the role had no row for it, so a role
+    the admin had configured for three modules still resolved the other twelve
+    from the holder's old user_type — access the permission matrix never showed
+    and could not revoke. The client resolver made the same call on a different
+    condition (all-or-nothing), so the two disagreed about the same user.
+
+    The companion migration writes explicit rows for every module, so a
+    configured role now answers for all of them.
+  */
+  if (!perm && !roleId) {
     const { data: membership } = await supabase
       .from('company_members')
       .select('user_type')

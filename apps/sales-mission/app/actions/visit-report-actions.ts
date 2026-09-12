@@ -2,8 +2,9 @@
 
 import { revalidatePath } from "next/cache"
 import { createClient } from "@/utils/supabase/server"
-import { getSalesMissionAccess } from "@/lib/sales-mission-access"
+import { canPerform, getSalesMissionAccess } from "@/lib/sales-mission-access"
 import { getMission, getMissionRole, listMissionTeam } from "@/lib/missions/mission-queries"
+import { fetchCompanyContacts } from "@/lib/leadengine/client"
 import { notify } from "@/lib/notifications/notification-queries"
 import {
   visitReportDraftSchema,
@@ -45,7 +46,20 @@ function toRow(input: VisitReportDraft): ReportRow {
   }
 }
 
-/** Confirms the caller may write the report, returning the tenant context. */
+/**
+ * Confirms the caller may write the report, returning the tenant context.
+ *
+ * Two independent questions, both required. The mission role answers "were you
+ * the one in the room"; the `sales_mission_result` module answers "does your
+ * role author reports at all". Reading a report is checked on all three of its
+ * surfaces — the page, the reporting screen, the CSV export — so writing one
+ * checking neither of them was the wider hole.
+ *
+ * The action asked for is `create` in both the draft and the submit path: this
+ * app has no surface for editing somebody else's report, so there is no second
+ * meaning for `update` to carry, and splitting them would only invent a config
+ * ("create but not update") that silently breaks autosave.
+ */
 async function authorizeReportWrite(missionId: string) {
   const access = await getSalesMissionAccess()
   if (!access) return { error: "Anda tidak punya akses Sales Mission." as const }
@@ -58,6 +72,10 @@ async function authorizeReportWrite(missionId: string) {
           ? "Hanya sales utama yang mengisi laporan kunjungan. Gunakan catatan pendukung."
           : ("Anda tidak ditugaskan pada mission ini." as const),
     }
+  }
+
+  if (!(await canPerform(access, "sales_mission_result", "create"))) {
+    return { error: "Anda tidak punya izin menulis laporan kunjungan." as const }
   }
 
   return { access }
@@ -73,22 +91,56 @@ async function replaceContacts(
   missions: ReturnType<Awaited<ReturnType<typeof createClient>>["schema"]>,
   reportId: string,
   companyId: string,
-  contacts: VisitReportDraft["contacts"]
+  contacts: VisitReportDraft["contacts"],
+  /** The mission's CRM company, when it has one. Null skips the matching. */
+  clientCompanyId: string | null
 ) {
   await missions.from("report_contacts").delete().eq("report_id", reportId)
 
   if (contacts.length === 0) return null
 
+  /*
+    Match what the rep wrote against the people the CRM already knows at this
+    company, and record the link.
+
+    `lead_engine_contact_id` and `link_status` have existed on this table since
+    the visit-report migration and nothing has ever written to them: the columns
+    were designed and the mechanism was never built, so every report contact was
+    an island and no report could answer "how many decision makers have we met
+    at PT X".
+
+    Matching only, never creating. An exact name match within one company is
+    safe; anything looser would attach a visit to the wrong person, and creating
+    a contact from a typo is how a CRM fills with duplicates nobody cleans up.
+    Registration is offered explicitly in the lead-push modal instead.
+  */
+  const known = new Map<string, string>()
+  if (clientCompanyId) {
+    try {
+      for (const contact of await fetchCompanyContacts(clientCompanyId)) {
+        known.set(contact.fullName.trim().toLowerCase(), contact.id)
+      }
+    } catch {
+      // A CRM outage must not stop a report being saved. The contacts land as
+      // snapshots and can be linked on the next submit.
+    }
+  }
+
   const { error } = await missions.from("report_contacts").insert(
-    contacts.map((contact) => ({
-      report_id: reportId,
-      company_id: companyId,
-      full_name: contact.fullName,
-      job_title: contact.jobTitle?.trim() || null,
-      phone: contact.phone?.trim() || null,
-      email: contact.email?.trim() || null,
-      is_decision_maker: contact.isDecisionMaker,
-    }))
+    contacts.map((contact) => {
+      const matched = known.get(contact.fullName.trim().toLowerCase()) ?? null
+      return {
+        report_id: reportId,
+        company_id: companyId,
+        full_name: contact.fullName,
+        job_title: contact.jobTitle?.trim() || null,
+        phone: contact.phone?.trim() || null,
+        email: contact.email?.trim() || null,
+        is_decision_maker: contact.isDecisionMaker,
+        lead_engine_contact_id: matched,
+        link_status: matched ? "LINKED" : "SNAPSHOT",
+      }
+    })
   )
 
   return error
@@ -146,7 +198,10 @@ export async function saveVisitReportDraft(
     reportId = data.id as string
   }
 
-  const contactError = await replaceContacts(missions, reportId, access.companyId, parsed.data.contacts)
+  const mission = await getMission(access, missionId)
+  const contactError = await replaceContacts(
+    missions, reportId, access.companyId, parsed.data.contacts, mission?.clientCompanyId ?? null
+  )
   if (contactError) return { success: false, error: "Kontak gagal disimpan." }
 
   return { success: true, data: { id: reportId } }
@@ -221,7 +276,10 @@ export async function submitVisitReport(
     reportId = data.id as string
   }
 
-  const contactError = await replaceContacts(missions, reportId, access.companyId, parsed.data.contacts)
+  const submitMission = await getMission(access, missionId)
+  const contactError = await replaceContacts(
+    missions, reportId, access.companyId, parsed.data.contacts, submitMission?.clientCompanyId ?? null
+  )
   if (contactError) return { success: false, error: "Kontak gagal disimpan." }
 
   // The visit is done and recorded; move the mission on.
@@ -259,10 +317,19 @@ export async function submitVisitReport(
   return { success: true, data: { id: reportId } }
 }
 
-/** Anyone assigned to the mission may add their own note. */
+/**
+ * Anyone assigned to the mission may add their own note.
+ *
+ * Gated on the mission module rather than the report module: a note is the
+ * mission's own thread, written by the supporting sales who by design cannot
+ * write the report at all.
+ */
 export async function addSupportingNote(missionId: string, note: string): Promise<ActionResult> {
   const access = await getSalesMissionAccess()
   if (!access) return { success: false, error: "Anda tidak punya akses Sales Mission." }
+  if (!(await canPerform(access, "sales_mission_mission", "update"))) {
+    return { success: false, error: "Anda tidak punya izin menulis catatan pada mission." }
+  }
 
   const trimmed = note.trim()
   if (!trimmed) return { success: false, error: "Catatan tidak boleh kosong." }

@@ -5,17 +5,23 @@ import { createClient } from '@/utils/supabase/client'
 import { useCompany } from '@/contexts/company-context'
 import type { RolePermission } from '@/types/company'
 
-type CanReadLevel = 'none' | 'own' | 'company' | 'all'
-
 interface PermissionsState {
   permissions: RolePermission[]
   loading: boolean
   userType: string | null
   /** Legacy-compatible: can(module, 'create' | 'read' | 'update' | 'delete') */
   can: (module: string, action: string) => boolean
-  /** Granular read level check */
-  canRead: (module: string) => CanReadLevel
 }
+
+/**
+ * There is deliberately no granular read-level helper here.
+ *
+ * `can_read` once carried four values (none / own / company / all) and this
+ * context exposed a `canRead` that returned them. Nothing ever called it, and
+ * `can(module, 'read')` — the function everything does use — only asks whether
+ * the value is not "none". The permission matrix now offers a single switch to
+ * match. Restore a scope helper only alongside queries that actually honour it.
+ */
 
 const PermissionsCtx = createContext<PermissionsState | null>(null)
 
@@ -60,7 +66,21 @@ export function PermissionsProvider({ children }: { children: React.ReactNode })
 
     const roleId = profile?.role_id ?? null
 
-    // Try role_id-based permissions first
+    /*
+      A role answers for itself. The legacy user_type lookup is for people who
+      predate dynamic roles and have no role_id at all.
+
+      It used to run whenever the role returned zero rows, which made a
+      freshly created role invisible rather than empty: the admin saw a matrix
+      of off switches while the person was quietly running on whatever their old
+      user_type granted. Worse, the server disagreed — require-permission.ts fell
+      back per module, this fell back all-or-nothing, so flipping the first
+      switch on a new role changed which resolver was in charge.
+
+      Both now key on the same condition. The companion migration writes an
+      explicit row for every (company, role, module), so "the role has no row"
+      is a state that no longer occurs for a role anyone has configured.
+    */
     if (roleId) {
       const { data: perms } = await supabase
         .from('role_permissions')
@@ -68,14 +88,11 @@ export function PermissionsProvider({ children }: { children: React.ReactNode })
         .eq('role_id', roleId)
         .eq('company_id', activeCompany.id)
 
-      if (perms && perms.length > 0) {
-        setPermissions(perms)
-        setLoading(false)
-        return
-      }
+      setPermissions(perms ?? [])
+      setLoading(false)
+      return
     }
 
-    // Fallback: user_type-based lookup (covers sales users without role_id)
     const resolvedUserType = membership?.user_type ?? globalRole
     if (resolvedUserType) {
       const { data: legacyPerms } = await supabase
@@ -174,9 +191,10 @@ export function PermissionsProvider({ children }: { children: React.ReactNode })
       ? matchingPerms[0]
       : matchingPerms.reduce((most, curr) => {
           // Prefer the row with fewer grants
+          // Read counts once: every non-"none" value grants the same access.
           const score = (p: typeof curr) =>
             (p.can_create ? 1 : 0) + (p.can_update ? 1 : 0) + (p.can_delete ? 1 : 0) +
-            (p.can_read === 'all' ? 3 : p.can_read === 'company' ? 2 : p.can_read === 'own' ? 1 : 0)
+            ((p.can_read ?? 'none') !== 'none' ? 1 : 0)
           return score(curr) < score(most) ? curr : most
         })
 
@@ -192,14 +210,8 @@ export function PermissionsProvider({ children }: { children: React.ReactNode })
     }
   }, [permissions, userType])
 
-  const canRead = useCallback((module: string): CanReadLevel => {
-    if (userType === 'super_admin') return 'all'
-    const perm = permissions.find(p => p.module_id === module)
-    return perm?.can_read ?? 'none'
-  }, [permissions, userType])
-
   return (
-    <PermissionsCtx.Provider value={{ permissions, loading, userType, can, canRead }}>
+    <PermissionsCtx.Provider value={{ permissions, loading, userType, can }}>
       {children}
     </PermissionsCtx.Provider>
   )

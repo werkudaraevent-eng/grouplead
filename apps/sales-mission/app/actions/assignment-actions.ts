@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache"
 import { createClient } from "@/utils/supabase/server"
-import { getSalesMissionAccess } from "@/lib/sales-mission-access"
+import { canPerform, getSalesMissionAccess } from "@/lib/sales-mission-access"
 import {
   getMission,
   getMissionRole,
@@ -32,6 +32,25 @@ import type { ActionResult } from "@/types/action-result"
  */
 
 /**
+ * Every action in this file changes a mission or its team, so all of them
+ * answer to the same module action: `sales_mission_mission` update.
+ *
+ * This is a different question from the per-mission role checks below, and both
+ * are needed. The role answers "which mission may you touch" — a rep is PRIMARY
+ * on their own mission for as long as they hold it. The module answers "may
+ * your role touch missions at all" — which an admin can revoke tonight, and
+ * which a role check would never notice.
+ *
+ * Update rather than create/delete throughout: nobody here is making a mission
+ * or removing one. Removing a supporting sales edits the team of a mission that
+ * still exists, which is why it asks for update and not delete.
+ */
+const NO_MISSION_WRITE: ActionResult = {
+  success: false,
+  error: "Anda tidak punya izin mengubah mission.",
+}
+
+/**
  * Join a mission as supporting sales.
  *
  * The eligibility check is repeated here rather than trusted from the button: a
@@ -41,6 +60,7 @@ import type { ActionResult } from "@/types/action-result"
 export async function joinMission(missionId: string): Promise<ActionResult> {
   const access = await getSalesMissionAccess()
   if (!access) return { success: false, error: "Anda tidak punya akses Sales Mission." }
+  if (!(await canPerform(access, "sales_mission_mission", "update"))) return NO_MISSION_WRITE
 
   const [missions, settings] = await Promise.all([listMissions(access), getMissionSettings(access)])
   const annotated = annotateJoinStatus(missions, settings)
@@ -111,6 +131,7 @@ export async function joinMission(missionId: string): Promise<ActionResult> {
 export async function leaveMission(missionId: string): Promise<ActionResult> {
   const access = await getSalesMissionAccess()
   if (!access) return { success: false, error: "Anda tidak punya akses Sales Mission." }
+  if (!(await canPerform(access, "sales_mission_mission", "update"))) return NO_MISSION_WRITE
 
   const role = await getMissionRole(access, missionId)
   if (role === null) return { success: false, error: "Anda tidak terdaftar pada mission ini." }
@@ -146,6 +167,7 @@ export async function leaveMission(missionId: string): Promise<ActionResult> {
 export async function removeSupportingSales(missionId: string, userId: string): Promise<ActionResult> {
   const access = await getSalesMissionAccess()
   if (!access) return { success: false, error: "Anda tidak punya akses Sales Mission." }
+  if (!(await canPerform(access, "sales_mission_mission", "update"))) return NO_MISSION_WRITE
 
   const role = await getMissionRole(access, missionId)
   if (role !== "PRIMARY" && !access.isSuperAdmin) {
@@ -232,6 +254,7 @@ export async function respondToAssignment(
 ): Promise<ActionResult> {
   const access = await getSalesMissionAccess()
   if (!access) return { success: false, error: "Anda tidak punya akses Sales Mission." }
+  if (!(await canPerform(access, "sales_mission_mission", "update"))) return NO_MISSION_WRITE
 
   const role = await getMissionRole(access, missionId)
   if (!role) return { success: false, error: "Anda tidak ditugaskan pada mission ini." }
@@ -299,6 +322,7 @@ export async function respondToAssignment(
 export async function requestReschedule(missionId: string, input: unknown): Promise<ActionResult> {
   const access = await getSalesMissionAccess()
   if (!access) return { success: false, error: "Anda tidak punya akses Sales Mission." }
+  if (!(await canPerform(access, "sales_mission_mission", "update"))) return NO_MISSION_WRITE
 
   const role = await getMissionRole(access, missionId)
   if (!role) return { success: false, error: "Anda tidak ditugaskan pada mission ini." }
@@ -377,6 +401,7 @@ export async function decideReschedule(
 ): Promise<ActionResult> {
   const access = await getSalesMissionAccess()
   if (!access) return { success: false, error: "Anda tidak punya akses Sales Mission." }
+  if (!(await canPerform(access, "sales_mission_mission", "update"))) return NO_MISSION_WRITE
 
   const supabase = await createClient()
   const schema = supabase.schema("sales_mission")
@@ -472,6 +497,7 @@ export async function decideReschedule(
 export async function setMissionAllowJoin(missionId: string, allowJoin: boolean): Promise<ActionResult> {
   const access = await getSalesMissionAccess()
   if (!access) return { success: false, error: "Anda tidak punya akses Sales Mission." }
+  if (!(await canPerform(access, "sales_mission_mission", "update"))) return NO_MISSION_WRITE
 
   const role = await getMissionRole(access, missionId)
   if (role !== "PRIMARY" && !access.isSuperAdmin) {

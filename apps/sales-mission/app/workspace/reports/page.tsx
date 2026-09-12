@@ -11,6 +11,7 @@ import {
   Users,
 } from "lucide-react"
 import { getSalesMissionAccess } from "@/lib/sales-mission-access"
+import { requireModule } from "@/lib/missions/nav-access"
 import { listReportRecords } from "@/lib/reporting/report-queries"
 import { buildKpiReport, currentMonthRange, type Breakdown } from "@/lib/reporting/kpi"
 import { EmptyState, WorkspacePage } from "@/app/workspace/workspace-page"
@@ -100,6 +101,7 @@ export default async function ReportsPage({
 }) {
   const access = await getSalesMissionAccess()
   if (!access) redirect("/login?error=access_not_provisioned")
+  await requireModule(access, "sales_mission_result")
 
   const now = new Date()
   const params = await searchParams
@@ -159,7 +161,7 @@ export default async function ReportsPage({
           <section className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             <Metric icon={UserCheck} label="Bertemu pengambil keputusan" value={`${report.summary.decisionMakerRate}%`} hint="dari laporan yang dikirim" tone="bg-primary/10 text-primary" />
             <Metric icon={Send} label="Lead dikirim ke CRM" value={String(report.summary.leadsPushed)} tone="bg-[var(--success)] text-[var(--success-foreground)]" />
-            <Metric icon={AlertTriangle} label="Perlu klarifikasi" value={String(report.summary.needsClarification)} tone="bg-destructive/10 text-destructive" />
+            <Metric icon={AlertTriangle} label="Perlu klarifikasi" value={String(report.summary.needsClarification)} tone="bg-[var(--danger)] text-[var(--danger-foreground)]" />
           </section>
 
           <section className="mt-4 grid gap-4 xl:grid-cols-2">

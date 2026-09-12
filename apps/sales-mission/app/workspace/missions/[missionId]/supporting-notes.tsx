@@ -82,7 +82,7 @@ export function SupportingNotes({
           />
 
           {error && (
-            <p className="mt-2 flex items-start gap-1.5 text-xs text-destructive">
+            <p className="mt-2 flex items-start gap-1.5 text-xs text-[var(--danger-foreground)]">
               <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" /> {error}
             </p>
           )}

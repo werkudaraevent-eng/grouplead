@@ -27,7 +27,16 @@ export async function proxy(request: NextRequest) {
   // `/board` likewise: a TV in the office has no session, and the page
   // authorises itself from its own token.
   const publicPaths = ["/login", "/forgot-password", "/reset-password", "/board"]
-  const isPublic = pathname === "/" || publicPaths.some((path) => pathname.startsWith(path))
+  const isPublic = publicPaths.some((path) => pathname.startsWith(path))
+
+  // The root has nothing to say to anyone. Sales Mission is an internal tool
+  // reached by staff who already know what it is, so a marketing landing was
+  // one screen standing between them and the thing they came for. Redirected
+  // here rather than from a page component: `user` is already resolved, so it
+  // costs no extra round trip and nothing renders before the bounce.
+  if (pathname === "/") {
+    return NextResponse.redirect(new URL(user ? "/workspace" : "/login", request.url))
+  }
 
   if (!user && !isPublic) return NextResponse.redirect(new URL("/login", request.url))
 

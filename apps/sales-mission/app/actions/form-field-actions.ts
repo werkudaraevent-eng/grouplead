@@ -5,7 +5,9 @@ import { createClient } from "@/utils/supabase/server"
 import { canPerform, getSalesMissionAccess } from "@/lib/sales-mission-access"
 import { listFormFields } from "@/lib/missions/form-field-queries"
 import {
+  canEditOptions,
   describeCoreFieldViolation,
+  describeOptionsViolation,
   fieldDefinitionSchema,
   isChoiceType,
   nextDisplayOrder,
@@ -45,6 +47,13 @@ export async function createFormField(input: unknown): Promise<ActionResult<{ id
   if (!parsed.success) {
     return { success: false, error: parsed.error.issues[0]?.message ?? "Definisi field tidak valid." }
   }
+
+  // A new field is never core, so it always owns its options.
+  const optionsViolation = describeOptionsViolation(
+    { isCore: false, reportingKey: "", fieldType: parsed.data.fieldType },
+    parsed.data.options
+  )
+  if (optionsViolation) return { success: false, error: optionsViolation }
 
   const existing = await listFormFields(access, FORM_KEY, { includeArchived: true })
 
@@ -104,11 +113,36 @@ export async function updateFormField(fieldId: string, input: unknown): Promise<
   const field = fields.find((item) => item.id === fieldId)
   if (!field) return { success: false, error: "Field tidak ditemukan." }
 
+  /*
+    Ownership is judged against the type the field is being saved AS, not the
+    one it is stored as. Judging by the stored type broke the ordinary case of
+    turning a custom text field into a dropdown: the field was still TEXT in the
+    database, so it did not "own options", the submitted list was thrown away,
+    and the row hit the form_fields_choices_present constraint with a SELECT and
+    no choices. The admin got "Field gagal disimpan" with no way to succeed.
+
+    A core field's type cannot move, so its effective type is always the stored
+    one; describeCoreFieldViolation refuses the change a line below regardless.
+  */
+  const effectiveType = field.isCore ? field.fieldType : (parsed.data.fieldType as FieldType)
+  const target = { ...field, fieldType: effectiveType }
+
+  // The submitted options only count as a change when this field owns its list;
+  // for a directory-backed one the client sends the current values back and the
+  // guard would otherwise refuse a save that changed nothing.
+  const optionsChanged =
+    canEditOptions(target) &&
+    JSON.stringify(parsed.data.options) !== JSON.stringify(field.options)
+
   const violation = describeCoreFieldViolation(field, {
     isRequired: parsed.data.isRequired,
     fieldType: parsed.data.fieldType as FieldType,
+    options: optionsChanged ? parsed.data.options : undefined,
   })
   if (violation) return { success: false, error: violation }
+
+  const optionsViolation = describeOptionsViolation(target, parsed.data.options)
+  if (optionsViolation) return { success: false, error: optionsViolation }
 
   const supabase = await createClient()
   const { error } = await supabase
@@ -118,15 +152,17 @@ export async function updateFormField(fieldId: string, input: unknown): Promise<
       label: parsed.data.label,
       // A core field's type is fixed; the guard above already refused a change,
       // so writing the original value keeps the update harmless either way.
-      field_type: field.isCore ? field.fieldType : parsed.data.fieldType,
+      field_type: effectiveType,
       is_required: parsed.data.isRequired,
       placeholder: parsed.data.placeholder?.trim() || null,
       help_text: parsed.data.helpText?.trim() || null,
-      options: field.isCore
-        ? field.options
-        : isChoiceType(parsed.data.fieldType)
+      // Owned lists are written; directory-backed ones keep whatever they had,
+      // which is the empty array their options were never stored in.
+      options: canEditOptions(target)
+        ? isChoiceType(effectiveType)
           ? parsed.data.options
-          : [],
+          : []
+        : field.options,
       updated_at: new Date().toISOString(),
     })
     .eq("id", fieldId)
@@ -194,6 +230,82 @@ export async function restoreFormField(fieldId: string): Promise<ActionResult> {
   revalidatePath("/workspace/missions/new")
 
   return { success: true }
+}
+
+/**
+ * How many missions already answered with each option.
+ *
+ * Removing an option does not rewrite history: a mission keeps whatever it was
+ * saved with. But it does stop that answer being offered again, and it makes
+ * the value unrecognised by validation, so the admin should see the number
+ * before they decide. Zero is very different from forty.
+ */
+export async function getFieldOptionUsage(
+  fieldId: string
+): Promise<Record<string, number> | null> {
+  // null, never {}. An empty map renders as "0 uses" beside every option, which
+  // reads as "safe to delete" — the opposite of "we could not find out".
+  const guard = await authorize()
+  if ("error" in guard) return null
+  const { access } = guard
+
+  const fields = await listFormFields(access, FORM_KEY, { includeArchived: true })
+  const field = fields.find((item) => item.id === fieldId)
+  if (!field || !isChoiceType(field.fieldType)) return null
+
+  const supabase = await createClient()
+  const schema = supabase.schema("sales_mission")
+
+  /*
+    One counting query per option, not one scan of every row.
+
+    Reading the rows and tallying them in JS looked simpler and was wrong:
+    PostgREST caps a select at its configured maximum (1000 by default), so a
+    tenant past that many missions would have been shown a number quietly
+    smaller than the truth. That number is the whole point of this action, and
+    the admin deletes options on the strength of it. An `exact` head count has
+    no cap.
+
+    Options are a handful per field, so a handful of parallel counts is cheap.
+  */
+  const countMatching = async (option: string): Promise<number> => {
+    const base =
+      field.reportingKey === "mission_type"
+        ? schema
+            .from("missions")
+            .select("id", { count: "exact", head: true })
+            .eq("company_id", access.companyId)
+            .eq("mission_type", option)
+        : schema
+            .from("mission_field_values")
+            .select("id", { count: "exact", head: true })
+            .eq("company_id", access.companyId)
+            .eq("field_id", fieldId)
+            // A MULTI_SELECT answer is a jsonb array and a SELECT answer is a
+            // scalar, so both shapes have to be asked about.
+            .or(`value.eq."${option.replace(/"/g, '\\"')}",value.cs.["${option.replace(/"/g, '\\"')}"]`)
+
+    const { count, error } = await base
+    if (error) throw new Error(error.message)
+    return count ?? 0
+  }
+
+  // A core field other than mission_type answers into its own column, and none
+  // of those are admin-owned lists, so there is nothing to count.
+  if (field.isCore && field.reportingKey !== "mission_type") {
+    return Object.fromEntries(field.options.map((option) => [option, 0]))
+  }
+
+  try {
+    const counted = await Promise.all(
+      field.options.map(async (option) => [option, await countMatching(option)] as const)
+    )
+    return Object.fromEntries(counted)
+  } catch {
+    // One failed count makes the whole set untrustworthy: a partial map would
+    // show real numbers next to silent zeros.
+    return null
+  }
 }
 
 /** Move a field up or down. Ordering applies to core fields too. */

@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 import { createClient } from "@/utils/supabase/server"
 import { canPerform, getSalesMissionAccess } from "@/lib/sales-mission-access"
-import { createMissionSchema, toMissionTimestamp } from "@/lib/missions/mission-schema"
+import { MISSION_TYPES, createMissionSchema, toMissionTimestamp } from "@/lib/missions/mission-schema"
 import { listFormFields } from "@/lib/missions/form-field-queries"
 import { validateFieldAnswers, type FieldAnswer } from "@/lib/missions/form-fields"
 import type { ActionResult } from "@/types/action-result"
@@ -44,10 +44,78 @@ export async function createMission(
     objective: formData.get("objective") || undefined,
     primarySalesId: formData.get("primarySalesId"),
     supportingSalesIds: formData.getAll("supportingSalesIds").filter((value) => typeof value === "string" && value.length > 0),
+    contactSalutation: formData.get("contactSalutation") || undefined,
+    contactId: formData.get("contactId") || undefined,
+    contactName: formData.get("contactName") || undefined,
+    contactJobTitle: formData.get("contactJobTitle") || undefined,
+    contactDivision: formData.get("contactDivision") || undefined,
+    contactPhone: formData.get("contactPhone") || undefined,
+    contactEmail: formData.get("contactEmail") || undefined,
+    building: formData.get("building") || undefined,
+    appointmentNotes: formData.get("appointmentNotes") || undefined,
   })
 
   if (!parsed.success) {
     return { success: false, error: parsed.error.issues[0]?.message ?? "Data mission tidak valid." }
+  }
+
+  /*
+    The type used to be a compile-time enum. It is now whatever the tenant
+    configured, so the list has to be read to be checked.
+
+    An empty list falls back to the defaults rather than skipping the check.
+    Skipping looked harmless because the settings screen refuses to save a
+    choice field with no options, but `missions.mission_type` is free text with
+    no constraint behind it, so "no list" would have meant "any string this
+    endpoint is handed". The form renders the same fallback, which keeps the two
+    agreeing on what is offered and what is accepted.
+  */
+  const formFields = await listFormFields(access, "mission")
+  const missionTypeField = formFields.find((field) => field.reportingKey === "mission_type")
+  const allowedTypes = missionTypeField?.options?.length
+    ? missionTypeField.options
+    : [...MISSION_TYPES]
+
+  if (!allowedTypes.includes(parsed.data.missionType)) {
+    return { success: false, error: "Jenis mission itu tidak ada dalam daftar." }
+  }
+
+  /*
+    Enforce the admin's "wajib diisi" on core fields.
+
+    validateFieldAnswers deliberately skips core fields, because their meaning
+    lives in createMissionSchema. But that schema encodes the ORIGINAL
+    optionality, so a field the admin later tightened was marked with an
+    asterisk on the form and then saved happily empty: the browser attribute was
+    the only thing asking, and a browser attribute is not a rule. Sales pendukung
+    is the clearest case, being checkboxes that carry no `required` at all.
+  */
+  const coreValues: Record<string, unknown> = {
+    client_company: parsed.data.clientCompanyName,
+    mission_type: parsed.data.missionType,
+    location: parsed.data.location,
+    date: parsed.data.date,
+    start_time: parsed.data.startTime,
+    end_time: parsed.data.endTime,
+    objective: parsed.data.objective,
+    primary_sales: parsed.data.primarySalesId,
+    supporting_sales: parsed.data.supportingSalesIds,
+    contact_name: parsed.data.contactName,
+    contact_job_title: parsed.data.contactJobTitle,
+    contact_division: parsed.data.contactDivision,
+    contact_phone: parsed.data.contactPhone,
+    contact_email: parsed.data.contactEmail,
+    building: parsed.data.building,
+    appointment_notes: parsed.data.appointmentNotes,
+  }
+
+  for (const field of formFields) {
+    if (!field.isCore || !field.isRequired) continue
+    if (!(field.reportingKey in coreValues)) continue
+    const value = coreValues[field.reportingKey]
+    const empty = value === null || value === undefined || value === "" ||
+      (Array.isArray(value) && value.length === 0)
+    if (empty) return { success: false, error: `${field.label} wajib diisi.` }
   }
 
   const input = parsed.data
@@ -84,6 +152,17 @@ export async function createMission(
       location: input.location || null,
       scheduled_start: toMissionTimestamp(input.date, input.startTime),
       scheduled_end: input.endTime ? toMissionTimestamp(input.date, input.endTime) : null,
+      contact_salutation: input.contactSalutation || null,
+      // Set only when the rep picked someone the CRM already knows. A typed
+      // name stays a snapshot, which is the honest record of what was known.
+      contact_id: input.contactId || null,
+      contact_name: input.contactName || null,
+      contact_job_title: input.contactJobTitle || null,
+      contact_division: input.contactDivision || null,
+      contact_phone: input.contactPhone || null,
+      contact_email: input.contactEmail || null,
+      building: input.building || null,
+      appointment_notes: input.appointmentNotes || null,
       created_by: access.userId,
     })
     .select("id")
@@ -118,8 +197,8 @@ export async function createMission(
 
   // Admin-configured fields. Validation uses the tenant's current configuration
   // rather than anything hardcoded, so a field made mandatory this morning is
-  // mandatory this afternoon.
-  const customFields = (await listFormFields(access, "mission")).filter((field) => !field.isCore)
+  // mandatory this afternoon. Reuses the list already read for the type check.
+  const customFields = formFields.filter((field) => !field.isCore)
 
   if (customFields.length > 0) {
     const answers: Record<string, FieldAnswer> = {}

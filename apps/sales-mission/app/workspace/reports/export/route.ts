@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { getSalesMissionAccess } from "@/lib/sales-mission-access"
+import { canPerform, getSalesMissionAccess } from "@/lib/sales-mission-access"
 import { listReportRecords } from "@/lib/reporting/report-queries"
 import { currentMonthRange, filterByRange, toCsv, toCsvRows } from "@/lib/reporting/kpi"
 
@@ -18,6 +18,14 @@ export async function GET(request: Request) {
   const access = await getSalesMissionAccess()
   if (!access) {
     return NextResponse.json({ error: "Not authorised" }, { status: 401 })
+  }
+
+  // The app gate alone is not enough here. This URL downloads every submitted
+  // visit report in the tenant, so it needs the same reporting grant as the
+  // screen that links to it — otherwise revoking Laporan hides the button and
+  // leaves the data one address away.
+  if (!(await canPerform(access, "sales_mission_result", "read"))) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 })
   }
 
   const url = new URL(request.url)

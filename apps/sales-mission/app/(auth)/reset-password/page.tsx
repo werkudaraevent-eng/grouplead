@@ -123,11 +123,11 @@ export default function ResetPasswordPage() {
             </div>
           ) : done ? (
             <div className="space-y-5 text-center" role="status">
-              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-50">
-                <CheckCircle2 className="h-6 w-6 text-emerald-600" />
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-[var(--success)]">
+                <CheckCircle2 className="h-6 w-6 text-[var(--success-foreground)]" />
               </div>
               <div className="space-y-2">
-                <h2 className="text-xl font-semibold tracking-tight text-foreground">Password diperbarui</h2>
+                <h2 className="text-xl font-semibold tracking-tight text-foreground">Kata sandi diperbarui</h2>
                 <p className="text-sm leading-relaxed text-muted-foreground">Mengarahkan ke halaman login…</p>
               </div>
             </div>
@@ -147,7 +147,7 @@ export default function ResetPasswordPage() {
                 <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
                   <KeyRound className="h-5 w-5 text-primary" />
                 </div>
-                <h2 className="text-xl font-semibold tracking-tight text-foreground">Buat password baru</h2>
+                <h2 className="text-xl font-semibold tracking-tight text-foreground">Buat kata sandi baru</h2>
                 <p className="text-sm leading-relaxed text-muted-foreground">
                   Minimal 8 karakter. Password ini berlaku untuk LeadEngine dan Sales Mission.
                 </p>
@@ -155,13 +155,13 @@ export default function ResetPasswordPage() {
 
               <form onSubmit={handleSubmit} className="space-y-5">
                 {error && (
-                  <div className="rounded-lg border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive" role="alert">
+                  <div className="rounded-lg border border-[var(--danger-foreground)]/20 bg-[var(--danger)] px-4 py-3 text-sm text-[var(--danger-foreground)]" role="alert">
                     {error}
                   </div>
                 )}
 
                 <div className="space-y-1.5">
-                  <Label htmlFor="password">Password baru</Label>
+                  <Label htmlFor="password">Kata sandi baru</Label>
                   <div className="relative">
                     <Input
                       id="password"
@@ -187,7 +187,7 @@ export default function ResetPasswordPage() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label htmlFor="confirm">Ulangi password</Label>
+                  <Label htmlFor="confirm">Ulangi kata sandi</Label>
                   <Input
                     id="confirm"
                     type={showPassword ? "text" : "password"}
