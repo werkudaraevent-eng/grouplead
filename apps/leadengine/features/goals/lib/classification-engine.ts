@@ -32,21 +32,31 @@ export function classifyLeadBySegment(
 export function detectSegmentOverlapsV2(
   mappings: SegmentMappingEntry[]
 ): OverlapWarning[] {
-  const valueSegments = new Map<string, string[]>()
+  // Per value: which mapping entries it came from, and under which names.
+  //
+  // Entries rather than occurrences, because the two are not the same thing. A
+  // value listed twice inside one entry is a typo in that entry, not a clash
+  // between segments — counting raw occurrences reported it as an overlap whose
+  // segment list named a single segment conflicting with itself.
+  //
+  // Entries rather than distinct names, because two separate entries that share
+  // a name and a value are still a real configuration duplicate worth flagging.
+  const valueEntries = new Map<string, { indices: Set<number>; names: string[] }>()
 
-  for (const mapping of mappings) {
-    if (!Array.isArray(mapping.match_values)) continue
+  mappings.forEach((mapping, index) => {
+    if (!Array.isArray(mapping.match_values)) return
     for (const val of mapping.match_values) {
-      const segments = valueSegments.get(val) ?? []
-      segments.push(mapping.segment_name)
-      valueSegments.set(val, segments)
+      const entry = valueEntries.get(val) ?? { indices: new Set<number>(), names: [] }
+      entry.indices.add(index)
+      entry.names.push(mapping.segment_name)
+      valueEntries.set(val, entry)
     }
-  }
+  })
 
   const warnings: OverlapWarning[] = []
-  for (const [value, segments] of valueSegments) {
-    if (segments.length > 1) {
-      warnings.push({ value, segments: [...new Set(segments)] })
+  for (const [value, entry] of valueEntries) {
+    if (entry.indices.size > 1) {
+      warnings.push({ value, segments: [...new Set(entry.names)] })
     }
   }
 
