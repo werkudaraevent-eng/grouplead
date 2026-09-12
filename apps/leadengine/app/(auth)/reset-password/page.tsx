@@ -23,11 +23,14 @@ export default function ResetPasswordPage() {
     const [saving, setSaving] = useState(false)
     const [done, setDone] = useState(false)
 
-    // Establish the recovery session from the email link. We support BOTH
-    // link formats for resilience:
-    //   1. token_hash + type=recovery  → verifyOtp(). NOT browser-bound, so it
-    //      works even when the link is opened on a different device/browser
-    //      than the one that requested the reset. Preferred.
+    // Establish the session from the email link. This page serves two journeys:
+    // a password reset the user asked for, and the first sign-in of someone an
+    // admin invited — both arrive as a token_hash, differing only in `type`.
+    //
+    // We support BOTH link formats for resilience:
+    //   1. token_hash + type=recovery|invite → verifyOtp(). NOT browser-bound,
+    //      so it works even when the link is opened on a different device or
+    //      browser than the one that requested it. Preferred.
     //   2. PKCE ?code= → exchangeCodeForSession(). Browser-bound (needs the
     //      code_verifier from the originating browser); kept as a fallback for
     //      the default Supabase email template.
@@ -49,6 +52,9 @@ export default function ResetPasswordPage() {
             // 1. token_hash flow (device-independent)
             if (tokenHash) {
                 const { error } = await supabase.auth.verifyOtp({
+                    // The URL's own type is forwarded — "invite" for a new
+                    // account, "recovery" for a reset. The cast only satisfies
+                    // the union; it does not pin the value to recovery.
                     type: (type as "recovery") || "recovery",
                     token_hash: tokenHash,
                 })

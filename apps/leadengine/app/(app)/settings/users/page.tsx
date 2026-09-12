@@ -19,6 +19,7 @@ import { Switch } from "@/components/ui/switch"
 import { Tooltip } from "@/components/ui/tooltip"
 import {
     ShieldCheck, Plus, Loader2, Search, Mail, MoreHorizontal, UserCog, KeyRound, Filter, X, UserX, Trash2,
+    AlertTriangle,
 } from "lucide-react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { SettingsPageHeader } from "@/components/layout/settings-page-header"
@@ -354,7 +355,20 @@ export default function UserManagementPage() {
                                         {(() => {
                                             const hasHolding = companies.some(cm => (cm.company as { is_holding?: boolean })?.is_holding)
                                             if (companies.length === 0) {
-                                                return <span className="text-[11px] text-muted-foreground/40">Not assigned</span>
+                                                // Not a blank field — this account cannot use either
+                                                // app. LeadEngine stops at "No company context
+                                                // available" and Sales Mission refuses the sign-in
+                                                // outright. Shown as a warning so it reads as
+                                                // something to fix rather than something optional.
+                                                return (
+                                                    <span
+                                                        title="This user has no business unit, so they cannot use LeadEngine or Sales Mission. Edit the user to assign one."
+                                                        className="inline-flex items-center gap-1 rounded border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700"
+                                                    >
+                                                        <AlertTriangle className="h-3 w-3" />
+                                                        No access
+                                                    </span>
+                                                )
                                             }
                                             if (hasHolding) {
                                                 return (

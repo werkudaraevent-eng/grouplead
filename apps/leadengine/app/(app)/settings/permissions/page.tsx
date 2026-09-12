@@ -1,5 +1,6 @@
 "use client"
 
+import Link from "next/link"
 import { useEffect, useState, useCallback } from "react"
 import { createClient } from "@/utils/supabase/client"
 import { useCompany } from "@/contexts/company-context"
@@ -29,111 +30,137 @@ const ROLE_ICON_MAP: Record<string, React.ElementType> = {
   "Staff": User,
 }
 
-const CAN_READ_OPTIONS = ["none", "own", "company", "all"] as const
-const READ_LABELS: Record<string, string> = {
-  none: "No access",
-  own: "Own records (preview)",
-  company: "Company-wide",
-  all: "Cross-company",
-}
-
+/**
+ * Every group can be collapsed. It used to be only Settings, so the Sales
+ * Mission group's four children were permanently expanded next to a Settings
+ * group that folded away, and the chevron read as decoration on the two headers
+ * that ignored it.
+ *
+ * `description` stays one sentence. The cascade rule that used to be spelled out
+ * in three sentences here lives in the help panel above the table, where the
+ * other rules of the matrix already are.
+ */
 const MODULE_GROUPS = [
   {
     title: "Core CRM",
-    description: "Daily sales workspace and customer records.",
+    description: "Ruang kerja harian sales dan data pelanggan.",
     modules: ["dashboard", "leads", "companies", "contacts", "sales_mission"],
   },
   {
     title: "Sales Mission",
-    description: "Fine-grained controls inside the Sales Mission app. A module left unconfigured is not restricted — access to the app itself is governed by the Sales Mission module above.",
+    description: "Kontrol rinci di dalam aplikasi Sales Mission.",
     modules: ["sales_mission_mission", "sales_mission_result", "sales_mission_contact", "sales_mission_settings"],
   },
   {
-    title: "Settings",
-    description: "Settings hub access and section-level controls.",
-    modules: ["settings", "master_options", "pipeline", "segment_settings", "goal_settings", "forecast_settings", "management_dashboard", "members", "permissions"],
+    title: "Pengaturan",
+    description: "Akses ke halaman Settings dan tiap bagiannya.",
+    modules: ["settings", "master_options", "pipeline", "segment_settings", "goal_settings", "management_dashboard", "members", "permissions"],
   },
 ] as const
 
 const MODULE_DISPLAY: Record<string, { name: string; description: string; level?: number }> = {
   dashboard: {
     name: "Dashboard",
-    description: "Main executive and sales performance dashboard.",
+    description: "Dashboard performa eksekutif dan sales.",
     level: 0,
   },
   sales_mission: {
     name: "Sales Mission",
-    description: "Opens the Sales Mission app. Without this, nothing inside it is reachable.",
+    description: "Membuka aplikasi Sales Mission. Tanpa ini, tidak ada yang bisa dijangkau di dalamnya. Tiap sakelar di sini menyalakan kolom yang sama pada empat modul di bawah.",
     level: 0,
   },
   sales_mission_mission: {
-    name: "Missions",
-    description: "Create and edit missions. Revoke create to leave a role responding to missions rather than scheduling them.",
+    name: "Mission",
+    description: "Membuat dan mengubah mission. Matikan Buat agar peran ini hanya menanggapi mission, bukan menjadwalkannya.",
     level: 1,
   },
   sales_mission_result: {
-    name: "Visit reports",
-    description: "Visit report access. The report itself is always written by the mission's primary sales — this controls the wider role.",
+    name: "Laporan kunjungan",
+    description: "Akses laporan kunjungan. Laporannya sendiri selalu ditulis sales utama mission itu; ini mengatur akses peran secara umum.",
     level: 1,
   },
   sales_mission_contact: {
-    name: "Mission contacts",
-    description: "Contacts captured during a visit.",
+    name: "Kontak mission",
+    description: "Kontak yang dikumpulkan saat kunjungan.",
     level: 1,
   },
   sales_mission_settings: {
-    name: "Mission settings",
-    description: "Travel buffer, conflict rules, and the supporting-sales cap.",
+    name: "Pengaturan mission",
+    description: "Jeda perjalanan, aturan bentrok, dan batas sales pendukung.",
     level: 1,
   },
   settings: {
-    name: "Settings hub",
-    description: "Controls whether the user can open the main /settings page.",
+    name: "Halaman Settings",
+    description: "Menentukan apakah pengguna bisa membuka halaman /settings.",
     level: 0,
   },
   master_options: {
     name: "Master Options",
-    description: "Lead fields, dropdown options, form layouts, and pipeline stage configuration.",
+    description: "Field lead, opsi dropdown, tata letak form, dan konfigurasi tahap pipeline.",
     level: 1,
   },
   pipeline: {
-    name: "Pipeline Stages",
-    description: "Create, rename, recolor, reorder, and delete pipeline stages on the kanban and in Settings.",
+    name: "Tahap Pipeline",
+    description: "Membuat, mengganti nama, mewarnai, mengurutkan, dan menghapus tahap pipeline di kanban maupun Settings.",
     level: 1,
   },
   segment_settings: {
-    name: "Segments",
-    description: "Segment definitions and mappings inside Settings.",
+    name: "Segmen",
+    description: "Definisi dan pemetaan segmen di dalam Settings.",
     level: 1,
   },
   goal_settings: {
-    name: "Goal Settings",
-    description: "Goal periods, attribution rules, and reporting configuration inside Settings.",
-    level: 1,
-  },
-  forecast_settings: {
-    name: "Forecast Settings",
-    description: "Stage weights and forecast configuration inside Settings.",
+    name: "Pengaturan Goal",
+    description: "Periode goal, aturan atribusi, dan konfigurasi pelaporan di dalam Settings.",
     level: 1,
   },
   management_dashboard: {
-    name: "Goal Management Dashboard",
-    description: "Goal attainment and forecast dashboard inside Goal Settings, not the main app dashboard.",
+    name: "Dashboard Manajemen Goal",
+    description: "Dashboard pencapaian goal dan forecast di dalam Pengaturan Goal, bukan dashboard utama.",
     level: 1,
   },
   members: {
-    name: "Users",
-    description: "User management and member provisioning inside Settings.",
+    name: "Pengguna",
+    description: "Manajemen pengguna dan penambahan anggota di dalam Settings.",
     level: 1,
   },
   permissions: {
-    name: "Roles & Permissions",
-    description: "Access-control matrix administration inside Settings.",
+    name: "Role & Izin",
+    description: "Pengelolaan matriks kontrol akses di dalam Settings.",
     level: 1,
   },
 }
 
 const GROUPED_MODULE_IDS: Set<string> = new Set(MODULE_GROUPS.flatMap((group) => [...group.modules]))
+
+/**
+ * Rows in `app_modules` that gate nothing.
+ *
+ * `users` duplicated the label of `members`, which is the module that actually
+ * governs Settings > Users, so the matrix showed two rows called Pengguna.
+ * `forecast_settings` had no reader anywhere in either app.
+ *
+ * The companion migration deletes both. This list keeps the screen correct in
+ * the window before it runs, and on any environment where it has not.
+ */
+const RETIRED_MODULE_IDS: Set<string> = new Set(["users", "forecast_settings"])
+
+/**
+ * Sub-modules that follow the `sales_mission` switch.
+ *
+ * Sales Mission treats a module with no row as *unrestricted*, so an admin
+ * looking at four switches rendered off was reading "denied" where the app read
+ * "allowed". Writing explicit rows alongside the parent removes that gap: once
+ * a role has been configured, off genuinely means off, and the admin tightens
+ * individual sub-modules from a known state.
+ */
+const SALES_MISSION_PARENT = "sales_mission"
+const SALES_MISSION_SUBMODULES = [
+  "sales_mission_mission",
+  "sales_mission_result",
+  "sales_mission_contact",
+  "sales_mission_settings",
+] as const
 
 export default function GlobalPermissionsPage() {
   const { activeCompany, isHoldingView, companies } = useCompany()
@@ -146,6 +173,8 @@ export default function GlobalPermissionsPage() {
   const [roleModalOpen, setRoleModalOpen] = useState(false)
   const [editingRole, setEditingRole] = useState<Role | null>(null)
   const [roleToDelete, setRoleToDelete] = useState<Role | null>(null)
+  /** null while counting; the dialog must not guess a number it does not have. */
+  const [roleUserCount, setRoleUserCount] = useState<number | null>(null)
 
   const [modules, setModules] = useState<AppModule[]>([])
   const [permissions, setPermissions] = useState<RolePermission[]>([])
@@ -173,18 +202,28 @@ export default function GlobalPermissionsPage() {
     const fetched = (data as Role[]) ?? []
     setRoles(fetched)
 
-    // Auto-select the first role if nothing selected yet
+    // Keep the selection, but on the refreshed object. Returning `prev` meant a
+    // rename saved fine and the panel beside the sidebar kept showing the old
+    // name and description until the next full reload.
     setSelectedRole((prev) => {
-      if (prev && fetched.find((r) => r.id === prev.id)) return prev
-      return fetched[0] ?? null
+      const match = prev ? fetched.find((r) => r.id === prev.id) : undefined
+      return match ?? fetched[0] ?? null
     })
     setRolesLoading(false)
   }, [])
 
-  /* ─── Fetch modules + permissions for selected role ────────────────────── */
-  const fetchPermissions = useCallback(async () => {
+  /**
+   * Fetch modules and permissions for the selected role.
+   *
+   * `showLoading` exists because the Sales Mission cascade ends by re-reading,
+   * and the full loader swaps the entire table for a centred spinner. Flipping
+   * one switch made every other row vanish and come back, resetting the scroll
+   * position, while the toast beside it said the change had succeeded. A
+   * background reconcile refreshes the values in place instead.
+   */
+  const fetchPermissions = useCallback(async (showLoading = true) => {
     if (!companyId || !selectedRole) return
-    setLoading(true)
+    if (showLoading) setLoading(true)
     setError(null)
 
     const { data: mods, error: modErr } = await supabase
@@ -209,13 +248,32 @@ export default function GlobalPermissionsPage() {
   useEffect(() => { fetchRoles() }, [fetchRoles])
   useEffect(() => { fetchPermissions() }, [fetchPermissions])
 
+  // How many people are standing on the role about to be deleted. Nothing in the
+  // schema blocks the delete, so this number is the only warning there is.
+  useEffect(() => {
+    if (!roleToDelete) { setRoleUserCount(null); return }
+    let cancelled = false
+    setRoleUserCount(null)
+    supabase
+      .from("profiles")
+      .select("id", { count: "exact", head: true })
+      .eq("role_id", roleToDelete.id)
+      .then(({ count }) => { if (!cancelled) setRoleUserCount(count ?? 0) })
+    return () => { cancelled = true }
+  }, [roleToDelete?.id])
+
   /* ─── Permission helpers ───────────────────────────────────────────────── */
   const findPerm = (moduleId: string) =>
     permissions.find((p) => p.module_id === moduleId)
 
+  /**
+   * Every group folds. Settings still starts closed when the hub itself is off,
+   * because its eight children cannot be reached until it is on; the others
+   * start open.
+   */
   const isGroupExpanded = (groupTitle: string) => {
     if (expandedGroups[groupTitle] !== undefined) return expandedGroups[groupTitle]
-    if (groupTitle !== "Settings") return true
+    if (groupTitle !== "Pengaturan") return true
     const settingsPerm = findPerm("settings")
     return (settingsPerm?.can_read ?? "none") !== "none"
   }
@@ -226,6 +284,25 @@ export default function GlobalPermissionsPage() {
       [groupTitle]: !isGroupExpanded(groupTitle),
     }))
   }
+
+  /**
+   * Write permissions depend on read, so granting one grants the other.
+   *
+   * The matrix used to enforce that dependency by disabling Buat / Ubah / Hapus
+   * until Lihat was on. On a role that has never been configured there are no
+   * `role_permissions` rows at all, so `can_read` read as "none" and all three
+   * switches came up dead — a brand-new role was a screen of controls that
+   * refused every click, with nothing anywhere saying to turn Lihat on first.
+   *
+   * The dependency was right; expressing it as a locked control was not. Now the
+   * switches are live and the prerequisite follows the grant, which is what
+   * Salesforce, Strapi and Directus all do with the same matrix: enabling Edit
+   * implies Read, and revoking Read still takes the writes with it
+   * (see handleChangeRead). The combination the admin cannot reach is the only
+   * one that was ever nonsense — write access to something you cannot see.
+   */
+  const grantsImpliedRead = (perm: RolePermission | undefined, turningOn: boolean) =>
+    turningOn && (perm?.can_read ?? "none") === "none"
 
   const handleToggleBool = async (
     moduleId: string,
@@ -238,28 +315,51 @@ export default function GlobalPermissionsPage() {
     const perm = findPerm(moduleId)
     if (perm) {
       const newVal = !perm[field]
+      const payload: Partial<RolePermission> = { [field]: newVal }
+      if (grantsImpliedRead(perm, newVal)) payload.can_read = "company"
+
+      // Move the switch on the click, then reconcile. Waiting for the round trip
+      // meant that on a field connection the control sat still for a second and
+      // read as one that had ignored the tap, which invites a second click.
+      const previous = permissions
+      setPermissions((prev) =>
+        prev.map((p) => (p.id === perm.id ? { ...p, ...payload } : p))
+      )
+
       const { error } = await supabase
         .from("role_permissions")
-        .update({ [field]: newVal })
+        .update(payload)
         .eq("id", perm.id)
-      if (error) { setError(error.message); toast.error("Failed to update permission") }
+      if (error) {
+        setPermissions(previous)
+        setError(error.message)
+        toast.error("Gagal memperbarui izin")
+      }
       else {
-        setPermissions((prev) =>
-          prev.map((p) => (p.id === perm.id ? { ...p, [field]: newVal } : p))
-        )
         // Propagate to subsidiaries when editing from Holding View
-        if (isHoldingView && companies.length > 1) {
-          await propagateToSubsidiaries(moduleId, { [field]: newVal })
+        const propagated = isHoldingView && companies.length > 1
+          ? await propagateToSubsidiaries(moduleId, payload as Record<string, unknown>)
+          : true
+        if (moduleId === SALES_MISSION_PARENT) {
+          // The implied read travels down with the column it came in on, or the
+          // sub-modules would land in exactly the state this change removed.
+          await cascadeSalesMissionSubmodules(payload)
         }
-        toast.success("Permission updated")
+        // Silent when propagation already reported its own failure: two toasts
+        // saying opposite things is worse than the one that is true.
+        if (propagated) {
+          toast.success(payload.can_read ? "Izin diperbarui, Lihat ikut dinyalakan" : "Izin diperbarui")
+        }
       }
     } else {
+      // No row yet, and the only way to get here is by switching something on,
+      // so the read this write depends on is granted in the same insert.
       const insertPayload = {
         company_id: companyId,
         role_id: selectedRole.id,
         module_id: moduleId,
         can_create: field === "can_create",
-        can_read: "none" as const,
+        can_read: "company" as const,
         can_update: field === "can_update",
         can_delete: field === "can_delete",
       }
@@ -268,19 +368,25 @@ export default function GlobalPermissionsPage() {
         .insert(insertPayload)
         .select("*")
         .single()
-      if (error) { setError(error.message); toast.error("Failed to update permission") }
+      if (error) { setError(error.message); toast.error("Gagal memperbarui izin") }
       else if (data) {
         setPermissions((prev) => [...prev, data as RolePermission])
         // Propagate to subsidiaries when editing from Holding View
-        if (isHoldingView && companies.length > 1) {
-          await propagateToSubsidiaries(moduleId, {
-            can_create: insertPayload.can_create,
-            can_read: insertPayload.can_read,
-            can_update: insertPayload.can_update,
-            can_delete: insertPayload.can_delete,
-          })
+        const propagated = isHoldingView && companies.length > 1
+          ? await propagateToSubsidiaries(moduleId, {
+              can_create: insertPayload.can_create,
+              can_read: insertPayload.can_read,
+              can_update: insertPayload.can_update,
+              can_delete: insertPayload.can_delete,
+            })
+          : true
+        if (moduleId === SALES_MISSION_PARENT) {
+          await cascadeSalesMissionSubmodules({
+            [field]: true,
+            can_read: "company",
+          } as Partial<RolePermission>)
         }
-        toast.success("Permission updated")
+        if (propagated) toast.success("Izin diperbarui, Lihat ikut dinyalakan")
       }
     }
     setToggling(null)
@@ -304,17 +410,25 @@ export default function GlobalPermissionsPage() {
         .from("role_permissions")
         .update(cascadePayload)
         .eq("id", perm.id)
-      if (error) { setError(error.message); toast.error("Failed to update read scope") }
-      else {
-        setPermissions((prev) =>
-          prev.map((p) => (p.id === perm.id ? { ...p, ...cascadePayload as Partial<RolePermission> } : p))
-        )
-        // Propagate to subsidiaries when editing from Holding View
-        if (isHoldingView && companies.length > 1) {
-          await propagateToSubsidiaries(moduleId, cascadePayload)
-        }
-        toast.success("Read scope updated")
+      // Returning here, not just toasting, because the cascade below writes to
+      // four more modules. Without the return a failed parent write was followed
+      // by a successful child write: the admin saw "Gagal", believed nothing had
+      // been saved, and the sub-modules had already changed underneath them.
+      if (error) {
+        setError(error.message)
+        toast.error("Gagal memperbarui akses lihat")
+        setToggling(null)
+        return
       }
+
+      setPermissions((prev) =>
+        prev.map((p) => (p.id === perm.id ? { ...p, ...cascadePayload as Partial<RolePermission> } : p))
+      )
+      // Propagate to subsidiaries when editing from Holding View
+      const propagated = isHoldingView && companies.length > 1
+        ? await propagateToSubsidiaries(moduleId, cascadePayload)
+        : true
+      if (propagated) toast.success("Akses lihat diperbarui")
     } else {
       const insertPayload = {
         company_id: companyId,
@@ -330,72 +444,266 @@ export default function GlobalPermissionsPage() {
         .insert(insertPayload)
         .select("*")
         .single()
-      if (error) { setError(error.message); toast.error("Failed to update read scope") }
-      else if (data) {
-        setPermissions((prev) => [...prev, data as RolePermission])
-        // Propagate to subsidiaries when editing from Holding View
-        if (isHoldingView && companies.length > 1) {
-          await propagateToSubsidiaries(moduleId, {
+      if (error || !data) {
+        setError(error?.message ?? "Baris izin gagal dibuat")
+        toast.error("Gagal memperbarui akses lihat")
+        setToggling(null)
+        return
+      }
+
+      setPermissions((prev) => [...prev, data as RolePermission])
+      // Propagate to subsidiaries when editing from Holding View
+      const propagated = isHoldingView && companies.length > 1
+        ? await propagateToSubsidiaries(moduleId, {
             can_create: false,
             can_read: value,
             can_update: false,
             can_delete: false,
           })
-        }
-        toast.success("Read scope updated")
-      }
+        : true
+      if (propagated) toast.success("Akses lihat diperbarui")
     }
+
+    // Lihat on the parent opens Lihat below it, and only that column. Reached
+    // only after the parent write succeeded — both branches above return early.
+    if (moduleId === SALES_MISSION_PARENT) {
+      await cascadeSalesMissionSubmodules({ can_read: value as RolePermission["can_read"] })
+    }
+
     setToggling(null)
   }
 
-  /* ─── Propagate permission changes from Holding → all subsidiaries ───── */
+  /**
+   * The Sales Mission row drives the same column on its four sub-modules.
+   *
+   * Column for column: turning on Lihat opens Lihat below it, and nothing else.
+   * The first version granted create, update and delete as well, which handed a
+   * role permissions the admin never asked for by moving one switch.
+   *
+   * Rows are written on the way down too, never deleted, because Sales Mission
+   * reads a missing row as unrestricted. Deleting on "off" would hand back the
+   * access just revoked.
+   *
+   * Two queries regardless of how many subsidiaries are in scope. The earlier
+   * version looped module by module and then company by company, which on a
+   * holding view meant sixty-odd sequential round trips: the admin watched the
+   * rows light up one at a time, and a failure halfway left the rest untouched.
+   */
+  const cascadeSalesMissionSubmodules = async (patch: Partial<RolePermission>) => {
+    if (!companyId || !selectedRole) return
+
+    // In holding view the change belongs to every subsidiary as well, matching
+    // how single-module edits already propagate.
+    const targetCompanyIds =
+      isHoldingView && companies.length > 1
+        ? [companyId, ...companies.filter((c) => c.id !== companyId && !c.isHolding).map((c) => c.id)]
+        : [companyId]
+
+    const modules = [...SALES_MISSION_SUBMODULES]
+
+    // Read off means everything off, the same rule a single module already
+    // follows. Without this a child could keep create with no read, which the
+    // matrix would then draw as a disabled switch sitting in the on position.
+    const effective: Partial<RolePermission> =
+      patch.can_read === "none"
+        ? { ...patch, can_create: false, can_update: false, can_delete: false }
+        : patch
+
+    const { data: existing, error: lookupError } = await supabase
+      .from("role_permissions")
+      .select("id, company_id, module_id")
+      .eq("role_id", selectedRole.id)
+      .in("company_id", targetCompanyIds)
+      .in("module_id", modules)
+
+    if (lookupError) {
+      toast.error("Gagal membaca modul Sales Mission")
+      return
+    }
+
+    const seen = new Set((existing ?? []).map((row) => `${row.company_id}:${row.module_id}`))
+    const existingIds = (existing ?? []).map((row) => row.id as string)
+
+    const missing = targetCompanyIds.flatMap((cid) =>
+      modules
+        .filter((moduleId) => !seen.has(`${cid}:${moduleId}`))
+        .map((moduleId) => ({
+          company_id: cid,
+          role_id: selectedRole.id,
+          module_id: moduleId,
+          can_create: false,
+          can_read: "none" as const,
+          can_update: false,
+          can_delete: false,
+          ...effective,
+        }))
+    )
+
+    const [updateResult, insertResult] = await Promise.all([
+      existingIds.length > 0
+        ? supabase.from("role_permissions").update(effective).in("id", existingIds)
+        : Promise.resolve({ error: null }),
+      missing.length > 0
+        ? supabase.from("role_permissions").insert(missing)
+        : Promise.resolve({ error: null }),
+    ])
+
+    if (updateResult.error || insertResult.error) {
+      toast.error("Sebagian modul Sales Mission gagal diperbarui")
+      await fetchPermissions(false)
+      return
+    }
+
+    // Re-read rather than patch local state by hand: the insert covers rows this
+    // component never held, and a stale row here would render a switch that
+    // disagrees with the database. Silent, so the table stays on screen instead
+    // of collapsing into a spinner every time one switch moves.
+    await fetchPermissions(false)
+  }
+
+  /**
+   * Propagate a permission change from Holding to every subsidiary.
+   *
+   * Two round trips instead of two per company, matching the shape
+   * cascadeSalesMissionSubmodules already uses. The old loop ran a select and
+   * then an update-or-insert for each subsidiary in sequence: eight companies
+   * meant sixteen serialised requests for one switch flip.
+   *
+   * More importantly it discarded every result. Neither the update nor the
+   * insert destructured `error`, and the `rp_manage` policy requires membership
+   * of the *target* company — so a holding admin who is not a member of each
+   * subsidiary got a zero-row update (PostgREST reports no error for that) or a
+   * swallowed 42501, and the caller still announced success. The admin walked
+   * away believing a policy was live in eight companies when it was live in one.
+   *
+   * Only the columns being changed are written to a subsidiary that had no row.
+   * The previous version spread the whole holding row first, so flipping Delete
+   * alone handed a subsidiary create, read and update as well.
+   */
   const propagateToSubsidiaries = async (
     moduleId: string,
     updates: Record<string, unknown>
-  ) => {
-    if (!selectedRole) return
-    const subsidiaryIds = companies
-      .filter((c) => c.id !== companyId && !c.isHolding)
-      .map((c) => c.id)
+  ): Promise<boolean> => {
+    if (!selectedRole) return true
+    const subsidiaries = companies.filter((c) => c.id !== companyId && !c.isHolding)
+    if (subsidiaries.length === 0) return true
 
-    for (const subId of subsidiaryIds) {
-      // Check if row exists for this subsidiary
-      const { data: existing } = await supabase
-        .from("role_permissions")
-        .select("id")
-        .eq("role_id", selectedRole.id)
-        .eq("company_id", subId)
-        .eq("module_id", moduleId)
-        .maybeSingle()
+    const subsidiaryIds = subsidiaries.map((c) => c.id)
 
-      if (existing) {
-        await supabase
-          .from("role_permissions")
-          .update(updates)
-          .eq("id", existing.id)
-      } else {
-        // Insert new row for subsidiary with current holding values
-        const holdingPerm = findPerm(moduleId)
-        await supabase
-          .from("role_permissions")
-          .insert({
-            company_id: subId,
-            role_id: selectedRole.id,
-            module_id: moduleId,
-            can_create: false,
-            can_read: "none",
-            can_update: false,
-            can_delete: false,
-            ...holdingPerm ? {
-              can_create: holdingPerm.can_create,
-              can_read: holdingPerm.can_read,
-              can_update: holdingPerm.can_update,
-              can_delete: holdingPerm.can_delete,
-            } : {},
-            ...updates,
-          })
-      }
+    const { data: existing, error: lookupError } = await supabase
+      .from("role_permissions")
+      .select("id, company_id")
+      .eq("role_id", selectedRole.id)
+      .eq("module_id", moduleId)
+      .in("company_id", subsidiaryIds)
+
+    if (lookupError) {
+      toast.error("Gagal membaca izin anak perusahaan")
+      return false
     }
+
+    const covered = new Set((existing ?? []).map((row) => row.company_id as string))
+    const existingIds = (existing ?? []).map((row) => row.id as string)
+    const missing = subsidiaryIds
+      .filter((id) => !covered.has(id))
+      .map((id) => ({
+        company_id: id,
+        role_id: selectedRole.id,
+        module_id: moduleId,
+        can_create: false,
+        can_read: "none",
+        can_update: false,
+        can_delete: false,
+        ...updates,
+      }))
+
+    const [updateResult, insertResult] = await Promise.all([
+      existingIds.length > 0
+        ? supabase.from("role_permissions").update(updates).in("id", existingIds).select("id")
+        : Promise.resolve({ data: [], error: null }),
+      missing.length > 0
+        ? supabase.from("role_permissions").insert(missing).select("id")
+        : Promise.resolve({ data: [], error: null }),
+    ])
+
+    const written = (updateResult.data?.length ?? 0) + (insertResult.data?.length ?? 0)
+    if (updateResult.error || insertResult.error || written < subsidiaryIds.length) {
+      const names = subsidiaries.map((c) => c.name).join(", ")
+      setError(
+        updateResult.error?.message ??
+          insertResult.error?.message ??
+          `Hanya ${written} dari ${subsidiaryIds.length} anak perusahaan yang tersimpan.`
+      )
+      toast.error(`Perubahan tidak sampai ke semua anak perusahaan (${names}). Periksa lagi per perusahaan.`)
+      return false
+    }
+
+    return true
+  }
+
+  /**
+   * Set a whole row at once.
+   *
+   * Fifteen modules times four columns is sixty switches, and almost every real
+   * decision is one of three shapes: shut, read-only, or everything. Salesforce,
+   * Strapi and Directus all offer the equivalent; without it the admin clicks
+   * four times per module and the matrix punishes them for having many modules.
+   */
+  const applyRowPreset = async (moduleId: string, preset: "none" | "read" | "full") => {
+    if (!companyId || !selectedRole || isSuperAdmin || !canManagePermissions) return
+    const key = `${moduleId}:${selectedRole.id}:preset`
+    setToggling(key)
+
+    const payload = {
+      can_create: preset === "full",
+      can_read: preset === "none" ? "none" : "company",
+      can_update: preset === "full",
+      can_delete: preset === "full",
+    } satisfies Partial<RolePermission>
+
+    const perm = findPerm(moduleId)
+    const previous = permissions
+    // Move first, reconcile after: a matrix that waits for the server before
+    // anything visibly happens reads as a control that ignored the click.
+    setPermissions((prev) =>
+      perm
+        ? prev.map((p) => (p.id === perm.id ? { ...p, ...payload } : p))
+        : prev
+    )
+
+    const { error } = perm
+      ? await supabase.from("role_permissions").update(payload).eq("id", perm.id)
+      : await supabase.from("role_permissions").insert({
+          company_id: companyId,
+          role_id: selectedRole.id,
+          module_id: moduleId,
+          ...payload,
+        })
+
+    if (error) {
+      setPermissions(previous)
+      setError(error.message)
+      toast.error("Gagal menerapkan preset")
+      setToggling(null)
+      return
+    }
+
+    const propagated = isHoldingView && companies.length > 1
+      ? await propagateToSubsidiaries(moduleId, payload)
+      : true
+
+    if (moduleId === SALES_MISSION_PARENT) {
+      await cascadeSalesMissionSubmodules(payload)
+    } else if (!perm) {
+      await fetchPermissions(false)
+    }
+
+    if (propagated) {
+      toast.success(
+        preset === "none" ? "Modul dimatikan" : preset === "read" ? "Diatur ke lihat saja" : "Akses penuh diberikan"
+      )
+    }
+    setToggling(null)
   }
 
   /* ─── Helpers ──────────────────────────────────────────────────────────── */
@@ -407,22 +715,66 @@ export default function GlobalPermissionsPage() {
     setRoleModalOpen(true)
   }
 
+  /**
+   * Companies a new role's matrix rows are written into.
+   *
+   * Permission rows are per company, so a role created from the holding view
+   * needs a row set in each subsidiary or it would be configurable in one place
+   * and blank in the rest.
+   */
+  const seedCompanyIds = isHoldingView
+    ? companies.filter((c) => !c.isHolding).map((c) => c.id)
+    : companyId
+      ? [companyId]
+      : []
+
+  // A new role arrives with a full set of rows, so the matrix has to re-read as
+  // well as the sidebar. Silent: the table is already on screen.
+  const handleRoleSaved = async () => {
+    await fetchRoles()
+    await fetchPermissions(false)
+  }
+
+  /**
+   * Delete a role, and only claim it when a row actually went.
+   *
+   * The RLS policy on `roles` allows deletion by a global super admin only,
+   * while the button is offered to anyone holding permissions.update — a grant
+   * handed out from this very matrix. PostgREST reports a policy-filtered
+   * delete as 204 with no error, so the old code took `error === null` as proof,
+   * dropped the role from the sidebar, and announced success. The role was still
+   * there on the next reload, and nothing had told the admin otherwise.
+   *
+   * Asking for the deleted ids back turns "no error" into "no rows", which is
+   * the difference between refused and done.
+   */
   const handleDeleteRole = async () => {
     if (!roleToDelete) return
     const supabase = createClient()
-    const { error } = await supabase.from("roles").delete().eq("id", roleToDelete.id)
+    const { data, error } = await supabase
+      .from("roles")
+      .delete()
+      .eq("id", roleToDelete.id)
+      .select("id")
+
     if (error) {
-      toast.error("Failed to delete. Users or child roles may still be attached.")
+      toast.error(`Gagal menghapus role: ${error.message}`)
+    } else if (!data?.length) {
+      toast.error("Hanya super admin yang bisa menghapus role. Tidak ada yang dihapus.")
     } else {
       setRoles((prev) => prev.filter((r) => r.id !== roleToDelete.id))
       if (selectedRole?.id === roleToDelete.id) setSelectedRole(null)
-      toast.success(`Role "${roleToDelete.name}" deleted`)
+      toast.success(`Role "${roleToDelete.name}" dihapus`)
     }
     setRoleToDelete(null)
   }
 
+  const ungroupedModules = modules.filter(
+    (mod) => !GROUPED_MODULE_IDS.has(mod.id) && !RETIRED_MODULE_IDS.has(mod.id)
+  )
+
   const companyName = isHoldingView
-    ? companies.find((c) => c.id === companyId)?.name ?? "All Companies"
+    ? companies.find((c) => c.id === companyId)?.name ?? "Semua perusahaan"
     : activeCompany?.name ?? ""
 
   const renderPermissionRow = (mod: AppModule) => {
@@ -430,7 +782,9 @@ export default function GlobalPermissionsPage() {
     const display = MODULE_DISPLAY[mod.id]
     const level = display?.level ?? 0
     const perm = findPerm(mod.id)
-    const isReadLocked = !isSuperAdmin && (perm?.can_read ?? 'none') === 'none'
+    // Read is off, which is now a description of the row rather than a lock on
+    // it: the write switches stay live and turn Lihat on with them.
+    const readOff = !isSuperAdmin && (perm?.can_read ?? 'none') === 'none'
     const label = display?.name ?? mod.name
     const description = display?.description ?? mod.description
 
@@ -447,47 +801,42 @@ export default function GlobalPermissionsPage() {
             </div>
           </div>
         </td>
+        {/*
+          Lihat leads the switches because it is the prerequisite the other
+          three depend on. It used to sit second, so an admin scanning left to
+          right met Buat first and had no reason to look further right for the
+          column that governs it.
+        */}
         <td className="text-center px-4 py-4">
           <div className="flex justify-center">
             <Switch
-              checked={isSuperAdmin ? true : (perm?.can_create ?? false)}
-              disabled={!canManagePermissions || isSuperAdmin || isReadLocked || toggling === `${mod.id}:${selectedRole.id}:can_create`}
-              onCheckedChange={() => handleToggleBool(mod.id, "can_create")}
-              className={isReadLocked ? 'opacity-40 cursor-not-allowed' : ''}
+              checked={isSuperAdmin ? true : !readOff}
+              disabled={!canManagePermissions || isSuperAdmin || toggling === `${mod.id}:${selectedRole.id}:can_read`}
+              // Any non-"none" value behaves the same, so "on" writes the one
+              // that already describes the behaviour: what this person's own
+              // business units contain.
+              onCheckedChange={(next) => handleChangeRead(mod.id, next ? "company" : "none")}
+              aria-label={`Lihat ${label}`}
             />
           </div>
         </td>
         <td className="text-center px-4 py-4">
-          {isSuperAdmin ? (
-            <span className="inline-flex items-center rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary border border-primary/30">
-              Cross-company
-            </span>
-          ) : (
-            <Select
-              value={perm?.can_read ?? "none"}
-              onValueChange={(val) => handleChangeRead(mod.id, val)}
-              disabled={!canManagePermissions || toggling === `${mod.id}:${selectedRole.id}:can_read`}
-            >
-              <SelectTrigger className="h-8 w-[140px] mx-auto text-xs">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {CAN_READ_OPTIONS.map((opt) => (
-                  <SelectItem key={opt} value={opt} className="text-xs">
-                    {READ_LABELS[opt]}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
+          <div className="flex justify-center">
+            <Switch
+              checked={isSuperAdmin ? true : (perm?.can_create ?? false)}
+              disabled={!canManagePermissions || isSuperAdmin || toggling === `${mod.id}:${selectedRole.id}:can_create`}
+              onCheckedChange={() => handleToggleBool(mod.id, "can_create")}
+              aria-label={`Buat ${label}`}
+            />
+          </div>
         </td>
         <td className="text-center px-4 py-4">
           <div className="flex justify-center">
             <Switch
               checked={isSuperAdmin ? true : (perm?.can_update ?? false)}
-              disabled={!canManagePermissions || isSuperAdmin || isReadLocked || toggling === `${mod.id}:${selectedRole.id}:can_update`}
+              disabled={!canManagePermissions || isSuperAdmin || toggling === `${mod.id}:${selectedRole.id}:can_update`}
               onCheckedChange={() => handleToggleBool(mod.id, "can_update")}
-              className={isReadLocked ? 'opacity-40 cursor-not-allowed' : ''}
+              aria-label={`Ubah ${label}`}
             />
           </div>
         </td>
@@ -495,11 +844,33 @@ export default function GlobalPermissionsPage() {
           <div className="flex justify-center">
             <Switch
               checked={isSuperAdmin ? true : (perm?.can_delete ?? false)}
-              disabled={!canManagePermissions || isSuperAdmin || isReadLocked || toggling === `${mod.id}:${selectedRole.id}:can_delete`}
+              disabled={!canManagePermissions || isSuperAdmin || toggling === `${mod.id}:${selectedRole.id}:can_delete`}
               onCheckedChange={() => handleToggleBool(mod.id, "can_delete")}
-              className={isReadLocked ? 'opacity-40 cursor-not-allowed' : ''}
+              aria-label={`Hapus ${label}`}
             />
           </div>
+        </td>
+        <td className="px-4 py-4">
+          {!isSuperAdmin && canManagePermissions && (
+            <div className="flex justify-end gap-1">
+              {([
+                ["none", "Mati"],
+                ["read", "Lihat"],
+                ["full", "Penuh"],
+              ] as const).map(([preset, presetLabel]) => (
+                <button
+                  key={preset}
+                  type="button"
+                  onClick={() => applyRowPreset(mod.id, preset)}
+                  disabled={toggling === `${mod.id}:${selectedRole.id}:preset`}
+                  aria-label={`${presetLabel} untuk ${label}`}
+                  className="rounded-md border px-2 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-50"
+                >
+                  {presetLabel}
+                </button>
+              ))}
+            </div>
+          )}
         </td>
       </tr>
     )
@@ -508,19 +879,19 @@ export default function GlobalPermissionsPage() {
   /* ─── Render ───────────────────────────────────────────────────────────── */
   return (
     <PermissionGate resource="permissions" action="read" fallback={
-      <div className="p-8 text-center text-muted-foreground">You don&apos;t have permission to manage permissions.</div>
+      <div className="p-8 text-center text-muted-foreground">Anda tidak punya izin mengelola izin.</div>
     }>
       <div className="space-y-6 w-full">
         {/* Header */}
         <SettingsPageHeader
-          title="Roles & Permissions"
-          subtitle={`Configure access control matrices per role${companyName ? ` — ${companyName}` : ""}`}
+          title="Role & Izin"
+          subtitle={`Atur matriks kontrol akses per role${companyName ? `: ${companyName}` : ""}`}
           breadcrumbs={[{ label: "Permissions" }]}
           actions={
             isHoldingView ? (
               <Select value={companyId ?? ""} onValueChange={(val) => setSelectedCompanyId(val)}>
                 <SelectTrigger className="w-[220px]">
-                  <SelectValue placeholder="Select company" />
+                  <SelectValue placeholder="Pilih perusahaan" />
                 </SelectTrigger>
                 <SelectContent>
                   {companies.filter((c) => !c.isHolding).map((c) => (
@@ -548,7 +919,7 @@ export default function GlobalPermissionsPage() {
             <div className="col-span-12 lg:col-span-3">
               <div className="flex items-center justify-between mb-3 px-1">
                 <h3 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-                  Role Hierarchy
+                  Hierarki role
                 </h3>
                 <Button
                   size="sm"
@@ -556,7 +927,7 @@ export default function GlobalPermissionsPage() {
                   className="h-6 w-6 p-0 hover:bg-muted"
                   onClick={() => openRoleModal()}
                   disabled={!canManagePermissions}
-                  title="Create new role"
+                  title="Buat role baru"
                 >
                   <Plus className="h-3.5 w-3.5" />
                 </Button>
@@ -615,13 +986,13 @@ export default function GlobalPermissionsPage() {
                           {selectedRole.name}
                         </CardTitle>
                         <CardDescription className="mt-1">
-                          {selectedRole.description || "No description provided"}
+                          {selectedRole.description || "Tanpa deskripsi"}
                         </CardDescription>
                       </div>
                       {isSuperAdmin ? (
                         <div className="flex items-center gap-2 rounded-full bg-accent/20 px-3 py-1.5 text-accent-foreground border border-accent/40 shrink-0">
                           <Lock className="h-3.5 w-3.5" />
-                          <span className="text-xs font-semibold">Immutable — full access granted</span>
+                          <span className="text-xs font-semibold">Tidak bisa diubah, akses penuh</span>
                         </div>
                       ) : (
                         <div className="flex items-center gap-2 shrink-0">
@@ -632,7 +1003,7 @@ export default function GlobalPermissionsPage() {
                             onClick={() => openRoleModal(selectedRole)}
                             disabled={!canManagePermissions}
                           >
-                            <Pencil className="h-3.5 w-3.5 mr-1.5" /> Edit
+                            <Pencil className="h-3.5 w-3.5 mr-1.5" /> Ubah
                           </Button>
                           {!selectedRole.is_system && (
                             <Button
@@ -642,7 +1013,7 @@ export default function GlobalPermissionsPage() {
                               onClick={() => setRoleToDelete(selectedRole)}
                               disabled={!canManagePermissions}
                             >
-                              <Trash2 className="h-3.5 w-3.5 mr-1.5" /> Delete
+                              <Trash2 className="h-3.5 w-3.5 mr-1.5" /> Hapus
                             </Button>
                           )}
                         </div>
@@ -656,33 +1027,66 @@ export default function GlobalPermissionsPage() {
                       </div>
                     ) : modules.length === 0 ? (
                       <div className="text-center py-12 text-muted-foreground text-sm">
-                        No modules configured. Seed the <code>app_modules</code> table first.
+                        Belum ada modul. Isi tabel <code>app_modules</code> lebih dulu.
                       </div>
                     ) : (
                       <>
-                      {/* ─── Data Visibility Scope Legend ──────────────────── */}
+                      {/*
+                        This used to offer four read scopes: No access, Own
+                        records, Company-wide, Cross-company. Only the first was
+                        ever real. `can_read` is read in exactly one place for
+                        permission decisions —
+
+                          require-permission.ts: perm.can_read !== 'none'
+
+                        — so the other three behaved identically, and the client
+                        helper that returned the scope value had no callers at
+                        all. An admin choosing between "Company-wide" and
+                        "Cross-company" was making a decision that changed
+                        nothing, in a control that looked like a security
+                        boundary. One switch, matching what the code does.
+
+                        Which business units a person can see comes from their
+                        own assignment, which is why that is what this panel now
+                        points at.
+                      */}
                       <div className="bg-muted/40 border border-border rounded-lg p-4 mb-5 flex flex-col gap-2">
                         <div className="flex items-center gap-2 text-foreground font-semibold text-sm">
                           <Info className="w-4 h-4 text-primary shrink-0" />
-                          <span>Data visibility scopes (read access)</span>
+                          <span>Bagaimana akses dibaca</span>
                         </div>
                         <ul className="text-[13px] text-muted-foreground space-y-1.5 ml-6 list-disc">
-                          <li><strong className="text-foreground">No access:</strong> Module is hidden from the user&apos;s sidebar and all create/update/delete toggles are disabled.</li>
-                          <li><strong className="text-foreground">Own records:</strong> Strict isolation. User only sees data they created or are explicitly assigned to as owner. <span className="text-destructive font-medium">Note: this scope is not yet enforced in queries — pending implementation.</span></li>
-                          <li><strong className="text-foreground">Company-wide:</strong> Business unit isolation. User sees all data within the specific subsidiaries they are assigned to (via the User Matrix).</li>
-                          <li><strong className="text-foreground">Cross-company:</strong> Global visibility. User sees all data across the entire holding and all subsidiaries, bypassing company assignments. <span className="text-accent-foreground font-medium">(Use for Super Admins/Directors only).</span></li>
+                          <li><strong className="text-foreground">Lihat menyala:</strong> modul terbuka, sebatas unit bisnis yang menjadi milik orangnya.</li>
+                          <li><strong className="text-foreground">Lihat mati:</strong> modul hilang dari sidebar, dan Buat / Ubah / Hapus ikut dimatikan.</li>
+                          <li><strong className="text-foreground">Menyalakan Buat, Ubah, atau Hapus</strong> otomatis menyalakan Lihat. Tidak ada peran yang boleh mengubah sesuatu yang tidak bisa dilihatnya.</li>
+                          <li>
+                            <strong className="text-foreground">Unit bisnis mana</strong> ditentukan dari penugasan tiap orang di{" "}
+                            <Link href="/settings/users" className="font-medium text-primary hover:underline">Settings → Users</Link>
+                            , bukan dari peran. Dua orang berperan sama di unit berbeda hanya melihat unitnya masing-masing.
+                          </li>
                         </ul>
                       </div>
 
-                      <div className="overflow-x-auto rounded-lg border">
+                      {/*
+                        The scroll container is bounded so `sticky` has
+                        something to stick to. It was declared before and never
+                        worked: with the page as the only scroller, the header
+                        left the viewport with the rows and four columns of
+                        switches lost their names as soon as the admin scrolled.
+                        The sticky declaration moved onto the cells, which is
+                        what browsers honour on a thead, and the background is
+                        opaque so rows do not show through it.
+                      */}
+                      <div className="data-table-scroll max-h-[70vh] overflow-auto rounded-lg border">
                         <table className="w-full text-sm">
-                          <thead className="sticky top-0 z-10">
-                            <tr className="border-b bg-muted/50">
-                              <th className="text-left px-4 py-3 font-semibold text-xs uppercase tracking-wider text-muted-foreground w-[200px]">Module</th>
-                              <th className="text-center px-4 py-3 font-semibold text-xs uppercase tracking-wider text-muted-foreground">Create</th>
-                              <th className="text-center px-4 py-3 font-semibold text-xs uppercase tracking-wider text-muted-foreground">Read Scope</th>
-                              <th className="text-center px-4 py-3 font-semibold text-xs uppercase tracking-wider text-muted-foreground">Update</th>
-                              <th className="text-center px-4 py-3 font-semibold text-xs uppercase tracking-wider text-muted-foreground">Delete</th>
+                          <thead>
+                            <tr className="border-b">
+                              <th className="sticky top-0 z-10 bg-muted text-left px-4 py-3 font-semibold text-xs uppercase tracking-wider text-muted-foreground w-[200px]">Modul</th>
+                              <th className="sticky top-0 z-10 bg-muted text-center px-4 py-3 font-semibold text-xs uppercase tracking-wider text-muted-foreground">Lihat</th>
+                              <th className="sticky top-0 z-10 bg-muted text-center px-4 py-3 font-semibold text-xs uppercase tracking-wider text-muted-foreground">Buat</th>
+                              <th className="sticky top-0 z-10 bg-muted text-center px-4 py-3 font-semibold text-xs uppercase tracking-wider text-muted-foreground">Ubah</th>
+                              <th className="sticky top-0 z-10 bg-muted text-center px-4 py-3 font-semibold text-xs uppercase tracking-wider text-muted-foreground">Hapus</th>
+                              <th className="sticky top-0 z-10 bg-muted text-right px-4 py-3 font-semibold text-xs uppercase tracking-wider text-muted-foreground">Set cepat</th>
                             </tr>
                           </thead>
                           <>
@@ -693,45 +1097,52 @@ export default function GlobalPermissionsPage() {
 
                               if (groupModules.length === 0) return null
                               const expanded = isGroupExpanded(group.title)
-                              const hasChildren = group.title === "Settings"
-                              const visibleModules = hasChildren && !expanded
-                                ? groupModules.filter((mod) => mod.id === "settings")
-                                : groupModules
+                              const isSettings = group.title === "Pengaturan"
+                              // Settings keeps its hub row visible when folded,
+                              // because that row is what unfolds the rest.
+                              const visibleModules = expanded
+                                ? groupModules
+                                : isSettings
+                                  ? groupModules.filter((mod) => mod.id === "settings")
+                                  : []
+                              const bodyId = `group-${group.title.replace(/\s+/g, "-").toLowerCase()}`
 
                               return (
-                                <tbody key={group.title}>
+                                <tbody key={group.title} id={bodyId}>
                                   <tr className="bg-muted/30 border-b">
-                                    <td colSpan={5} className="px-4 py-3">
+                                    <td colSpan={6} className="px-4 py-3">
+                                      {/* Every group folds now, so this is always a
+                                          real control. Two of the three used to be
+                                          focusable buttons that did nothing. */}
                                       <button
                                         type="button"
-                                        onClick={() => hasChildren && toggleGroup(group.title)}
-                                        className={cn(
-                                          "flex w-full items-start justify-between gap-3 text-left",
-                                          hasChildren && "cursor-pointer"
-                                        )}
+                                        onClick={() => toggleGroup(group.title)}
+                                        aria-expanded={expanded}
+                                        aria-controls={bodyId}
+                                        className="flex w-full cursor-pointer items-start justify-between gap-3 text-left"
                                       >
                                         <div>
                                           <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
                                             {group.title}
                                           </div>
-                                          <div className="mt-0.5 text-xs text-muted-foreground/80 normal-case tracking-normal">
+                                          {/* No opacity modifier: this text is already
+                                              at the AA floor, and /80 pushed it under. */}
+                                          <div className="mt-0.5 text-xs text-muted-foreground normal-case tracking-normal">
                                             {group.description}
-                                            {group.title === "Settings" && (
-                                              <span className="ml-1 text-muted-foreground/70">
-                                                Child sections only appear to users when Settings hub read access is enabled.
+                                            {isSettings && (
+                                              <span className="ml-1">
+                                                Bagian di dalamnya baru muncul untuk pengguna setelah akses Lihat pada halaman Settings menyala.
                                               </span>
                                             )}
                                           </div>
                                         </div>
-                                        {hasChildren && (
-                                          <ChevronRight
-                                            className={cn(
-                                              "mt-0.5 h-4 w-4 shrink-0 text-muted-foreground transition-transform",
-                                              expanded && "rotate-90"
-                                            )}
-                                            aria-hidden="true"
-                                          />
-                                        )}
+                                        <ChevronRight
+                                          className={cn(
+                                            "mt-0.5 h-4 w-4 shrink-0 text-muted-foreground transition-transform",
+                                            expanded && "rotate-90"
+                                          )}
+                                          aria-hidden="true"
+                                        />
                                       </button>
                                     </td>
                                   </tr>
@@ -740,11 +1151,24 @@ export default function GlobalPermissionsPage() {
                               )
                             })}
 
-                            {modules.filter((mod) => !GROUPED_MODULE_IDS.has(mod.id)).length > 0 && (
+                            {/* A module that is neither grouped nor retired is one
+                                somebody added to app_modules without giving it a
+                                home here. It gets a heading rather than appearing
+                                anonymously under the last group, so the gap is
+                                visible instead of looking like part of Pengaturan. */}
+                            {ungroupedModules.length > 0 && (
                               <tbody>
-                                {modules
-                                  .filter((mod) => !GROUPED_MODULE_IDS.has(mod.id))
-                                  .map((mod) => renderPermissionRow(mod))}
+                                <tr className="bg-muted/30 border-b">
+                                  <td colSpan={6} className="px-4 py-3">
+                                    <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                                      Belum dikelompokkan
+                                    </div>
+                                    <div className="mt-0.5 text-xs text-muted-foreground normal-case tracking-normal">
+                                      Modul ini terdaftar di <code>app_modules</code> tetapi belum ditempatkan di grup mana pun.
+                                    </div>
+                                  </td>
+                                </tr>
+                                {ungroupedModules.map((mod) => renderPermissionRow(mod))}
                               </tbody>
                             )}
                           </>
@@ -757,8 +1181,8 @@ export default function GlobalPermissionsPage() {
               ) : (
                 <div className="flex items-center justify-center py-20 text-muted-foreground text-sm">
                   {roles.length === 0
-                    ? "No roles found. Create one to get started."
-                    : "Select a role to configure permissions."}
+                    ? "Belum ada role. Buat satu untuk memulai."
+                    : "Pilih role untuk mengatur izinnya."}
                 </div>
               )}
 
@@ -775,25 +1199,39 @@ export default function GlobalPermissionsPage() {
         onOpenChange={setRoleModalOpen}
         existingRoles={roles}
         editingRole={editingRole}
-        onSaved={fetchRoles}
+        companyIds={seedCompanyIds}
+        onSaved={handleRoleSaved}
       />
 
       {/* Delete Confirmation */}
       <AlertDialog open={!!roleToDelete} onOpenChange={(open) => !open && setRoleToDelete(null)}>
         <AlertDialogContent>
+          {/*
+            The old copy said the system would reject the delete while users were
+            attached. It does not: profiles.role_id is ON DELETE SET NULL and
+            role_permissions.role_id is ON DELETE CASCADE, so the delete goes
+            through and takes their access with it. "Force Delete" named an
+            override that was never in the code. Both now describe what happens.
+          */}
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Role: {roleToDelete?.name}?</AlertDialogTitle>
+            <AlertDialogTitle>Hapus role {roleToDelete?.name}?</AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. Ensure no users are currently assigned to this role before deleting, or the system will reject the action. Child roles will lose their parent hierarchy link.
+              {roleUserCount === null
+                ? "Menghitung pengguna yang memakai role ini…"
+                : roleUserCount > 0
+                  ? `${roleUserCount} pengguna sedang memakai role ini. Menghapusnya mencabut peran mereka, dan akses mereka jatuh ke pengaturan lama berbasis user_type sampai Anda memberi role baru.`
+                  : "Tidak ada pengguna yang memakai role ini."}
+              {" "}Seluruh baris izin role ini di semua perusahaan ikut terhapus permanen, dan role turunannya kehilangan induk. Tindakan ini tidak bisa dibatalkan.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setRoleToDelete(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel onClick={() => setRoleToDelete(null)}>Batal</AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive hover:bg-destructive/90 text-white"
               onClick={handleDeleteRole}
+              disabled={roleUserCount === null}
             >
-              Force Delete
+              Hapus role
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -24,12 +24,26 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Loader2, UserPlus, Building2 } from "lucide-react"
 
 /* ─── Schema (department OBLITERATED) ───────────────────────────────────── */
-const schema = z.object({
-    email: z.string().email("Valid email required"),
-    password: z.string().min(6, "Minimum 6 characters"),
-    full_name: z.string().min(1, "Name is required"),
-    role: z.string().min(1, "Role is required"),
-})
+const schema = z
+    .object({
+        email: z.string().email("Valid email required"),
+        full_name: z.string().min(1, "Name is required"),
+        role: z.string().min(1, "Role is required"),
+        /** "invite" emails a link; "password" has the admin set one directly. */
+        method: z.enum(["invite", "password"]),
+        password: z.string().optional().or(z.literal("")),
+    })
+    .superRefine((value, ctx) => {
+        // Eight to match the reset-password screen and adminResetUserPassword,
+        // so one account cannot have two different minimums.
+        if (value.method === "password" && (value.password ?? "").length < 8) {
+            ctx.addIssue({
+                code: "custom",
+                path: ["password"],
+                message: "Minimum 8 characters",
+            })
+        }
+    })
 type FormValues = z.infer<typeof schema>
 
 /** Canonical role labels — matches the UserType enum used across RBAC */
@@ -93,9 +107,10 @@ export function CreateUserModal({ open, onOpenChange, onCreated }: CreateUserMod
         resolver: zodResolver(schema) as any,
         defaultValues: {
             email: "",
-            password: "",
             full_name: "",
             role: "",
+            method: "invite" as const,
+            password: "",
         },
     })
 
@@ -112,39 +127,26 @@ export function CreateUserModal({ open, onOpenChange, onCreated }: CreateUserMod
                 const roleSlug = selectedRoleObj?.slug ?? values.role
                 const roleUuid = selectedRoleObj?.id ?? null
 
+                // Membership is created by the same server action, in the same
+                // pass. Doing it here left accounts with no business unit
+                // whenever the second call failed.
                 const result = await provisionUserAction({
                     email: values.email,
-                    password: values.password,
                     full_name: values.full_name,
                     role: roleSlug,
                     role_id: roleUuid,
                     department: null,
                     business_unit: primaryCompanyName,
+                    companyIds: selectedCompanyIds,
+                    password: values.method === "password" ? values.password : null,
                 })
                 if (!result.success) throw new Error(result.error)
 
-                // Insert ALL company memberships into junction table
-                if (selectedCompanyIds.length > 0 && result.data?.userId) {
-                    const supabase = createClient()
-                    // company_members.user_type has a CHECK constraint — only these
-                    // values are valid. Role slugs like "sales" would be rejected by
-                    // the DB, so coerce anything outside the set to "staff".
-                    const VALID_USER_TYPES = ["staff", "leader", "executive", "admin", "super_admin"]
-                    const memberType = VALID_USER_TYPES.includes(roleSlug || "") ? roleSlug! : "staff"
-
-                    const { error: memberErr } = await supabase.from("company_members").insert(
-                        selectedCompanyIds.map(cid => ({
-                            company_id: cid,
-                            user_id: result.data!.userId,
-                            user_type: memberType,
-                        }))
-                    )
-                    if (memberErr) {
-                        toast.warning(`User created, but assigning business units failed: ${memberErr.message}. Edit the user to assign access.`)
-                    }
-                }
-
-                toast.success(`User "${values.full_name}" created successfully`)
+                toast.success(
+                    values.method === "password"
+                        ? `Akun "${values.full_name}" dibuat dengan password yang Anda tetapkan`
+                        : `Undangan dikirim ke ${values.email}`
+                )
                 form.reset()
                 setSelectedCompanyIds([])
                 onOpenChange(false)
@@ -161,7 +163,7 @@ export function CreateUserModal({ open, onOpenChange, onCreated }: CreateUserMod
             <DialogContent className="sm:max-w-md">
                 <DialogHeader>
                     <DialogTitle>Create New User</DialogTitle>
-                    <DialogDescription>Provision a new account with email and password. No email confirmation required.</DialogDescription>
+                    <DialogDescription>Choose how this person gets in: an emailed invite they answer themselves, or a password you set for them.</DialogDescription>
                 </DialogHeader>
                 <Form {...form}>
                     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-2">
@@ -172,17 +174,44 @@ export function CreateUserModal({ open, onOpenChange, onCreated }: CreateUserMod
                                 <FormMessage />
                             </FormItem>
                         )} />
+
+                        <FormField control={form.control} name="method" render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Cara masuk pertama kali</FormLabel>
+                                <Select onValueChange={field.onChange} value={field.value}>
+                                    <FormControl>
+                                        <SelectTrigger className="bg-white">
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                        <SelectItem value="invite">Kirim undangan lewat email</SelectItem>
+                                        <SelectItem value="password">Tetapkan password sekarang</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                <p className="text-[11px] text-muted-foreground">
+                                    {field.value === "password"
+                                        ? "Anda akan mengetahui password orang ini. Minta dia menggantinya setelah masuk; pembuatannya tercatat di audit log."
+                                        : "Password dibuat sendiri oleh yang bersangkutan, jadi tidak ada orang lain yang mengetahuinya."}
+                                </p>
+                                <FormMessage />
+                            </FormItem>
+                        )} />
+                        {form.watch("method") === "password" && (
+                            <FormField control={form.control} name="password" render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Password</FormLabel>
+                                    <FormControl>
+                                        <Input type="password" autoComplete="new-password" placeholder="Min. 8 karakter" {...field} />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )} />
+                        )}
                         <FormField control={form.control} name="email" render={({ field }) => (
                             <FormItem>
                                 <FormLabel>Email</FormLabel>
                                 <FormControl><Input type="email" placeholder="user@company.com" {...field} /></FormControl>
-                                <FormMessage />
-                            </FormItem>
-                        )} />
-                        <FormField control={form.control} name="password" render={({ field }) => (
-                            <FormItem>
-                                <FormLabel>Password</FormLabel>
-                                <FormControl><Input type="password" placeholder="Min. 6 characters" {...field} /></FormControl>
                                 <FormMessage />
                             </FormItem>
                         )} />

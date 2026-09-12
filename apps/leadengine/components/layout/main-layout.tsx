@@ -1,8 +1,29 @@
 "use client"
 
-import { Suspense, useEffect, useState } from "react"
+import { useEffect, useState } from "react"
+import dynamic from "next/dynamic"
 import { Sidebar } from "@/components/layout/sidebar"
-import { TopLoader } from "@/components/layout/top-loader"
+
+/**
+ * Loaded client-only, and that is load-bearing rather than an optimisation.
+ *
+ * TopLoader calls `useSearchParams()`, which makes Next bail out of static
+ * rendering for its subtree during SSR. That bail-out shifts the `useId` tree
+ * path for the rest of the layout, so the Radix popover in the app switcher
+ * received one id on the server and a different one on hydration:
+ *
+ *   - aria-controls="radix-_R_aatpet5ritqlb_"   (server)
+ *   + aria-controls="radix-_R_2inebn9esnelb_"   (client)
+ *
+ * Reproduced on a minimal probe, and moving the Suspense boundary after the
+ * popover did NOT help: any SSR bail-out in the tree is enough. Not rendering
+ * it on the server at all is what removes the mismatch, and the loader has
+ * nothing to show before hydration anyway.
+ */
+const TopLoader = dynamic(
+  () => import("@/components/layout/top-loader").then((m) => m.TopLoader),
+  { ssr: false }
+)
 import { CompanySwitchLoader } from "@/components/layout/company-switch-loader"
 import { SessionGuard } from "@/components/layout/session-guard"
 import { MaintenanceWatcher } from "@/features/settings/components/maintenance-watcher"
@@ -43,9 +64,7 @@ export function MainLayout({ children, initialCompany, companies, currencySettin
                     <SidebarThemeProvider>
                         <SessionGuard />
                         <MaintenanceWatcher />
-                        <Suspense fallback={null}>
-                            <TopLoader />
-                        </Suspense>
+                        <TopLoader />
                         <MainLayoutInner mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} userProfile={userProfile}>
                             {children}
                         </MainLayoutInner>

@@ -9,7 +9,22 @@ import {
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { CompanySwitcherHeader } from "@/components/layout/company-switcher"
-import { AppSwitcher } from "@/components/layout/app-switcher"
+import dynamic from "next/dynamic"
+
+/**
+ * Client-only for the same reason as its twin in Sales Mission: the switcher's
+ * Radix popover calls useId, and any SSR bail-out or Suspense boundary elsewhere
+ * in this layout shifts the useId tree path, leaving the trigger with one
+ * aria-controls on the server and another on hydration.
+ *
+ * TopLoader was the trigger here and is already loaded client-only, so this is
+ * defence rather than a live fix: the next Suspense boundary added to this
+ * layout would otherwise bring the error straight back.
+ */
+const AppSwitcher = dynamic(
+  () => import("@/components/layout/app-switcher").then((m) => m.AppSwitcher),
+  { ssr: false }
+)
 import { usePermissions } from "@/contexts/permissions-context"
 import { useSidebarTheme } from "@/contexts/sidebar-theme-context"
 import { createClient } from "@/utils/supabase/client"

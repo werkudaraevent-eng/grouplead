@@ -61,12 +61,23 @@
   --secondary: #C3E6F5;
   --secondary-foreground: #02378D;
   --muted: #f4f6f8;
-  --muted-foreground: #8a95a1;
+  /* Carries every hint, table header, module description, and group label in
+     the app. Held to AA against all three surfaces it lands on, not just white:
+     5.45:1 on #ffffff, 5.03:1 on #f4f6f8, 4.74:1 on the #EFEFEF page. The
+     previous #8a95a1 was 3.05:1 on white and 2.30:1 once an /80 modifier was
+     applied on top, which is where the permissions matrix put its group titles. */
+  --muted-foreground: #5F6B77;
   --accent: #F9BB46;
   --accent-foreground: #3b2b00;
   --destructive: #ED6F22;
   --border: rgba(0, 0, 0, 0.08);
   --input: #ffffff;
+  /* The off half of a Switch. --input is #ffffff and switches sit on white
+     cards, so the unchecked track measured 1.00:1 against its own background:
+     on the permissions matrix that is roughly sixty controls a reader has to
+     find by their drop shadow. 3.66:1 on a white card, 3.18:1 on the page,
+     both past the 3:1 WCAG asks of a component boundary. */
+  --switch-off: #7B8795;
   --ring: #02378D;
   --chart-1: oklch(0.646 0.222 41.116);
   --chart-2: oklch(0.6 0.118 184.704);
@@ -118,6 +129,7 @@
   --destructive: oklch(0.704 0.191 22.216);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
+  --switch-off: oklch(0.6 0 0);
   --ring: oklch(0.556 0 0);
   --chart-1: oklch(0.488 0.243 264.376);
   --chart-2: oklch(0.696 0.17 162.48);
