@@ -118,6 +118,142 @@ export async function searchClientCompanies(search: string): Promise<LeadEngineC
   return data.companies
 }
 
+const contactsSchema = z.object({
+  contacts: z.array(
+    z.object({
+      id: z.string(),
+      fullName: z.string(),
+      jobTitle: z.string().nullable().optional(),
+      phone: z.string().nullable().optional(),
+      email: z.string().nullable().optional(),
+    })
+  ),
+})
+
+export type LeadEngineContact = z.infer<typeof contactsSchema>["contacts"][number]
+
+/**
+ * The people the CRM already knows at this company.
+ *
+ * Only called once a mission has a `clientCompanyId`: a typed-in company name
+ * has nobody attached to it yet, and asking for contacts by name would be
+ * guessing.
+ */
+export async function fetchCompanyContacts(clientCompanyId: string): Promise<LeadEngineContact[]> {
+  const query = new URLSearchParams({ clientCompanyId })
+  const data = await request(`/api/v1/contacts?${query}`, contactsSchema)
+  return data.contacts
+}
+
+const createdContactSchema = z.object({
+  contact: z.object({
+    id: z.string(),
+    fullName: z.string(),
+    jobTitle: z.string().nullable().optional(),
+    phone: z.string().nullable().optional(),
+    email: z.string().nullable().optional(),
+  }),
+  created: z.boolean(),
+})
+
+export type CreatedContact = z.infer<typeof createdContactSchema>
+
+export interface CreateContactPayload {
+  clientCompanyId: string
+  fullName: string
+  jobTitle?: string | null
+  phone?: string | null
+  email?: string | null
+}
+
+/**
+ * Register someone met in the field. Find-or-create on the LeadEngine side, so
+ * calling it twice for the same person returns the same contact rather than a
+ * second copy.
+ */
+export async function createContact(payload: CreateContactPayload): Promise<CreatedContact> {
+  return request(`/api/v1/contacts`, createdContactSchema, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  })
+}
+
+const enrichedContactSchema = z.object({
+  contact: z.object({ id: z.string() }),
+  /** Which columns were actually written. Empty when the CRM had them all. */
+  filled: z.array(z.string()),
+})
+
+export interface EnrichContactPayload {
+  contactId: string
+  jobTitle?: string | null
+  phone?: string | null
+  email?: string | null
+}
+
+/**
+ * Close gaps on a contact the CRM already has.
+ *
+ * The endpoint fills blanks only and never overwrites, so calling this with a
+ * stale job title cannot damage a good one. See the route for why that rule,
+ * rather than the caller's good intentions, is what makes this safe.
+ */
+export async function enrichContact(payload: EnrichContactPayload) {
+  const { contactId, ...fields } = payload
+  return request(`/api/v1/contacts/${contactId}`, enrichedContactSchema, {
+    method: "PATCH",
+    body: JSON.stringify(fields),
+  })
+}
+
+const citiesSchema = z.object({
+  cities: z.array(
+    z.object({
+      value: z.string(),
+      label: z.string(),
+      country: z.string().nullable().optional(),
+    })
+  ),
+})
+
+export type LeadEngineCity = z.infer<typeof citiesSchema>["cities"][number]
+
+/**
+ * Location autocomplete, served by the same provider as LeadEngine's Event City
+ * field so both apps store the same spelling for the same place.
+ */
+export async function searchCities(query: string): Promise<LeadEngineCity[]> {
+  const params = new URLSearchParams({ q: query, country: "ID" })
+  const data = await request(`/api/v1/cities/search?${params}`, citiesSchema)
+  return data.cities
+}
+
+const createCompanySchema = z.object({
+  company: z.object({
+    id: z.string(),
+    name: z.string(),
+    industry: z.string().nullable().optional(),
+    needsEnrichment: z.boolean().optional(),
+  }),
+  created: z.boolean(),
+})
+
+export type CreatedClientCompany = z.infer<typeof createCompanySchema>
+
+/**
+ * Register a company the CRM has never seen, or return the existing match.
+ *
+ * LeadEngine matches on name case-insensitively and only inserts when nothing
+ * matches, so calling this twice for the same company is safe — which matters,
+ * because the push flow calls it right before creating a lead.
+ */
+export async function createClientCompany(name: string): Promise<CreatedClientCompany> {
+  return request(`/api/v1/client-companies`, createCompanySchema, {
+    method: "POST",
+    body: JSON.stringify({ name }),
+  })
+}
+
 const contextSchema = z.object({
   company: z.object({ id: z.string(), name: z.string() }),
   currentOwner: z.object({ userId: z.string(), name: z.string() }).nullable(),

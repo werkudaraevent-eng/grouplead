@@ -1,7 +1,8 @@
 import Link from "next/link"
 import { notFound, redirect } from "next/navigation"
-import { CalendarDays, ClipboardList, MapPin, UsersRound } from "lucide-react"
-import { getSalesMissionAccess } from "@/lib/sales-mission-access"
+import { Building2, CalendarDays, ClipboardList, Mail, MapPin, Phone, UsersRound } from "lucide-react"
+import { canPerform, getSalesMissionAccess } from "@/lib/sales-mission-access"
+import { requireModule } from "@/lib/missions/nav-access"
 import {
   getMission,
   getMissionRole,
@@ -20,7 +21,9 @@ import {
   RescheduleDecision,
 } from "./assignment-response"
 import {
+  formatContactName,
   formatMissionSchedule,
+  hasAppointmentDetails,
   MISSION_TIME_ZONE,
   type AssignmentResponse,
 } from "@/lib/missions/mission-schema"
@@ -67,6 +70,7 @@ function ReportField({ label, value }: { label: string; value: string }) {
 export default async function MissionDetailPage({ params }: { params: Promise<{ missionId: string }> }) {
   const access = await getSalesMissionAccess()
   if (!access) redirect("/login?error=access_not_provisioned")
+  await requireModule(access, "sales_mission_mission")
 
   const { missionId } = await params
   const mission = await getMission(access, missionId)
@@ -74,11 +78,17 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
   // indistinguishable from one that does not exist. That is the intent.
   if (!mission) notFound()
 
-  const [role, report, notes] = await Promise.all([
+  // This page carries three different kinds of content, and the mission guard
+  // above only covers one of them. Without these two the reporting module could
+  // be revoked — hiding the Laporan screen and refusing the CSV export — and
+  // every report would still be readable one mission at a time from here.
+  const [role, canReadReport, canReadContacts, notes] = await Promise.all([
     getMissionRole(access, missionId),
-    getVisitReport(access, missionId),
+    canPerform(access, "sales_mission_result", "read"),
+    canPerform(access, "sales_mission_contact", "read"),
     listSupportingNotes(access, missionId),
   ])
+  const report = canReadReport ? await getVisitReport(access, missionId) : null
   const [team, settings, allMissions] = await Promise.all([
     listMissionTeam(access, missionId),
     getMissionSettings(access),
@@ -123,18 +133,75 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
             </div>
 
             <div className="grid divide-y sm:grid-cols-3 sm:divide-x sm:divide-y-0">
-              <Fact icon={CalendarDays} label="Schedule" value={formatMissionSchedule(mission.scheduledStart, new Date())} />
-              <Fact icon={MapPin} label="Location" value={mission.location ?? "Belum diisi"} />
-              <Fact icon={UsersRound} label="Primary sales" value={mission.primarySalesName ?? "Belum ditugaskan"} />
+              <Fact icon={CalendarDays} label="Jadwal" value={formatMissionSchedule(mission.scheduledStart, new Date())} />
+              <Fact icon={MapPin} label="Lokasi" value={mission.location ?? "Belum diisi"} />
+              <Fact icon={UsersRound} label="Sales utama" value={mission.primarySalesName ?? "Belum ditugaskan"} />
             </div>
 
             <div className="border-t px-5 py-5">
-              <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Objective</p>
+              <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Tujuan kunjungan</p>
               <h2 className="mt-2 text-base font-semibold leading-relaxed text-foreground">
                 {mission.objective ?? "Objective belum diisi."}
               </h2>
             </div>
           </article>
+
+          {/*
+            The rep reads this before walking in. It is often the only place the
+            appointment team's context reaches them, so it sits high on the page
+            rather than below the assignment controls.
+          */}
+          {canReadContacts && hasAppointmentDetails(mission.appointment) && (
+            <article className="overflow-hidden rounded-xl border bg-card">
+              <div className="border-b px-5 py-4">
+                <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Janji temu</p>
+                <h2 className="mt-1 text-base font-semibold text-foreground">
+                  {formatContactName(mission.appointment) ?? "Kontak belum diisi"}
+                </h2>
+                {(mission.appointment.jobTitle || mission.appointment.division) && (
+                  <p className="mt-0.5 text-sm text-muted-foreground">
+                    {[mission.appointment.jobTitle, mission.appointment.division].filter(Boolean).join(" · ")}
+                  </p>
+                )}
+              </div>
+
+              <dl className="divide-y">
+                {mission.appointment.phone && (
+                  <div className="flex items-center gap-3 px-5 py-3">
+                    <Phone className="h-4 w-4 shrink-0 text-muted-foreground" />
+                    <dt className="sr-only">Telepon</dt>
+                    {/* Tappable: a rep standing at reception should not retype it. */}
+                    <dd><a href={`tel:${mission.appointment.phone}`} className="text-sm font-medium text-primary hover:underline">{mission.appointment.phone}</a></dd>
+                  </div>
+                )}
+                {mission.appointment.email && (
+                  <div className="flex items-center gap-3 px-5 py-3">
+                    <Mail className="h-4 w-4 shrink-0 text-muted-foreground" />
+                    <dt className="sr-only">Email</dt>
+                    <dd><a href={`mailto:${mission.appointment.email}`} className="text-sm font-medium text-primary hover:underline">{mission.appointment.email}</a></dd>
+                  </div>
+                )}
+                {mission.appointment.building && (
+                  <div className="flex items-center gap-3 px-5 py-3">
+                    <Building2 className="h-4 w-4 shrink-0 text-muted-foreground" />
+                    <dt className="sr-only">Gedung</dt>
+                    <dd className="text-sm text-foreground">{mission.appointment.building}</dd>
+                  </div>
+                )}
+              </dl>
+
+              {mission.appointment.notes && (
+                <div className="border-t bg-muted/30 px-5 py-4">
+                  <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
+                    Sudah dibicarakan saat membuat janji
+                  </p>
+                  <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-foreground">
+                    {mission.appointment.notes}
+                  </p>
+                </div>
+              )}
+            </article>
+          )}
 
           {(isAssigned || pendingReschedule) && (
             <article className="overflow-hidden rounded-xl border bg-card">
@@ -173,13 +240,23 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
               <div>
                 <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Laporan kunjungan</p>
                 <h2 className="mt-1 text-base font-semibold text-foreground">
-                  {report ? (reportSubmitted ? "Sudah dikirim" : "Draft tersimpan") : "Belum diisi"}
+                  {!canReadReport
+                    ? "Tidak termasuk akses Anda"
+                    : report
+                      ? reportSubmitted
+                        ? "Sudah dikirim"
+                        : "Draft tersimpan"
+                      : "Belum diisi"}
                 </h2>
               </div>
               {report && <StatusBadge status={report.status} />}
             </div>
 
-            {report ? (
+            {!canReadReport ? (
+              <p className="px-5 py-6 text-sm text-muted-foreground">
+                Peran Anda tidak mencakup laporan kunjungan. Detail mission dan tim tetap terlihat.
+              </p>
+            ) : report ? (
               <div className="space-y-5 px-5 py-5">
                 <div className="grid gap-5 sm:grid-cols-2">
                   <ReportField label="Hasil" value={report.visitOutcome ? VISIT_OUTCOME_LABELS[report.visitOutcome] : "—"} />
@@ -206,7 +283,7 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
                   </div>
                 )}
 
-                {report.contacts.length > 0 && (
+                {canReadContacts && report.contacts.length > 0 && (
                   <div>
                     <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Ketemu siapa</p>
                     <ul className="mt-2 space-y-1.5">
@@ -253,7 +330,7 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
 
             {/* Once submitted the report is shown in full above, so there is
                 nothing left to open. */}
-            {canWriteReport && !reportSubmitted && (
+            {canReadReport && canWriteReport && !reportSubmitted && (
               <div className="border-t bg-muted/30 px-5 py-4">
                 <Button asChild className="h-11 w-full sm:w-auto">
                   <Link href={`/workspace/missions/${missionId}/report`}>

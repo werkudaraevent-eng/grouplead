@@ -40,6 +40,12 @@ export interface RolePermission {
   role_id: string | null
   module_id: string
   can_create: boolean
+  /**
+   * Read access. Every value other than 'none' behaves identically — nothing
+   * reads the distinction, and the permission matrix writes only 'none' or
+   * 'company'. The wider union stays because rows written before that carry
+   * 'own' and 'all', and the column's CHECK constraint still accepts them.
+   */
   can_read: 'none' | 'own' | 'company' | 'all'
   can_update: boolean
   can_delete: boolean

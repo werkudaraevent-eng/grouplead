@@ -23,7 +23,7 @@ import type {
  */
 
 const MISSION_COLUMNS =
-  "id, client_company_name_snapshot, client_company_id, mission_type, status, objective, location, scheduled_start, scheduled_end, allow_join, created_by, created_at"
+  "id, client_company_name_snapshot, client_company_id, mission_type, status, objective, location, scheduled_start, scheduled_end, allow_join, created_by, created_at, contact_salutation, contact_id, contact_name, contact_job_title, contact_division, contact_phone, contact_email, building, appointment_notes"
 
 /** Mission tables live in their own schema; identity tables stay in `public`. */
 async function missionSchema() {
@@ -249,7 +249,8 @@ export interface VisitReportRecord {
   followUpDate: string | null
   clarificationNote: string | null
   submittedAt: string | null
-  contacts: ReportContactInput[]
+  // The CRM link, so the push modal can tell a known contact from a new one.
+  contacts: Array<ReportContactInput & { leadEngineContactId: string | null }>
 }
 
 export interface SupportingNoteRecord {
@@ -279,7 +280,7 @@ export async function getVisitReport(
 
   const { data: contacts } = await missions
     .from("report_contacts")
-    .select("full_name, job_title, phone, email, is_decision_maker")
+    .select("full_name, job_title, phone, email, is_decision_maker, lead_engine_contact_id")
     .eq("company_id", access.companyId)
     .eq("report_id", report.id)
     .order("created_at")
@@ -307,6 +308,7 @@ export async function getVisitReport(
       phone: (row.phone as string | null) ?? "",
       email: (row.email as string | null) ?? "",
       isDecisionMaker: Boolean(row.is_decision_maker),
+      leadEngineContactId: (row.lead_engine_contact_id as string | null) ?? null,
     })),
   }
 }
@@ -340,6 +342,8 @@ export async function listSupportingNotes(
 export interface TenantSalesOption {
   id: string
   name: string
+  /** How an import identifies this person. Names repeat; emails do not. */
+  email: string | null
 }
 
 /**
@@ -361,67 +365,14 @@ export async function listTenantSales(access: SalesMissionAccess): Promise<Tenan
 
   const { data: profiles } = await supabase
     .from("profiles")
-    .select("id, full_name")
+    .select("id, full_name, email")
     .in("id", userIds)
     .eq("is_active", true)
     .order("full_name")
 
   return (profiles ?? [])
-    .filter((row): row is { id: string; full_name: string } => Boolean(row.full_name))
-    .map((row) => ({ id: row.id, name: row.full_name }))
-}
-
-export interface AssignmentListItem {
-  id: string
-  missionId: string
-  clientCompanyName: string
-  scheduledStart: string | null
-  salesName: string
-  role: string
-  response: string
-}
-
-/** Every assignment in this tenant, newest mission first. */
-export async function listAssignments(access: SalesMissionAccess): Promise<AssignmentListItem[]> {
-  const { supabase, missions } = await missionSchema()
-
-  const { data: rows, error } = await missions
-    .from("assignments")
-    .select("id, mission_id, user_id, assignment_role, response")
-    .eq("company_id", access.companyId)
-
-  if (error || !rows?.length) return []
-
-  const missionIds = [...new Set(rows.map((row) => row.mission_id as string))]
-  const [{ data: missionRows }, names] = await Promise.all([
-    missions
-      .from("missions")
-      .select("id, client_company_name_snapshot, scheduled_start")
-      .eq("company_id", access.companyId)
-      .in("id", missionIds),
-    resolveNames(supabase, rows.map((row) => row.user_id as string)),
-  ])
-
-  const missionsById = new Map(
-    (missionRows ?? []).map((row) => [row.id as string, row as { client_company_name_snapshot: string; scheduled_start: string | null }])
-  )
-
-  return rows
-    .map((row) => {
-      const mission = missionsById.get(row.mission_id as string)
-      if (!mission) return null
-      return {
-        id: row.id as string,
-        missionId: row.mission_id as string,
-        clientCompanyName: mission.client_company_name_snapshot,
-        scheduledStart: mission.scheduled_start,
-        salesName: names.get(row.user_id as string) ?? "Nama tidak diketahui",
-        role: row.assignment_role as string,
-        response: row.response as string,
-      }
-    })
-    .filter((item): item is AssignmentListItem => item !== null)
-    .sort((a, b) => (b.scheduledStart ?? "").localeCompare(a.scheduledStart ?? ""))
+    .filter((row): row is { id: string; full_name: string; email: string | null } => Boolean(row.full_name))
+    .map((row) => ({ id: row.id, name: row.full_name, email: row.email ?? null }))
 }
 
 export interface MissionSummary {
