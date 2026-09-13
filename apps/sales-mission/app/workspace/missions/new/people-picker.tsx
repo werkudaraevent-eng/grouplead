@@ -44,7 +44,7 @@ export interface Person {
 const SEARCH_THRESHOLD = 7
 
 const TRIGGER_CLASS =
-  "flex h-12 w-full items-center justify-between gap-2 rounded-md border border-input bg-transparent px-3 text-left text-sm shadow-xs outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50"
+  "flex h-12 w-full items-center justify-between gap-2 rounded-md border border-input bg-field px-3 text-left text-sm shadow-xs outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50"
 
 function initials(name: string) {
   return name.split(" ").map((part) => part[0]).join("").toUpperCase().slice(0, 2) || "?"

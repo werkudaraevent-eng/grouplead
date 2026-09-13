@@ -4,8 +4,13 @@ import { useActionState, useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { AlertCircle, Loader2, Plus } from "lucide-react"
 import { createMission, type CreateMissionState } from "@/app/actions/mission-actions"
-import { CONTACT_SALUTATIONS, MISSION_TYPES } from "@/lib/missions/mission-schema"
-import { visibleFields, type FormField } from "@/lib/missions/form-fields"
+import { MISSION_TYPES } from "@/lib/missions/mission-schema"
+import {
+  DEFAULT_CONTACT_SALUTATIONS,
+  configuredOptions,
+  visibleFields,
+  type FormField,
+} from "@/lib/missions/form-fields"
 import type { TenantSalesOption } from "@/lib/missions/mission-queries"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -23,17 +28,23 @@ import { LocationPicker } from "./location-picker"
  * Order and labels come from the config, so an admin reordering or relabelling
  * a field, core or custom, changes this form without a deploy. Core fields keep
  * purpose-built inputs; everything else is generic by type.
+ *
+ * Surfaces follow Material's tonal logic rather than its look: the page is the
+ * lowest tone, each section is a card one step up, and every field is one step
+ * off the card. Before this the page, the card and every field were all white,
+ * so the form read as a sheet of words with nothing to say where one answer
+ * ended and the next began. The tones are this app's own tokens; see DESIGN.md.
  */
 
 const SELECT_CLASS =
-  "h-12 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-xs outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+  "h-12 w-full rounded-md border border-input bg-field px-3 text-sm text-foreground shadow-xs outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+
+const TEXTAREA_CLASS =
+  "w-full rounded-md border border-input bg-field px-3 py-2.5 text-sm text-foreground shadow-xs outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
 
 const PLACEHOLDER_JOBTITLE = "GM, Direktur, dan sebagainya"
 const PLACEHOLDER_PHONE = "08…"
 const PLACEHOLDER_EMAIL = "nama@perusahaan.com"
-
-const TEXTAREA_CLASS =
-  "w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
 
 /**
  * How much of the row a field takes.
@@ -41,12 +52,14 @@ const TEXTAREA_CLASS =
  * Sized to its content rather than packed two-per-row: a time input holds five
  * characters and looked lost in half a page, while the three schedule fields
  * belong on one line because they are read as one answer. The grid is six
- * columns so both halves (3) and thirds (2) land on it exactly.
+ * columns so halves (3), thirds (2) and a third-plus-rest pair (2 + 4) all land
+ * on it exactly.
  */
-type Span = "full" | "half" | "third"
+type Span = "full" | "wide" | "half" | "third"
 
 const SPAN_CLASS: Record<Span, string> = {
   full: "sm:col-span-6",
+  wide: "sm:col-span-4",
   half: "sm:col-span-3",
   third: "sm:col-span-2",
 }
@@ -61,7 +74,10 @@ const CORE_SPANS: Record<string, Span> = {
   objective: "full",
   primary_sales: "half",
   supporting_sales: "full",
-  contact_name: "full",
+  // A salutation is one short word; it takes a third and leaves the name the
+  // rest of the row, so "Bapak" and "Nofri Ardian" read as one line.
+  contact_salutation: "third",
+  contact_name: "wide",
   contact_job_title: "half",
   contact_division: "half",
   contact_phone: "half",
@@ -71,13 +87,12 @@ const CORE_SPANS: Record<string, Span> = {
 }
 
 /**
- * Sections, so sixteen fields read as three answerable questions instead of one
- * long run: what the visit is, who goes, and who is being met.
+ * Sections, so seventeen fields read as three answerable questions instead of
+ * one long run: what the visit is, who goes, and who is being met.
  *
- * A heading is emitted whenever the section changes while walking the admin's
- * configured order, rather than by regrouping the fields. The admin's ordering
- * stays the ordering; if they interleave, the headings repeat and show them
- * exactly that.
+ * A section is emitted whenever it changes while walking the admin's configured
+ * order, rather than by regrouping the fields. The admin's ordering stays the
+ * ordering; if they interleave, the sections repeat and show them exactly that.
  */
 const CORE_SECTIONS: Record<string, string> = {
   client_company: "Kunjungan",
@@ -89,6 +104,7 @@ const CORE_SECTIONS: Record<string, string> = {
   objective: "Kunjungan",
   primary_sales: "Tim yang berangkat",
   supporting_sales: "Tim yang berangkat",
+  contact_salutation: "Janji temu",
   contact_name: "Janji temu",
   contact_job_title: "Janji temu",
   contact_division: "Janji temu",
@@ -96,6 +112,14 @@ const CORE_SECTIONS: Record<string, string> = {
   contact_email: "Janji temu",
   building: "Janji temu",
   appointment_notes: "Janji temu",
+}
+
+/** One line under each section title saying what the section decides. */
+const SECTION_HINTS: Record<string, string> = {
+  Kunjungan: "Ke mana, kapan, dan untuk apa.",
+  "Tim yang berangkat": "Siapa yang memimpin kunjungan dan siapa yang mendampingi.",
+  "Janji temu": "Siapa yang ditemui dan apa yang sudah disepakati saat membuat janji.",
+  Tambahan: "Field yang ditambahkan admin unit bisnis ini.",
 }
 
 /**
@@ -127,12 +151,8 @@ function spanOf(field: FormField): Span {
 }
 
 /**
- * Required is marked, optional is not.
- *
- * The form used to do the opposite, tagging eleven of sixteen fields
- * "(opsional)" and leaving the five that actually block submission unmarked.
- * The reader had to work out what was mandatory by elimination. Marking the
- * smaller set is both quieter and the thing people scan for.
+ * Label above, control, supporting text below. Required is marked, optional is
+ * not: marking the smaller set is both quieter and the thing people scan for.
  */
 function FieldShell({
   field,
@@ -155,7 +175,7 @@ function FieldShell({
 
   return (
     <div className={`space-y-2 ${SPAN_CLASS[span ?? spanOf(field)]}`}>
-      <Label id={labelId} htmlFor={as === "field" ? `field-${field.reportingKey}` : undefined}>
+      <Label id={labelId} htmlFor={as === "field" ? `field-${field.reportingKey}` : undefined} className="text-foreground">
         {/* One span, so the shared Label's `gap-2` does not push the marker
             10px clear of the word it qualifies. */}
         <span>
@@ -183,9 +203,9 @@ function CustomField({ field }: { field: FormField }) {
   if (field.fieldType === "BOOLEAN") {
     return (
       <div className={`space-y-2 ${SPAN_CLASS.full}`}>
-        <div className="flex items-center gap-2.5">
+        <div className="flex min-h-12 items-center gap-2.5">
           <Checkbox id={id} name={name} value="true" />
-          <Label htmlFor={id} className="font-normal">{field.label}</Label>
+          <Label htmlFor={id} className="font-normal text-foreground">{field.label}</Label>
         </div>
         {field.helpText && <p className="text-xs text-muted-foreground">{field.helpText}</p>}
       </div>
@@ -195,11 +215,11 @@ function CustomField({ field }: { field: FormField }) {
   if (field.fieldType === "MULTI_SELECT") {
     return (
       <FieldShell field={field} as="group">
-        <div className="flex flex-wrap gap-x-5 gap-y-2.5">
+        <div className="flex flex-wrap gap-x-5 gap-y-1">
           {field.options.map((option) => (
-            <div className="flex items-center gap-2.5" key={option}>
+            <div className="flex min-h-12 items-center gap-2.5" key={option}>
               <Checkbox id={`${id}-${option}`} name={name} value={option} />
-              <Label htmlFor={`${id}-${option}`} className="font-normal">{option}</Label>
+              <Label htmlFor={`${id}-${option}`} className="font-normal text-foreground">{option}</Label>
             </div>
           ))}
         </div>
@@ -299,6 +319,13 @@ export function MissionForm({
     )
   }
 
+  // Both lists come from the tenant's configuration, not from code, so a value
+  // added in Pengaturan appears here without a deploy. The fallback covers a
+  // tenant seeded before the options existed, and is the same fallback the
+  // server validates against.
+  const missionTypes = configuredOptions(fields, "mission_type", MISSION_TYPES)
+  const salutations = configuredOptions(fields, "contact_salutation", DEFAULT_CONTACT_SALUTATIONS)
+
   // Core fields keep dedicated inputs; the config only decides their label,
   // order, and whether they are mandatory.
   const coreField = (field: FormField): React.ReactNode => {
@@ -321,18 +348,8 @@ export function MissionForm({
       case "mission_type":
         return (
           <FieldShell field={field} key={field.id}>
-            {/* Options come from the tenant's configuration, not from code, so
-                a type added in Pengaturan appears here without a deploy. The
-                fallback covers a tenant seeded before the options existed. */}
-            <select
-              id="field-mission_type"
-              name="missionType"
-              defaultValue={(field.options.length > 0 ? field.options : MISSION_TYPES)[0]}
-              className={SELECT_CLASS}
-            >
-              {(field.options.length > 0 ? field.options : MISSION_TYPES).map((type) => (
-                <option key={type} value={type}>{type}</option>
-              ))}
+            <select id="field-mission_type" name="missionType" defaultValue={missionTypes[0]} className={SELECT_CLASS}>
+              {missionTypes.map((type) => <option key={type} value={type}>{type}</option>)}
             </select>
           </FieldShell>
         )
@@ -390,19 +407,30 @@ export function MissionForm({
             />
           </FieldShell>
         )
+      case "contact_salutation":
+        return (
+          <FieldShell field={field} key={field.id}>
+            <select
+              id="field-contact_salutation"
+              name="contactSalutation"
+              defaultValue=""
+              required={field.isRequired}
+              className={SELECT_CLASS}
+            >
+              <option value="">{field.placeholder || "Pilih"}</option>
+              {salutations.map((item) => <option key={item} value={item}>{item}</option>)}
+            </select>
+          </FieldShell>
+        )
       case "contact_name":
         return (
           <FieldShell field={field} key={field.id}>
-            {/* Salutation stacks above the name below 400px rather than
-                squeezing it: a 112px select next to a name field leaves too
-                little room to read what you typed on the narrowest phones. */}
             <ContactPicker
               clientCompanyId={clientCompanyId}
               value={contact}
               onChange={setContact}
               required={field.isRequired}
               placeholder={field.placeholder ?? "Nama lengkap"}
-              selectClassName={`${SELECT_CLASS} min-[400px]:w-28 min-[400px]:shrink-0`}
             />
           </FieldShell>
         )
@@ -486,14 +514,9 @@ export function MissionForm({
 
   /*
     Cut the configured order into consecutive runs of the same section, so each
-    run becomes ONE grid.
-
-    Emitting a heading inline while mapping looked equivalent and was not: it
-    gave every field its own grid container, and a column span only means
-    something among siblings. Every field would have rendered on its own row at
-    a third or half width, with the rest of the row empty, which is the opposite
-    of the fix. Building the runs first is also what removes the render-time
-    mutation of a `lastSection` variable.
+    run becomes ONE card with ONE grid. A column span only means something among
+    siblings; a field in its own grid would sit alone on its row at a third of
+    the width with the rest empty.
   */
   const blocks: Array<{ section: string; fields: FormField[] }> = []
   for (const field of ordered) {
@@ -505,19 +528,14 @@ export function MissionForm({
 
   return (
     // Left-aligned, not centred. The page title sits at the left edge, so a
-    // centred card left the heading and the thing it describes on different
+    // centred form left the heading and the thing it describes on different
     // axes with a stripe of empty page between them.
-    // overflow-clip, not overflow-hidden. Both clip to the rounded corners, but
-    // `hidden` also makes this element a scroll container, and a sticky child
-    // resolves against its nearest scrollport. The form's content exactly fills
-    // it, so there was no scrollable range and the action bar below never
-    // pinned: measured 107px below the fold on a phone-height viewport.
-    <form action={formAction} className="max-w-3xl overflow-clip rounded-xl border bg-card">
+    <form action={formAction} className="max-w-3xl space-y-4">
       {state?.error ? (
         <div
           ref={errorRef}
           tabIndex={-1}
-          className="flex items-start gap-2.5 border-b bg-[var(--danger)] px-5 py-4 text-sm text-[var(--danger-foreground)] outline-none sm:px-6"
+          className="flex items-start gap-2.5 rounded-xl border border-[var(--danger-foreground)]/20 bg-[var(--danger)] px-5 py-4 text-sm text-[var(--danger-foreground)] outline-none"
           role="alert"
         >
           <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
@@ -526,63 +544,51 @@ export function MissionForm({
       ) : null}
 
       {requiredCount > 0 && (
-        <p className="border-b px-5 py-3 text-xs text-muted-foreground sm:px-6">
+        <p className="text-xs text-muted-foreground">
           Bertanda <span className="text-[var(--danger-foreground)]">*</span> wajib diisi. Sisanya boleh dilewati.
         </p>
       )}
 
       {/*
-        A section title has to outrank a field label, and it did not.
-
-        The first attempt used an uppercase, wide-tracked eyebrow, which is the
-        generic look this project already rejects elsewhere. Replacing it with
-        `text-sm font-semibold` swung too far the other way: the field labels are
-        `text-sm font-medium`, so the only difference left was one weight step at
-        the same size, which nobody can see.
-
-        Material's type scale puts a title a step above a label rather than a
-        shade bolder, so the heading is 16px against the label's 14px. The
-        divider does the rest: separating sections with a rule is how M3 breaks
-        up a long list, and it is a structural cue rather than a typographic one,
-        which is what "this is a new part of the form" actually needs.
+        One card per section. Material separates a long form into cards when
+        each group answers a different question, and uses a divider between a
+        card's header and its body. The title is a step above the field label
+        in the type scale (16px/600 against 14px/500), and the supporting line
+        under it says what the section decides, which is what tells a rep on a
+        phone whether this is the part they came to fill in.
       */}
-      <div className="space-y-6 px-5 py-6 sm:px-6">
-        {blocks.map((block, index) => (
-          <section
-            key={`${block.section}-${index}`}
-            className={index > 0 ? "space-y-4 border-t pt-6" : "space-y-4"}
-          >
-            <h2 className="text-base font-semibold tracking-tight text-foreground">
+      {blocks.map((block, index) => (
+        <section
+          key={`${block.section}-${index}`}
+          aria-labelledby={`section-${index}`}
+          className="overflow-clip rounded-xl border bg-card"
+        >
+          <header className="border-b px-5 py-4 sm:px-6">
+            <h2 id={`section-${index}`} className="text-base font-semibold tracking-tight text-foreground">
               {block.section}
             </h2>
-            <div className="grid gap-x-4 gap-y-5 sm:grid-cols-6">
-              {block.fields.map((field) =>
-                field.isCore ? coreField(field) : <CustomField key={field.id} field={field} />
-              )}
-            </div>
-          </section>
-        ))}
-      </div>
+            {SECTION_HINTS[block.section] && (
+              <p className="mt-0.5 text-sm text-muted-foreground">{SECTION_HINTS[block.section]}</p>
+            )}
+          </header>
+          <div className="grid gap-x-4 gap-y-5 px-5 py-5 sm:grid-cols-6 sm:px-6">
+            {block.fields.map((field) =>
+              field.isCore ? coreField(field) : <CustomField key={field.id} field={field} />
+            )}
+          </div>
+        </section>
+      ))}
 
-      {/* Sticks to the bottom of the viewport on a phone, where sixteen fields
-          put the save button a long scroll away from wherever you finished.
-          The 44px target is held until md, not sm: a 640px screen is still a
-          thumb more often than a mouse. */}
       {/*
-        Pinned on a phone only, and opaque while it is pinned.
-
-        Two things were wrong. It stayed sticky on desktop, where the form is
-        768px in a tall window and the save button was never far away, so a bar
-        parked over the fields solved nothing and covered them. And the desktop
-        background was `bg-muted/30`, 30% alpha, so the fields underneath showed
-        straight through it: that transparency is what made it read as floating
-        rather than as a bar.
-
-        Below sm it pins with an opaque card background. From sm up it goes back
-        to being the last row of the form, where the muted tint is safe because
-        nothing scrolls beneath it.
+        Actions at the trailing edge, filled for the primary and outlined for
+        the secondary. On a phone the row pins to the bottom of the viewport
+        with an opaque card background, because seventeen fields put the save
+        button a long scroll from wherever you finished; from sm up it is the
+        last row of the form, where nothing scrolls beneath it and a bar parked
+        over the fields would only cover them. The negative margin below sm
+        matches the page's own padding so the bar runs edge to edge.
       */}
-      <div className="sticky bottom-0 flex flex-col gap-2 border-t bg-card px-5 py-4 sm:static sm:flex-row sm:justify-end sm:bg-muted/30 sm:px-6">
+      <div className="sticky bottom-0 -mx-4 flex flex-col gap-2 border-t bg-card px-4 py-3 sm:static sm:mx-0 sm:flex-row sm:justify-end sm:border-0 sm:bg-transparent sm:px-0 sm:py-0">
         <Button asChild variant="outline" type="button" className="h-12 md:h-10">
           <Link href="/workspace/missions">Batal</Link>
         </Button>

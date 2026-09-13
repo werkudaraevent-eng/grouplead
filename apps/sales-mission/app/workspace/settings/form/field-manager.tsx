@@ -88,6 +88,7 @@ function lockedTypeReason(reportingKey: string): string {
     case "end_time":
       return "Jadwal dipakai deteksi bentrok dan kalender, jadi tipenya terkunci."
     case "mission_type":
+    case "contact_salutation":
       return "Tersimpan sebagai satu nilai di setiap mission. Opsinya bisa diubah di bawah."
     case "primary_sales":
     case "supporting_sales":
@@ -193,7 +194,7 @@ function FieldEditor({
               id={`type-${uid}`}
               value={draft.fieldType}
               onChange={(e) => setDraft({ ...draft, fieldType: e.target.value as FieldType })}
-              className="h-11 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+              className="h-11 w-full rounded-md border border-input bg-field px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
             >
               {FIELD_TYPES.map((type) => <option key={type} value={type}>{FIELD_TYPE_LABELS[type]}</option>)}
             </select>

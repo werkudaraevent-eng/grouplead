@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 import {
   CORE_MISSION_FIELDS,
+  configuredOptions,
   describeCoreFieldViolation,
   fieldDefinitionSchema,
   isChoiceType,
@@ -248,6 +249,7 @@ describe("CORE_MISSION_FIELDS", () => {
       "objective",
       "primary_sales",
       "supporting_sales",
+      "contact_salutation",
       "contact_name",
       "contact_job_title",
       "contact_division",
@@ -278,6 +280,24 @@ describe("CORE_MISSION_FIELDS", () => {
     const orders = CORE_MISSION_FIELDS.map((field) => field.displayOrder)
     expect(new Set(orders).size).toBe(orders.length)
     expect([...orders].sort((a, b) => a - b)).toEqual(orders)
+  })
+})
+
+describe("configuredOptions", () => {
+  const base = {
+    id: "id", label: "x", fieldType: "SELECT" as const, isRequired: false, isCore: true,
+    isActive: true, placeholder: null, helpText: null, displayOrder: 10,
+  }
+
+  it("returns the tenant's list when one is configured", () => {
+    const fields = [{ ...base, reportingKey: "contact_salutation", options: ["Bapak", "Ibu", "Dr"] }]
+    expect(configuredOptions(fields, "contact_salutation", ["Mr"])).toEqual(["Bapak", "Ibu", "Dr"])
+  })
+
+  it("falls back to the seed rather than to 'anything' when the list is empty", () => {
+    const fields = [{ ...base, reportingKey: "contact_salutation", options: [] }]
+    expect(configuredOptions(fields, "contact_salutation", ["Mr", "Mrs"])).toEqual(["Mr", "Mrs"])
+    expect(configuredOptions([], "contact_salutation", ["Mr"])).toEqual(["Mr"])
   })
 })
 

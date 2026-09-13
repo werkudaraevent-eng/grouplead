@@ -6,6 +6,7 @@ import { canPerform, getSalesMissionAccess } from "@/lib/sales-mission-access"
 import { listFormFields } from "@/lib/missions/form-field-queries"
 import { listTenantSales } from "@/lib/missions/mission-queries"
 import { MISSION_TYPES, toMissionTimestamp } from "@/lib/missions/mission-schema"
+import { configuredOptions } from "@/lib/missions/form-fields"
 import { searchClientCompanies } from "@/lib/leadengine/client"
 import {
   SALES_EMAIL_COLUMN,
@@ -62,10 +63,7 @@ async function validate(rows: RawRow[]) {
   ])
 
   const columns = buildImportColumns(fields)
-  const missionTypeField = fields.find((field) => field.reportingKey === "mission_type")
-  const allowedTypes = missionTypeField?.options?.length
-    ? missionTypeField.options
-    : [...MISSION_TYPES]
+  const allowedTypes = configuredOptions(fields, "mission_type", MISSION_TYPES)
 
   // Email to user id, for this tenant only. An email that is not a member here
   // must not resolve, or an import could assign visits across companies.
@@ -192,6 +190,7 @@ export async function commitMissionImport(rows: RawRow[]): Promise<ImportResult>
         location: row.location || null,
         scheduled_start: toMissionTimestamp(row.date, row.startTime),
         scheduled_end: row.endTime ? toMissionTimestamp(row.date, row.endTime) : null,
+        contact_salutation: row.contactSalutation || null,
         contact_name: row.contactName || null,
         contact_job_title: row.contactJobTitle || null,
         contact_division: row.contactDivision || null,

@@ -35,6 +35,8 @@ What we actually adopted:
 | Multi-value input | Input chips, each carrying its own remove affordance | Supporting sales |
 | Menu vs search | A list short enough to read needs no search box | Search appears from 7 options up |
 | Buttons | Filled is the primary action and sits at the trailing edge; secondary is outlined | Simpan filled, Batal outlined. On a phone the primary sits lowest, nearest the thumb |
+| Surfaces | Three tones, each one step off the last: page, card, field. A card groups one subject; a divider separates a card's header from its body | Page `--background`, section cards `--card`, fields `--field`. Each form section is its own card |
+| Text field outline | The outline is held to 3:1 against the surface it sits on (M3 `outline` role, WCAG 1.4.11) | `--input` is #7F8993: 3.56:1 on the card, 3.28:1 on the field fill. Focus swaps it for `--ring` |
 
 ## What is ours, not Material's
 

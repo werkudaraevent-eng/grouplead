@@ -16,16 +16,6 @@ import { z } from "zod"
 export { DEFAULT_MISSION_TYPES as MISSION_TYPES } from "./form-fields"
 export type MissionType = string
 
-/**
- * Salutations offered beside the appointment contact's name.
- *
- * Constrained rather than free text because it decides how a rep addresses
- * someone in the room, and it is checked by a CHECK constraint on the column
- * too — this list and that constraint have to agree.
- */
-export const CONTACT_SALUTATIONS = ["Bapak", "Ibu", "Mr", "Mrs", "Ms"] as const
-export type ContactSalutation = (typeof CONTACT_SALUTATIONS)[number]
-
 /** Mission lifecycle (spec §6). Mirrors the CHECK constraint on the table. */
 export const MISSION_STATUSES = [
   "DRAFT",
@@ -83,7 +73,9 @@ export const createMissionSchema = z
     // Appointment block. All optional: a rep can be sent to a company before
     // anyone has a name, and refusing to save the mission over a missing phone
     // number would just push people to type junk into it.
-    contactSalutation: z.enum(CONTACT_SALUTATIONS).optional().or(z.literal("")),
+    // Checked against the tenant's configured list in createMission, like the
+    // mission type: the salutations are admin-editable now.
+    contactSalutation: z.string().trim().max(50).optional().or(z.literal("")),
     /** LeadEngine contacts.id when the name was picked from the CRM, empty when typed. */
     contactId: z.string().uuid().optional().or(z.literal("")),
     contactName: z.string().trim().max(150).optional().or(z.literal("")),

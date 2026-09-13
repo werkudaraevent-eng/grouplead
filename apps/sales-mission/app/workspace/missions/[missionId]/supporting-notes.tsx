@@ -78,7 +78,7 @@ export function SupportingNotes({
             rows={3}
             maxLength={5000}
             placeholder="Tambahkan pengamatan Anda…"
-            className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+            className="w-full rounded-md border border-input bg-field px-3 py-2 text-sm shadow-xs outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
           />
 
           {error && (

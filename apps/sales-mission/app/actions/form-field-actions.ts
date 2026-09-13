@@ -268,14 +268,21 @@ export async function getFieldOptionUsage(
 
     Options are a handful per field, so a handful of parallel counts is cheap.
   */
+  // Core choice fields whose answer is a column on the mission itself.
+  const missionColumn: Record<string, string> = {
+    mission_type: "mission_type",
+    contact_salutation: "contact_salutation",
+  }
+  const column = field.isCore ? missionColumn[field.reportingKey] : undefined
+
   const countMatching = async (option: string): Promise<number> => {
     const base =
-      field.reportingKey === "mission_type"
+      column
         ? schema
             .from("missions")
             .select("id", { count: "exact", head: true })
             .eq("company_id", access.companyId)
-            .eq("mission_type", option)
+            .eq(column, option)
         : schema
             .from("mission_field_values")
             .select("id", { count: "exact", head: true })
@@ -290,9 +297,9 @@ export async function getFieldOptionUsage(
     return count ?? 0
   }
 
-  // A core field other than mission_type answers into its own column, and none
-  // of those are admin-owned lists, so there is nothing to count.
-  if (field.isCore && field.reportingKey !== "mission_type") {
+  // Any other core field is directory-owned (people), so there is nothing to
+  // count against an admin's list.
+  if (field.isCore && !column) {
     return Object.fromEntries(field.options.map((option) => [option, 0]))
   }
 

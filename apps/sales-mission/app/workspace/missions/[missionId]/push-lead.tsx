@@ -304,7 +304,7 @@ export function PushLeadPanel({
               const next = precheck.pipelines.find((item) => item.id === e.target.value)
               setForm({ ...form, pipelineId: e.target.value, pipelineStageId: next?.stages[0]?.id ?? "" })
             }}
-            className="h-11 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+            className="h-11 w-full rounded-md border border-input bg-field px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
           >
             {precheck.pipelines.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
           </select>
@@ -316,7 +316,7 @@ export function PushLeadPanel({
             id="push-stage"
             value={form.pipelineStageId}
             onChange={(e) => setForm({ ...form, pipelineStageId: e.target.value })}
-            className="h-11 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+            className="h-11 w-full rounded-md border border-input bg-field px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
           >
             {(pipeline?.stages ?? []).map((stage) => <option key={stage.id} value={stage.id}>{stage.name}</option>)}
           </select>
@@ -328,7 +328,7 @@ export function PushLeadPanel({
             id="push-owner"
             value={form.ownerUserId}
             onChange={(e) => setForm({ ...form, ownerUserId: e.target.value })}
-            className="h-11 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+            className="h-11 w-full rounded-md border border-input bg-field px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
           >
             <option value="">Pilih pemilik</option>
             {salesOptions.map((option) => <option key={option.id} value={option.id}>{option.name}</option>)}
@@ -362,7 +362,7 @@ export function PushLeadPanel({
             value={form.remark}
             onChange={(e) => setForm({ ...form, remark: e.target.value })}
             placeholder="Kosongkan untuk memakai ringkasan pertemuan"
-            className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+            className="w-full rounded-md border border-input bg-field px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
           />
         </div>
       </div>

@@ -24,6 +24,7 @@
   --color-chart-1: var(--chart-1);
   --color-ring: var(--ring);
   --color-input: var(--input);
+  --color-field: var(--field);
   --color-border: var(--border);
   --color-destructive: var(--destructive);
   --color-accent-foreground: var(--accent-foreground);
@@ -69,7 +70,23 @@
   --accent-foreground: #3b2b00;
   --destructive: #ED6F22;
   --border: rgba(0, 0, 0, 0.08);
-  --input: #ffffff;
+  /* ── Form fields ──
+     `--input` is what shadcn's `border-input` reads, and it was #ffffff. Every
+     text field, select and combobox in the app therefore had a white border on
+     a white card, and the only thing marking its edge was a 1px shadow. That is
+     why a form read as one white sheet with words on it.
+
+     Material's outlined text field puts the outline at the `outline` role,
+     which is held to 3:1 against the surface; WCAG 1.4.11 asks the same of any
+     control boundary. #7F8993 is 3.56:1 on the card and 3.28:1 on the field's
+     own fill. On focus the border becomes --ring, which is the primary.
+
+     `--field` is the resting fill: one step off the card so a group of fields
+     reads as a form before any single border is inspected. It carries no text
+     of its own, so it has no contrast bar to meet; the text inside it is
+     --foreground at 13.5:1. */
+  --input: #7F8993;
+  --field: #F3F5F8;
   --ring: #02378D;
   --chart-1: oklch(0.646 0.222 41.116);
   --chart-2: oklch(0.6 0.118 184.704);

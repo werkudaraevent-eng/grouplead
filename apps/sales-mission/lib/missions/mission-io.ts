@@ -38,6 +38,7 @@ const CORE_EXAMPLES: Record<string, string> = {
   start_time: "09:30",
   end_time: "11:00",
   objective: "Presentasi awal dan pemetaan kebutuhan",
+  contact_salutation: "Bapak",
   contact_name: "Nofri Ardian",
   contact_job_title: "GM Procurement",
   contact_division: "Procurement",
@@ -254,6 +255,14 @@ export function parseRow(
     fail("Email", `"${contactEmail}" bukan email yang valid.`)
   }
 
+  // The salutation list is the tenant's, carried on the column like any other
+  // configured choice, so an import cannot smuggle in a value the form refuses.
+  const contactSalutation = get("contact_salutation")
+  const salutationColumn = columns.find((column) => column.key === "contact_salutation")
+  if (contactSalutation && salutationColumn?.options && !salutationColumn.options.includes(contactSalutation)) {
+    fail(salutationColumn.header, `"${contactSalutation}" bukan pilihan yang ada. Lihat sheet "Pilihan".`)
+  }
+
   // Required is whatever the admin configured, so a tenant that made Lokasi
   // mandatory gets it enforced here too.
   for (const column of columns) {
@@ -301,7 +310,7 @@ export function parseRow(
       objective: get("objective"),
       primarySalesEmail,
       supportingSalesEmails,
-      contactSalutation: "",
+      contactSalutation,
       contactName: get("contact_name"),
       contactJobTitle: get("contact_job_title"),
       contactDivision: get("contact_division"),
@@ -362,6 +371,7 @@ export function toExportRows(
       objective: mission.objective ?? "",
       primary_sales: mission.primarySalesName ?? "",
       supporting_sales: mission.supportingSalesNames.join(", "),
+      contact_salutation: mission.appointment.salutation ?? "",
       contact_name: mission.appointment.name ?? "",
       contact_job_title: mission.appointment.jobTitle ?? "",
       contact_division: mission.appointment.division ?? "",

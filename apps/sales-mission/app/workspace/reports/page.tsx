@@ -134,11 +134,11 @@ export default async function ReportsPage({
       <form className="mb-4 flex flex-wrap items-end gap-3 rounded-xl border bg-card px-5 py-4" action="/workspace/reports">
         <div className="space-y-1.5">
           <label className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground" htmlFor="from">Dari</label>
-          <input id="from" name="from" type="date" defaultValue={range.from} className="h-10 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50" />
+          <input id="from" name="from" type="date" defaultValue={range.from} className="h-10 w-full rounded-md border border-input bg-field px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50" />
         </div>
         <div className="space-y-1.5">
           <label className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground" htmlFor="to">Sampai</label>
-          <input id="to" name="to" type="date" defaultValue={range.to} className="h-10 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50" />
+          <input id="to" name="to" type="date" defaultValue={range.to} className="h-10 w-full rounded-md border border-input bg-field px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50" />
         </div>
         <Button type="submit" size="sm" className="h-10">Terapkan</Button>
         <Link href="/workspace/reports" className="text-sm font-medium text-primary hover:underline">Bulan ini</Link>

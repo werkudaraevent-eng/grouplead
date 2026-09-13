@@ -17,6 +17,15 @@ import { z } from "zod"
  */
 export const DEFAULT_MISSION_TYPES = ["Meeting", "Visit", "Survey", "Follow Up"] as const
 
+/**
+ * Starting options for "Sapaan". Same status as the mission types: a seed the
+ * tenant edits from the settings screen, not a rule.
+ *
+ * It used to be a `const` enum here and a CHECK constraint in the database, so
+ * an admin who wanted "Dr" or "Prof" had nowhere to put it.
+ */
+export const DEFAULT_CONTACT_SALUTATIONS = ["Bapak", "Ibu", "Mr", "Mrs", "Ms"] as const
+
 export const FIELD_TYPES = [
   "TEXT",
   "LONG_TEXT",
@@ -65,6 +74,7 @@ export type OptionSource = "config" | "directory"
 
 const CORE_OPTION_SOURCES: Record<string, OptionSource> = {
   mission_type: "config",
+  contact_salutation: "config",
   primary_sales: "directory",
   supporting_sales: "directory",
 }
@@ -113,6 +123,7 @@ export const CORE_MISSION_FIELDS: Array<
   // Appointment block. Often filled by the appointment team rather than the rep
   // who will attend, so it is the only place the rep learns who they are
   // meeting and what was already agreed.
+  { reportingKey: "contact_salutation", label: "Sapaan", fieldType: "SELECT", isRequired: false, displayOrder: 95, options: [...DEFAULT_CONTACT_SALUTATIONS] },
   { reportingKey: "contact_name", label: "Bertemu dengan", fieldType: "TEXT", isRequired: false, displayOrder: 100 },
   { reportingKey: "contact_job_title", label: "Jabatan", fieldType: "TEXT", isRequired: false, displayOrder: 110 },
   { reportingKey: "contact_division", label: "Divisi", fieldType: "TEXT", isRequired: false, displayOrder: 120 },
@@ -230,6 +241,24 @@ export function describeCoreFieldViolation(
   }
 
   return null
+}
+
+/**
+ * The choices a config-owned core field currently offers.
+ *
+ * Falls back to the seed when the list is empty rather than accepting anything.
+ * `missions.mission_type` and `missions.contact_salutation` are plain text
+ * columns, so "no list" must not become "any string this endpoint is handed".
+ * The form renders through the same function, which keeps what is offered and
+ * what is accepted identical.
+ */
+export function configuredOptions(
+  fields: FormField[],
+  reportingKey: string,
+  fallback: readonly string[]
+): string[] {
+  const field = fields.find((item) => item.reportingKey === reportingKey)
+  return field && field.options.length > 0 ? field.options : [...fallback]
 }
 
 /** Fields shown on a form, in order. Archived ones never render. */

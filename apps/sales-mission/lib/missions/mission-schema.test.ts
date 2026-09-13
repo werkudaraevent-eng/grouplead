@@ -63,11 +63,14 @@ describe("createMissionSchema", () => {
       expect(createMissionSchema.safeParse(validInput({ contactName: "Andi" })).success).toBe(true)
     })
 
-    it("rejects a salutation outside the list the column allows", () => {
+    it("leaves the salutation list to the tenant's configuration", () => {
+      // The schema no longer carries a fixed enum; createMission checks the
+      // value against the "Sapaan" field's options, the same way it checks
+      // the mission type. See configuredOptions in form-fields.
       const result = createMissionSchema.safeParse(
-        validInput({ contactSalutation: "Tuan", contactName: "Andi" })
+        validInput({ contactSalutation: "Dr", contactName: "Andi" })
       )
-      expect(result.success).toBe(false)
+      expect(result.success).toBe(true)
     })
 
     it("rejects a malformed contact email", () => {

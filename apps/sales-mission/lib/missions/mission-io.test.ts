@@ -192,6 +192,21 @@ describe("parseRow", () => {
     expect(row.custom).toEqual({ budget: "15000000", channel: ["Email", "Telepon"], urgent: true })
   })
 
+  it("checks the salutation against the tenant's configured list", () => {
+    const withSalutation = [
+      ...FIELDS,
+      field({ reportingKey: "contact_salutation", label: "Sapaan", fieldType: "SELECT", options: ["Bapak", "Ibu"], displayOrder: 65 }),
+    ]
+    const columns = buildImportColumns(withSalutation)
+
+    const ok = parseRow({ ...rowFrom(), Sapaan: "Ibu" }, 2, columns, withSalutation, TYPES)
+    expect(ok.issues).toEqual([])
+    expect(ok.row.contactSalutation).toBe("Ibu")
+
+    const bad = parseRow({ ...rowFrom(), Sapaan: "Tuan" }, 2, columns, withSalutation, TYPES)
+    expect(bad.issues.some((i) => i.column === "Sapaan" && i.message.includes("Tuan"))).toBe(true)
+  })
+
   it("refuses an unknown option on a custom multi-select", () => {
     const withCustom = [
       ...FIELDS,

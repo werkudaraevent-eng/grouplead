@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from "react"
 import { Check, Loader2, UserRound } from "lucide-react"
 import { lookupCompanyContacts, type ContactSuggestion } from "@/app/actions/contact-search-actions"
-import { CONTACT_SALUTATIONS } from "@/lib/missions/mission-schema"
 import { mergeContactFields } from "@/lib/missions/contact-draft"
 import { Input } from "@/components/ui/input"
 
@@ -21,6 +20,10 @@ import { Input } from "@/components/ui/input"
  * What it must never do is *require* a match. The appointment team books people
  * the CRM has never heard of all the time, and a picker that refuses an unknown
  * name would stop a real visit being scheduled to protect a database.
+ *
+ * The salutation is not in here. It used to be a select welded to the left of
+ * the name, with a hardcoded list; it is now a core field of its own ("Sapaan")
+ * whose options the admin edits, rendered by the form from the configuration.
  */
 
 export interface ContactDraft {
@@ -46,7 +49,6 @@ export function ContactPicker({
   onChange,
   required,
   placeholder,
-  selectClassName,
 }: {
   /** Null while the company is a typed name, which has nobody attached yet. */
   clientCompanyId: string | null
@@ -54,7 +56,6 @@ export function ContactPicker({
   onChange: (next: ContactDraft) => void
   required?: boolean
   placeholder?: string
-  selectClassName: string
 }) {
   const [contacts, setContacts] = useState<ContactSuggestion[]>([])
   const [loading, setLoading] = useState(false)
@@ -120,18 +121,7 @@ export function ContactPicker({
           which is what keeps the mission honest about what it actually knows. */}
       <input type="hidden" name="contactId" value={value.id} />
 
-      <div className="flex flex-col gap-2 min-[400px]:flex-row">
-        <select
-          name="contactSalutation"
-          defaultValue=""
-          aria-label="Sapaan"
-          className={selectClassName}
-        >
-          <option value="">Sapaan</option>
-          {CONTACT_SALUTATIONS.map((item) => <option key={item} value={item}>{item}</option>)}
-        </select>
-
-        <div className="relative flex-1">
+      <div className="relative">
           <Input
             id="field-contact_name"
             name="contactName"
@@ -196,7 +186,6 @@ export function ContactPicker({
               ))}
             </ul>
           )}
-        </div>
       </div>
 
       {/* Says which of the three states this field is in, because "is this

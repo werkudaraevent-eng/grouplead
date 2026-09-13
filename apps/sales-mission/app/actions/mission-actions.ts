@@ -6,7 +6,12 @@ import { createClient } from "@/utils/supabase/server"
 import { canPerform, getSalesMissionAccess } from "@/lib/sales-mission-access"
 import { MISSION_TYPES, createMissionSchema, toMissionTimestamp } from "@/lib/missions/mission-schema"
 import { listFormFields } from "@/lib/missions/form-field-queries"
-import { validateFieldAnswers, type FieldAnswer } from "@/lib/missions/form-fields"
+import {
+  DEFAULT_CONTACT_SALUTATIONS,
+  configuredOptions,
+  validateFieldAnswers,
+  type FieldAnswer,
+} from "@/lib/missions/form-fields"
 import type { ActionResult } from "@/types/action-result"
 
 /**
@@ -71,13 +76,17 @@ export async function createMission(
     agreeing on what is offered and what is accepted.
   */
   const formFields = await listFormFields(access, "mission")
-  const missionTypeField = formFields.find((field) => field.reportingKey === "mission_type")
-  const allowedTypes = missionTypeField?.options?.length
-    ? missionTypeField.options
-    : [...MISSION_TYPES]
+  const allowedTypes = configuredOptions(formFields, "mission_type", MISSION_TYPES)
 
   if (!allowedTypes.includes(parsed.data.missionType)) {
     return { success: false, error: "Jenis mission itu tidak ada dalam daftar." }
+  }
+
+  // Same rule for the salutation, for the same reason: the column is free text
+  // and the list is the admin's.
+  const allowedSalutations = configuredOptions(formFields, "contact_salutation", DEFAULT_CONTACT_SALUTATIONS)
+  if (parsed.data.contactSalutation && !allowedSalutations.includes(parsed.data.contactSalutation)) {
+    return { success: false, error: "Sapaan itu tidak ada dalam daftar." }
   }
 
   /*
@@ -100,6 +109,7 @@ export async function createMission(
     objective: parsed.data.objective,
     primary_sales: parsed.data.primarySalesId,
     supporting_sales: parsed.data.supportingSalesIds,
+    contact_salutation: parsed.data.contactSalutation,
     contact_name: parsed.data.contactName,
     contact_job_title: parsed.data.contactJobTitle,
     contact_division: parsed.data.contactDivision,
