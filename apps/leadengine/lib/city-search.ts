@@ -56,7 +56,17 @@ interface GoogleAutocompleteResponse {
     error?: { message?: string }
 }
 
-async function searchGoogle(q: string, apiKey: string, region: string): Promise<CitySuggestion[]> {
+/**
+ * Bounding boxes for `locationBias`. Google's autocomplete has no "prefer this
+ * country" option; the nearest thing is a rectangle that ranks places inside
+ * it first without hiding places outside it.
+ */
+const COUNTRY_BOUNDS: Record<string, { low: { latitude: number; longitude: number }; high: { latitude: number; longitude: number } }> = {
+    ID: { low: { latitude: -11.5, longitude: 94.5 }, high: { latitude: 6.5, longitude: 141.5 } },
+}
+
+async function searchGoogle(q: string, apiKey: string, region: string, bias: string): Promise<CitySuggestion[]> {
+    const bounds = bias ? COUNTRY_BOUNDS[bias] : undefined
     const res = await fetch("https://places.googleapis.com/v1/places:autocomplete", {
         method: "POST",
         headers: {
@@ -70,11 +80,13 @@ async function searchGoogle(q: string, apiKey: string, region: string): Promise<
             // location usually is.
             includedPrimaryTypes: ["(cities)"],
             languageCode: "en",
-            // Only when the caller asks for it. LeadEngine's Event City stays
-            // global — Werkudara runs events abroad — while Sales Mission pins
-            // to Indonesia, where "Suraba" otherwise offers Şuraabad in
-            // Azerbaijan above Surabaya.
+            // A restriction hides everything outside the country; a bias only
+            // ranks the country first. Both are opt-in. With the Indonesian
+            // bias, "Suraba" puts Surabaya first and drops Şuraabad in
+            // Azerbaijan out of the top results, while "Singapore" and "Kuala
+            // Lumpur" still come back, measured against the live API.
             ...(region ? { includedRegionCodes: [region] } : {}),
+            ...(!region && bounds ? { locationBias: { rectangle: bounds } } : {}),
         }),
         // Cache identical queries for 24h — city data is effectively static.
         next: { revalidate: 60 * 60 * 24 },
@@ -165,16 +177,17 @@ async function searchGeoNames(q: string, country: string, username: string): Pro
 
 export interface CitySearchOptions {
     /**
-     * ISO-2 code that biases GeoNames ranking. Not a filter: results outside it
-     * still appear, just lower. This is what LeadEngine's Event City has always
-     * sent, and international event cities depend on staying reachable.
+     * ISO-2 code that biases ranking. Not a filter: results outside it still
+     * appear, just lower. GeoNames takes it directly; Google gets the country's
+     * bounding box as a locationBias. This is what both apps send: Werkudara
+     * runs events abroad and sends sales abroad, so a city outside Indonesia
+     * has to stay reachable, it just should not outrank the Indonesian one.
      */
     countryBias?: string
     /**
-     * ISO-2 code that restricts Google to that country. A filter, not a bias —
-     * anything outside disappears. Sales Mission uses it because a visit is
-     * always domestic, and "Suraba" otherwise ranks Şuraabad in Azerbaijan
-     * above Surabaya.
+     * ISO-2 code that restricts Google to that country. A filter, not a bias:
+     * anything outside disappears. Nothing sends this today. It was what Sales
+     * Mission used, until a mission to Singapore found no Singapore.
      */
     restrictToRegion?: string
 }
@@ -204,7 +217,7 @@ export async function searchCities(
     // 1. Prefer Google when configured.
     if (googleKey) {
         try {
-            return { cities: await searchGoogle(query, googleKey, region), status: 200 }
+            return { cities: await searchGoogle(query, googleKey, region, bias), status: 200 }
         } catch (err) {
             const message = err instanceof Error ? err.message : "Google Places error"
             // Fall through to GeoNames if available; otherwise surface the error.

@@ -26,12 +26,11 @@ export async function GET(request: Request) {
 
     const { searchParams } = new URL(request.url)
     const country = searchParams.get('country') ?? ''
-    // A field visit is domestic, so the caller's country restricts rather than
-    // biases. It still biases GeoNames, which has no equivalent filter.
-    const result = await searchCities(searchParams.get('q') ?? '', {
-        countryBias: country,
-        restrictToRegion: country,
-    })
+    // A bias, not a restriction. This used to restrict, on the theory that a
+    // field visit is domestic; then a mission to Singapore could not find
+    // Singapore. The bias keeps Surabaya above Şuraabad without hiding the
+    // rest of the world.
+    const result = await searchCities(searchParams.get('q') ?? '', { countryBias: country })
 
     if (result.error) {
         return apiError(result.status, 'city_search_failed', result.error)

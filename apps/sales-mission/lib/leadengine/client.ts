@@ -221,6 +221,9 @@ export type LeadEngineCity = z.infer<typeof citiesSchema>["cities"][number]
 /**
  * Location autocomplete, served by the same provider as LeadEngine's Event City
  * field so both apps store the same spelling for the same place.
+ *
+ * `country` biases the ranking towards Indonesia; it does not restrict to it.
+ * Sales go abroad too.
  */
 export async function searchCities(query: string): Promise<LeadEngineCity[]> {
   const params = new URLSearchParams({ q: query, country: "ID" })

@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation"
 import { Building2, CalendarDays, ClipboardList, Mail, MapPin, Phone, UsersRound } from "lucide-react"
 import { canPerform, getSalesMissionAccess } from "@/lib/sales-mission-access"
 import { requireModule } from "@/lib/missions/nav-access"
+import { PersonAvatar } from "@/components/person-avatar"
 import {
   getMission,
   getMissionRole,
@@ -361,9 +362,7 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
             <ul className="divide-y">
               {team.map((member) => (
                 <li key={member.userId} className="flex items-center gap-3 px-5 py-3.5 text-sm">
-                  <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-muted text-[11px] font-bold text-muted-foreground">
-                    {member.name.split(" ").map((part) => part[0]).join("").toUpperCase().slice(0, 2)}
-                  </span>
+                  <PersonAvatar name={member.name} avatarUrl={member.avatarUrl} />
                   <span className="min-w-0 flex-1">
                     <span className="block truncate font-medium text-foreground">{member.name}</span>
                     <span className="block text-xs text-muted-foreground">

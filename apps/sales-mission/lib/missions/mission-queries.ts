@@ -161,6 +161,7 @@ export async function getMissionRole(
 export interface MissionTeamMember {
   userId: string
   name: string
+  avatarUrl: string | null
   role: "PRIMARY" | "SUPPORTING"
   response: string
 }
@@ -180,12 +181,23 @@ export async function listMissionTeam(
 
   if (!rows?.length) return []
 
-  const names = await resolveNames(supabase, rows.map((row) => row.user_id as string))
+  const userIds = [...new Set(rows.map((row) => row.user_id as string))]
+  const { data: profiles } = await supabase
+    .from("profiles")
+    .select("id, full_name, avatar_url")
+    .in("id", userIds)
+  const byId = new Map(
+    (profiles ?? []).map((row) => [
+      row.id as string,
+      { name: (row.full_name as string | null) ?? null, avatarUrl: (row.avatar_url as string | null)?.trim() || null },
+    ])
+  )
 
   return rows
     .map((row) => ({
       userId: row.user_id as string,
-      name: names.get(row.user_id as string) ?? "Nama tidak diketahui",
+      name: byId.get(row.user_id as string)?.name ?? "Nama tidak diketahui",
+      avatarUrl: byId.get(row.user_id as string)?.avatarUrl ?? null,
       role: row.assignment_role as "PRIMARY" | "SUPPORTING",
       response: row.response as string,
     }))
@@ -344,6 +356,8 @@ export interface TenantSalesOption {
   name: string
   /** How an import identifies this person. Names repeat; emails do not. */
   email: string | null
+  /** The photo set in LeadEngine, shown wherever this person is listed. */
+  avatarUrl: string | null
 }
 
 /**
@@ -365,14 +379,22 @@ export async function listTenantSales(access: SalesMissionAccess): Promise<Tenan
 
   const { data: profiles } = await supabase
     .from("profiles")
-    .select("id, full_name, email")
+    .select("id, full_name, email, avatar_url")
     .in("id", userIds)
     .eq("is_active", true)
     .order("full_name")
 
   return (profiles ?? [])
-    .filter((row): row is { id: string; full_name: string; email: string | null } => Boolean(row.full_name))
-    .map((row) => ({ id: row.id, name: row.full_name, email: row.email ?? null }))
+    .filter(
+      (row): row is { id: string; full_name: string; email: string | null; avatar_url: string | null } =>
+        Boolean(row.full_name)
+    )
+    .map((row) => ({
+      id: row.id,
+      name: row.full_name,
+      email: row.email ?? null,
+      avatarUrl: row.avatar_url?.trim() || null,
+    }))
 }
 
 export interface MissionSummary {

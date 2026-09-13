@@ -43,6 +43,7 @@ import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@/components/ui/sheet"
 import { createClient } from "@/utils/supabase/client"
 import { clearActiveSessionId } from "@/lib/session-guard"
+import { PersonAvatar } from "@/components/person-avatar"
 import { cn } from "@/lib/utils"
 import type { NavAccess } from "@/lib/missions/nav-access"
 
@@ -125,20 +126,15 @@ function UnreadBadge({ unreadCount }: { unreadCount: number }) {
   )
 }
 
-function initials(name: string) {
-  return name.split(" ").map((part) => part[0]).join("").toUpperCase().slice(0, 2) || "?"
-}
-
-/** The photo set in LeadEngine, or initials when there is none. */
+/** Sidebar tint over the shared avatar, so it sits on the panel's own tokens. */
 function Avatar({ name, url }: { name: string; url: string | null }) {
   return (
-    <span className="grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-full bg-sidebar-accent text-sm font-bold text-sidebar-accent-foreground">
-      {url ? (
-        <img src={url} alt="" className="h-full w-full object-cover" />
-      ) : (
-        initials(name)
-      )}
-    </span>
+    <PersonAvatar
+      name={name}
+      avatarUrl={url}
+      size="lg"
+      className="bg-sidebar-accent text-sidebar-accent-foreground"
+    />
   )
 }
 

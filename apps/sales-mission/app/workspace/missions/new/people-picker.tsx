@@ -11,6 +11,7 @@ import {
   CommandList,
 } from "@/components/ui/command"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { PersonAvatar } from "@/components/person-avatar"
 import { cn } from "@/lib/utils"
 
 /**
@@ -38,6 +39,7 @@ import { cn } from "@/lib/utils"
 export interface Person {
   id: string
   name: string
+  avatarUrl?: string | null
 }
 
 /** Below this, a search box costs more than it saves. M3 calls the same idea a menu. */
@@ -46,19 +48,8 @@ const SEARCH_THRESHOLD = 7
 const TRIGGER_CLASS =
   "flex h-12 w-full items-center justify-between gap-2 rounded-md border border-input bg-field px-3 text-left text-sm shadow-xs outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50"
 
-function initials(name: string) {
-  return name.split(" ").map((part) => part[0]).join("").toUpperCase().slice(0, 2) || "?"
-}
-
-function Avatar({ name }: { name: string }) {
-  return (
-    <span
-      aria-hidden="true"
-      className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-muted text-[10px] font-bold text-muted-foreground"
-    >
-      {initials(name)}
-    </span>
-  )
+function Avatar({ name, avatarUrl }: Pick<Person, "name" | "avatarUrl">) {
+  return <PersonAvatar name={name} avatarUrl={avatarUrl} size="sm" />
 }
 
 /** One person. Submits a single hidden value under `name`. */
@@ -108,7 +99,7 @@ export function PersonPicker({
           >
             {selected ? (
               <span className="flex min-w-0 items-center gap-2">
-                <Avatar name={selected.name} />
+                <Avatar name={selected.name} avatarUrl={selected.avatarUrl} />
                 <span className="truncate text-foreground">{selected.name}</span>
               </span>
             ) : (
@@ -201,8 +192,8 @@ export function PeopleMultiPicker({
         <ul className="flex flex-wrap gap-2">
           {selected.map((person) => (
             <li key={person.id}>
-              <span className="flex h-9 items-center gap-1.5 rounded-full border bg-muted/60 py-1 pl-2 pr-1 text-sm">
-                <Avatar name={person.name} />
+              <span className="flex h-9 items-center gap-1.5 rounded-full border bg-muted/60 py-1 pl-1.5 pr-1 text-sm">
+                <Avatar name={person.name} avatarUrl={person.avatarUrl} />
                 <span className="max-w-45 truncate text-foreground">{person.name}</span>
                 {/*
                   Drawn at 28px, touched at 48px. Material puts the chip's
@@ -270,7 +261,7 @@ function PeopleList({
                   keepOpen && "aria-selected:bg-muted"
                 )}
               >
-                <Avatar name={person.name} />
+                <Avatar name={person.name} avatarUrl={person.avatarUrl} />
                 <span className="min-w-0 flex-1 truncate text-foreground">{person.name}</span>
                 <Check className={cn("h-4 w-4 shrink-0 text-primary", picked ? "opacity-100" : "opacity-0")} />
               </CommandItem>
