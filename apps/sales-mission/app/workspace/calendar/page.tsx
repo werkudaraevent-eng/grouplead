@@ -1,7 +1,7 @@
 import Link from "next/link"
 import { redirect } from "next/navigation"
-import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react"
-import { getSalesMissionAccess } from "@/lib/sales-mission-access"
+import { CalendarDays, ChevronLeft, ChevronRight, Plus } from "lucide-react"
+import { canPerform, getSalesMissionAccess } from "@/lib/sales-mission-access"
 import { requireModule } from "@/lib/missions/nav-access"
 import { getMissionSettings, listMissions } from "@/lib/missions/mission-queries"
 import { annotateJoinStatus } from "@/lib/missions/mission-join"
@@ -15,6 +15,7 @@ import {
   shiftMonth,
 } from "@/lib/missions/mission-calendar"
 import { JoinStatusLine, WorkspacePage } from "@/app/workspace/workspace-page"
+import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
 export const dynamic = "force-dynamic"
@@ -33,7 +34,11 @@ export default async function CalendarPage({
   const params = await searchParams
   const now = new Date()
   const month = resolveMonth(params.month, now)
-  const [rawMissions, settings] = await Promise.all([listMissions(access), getMissionSettings(access)])
+  const [rawMissions, settings, canCreate] = await Promise.all([
+    listMissions(access),
+    getMissionSettings(access),
+    canPerform(access, "sales_mission_mission", "create"),
+  ])
   // The day panel doubles as the join surface, so each entry carries where the
   // viewer stands relative to it.
   const missions = annotateJoinStatus(rawMissions, settings)
@@ -133,9 +138,20 @@ export default async function CalendarPage({
         </article>
 
         <aside className="rounded-xl border bg-card">
-          <div className="border-b px-5 py-4">
-            <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">{dayLabel}</p>
-            <h2 className="mt-1 text-base font-semibold text-foreground">{selectedDay === today ? "Hari ini" : "Jadwal"}</h2>
+          <div className="flex items-center justify-between gap-3 border-b px-5 py-4">
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">{dayLabel}</p>
+              <h2 className="mt-1 text-base font-semibold text-foreground">{selectedDay === today ? "Hari ini" : "Jadwal"}</h2>
+            </div>
+            {/* Click a day, schedule on it: the calendar is where the gap is
+                visible, so it is where the visit that fills it should start. */}
+            {canCreate && (
+              <Button asChild size="sm">
+                <Link href={`/workspace/missions/new?date=${selectedDay}`}>
+                  <Plus className="h-4 w-4" /> Mission
+                </Link>
+              </Button>
+            )}
           </div>
 
           {dayMissions.length > 0 ? (

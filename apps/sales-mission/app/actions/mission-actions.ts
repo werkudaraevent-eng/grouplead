@@ -4,9 +4,11 @@ import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 import { createClient } from "@/utils/supabase/server"
 import { canPerform, getSalesMissionAccess } from "@/lib/sales-mission-access"
-import { MISSION_TYPES, createMissionSchema, toMissionTimestamp } from "@/lib/missions/mission-schema"
+import { MISSION_TIME_ZONE, MISSION_TYPES, createMissionSchema, toMissionTimestamp } from "@/lib/missions/mission-schema"
 import { listFormFields } from "@/lib/missions/form-field-queries"
-import { getMissionSettings } from "@/lib/missions/mission-queries"
+import { getMission, getMissionRole, getMissionSettings, listMissionTeam } from "@/lib/missions/mission-queries"
+import { notify } from "@/lib/notifications/notification-queries"
+import { recordCompanyVisit } from "@/lib/leadengine/client"
 import { initialResponse } from "@/lib/missions/assignment-workflow"
 import {
   DEFAULT_CONTACT_SALUTATIONS,
@@ -280,4 +282,104 @@ export async function createMission(
   // discards `useActionState` before an effect could navigate — the mission
   // saved, but the page sat there looking as though nothing had happened.
   redirect(`/workspace/missions/${mission.id}`)
+}
+
+/**
+ * Call the visit off before it happens.
+ *
+ * For the primary, whoever scheduled it, and admins. A visit that failed on
+ * site is not this: that is a report with the outcome "Klien tidak ada" or
+ * "Dibatalkan di tempat", because the rep went. This is for the phone call
+ * that morning, which used to have no path at all and left the mission at
+ * "Diterima" forever or pushed the rep into writing a report about a visit
+ * that never took place.
+ *
+ * The reason lands in status_history and, when the company is in the CRM,
+ * on its timeline: the appointment team reads it to decide whether to try
+ * again, and the account's history stays honest about a visit that did not
+ * happen.
+ */
+export async function cancelMission(missionId: string, reason: string): Promise<ActionResult> {
+  const access = await getSalesMissionAccess()
+  if (!access) return { success: false, error: "Anda tidak punya akses Sales Mission." }
+  if (!(await canPerform(access, "sales_mission_mission", "update"))) {
+    return { success: false, error: "Anda tidak punya izin mengubah mission." }
+  }
+
+  const trimmed = reason.trim()
+  if (!trimmed) return { success: false, error: "Tulis alasan pembatalan." }
+  if (trimmed.length > 1000) return { success: false, error: "Alasan terlalu panjang." }
+
+  const [mission, role] = await Promise.all([getMission(access, missionId), getMissionRole(access, missionId)])
+  if (!mission) return { success: false, error: "Mission tidak ditemukan." }
+
+  const mayCancel = access.isSuperAdmin || role === "PRIMARY" || mission.createdBy === access.userId
+  if (!mayCancel) {
+    return { success: false, error: "Hanya sales utama, pembuat mission, atau admin yang bisa membatalkan." }
+  }
+  if (mission.status === "COMPLETED" || mission.status === "CANCELLED") {
+    return { success: false, error: "Mission ini sudah selesai atau sudah dibatalkan." }
+  }
+
+  const supabase = await createClient()
+  const missions = supabase.schema("sales_mission")
+  const now = new Date().toISOString()
+
+  const { error } = await missions
+    .from("missions")
+    .update({ status: "CANCELLED", updated_at: now })
+    .eq("id", missionId)
+    .eq("company_id", access.companyId)
+  if (error) return { success: false, error: "Mission gagal dibatalkan." }
+
+  await missions.from("status_history").insert({
+    mission_id: missionId,
+    company_id: access.companyId,
+    from_status: mission.status,
+    to_status: "CANCELLED",
+    changed_by: access.userId,
+    reason: trimmed,
+  })
+
+  // An open proposal has nothing left to decide.
+  await missions
+    .from("reschedule_requests")
+    .update({ status: "REJECTED", decided_by: access.userId, decided_at: now, decision_note: "Mission dibatalkan" })
+    .eq("mission_id", missionId)
+    .eq("company_id", access.companyId)
+    .eq("status", "PENDING")
+
+  const team = await listMissionTeam(access, missionId)
+  await notify(
+    access,
+    "MISSION_CANCELLED",
+    [...team.map((member) => member.userId), mission.createdBy],
+    { missionId, clientName: mission.clientCompanyName }
+  )
+
+  // Best-effort: the CRM should know the visit did not happen, but a CRM
+  // outage must not stop the cancellation.
+  if (mission.clientCompanyId) {
+    try {
+      await recordCompanyVisit({
+        clientCompanyId: mission.clientCompanyId,
+        missionId,
+        visitedOn: mission.scheduledStart
+          ? new Intl.DateTimeFormat("en-CA", { timeZone: MISSION_TIME_ZONE }).format(new Date(mission.scheduledStart))
+          : new Intl.DateTimeFormat("en-CA", { timeZone: MISSION_TIME_ZONE }).format(new Date()),
+        salesName: mission.primarySalesName ?? access.displayName,
+        outcome: `Dibatalkan sebelum kunjungan: ${trimmed}`,
+        contactNames: [],
+      })
+    } catch {
+      // See above.
+    }
+  }
+
+  revalidatePath("/workspace")
+  revalidatePath("/workspace/missions")
+  revalidatePath("/workspace/calendar")
+  revalidatePath(`/workspace/missions/${missionId}`)
+
+  return { success: true }
 }

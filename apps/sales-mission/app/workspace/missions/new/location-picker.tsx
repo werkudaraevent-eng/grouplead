@@ -19,20 +19,22 @@ export function LocationPicker({
   required,
   placeholder,
   onChange,
+  initial,
 }: {
   id: string
   required: boolean
   placeholder: string
+  initial?: string
   /** Lifted so the schedule picker can waive the travel buffer for a same-building visit. */
   onChange?: (value: string) => void
 }) {
-  const [query, setQuery] = useState("")
+  const [query, setQuery] = useState(initial ?? "")
   const [results, setResults] = useState<LocationSuggestion[]>([])
   const [searching, setSearching] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [open, setOpen] = useState(false)
-  /** Suppresses the lookup that a pick would otherwise trigger. */
-  const justPicked = useRef(false)
+  /** Suppresses the lookup that a pick, or an initial value, would otherwise trigger. */
+  const justPicked = useRef(Boolean(initial))
   const containerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {

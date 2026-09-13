@@ -20,6 +20,7 @@ export function CompanyPicker({
   label,
   required = true,
   onLink,
+  initial,
 }: {
   /** Only used for the clear button's accessible name; the visible label and
       the required marker belong to the FieldShell that wraps this. */
@@ -27,9 +28,13 @@ export function CompanyPicker({
   required?: boolean
   /** Lifts the CRM link so the contact field can offer that company's people. */
   onLink?: (clientCompanyId: string | null) => void
+  /** A company carried over from another mission. With an id it starts linked. */
+  initial?: { name: string; id: string | null }
 }) {
-  const [query, setQuery] = useState("")
-  const [selected, setSelected] = useState<CompanySuggestion | null>(null)
+  const [query, setQuery] = useState(initial?.id ? "" : (initial?.name ?? ""))
+  const [selected, setSelected] = useState<CompanySuggestion | null>(
+    initial?.id ? { id: initial.id, name: initial.name, industry: null } : null
+  )
   const [results, setResults] = useState<CompanySuggestion[]>([])
   const [previousNames, setPreviousNames] = useState<string[]>([])
   const [searching, setSearching] = useState(false)

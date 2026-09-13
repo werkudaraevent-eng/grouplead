@@ -1,10 +1,11 @@
 import Link from "next/link"
 import { notFound, redirect } from "next/navigation"
-import { Building2, CalendarDays, ClipboardList, Mail, MapPin, Phone, UsersRound } from "lucide-react"
+import { Ban, Building2, CalendarDays, ClipboardList, Mail, MapPin, Phone, RotateCcw, UsersRound } from "lucide-react"
 import { canPerform, getSalesMissionAccess } from "@/lib/sales-mission-access"
 import { requireModule } from "@/lib/missions/nav-access"
 import { PersonAvatar } from "@/components/person-avatar"
 import {
+  getCancellation,
   getMission,
   getMissionRole,
   getMissionSettings,
@@ -48,6 +49,7 @@ import {
 import { PushLeadPanel } from "./push-lead"
 import { SupportingNotes } from "./supporting-notes"
 import { CrmSyncStatus } from "./crm-sync-status"
+import { CancelMissionButton } from "./cancel-mission"
 import { visitReachesCrm } from "@/lib/missions/crm-sync"
 
 export const dynamic = "force-dynamic"
@@ -88,11 +90,12 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
   // above only covers one of them. Without these two the reporting module could
   // be revoked — hiding the Laporan screen and refusing the CSV export — and
   // every report would still be readable one mission at a time from here.
-  const [role, canReadReport, canReadContacts, notes] = await Promise.all([
+  const [role, canReadReport, canReadContacts, notes, canCreateMission] = await Promise.all([
     getMissionRole(access, missionId),
     canPerform(access, "sales_mission_result", "read"),
     canPerform(access, "sales_mission_contact", "read"),
     listSupportingNotes(access, missionId),
+    canPerform(access, "sales_mission_mission", "create"),
   ])
   const report = canReadReport ? await getVisitReport(access, missionId) : null
   const [team, settings, allMissions] = await Promise.all([
@@ -100,14 +103,22 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
     getMissionSettings(access),
     listMissions(access),
   ])
-  const [pendingReschedule, salesOptions, schedules] = await Promise.all([
+  const [pendingReschedule, salesOptions, schedules, cancellation] = await Promise.all([
     getPendingReschedule(access, missionId),
     listTenantSales(access),
     listTeamSchedules(access, new Date()),
+    mission.status === "CANCELLED" ? getCancellation(access, missionId) : Promise.resolve(null),
   ])
   const leadEngineUrl = process.env.NEXT_PUBLIC_LEADENGINE_URL?.trim() || null
 
   const isAssigned = role !== null
+  const isCancelled = mission.status === "CANCELLED"
+  // Calling it off before it happens: the primary, whoever scheduled it, or an
+  // admin. Not after the visit is over; that is history.
+  const canCancel =
+    !isCancelled &&
+    mission.status !== "COMPLETED" &&
+    (access.isSuperAdmin || role === "PRIMARY" || mission.createdBy === access.userId)
   const canWriteReport = role === "PRIMARY" || access.isSuperAdmin
   const canManageTeam = role === "PRIMARY" || access.isSuperAdmin
   const reportSubmitted = report?.status === "SUBMITTED"
@@ -153,6 +164,29 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
     >
       <section className="grid gap-4 lg:grid-cols-[1.6fr_1fr]">
         <div className="space-y-4">
+          {isCancelled && (
+            <section className="rounded-xl border border-[var(--danger-foreground)]/25 bg-[var(--danger)] p-5">
+              <h2 className="flex items-center gap-2 text-base font-semibold text-[var(--danger-foreground)]">
+                <Ban className="h-4 w-4" /> Mission dibatalkan
+              </h2>
+              {cancellation && (
+                <p className="mt-1 text-sm text-[var(--danger-foreground)]">
+                  {cancellation.byName}, {formatMissionSchedule(cancellation.at, new Date())}
+                  {cancellation.reason ? `: “${cancellation.reason}”` : "."}
+                </p>
+              )}
+              {canCreateMission && (
+                <div className="mt-4 flex sm:justify-end">
+                  <Button asChild className="h-11">
+                    <Link href={`/workspace/missions/new?from=${missionId}`}>
+                      <RotateCcw className="h-4 w-4" /> Jadwalkan lagi
+                    </Link>
+                  </Button>
+                </div>
+              )}
+            </section>
+          )}
+
           {askedToConfirm && (
             <AssignmentResponsePanel
               missionId={missionId}
@@ -180,6 +214,13 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
                 {mission.objective ?? "Objective belum diisi."}
               </h2>
             </div>
+
+            {canCancel && (
+              <div className="flex items-center justify-between gap-3 border-t bg-muted/30 px-5 py-3">
+                <p className="text-xs text-muted-foreground">Klien membatalkan atau sales berhalangan sebelum berangkat?</p>
+                <CancelMissionButton missionId={missionId} clientName={mission.clientCompanyName} />
+              </div>
+            )}
           </article>
 
           {/*
@@ -405,7 +446,7 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
 
             {/* Once submitted the report is shown in full above, so there is
                 nothing left to open. */}
-            {canReadReport && canWriteReport && !reportSubmitted && (
+            {canReadReport && canWriteReport && !reportSubmitted && !isCancelled && (
               <div className="border-t bg-muted/30 px-5 py-4">
                 {askedToConfirm ? (
                   // A report on a visit the rep has not agreed to make yet is
@@ -451,7 +492,7 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
                       {member.role === "PRIMARY" ? "Sales utama" : "Sales pendukung"}
                     </span>
                   </span>
-                  {canManageTeam && member.role === "SUPPORTING" && (
+                  {canManageTeam && !isCancelled && member.role === "SUPPORTING" && (
                     <RemoveMemberButton missionId={missionId} userId={member.userId} name={member.name} />
                   )}
                 </li>
@@ -462,9 +503,15 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
             </ul>
 
             <div className="flex flex-wrap items-center gap-2 border-t bg-muted/30 px-5 py-4">
-              {role === "SUPPORTING" && <LeaveButton missionId={missionId} />}
-              {role === null && <JoinButton missionId={missionId} status={joinStatus} maxSupporting={settings.maxSupporting} />}
-              {canManageTeam && <AllowJoinToggle missionId={missionId} allowJoin={mission.allowJoin} />}
+              {isCancelled ? (
+                <p className="text-sm text-muted-foreground">Mission dibatalkan; tim tidak bisa diubah lagi.</p>
+              ) : (
+                <>
+                  {role === "SUPPORTING" && <LeaveButton missionId={missionId} />}
+                  {role === null && <JoinButton missionId={missionId} status={joinStatus} maxSupporting={settings.maxSupporting} />}
+                  {canManageTeam && <AllowJoinToggle missionId={missionId} allowJoin={mission.allowJoin} />}
+                </>
+              )}
             </div>
 
             {role === null && blockedReason && (

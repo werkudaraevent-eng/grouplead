@@ -469,6 +469,30 @@ export async function listTeamSchedules(
   return [...people.values()]
 }
 
+/** Why and when a mission was cancelled, from the last CANCELLED history row. */
+export async function getCancellation(
+  access: SalesMissionAccess,
+  missionId: string
+): Promise<{ reason: string | null; byName: string; at: string } | null> {
+  const { supabase, missions } = await missionSchema()
+  const { data } = await missions
+    .from("status_history")
+    .select("reason, changed_by, created_at")
+    .eq("company_id", access.companyId)
+    .eq("mission_id", missionId)
+    .eq("to_status", "CANCELLED")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  if (!data) return null
+  const names = await resolveNames(supabase, [data.changed_by as string])
+  return {
+    reason: (data.reason as string | null) ?? null,
+    byName: names.get(data.changed_by as string) ?? "Nama tidak diketahui",
+    at: data.created_at as string,
+  }
+}
+
 export interface MissionSummary {
   open: number
   today: number

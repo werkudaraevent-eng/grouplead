@@ -11,6 +11,7 @@ export const NOTIFICATION_EVENTS = [
   "MISSION_ASSIGNED",
   "MISSION_JOINED",
   "MISSION_LEFT",
+  "MISSION_CANCELLED",
   "ASSIGNMENT_ACCEPTED",
   "ASSIGNMENT_REJECTED",
   "RESCHEDULE_REQUESTED",
@@ -50,6 +51,8 @@ export function describeEvent(event: NotificationEvent, context: NotificationCon
       return { title: `${context.actorName} bergabung ke mission`, body: `${client}` }
     case "MISSION_LEFT":
       return { title: `${context.actorName} keluar dari mission`, body: `${client}` }
+    case "MISSION_CANCELLED":
+      return { title: "Mission dibatalkan", body: `${client} — oleh ${context.actorName}` }
     case "ASSIGNMENT_ACCEPTED":
       return { title: `${context.actorName} menerima penugasan`, body: `${client}` }
     case "ASSIGNMENT_REJECTED":

@@ -101,12 +101,12 @@ const CORE_SECTIONS: Record<string, string> = {
   client_company: "Kunjungan",
   mission_type: "Kunjungan",
   location: "Kunjungan",
-  date: "Kunjungan",
-  start_time: "Kunjungan",
-  end_time: "Kunjungan",
   objective: "Kunjungan",
   primary_sales: "Tim yang berangkat",
   supporting_sales: "Tim yang berangkat",
+  date: "Jadwal",
+  start_time: "Jadwal",
+  end_time: "Jadwal",
   contact_salutation: "Janji temu",
   contact_name: "Janji temu",
   contact_job_title: "Janji temu",
@@ -119,8 +119,9 @@ const CORE_SECTIONS: Record<string, string> = {
 
 /** One line under each section title saying what the section decides. */
 const SECTION_HINTS: Record<string, string> = {
-  Kunjungan: "Ke mana, kapan, dan untuk apa.",
-  "Tim yang berangkat": "Siapa yang memimpin kunjungan dan siapa yang mendampingi.",
+  Kunjungan: "Ke mana dan untuk apa.",
+  "Tim yang berangkat": "Siapa yang memimpin kunjungan dan siapa yang mendampingi. Kalender di bawah mengikuti jadwal mereka.",
+  Jadwal: "Kunjungan tim yang dipilih tergambar di sini, jadi jam yang diambil tidak bentrok.",
   "Janji temu": "Siapa yang ditemui dan apa yang sudah disepakati saat membuat janji.",
   Tambahan: "Field yang ditambahkan admin unit bisnis ini.",
 }
@@ -276,12 +277,37 @@ function CustomField({ field }: { field: FormField }) {
   )
 }
 
+/**
+ * What a form can start from when it is not blank: a cancelled mission being
+ * rescheduled. Everything but the date carries over, because the client who
+ * called it off usually asked for another day, not a different visit.
+ */
+export interface MissionPrefill {
+  clientCompanyName: string
+  clientCompanyId: string | null
+  missionType: string
+  location: string
+  objective: string
+  primarySalesId: string
+  supportingSalesIds: string[]
+  contactSalutation: string
+  contactId: string
+  contactName: string
+  contactJobTitle: string
+  contactDivision: string
+  contactPhone: string
+  contactEmail: string
+  building: string
+  appointmentNotes: string
+}
+
 export function MissionForm({
   salesOptions,
   defaultDate,
   fields,
   schedules,
   conflictSettings,
+  prefill,
 }: {
   salesOptions: TenantSalesOption[]
   defaultDate: string
@@ -289,16 +315,17 @@ export function MissionForm({
   /** Every member's upcoming visits, so the picker can draw the assignees' days. */
   schedules: PersonSchedule[]
   conflictSettings: ConflictSettings
+  prefill?: MissionPrefill
 }) {
   // On success the action redirects server-side, so this state only ever holds
   // a failure worth showing.
   const [state, formAction, pending] = useActionState<CreateMissionState, FormData>(createMission, null)
 
   // Tracked so the supporting list can exclude whoever is leading the visit.
-  const [primarySalesId, setPrimarySalesId] = useState("")
-  const [supportingIds, setSupportingIds] = useState<string[]>([])
+  const [primarySalesId, setPrimarySalesId] = useState(prefill?.primarySalesId ?? "")
+  const [supportingIds, setSupportingIds] = useState<string[]>(prefill?.supportingSalesIds ?? [])
   const [schedule, setSchedule] = useState<ScheduleValue>({ date: defaultDate, startTime: "09:30", endTime: "" })
-  const [location, setLocation] = useState("")
+  const [location, setLocation] = useState(prefill?.location ?? "")
 
   // The calendars the picker draws: whoever is being sent. Nothing until a
   // primary is chosen, because an empty calendar looks like a free one.
@@ -308,8 +335,19 @@ export function MissionForm({
 
   // The CRM link, lifted out of the company picker so the contact field can
   // offer that company's known people.
-  const [clientCompanyId, setClientCompanyId] = useState<string | null>(null)
-  const [contact, setContact] = useState<ContactDraft>(EMPTY_CONTACT)
+  const [clientCompanyId, setClientCompanyId] = useState<string | null>(prefill?.clientCompanyId ?? null)
+  const [contact, setContact] = useState<ContactDraft>(
+    prefill?.contactName
+      ? {
+          id: prefill.contactId,
+          name: prefill.contactName,
+          jobTitle: prefill.contactJobTitle,
+          phone: prefill.contactPhone,
+          email: prefill.contactEmail,
+          crm: null,
+        }
+      : EMPTY_CONTACT
+  )
 
   const errorRef = useRef<HTMLDivElement>(null)
 
@@ -352,6 +390,7 @@ export function MissionForm({
             <CompanyPicker
               label={field.label}
               required={field.isRequired}
+              initial={prefill ? { name: prefill.clientCompanyName, id: prefill.clientCompanyId } : undefined}
               onLink={(id) => {
                 setClientCompanyId(id)
                 // A different company means a different set of people, so a
@@ -364,7 +403,7 @@ export function MissionForm({
       case "mission_type":
         return (
           <FieldShell field={field} key={field.id}>
-            <select id="field-mission_type" name="missionType" defaultValue={missionTypes[0]} className={SELECT_CLASS}>
+            <select id="field-mission_type" name="missionType" defaultValue={prefill?.missionType && missionTypes.includes(prefill.missionType) ? prefill.missionType : missionTypes[0]} className={SELECT_CLASS}>
               {missionTypes.map((type) => <option key={type} value={type}>{type}</option>)}
             </select>
           </FieldShell>
@@ -376,6 +415,7 @@ export function MissionForm({
               id="field-location"
               required={field.isRequired}
               placeholder={field.placeholder ?? "Jakarta Selatan"}
+              initial={prefill?.location}
               onChange={setLocation}
             />
           </FieldShell>
@@ -404,7 +444,7 @@ export function MissionForm({
       case "objective":
         return (
           <FieldShell field={field} key={field.id}>
-            <Input id="field-objective" name="objective" maxLength={1000} required={field.isRequired} placeholder={field.placeholder ?? "Apa yang ingin dicapai dari kunjungan ini?"} className="h-12" />
+            <Input id="field-objective" name="objective" maxLength={1000} required={field.isRequired} defaultValue={prefill?.objective} placeholder={field.placeholder ?? "Apa yang ingin dicapai dari kunjungan ini?"} className="h-12" />
           </FieldShell>
         )
       case "primary_sales":
@@ -433,7 +473,7 @@ export function MissionForm({
             <select
               id="field-contact_salutation"
               name="contactSalutation"
-              defaultValue=""
+              defaultValue={prefill?.contactSalutation ?? ""}
               required={field.isRequired}
               className={SELECT_CLASS}
             >
@@ -464,7 +504,7 @@ export function MissionForm({
       case "contact_division":
         return (
           <FieldShell field={field} key={field.id}>
-            <Input id="field-contact_division" name="contactDivision" maxLength={150} required={field.isRequired} placeholder={field.placeholder ?? "Marketing, Procurement, dan sebagainya"} className="h-12" />
+            <Input id="field-contact_division" name="contactDivision" maxLength={150} required={field.isRequired} defaultValue={prefill?.contactDivision} placeholder={field.placeholder ?? "Marketing, Procurement, dan sebagainya"} className="h-12" />
           </FieldShell>
         )
       case "contact_phone":
@@ -484,7 +524,7 @@ export function MissionForm({
       case "building":
         return (
           <FieldShell field={field} key={field.id}>
-            <Input id="field-building" name="building" maxLength={300} required={field.isRequired} placeholder={field.placeholder ?? "Menara BCA lt. 21"} className="h-12" />
+            <Input id="field-building" name="building" maxLength={300} required={field.isRequired} defaultValue={prefill?.building} placeholder={field.placeholder ?? "Menara BCA lt. 21"} className="h-12" />
           </FieldShell>
         )
       case "appointment_notes":
@@ -493,6 +533,7 @@ export function MissionForm({
             <textarea
               id="field-appointment_notes"
               name="appointmentNotes"
+              defaultValue={prefill?.appointmentNotes}
               rows={4}
               maxLength={4000}
               required={field.isRequired}

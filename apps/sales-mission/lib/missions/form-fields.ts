@@ -114,12 +114,14 @@ export const CORE_MISSION_FIELDS: Array<
   // config changes nothing on day one and everything after.
   { reportingKey: "mission_type", label: "Jenis mission", fieldType: "SELECT", isRequired: true, displayOrder: 20, options: [...DEFAULT_MISSION_TYPES] },
   { reportingKey: "location", label: "Lokasi", fieldType: "TEXT", isRequired: false, displayOrder: 30 },
-  { reportingKey: "date", label: "Tanggal", fieldType: "DATE", isRequired: true, displayOrder: 40 },
-  { reportingKey: "start_time", label: "Jam mulai", fieldType: "TIME", isRequired: true, displayOrder: 50 },
-  { reportingKey: "end_time", label: "Jam selesai", fieldType: "TIME", isRequired: false, displayOrder: 60 },
-  { reportingKey: "objective", label: "Tujuan kunjungan", fieldType: "TEXT", isRequired: false, displayOrder: 70 },
-  { reportingKey: "primary_sales", label: "Sales utama", fieldType: "SELECT", isRequired: true, displayOrder: 80 },
-  { reportingKey: "supporting_sales", label: "Sales pendukung", fieldType: "MULTI_SELECT", isRequired: false, displayOrder: 90 },
+  { reportingKey: "objective", label: "Tujuan kunjungan", fieldType: "TEXT", isRequired: false, displayOrder: 40 },
+  // Who goes comes before when: the schedule picker draws the calendars of
+  // whoever is being sent, so it has nothing to show until they are chosen.
+  { reportingKey: "primary_sales", label: "Sales utama", fieldType: "SELECT", isRequired: true, displayOrder: 50 },
+  { reportingKey: "supporting_sales", label: "Sales pendukung", fieldType: "MULTI_SELECT", isRequired: false, displayOrder: 60 },
+  { reportingKey: "date", label: "Tanggal", fieldType: "DATE", isRequired: true, displayOrder: 70 },
+  { reportingKey: "start_time", label: "Jam mulai", fieldType: "TIME", isRequired: true, displayOrder: 80 },
+  { reportingKey: "end_time", label: "Jam selesai", fieldType: "TIME", isRequired: false, displayOrder: 90 },
   // Appointment block. Often filled by the appointment team rather than the rep
   // who will attend, so it is the only place the rep learns who they are
   // meeting and what was already agreed.
