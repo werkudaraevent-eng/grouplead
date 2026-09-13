@@ -110,7 +110,8 @@ describe("detectConflict", () => {
 })
 
 describe("resolveJoinStatus", () => {
-  const base = { isAssigned: false, allowJoin: true, supportingCount: 0, maxSupporting: 2, hasConflict: false }
+  const base = { isAssigned: false, allowJoin: true,
+    createdBy: "creator", supportingCount: 0, maxSupporting: 2, hasConflict: false }
 
   it("reports assignment before anything else", () => {
     expect(resolveJoinStatus({ ...base, isAssigned: true, hasConflict: true, allowJoin: false })).toBe("ASSIGNED")

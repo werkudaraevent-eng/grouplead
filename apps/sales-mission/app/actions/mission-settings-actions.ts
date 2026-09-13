@@ -12,6 +12,7 @@ const settingsSchema = z.object({
   allowSameLocationBackToBack: z.boolean(),
   maxSupporting: z.number().int().min(0).max(20),
   requireAssignmentConfirmation: z.boolean(),
+  primaryCanReschedule: z.boolean(),
 })
 
 export type MissionSettingsInput = z.infer<typeof settingsSchema>
@@ -47,6 +48,7 @@ export async function updateMissionSettings(input: unknown): Promise<ActionResul
         allow_same_location_back_to_back: parsed.data.allowSameLocationBackToBack,
         max_supporting_per_mission: parsed.data.maxSupporting,
         require_assignment_confirmation: parsed.data.requireAssignmentConfirmation,
+        primary_can_reschedule: parsed.data.primaryCanReschedule,
         updated_by: access.userId,
         updated_at: new Date().toISOString(),
       },

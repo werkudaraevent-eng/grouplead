@@ -83,6 +83,11 @@ export interface MissionSettings {
    * ulang stay available either way.
    */
   requireAssignmentConfirmation: boolean
+  /**
+   * Whether the primary sales may move their own visit directly. Off means
+   * they propose like everyone else and an admin decides.
+   */
+  primaryCanReschedule: boolean
 }
 
 /**
@@ -99,7 +104,7 @@ export async function getMissionSettings(access: SalesMissionAccess): Promise<Mi
   const { data } = await supabase
     .schema("sales_mission")
     .from("mission_settings")
-    .select("conflict_check_enabled, default_travel_buffer_minutes, allow_same_location_back_to_back, max_supporting_per_mission, require_assignment_confirmation")
+    .select("conflict_check_enabled, default_travel_buffer_minutes, allow_same_location_back_to_back, max_supporting_per_mission, require_assignment_confirmation, primary_can_reschedule")
     .eq("company_id", access.companyId)
     .maybeSingle()
 
@@ -109,6 +114,7 @@ export async function getMissionSettings(access: SalesMissionAccess): Promise<Mi
     allowSameLocationBackToBack: data?.allow_same_location_back_to_back ?? false,
     maxSupporting: data?.max_supporting_per_mission ?? 2,
     requireAssignmentConfirmation: data?.require_assignment_confirmation ?? false,
+    primaryCanReschedule: data?.primary_can_reschedule ?? true,
   }
 }
 
@@ -408,6 +414,59 @@ export async function listTenantSales(access: SalesMissionAccess): Promise<Tenan
       email: row.email ?? null,
       avatarUrl: row.avatar_url?.trim() || null,
     }))
+}
+
+/**
+ * Every active member's upcoming visits, keyed by user, for the schedule
+ * picker. One query for the tenant rather than one per person: the picker
+ * re-reads this as the assignees change and must not cost a round trip each
+ * time.
+ *
+ * Past visits are left out. They cannot clash with a new one, and a rep's
+ * whole history is far more than a picker needs to draw.
+ */
+export async function listTeamSchedules(
+  access: SalesMissionAccess,
+  from: Date
+): Promise<Array<{ userId: string; name: string; blocks: Array<{ missionId: string; scheduledStart: string | null; scheduledEnd: string | null; location: string | null }> }>> {
+  const { supabase, missions } = await missionSchema()
+
+  const { data: missionRows } = await missions
+    .from("missions")
+    .select("id, scheduled_start, scheduled_end, location, status")
+    .eq("company_id", access.companyId)
+    .not("status", "in", "(CANCELLED,REJECTED)")
+    .gte("scheduled_start", new Date(from.getTime() - 24 * 3600 * 1000).toISOString())
+
+  if (!missionRows?.length) return []
+
+  const { data: assignmentRows } = await missions
+    .from("assignments")
+    .select("mission_id, user_id")
+    .eq("company_id", access.companyId)
+    .in("mission_id", missionRows.map((row) => row.id))
+    // A declined assignment is not a commitment on that person's calendar.
+    .neq("response", "REJECTED")
+
+  const byMission = new Map(missionRows.map((row) => [row.id as string, row]))
+  const names = await resolveNames(supabase, (assignmentRows ?? []).map((row) => row.user_id as string))
+
+  const people = new Map<string, { userId: string; name: string; blocks: Array<{ missionId: string; scheduledStart: string | null; scheduledEnd: string | null; location: string | null }> }>()
+  for (const row of assignmentRows ?? []) {
+    const mission = byMission.get(row.mission_id as string)
+    if (!mission) continue
+    const userId = row.user_id as string
+    const person = people.get(userId) ?? { userId, name: names.get(userId) ?? "Nama tidak diketahui", blocks: [] }
+    person.blocks.push({
+      missionId: mission.id as string,
+      scheduledStart: (mission.scheduled_start as string | null) ?? null,
+      scheduledEnd: (mission.scheduled_end as string | null) ?? null,
+      location: (mission.location as string | null) ?? null,
+    })
+    people.set(userId, person)
+  }
+
+  return [...people.values()]
 }
 
 export interface MissionSummary {

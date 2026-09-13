@@ -23,6 +23,7 @@ function mission(id: string, scheduledStart: string | null): MissionListItem {
     primarySalesName: null,
     supportingSalesNames: [],
     allowJoin: true,
+    createdBy: "creator",
     appointment: {
       salutation: null,
       contactId: null,

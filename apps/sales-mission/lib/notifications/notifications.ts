@@ -16,6 +16,7 @@ export const NOTIFICATION_EVENTS = [
   "RESCHEDULE_REQUESTED",
   "RESCHEDULE_APPROVED",
   "RESCHEDULE_REJECTED",
+  "MISSION_RESCHEDULED",
   "RESULT_SUBMITTED",
   "NEEDS_CLARIFICATION",
   "LEAD_PUSHED",
@@ -59,6 +60,8 @@ export function describeEvent(event: NotificationEvent, context: NotificationCon
       return { title: "Jadwal mission diubah", body: `${client} — disetujui oleh ${context.actorName}` }
     case "RESCHEDULE_REJECTED":
       return { title: "Permintaan jadwal ulang ditolak", body: `${client} — diputuskan oleh ${context.actorName}` }
+    case "MISSION_RESCHEDULED":
+      return { title: "Jadwal mission dipindahkan", body: `${client} — oleh ${context.actorName}` }
     case "RESULT_SUBMITTED":
       return { title: `${context.actorName} mengirim laporan kunjungan`, body: `${client}` }
     case "NEEDS_CLARIFICATION":

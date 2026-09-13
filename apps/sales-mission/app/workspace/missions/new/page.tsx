@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation"
 import { canPerform, getSalesMissionAccess } from "@/lib/sales-mission-access"
-import { listTenantSales } from "@/lib/missions/mission-queries"
+import { getMissionSettings, listTeamSchedules, listTenantSales } from "@/lib/missions/mission-queries"
 import { listFormFields } from "@/lib/missions/form-field-queries"
 import { MISSION_TIME_ZONE } from "@/lib/missions/mission-schema"
 import { BackLink, WorkspacePage } from "@/app/workspace/workspace-page"
@@ -16,9 +16,12 @@ export default async function NewMissionPage() {
     redirect("/workspace/missions")
   }
 
-  const [salesOptions, fields] = await Promise.all([
+  const now = new Date()
+  const [salesOptions, fields, schedules, settings] = await Promise.all([
     listTenantSales(access),
     listFormFields(access, "mission"),
+    listTeamSchedules(access, now),
+    getMissionSettings(access),
   ])
   // Default to today in Werkudara's timezone, not the server's.
   const defaultDate = new Intl.DateTimeFormat("en-CA", { timeZone: MISSION_TIME_ZONE }).format(new Date())
@@ -30,7 +33,13 @@ export default async function NewMissionPage() {
       description="Catat kunjungan yang sudah pasti, lalu tentukan sales yang berangkat."
       action={<BackLink />}
     >
-      <MissionForm salesOptions={salesOptions} defaultDate={defaultDate} fields={fields} />
+      <MissionForm
+        salesOptions={salesOptions}
+        defaultDate={defaultDate}
+        fields={fields}
+        schedules={schedules}
+        conflictSettings={settings}
+      />
     </WorkspacePage>
   )
 }

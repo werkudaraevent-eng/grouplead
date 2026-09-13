@@ -223,6 +223,8 @@ export interface MissionListItem {
   supportingSalesNames: string[]
   /** Primary can close a sensitive meeting to further joiners. */
   allowJoin: boolean
+  /** Who scheduled it, so a moved visit reaches the appointment team too. */
+  createdBy: string
   /** Who the appointment is with. Empty on missions booked before this existed. */
   appointment: MissionAppointment
   supportingCount: number
@@ -278,6 +280,7 @@ export function mapMissions(
       scheduledEnd: mission.scheduled_end,
       // Missions created before the column existed default to open.
       allowJoin: mission.allow_join !== false,
+      createdBy: mission.created_by,
       appointment: {
         salutation: mission.contact_salutation ?? null,
         contactId: mission.contact_id ?? null,

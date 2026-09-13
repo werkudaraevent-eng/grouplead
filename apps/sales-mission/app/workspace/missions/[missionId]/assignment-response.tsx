@@ -4,18 +4,17 @@ import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { CalendarClock, Check, Loader2, X } from "lucide-react"
-import {
-  decideReschedule,
-  requestReschedule,
-  respondToAssignment,
-} from "@/app/actions/assignment-actions"
+import { decideReschedule, respondToAssignment } from "@/app/actions/assignment-actions"
 import { RESPONSE_LABELS } from "@/lib/missions/assignment-workflow"
 import { MISSION_TIME_ZONE } from "@/lib/missions/mission-schema"
+import type { ConflictSettings } from "@/lib/missions/mission-join"
+import type { PersonSchedule } from "@/lib/missions/schedule-availability"
 import type { PendingReschedule } from "@/lib/missions/mission-queries"
 import type { AssignmentResponse } from "@/lib/missions/mission-schema"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+import { ReschedulePanel } from "./reschedule-panel"
+import type { ScheduleValue } from "@/app/workspace/missions/new/schedule-picker"
 
 function formatProposed(iso: string) {
   return new Intl.DateTimeFormat("id-ID", {
@@ -28,35 +27,49 @@ function formatProposed(iso: string) {
   }).format(new Date(iso))
 }
 
+/** What the reschedule button does for this viewer, and what the picker needs. */
+export interface RescheduleOptions {
+  /** "move" writes the schedule; "propose" files a request for someone to decide. */
+  mode: "move" | "propose"
+  initial: ScheduleValue
+  people: PersonSchedule[]
+  settings: ConflictSettings
+  location: string | null
+}
+
 /**
- * Your own answer to an assignment, plus the reschedule proposal form.
- *
- * Sales cannot edit an agreed schedule directly — the client accepted a time.
- * They propose a replacement with a reason and someone decides.
+ * Your own answer to an assignment, plus the way to change its time.
  *
  * Two shapes. As a `banner` it is the first thing on the page while an
  * answer is owed: title, the one sentence that matters, and Terima as the
  * filled button at the trailing edge with the alternatives beside it. Inline,
  * it is the quieter form that lives in the Penugasan card once the answer is
- * given, or when the tenant never asks for one and only Tolak and Minta
- * jadwal ulang remain.
+ * given, or when the tenant never asks for one and only Tolak and the
+ * schedule remain.
+ *
+ * The schedule button's verb follows `reschedule.mode`. A primary who may
+ * move the visit sees "Pindahkan jadwal" and does it; everyone else sees
+ * "Usulkan jadwal lain" and files a request. The old shape asked the primary
+ * to request a change from themselves and then approve it.
  */
 export function AssignmentResponsePanel({
   missionId,
   myResponse,
-  defaultDate,
+  reschedule,
   banner = false,
   confirmationRequired = true,
+  scheduleOnly = false,
 }: {
   missionId: string
   myResponse: AssignmentResponse
-  defaultDate: string
+  reschedule: RescheduleOptions
   banner?: boolean
   confirmationRequired?: boolean
+  /** An admin who is not on the team: only the schedule is theirs to change. */
+  scheduleOnly?: boolean
 }) {
   const [pending, start] = useTransition()
   const [showForm, setShowForm] = useState(false)
-  const [form, setForm] = useState({ date: defaultDate, startTime: "09:30", endTime: "", reason: "" })
   const router = useRouter()
 
   const respond = (response: "ACCEPTED" | "REJECTED") => {
@@ -71,54 +84,21 @@ export function AssignmentResponsePanel({
     })
   }
 
-  const submitReschedule = () => {
-    start(async () => {
-      const result = await requestReschedule(missionId, form)
-      if (result.success) {
-        toast.success("Permintaan jadwal ulang terkirim")
-        setShowForm(false)
-        router.refresh()
-      } else {
-        toast.error(result.error ?? "Permintaan gagal dikirim")
-      }
-    })
-  }
+  const rescheduleLabel = reschedule.mode === "move" ? "Pindahkan jadwal" : "Usulkan jadwal lain"
 
   const rescheduleForm = showForm && (
-        <div className="space-y-4 rounded-lg border bg-muted/30 p-4">
-          <div className="grid gap-3 sm:grid-cols-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="rs-date">Tanggal usulan</Label>
-              <Input id="rs-date" className="h-11" type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="rs-start">Jam mulai</Label>
-              <Input id="rs-start" className="h-11" type="time" value={form.startTime} onChange={(e) => setForm({ ...form, startTime: e.target.value })} />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="rs-end">Jam selesai</Label>
-              <Input id="rs-end" className="h-11" type="time" value={form.endTime} onChange={(e) => setForm({ ...form, endTime: e.target.value })} />
-            </div>
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="rs-reason">Alasan</Label>
-            <textarea
-              id="rs-reason"
-              rows={3}
-              maxLength={1000}
-              value={form.reason}
-              onChange={(e) => setForm({ ...form, reason: e.target.value })}
-              placeholder="Kenapa jadwalnya perlu diubah?"
-              className="w-full rounded-md border border-input bg-field px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
-            />
-          </div>
-
-          <Button size="sm" disabled={pending || !form.reason.trim()} onClick={submitReschedule}>
-            {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <CalendarClock className="h-4 w-4" />}
-            Kirim permintaan
-          </Button>
-        </div>
+    <div className="rounded-lg border bg-muted/30 p-4">
+      <p className="mb-3 text-sm font-semibold text-foreground">{rescheduleLabel}</p>
+      <ReschedulePanel
+        missionId={missionId}
+        mode={reschedule.mode}
+        initial={reschedule.initial}
+        people={reschedule.people}
+        settings={reschedule.settings}
+        location={reschedule.location}
+        onDone={() => setShowForm(false)}
+      />
+    </div>
   )
 
   const rescheduleButton = (
@@ -129,7 +109,7 @@ export function AssignmentResponsePanel({
       onClick={() => setShowForm((value) => !value)}
       className={banner ? "h-11" : undefined}
     >
-      <CalendarClock className="h-4 w-4" /> Minta jadwal ulang
+      <CalendarClock className="h-4 w-4" /> {rescheduleLabel}
     </Button>
   )
 
@@ -155,7 +135,7 @@ export function AssignmentResponsePanel({
           Anda ditugaskan pada mission ini
         </h2>
         <p className="mt-1 text-sm text-[var(--warning-foreground)]">
-          Terima kalau Anda bisa berangkat. Kalau tidak, tolak atau usulkan waktu lain.
+          Terima kalau Anda bisa berangkat. Kalau tidak, tolak atau ubah waktunya.
         </p>
         {/* Primary at the trailing edge; on a phone it sits lowest, nearest
             the thumb, which is what the column-reverse does below sm. */}
@@ -172,6 +152,16 @@ export function AssignmentResponsePanel({
     )
   }
 
+  if (scheduleOnly) {
+    return (
+      <div className="space-y-4">
+        <p className="text-sm text-muted-foreground">Anda bisa memindahkan jadwal mission ini sebagai admin. Tim akan diberi tahu.</p>
+        <div className="flex flex-wrap gap-2">{rescheduleButton}</div>
+        {rescheduleForm}
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-4">
       {confirmationRequired ? (
@@ -183,8 +173,10 @@ export function AssignmentResponsePanel({
           {myResponse === "REJECTED"
             ? "Anda menolak penugasan ini."
             : myResponse === "RESCHEDULE_REQUESTED"
-              ? "Permintaan jadwal ulang Anda menunggu keputusan."
-              : "Penugasan ini milik Anda. Kalau berhalangan, tolak atau usulkan waktu lain."}
+              ? "Usulan jadwal Anda menunggu keputusan."
+              : reschedule.mode === "move"
+                ? "Penugasan ini milik Anda. Kalau waktunya berubah, pindahkan jadwalnya; kalau berhalangan, tolak."
+                : "Penugasan ini milik Anda. Kalau berhalangan, tolak atau usulkan waktu lain."}
         </p>
       )}
 
@@ -198,8 +190,8 @@ export function AssignmentResponsePanel({
             {myResponse === "REJECTED" ? "Terima kembali" : "Terima"}
           </Button>
         )}
-        {rejectButton}
         {rescheduleButton}
+        {rejectButton}
       </div>
 
       {rescheduleForm}
@@ -208,7 +200,13 @@ export function AssignmentResponsePanel({
 }
 
 /** The decision surface for an open request. Primary or admin only. */
-export function RescheduleDecision({ request }: { request: PendingReschedule }) {
+export function RescheduleDecision({
+  request,
+  confirmationRequired,
+}: {
+  request: PendingReschedule
+  confirmationRequired: boolean
+}) {
   const [pending, start] = useTransition()
   const [note, setNote] = useState("")
   const router = useRouter()
@@ -217,7 +215,7 @@ export function RescheduleDecision({ request }: { request: PendingReschedule }) 
     start(async () => {
       const result = await decideReschedule(request.id, decision, note)
       if (result.success) {
-        toast.success(decision === "APPROVED" ? "Jadwal diperbarui" : "Permintaan ditolak")
+        toast.success(decision === "APPROVED" ? "Jadwal diperbarui" : "Usulan ditolak")
         router.refresh()
       } else {
         toast.error(result.error ?? "Keputusan gagal disimpan")
@@ -229,7 +227,7 @@ export function RescheduleDecision({ request }: { request: PendingReschedule }) 
     <div className="space-y-4 rounded-lg border border-[var(--warning-foreground)]/20 bg-[var(--warning)] p-4">
       <div>
         <p className="text-sm font-semibold text-[var(--warning-foreground)]">
-          {request.requestedByName} meminta jadwal ulang
+          {request.requestedByName} mengusulkan jadwal lain
         </p>
         <p className="mt-1 text-sm text-[var(--warning-foreground)]">
           Usulan: <strong>{formatProposed(request.proposedStart)}</strong>
@@ -239,7 +237,7 @@ export function RescheduleDecision({ request }: { request: PendingReschedule }) 
       </div>
 
       <Input
-        className="h-10 bg-white"
+        className="h-10 bg-card"
         value={note}
         onChange={(event) => setNote(event.target.value)}
         placeholder="Catatan keputusan (opsional)"
@@ -250,13 +248,15 @@ export function RescheduleDecision({ request }: { request: PendingReschedule }) 
           {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
           Setujui &amp; pindahkan jadwal
         </Button>
-        <Button size="sm" variant="outline" className="bg-white" disabled={pending} onClick={() => decide("REJECTED")}>
+        <Button size="sm" variant="outline" className="bg-card" disabled={pending} onClick={() => decide("REJECTED")}>
           <X className="h-4 w-4" /> Tolak
         </Button>
       </div>
 
       <p className="text-xs text-[var(--warning-foreground)]/80">
-        Menyetujui memindahkan jadwal dan mengembalikan jawaban tim ke &ldquo;menunggu&rdquo; — waktu yang mereka setujui sudah berubah.
+        {confirmationRequired
+          ? "Menyetujui memindahkan jadwal dan meminta tim mengonfirmasi lagi, karena waktu yang mereka setujui sudah berubah."
+          : "Menyetujui memindahkan jadwal. Tim diberi tahu waktu barunya."}
       </p>
     </div>
   )

@@ -13,6 +13,7 @@ import {
   listMissionTeam,
   listMissions,
   listSupportingNotes,
+  listTeamSchedules,
   listTenantSales,
 } from "@/lib/missions/mission-queries"
 import { annotateJoinStatus, joinBlockedReason } from "@/lib/missions/mission-join"
@@ -20,7 +21,9 @@ import { awaitsConfirmation, canRespond } from "@/lib/missions/assignment-workfl
 import {
   AssignmentResponsePanel,
   RescheduleDecision,
+  type RescheduleOptions,
 } from "./assignment-response"
+import type { PersonSchedule } from "@/lib/missions/schedule-availability"
 import {
   formatContactName,
   formatMissionSchedule,
@@ -97,9 +100,10 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
     getMissionSettings(access),
     listMissions(access),
   ])
-  const [pendingReschedule, salesOptions] = await Promise.all([
+  const [pendingReschedule, salesOptions, schedules] = await Promise.all([
     getPendingReschedule(access, missionId),
     listTenantSales(access),
+    listTeamSchedules(access, new Date()),
   ])
   const leadEngineUrl = process.env.NEXT_PUBLIC_LEADENGINE_URL?.trim() || null
 
@@ -117,11 +121,28 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
   // The one thing this page asks of the viewer while confirmation is on. It
   // leads the page; nothing below it is what they came here for until then.
   const askedToConfirm = isAssigned && awaitsConfirmation(myResponse, settings) && canRespond(mission.status)
-  // Seed the reschedule form with the mission's own day rather than today, so
-  // the common case of nudging a visit by an hour needs one field changed.
-  const defaultRescheduleDate = mission.scheduledStart
-    ? new Intl.DateTimeFormat("en-CA", { timeZone: MISSION_TIME_ZONE }).format(new Date(mission.scheduledStart))
-    : new Intl.DateTimeFormat("en-CA", { timeZone: MISSION_TIME_ZONE }).format(new Date())
+  // Seed the reschedule picker with the mission's own slot rather than today,
+  // so the common case of nudging a visit by an hour needs one change.
+  const wib = (iso: string, opts: Intl.DateTimeFormatOptions) =>
+    new Intl.DateTimeFormat("en-GB", { timeZone: MISSION_TIME_ZONE, hour12: false, ...opts }).format(new Date(iso))
+  const rescheduleInitial = {
+    date: mission.scheduledStart
+      ? new Intl.DateTimeFormat("en-CA", { timeZone: MISSION_TIME_ZONE }).format(new Date(mission.scheduledStart))
+      : new Intl.DateTimeFormat("en-CA", { timeZone: MISSION_TIME_ZONE }).format(new Date()),
+    startTime: mission.scheduledStart ? wib(mission.scheduledStart, { hour: "2-digit", minute: "2-digit" }) : "09:30",
+    endTime: mission.scheduledEnd ? wib(mission.scheduledEnd, { hour: "2-digit", minute: "2-digit" }) : "",
+  }
+  // The primary moves the visit directly when the tenant allows it, as does
+  // an admin; everyone else proposes. The picker sees the whole team's
+  // calendars either way, so nobody picks a time blind.
+  const teamIds = new Set(team.map((member) => member.userId))
+  const reschedule: RescheduleOptions = {
+    mode: access.isSuperAdmin || (role === "PRIMARY" && settings.primaryCanReschedule) ? "move" : "propose",
+    initial: rescheduleInitial,
+    people: schedules.filter((person): person is PersonSchedule => teamIds.has(person.userId)),
+    settings,
+    location: mission.location,
+  }
 
   return (
     <WorkspacePage
@@ -136,7 +157,7 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
             <AssignmentResponsePanel
               missionId={missionId}
               myResponse={myResponse}
-              defaultDate={defaultRescheduleDate}
+              reschedule={reschedule}
               banner
             />
           )}
@@ -225,7 +246,7 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
             decline or propose another time. `id` lets the list's overflow menu
             deep-link here.
           */}
-          {((isAssigned && !askedToConfirm) || pendingReschedule) && (
+          {((isAssigned && !askedToConfirm) || pendingReschedule || access.isSuperAdmin) && canRespond(mission.status) && (
             <article id="jawaban" className="overflow-hidden rounded-xl border bg-card">
               <div className="border-b px-5 py-4">
                 <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Penugasan</p>
@@ -234,11 +255,18 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
                 </h2>
               </div>
               <div className="space-y-5 px-5 py-5">
-                {pendingReschedule && canManageTeam && <RescheduleDecision request={pendingReschedule} />}
+                {/* A proposal is decided by someone other than its author. The
+                    primary decides a supporting sales' proposal; an admin
+                    decides the primary's, when the tenant makes them propose. */}
+                {pendingReschedule && canManageTeam && pendingReschedule.requestedById !== access.userId && (
+                  <RescheduleDecision request={pendingReschedule} confirmationRequired={settings.requireAssignmentConfirmation} />
+                )}
 
-                {pendingReschedule && !canManageTeam && (
+                {pendingReschedule && (!canManageTeam || pendingReschedule.requestedById === access.userId) && (
                   <p className="rounded-lg border border-dashed px-4 py-3 text-sm text-muted-foreground">
-                    {pendingReschedule.requestedByName} meminta jadwal ulang. Menunggu keputusan sales utama atau admin.
+                    {pendingReschedule.requestedById === access.userId
+                      ? "Usulan jadwal Anda menunggu keputusan admin."
+                      : `${pendingReschedule.requestedByName} mengusulkan jadwal lain. Menunggu keputusan sales utama atau admin.`}
                   </p>
                 )}
 
@@ -246,8 +274,20 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
                   <AssignmentResponsePanel
                     missionId={missionId}
                     myResponse={myResponse}
-                    defaultDate={defaultRescheduleDate}
+                    reschedule={reschedule}
                     confirmationRequired={settings.requireAssignmentConfirmation}
+                  />
+                )}
+
+                {/* An admin who is not on the team still needs a way to move
+                    the visit; before this the only path was through a rep. */}
+                {!isAssigned && access.isSuperAdmin && canRespond(mission.status) && (
+                  <AssignmentResponsePanel
+                    missionId={missionId}
+                    myResponse="ACCEPTED"
+                    reschedule={reschedule}
+                    confirmationRequired={false}
+                    scheduleOnly
                   />
                 )}
 

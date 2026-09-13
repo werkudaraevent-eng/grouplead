@@ -77,6 +77,13 @@ export function MissionSettingsForm({ initial }: { initial: MissionSettings }) {
             checked={form.requireAssignmentConfirmation}
             onChange={(next) => setForm({ ...form, requireAssignmentConfirmation: next })}
           />
+          <SwitchRow
+            id="primary-reschedule"
+            label="Sales utama bisa memindahkan jadwal sendiri"
+            hint="Nyala: sales utama memindahkan jadwal langsung dan tim diberi tahu. Mati: sales utama mengusulkan seperti yang lain, admin yang memutuskan. Sales pendukung selalu mengusulkan."
+            checked={form.primaryCanReschedule}
+            onChange={(next) => setForm({ ...form, primaryCanReschedule: next })}
+          />
           <div className="grid gap-2 px-5 py-4 sm:grid-cols-[1fr_8rem] sm:items-center">
             <div>
               <Label htmlFor="max-supporting" className="text-sm font-semibold text-foreground">Maksimal sales pendukung per mission</Label>

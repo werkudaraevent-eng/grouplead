@@ -18,10 +18,13 @@ export function LocationPicker({
   id,
   required,
   placeholder,
+  onChange,
 }: {
   id: string
   required: boolean
   placeholder: string
+  /** Lifted so the schedule picker can waive the travel buffer for a same-building visit. */
+  onChange?: (value: string) => void
 }) {
   const [query, setQuery] = useState("")
   const [results, setResults] = useState<LocationSuggestion[]>([])
@@ -75,7 +78,7 @@ export function LocationPicker({
         autoComplete="off"
         placeholder={placeholder}
         value={query}
-        onChange={(event) => setQuery(event.target.value)}
+        onChange={(event) => { setQuery(event.target.value); onChange?.(event.target.value) }}
         onFocus={() => { if (results.length > 0) setOpen(true) }}
         className="h-12 pr-10"
       />
@@ -96,6 +99,7 @@ export function LocationPicker({
                 onClick={() => {
                   justPicked.current = true
                   setQuery(location.value)
+                  onChange?.(location.value)
                   setOpen(false)
                 }}
                 className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left transition-colors hover:bg-muted"

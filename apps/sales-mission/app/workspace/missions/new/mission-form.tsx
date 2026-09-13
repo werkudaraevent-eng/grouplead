@@ -21,6 +21,9 @@ import { CompanyPicker } from "./company-picker"
 import { PeopleMultiPicker, PersonPicker } from "./people-picker"
 import { ContactPicker, EMPTY_CONTACT, type ContactDraft } from "./contact-picker"
 import { LocationPicker } from "./location-picker"
+import { SchedulePicker, type ScheduleValue } from "./schedule-picker"
+import type { ConflictSettings } from "@/lib/missions/mission-join"
+import type { PersonSchedule } from "@/lib/missions/schedule-availability"
 
 /**
  * Mission form, rendered from the tenant's field configuration.
@@ -68,9 +71,9 @@ const CORE_SPANS: Record<string, Span> = {
   client_company: "full",
   mission_type: "half",
   location: "half",
-  date: "third",
-  start_time: "third",
-  end_time: "third",
+  date: "full",
+  start_time: "full",
+  end_time: "full",
   objective: "full",
   primary_sales: "half",
   supporting_sales: "full",
@@ -277,10 +280,15 @@ export function MissionForm({
   salesOptions,
   defaultDate,
   fields,
+  schedules,
+  conflictSettings,
 }: {
   salesOptions: TenantSalesOption[]
   defaultDate: string
   fields: FormField[]
+  /** Every member's upcoming visits, so the picker can draw the assignees' days. */
+  schedules: PersonSchedule[]
+  conflictSettings: ConflictSettings
 }) {
   // On success the action redirects server-side, so this state only ever holds
   // a failure worth showing.
@@ -289,6 +297,14 @@ export function MissionForm({
   // Tracked so the supporting list can exclude whoever is leading the visit.
   const [primarySalesId, setPrimarySalesId] = useState("")
   const [supportingIds, setSupportingIds] = useState<string[]>([])
+  const [schedule, setSchedule] = useState<ScheduleValue>({ date: defaultDate, startTime: "09:30", endTime: "" })
+  const [location, setLocation] = useState("")
+
+  // The calendars the picker draws: whoever is being sent. Nothing until a
+  // primary is chosen, because an empty calendar looks like a free one.
+  const assignedPeople = [primarySalesId, ...supportingIds]
+    .map((id) => schedules.find((person) => person.userId === id))
+    .filter((person): person is PersonSchedule => Boolean(person))
 
   // The CRM link, lifted out of the company picker so the contact field can
   // offer that company's known people.
@@ -360,27 +376,31 @@ export function MissionForm({
               id="field-location"
               required={field.isRequired}
               placeholder={field.placeholder ?? "Jakarta Selatan"}
+              onChange={setLocation}
             />
           </FieldShell>
         )
-      case "date":
+      case "date": {
+        // One picker answers date, start and end together; the two time
+        // fields below render nothing so the admin's ordering still holds.
+        const endField = fields.find((item) => item.reportingKey === "end_time")
         return (
-          <FieldShell field={field} key={field.id}>
-            <Input id="field-date" name="date" type="date" required defaultValue={defaultDate} className="h-12" />
+          <FieldShell field={field} key={field.id} as="group">
+            <SchedulePicker
+              value={schedule}
+              onChange={setSchedule}
+              people={assignedPeople}
+              settings={conflictSettings}
+              location={location || null}
+              now={new Date()}
+              endRequired={endField?.isRequired ?? false}
+            />
           </FieldShell>
         )
+      }
       case "start_time":
-        return (
-          <FieldShell field={field} key={field.id}>
-            <Input id="field-start_time" name="startTime" type="time" required defaultValue="09:30" className="h-12" />
-          </FieldShell>
-        )
       case "end_time":
-        return (
-          <FieldShell field={field} key={field.id}>
-            <Input id="field-end_time" name="endTime" type="time" required={field.isRequired} className="h-12" />
-          </FieldShell>
-        )
+        return null
       case "objective":
         return (
           <FieldShell field={field} key={field.id}>

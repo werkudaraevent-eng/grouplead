@@ -15,6 +15,7 @@ function mission(overrides: Partial<MissionListItem> & { id: string }): MissionL
     primarySalesName: "Wg, Hanung",
     supportingSalesNames: [],
     allowJoin: true,
+    createdBy: "creator",
     supportingCount: 0,
     viewerRole: null,
     viewerResponse: null,

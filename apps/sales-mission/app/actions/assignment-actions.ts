@@ -496,6 +496,120 @@ export async function decideReschedule(
   return { success: true }
 }
 
+/**
+ * Move the visit to a new time, directly.
+ *
+ * For the primary (when the tenant allows it) and for admins. The client
+ * called the primary, not the system; making them file a request with
+ * themselves and then approve it was the flow this replaces.
+ *
+ * Under a confirmation policy the rest of the team is re-asked, because the
+ * time they accepted no longer exists. The mover keeps their acceptance. Any
+ * open reschedule request on the mission is closed as superseded: the
+ * schedule it argued about is gone.
+ */
+export async function rescheduleMission(missionId: string, input: unknown): Promise<ActionResult> {
+  const access = await getSalesMissionAccess()
+  if (!access) return { success: false, error: "Anda tidak punya akses Sales Mission." }
+  if (!(await canPerform(access, "sales_mission_mission", "update"))) return NO_MISSION_WRITE
+
+  const [role, settings] = await Promise.all([getMissionRole(access, missionId), getMissionSettings(access)])
+  const mayMove = access.isSuperAdmin || (role === "PRIMARY" && settings.primaryCanReschedule)
+  if (!mayMove) {
+    return {
+      success: false,
+      error: role === "PRIMARY"
+        ? "Unit bisnis ini meminta jadwal ulang lewat usulan. Gunakan Minta jadwal ulang."
+        : "Hanya sales utama atau admin yang bisa memindahkan jadwal.",
+    }
+  }
+
+  const parsed = rescheduleRequestSchema.safeParse(input)
+  if (!parsed.success) {
+    return { success: false, error: parsed.error.issues[0]?.message ?? "Jadwal tidak valid." }
+  }
+
+  const supabase = await createClient()
+  const schema = supabase.schema("sales_mission")
+
+  const { data: mission } = await schema
+    .from("missions")
+    .select("status, scheduled_start")
+    .eq("id", missionId)
+    .eq("company_id", access.companyId)
+    .maybeSingle()
+  if (!mission) return { success: false, error: "Mission tidak ditemukan." }
+  if (!canRespond(mission.status as MissionStatus)) {
+    return { success: false, error: "Jadwal mission ini sudah tidak bisa diubah." }
+  }
+
+  const now = new Date().toISOString()
+  const { error } = await schema
+    .from("missions")
+    .update({
+      scheduled_start: toMissionTimestamp(parsed.data.date, parsed.data.startTime),
+      scheduled_end: parsed.data.endTime ? toMissionTimestamp(parsed.data.date, parsed.data.endTime) : null,
+      updated_at: now,
+    })
+    .eq("id", missionId)
+    .eq("company_id", access.companyId)
+  if (error) return { success: false, error: "Jadwal gagal dipindahkan." }
+
+  // A proposal still open on the old schedule has nothing left to decide.
+  await schema
+    .from("reschedule_requests")
+    .update({ status: "REJECTED", decided_by: access.userId, decided_at: now, decision_note: "Jadwal dipindahkan langsung" })
+    .eq("mission_id", missionId)
+    .eq("company_id", access.companyId)
+    .eq("status", "PENDING")
+
+  const { data: assignmentRows } = await schema
+    .from("assignments")
+    .select("user_id, assignment_role, response")
+    .eq("company_id", access.companyId)
+    .eq("mission_id", missionId)
+  const assignments = (assignmentRows ?? []).map((row) => ({
+    userId: row.user_id as string,
+    role: row.assignment_role as "PRIMARY" | "SUPPORTING",
+    response: row.response as AssignmentResponse,
+  }))
+
+  // Same rule as an approved proposal: the mover's own answer stands, the
+  // others follow the tenant's confirmation policy.
+  const outcome = applyRescheduleApproval(assignments, access.userId, settings)
+  for (const item of outcome.responses) {
+    await schema
+      .from("assignments")
+      .update({ response: item.response, responded_at: now })
+      .eq("mission_id", missionId)
+      .eq("company_id", access.companyId)
+      .eq("user_id", item.userId)
+  }
+
+  await syncMissionStatus(
+    schema,
+    access.companyId,
+    missionId,
+    access.userId,
+    `${access.displayName} memindahkan jadwal: ${parsed.data.reason.trim()}`
+  )
+
+  const moved = await getMission(access, missionId)
+  await notify(
+    access,
+    "MISSION_RESCHEDULED",
+    [...assignments.map((item) => item.userId), moved?.createdBy ?? ""].filter(Boolean),
+    { missionId, clientName: moved?.clientCompanyName ?? "Mission" }
+  )
+
+  revalidatePath("/workspace")
+  revalidatePath("/workspace/missions")
+  revalidatePath("/workspace/calendar")
+  revalidatePath(`/workspace/missions/${missionId}`)
+
+  return { success: true }
+}
+
 /** Open or close a mission to further joiners. Primary's call. */
 export async function setMissionAllowJoin(missionId: string, allowJoin: boolean): Promise<ActionResult> {
   const access = await getSalesMissionAccess()
