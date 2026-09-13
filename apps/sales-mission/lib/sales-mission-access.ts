@@ -4,6 +4,8 @@ export interface SalesMissionAccess {
   userId: string
   companyId: string
   displayName: string
+  /** Same `profiles.avatar_url` LeadEngine shows; the bucket is public. */
+  avatarUrl: string | null
   /** Bypasses mission-level ownership checks. Sourced from `profiles.role`. */
   isSuperAdmin: boolean
 }
@@ -25,7 +27,7 @@ export async function getSalesMissionAccess(): Promise<SalesMissionAccess | null
   const [profileResult, membershipResult] = await Promise.all([
     supabase
       .from("profiles")
-      .select("is_active, role, role_id, full_name")
+      .select("is_active, role, role_id, full_name, avatar_url")
       .eq("id", user.id)
       .maybeSingle(),
     supabase
@@ -46,11 +48,12 @@ export async function getSalesMissionAccess(): Promise<SalesMissionAccess | null
   // not used: a handed-down account would keep overwriting the corrected name
   // with the previous holder's.
   const displayName = profile.full_name?.trim() || user.email?.trim() || "Unknown user"
+  const avatarUrl = profile.avatar_url?.trim() || null
 
   const globalRole = (profile.role ?? "").toLowerCase().replace(/\s+/g, "_")
   const isSuperAdmin = globalRole === "super_admin"
   if (isSuperAdmin) {
-    return { userId: user.id, companyId: membership.company_id, displayName, isSuperAdmin }
+    return { userId: user.id, companyId: membership.company_id, displayName, avatarUrl, isSuperAdmin }
   }
 
   let permission: { can_read: string } | null = null
@@ -84,7 +87,7 @@ export async function getSalesMissionAccess(): Promise<SalesMissionAccess | null
   }
 
   return permission?.can_read && permission.can_read !== "none"
-    ? { userId: user.id, companyId: membership.company_id, displayName, isSuperAdmin }
+    ? { userId: user.id, companyId: membership.company_id, displayName, avatarUrl, isSuperAdmin }
     : null
 }
 

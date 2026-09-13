@@ -129,8 +129,22 @@ function initials(name: string) {
   return name.split(" ").map((part) => part[0]).join("").toUpperCase().slice(0, 2) || "?"
 }
 
+/** The photo set in LeadEngine, or initials when there is none. */
+function Avatar({ name, url }: { name: string; url: string | null }) {
+  return (
+    <span className="grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-full bg-sidebar-accent text-sm font-bold text-sidebar-accent-foreground">
+      {url ? (
+        <img src={url} alt="" className="h-full w-full object-cover" />
+      ) : (
+        initials(name)
+      )}
+    </span>
+  )
+}
+
 function SidebarBody({
   displayName,
+  avatarUrl,
   unreadCount,
   navAccess,
   collapsed,
@@ -139,6 +153,7 @@ function SidebarBody({
   onNavigate,
 }: {
   displayName: string
+  avatarUrl: string | null
   unreadCount: number
   navAccess: NavAccess
   collapsed: boolean
@@ -328,9 +343,7 @@ function SidebarBody({
         {!collapsed ? (
           <div className="flex items-center gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-sidebar-accent/50">
             <Link href="/workspace/settings" onClick={onNavigate} className="flex min-w-0 flex-1 items-center gap-3">
-              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-sidebar-accent text-sm font-bold text-sidebar-accent-foreground">
-                {initials(displayName)}
-              </span>
+              <Avatar name={displayName} url={avatarUrl} />
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-sm font-semibold leading-tight text-sidebar-accent-foreground">{displayName}</span>
                 <span className="block truncate text-[11px] text-sidebar-foreground">Sales Mission</span>
@@ -342,8 +355,8 @@ function SidebarBody({
           </div>
         ) : (
           <div className="flex flex-col items-center gap-2">
-            <Link href="/workspace/settings" className="grid h-9 w-9 place-items-center rounded-full bg-sidebar-accent text-sm font-bold text-sidebar-accent-foreground" title={displayName}>
-              {initials(displayName)}
+            <Link href="/workspace/settings" className="rounded-full" title={displayName}>
+              <Avatar name={displayName} url={avatarUrl} />
             </Link>
             <Button variant="ghost" size="icon" className="h-8 w-8 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground" onClick={handleLogout} disabled={loggingOut} aria-label="Keluar">
               {loggingOut ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogOut className="h-4 w-4" />}
@@ -358,11 +371,13 @@ function SidebarBody({
 export function WorkspaceShell({
   children,
   displayName,
+  avatarUrl = null,
   unreadCount = 0,
   navAccess,
 }: {
   children: React.ReactNode
   displayName: string
+  avatarUrl?: string | null
   unreadCount?: number
   navAccess: NavAccess
 }) {
@@ -387,14 +402,14 @@ export function WorkspaceShell({
         data-sidebar
         className={`relative hidden shrink-0 flex-none overflow-hidden bg-sidebar transition-[width] duration-200 ease-out lg:flex lg:flex-col ${collapsed ? "lg:w-[60px]" : "lg:w-[220px]"}`}
       >
-        <SidebarBody displayName={displayName} unreadCount={unreadCount} navAccess={navAccess} collapsed={collapsed} onToggleCollapse={toggleCollapse} />
+        <SidebarBody displayName={displayName} avatarUrl={avatarUrl} unreadCount={unreadCount} navAccess={navAccess} collapsed={collapsed} onToggleCollapse={toggleCollapse} />
       </aside>
 
       <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
         <SheetContent side="left" className="w-72 border-r-0 p-0">
           <SheetTitle className="sr-only">Menu navigasi</SheetTitle>
           <SheetDescription className="sr-only">Navigasi utama Sales Mission untuk layar kecil.</SheetDescription>
-          <SidebarBody displayName={displayName} unreadCount={unreadCount} navAccess={navAccess} collapsed={false} isSheet onNavigate={() => setMobileOpen(false)} />
+          <SidebarBody displayName={displayName} avatarUrl={avatarUrl} unreadCount={unreadCount} navAccess={navAccess} collapsed={false} isSheet onNavigate={() => setMobileOpen(false)} />
         </SheetContent>
       </Sheet>
 
