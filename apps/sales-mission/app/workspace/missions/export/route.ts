@@ -38,7 +38,7 @@ export async function GET(request: Request) {
   // The same lens the list is showing, so "export" means "export what I see"
   // rather than silently handing back everything.
   const filter = resolveMissionFilter(new URL(request.url).searchParams.get("filter"))
-  const visible = filterMissions(annotateJoinStatus(missions, settings), filter)
+  const visible = filterMissions(annotateJoinStatus(missions, settings), filter, settings)
 
   const columns = buildImportColumns(fields)
   const rows = toExportRows(visible, columns)

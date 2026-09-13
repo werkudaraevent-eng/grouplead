@@ -443,10 +443,13 @@ export async function decideReschedule(
 
   if (decisionError) return { success: false, error: "Keputusan gagal disimpan." }
 
+  // Whether the others are re-asked or simply carried over to the new time
+  // depends on the tenant's confirmation policy.
+  const settings = await getMissionSettings(access)
   const outcome =
     decision === "APPROVED"
-      ? applyRescheduleApproval(assignments, request.requested_by as string)
-      : applyRescheduleRejection(assignments)
+      ? applyRescheduleApproval(assignments, request.requested_by as string, settings)
+      : applyRescheduleRejection(assignments, settings)
 
   if (decision === "APPROVED") {
     await schema

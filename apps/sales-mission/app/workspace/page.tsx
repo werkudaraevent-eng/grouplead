@@ -2,7 +2,11 @@ import Link from "next/link"
 import { redirect } from "next/navigation"
 import { CalendarDays, CheckCircle2, ClipboardList, MapPin } from "lucide-react"
 import { canPerform, getSalesMissionAccess } from "@/lib/sales-mission-access"
-import { getMissionSummary, listMissions } from "@/lib/missions/mission-queries"
+import { getMissionSettings, getMissionSummary, listMissions } from "@/lib/missions/mission-queries"
+import { needsMyAnswer } from "@/lib/missions/mission-filter"
+import type { ConfirmationPolicy } from "@/lib/missions/assignment-workflow"
+import { AcceptAssignmentButton, AssignmentOverflowMenu } from "@/app/workspace/missions/assignment-actions-menu"
+import { cn } from "@/lib/utils"
 import {
   MISSION_TIME_ZONE,
   formatMissionSchedule,
@@ -24,40 +28,64 @@ export const dynamic = "force-dynamic"
  * appointment team and admins who do want them.
  */
 
-/** Today's visit: sized for a thumb, read at arm's length. */
-function TodayCard({ mission }: { mission: MissionListItem }) {
+/**
+ * Today's visit: sized for a thumb, read at arm's length.
+ *
+ * When the visit still needs the rep's answer, the answer is on the card. A
+ * rep standing outside the client's office should not have to open a page and
+ * scroll to say yes to the visit they are about to make.
+ */
+function TodayCard({ mission, policy }: { mission: MissionListItem; policy: ConfirmationPolicy }) {
   const people = [mission.primarySalesName ?? "Belum ditugaskan"]
   if (mission.supportingCount > 0) people.push(`+${mission.supportingCount} tim`)
+  const asksMe = needsMyAnswer(mission, policy)
 
   return (
-    <Link
-      href={`/workspace/missions/${mission.id}`}
-      className="flex gap-4 rounded-xl border bg-card p-4 transition-colors hover:bg-muted/50 sm:p-5"
+    <div
+      className={cn(
+        "rounded-xl border bg-card",
+        asksMe && "border-l-4 border-l-[var(--warning-foreground)]"
+      )}
     >
-      <span className="shrink-0 text-2xl font-bold tabular-nums text-primary sm:text-3xl">
-        {formatMissionTime(mission.scheduledStart)}
-      </span>
-
-      <span className="min-w-0 flex-1">
-        <span className="flex items-start justify-between gap-3">
-          <span className="block min-w-0 truncate text-base font-semibold text-foreground">
-            {mission.clientCompanyName}
-          </span>
-          <StatusBadge status={mission.status} />
+      <Link
+        href={`/workspace/missions/${mission.id}`}
+        className="flex gap-4 p-4 transition-colors hover:bg-muted/50 sm:p-5"
+      >
+        <span className="shrink-0 text-2xl font-bold tabular-nums text-primary sm:text-3xl">
+          {formatMissionTime(mission.scheduledStart)}
         </span>
 
-        <span className="mt-1 block truncate text-sm text-muted-foreground">{mission.missionType}</span>
-
-        {mission.location && (
-          <span className="mt-2 flex items-center gap-1.5 text-sm text-muted-foreground">
-            <MapPin className="h-3.5 w-3.5 shrink-0" />
-            <span className="truncate">{mission.location}</span>
+        <span className="min-w-0 flex-1">
+          <span className="flex items-start justify-between gap-3">
+            <span className="block min-w-0 truncate text-base font-semibold text-foreground">
+              {mission.clientCompanyName}
+            </span>
+            <StatusBadge status={mission.status} />
           </span>
-        )}
 
-        <span className="mt-1 block truncate text-sm text-muted-foreground">{people.join(" · ")}</span>
-      </span>
-    </Link>
+          <span className="mt-1 block truncate text-sm text-muted-foreground">{mission.missionType}</span>
+
+          {mission.location && (
+            <span className="mt-2 flex items-center gap-1.5 text-sm text-muted-foreground">
+              <MapPin className="h-3.5 w-3.5 shrink-0" />
+              <span className="truncate">{mission.location}</span>
+            </span>
+          )}
+
+          <span className="mt-1 block truncate text-sm text-muted-foreground">{people.join(" · ")}</span>
+        </span>
+      </Link>
+
+      {asksMe && (
+        <div className="flex items-center justify-between gap-3 border-t px-4 py-3 sm:px-5">
+          <span className="text-sm font-medium text-[var(--warning-foreground)]">Menunggu jawabanmu</span>
+          <span className="flex items-center gap-2">
+            <AssignmentOverflowMenu missionId={mission.id} />
+            <AcceptAssignmentButton missionId={mission.id} size="default" className="h-11" />
+          </span>
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -119,7 +147,11 @@ export default async function MissionHomePage() {
     )
   }
 
-  const [summary, missions] = await Promise.all([getMissionSummary(access), listMissions(access)])
+  const [summary, missions, settings] = await Promise.all([
+    getMissionSummary(access),
+    listMissions(access),
+    getMissionSettings(access),
+  ])
   const today = missionDayKey(now)
 
   // Same day-bucketing the calendar uses, so "today" means the same thing in
@@ -139,6 +171,11 @@ export default async function MissionHomePage() {
     )
     .slice(0, 5)
 
+  // Owed answers on visits other than today's, which already carry the button.
+  const awaiting = missions.filter(
+    (mission) => needsMyAnswer(mission, settings) && !todaysMissions.some((item) => item.id === mission.id)
+  )
+
   return (
     <WorkspacePage
       eyebrow="Sales Mission"
@@ -150,7 +187,7 @@ export default async function MissionHomePage() {
         {todaysMissions.length > 0 ? (
           <div className="grid gap-3 xl:grid-cols-2">
             {todaysMissions.map((mission) => (
-              <TodayCard key={mission.id} mission={mission} />
+              <TodayCard key={mission.id} mission={mission} policy={settings} />
             ))}
           </div>
         ) : (
@@ -169,6 +206,40 @@ export default async function MissionHomePage() {
           </div>
         )}
       </section>
+
+      {/*
+        Answers owed on visits that are not today. Today's carry the button on
+        their own card; these would otherwise be a chip in a list two clicks
+        away, which is how a Tuesday visit stayed unanswered until Tuesday.
+      */}
+      {awaiting.length > 0 && (
+        <section className="mt-6" aria-label="Penugasan menunggu jawaban">
+          <h2 className="mb-2 text-base font-semibold text-foreground">Menunggu jawabanmu</h2>
+          <div className="overflow-hidden rounded-xl border border-l-4 border-l-[var(--warning-foreground)] bg-card">
+            <div className="divide-y">
+              {awaiting.map((mission) => (
+                <div key={mission.id} className="flex flex-col gap-3 px-4 py-3.5 sm:flex-row sm:items-center sm:px-5">
+                  <Link href={`/workspace/missions/${mission.id}`} className="flex min-w-0 flex-1 items-center gap-4">
+                    <span className="w-24 shrink-0 text-xs font-medium tabular-nums text-muted-foreground">
+                      {formatMissionSchedule(mission.scheduledStart, now)}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-semibold text-foreground">{mission.clientCompanyName}</span>
+                      <span className="block truncate text-xs text-muted-foreground">
+                        {[mission.location, mission.missionType].filter(Boolean).join(" · ")}
+                      </span>
+                    </span>
+                  </Link>
+                  <span className="flex items-center justify-end gap-2">
+                    <AssignmentOverflowMenu missionId={mission.id} />
+                    <AcceptAssignmentButton missionId={mission.id} />
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
 
       {upcoming.length > 0 && (
         <section className="mt-6" aria-label="Mission berikutnya">

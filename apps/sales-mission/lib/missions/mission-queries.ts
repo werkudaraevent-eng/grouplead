@@ -77,6 +77,12 @@ export interface MissionSettings {
   travelBufferMinutes: number
   allowSameLocationBackToBack: boolean
   maxSupporting: number
+  /**
+   * Whether a rep must press Terima on a new assignment. Off means an
+   * assignment is accepted the moment it is made; Tolak and Minta jadwal
+   * ulang stay available either way.
+   */
+  requireAssignmentConfirmation: boolean
 }
 
 /**
@@ -93,7 +99,7 @@ export async function getMissionSettings(access: SalesMissionAccess): Promise<Mi
   const { data } = await supabase
     .schema("sales_mission")
     .from("mission_settings")
-    .select("conflict_check_enabled, default_travel_buffer_minutes, allow_same_location_back_to_back, max_supporting_per_mission")
+    .select("conflict_check_enabled, default_travel_buffer_minutes, allow_same_location_back_to_back, max_supporting_per_mission, require_assignment_confirmation")
     .eq("company_id", access.companyId)
     .maybeSingle()
 
@@ -102,6 +108,7 @@ export async function getMissionSettings(access: SalesMissionAccess): Promise<Mi
     travelBufferMinutes: data?.default_travel_buffer_minutes ?? 30,
     allowSameLocationBackToBack: data?.allow_same_location_back_to_back ?? false,
     maxSupporting: data?.max_supporting_per_mission ?? 2,
+    requireAssignmentConfirmation: data?.require_assignment_confirmation ?? false,
   }
 }
 

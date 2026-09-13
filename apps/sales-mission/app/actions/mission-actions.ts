@@ -6,6 +6,8 @@ import { createClient } from "@/utils/supabase/server"
 import { canPerform, getSalesMissionAccess } from "@/lib/sales-mission-access"
 import { MISSION_TYPES, createMissionSchema, toMissionTimestamp } from "@/lib/missions/mission-schema"
 import { listFormFields } from "@/lib/missions/form-field-queries"
+import { getMissionSettings } from "@/lib/missions/mission-queries"
+import { initialResponse } from "@/lib/missions/assignment-workflow"
 import {
   DEFAULT_CONTACT_SALUTATIONS,
   configuredOptions,
@@ -132,6 +134,13 @@ export async function createMission(
   const supabase = await createClient()
   const missions = supabase.schema("sales_mission")
 
+  // Under the tenant's policy the assignment either waits for the rep or is
+  // accepted on the spot. The mission's status follows from the same answer.
+  const settings = await getMissionSettings(access)
+  const response = initialResponse(settings)
+  const respondedAt = response === "ACCEPTED" ? new Date().toISOString() : null
+  const initialStatus = response === "ACCEPTED" ? "ACCEPTED" : "ASSIGNED"
+
   // Never trust user ids from the client. An assignee must be a member of this
   // tenant, or a crafted request could assign missions to anyone in the shared
   // database.
@@ -157,7 +166,7 @@ export async function createMission(
       client_company_name_snapshot: input.clientCompanyName,
       client_company_id: input.clientCompanyId ?? null,
       mission_type: input.missionType,
-      status: "ASSIGNED",
+      status: initialStatus,
       objective: input.objective || null,
       location: input.location || null,
       scheduled_start: toMissionTimestamp(input.date, input.startTime),
@@ -188,12 +197,16 @@ export async function createMission(
       company_id: access.companyId,
       user_id: input.primarySalesId,
       assignment_role: "PRIMARY",
+      response,
+      responded_at: respondedAt,
     },
     ...input.supportingSalesIds.map((userId) => ({
       mission_id: mission.id,
       company_id: access.companyId,
       user_id: userId,
       assignment_role: "SUPPORTING",
+      response,
+      responded_at: respondedAt,
     })),
   ])
 
@@ -254,7 +267,7 @@ export async function createMission(
   await missions.from("status_history").insert({
     mission_id: mission.id,
     company_id: access.companyId,
-    to_status: "ASSIGNED",
+    to_status: initialStatus,
     changed_by: access.userId,
     reason: "Mission dibuat",
   })

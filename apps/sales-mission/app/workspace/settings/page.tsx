@@ -23,8 +23,9 @@ const SETTING_CARDS = [
   {
     icon: Building2,
     tone: "bg-primary/10 text-primary",
-    title: "Mission defaults",
-    description: "Mission types, default travel buffer, business hours, and conflict rules.",
+    title: "Aturan mission",
+    description: "Apakah sales harus mengonfirmasi penugasan, batas sales pendukung, dan pemeriksaan bentrok jadwal.",
+    href: "/workspace/settings/missions",
   },
   {
     icon: Bell,

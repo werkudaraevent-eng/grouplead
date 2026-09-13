@@ -33,15 +33,26 @@ function formatProposed(iso: string) {
  *
  * Sales cannot edit an agreed schedule directly — the client accepted a time.
  * They propose a replacement with a reason and someone decides.
+ *
+ * Two shapes. As a `banner` it is the first thing on the page while an
+ * answer is owed: title, the one sentence that matters, and Terima as the
+ * filled button at the trailing edge with the alternatives beside it. Inline,
+ * it is the quieter form that lives in the Penugasan card once the answer is
+ * given, or when the tenant never asks for one and only Tolak and Minta
+ * jadwal ulang remain.
  */
 export function AssignmentResponsePanel({
   missionId,
   myResponse,
   defaultDate,
+  banner = false,
+  confirmationRequired = true,
 }: {
   missionId: string
   myResponse: AssignmentResponse
   defaultDate: string
+  banner?: boolean
+  confirmationRequired?: boolean
 }) {
   const [pending, start] = useTransition()
   const [showForm, setShowForm] = useState(false)
@@ -73,31 +84,7 @@ export function AssignmentResponsePanel({
     })
   }
 
-  return (
-    <div className="space-y-4">
-      <p className="text-sm text-muted-foreground">
-        Jawaban Anda: <span className="font-semibold text-foreground">{RESPONSE_LABELS[myResponse]}</span>
-      </p>
-
-      <div className="flex flex-wrap gap-2">
-        <Button size="sm" disabled={pending || myResponse === "ACCEPTED"} onClick={() => respond("ACCEPTED")}>
-          {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-          Terima
-        </Button>
-        <Button size="sm" variant="outline" disabled={pending || myResponse === "REJECTED"} onClick={() => respond("REJECTED")}>
-          <X className="h-4 w-4" /> Tolak
-        </Button>
-        <Button
-          size="sm"
-          variant="outline"
-          disabled={pending || myResponse === "RESCHEDULE_REQUESTED"}
-          onClick={() => setShowForm((value) => !value)}
-        >
-          <CalendarClock className="h-4 w-4" /> Minta jadwal ulang
-        </Button>
-      </div>
-
-      {showForm && (
+  const rescheduleForm = showForm && (
         <div className="space-y-4 rounded-lg border bg-muted/30 p-4">
           <div className="grid gap-3 sm:grid-cols-3">
             <div className="space-y-1.5">
@@ -132,7 +119,90 @@ export function AssignmentResponsePanel({
             Kirim permintaan
           </Button>
         </div>
+  )
+
+  const rescheduleButton = (
+    <Button
+      size={banner ? "default" : "sm"}
+      variant="outline"
+      disabled={pending || myResponse === "RESCHEDULE_REQUESTED"}
+      onClick={() => setShowForm((value) => !value)}
+      className={banner ? "h-11" : undefined}
+    >
+      <CalendarClock className="h-4 w-4" /> Minta jadwal ulang
+    </Button>
+  )
+
+  const rejectButton = (
+    <Button
+      size={banner ? "default" : "sm"}
+      variant="outline"
+      disabled={pending || myResponse === "REJECTED"}
+      onClick={() => respond("REJECTED")}
+      className={banner ? "h-11" : undefined}
+    >
+      <X className="h-4 w-4" /> Tolak
+    </Button>
+  )
+
+  if (banner) {
+    return (
+      <section
+        aria-labelledby="assignment-banner-title"
+        className="rounded-xl border border-[var(--warning-foreground)]/25 bg-[var(--warning)] p-5"
+      >
+        <h2 id="assignment-banner-title" className="text-base font-semibold text-[var(--warning-foreground)]">
+          Anda ditugaskan pada mission ini
+        </h2>
+        <p className="mt-1 text-sm text-[var(--warning-foreground)]">
+          Terima kalau Anda bisa berangkat. Kalau tidak, tolak atau usulkan waktu lain.
+        </p>
+        {/* Primary at the trailing edge; on a phone it sits lowest, nearest
+            the thumb, which is what the column-reverse does below sm. */}
+        <div className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          {rescheduleButton}
+          {rejectButton}
+          <Button size="default" className="h-11" disabled={pending} onClick={() => respond("ACCEPTED")}>
+            {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+            Terima penugasan
+          </Button>
+        </div>
+        {rescheduleForm && <div className="mt-4">{rescheduleForm}</div>}
+      </section>
+    )
+  }
+
+  return (
+    <div className="space-y-4">
+      {confirmationRequired ? (
+        <p className="text-sm text-muted-foreground">
+          Jawaban Anda: <span className="font-semibold text-foreground">{RESPONSE_LABELS[myResponse]}</span>
+        </p>
+      ) : (
+        <p className="text-sm text-muted-foreground">
+          {myResponse === "REJECTED"
+            ? "Anda menolak penugasan ini."
+            : myResponse === "RESCHEDULE_REQUESTED"
+              ? "Permintaan jadwal ulang Anda menunggu keputusan."
+              : "Penugasan ini milik Anda. Kalau berhalangan, tolak atau usulkan waktu lain."}
+        </p>
       )}
+
+      <div className="flex flex-wrap gap-2">
+        {/* Terima only reappears after a rejection: with confirmation off there
+            is nothing to accept the first time, and re-accepting is how a rep
+            takes back a decline. */}
+        {(confirmationRequired || myResponse === "REJECTED") && (
+          <Button size="sm" disabled={pending || myResponse === "ACCEPTED"} onClick={() => respond("ACCEPTED")}>
+            {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+            {myResponse === "REJECTED" ? "Terima kembali" : "Terima"}
+          </Button>
+        )}
+        {rejectButton}
+        {rescheduleButton}
+      </div>
+
+      {rescheduleForm}
     </div>
   )
 }

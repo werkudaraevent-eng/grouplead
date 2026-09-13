@@ -24,6 +24,28 @@ export const RESPONSE_LABELS: Record<AssignmentResponse, string> = {
 /** Statuses that are the end of the line — nothing derived may move them. */
 const TERMINAL_STATUSES: MissionStatus[] = ["COMPLETED", "CANCELLED"]
 
+export interface ConfirmationPolicy {
+  /** See MissionSettings.requireAssignmentConfirmation. */
+  requireAssignmentConfirmation: boolean
+}
+
+/**
+ * The answer a brand-new assignment starts with.
+ *
+ * With confirmation off, assigning someone is the acceptance: the person
+ * doing the assigning is a manager or the appointment team, and a rep who
+ * cannot make it says so through Tolak or Minta jadwal ulang rather than by
+ * withholding a click. With it on, the rep is asked.
+ */
+export function initialResponse(policy: ConfirmationPolicy): AssignmentResponse {
+  return policy.requireAssignmentConfirmation ? "PENDING" : "ACCEPTED"
+}
+
+/** Whether this viewer is being asked for anything at all under this policy. */
+export function awaitsConfirmation(response: AssignmentResponse, policy: ConfirmationPolicy): boolean {
+  return policy.requireAssignmentConfirmation && response === "PENDING"
+}
+
 export interface AssignmentState {
   role: "PRIMARY" | "SUPPORTING"
   response: AssignmentResponse
@@ -99,28 +121,34 @@ export interface RescheduleDecisionResult {
   missionStatus: MissionStatus
 }
 
+const NO_CONFIRMATION: ConfirmationPolicy = { requireAssignmentConfirmation: false }
+
 /**
  * What an approval does to the team's answers.
  *
- * Everyone is put back to PENDING, because accepting Tuesday 09:30 is not
- * accepting Thursday 14:00 — the thing they agreed to no longer exists. The
- * requester is the exception: they proposed this exact time, so re-asking them
- * would be pointless friction.
+ * With confirmation on, everyone is put back to PENDING, because accepting
+ * Tuesday 09:30 is not accepting Thursday 14:00 — the thing they agreed to no
+ * longer exists. The requester is the exception: they proposed this exact
+ * time, so re-asking them would be pointless friction. With confirmation off,
+ * nobody is asked to click anything, so everyone lands on ACCEPTED and the
+ * new time is theirs to decline the same way as the old one.
  */
 export function applyRescheduleApproval(
   assignments: Array<{ userId: string; role: "PRIMARY" | "SUPPORTING" }>,
-  requestedBy: string
+  requestedBy: string,
+  policy: ConfirmationPolicy = NO_CONFIRMATION
 ): RescheduleDecisionResult {
+  const reset = initialResponse(policy)
   const responses = assignments.map((item) => ({
     userId: item.userId,
-    response: (item.userId === requestedBy ? "ACCEPTED" : "PENDING") as AssignmentResponse,
+    response: (item.userId === requestedBy ? "ACCEPTED" : reset) as AssignmentResponse,
   }))
 
   const missionStatus = deriveMissionStatus(
     "ASSIGNED",
     assignments.map((item) => ({
       role: item.role,
-      response: (item.userId === requestedBy ? "ACCEPTED" : "PENDING") as AssignmentResponse,
+      response: (item.userId === requestedBy ? "ACCEPTED" : reset) as AssignmentResponse,
     }))
   )
 
@@ -131,19 +159,22 @@ export function applyRescheduleApproval(
  * What a rejection does.
  *
  * The proposed time is discarded and everyone returns to the answer they held
- * before asking — which for the requester means undecided again, since their
- * RESCHEDULE_REQUESTED was never an acceptance.
+ * before asking — which for the requester means undecided again under
+ * confirmation, since their RESCHEDULE_REQUESTED was never an acceptance, or
+ * accepted without it, since that is what they held before asking.
  */
 export function applyRescheduleRejection(
-  assignments: Array<{ userId: string; role: "PRIMARY" | "SUPPORTING"; response: AssignmentResponse }>
+  assignments: Array<{ userId: string; role: "PRIMARY" | "SUPPORTING"; response: AssignmentResponse }>,
+  policy: ConfirmationPolicy = NO_CONFIRMATION
 ): RescheduleDecisionResult {
+  const reset = initialResponse(policy)
   const responses = assignments
     .filter((item) => item.response === "RESCHEDULE_REQUESTED")
-    .map((item) => ({ userId: item.userId, response: "PENDING" as AssignmentResponse }))
+    .map((item) => ({ userId: item.userId, response: reset }))
 
   const settled = assignments.map((item) => ({
     role: item.role,
-    response: (item.response === "RESCHEDULE_REQUESTED" ? "PENDING" : item.response) as AssignmentResponse,
+    response: (item.response === "RESCHEDULE_REQUESTED" ? reset : item.response) as AssignmentResponse,
   }))
 
   return { responses, missionStatus: deriveMissionStatus("ASSIGNED", settled) }

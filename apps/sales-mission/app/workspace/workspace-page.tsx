@@ -6,13 +6,16 @@ import { cn } from "@/lib/utils"
 import { formatMissionSchedule, type MissionListItem } from "@/lib/missions/mission-schema"
 import { JOIN_STATUS_LABELS, type JoinStatus } from "@/lib/missions/mission-join"
 import {
-  MISSION_FILTERS,
   MISSION_FILTER_LABELS,
+  availableMissionFilters,
   isAwaitingTeam,
   needsMyAnswer,
   type MissionFilter,
 } from "@/lib/missions/mission-filter"
+import type { ConfirmationPolicy } from "@/lib/missions/assignment-workflow"
 import { statusLabel } from "@/lib/missions/status-labels"
+import { AcceptAssignmentButton, AssignmentOverflowMenu } from "@/app/workspace/missions/assignment-actions-menu"
+import { JoinButton } from "@/app/workspace/missions/join-controls"
 
 /**
  * Shared page furniture, matching LeadEngine's list-page language: same
@@ -62,101 +65,131 @@ export function EmptyState({ title, description, action }: { title: string; desc
   )
 }
 
-/** Covers mission statuses, assignment responses, and report statuses alike. */
-const STATUS_TONES: Record<string, string> = {
-  ACCEPTED: "bg-[var(--success)] text-[var(--success-foreground)]",
-  COMPLETED: "bg-[var(--success)] text-[var(--success-foreground)]",
-  SUBMITTED: "bg-[var(--success)] text-[var(--success-foreground)]",
-  SCHEDULED: "bg-secondary text-secondary-foreground",
-  IN_PROGRESS: "bg-secondary text-secondary-foreground",
-  ASSIGNED: "bg-[var(--warning)] text-[var(--warning-foreground)]",
-  PENDING: "bg-[var(--warning)] text-[var(--warning-foreground)]",
-  RESCHEDULE_REQUESTED: "bg-[var(--warning)] text-[var(--warning-foreground)]",
-  NEEDS_CLARIFICATION: "bg-[var(--warning)] text-[var(--warning-foreground)]",
-  DRAFT: "bg-muted text-muted-foreground",
-  REJECTED: "bg-[var(--danger)] text-[var(--danger-foreground)]",
-  CANCELLED: "bg-[var(--danger)] text-[var(--danger-foreground)]",
+/**
+ * Status is a label, not a control.
+ *
+ * It used to be an uppercase, wide-tracked pill, the same shape the list also
+ * used for "Perlu jawaban Anda" (a demand) and "Kamu ditugaskan" (a position),
+ * so nothing told the reader which of the three could be pressed. None could.
+ * Material keeps a passive status as quiet text: sentence case, no container,
+ * a colour dot to carry the state for a fast scan. The dot's colour clears
+ * WCAG 1.4.11 against the card; the words carry the meaning for anyone who
+ * cannot see it. Actions are buttons and live in the Aksi column.
+ */
+const STATUS_DOT: Record<string, string> = {
+  ACCEPTED: "bg-[var(--success-foreground)]",
+  COMPLETED: "bg-[var(--success-foreground)]",
+  SUBMITTED: "bg-[var(--success-foreground)]",
+  IN_PROGRESS: "bg-primary",
+  SCHEDULED: "bg-primary",
+  ASSIGNED: "bg-[var(--warning-foreground)]",
+  PENDING: "bg-[var(--warning-foreground)]",
+  RESCHEDULE_REQUESTED: "bg-[var(--warning-foreground)]",
+  NEEDS_CLARIFICATION: "bg-[var(--warning-foreground)]",
+  REJECTED: "bg-[var(--danger-foreground)]",
+  CANCELLED: "bg-[var(--danger-foreground)]",
+  DRAFT: "bg-muted-foreground",
 }
 
 export function StatusBadge({ status }: { status: string }) {
   return (
-    <span
-      className={cn(
-        "inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide",
-        STATUS_TONES[status] ?? "bg-muted text-muted-foreground"
-      )}
-    >
+    <span className="inline-flex items-center gap-2 text-sm text-foreground">
+      <span
+        aria-hidden="true"
+        className={cn("h-2 w-2 shrink-0 rounded-full", STATUS_DOT[status] ?? "bg-muted-foreground")}
+      />
       {statusLabel(status)}
     </span>
   )
 }
 
-const JOIN_TONES: Record<JoinStatus, string> = {
-  ASSIGNED: "bg-secondary text-secondary-foreground",
-  CONFLICT: "bg-[var(--danger)] text-[var(--danger-foreground)]",
-  JOINABLE: "bg-[var(--success)] text-[var(--success-foreground)]",
-  FULL: "bg-muted text-muted-foreground",
-  CLOSED: "bg-muted text-muted-foreground",
-}
-
 /**
- * Where this viewer stands on a mission. Colour carries the meaning at a
- * glance, and the label repeats it so the chip is not colour-only.
+ * Where this viewer stands on a mission, as one quiet line under the status.
+ *
+ * Was a third pill in the row. Now it is supporting text: "Kamu di tim ini"
+ * or "Bentrok dengan jadwalmu" is context, and "Bisa join" is an action, so
+ * the latter becomes a Join button in the Aksi column and is not repeated as
+ * text.
  */
-export function JoinStatusChip({ status }: { status: JoinStatus }) {
+export function JoinStatusLine({ status }: { status: JoinStatus }) {
+  if (status === "JOINABLE") return null
   return (
-    <span className={cn("inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide", JOIN_TONES[status])}>
+    <span
+      className={cn(
+        "block text-xs",
+        status === "CONFLICT" ? "text-[var(--danger-foreground)]" : "text-muted-foreground"
+      )}
+    >
       {JOIN_STATUS_LABELS[status]}
     </span>
   )
 }
 
 /**
- * Where a mission's answers stand, from the reader's own point of view first.
+ * A second line under the status about the team's answers, shown only while
+ * confirmation is on and someone still owes one. With confirmation off nobody
+ * is ever asked, so nothing is ever waiting and the line would be noise.
  *
- * "Perlu jawaban Anda" outranks the team count because it is the only line here
- * that asks the reader to do something. The count that follows is what the
- * deleted Penugasan screen existed to show, now attached to the mission it is
- * about instead of to a row per person.
- *
- * The last two branches split on `isAwaitingTeam` rather than on the raw count,
- * because the same number means two different things. On a mission that can
- * still be answered it is a chase list; on one that is finished or cancelled
- * nobody will ever answer, so the same "belum jawab" would nag about a visit
- * that already happened — and it would also disagree with the chip above, which
- * counts through the same gate. Reporting it in the past tense keeps the record
- * (there is no per-person screen left to find it on) without asking for
- * anything.
+ * Split on `isAwaitingTeam` rather than on the raw count, because the same
+ * number means two different things: a chase list on a mission that can still
+ * be answered, and history on one that is finished, where nagging about a
+ * visit that already happened helps nobody.
  */
-function AnswerCell({ mission }: { mission: MissionListItem }) {
-  if (needsMyAnswer(mission)) {
+function TeamAnswersLine({ mission, policy }: { mission: MissionListItem; policy: ConfirmationPolicy }) {
+  if (!policy.requireAssignmentConfirmation) return null
+  if (needsMyAnswer(mission, policy)) {
+    return <span className="block text-xs font-medium text-[var(--warning-foreground)]">Menunggu jawabanmu</span>
+  }
+  if (isAwaitingTeam(mission, policy)) {
+    return <span className="block text-xs text-muted-foreground">{mission.pendingResponses} belum jawab</span>
+  }
+  return null
+}
+
+/**
+ * The one column that does things. Material's rule for a row that needs a
+ * decision: the primary action is a filled button in the row, the rest sit
+ * behind an overflow menu, and a row that needs nothing gets only its link.
+ */
+function ActionCell({
+  mission,
+  policy,
+  maxSupporting,
+}: {
+  mission: MissionListItem & { joinStatus?: JoinStatus }
+  policy: ConfirmationPolicy
+  maxSupporting: number
+}) {
+  const open = (
+    <Link
+      href={`/workspace/missions/${mission.id}`}
+      aria-label={`Buka ${mission.clientCompanyName}`}
+      className="grid h-9 w-9 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground md:h-8 md:w-8"
+    >
+      <ArrowUpRight className="h-4 w-4" />
+    </Link>
+  )
+
+  if (needsMyAnswer(mission, policy)) {
     return (
-      <span className="inline-flex items-center rounded-full bg-[var(--warning)] px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-[var(--warning-foreground)]">
-        Perlu jawaban Anda
+      <span className="flex items-center justify-end gap-1.5">
+        <AcceptAssignmentButton missionId={mission.id} />
+        <AssignmentOverflowMenu missionId={mission.id} />
+        {open}
       </span>
     )
   }
 
-  const teamSize = mission.supportingCount + (mission.primarySalesName ? 1 : 0)
-  if (teamSize === 0) return <span className="text-sm text-muted-foreground">Belum ada tim</span>
-
-  if (isAwaitingTeam(mission)) {
+  if (mission.joinStatus === "JOINABLE") {
     return (
-      <span className="text-sm font-medium text-foreground">
-        {mission.pendingResponses} belum jawab
+      <span className="flex items-center justify-end gap-1.5">
+        <JoinButton missionId={mission.id} status="JOINABLE" maxSupporting={maxSupporting} />
+        {open}
       </span>
     )
   }
 
-  if (mission.pendingResponses > 0) {
-    return (
-      <span className="text-sm text-muted-foreground">
-        {mission.pendingResponses} tidak menjawab
-      </span>
-    )
-  }
-
-  return <span className="text-sm text-muted-foreground">Lengkap</span>
+  return <span className="flex justify-end">{open}</span>
 }
 
 /**
@@ -167,13 +200,19 @@ function AnswerCell({ mission }: { mission: MissionListItem }) {
 export function MissionFilterChips({
   active,
   counts,
+  policy,
 }: {
   active: MissionFilter
   counts: Record<MissionFilter, number>
+  policy: ConfirmationPolicy
 }) {
+  const filters = availableMissionFilters(policy)
+  // One lens is no lens. With confirmation off there is nothing to narrow to.
+  if (filters.length < 2) return null
+
   return (
     <nav aria-label="Saring mission" className="mb-4 flex flex-wrap gap-2">
-      {MISSION_FILTERS.map((filter) => {
+      {filters.map((filter) => {
         const isActive = filter === active
         return (
           <Link
@@ -230,6 +269,8 @@ export function MissionTable({
   now,
   canCreate = true,
   filter = "all",
+  policy = { requireAssignmentConfirmation: false },
+  maxSupporting = 2,
 }: {
   missions: Array<MissionListItem & { joinStatus?: JoinStatus }>
   now: Date
@@ -237,6 +278,9 @@ export function MissionTable({
   canCreate?: boolean
   /** Which lens produced this list, so an empty result explains itself. */
   filter?: MissionFilter
+  /** Whether reps are asked to confirm assignments; decides what the Aksi column offers. */
+  policy?: ConfirmationPolicy
+  maxSupporting?: number
 }) {
   if (missions.length === 0) {
     // An empty lens is not an empty tenant. Offering "Mission baru" here would
@@ -281,32 +325,58 @@ export function MissionTable({
         781px with their headers set to nowrap, and a 375px phone offers 343px.
       */}
       <ul className="space-y-3 md:hidden">
-        {missions.map((mission) => (
-          <li key={mission.id}>
-            <Link
-              href={`/workspace/missions/${mission.id}`}
-              className="block rounded-xl border bg-card p-4 transition-colors hover:bg-muted/50"
+        {missions.map((mission) => {
+          const asksMe = needsMyAnswer(mission, policy)
+          return (
+            <li
+              key={mission.id}
+              className={cn(
+                "rounded-xl border bg-card",
+                // A row that asks the reader for something is marked by its
+                // edge, the way Material tones a list item that needs
+                // attention, rather than by a pill that shouts.
+                asksMe && "border-l-4 border-l-[var(--warning-foreground)]"
+              )}
             >
-              <div className="flex items-start justify-between gap-3">
-                <span className="min-w-0">
-                  <span className="block truncate font-semibold text-foreground">{mission.clientCompanyName}</span>
-                  <span className="block truncate text-xs text-muted-foreground">{mission.missionType}</span>
+              {/* The card body is the link; the buttons sit outside it so a
+                  tap on Terima never also opens the page. */}
+              <Link
+                href={`/workspace/missions/${mission.id}`}
+                className="block p-4 transition-colors hover:bg-muted/50"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <span className="min-w-0">
+                    <span className="block truncate font-semibold text-foreground">{mission.clientCompanyName}</span>
+                    <span className="block truncate text-xs text-muted-foreground">{mission.missionType}</span>
+                  </span>
+                  <StatusBadge status={mission.status} />
+                </div>
+
+                <p className="mt-3 text-sm text-foreground">{formatMissionSchedule(mission.scheduledStart, now)}</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {[mission.location, mission.primarySalesName ?? "Belum ditugaskan"].filter(Boolean).join(" · ")}
+                </p>
+                <span className="mt-2 block">
+                  {mission.joinStatus && <JoinStatusLine status={mission.joinStatus} />}
+                  <TeamAnswersLine mission={mission} policy={policy} />
                 </span>
-                <StatusBadge status={mission.status} />
-              </div>
+              </Link>
 
-              <p className="mt-3 text-sm text-foreground">{formatMissionSchedule(mission.scheduledStart, now)}</p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                {[mission.location, mission.primarySalesName ?? "Belum ditugaskan"].filter(Boolean).join(" · ")}
-              </p>
-
-              <div className="mt-3 flex flex-wrap items-center gap-2">
-                {mission.joinStatus && <JoinStatusChip status={mission.joinStatus} />}
-                <AnswerCell mission={mission} />
-              </div>
-            </Link>
-          </li>
-        ))}
+              {(asksMe || mission.joinStatus === "JOINABLE") && (
+                <div className="flex items-center justify-end gap-2 border-t px-4 py-3">
+                  {asksMe ? (
+                    <>
+                      <AssignmentOverflowMenu missionId={mission.id} />
+                      <AcceptAssignmentButton missionId={mission.id} size="default" className="h-11" />
+                    </>
+                  ) : (
+                    <JoinButton missionId={mission.id} status="JOINABLE" maxSupporting={maxSupporting} size="default" />
+                  )}
+                </div>
+              )}
+            </li>
+          )
+        })}
       </ul>
 
       {/*
@@ -319,43 +389,53 @@ export function MissionTable({
       */}
       <div className="hidden rounded-xl border bg-card md:block">
       <div className="data-table-scroll overflow-x-auto rounded-xl">
-      <Table className="min-w-[790px]">
+      {/*
+        Six columns, down from eight. "Jawaban" and "Tim" were two more ways
+        of saying what Status and Aksi already say: the answer state is a line
+        under the status, and anything that can be done about it is a button.
+      */}
+      <Table className="min-w-[760px]">
         <TableHeader>
           <TableRow className="hover:bg-transparent">
             <TableHead>Mission</TableHead>
             <TableHead>Jadwal</TableHead>
             <TableHead>Lokasi</TableHead>
-            <TableHead>Status</TableHead>
             <TableHead>Sales utama</TableHead>
-            <TableHead>Jawaban</TableHead>
-            <TableHead>Tim</TableHead>
-            <TableHead className="w-10"><span className="sr-only">Buka</span></TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead className="text-right">Aksi</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {missions.map((mission) => (
-            <TableRow key={mission.id}>
-              <TableCell>
-                <span className="block font-semibold text-foreground">{mission.clientCompanyName}</span>
-                <span className="block text-xs text-muted-foreground">{mission.missionType}</span>
-              </TableCell>
-              <TableCell className="text-sm">{formatMissionSchedule(mission.scheduledStart, now)}</TableCell>
-              <TableCell className="text-sm text-muted-foreground">{mission.location ?? "Belum diisi"}</TableCell>
-              <TableCell><StatusBadge status={mission.status} /></TableCell>
-              <TableCell className="text-sm">{mission.primarySalesName ?? <span className="text-muted-foreground">Belum ditugaskan</span>}</TableCell>
-              <TableCell><AnswerCell mission={mission} /></TableCell>
-              <TableCell>{mission.joinStatus ? <JoinStatusChip status={mission.joinStatus} /> : null}</TableCell>
-              <TableCell>
-                <Link
-                  href={`/workspace/missions/${mission.id}`}
-                  aria-label={`Buka ${mission.clientCompanyName}`}
-                  className="grid h-8 w-8 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                >
-                  <ArrowUpRight className="h-4 w-4" />
-                </Link>
-              </TableCell>
-            </TableRow>
-          ))}
+          {missions.map((mission) => {
+            const asksMe = needsMyAnswer(mission, policy)
+            return (
+              <TableRow
+                key={mission.id}
+                className={cn(asksMe && "shadow-[inset_4px_0_0_0_var(--warning-foreground)]")}
+              >
+                <TableCell>
+                  <span className="block font-semibold text-foreground">{mission.clientCompanyName}</span>
+                  <span className="block text-xs text-muted-foreground">{mission.missionType}</span>
+                </TableCell>
+                <TableCell className="text-sm">{formatMissionSchedule(mission.scheduledStart, now)}</TableCell>
+                <TableCell className="text-sm text-muted-foreground">{mission.location ?? "Belum diisi"}</TableCell>
+                <TableCell className="text-sm">
+                  {mission.primarySalesName ?? <span className="text-muted-foreground">Belum ditugaskan</span>}
+                  {mission.supportingCount > 0 && (
+                    <span className="block text-xs text-muted-foreground">+{mission.supportingCount} pendukung</span>
+                  )}
+                </TableCell>
+                <TableCell>
+                  <StatusBadge status={mission.status} />
+                  {mission.joinStatus && <JoinStatusLine status={mission.joinStatus} />}
+                  <TeamAnswersLine mission={mission} policy={policy} />
+                </TableCell>
+                <TableCell className="w-px whitespace-nowrap">
+                  <ActionCell mission={mission} policy={policy} maxSupporting={maxSupporting} />
+                </TableCell>
+              </TableRow>
+            )
+          })}
         </TableBody>
       </Table>
       </div>

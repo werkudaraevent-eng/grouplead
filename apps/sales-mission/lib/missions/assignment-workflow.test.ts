@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest"
 import {
   applyRescheduleApproval,
   applyRescheduleRejection,
+  awaitsConfirmation,
   canRespond,
   deriveMissionStatus,
+  initialResponse,
   rescheduleRequestSchema,
   type AssignmentState,
 } from "./assignment-workflow"
@@ -88,14 +90,33 @@ describe("rescheduleRequestSchema", () => {
   })
 })
 
+const CONFIRM = { requireAssignmentConfirmation: true }
+const NO_CONFIRM = { requireAssignmentConfirmation: false }
+
+describe("initialResponse", () => {
+  it("asks the rep only when the tenant wants confirmation", () => {
+    expect(initialResponse(CONFIRM)).toBe("PENDING")
+    expect(initialResponse(NO_CONFIRM)).toBe("ACCEPTED")
+  })
+})
+
+describe("awaitsConfirmation", () => {
+  it("never asks for a click when confirmation is off, whatever the row says", () => {
+    // A PENDING row can still exist from before the setting was turned off.
+    expect(awaitsConfirmation("PENDING", NO_CONFIRM)).toBe(false)
+    expect(awaitsConfirmation("PENDING", CONFIRM)).toBe(true)
+    expect(awaitsConfirmation("ACCEPTED", CONFIRM)).toBe(false)
+  })
+})
+
 describe("applyRescheduleApproval", () => {
   const assignments = [
     { userId: PRIMARY, role: "PRIMARY" as const },
     { userId: SUPPORT, role: "SUPPORTING" as const },
   ]
 
-  it("keeps the requester's acceptance and resets everyone else", () => {
-    const result = applyRescheduleApproval(assignments, SUPPORT)
+  it("keeps the requester's acceptance and re-asks everyone else under confirmation", () => {
+    const result = applyRescheduleApproval(assignments, SUPPORT, CONFIRM)
     expect(result.responses).toEqual([
       { userId: PRIMARY, response: "PENDING" },
       { userId: SUPPORT, response: "ACCEPTED" },
@@ -104,8 +125,14 @@ describe("applyRescheduleApproval", () => {
     expect(result.missionStatus).toBe("ASSIGNED")
   })
 
+  it("carries everyone over to the new time when confirmation is off", () => {
+    const result = applyRescheduleApproval(assignments, SUPPORT, NO_CONFIRM)
+    expect(result.responses.every((r) => r.response === "ACCEPTED")).toBe(true)
+    expect(result.missionStatus).toBe("ACCEPTED")
+  })
+
   it("leaves the mission accepted when the primary is the one who proposed it", () => {
-    const result = applyRescheduleApproval(assignments, PRIMARY)
+    const result = applyRescheduleApproval(assignments, PRIMARY, CONFIRM)
     expect(result.responses.find((r) => r.userId === PRIMARY)?.response).toBe("ACCEPTED")
     expect(result.missionStatus).toBe("ACCEPTED")
   })
@@ -116,7 +143,7 @@ describe("applyRescheduleRejection", () => {
     const result = applyRescheduleRejection([
       { userId: PRIMARY, role: "PRIMARY", response: "ACCEPTED" },
       { userId: SUPPORT, role: "SUPPORTING", response: "RESCHEDULE_REQUESTED" },
-    ])
+    ], CONFIRM)
 
     expect(result.responses).toEqual([{ userId: SUPPORT, response: "PENDING" }])
     // The primary still accepts the original time, so the mission stands.
@@ -127,9 +154,19 @@ describe("applyRescheduleRejection", () => {
     const result = applyRescheduleRejection([
       { userId: PRIMARY, role: "PRIMARY", response: "RESCHEDULE_REQUESTED" },
       { userId: SUPPORT, role: "SUPPORTING", response: "ACCEPTED" },
-    ])
+    ], CONFIRM)
 
     expect(result.responses).toEqual([{ userId: PRIMARY, response: "PENDING" }])
     expect(result.missionStatus).toBe("ASSIGNED")
+  })
+
+  it("puts the requester back to accepted when confirmation is off", () => {
+    // Before asking they held the original time; without a confirmation step
+    // that is what "accepted" meant, so the rejection restores it.
+    const result = applyRescheduleRejection([
+      { userId: PRIMARY, role: "PRIMARY", response: "RESCHEDULE_REQUESTED" },
+    ], NO_CONFIRM)
+    expect(result.responses).toEqual([{ userId: PRIMARY, response: "ACCEPTED" }])
+    expect(result.missionStatus).toBe("ACCEPTED")
   })
 })

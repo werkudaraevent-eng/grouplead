@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest"
 import {
+  availableMissionFilters,
   countMissionFilters,
   filterMissions,
   isAwaitingTeam,
@@ -104,5 +105,29 @@ describe("filterMissions", () => {
 
   it("counts each lens over the unfiltered list", () => {
     expect(countMissionFilters(missions)).toEqual({ all: 4, mine: 1, team: 2 })
+  })
+})
+
+describe("with confirmation switched off", () => {
+  const off = { requireAssignmentConfirmation: false }
+  const on = { requireAssignmentConfirmation: true }
+  // A PENDING row can outlive the switch: it was written while confirmation
+  // was on. Nobody is being asked any more, so it must not be shown as a
+  // question.
+  const leftover = mission({ id: "leftover", viewerResponse: "PENDING", pendingResponses: 1 })
+
+  it("asks nobody for anything", () => {
+    expect(needsMyAnswer(leftover, off)).toBe(false)
+    expect(isAwaitingTeam(leftover, off)).toBe(false)
+    expect(needsMyAnswer(leftover, on)).toBe(true)
+  })
+
+  it("offers only the full list as a lens", () => {
+    expect(availableMissionFilters(off)).toEqual(["all"])
+    expect(availableMissionFilters(on)).toEqual(["all", "mine", "team"])
+  })
+
+  it("counts zero for the waiting lenses", () => {
+    expect(countMissionFilters([leftover], off)).toEqual({ all: 1, mine: 0, team: 0 })
   })
 })

@@ -35,21 +35,27 @@ export default async function MissionsPage({
     canPerform(access, "sales_mission_mission", "create"),
     searchParams,
   ])
-  // "Tim" column shows where the viewer stands: already on it, clashing with
-  // their own schedule, or open to join.
+  // Where the viewer stands on each mission: on it, clashing with their own
+  // schedule, or free to join. Drives the Join button in the Aksi column.
   const annotated = annotateJoinStatus(missions, settings)
 
   // Counts come from the full list so a lens showing nothing still says so with
-  // a zero rather than disappearing.
-  const filter = resolveMissionFilter(params.filter)
-  const counts = countMissionFilters(annotated)
-  const visible = filterMissions(annotated, filter)
+  // a zero rather than disappearing. A lens the policy makes meaningless
+  // (waiting on answers, when nobody is asked) falls back to the full list.
+  const requested = resolveMissionFilter(params.filter)
+  const filter = settings.requireAssignmentConfirmation ? requested : "all"
+  const counts = countMissionFilters(annotated, settings)
+  const visible = filterMissions(annotated, filter, settings)
 
   return (
     <WorkspacePage
       eyebrow="Sales Mission / Mission"
       title="Mission"
-      description="Seluruh mission unit bisnis. Kolom Jawaban menunjukkan siapa yang masih ditunggu, kolom Tim menunjukkan mana yang bisa Anda ikuti."
+      description={
+        settings.requireAssignmentConfirmation
+          ? "Seluruh mission unit bisnis. Baris bertepi kuning menunggu jawaban Anda; jawab langsung dari kolom Aksi."
+          : "Seluruh mission unit bisnis. Mission yang bisa Anda ikuti punya tombol Join di kolom Aksi."
+      }
       action={
         <>
           {/* Exports what the chosen lens is showing, so "export" means the
@@ -64,8 +70,15 @@ export default async function MissionsPage({
         </>
       }
     >
-      <MissionFilterChips active={filter} counts={counts} />
-      <MissionTable missions={visible} now={new Date()} canCreate={canCreate} filter={filter} />
+      <MissionFilterChips active={filter} counts={counts} policy={settings} />
+      <MissionTable
+        missions={visible}
+        now={new Date()}
+        canCreate={canCreate}
+        filter={filter}
+        policy={settings}
+        maxSupporting={settings.maxSupporting}
+      />
     </WorkspacePage>
   )
 }

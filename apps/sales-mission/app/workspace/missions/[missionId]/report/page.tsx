@@ -1,7 +1,16 @@
 import { notFound, redirect } from "next/navigation"
 import { getSalesMissionAccess } from "@/lib/sales-mission-access"
 import { requireModule } from "@/lib/missions/nav-access"
-import { getMission, getMissionRole, getVisitReport, listTenantSales } from "@/lib/missions/mission-queries"
+import {
+  getMission,
+  getMissionRole,
+  getMissionSettings,
+  getVisitReport,
+  listMissionTeam,
+  listTenantSales,
+} from "@/lib/missions/mission-queries"
+import { awaitsConfirmation } from "@/lib/missions/assignment-workflow"
+import type { AssignmentResponse } from "@/lib/missions/mission-schema"
 import { getReportOptions } from "@/lib/missions/report-options"
 import { BackLink, EmptyState, WorkspacePage } from "@/app/workspace/workspace-page"
 import { VisitReportForm } from "./visit-report-form"
@@ -17,14 +26,23 @@ export default async function VisitReportPage({ params }: { params: Promise<{ mi
   const mission = await getMission(access, missionId)
   if (!mission) notFound()
 
-  const [role, report, options, salesOptions] = await Promise.all([
+  const [role, report, options, salesOptions, settings, team] = await Promise.all([
     getMissionRole(access, missionId),
     getVisitReport(access, missionId),
     getReportOptions(),
     listTenantSales(access),
+    getMissionSettings(access),
+    listMissionTeam(access, missionId),
   ])
 
   const canWrite = role === "PRIMARY" || access.isSuperAdmin
+
+  // Typing the URL must not get around the answer the detail page asks for.
+  // A report on a visit the rep has not agreed to make is a contradiction.
+  const myResponse = team.find((member) => member.userId === access.userId)?.response ?? "PENDING"
+  if (role === "PRIMARY" && awaitsConfirmation(myResponse as AssignmentResponse, settings) && !report) {
+    redirect(`/workspace/missions/${missionId}`)
+  }
 
   // A submitted report is already rendered in full on the detail page. Showing
   // the form again would mean a screen that accepts typing and silently

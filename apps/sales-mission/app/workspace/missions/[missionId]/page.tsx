@@ -16,7 +16,7 @@ import {
   listTenantSales,
 } from "@/lib/missions/mission-queries"
 import { annotateJoinStatus, joinBlockedReason } from "@/lib/missions/mission-join"
-import { canRespond } from "@/lib/missions/assignment-workflow"
+import { awaitsConfirmation, canRespond } from "@/lib/missions/assignment-workflow"
 import {
   AssignmentResponsePanel,
   RescheduleDecision,
@@ -34,7 +34,7 @@ import {
   VISIT_OUTCOME_LABELS,
   canPushLead,
 } from "@/lib/missions/visit-report-schema"
-import { BackLink, JoinStatusChip, StatusBadge, WorkspacePage } from "@/app/workspace/workspace-page"
+import { BackLink, JoinStatusLine, StatusBadge, WorkspacePage } from "@/app/workspace/workspace-page"
 import { Button } from "@/components/ui/button"
 import {
   AllowJoinToggle,
@@ -114,6 +114,9 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
   const blockedReason = joinBlockedReason(joinStatus, settings.maxSupporting)
 
   const myResponse = (team.find((member) => member.userId === access.userId)?.response ?? "PENDING") as AssignmentResponse
+  // The one thing this page asks of the viewer while confirmation is on. It
+  // leads the page; nothing below it is what they came here for until then.
+  const askedToConfirm = isAssigned && awaitsConfirmation(myResponse, settings) && canRespond(mission.status)
   // Seed the reschedule form with the mission's own day rather than today, so
   // the common case of nudging a visit by an hour needs one field changed.
   const defaultRescheduleDate = mission.scheduledStart
@@ -129,6 +132,15 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
     >
       <section className="grid gap-4 lg:grid-cols-[1.6fr_1fr]">
         <div className="space-y-4">
+          {askedToConfirm && (
+            <AssignmentResponsePanel
+              missionId={missionId}
+              myResponse={myResponse}
+              defaultDate={defaultRescheduleDate}
+              banner
+            />
+          )}
+
           <article className="overflow-hidden rounded-xl border bg-card">
             <div className="flex items-center gap-3 border-b px-5 py-4">
               <StatusBadge status={mission.status} />
@@ -206,11 +218,20 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
             </article>
           )}
 
-          {(isAssigned || pendingReschedule) && (
-            <article className="overflow-hidden rounded-xl border bg-card">
+          {/*
+            The answer itself now leads the page (the banner above) while it is
+            being asked. This card keeps what is left: a reschedule decision for
+            the primary, and, once answered or with confirmation off, the way to
+            decline or propose another time. `id` lets the list's overflow menu
+            deep-link here.
+          */}
+          {((isAssigned && !askedToConfirm) || pendingReschedule) && (
+            <article id="jawaban" className="overflow-hidden rounded-xl border bg-card">
               <div className="border-b px-5 py-4">
                 <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Penugasan</p>
-                <h2 className="mt-1 text-base font-semibold text-foreground">Jawaban dan jadwal</h2>
+                <h2 className="mt-1 text-base font-semibold text-foreground">
+                  {settings.requireAssignmentConfirmation ? "Jawaban dan jadwal" : "Jadwal"}
+                </h2>
               </div>
               <div className="space-y-5 px-5 py-5">
                 {pendingReschedule && canManageTeam && <RescheduleDecision request={pendingReschedule} />}
@@ -221,11 +242,12 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
                   </p>
                 )}
 
-                {isAssigned && canRespond(mission.status) && (
+                {isAssigned && !askedToConfirm && canRespond(mission.status) && (
                   <AssignmentResponsePanel
                     missionId={missionId}
                     myResponse={myResponse}
                     defaultDate={defaultRescheduleDate}
+                    confirmationRequired={settings.requireAssignmentConfirmation}
                   />
                 )}
 
@@ -294,7 +316,7 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
                         <li key={index} className="text-sm text-foreground">
                           {contact.fullName}
                           {contact.jobTitle ? <span className="text-muted-foreground"> · {contact.jobTitle}</span> : null}
-                          {contact.isDecisionMaker ? <span className="ml-2 rounded-full bg-secondary px-2 py-0.5 text-[10px] font-bold uppercase text-secondary-foreground">Pengambil keputusan</span> : null}
+                          {contact.isDecisionMaker ? <span className="ml-2 rounded-md bg-secondary px-1.5 py-0.5 text-xs font-medium text-secondary-foreground">Pengambil keputusan</span> : null}
                         </li>
                       ))}
                     </ul>
@@ -345,12 +367,20 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
                 nothing left to open. */}
             {canReadReport && canWriteReport && !reportSubmitted && (
               <div className="border-t bg-muted/30 px-5 py-4">
-                <Button asChild className="h-11 w-full sm:w-auto">
-                  <Link href={`/workspace/missions/${missionId}/report`}>
-                    <ClipboardList className="h-4 w-4" />
-                    {report ? "Lanjutkan laporan" : "Isi laporan kunjungan"}
-                  </Link>
-                </Button>
+                {askedToConfirm ? (
+                  // A report on a visit the rep has not agreed to make yet is
+                  // a contradiction; the button waits for the answer above.
+                  <p className="text-sm text-muted-foreground">
+                    Terima penugasan di atas dulu, lalu laporan bisa diisi setelah kunjungan.
+                  </p>
+                ) : (
+                  <Button asChild className="h-11 w-full sm:w-auto">
+                    <Link href={`/workspace/missions/${missionId}/report`}>
+                      <ClipboardList className="h-4 w-4" />
+                      {report ? "Lanjutkan laporan" : "Isi laporan kunjungan"}
+                    </Link>
+                  </Button>
+                )}
               </div>
             )}
           </article>
@@ -368,7 +398,7 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
                   </span>
                 </h2>
               </div>
-              <JoinStatusChip status={joinStatus} />
+              <JoinStatusLine status={joinStatus} />
             </div>
 
             <ul className="divide-y">

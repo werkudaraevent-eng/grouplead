@@ -14,7 +14,7 @@ import {
   resolveMonth,
   shiftMonth,
 } from "@/lib/missions/mission-calendar"
-import { JoinStatusChip, WorkspacePage } from "@/app/workspace/workspace-page"
+import { JoinStatusLine, WorkspacePage } from "@/app/workspace/workspace-page"
 import { cn } from "@/lib/utils"
 
 export const dynamic = "force-dynamic"
@@ -150,7 +150,7 @@ export default async function CalendarPage({
                     <span className="block truncate text-xs text-muted-foreground">
                       {[mission.location, mission.primarySalesName].filter(Boolean).join(" · ") || mission.missionType}
                     </span>
-                    <span className="mt-1.5 block"><JoinStatusChip status={mission.joinStatus} /></span>
+                    <JoinStatusLine status={mission.joinStatus} />
                   </span>
                 </Link>
               ))}

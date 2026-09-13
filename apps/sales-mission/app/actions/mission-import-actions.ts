@@ -4,7 +4,8 @@ import { revalidatePath } from "next/cache"
 import { createClient } from "@/utils/supabase/server"
 import { canPerform, getSalesMissionAccess } from "@/lib/sales-mission-access"
 import { listFormFields } from "@/lib/missions/form-field-queries"
-import { listTenantSales } from "@/lib/missions/mission-queries"
+import { getMissionSettings, listTenantSales } from "@/lib/missions/mission-queries"
+import { initialResponse } from "@/lib/missions/assignment-workflow"
 import { MISSION_TYPES, toMissionTimestamp } from "@/lib/missions/mission-schema"
 import { configuredOptions } from "@/lib/missions/form-fields"
 import { searchClientCompanies } from "@/lib/leadengine/client"
@@ -162,6 +163,13 @@ export async function commitMissionImport(rows: RawRow[]): Promise<ImportResult>
   const supabase = await createClient()
   const missions = supabase.schema("sales_mission")
 
+  // Same policy as the form: imported assignments are accepted on the spot
+  // unless the tenant asks reps to confirm.
+  const settings = await getMissionSettings(access)
+  const response = initialResponse(settings)
+  const respondedAt = response === "ACCEPTED" ? new Date().toISOString() : null
+  const initialStatus = response === "ACCEPTED" ? "ACCEPTED" : "ASSIGNED"
+
   // Resolve every distinct company name once rather than per row.
   const companyIds = new Map<string, string>()
   for (const name of new Set(valid.map((row) => row.clientCompanyName).filter(Boolean))) {
@@ -185,7 +193,7 @@ export async function commitMissionImport(rows: RawRow[]): Promise<ImportResult>
         client_company_name_snapshot: row.clientCompanyName,
         client_company_id: companyIds.get(row.clientCompanyName) ?? null,
         mission_type: row.missionType,
-        status: "ASSIGNED",
+        status: initialStatus,
         objective: row.objective || null,
         location: row.location || null,
         scheduled_start: toMissionTimestamp(row.date, row.startTime),
@@ -214,9 +222,9 @@ export async function commitMissionImport(rows: RawRow[]): Promise<ImportResult>
       .filter((id): id is string => Boolean(id))
 
     const { error: assignmentError } = await missions.from("assignments").insert([
-      { mission_id: mission.id, company_id: access.companyId, user_id: primaryId, assignment_role: "PRIMARY" },
+      { mission_id: mission.id, company_id: access.companyId, user_id: primaryId, assignment_role: "PRIMARY", response, responded_at: respondedAt },
       ...supportingIds.map((userId) => ({
-        mission_id: mission.id, company_id: access.companyId, user_id: userId, assignment_role: "SUPPORTING",
+        mission_id: mission.id, company_id: access.companyId, user_id: userId, assignment_role: "SUPPORTING", response, responded_at: respondedAt,
       })),
     ])
 

@@ -37,6 +37,9 @@ What we actually adopted:
 | Buttons | Filled is the primary action and sits at the trailing edge; secondary is outlined | Simpan filled, Batal outlined. On a phone the primary sits lowest, nearest the thumb |
 | Surfaces | Three tones, each one step off the last: page, card, field. A card groups one subject; a divider separates a card's header from its body | Page `--background`, section cards `--card`, fields `--field`. Each form section is its own card |
 | Text field outline | The outline is held to 3:1 against the surface it sits on (M3 `outline` role, WCAG 1.4.11) | `--input` is #7F8993: 3.56:1 on the card, 3.28:1 on the field fill. Focus swaps it for `--ring` |
+| Status vs action | A status is a passive label; a thing the reader can do is a button. They never share a shape | Status is a colour dot plus sentence-case text, no container. Anything actionable (Terima, Join) is a real button in the Aksi column or on the card |
+| Rows needing attention | A list item that needs the reader is toned at its edge, not shouted at | 4px `--warning-foreground` left edge on the row or card; the demand itself is the button beside it |
+| Labels | Sentence case. M3 dropped all-caps button and chip labels in 2021 | No uppercase, wide-tracked pills anywhere in a list. Uppercase stays on page eyebrows only |
 
 ## What is ours, not Material's
 
