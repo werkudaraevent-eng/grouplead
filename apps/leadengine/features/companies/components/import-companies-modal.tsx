@@ -19,6 +19,7 @@ import {
     Sparkles, RotateCcw,
 } from "lucide-react"
 import { normalizePhoneToE164 } from "@/lib/phone-normalize"
+import { normalizeCompanyName } from "@/lib/duplicate-detection"
 import { useCascadeRelations } from "@/hooks/use-cascade-relations"
 import type { FormSchema } from "@/types"
 
@@ -528,22 +529,15 @@ export function ImportCompaniesModal({ open, onOpenChange, onSuccess }: ImportCo
                 const selfName = (payload.name as string | undefined)?.trim().toLowerCase()
                 const isSelfParent = parentCompanyName.trim().toLowerCase() === selfName
                 if (parentCompanyName && !isSelfParent) {
+                    // Find-or-create in one call, so two rows naming the same
+                    // new parent cannot race each other into two parents.
                     const { data: parent } = await supabase
-                        .from("client_companies")
-                        .select("id")
-                        .ilike("name", parentCompanyName)
-                        .limit(1)
+                        .rpc("fn_find_or_create_client_company", {
+                            p_name: parentCompanyName,
+                            p_owner_id: userId ?? null,
+                        })
                         .maybeSingle()
-                    if (parent) {
-                        payload.parent_id = parent.id
-                    } else {
-                        const { data: newParent } = await supabase
-                            .from("client_companies")
-                            .insert({ name: parentCompanyName, owner_id: userId })
-                            .select("id")
-                            .single()
-                        if (newParent) payload.parent_id = newParent.id
-                    }
+                    if (parent) payload.parent_id = (parent as { id: string }).id
                 }
 
                 // Smartly parse the street_address into city and postal_code if they are missing
@@ -571,10 +565,13 @@ export function ImportCompaniesModal({ open, onOpenChange, onSuccess }: ImportCo
                     continue
                 }
 
+                // Matched on the normalised name, the same key the database
+                // holds unique: "PT X" in the file and "X Tbk" in the CRM are
+                // one row, and a plain insert of the former would be refused.
                 const { data: existing } = await supabase
                     .from("client_companies")
                     .select("id, custom_data")
-                    .ilike("name", companyName)
+                    .eq("name_normalized", normalizeCompanyName(companyName))
                     .limit(1)
                     .maybeSingle()
 

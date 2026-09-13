@@ -44,6 +44,8 @@ import {
 } from "@/app/workspace/missions/join-controls"
 import { PushLeadPanel } from "./push-lead"
 import { SupportingNotes } from "./supporting-notes"
+import { CrmSyncStatus } from "./crm-sync-status"
+import { visitReachesCrm } from "@/lib/missions/crm-sync"
 
 export const dynamic = "force-dynamic"
 
@@ -297,6 +299,16 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
                       ))}
                     </ul>
                   </div>
+                )}
+
+                {reportSubmitted && report.visitOutcome && (
+                  <CrmSyncStatus
+                    missionId={missionId}
+                    syncedAt={report.crmSyncedAt}
+                    error={report.crmSyncError}
+                    reachesCrm={visitReachesCrm(report.visitOutcome)}
+                    canRetry={canWriteReport}
+                  />
                 )}
 
                 {canPushLead(report) && !canWriteReport && (

@@ -71,6 +71,8 @@ export interface TrashItem {
     label: string
     deleted_at: string
     deleted_by_name: string | null
+    /** Companies only: the name this row was merged into, when that is why it is here. */
+    merged_into_name?: string | null
 }
 
 /** Admin/super-admin gate for all Recycle Bin operations. */
@@ -101,9 +103,11 @@ export async function listTrash(): Promise<ActionResult<{ items: TrashItem[] }>>
     const items: TrashItem[] = []
 
     for (const entity of entities) {
+        // A merged company says where it went; nothing else has that column.
+        const mergedJoin = entity === "client_company" ? ", merged:merged_into(name)" : ""
         const { data, error } = await supabase
             .from(TABLE[entity])
-            .select(`id, ${LABEL_COL[entity]}, deleted_at, deleter:profiles!deleted_by(full_name)`)
+            .select(`id, ${LABEL_COL[entity]}, deleted_at, deleter:profiles!deleted_by(full_name)${mergedJoin}`)
             .not("deleted_at", "is", null)
             .order("deleted_at", { ascending: false })
         if (error) return { success: false, error: error.message }
@@ -114,6 +118,7 @@ export async function listTrash(): Promise<ActionResult<{ items: TrashItem[] }>>
                 label: (row[LABEL_COL[entity]] as string) || "(untitled)",
                 deleted_at: row.deleted_at as string,
                 deleted_by_name: (row.deleter as { full_name: string | null } | null)?.full_name ?? null,
+                merged_into_name: (row.merged as { name: string } | null)?.name ?? null,
             })
         }
     }
@@ -128,11 +133,32 @@ export async function restoreTrashItem(entity: TrashEntity, id: string): Promise
     if (!admin.ok) return admin.error
 
     const supabase = await createClient()
+
+    // A merged company's leads and contacts now belong to the survivor, and
+    // its name would collide with that survivor's on the unique index.
+    // Restoring it would resurrect an empty shell that cannot be saved.
+    if (entity === "client_company") {
+        const { data } = await supabase
+            .from("client_companies")
+            .select("merged_into, merged:merged_into(name)")
+            .eq("id", id)
+            .maybeSingle()
+        if (data?.merged_into) {
+            const into = (data.merged as unknown as { name: string } | null)?.name ?? "another company"
+            return { success: false, error: `This company was merged into "${into}". Its data lives there now; open that company instead.` }
+        }
+    }
+
     const { error } = await supabase
         .from(TABLE[entity])
         .update({ deleted_at: null, deleted_by: null })
         .eq("id", id)
-    if (error) return { success: false, error: error.message }
+    if (error) {
+        if (error.code === "23505") {
+            return { success: false, error: "A company with this name exists again. Merge or rename that one first." }
+        }
+        return { success: false, error: error.message }
+    }
 
     await logAuditEvent({
         action: "restore",

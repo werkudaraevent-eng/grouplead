@@ -4,6 +4,7 @@ import { createClient } from "@/utils/supabase/server"
 import { createServiceClient } from "@/utils/supabase/service"
 import { requirePermission } from "@/lib/require-permission"
 import { logAuditEvent } from "@/app/actions/audit-actions"
+import { normalizeCompanyName } from "@/lib/duplicate-detection"
 import { revalidatePath } from "next/cache"
 import type { ActionResult } from "@/types/action-result"
 
@@ -29,7 +30,25 @@ export async function createClientCompanyAction(
         .insert(payload)
         .select("id")
         .single()
-    if (error) return { success: false, error: error.message }
+    if (error) {
+        // The unique index is on the normalised name, so this fires for "PT X"
+        // when "X Tbk" exists. Name the existing row rather than echo Postgres.
+        if (error.code === "23505") {
+            const { data: existing } = await supabase
+                .from("client_companies")
+                .select("id, name")
+                .eq("name_normalized", normalizeCompanyName(String(payload.name ?? "")))
+                .is("deleted_at", null)
+                .maybeSingle()
+            return {
+                success: false,
+                error: existing
+                    ? `A company with this name already exists: "${existing.name}". Open it instead, or merge the two.`
+                    : "A company with this name already exists.",
+            }
+        }
+        return { success: false, error: error.message }
+    }
 
     await logAuditEvent({
         action: "create",
@@ -121,5 +140,54 @@ export async function deleteClientCompaniesAction(
         metadata: { ids },
     })
     revalidatePath("/companies")
+    return { success: true }
+}
+
+/**
+ * Fold one company into another.
+ *
+ * Everything the loser owns (leads, contacts, notes, attachments, activity,
+ * subsidiaries, Sales Mission visits) moves to the winner; the winner's blank
+ * fields are filled from the loser; the loser goes to the Recycle Bin marked
+ * "merged into". The work is one SQL function so it is all-or-nothing: a
+ * merge that moved the leads and then failed on the contacts would be worse
+ * than no merge.
+ *
+ * Gated on `delete`, because from the loser's point of view that is what
+ * happens to it.
+ */
+export async function mergeClientCompaniesAction(
+    winnerId: string,
+    loserId: string,
+): Promise<ActionResult> {
+    const guard = await requirePermission("companies", "delete")
+    if (!guard.allowed) return guard.error
+    if (winnerId === loserId) return { success: false, error: "Pick two different companies." }
+
+    const supabase = await createClient()
+    const { data: rows } = await supabase
+        .from("client_companies")
+        .select("id, name")
+        .in("id", [winnerId, loserId])
+        .is("deleted_at", null)
+    const winner = rows?.find(r => r.id === winnerId)
+    const loser = rows?.find(r => r.id === loserId)
+    if (!winner || !loser) return { success: false, error: "Both companies must exist and not be in the Recycle Bin." }
+
+    const { error } = await supabase.rpc("fn_merge_client_companies", { p_winner: winnerId, p_loser: loserId })
+    if (error) return { success: false, error: error.message }
+
+    await logAuditEvent({
+        action: "update",
+        resource_type: "client_company",
+        resource_id: winnerId,
+        resource_name: winner.name,
+        description: `merged "${loser.name}" into "${winner.name}"`,
+        metadata: { winnerId, loserId },
+    })
+    revalidatePath("/companies")
+    revalidatePath(`/companies/${winnerId}`)
+    revalidatePath("/contacts")
+    revalidatePath("/leads")
     return { success: true }
 }

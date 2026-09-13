@@ -261,6 +261,10 @@ export interface VisitReportRecord {
   followUpDate: string | null
   clarificationNote: string | null
   submittedAt: string | null
+  /** When the company and contacts last reached LeadEngine. Null until they have. */
+  crmSyncedAt: string | null
+  /** Why the last attempt failed, so the page can offer a retry with a reason. */
+  crmSyncError: string | null
   // The CRM link, so the push modal can tell a known contact from a new one.
   contacts: Array<ReportContactInput & { leadEngineContactId: string | null }>
 }
@@ -282,7 +286,7 @@ export async function getVisitReport(
   const { data: report } = await missions
     .from("visit_reports")
     .select(
-      "id, mission_id, status, visit_outcome, meeting_summary, client_needs, product_interest, interest_level, opportunity_exists, estimated_value, competitor_mentioned, next_action_type, next_action_owner, follow_up_date, clarification_note, submitted_at"
+      "id, mission_id, status, visit_outcome, meeting_summary, client_needs, product_interest, interest_level, opportunity_exists, estimated_value, competitor_mentioned, next_action_type, next_action_owner, follow_up_date, clarification_note, submitted_at, crm_synced_at, crm_sync_error"
     )
     .eq("company_id", access.companyId)
     .eq("mission_id", missionId)
@@ -314,6 +318,8 @@ export async function getVisitReport(
     followUpDate: (report.follow_up_date as string | null) ?? null,
     clarificationNote: (report.clarification_note as string | null) ?? null,
     submittedAt: (report.submitted_at as string | null) ?? null,
+    crmSyncedAt: (report.crm_synced_at as string | null) ?? null,
+    crmSyncError: (report.crm_sync_error as string | null) ?? null,
     contacts: (contacts ?? []).map((row) => ({
       fullName: row.full_name as string,
       jobTitle: (row.job_title as string | null) ?? "",

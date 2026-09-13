@@ -249,7 +249,14 @@ export default function RecycleBinPage() {
                                                             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
                                                                 <Icon className="h-4 w-4" />
                                                             </div>
-                                                            <span className="truncate font-medium text-foreground">{item.label}</span>
+                                                            <div className="min-w-0">
+                                                                <span className="block truncate font-medium text-foreground">{item.label}</span>
+                                                                {item.merged_into_name && (
+                                                                    <span className="block truncate text-[12px] text-muted-foreground">
+                                                                        Merged into {item.merged_into_name}
+                                                                    </span>
+                                                                )}
+                                                            </div>
                                                         </div>
                                                     </td>
                                                     <td className="px-4 py-3">
@@ -271,10 +278,12 @@ export default function RecycleBinPage() {
                                                             "flex items-center justify-end gap-1.5 transition-opacity",
                                                             isBusy ? "opacity-100" : "opacity-0 group-hover:opacity-100 focus-within:opacity-100",
                                                         )}>
-                                                            <Button variant="outline" size="sm" disabled={isBusy} onClick={() => handleRestore(item)} className="h-8 gap-1.5">
-                                                                {isBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RotateCcw className="h-3.5 w-3.5" />}
-                                                                Restore
-                                                            </Button>
+                                                            {!item.merged_into_name && (
+                                                                <Button variant="outline" size="sm" disabled={isBusy} onClick={() => handleRestore(item)} className="h-8 gap-1.5">
+                                                                    {isBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RotateCcw className="h-3.5 w-3.5" />}
+                                                                    Restore
+                                                                </Button>
+                                                            )}
                                                             <Button variant="ghost" size="sm" disabled={isBusy} onClick={() => setPurgeTarget(item)} className="h-8 gap-1.5 text-destructive hover:text-destructive hover:bg-destructive/10">
                                                                 <Trash2 className="h-3.5 w-3.5" /> Delete forever
                                                             </Button>

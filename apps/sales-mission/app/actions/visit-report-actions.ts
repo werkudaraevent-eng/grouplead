@@ -2,13 +2,22 @@
 
 import { revalidatePath } from "next/cache"
 import { createClient } from "@/utils/supabase/server"
-import { canPerform, getSalesMissionAccess } from "@/lib/sales-mission-access"
-import { getMission, getMissionRole, listMissionTeam } from "@/lib/missions/mission-queries"
-import { fetchCompanyContacts } from "@/lib/leadengine/client"
+import { canPerform, getSalesMissionAccess, type SalesMissionAccess } from "@/lib/sales-mission-access"
+import { getMission, getMissionRole, getVisitReport, listMissionTeam } from "@/lib/missions/mission-queries"
+import {
+  LeadEngineError,
+  createClientCompany,
+  createContact,
+  fetchCompanyContacts,
+  recordCompanyVisit,
+} from "@/lib/leadengine/client"
 import { notify } from "@/lib/notifications/notification-queries"
+import { contactsForCrm, describeOutcome, visitReachesCrm } from "@/lib/missions/crm-sync"
+import { MISSION_TIME_ZONE } from "@/lib/missions/mission-schema"
 import {
   visitReportDraftSchema,
   visitReportSubmitSchema,
+  type VisitOutcome,
   type VisitReportDraft,
 } from "@/lib/missions/visit-report-schema"
 import type { ActionResult } from "@/types/action-result"
@@ -289,6 +298,11 @@ export async function submitVisitReport(
     .eq("id", missionId)
     .eq("company_id", access.companyId)
 
+  // The visit happened whether or not the CRM hears about it, so this runs
+  // after the report is safely stored and never fails the submit. The outcome
+  // is written on the report for the mission page to show, and to retry.
+  await syncVisitToCrm(access, missionId, reportId)
+
   await missions.from("status_history").insert({
     mission_id: missionId,
     company_id: access.companyId,
@@ -315,6 +329,129 @@ export async function submitVisitReport(
   revalidatePath(`/workspace/missions/${missionId}`)
 
   return { success: true, data: { id: reportId } }
+}
+
+/**
+ * Register the company and the people met in LeadEngine.
+ *
+ * This is what makes the CRM a database of everyone visited, not only of
+ * everyone who produced a lead. Before this, a company visited three times
+ * with no opportunity had no record in LeadEngine at all: the only path into
+ * the CRM was the lead-push modal, and most visits never open it.
+ *
+ * Three writes, each safe to repeat:
+ *   - the company, find-or-create on its normalised name. Owner is the primary
+ *     sales only when the company is new; an existing owner is never changed
+ *     from here. Changing an owner is the push modal's job, with its warning.
+ *   - each contact met, find-or-create within that company, filling blanks.
+ *   - one "meeting" entry on the company timeline, one per mission.
+ *
+ * A visit where nobody was met does none of this; see visitReachesCrm.
+ */
+async function syncVisitToCrm(
+  access: SalesMissionAccess,
+  missionId: string,
+  reportId: string
+): Promise<void> {
+  const supabase = await createClient()
+  const missions = supabase.schema("sales_mission")
+
+  const record = async (patch: { crm_synced_at: string | null; crm_sync_error: string | null }) => {
+    await missions.from("visit_reports").update(patch).eq("id", reportId)
+  }
+
+  try {
+    const [mission, report] = await Promise.all([
+      getMission(access, missionId),
+      getVisitReport(access, missionId),
+    ])
+    if (!mission || !report?.visitOutcome) return
+    if (!visitReachesCrm(report.visitOutcome as VisitOutcome)) {
+      // Not a failure. Left null so the page can say "tidak dikirim" without
+      // offering a retry that would do the same nothing.
+      return
+    }
+
+    const primary = (await listMissionTeam(access, missionId)).find((member) => member.role === "PRIMARY")
+
+    let clientCompanyId = mission.clientCompanyId
+    if (!clientCompanyId) {
+      const { company } = await createClientCompany({
+        name: mission.clientCompanyName,
+        ownerId: primary?.userId ?? access.userId,
+        city: mission.location,
+      })
+      clientCompanyId = company.id
+      // Link the mission so the next screen (and the push modal) finds it.
+      await missions
+        .from("missions")
+        .update({ client_company_id: clientCompanyId })
+        .eq("id", missionId)
+        .eq("company_id", access.companyId)
+    }
+
+    for (const contact of contactsForCrm(report.contacts)) {
+      const { contact: crm } = await createContact({
+        clientCompanyId,
+        fullName: contact.fullName,
+        jobTitle: contact.jobTitle || null,
+        phone: contact.phone || null,
+        email: contact.email || null,
+        ownerId: primary?.userId ?? access.userId,
+      })
+      await missions
+        .from("report_contacts")
+        .update({ lead_engine_contact_id: crm.id, link_status: "LINKED" })
+        .eq("company_id", access.companyId)
+        .eq("report_id", reportId)
+        .eq("full_name", contact.fullName)
+    }
+
+    await recordCompanyVisit({
+      clientCompanyId,
+      missionId,
+      visitedOn: mission.scheduledStart
+        ? new Intl.DateTimeFormat("en-CA", { timeZone: MISSION_TIME_ZONE }).format(new Date(mission.scheduledStart))
+        : new Intl.DateTimeFormat("en-CA", { timeZone: MISSION_TIME_ZONE }).format(new Date()),
+      salesName: primary?.name ?? access.displayName,
+      outcome: describeOutcome(report.visitOutcome as VisitOutcome),
+      contactNames: contactsForCrm(report.contacts).map((contact) => contact.fullName),
+      city: mission.location,
+    })
+
+    await record({ crm_synced_at: new Date().toISOString(), crm_sync_error: null })
+  } catch (error) {
+    await record({
+      crm_synced_at: null,
+      crm_sync_error:
+        error instanceof LeadEngineError ? error.message : "LeadEngine tidak dapat dihubungi.",
+    })
+  }
+}
+
+/**
+ * Try the CRM registration again after it failed on submit.
+ *
+ * Same guard as submitting: the person who wrote the report is the one who
+ * can push its facts onward. Nothing about the report changes.
+ */
+export async function retryCrmSync(missionId: string): Promise<ActionResult> {
+  const guard = await authorizeReportWrite(missionId)
+  if ("error" in guard) return { success: false, error: guard.error }
+  const { access } = guard
+
+  const report = await getVisitReport(access, missionId)
+  if (!report || report.status !== "SUBMITTED") {
+    return { success: false, error: "Laporan belum dikirim." }
+  }
+
+  await syncVisitToCrm(access, missionId, report.id)
+
+  const after = await getVisitReport(access, missionId)
+  revalidatePath(`/workspace/missions/${missionId}`)
+  return after?.crmSyncError
+    ? { success: false, error: after.crmSyncError }
+    : { success: true }
 }
 
 /**

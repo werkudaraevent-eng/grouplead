@@ -76,6 +76,37 @@ export function normalizeEntityName(name: string): string {
     return s
 }
 
+/**
+ * The matching key the database enforces uniqueness on.
+ *
+ * Mirrors `fn_normalize_company_name` in migration 20260913150000 token for
+ * token: lowercase, every run of punctuation or whitespace collapsed to one
+ * space, legal-form tokens stripped from the edges only, never the last token.
+ * `normalizeEntityName` above is looser (it keeps mid-word punctuation) and
+ * feeds the advisory hint; this one decides whether two rows may both exist.
+ *
+ * Kept in TypeScript as well as SQL so the client can say "this will match
+ * PT X" before the insert is refused, and so a test can hold the two in step.
+ */
+const DB_LEGAL_TOKENS = new Set([
+    "pt", "cv", "ud", "pd", "po", "fa", "tbk", "persero",
+    "inc", "ltd", "llc", "corp", "co", "company", "limited", "gmbh", "plc",
+])
+
+export function normalizeCompanyName(name: string): string {
+    const tokens = name
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, " ")
+        .trim()
+        .split(" ")
+        .filter(Boolean)
+
+    while (tokens.length > 1 && DB_LEGAL_TOKENS.has(tokens[0])) tokens.shift()
+    while (tokens.length > 1 && DB_LEGAL_TOKENS.has(tokens[tokens.length - 1])) tokens.pop()
+
+    return tokens.join(" ")
+}
+
 export type DuplicateMatchKind = "exact" | "contains" | "prefix"
 
 export interface DuplicateMatch<T> {

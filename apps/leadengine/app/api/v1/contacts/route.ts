@@ -60,6 +60,8 @@ const createSchema = z.object({
     jobTitle: z.string().trim().max(150).nullish(),
     phone: z.string().trim().max(50).nullish(),
     email: z.string().trim().max(200).nullish(),
+    /** Record owner for a contact created here. Ignored when they already exist. */
+    ownerId: z.string().uuid().nullish(),
     companyId: z.string().uuid().nullish(),
 })
 
@@ -71,12 +73,16 @@ const createSchema = z.object({
  * Find-or-create on name within the company, case-insensitively, for the same
  * reason client-companies does it: a rep types the same person three ways
  * across three visits, and three near-identical contacts are worse for the CRM
- * than the missing one was.
+ * than the missing one was. When the person exists, their blank fields are
+ * filled from the payload and nothing they already have is touched, so calling
+ * this from every visit only ever adds.
  *
- * Deliberately NOT called automatically when a visit report is submitted. Every
- * typo would become a permanent record, and a contact list nobody trusts is
- * worse than a short one. The caller is the lead-push modal, where a human has
- * already been asked to confirm.
+ * Called when a visit report is submitted. That used to be deliberately
+ * avoided, on the theory that a typo would become a permanent record. What
+ * happened instead was that a company visited three times had no contacts in
+ * the CRM at all, because the only registration path was the lead-push modal
+ * and most visits never produce a lead. The rows carry contact_source so the
+ * origin is visible, and a wrong name is one edit in LeadEngine.
  */
 export async function POST(request: Request) {
     const auth = await authenticate(request)
@@ -114,6 +120,7 @@ export async function POST(request: Request) {
         .select('id, full_name, job_title, phone, email')
         .eq('client_company_id', parsed.data.clientCompanyId)
         .ilike('full_name', escaped)
+        .is('deleted_at', null)
         .limit(1)
         .maybeSingle()
 
@@ -122,13 +129,23 @@ export async function POST(request: Request) {
     }
 
     if (existing) {
+        // Fill blanks only. The same rule as PATCH /contacts/:id, for the same
+        // reason: a disagreement is for a human, only a gap is safe to close.
+        const patch: Record<string, string> = {}
+        if (!existing.job_title && parsed.data.jobTitle?.trim()) patch.job_title = parsed.data.jobTitle.trim()
+        if (!existing.phone && parsed.data.phone?.trim()) patch.phone = parsed.data.phone.trim()
+        if (!existing.email && parsed.data.email?.trim()) patch.email = parsed.data.email.trim()
+        if (Object.keys(patch).length > 0) {
+            await supabase.from('contacts').update(patch).eq('id', existing.id)
+        }
+
         return NextResponse.json({
             contact: {
                 id: existing.id,
                 fullName: existing.full_name,
-                jobTitle: existing.job_title,
-                phone: existing.phone,
-                email: existing.email,
+                jobTitle: existing.job_title ?? patch.job_title ?? null,
+                phone: existing.phone ?? patch.phone ?? null,
+                email: existing.email ?? patch.email ?? null,
             },
             created: false,
         })
@@ -138,10 +155,13 @@ export async function POST(request: Request) {
         .from('contacts')
         .insert({
             client_company_id: parsed.data.clientCompanyId,
+            company_id: companyId,
+            owner_id: parsed.data.ownerId ?? null,
             full_name: parsed.data.fullName,
             job_title: parsed.data.jobTitle?.trim() || null,
             phone: parsed.data.phone?.trim() || null,
             email: parsed.data.email?.trim() || null,
+            contact_source: 'Sales Mission',
         })
         .select('id, full_name, job_title, phone, email')
         .single()

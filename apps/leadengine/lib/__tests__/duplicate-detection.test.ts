@@ -1,8 +1,40 @@
 import { describe, it, expect } from "vitest"
 import {
+    normalizeCompanyName,
     normalizeEntityName,
     findDuplicateCandidates,
 } from "../duplicate-detection"
+
+describe("normalizeCompanyName (database matching key)", () => {
+    // Each pair below was a real duplicate in production before the unique
+    // index existed. The key has to see them as one company.
+    it("folds the duplicates that actually occurred", () => {
+        expect(normalizeCompanyName("Asuransi BRI Life")).toBe(normalizeCompanyName("Asuransi  BRI Life"))
+        expect(normalizeCompanyName("Sriboga Marugame Indonesia")).toBe(normalizeCompanyName("Sriboga Marugame Indonesia PT"))
+        expect(normalizeCompanyName("Pertamina (Persero)")).toBe(normalizeCompanyName("Pertamina"))
+        expect(normalizeCompanyName("Citra Media Nusa Purnama  PT")).toBe(normalizeCompanyName("Citra Media Nusa Purnama PT"))
+    })
+
+    it("strips legal forms from both edges", () => {
+        expect(normalizeCompanyName("PT Bank Central Asia Tbk")).toBe("bank central asia")
+        expect(normalizeCompanyName("Acme Co. Ltd.")).toBe("acme")
+    })
+
+    it("treats punctuation as a separator, unlike the advisory normaliser", () => {
+        expect(normalizeCompanyName("Pertamina Hulu Energi - West Madura")).toBe("pertamina hulu energi west madura")
+        expect(normalizeCompanyName("A.B.C")).toBe("a b c")
+    })
+
+    it("never strips the last token, so a name that is only a legal form survives", () => {
+        expect(normalizeCompanyName("PT")).toBe("pt")
+        expect(normalizeCompanyName("PT Tbk")).toBe("tbk")
+    })
+
+    it("keeps distinct companies distinct", () => {
+        expect(normalizeCompanyName("Pertamina Hulu Energi")).not.toBe(normalizeCompanyName("Pertamina"))
+        expect(normalizeCompanyName("Arunika Kreasi")).not.toBe(normalizeCompanyName("Arunika Kreasindo"))
+    })
+})
 
 describe("normalizeEntityName", () => {
     it("strips PT / Tbk and normalizes case", () => {

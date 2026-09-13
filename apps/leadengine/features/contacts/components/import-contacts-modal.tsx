@@ -365,13 +365,13 @@ export function ImportContactsModal({ open, onOpenChange, onSuccess }: ImportCon
                 if (userId) payload.owner_id = userId
 
                 if (companyName) {
-                    const { data: c } = await supabase.from("client_companies").select("id").ilike("name", companyName).maybeSingle()
-                    if (c) {
-                        payload.client_company_id = c.id
-                    } else {
-                        const { data: newC, error: newCErr } = await supabase.from("client_companies").insert({ name: companyName, owner_id: userId }).select("id").single()
-                        if (newC && !newCErr) payload.client_company_id = newC.id
-                    }
+                    // Find-or-create on the normalised name, in one call. The
+                    // old ilike lookup missed "PT X" against "X" and then
+                    // inserted a duplicate the unique index now refuses.
+                    const { data: c } = await supabase
+                        .rpc("fn_find_or_create_client_company", { p_name: companyName, p_owner_id: userId ?? null })
+                        .maybeSingle()
+                    if (c) payload.client_company_id = (c as { id: string }).id
                 }
 
                 // Idempotent by name (scoped to company when available): update

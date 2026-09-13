@@ -6,7 +6,7 @@ import * as XLSX from "xlsx"
 import {
     ArrowDown, ArrowUp, ArrowUpDown, Briefcase, Building2, Columns, Download,
     Eye, EyeOff, Globe, GripVertical, MoreHorizontal, Pencil, Phone,
-    Plus, RotateCcw, Search, Trash2, Upload, Users, AlertTriangle,
+    Plus, RotateCcw, Search, Trash2, Upload, Users, AlertTriangle, GitMerge,
 } from "lucide-react"
 import { toast } from "sonner"
 
@@ -46,6 +46,7 @@ import { AddCompanyModal } from "@/features/companies/components/add-company-mod
 import { CompanyDetailSheet } from "@/features/companies/components/company-detail-sheet"
 import { AddContactModal } from "@/features/contacts/components/add-contact-modal"
 import { ImportCompaniesModal } from "@/features/companies/components/import-companies-modal"
+import { MergeCompaniesDialog, type MergeCandidate } from "@/features/companies/components/merge-companies-dialog"
 import { PermissionGate } from "@/features/users/components/permission-gate"
 import { PermissionMenuItem } from "@/components/shared/permission-menu-item"
 import { BulkActionBar } from "@/components/shared/bulk-action-bar"
@@ -132,6 +133,8 @@ export default function CompaniesPage() {
     const [deleteConfirmOpen, setDeleteConfirmOpen] = React.useState(false)
     const [companyToDelete, setCompanyToDelete] = React.useState<CompanyRow | null>(null)
     const [importOpen, setImportOpen] = React.useState(false)
+    const [mergeOpen, setMergeOpen] = React.useState(false)
+    const [mergeCandidates, setMergeCandidates] = React.useState<[MergeCandidate, MergeCandidate] | null>(null)
 
     const [searchQuery, setSearchQuery] = React.useState("")
     const [filters, setFilters] = React.useState<FilterValue[]>([])
@@ -235,6 +238,22 @@ export default function CompaniesPage() {
         setDeleteConfirmOpen(false)
         fetchCompanies()
     }
+    // Merge needs exactly two rows. The counts are fetched here rather than
+    // carried on every list row, because they only matter at this moment.
+    const openMerge = async () => {
+        const ids = Array.from(selectedIds)
+        if (ids.length !== 2) return
+        const picked = companies.filter(c => ids.includes(c.id))
+        const counted = await Promise.all(picked.map(async c => {
+            const [{ count: leads }, { count: contacts }] = await Promise.all([
+                supabase.from("leads").select("id", { count: "exact", head: true }).eq("client_company_id", c.id).is("deleted_at", null),
+                supabase.from("contacts").select("id", { count: "exact", head: true }).eq("client_company_id", c.id).is("deleted_at", null),
+            ])
+            return { id: c.id, name: c.name, industry: c.industry, city: c.city, lead_count: leads ?? 0, contact_count: contacts ?? 0 }
+        }))
+        setMergeCandidates([counted[0], counted[1]])
+        setMergeOpen(true)
+    }
     const handleDelete = (company: CompanyRow) => {
         // Open the custom confirm dialog (no native confirm()).
         setCompanyToDelete(company)
@@ -297,12 +316,13 @@ export default function CompaniesPage() {
 
             <div className="flex flex-col sm:flex-row items-center justify-between px-4 py-3 border-t border-border bg-card gap-3 sm:gap-0 mt-auto"><div className="text-[13px] text-muted-foreground font-medium"><span className="text-foreground font-semibold">{filteredData.length === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1}</span>–<span className="text-foreground font-semibold">{Math.min(currentPage * itemsPerPage, filteredData.length)}</span> of <span className="text-foreground font-semibold">{filteredData.length}</span></div><div className="flex items-center gap-4"><div className="flex items-center gap-2"><span className="text-[13px] text-muted-foreground">Rows</span><SearchableSelect value={itemsPerPage.toString()} onChange={val => val && setItemsPerPage(Number(val))} options={[10,20,50,100].map(n => ({value:String(n), label:String(n)}))} clearable={false} contentWidth="auto" className="h-8 w-[72px]" /></div><Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} size="sm" /></div></div>
 
-            <BulkActionBar count={selectedIds.size} onClear={() => setSelectedIds(new Set())}><Button variant="ghost" size="sm" onClick={() => handleExport(true)} className="h-7 px-2.5 text-background/90 hover:text-background hover:bg-background/10 text-xs"><Download className="h-3.5 w-3.5 mr-1" /> Export</Button><PermissionGate resource="companies" action="delete"><Button variant="ghost" size="sm" onClick={() => setDeleteConfirmOpen(true)} className="h-7 px-2.5 text-background/90 hover:text-background hover:bg-background/10 text-xs"><Trash2 className="h-3.5 w-3.5 mr-1" /> Delete</Button></PermissionGate></BulkActionBar>
+            <BulkActionBar count={selectedIds.size} onClear={() => setSelectedIds(new Set())}><Button variant="ghost" size="sm" onClick={() => handleExport(true)} className="h-7 px-2.5 text-background/90 hover:text-background hover:bg-background/10 text-xs"><Download className="h-3.5 w-3.5 mr-1" /> Export</Button>{selectedIds.size === 2 && <PermissionGate resource="companies" action="delete"><Button variant="ghost" size="sm" onClick={openMerge} className="h-7 px-2.5 text-background/90 hover:text-background hover:bg-background/10 text-xs"><GitMerge className="h-3.5 w-3.5 mr-1" /> Merge</Button></PermissionGate>}<PermissionGate resource="companies" action="delete"><Button variant="ghost" size="sm" onClick={() => setDeleteConfirmOpen(true)} className="h-7 px-2.5 text-background/90 hover:text-background hover:bg-background/10 text-xs"><Trash2 className="h-3.5 w-3.5 mr-1" /> Delete</Button></PermissionGate></BulkActionBar>
 
             <AddCompanyModal open={addOpen} onOpenChange={setAddOpen} initialData={selectedCompany} onCreated={fetchCompanies} />
             <CompanyDetailSheet company={selectedCompany} open={sheetOpen} onOpenChange={setSheetOpen} onAddContact={handleAddContact} />
             <AddContactModal isOpen={addContactOpen} onOpenChange={setAddContactOpen} preselectedCompanyId={addContactCompanyId} onSuccess={() => { setAddContactOpen(false); fetchCompanies() }} />
             <ImportCompaniesModal open={importOpen} onOpenChange={setImportOpen} onSuccess={fetchCompanies} />
+            <MergeCompaniesDialog open={mergeOpen} onOpenChange={setMergeOpen} candidates={mergeCandidates} onMerged={() => { setSelectedIds(new Set()); fetchCompanies() }} />
             <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Move to Recycle Bin?</AlertDialogTitle><AlertDialogDescription>This will move <strong className="text-foreground">{selectedIds.size}</strong> selected compan{selectedIds.size === 1 ? "y" : "ies"} to the Recycle Bin. An admin can restore them later.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={e => { e.preventDefault(); executeBulkDelete() }} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Move to Recycle Bin</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
             <AlertDialog open={!!companyToDelete} onOpenChange={(o) => { if (!o) setCompanyToDelete(null) }}><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Move to Recycle Bin?</AlertDialogTitle><AlertDialogDescription>This will move <strong className="text-foreground">{companyToDelete?.name}</strong> to the Recycle Bin. An admin can restore it later.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={e => { e.preventDefault(); executeSingleDelete() }} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Move to Recycle Bin</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
         </div>

@@ -55,18 +55,25 @@ export async function GET(request: Request) {
 const createSchema = z.object({
     name: z.string().trim().min(1).max(300),
     companyId: z.string().uuid().nullish(),
+    /** Record owner for a company created here. Ignored when it already exists. */
+    ownerId: z.string().uuid().nullish(),
+    /** City for a company created here. Ignored when it already exists. */
+    city: z.string().trim().max(200).nullish(),
 })
 
 /**
  * POST /api/v1/client-companies
  *
- * Registers a company a rep met in the field but that the CRM has never heard
- * of. Without this, a lead pushed from such a mission arrived with no company
- * attached and nobody was told to fix it.
+ * Registers a company a rep visited that the CRM has never heard of. Called
+ * when a visit report is submitted, and again from the lead-push modal as a
+ * fallback if that first registration failed.
  *
- * Find-or-create, matched on name case-insensitively. Reps type the same
- * company three different ways across three missions, and three thin duplicates
- * are worse for the CRM than the missing record was.
+ * Find-or-create through `fn_find_or_create_client_company`, which matches on
+ * the normalised name ("PT Arunika Kreasi" and "Arunika Kreasi Tbk" are one
+ * company) and is the only path that survives two reps submitting the same
+ * new company in the same second: the unique index decides, and the loser is
+ * handed the winner's row. A check-then-insert here in two round trips was
+ * exactly how "Asuransi BRI Life" came to exist twice.
  *
  * New records carry `needs_enrichment`, the same flag lead import already uses,
  * so they surface under the "Needs details" filter on the Companies screen
@@ -101,53 +108,31 @@ export async function POST(request: Request) {
         return apiError(403, 'forbidden', 'You do not have permission to create a client company.')
     }
 
-    const name = parsed.data.name
-    const escaped = name.replace(/[%_]/g, (match) => `\\${match}`)
-
-    const { data: existing, error: lookupError } = await supabase
-        .from('client_companies')
-        .select('id, name, industry, needs_enrichment')
-        .ilike('name', escaped)
-        .is('deleted_at', null)
-        .limit(1)
+    const { data, error } = await supabase
+        .rpc('fn_find_or_create_client_company', {
+            p_name: parsed.data.name,
+            p_company_id: companyId,
+            p_owner_id: parsed.data.ownerId ?? null,
+            p_city: parsed.data.city ?? null,
+        })
         .maybeSingle()
 
-    if (lookupError) {
-        return apiError(500, 'lookup_failed', 'Could not check for an existing company.')
+    if (error || !data) {
+        return apiError(500, 'create_failed', error?.message ?? 'Could not create the client company.')
     }
 
-    if (existing) {
-        return NextResponse.json({
-            company: {
-                id: existing.id,
-                name: existing.name,
-                industry: existing.industry,
-                needsEnrichment: existing.needs_enrichment === true,
-            },
-            created: false,
-        })
-    }
-
-    const { data: created, error: insertError } = await supabase
-        .from('client_companies')
-        .insert({ name, company_id: companyId, needs_enrichment: true })
-        .select('id, name, industry, needs_enrichment')
-        .single()
-
-    if (insertError || !created) {
-        return apiError(500, 'create_failed', 'Could not create the client company.')
-    }
+    const row = data as { id: string; name: string; created: boolean; needs_enrichment: boolean }
 
     return NextResponse.json(
         {
             company: {
-                id: created.id,
-                name: created.name,
-                industry: created.industry,
-                needsEnrichment: created.needs_enrichment === true,
+                id: row.id,
+                name: row.name,
+                industry: null,
+                needsEnrichment: row.needs_enrichment === true,
             },
-            created: true,
+            created: row.created,
         },
-        { status: 201 }
+        { status: row.created ? 201 : 200 }
     )
 }

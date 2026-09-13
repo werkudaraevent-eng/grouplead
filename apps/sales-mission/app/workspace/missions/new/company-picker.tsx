@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { Building2, Check, Loader2, X } from "lucide-react"
+import { Building2, Check, History, Loader2, X } from "lucide-react"
 import { searchCompanies, type CompanySuggestion } from "@/app/actions/company-search-actions"
 import { Input } from "@/components/ui/input"
 
@@ -31,14 +31,22 @@ export function CompanyPicker({
   const [query, setQuery] = useState("")
   const [selected, setSelected] = useState<CompanySuggestion | null>(null)
   const [results, setResults] = useState<CompanySuggestion[]>([])
+  const [previousNames, setPreviousNames] = useState<string[]>([])
   const [searching, setSearching] = useState(false)
+  /** Suppresses the lookup that adopting a previous name would otherwise trigger. */
+  const justAdopted = useRef(false)
   const [error, setError] = useState<string | null>(null)
   const [open, setOpen] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
+    if (justAdopted.current) {
+      justAdopted.current = false
+      return
+    }
     if (selected || query.trim().length < 2) {
       setResults([])
+      setPreviousNames([])
       return
     }
 
@@ -47,6 +55,7 @@ export function CompanyPicker({
       setSearching(true)
       const result = await searchCompanies(query)
       setResults(result.companies)
+      setPreviousNames(result.previousNames)
       setError(result.error)
       setSearching(false)
       setOpen(true)
@@ -67,8 +76,11 @@ export function CompanyPicker({
     setSelected(null)
     setQuery("")
     setResults([])
+    setPreviousNames([])
     onLink?.(null)
   }
+
+  const hasDropdown = results.length > 0 || previousNames.length > 0 || Boolean(error)
 
   return (
     <div className="space-y-1.5" ref={containerRef}>
@@ -86,7 +98,7 @@ export function CompanyPicker({
           value={selected?.name ?? query}
           readOnly={Boolean(selected)}
           onChange={(event) => setQuery(event.target.value)}
-          onFocus={() => { if (results.length > 0) setOpen(true) }}
+          onFocus={() => { if (hasDropdown) setOpen(true) }}
           className="h-12 pr-10"
         />
 
@@ -105,27 +117,57 @@ export function CompanyPicker({
           ) : null}
         </span>
 
-        {open && !selected && (results.length > 0 || error) && (
+        {open && !selected && hasDropdown && (
           <div className="absolute z-20 mt-1 w-full overflow-hidden rounded-lg border bg-popover shadow-lg">
-            {error ? (
-              <p className="px-3 py-3 text-xs text-muted-foreground">{error}</p>
-            ) : (
-              results.map((company) => (
-                <button
-                  key={company.id}
-                  type="button"
-                  onClick={() => { setSelected(company); setOpen(false); onLink?.(company.id) }}
-                  className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left transition-colors hover:bg-muted"
-                >
-                  <Building2 className="h-4 w-4 shrink-0 text-muted-foreground" />
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-medium text-foreground">{company.name}</span>
-                    {company.industry && (
-                      <span className="block truncate text-xs text-muted-foreground">{company.industry}</span>
-                    )}
-                  </span>
-                </button>
-              ))
+            {error && <p className="px-3 py-3 text-xs text-muted-foreground">{error}</p>}
+
+            {results.map((company) => (
+              <button
+                key={company.id}
+                type="button"
+                onClick={() => { setSelected(company); setOpen(false); onLink?.(company.id) }}
+                className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left transition-colors hover:bg-muted"
+              >
+                <Building2 className="h-4 w-4 shrink-0 text-muted-foreground" />
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-medium text-foreground">{company.name}</span>
+                  {company.industry && (
+                    <span className="block truncate text-xs text-muted-foreground">{company.industry}</span>
+                  )}
+                </span>
+              </button>
+            ))}
+
+            {/*
+              Names from earlier missions that the CRM has not seen yet. Picking
+              one adopts the spelling only; there is no id to link, and the
+              company reaches the CRM once a visit report is submitted. This is
+              what stops two reps producing "PT Arunika" and "Arunika Kreasi"
+              for one client a week apart.
+            */}
+            {previousNames.length > 0 && (
+              <div className={results.length > 0 ? "border-t" : undefined}>
+                <p className="px-3 pb-1 pt-2.5 text-[11px] font-semibold text-muted-foreground">
+                  Dari mission sebelumnya, belum ada di CRM
+                </p>
+                {previousNames.map((name) => (
+                  <button
+                    key={name}
+                    type="button"
+                    onClick={() => {
+                      justAdopted.current = true
+                      setQuery(name)
+                      setResults([])
+                      setPreviousNames([])
+                      setOpen(false)
+                    }}
+                    className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left transition-colors hover:bg-muted"
+                  >
+                    <History className="h-4 w-4 shrink-0 text-muted-foreground" />
+                    <span className="min-w-0 flex-1 truncate text-sm text-foreground">{name}</span>
+                  </button>
+                ))}
+              </div>
             )}
           </div>
         )}
@@ -137,8 +179,8 @@ export function CompanyPicker({
         </p>
       ) : (
         <p className="text-xs text-muted-foreground">
-          Belum ada di CRM. Mission tetap bisa dibuat: perusahaan didaftarkan otomatis saat lead
-          dikirim ke LeadEngine, ditandai agar admin CRM melengkapinya.
+          Belum ada di CRM. Mission tetap bisa dibuat. Perusahaan masuk ke LeadEngine setelah
+          laporan kunjungan disubmit, ditandai agar admin CRM melengkapinya.
         </p>
       )}
     </div>

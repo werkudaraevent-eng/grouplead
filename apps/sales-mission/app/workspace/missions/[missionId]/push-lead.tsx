@@ -263,7 +263,8 @@ export function PushLeadPanel({
 
           {!form.linkedCompanyId && (
             <p className="mt-3 text-xs text-muted-foreground">
-              Perusahaan akan didaftarkan saat lead dikirim, ditandai{" "}
+              Biasanya perusahaan sudah terdaftar saat laporan dikirim. Kalau belum, didaftarkan
+              sekarang bersama lead, ditandai{" "}
               <span className="font-semibold">&ldquo;Needs details&rdquo;</span> agar admin CRM bisa
               melengkapinya dari halaman Companies.
             </p>

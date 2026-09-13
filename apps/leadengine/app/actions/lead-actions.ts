@@ -13,6 +13,7 @@ import { buildStageTransitionAuditEntries } from "@/features/leads/lib/stage-tra
 import { computeAccountStatus } from "@/features/leads/lib/compute-account-status"
 import { logAuditEvent } from "@/app/actions/audit-actions"
 import { requirePermission } from "@/lib/require-permission"
+import { normalizeCompanyName } from "@/lib/duplicate-detection"
 import type { ActionResult } from "@/types"
 
 // ── Column Whitelist: ONLY these keys are physical columns on the `leads` table ──
@@ -576,7 +577,7 @@ export async function importLeadsAction(
     // Build lookup maps (case-insensitive)
     const companyMap = new Map<string, string>()
     for (const c of allCompanies ?? []) {
-        companyMap.set(c.name.toLowerCase().trim(), c.id)
+        companyMap.set(normalizeCompanyName(c.name), c.id)
     }
 
     const contactMap = new Map<string, { id: string; client_company_id: string | null }>()
@@ -688,19 +689,19 @@ export async function importLeadsAction(
             // ── Resolve Client Company name → ID (auto-create if new) ──
             const clientCompanyName = raw.client_company_name as string | undefined
             if (clientCompanyName && String(clientCompanyName).trim()) {
-                const nameKey = String(clientCompanyName).toLowerCase().trim()
+                // Keyed on the normalised name, the same key the database
+                // holds unique, so "PT X" in the file finds "X Tbk" in the CRM.
+                const nameKey = normalizeCompanyName(String(clientCompanyName))
                 let companyId = companyMap.get(nameKey)
                 if (!companyId) {
-                    // Auto-create the client company. Flagged needs_enrichment
-                    // so admins can find + complete these thin records later.
-                    const { data: newCompany, error: compErr } = await supabase
-                        .from("client_companies")
-                        .insert({ name: String(clientCompanyName).trim(), needs_enrichment: true })
-                        .select("id")
-                        .single()
-                    if (newCompany && !compErr) {
-                        companyId = newCompany.id
-                        companyMap.set(nameKey, newCompany.id) // cache for subsequent rows
+                    // Find-or-create in one call. Flagged needs_enrichment so
+                    // admins can find + complete these thin records later.
+                    const { data: found, error: compErr } = await supabase
+                        .rpc("fn_find_or_create_client_company", { p_name: String(clientCompanyName).trim() })
+                        .maybeSingle()
+                    if (found && !compErr) {
+                        companyId = (found as { id: string }).id
+                        companyMap.set(nameKey, companyId) // cache for subsequent rows
                     } else {
                         errors.push(`${rowLabel(i, raw)}: Failed to create company "${clientCompanyName}" — ${compErr?.message}`)
                     }
@@ -1032,7 +1033,7 @@ export async function importHistoricalLeadsAction(
 
     // Build lookup maps
     const companyMap = new Map<string, string>()
-    for (const c of allCompanies ?? []) companyMap.set(c.name.toLowerCase().trim(), c.id)
+    for (const c of allCompanies ?? []) companyMap.set(normalizeCompanyName(c.name), c.id)
 
     const contactMap = new Map<string, { id: string; client_company_id: string | null }>()
     for (const c of allContacts ?? []) contactMap.set(c.full_name.toLowerCase().trim(), { id: c.id, client_company_id: c.client_company_id })
@@ -1142,17 +1143,15 @@ export async function importHistoricalLeadsAction(
             // ── Resolve Client Company (auto-create) ──
             const clientCompanyName = raw.client_company_name as string | undefined
             if (clientCompanyName && String(clientCompanyName).trim()) {
-                const nameKey = String(clientCompanyName).toLowerCase().trim()
+                const nameKey = normalizeCompanyName(String(clientCompanyName))
                 let companyId = companyMap.get(nameKey)
                 if (!companyId) {
-                    const { data: newCompany, error: compErr } = await adminClient
-                        .from("client_companies")
-                        .insert({ name: String(clientCompanyName).trim(), needs_enrichment: true })
-                        .select("id")
-                        .single()
-                    if (newCompany && !compErr) {
-                        companyId = newCompany.id
-                        companyMap.set(nameKey, newCompany.id)
+                    const { data: found, error: compErr } = await adminClient
+                        .rpc("fn_find_or_create_client_company", { p_name: String(clientCompanyName).trim() })
+                        .maybeSingle()
+                    if (found && !compErr) {
+                        companyId = (found as { id: string }).id
+                        companyMap.set(nameKey, companyId)
                     }
                 }
                 if (companyId) raw.client_company_id = companyId

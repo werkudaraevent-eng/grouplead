@@ -164,12 +164,15 @@ export interface CreateContactPayload {
   jobTitle?: string | null
   phone?: string | null
   email?: string | null
+  /** Record owner when the contact is new. Ignored when they already exist. */
+  ownerId?: string | null
 }
 
 /**
  * Register someone met in the field. Find-or-create on the LeadEngine side, so
  * calling it twice for the same person returns the same contact rather than a
- * second copy.
+ * second copy. An existing contact has their blank fields filled and nothing
+ * else touched.
  */
 export async function createContact(payload: CreateContactPayload): Promise<CreatedContact> {
   return request(`/api/v1/contacts`, createdContactSchema, {
@@ -243,18 +246,54 @@ const createCompanySchema = z.object({
 
 export type CreatedClientCompany = z.infer<typeof createCompanySchema>
 
+export interface CreateClientCompanyPayload {
+  name: string
+  /** Record owner when the company is new. Ignored when it already exists. */
+  ownerId?: string | null
+  /** City when the company is new. Ignored when it already exists. */
+  city?: string | null
+}
+
 /**
  * Register a company the CRM has never seen, or return the existing match.
  *
- * LeadEngine matches on name case-insensitively and only inserts when nothing
- * matches, so calling this twice for the same company is safe — which matters,
- * because the push flow calls it right before creating a lead.
+ * LeadEngine matches on the normalised name ("PT X" and "X Tbk" are one
+ * company) inside a single database function, so calling this twice, or from
+ * two reps in the same second, returns the same row. The visit report submit
+ * and the lead push both call it.
  */
-export async function createClientCompany(name: string): Promise<CreatedClientCompany> {
+export async function createClientCompany(
+  payload: string | CreateClientCompanyPayload
+): Promise<CreatedClientCompany> {
+  const body = typeof payload === "string" ? { name: payload } : payload
   return request(`/api/v1/client-companies`, createCompanySchema, {
     method: "POST",
-    body: JSON.stringify({ name }),
+    body: JSON.stringify(body),
   })
+}
+
+export interface RecordVisitPayload {
+  clientCompanyId: string
+  missionId: string
+  visitedOn: string
+  salesName: string
+  outcome: string
+  contactNames: string[]
+  city?: string | null
+}
+
+/**
+ * Put a field visit on the company's CRM timeline, so LeadEngine can answer
+ * "when were we last there" for accounts that never produced a lead.
+ * Idempotent per mission.
+ */
+export async function recordCompanyVisit(payload: RecordVisitPayload): Promise<void> {
+  const { clientCompanyId, ...body } = payload
+  await request(
+    `/api/v1/client-companies/${clientCompanyId}/visits`,
+    z.object({ recorded: z.boolean() }),
+    { method: "POST", body: JSON.stringify(body) }
+  )
 }
 
 const contextSchema = z.object({

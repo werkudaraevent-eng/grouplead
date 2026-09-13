@@ -320,11 +320,15 @@ export async function pushMissionToLeadEngine(
 
   try {
     if (!clientCompanyId) {
-      // Register the company before the lead, so a lead can never land in the
-      // pipeline with nothing attached. LeadEngine matches on name first, so
-      // this links to an existing record when there is one and only inserts a
-      // thin record — flagged "Needs details" — when there is not.
-      const { company } = await createClientCompany(mission.clientCompanyName)
+      // Normally the visit report already registered the company on submit.
+      // This is the fallback for when that call failed, so a lead can never
+      // land in the pipeline with nothing attached. Find-or-create on the
+      // normalised name; a new row is flagged "Needs details".
+      const { company } = await createClientCompany({
+        name: mission.clientCompanyName,
+        ownerId: parsed.data.ownerUserId,
+        city: mission.location,
+      })
       clientCompanyId = company.id
     }
 
@@ -350,10 +354,9 @@ export async function pushMissionToLeadEngine(
   /*
     Register the contacts the rep ticked, and link the report rows back to them.
 
-    Done after the lead exists, and only for names explicitly ticked in the
-    modal. Nothing here runs on its own: a visit report submitted at 6pm never
-    writes to the CRM by itself, because every typo would become a permanent
-    contact and a list nobody trusts is worse than a short one.
+    Since visit reports register their contacts on submit, this list is usually
+    empty; it catches the case where that registration failed and the rep is
+    pushing anyway. Only names explicitly ticked in the modal are sent.
 
     Failures are swallowed on purpose. The lead is already created and recorded;
     refusing the whole push because one contact could not be registered would
