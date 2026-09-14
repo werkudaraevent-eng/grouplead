@@ -14,6 +14,13 @@ const SETTING_CARDS = [
     href: "/workspace/settings/form",
   },
   {
+    icon: ListChecks,
+    tone: "bg-[var(--success)] text-[var(--success-foreground)]",
+    title: "Form laporan",
+    description: "Pertanyaan pada laporan kunjungan: tambah, urutkan, wajibkan, dan atur pilihan jawabannya.",
+    href: "/workspace/settings/report-form",
+  },
+  {
     icon: MonitorPlay,
     tone: "bg-[var(--success)] text-[var(--success-foreground)]",
     title: "Papan live",

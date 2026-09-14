@@ -1,4 +1,5 @@
 import { z } from "zod"
+import { visibleFields, type FormField } from "./form-fields"
 
 /**
  * Visit report contract: vocabularies, validation, and the pure helpers the
@@ -94,6 +95,8 @@ const baseShape = {
   nextActionOwner: z.string().uuid().nullish(),
   followUpDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Tanggal tidak valid").nullish(),
   contacts: z.array(contactSchema).default([]),
+  /** Answers to the fields the admin added, keyed by reporting key. */
+  custom: z.record(z.string(), z.unknown()).default({}),
 }
 
 /** Autosave. Accepts a half-filled form so a draft is never lost to validation. */
@@ -187,4 +190,51 @@ export function missingSubmitFields(draft: VisitReportDraft): string[] {
     if (field) seen.add(field)
   }
   return [...seen]
+}
+
+/** Core report keys → the draft property that answers them. */
+const CORE_DRAFT_KEYS: Record<string, keyof VisitReportDraft> = {
+  visit_outcome: "visitOutcome",
+  contacts_met: "contacts",
+  meeting_summary: "meetingSummary",
+  client_needs: "clientNeeds",
+  product_interest: "productInterest",
+  interest_level: "interestLevel",
+  estimated_value: "estimatedValue",
+  competitor_mentioned: "competitorMentioned",
+  next_action_type: "nextActionType",
+  next_action_owner: "nextActionOwner",
+  follow_up_date: "followUpDate",
+}
+
+function isBlank(value: unknown): boolean {
+  return value === null || value === undefined || value === "" || (Array.isArray(value) && value.length === 0)
+}
+
+/**
+ * What the admin's configuration requires beyond what the code requires.
+ *
+ * The code's own rules (outcome, summary, interest, needs, contacts unless
+ * absent, owner and date once there is a next action) stay in the schema
+ * above and cannot be loosened. This adds the admin's tightening of any
+ * other core field and every custom field they marked required. Returns
+ * reporting keys, so the caller can label them from the same configuration.
+ */
+export function missingConfiguredFields(draft: VisitReportDraft, fields: FormField[]): string[] {
+  const missing: string[] = []
+  for (const field of visibleFields(fields)) {
+    if (!field.isRequired) continue
+    if (field.isCore) {
+      const key = CORE_DRAFT_KEYS[field.reportingKey]
+      if (!key) continue
+      // Owner and date are conditional on a next action; the schema handles them.
+      if (field.reportingKey === "next_action_owner" || field.reportingKey === "follow_up_date") continue
+      if (isBlank(draft[key])) missing.push(field.reportingKey)
+      continue
+    }
+    // A required yes/no is satisfied by "no".
+    if (field.fieldType === "BOOLEAN") continue
+    if (isBlank(draft.custom[field.reportingKey])) missing.push(field.reportingKey)
+  }
+  return missing
 }

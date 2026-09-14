@@ -35,6 +35,8 @@ function mission(overrides: Partial<MissionListItem> & { id: string }): MissionL
     createdBy: "creator",
     createdByName: "Pembuat",
     createdAt: "2026-09-01T01:00:00.000Z",
+    reportStatus: "NONE",
+    visitOutcome: null,
     appointment: {
       salutation: null,
       contactId: null,
@@ -181,6 +183,18 @@ describe("mission query", () => {
     expect(ids(applyMissionQuery(rows, { ...EMPTY_QUERY, status: ["ACCEPTED", "CANCELLED"] }, now))).toEqual(["a", "c"])
     expect(ids(applyMissionQuery(rows, { ...EMPTY_QUERY, status: ["ACCEPTED", "CANCELLED"], location: ["Jakarta Selatan"], type: ["meeting"] }, now))).toEqual(["a", "c"])
     expect(ids(applyMissionQuery(rows, { ...EMPTY_QUERY, status: ["CANCELLED"], location: ["Tangerang"] }, now))).toEqual([])
+  })
+
+  it("narrows by whether a report is owed, drafted, or in", () => {
+    const visits = [
+      mission({ id: "owed", scheduledStart: "2026-09-15T02:00:00.000Z", scheduledEnd: "2026-09-15T03:00:00.000Z" }),
+      mission({ id: "drafted", reportStatus: "DRAFT" }),
+      mission({ id: "done", status: "COMPLETED", reportStatus: "SUBMITTED" }),
+      mission({ id: "ahead", scheduledStart: "2026-09-20T02:00:00.000Z" }),
+    ]
+    expect(ids(applyMissionQuery(visits, { ...EMPTY_QUERY, report: ["needs_report"] }, now))).toEqual(["owed"])
+    expect(ids(applyMissionQuery(visits, { ...EMPTY_QUERY, report: ["draft", "reported"] }, now))).toEqual(["drafted", "done"])
+    expect(parseMissionQuery({ report: "draft,bogus" }).report).toEqual(["draft"])
   })
 
   it("narrows to who scheduled the mission", () => {

@@ -1,6 +1,6 @@
 import { createClient } from "@/utils/supabase/server"
 import type { SalesMissionAccess } from "@/lib/sales-mission-access"
-import { CORE_MISSION_FIELDS, type FieldType, type FormField } from "./form-fields"
+import { coreFieldsFor, type FormKey, type FieldType, type FormField } from "./form-fields"
 
 /** Read side of the form builder. */
 
@@ -34,7 +34,7 @@ function toFormField(row: FieldRow): FormField {
  */
 export async function listFormFields(
   access: SalesMissionAccess,
-  formKey: "mission" | "visit_report" = "mission",
+  formKey: FormKey = "mission",
   options: { includeArchived?: boolean } = {}
 ): Promise<FormField[]> {
   const supabase = await createClient()
@@ -56,13 +56,14 @@ export async function listFormFields(
 
   let fields = await read()
 
-  if (formKey === "mission") {
+  {
+    const core = coreFieldsFor(formKey)
     // Seed whatever core fields this tenant is missing, not just the whole set
     // on an empty form. A tenant seeded before a core field existed would
     // otherwise never see it: the old "only when empty" check meant new core
     // fields reached new tenants and nobody else.
     const present = new Set(fields.map((field) => field.reportingKey))
-    const missing = CORE_MISSION_FIELDS.filter((field) => !present.has(field.reportingKey))
+    const missing = core.filter((field) => !present.has(field.reportingKey))
 
     if (missing.length > 0) {
       // `ignoreDuplicates` makes this safe to race: two people opening the form
@@ -71,12 +72,13 @@ export async function listFormFields(
       await schema.from("form_fields").upsert(
         missing.map((field) => ({
           company_id: access.companyId,
-          form_key: "mission",
+          form_key: formKey,
           reporting_key: field.reportingKey,
           label: field.label,
           field_type: field.fieldType,
           is_required: field.isRequired,
           is_core: true,
+          help_text: "helpText" in field ? (field.helpText ?? null) : null,
           // Seeded so a choice field arrives with choices. Without this the
           // mission form would open a dropdown with nothing in it.
           options: field.options ?? [],
@@ -96,23 +98,23 @@ export async function listFormFields(
     // choose, which is the defect this whole change is about. Doing it here as
     // well as in the migration means the fix does not depend on deploy order,
     // and costs one write per tenant, once.
-    const repairs = CORE_MISSION_FIELDS.filter(
-      (core) =>
-        (core.options?.length ?? 0) > 0 &&
+    const repairs = core.filter(
+      (item) =>
+        (item.options?.length ?? 0) > 0 &&
         fields.some(
-          (field) => field.reportingKey === core.reportingKey && field.options.length === 0
+          (field) => field.reportingKey === item.reportingKey && field.options.length === 0
         )
     )
 
     if (repairs.length > 0) {
       await Promise.all(
-        repairs.map((core) =>
+        repairs.map((item) =>
           schema
             .from("form_fields")
-            .update({ options: core.options })
+            .update({ options: item.options })
             .eq("company_id", access.companyId)
-            .eq("form_key", "mission")
-            .eq("reporting_key", core.reportingKey)
+            .eq("form_key", formKey)
+            .eq("reporting_key", item.reportingKey)
         )
       )
 
@@ -141,5 +143,22 @@ export async function getMissionFieldValues(
   for (const row of data ?? []) {
     result[row.reporting_key as string] = row.value
   }
+  return result
+}
+
+/** Custom-field answers for a report, keyed by reporting key. */
+export async function getReportFieldValues(
+  access: SalesMissionAccess,
+  reportId: string
+): Promise<Record<string, unknown>> {
+  const supabase = await createClient()
+  const { data } = await supabase
+    .schema("sales_mission")
+    .from("report_field_values")
+    .select("reporting_key, value")
+    .eq("company_id", access.companyId)
+    .eq("report_id", reportId)
+  const result: Record<string, unknown> = {}
+  for (const row of data ?? []) result[row.reporting_key as string] = row.value
   return result
 }

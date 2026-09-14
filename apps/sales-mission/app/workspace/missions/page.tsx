@@ -105,6 +105,7 @@ export default async function MissionsPage({
         filtered={!isEmptyQuery(query)}
         policy={settings}
         maxSupporting={settings.maxSupporting}
+        canWriteAnyReport={access.isSuperAdmin}
       />
     </WorkspacePage>
   )

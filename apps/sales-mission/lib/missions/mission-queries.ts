@@ -5,6 +5,7 @@ import {
   type AssignmentRow,
   type MissionListItem,
   type MissionRow,
+  type ReportStateMap,
 } from "./mission-schema"
 import type {
   InterestLevel,
@@ -48,6 +49,28 @@ async function resolveNames(
   )
 }
 
+/** Report status and outcome per mission, for the list's visit state. */
+async function reportStates(
+  missions: ReturnType<Awaited<ReturnType<typeof createClient>>["schema"]>,
+  companyId: string,
+  missionIds: string[]
+): Promise<ReportStateMap> {
+  const map: ReportStateMap = new Map()
+  if (missionIds.length === 0) return map
+  const { data } = await missions
+    .from("visit_reports")
+    .select("mission_id, status, visit_outcome")
+    .eq("company_id", companyId)
+    .in("mission_id", missionIds)
+  for (const row of data ?? []) {
+    map.set(row.mission_id as string, {
+      status: row.status as "DRAFT" | "SUBMITTED" | "NEEDS_CLARIFICATION",
+      visitOutcome: (row.visit_outcome as string | null) ?? null,
+    })
+  }
+  return map
+}
+
 export async function listMissions(access: SalesMissionAccess): Promise<MissionListItem[]> {
   const { supabase, missions } = await missionSchema()
 
@@ -67,12 +90,12 @@ export async function listMissions(access: SalesMissionAccess): Promise<MissionL
     .in("mission_id", missionIds)
 
   const assignments = (assignmentRows ?? []) as AssignmentRow[]
-  const names = await resolveNames(supabase, [
-    ...assignments.map((row) => row.user_id),
-    ...missionRows.map((row) => row.created_by as string),
+  const [names, reports] = await Promise.all([
+    resolveNames(supabase, [...assignments.map((row) => row.user_id), ...missionRows.map((row) => row.created_by as string)]),
+    reportStates(missions, access.companyId, missionIds),
   ])
 
-  return mapMissions(missionRows as MissionRow[], assignments, names, access.userId)
+  return mapMissions(missionRows as MissionRow[], assignments, names, access.userId, reports)
 }
 
 export interface MissionSettings {
@@ -143,9 +166,12 @@ export async function getMission(
     .eq("mission_id", missionId)
 
   const assignments = (assignmentRows ?? []) as AssignmentRow[]
-  const names = await resolveNames(supabase, [...assignments.map((row) => row.user_id), missionRow.created_by as string])
+  const [names, reports] = await Promise.all([
+    resolveNames(supabase, [...assignments.map((row) => row.user_id), missionRow.created_by as string]),
+    reportStates(missions, access.companyId, [missionId]),
+  ])
 
-  return mapMissions([missionRow as MissionRow], assignments, names, access.userId)[0] ?? null
+  return mapMissions([missionRow as MissionRow], assignments, names, access.userId, reports)[0] ?? null
 }
 
 export type MissionRole = "PRIMARY" | "SUPPORTING" | null
@@ -281,6 +307,8 @@ export interface VisitReportRecord {
   crmSyncedAt: string | null
   /** Why the last attempt failed, so the page can offer a retry with a reason. */
   crmSyncError: string | null
+  /** Answers to admin-added fields, keyed by reporting key. */
+  custom: Record<string, unknown>
   // The CRM link, so the push modal can tell a known contact from a new one.
   contacts: Array<ReportContactInput & { leadEngineContactId: string | null }>
 }
@@ -310,12 +338,21 @@ export async function getVisitReport(
 
   if (!report) return null
 
-  const { data: contacts } = await missions
-    .from("report_contacts")
-    .select("full_name, job_title, phone, email, is_decision_maker, lead_engine_contact_id")
-    .eq("company_id", access.companyId)
-    .eq("report_id", report.id)
-    .order("created_at")
+  const [{ data: contacts }, { data: customRows }] = await Promise.all([
+    missions
+      .from("report_contacts")
+      .select("full_name, job_title, phone, email, is_decision_maker, lead_engine_contact_id")
+      .eq("company_id", access.companyId)
+      .eq("report_id", report.id)
+      .order("created_at"),
+    missions
+      .from("report_field_values")
+      .select("reporting_key, value")
+      .eq("company_id", access.companyId)
+      .eq("report_id", report.id),
+  ])
+  const custom: Record<string, unknown> = {}
+  for (const row of customRows ?? []) custom[row.reporting_key as string] = row.value
 
   return {
     id: report.id as string,
@@ -336,6 +373,7 @@ export async function getVisitReport(
     submittedAt: (report.submitted_at as string | null) ?? null,
     crmSyncedAt: (report.crm_synced_at as string | null) ?? null,
     crmSyncError: (report.crm_sync_error as string | null) ?? null,
+    custom,
     contacts: (contacts ?? []).map((row) => ({
       fullName: row.full_name as string,
       jobTitle: (row.job_title as string | null) ?? "",

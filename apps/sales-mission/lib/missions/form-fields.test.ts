@@ -369,7 +369,7 @@ describe("describeCoreFieldViolation, options", () => {
 
   it("refuses to edit a list that comes from the user directory", () => {
     const field = { isCore: true, isRequired: true, fieldType: "SELECT" as const, reportingKey: "primary_sales" }
-    expect(describeCoreFieldViolation(field, { options: ["Budi"] })).toContain("daftar pengguna")
+    expect(describeCoreFieldViolation(field, { options: ["Budi"] })).toContain("ditentukan sistem")
   })
 })
 

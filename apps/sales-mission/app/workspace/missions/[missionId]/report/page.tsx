@@ -10,6 +10,7 @@ import {
   listTenantSales,
 } from "@/lib/missions/mission-queries"
 import { awaitsConfirmation } from "@/lib/missions/assignment-workflow"
+import { listFormFields } from "@/lib/missions/form-field-queries"
 import type { AssignmentResponse } from "@/lib/missions/mission-schema"
 import { getReportOptions } from "@/lib/missions/report-options"
 import { BackLink, EmptyState, WorkspacePage } from "@/app/workspace/workspace-page"
@@ -26,13 +27,14 @@ export default async function VisitReportPage({ params }: { params: Promise<{ mi
   const mission = await getMission(access, missionId)
   if (!mission) notFound()
 
-  const [role, report, options, salesOptions, settings, team] = await Promise.all([
+  const [role, report, options, salesOptions, settings, team, fields] = await Promise.all([
     getMissionRole(access, missionId),
     getVisitReport(access, missionId),
     getReportOptions(),
     listTenantSales(access),
     getMissionSettings(access),
     listMissionTeam(access, missionId),
+    listFormFields(access, "visit_report"),
   ])
 
   const canWrite = role === "PRIMARY" || access.isSuperAdmin
@@ -84,6 +86,7 @@ export default async function VisitReportPage({ params }: { params: Promise<{ mi
         report={report}
         options={options}
         salesOptions={salesOptions}
+        fields={fields}
       />
     </WorkspacePage>
   )

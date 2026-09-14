@@ -28,6 +28,8 @@ function mission(id: string, scheduledStart: string | null): MissionListItem {
     createdBy: "creator",
     createdByName: "Pembuat",
     createdAt: "2026-09-01T01:00:00.000Z",
+    reportStatus: "NONE",
+    visitOutcome: null,
     appointment: {
       salutation: null,
       contactId: null,

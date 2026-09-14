@@ -15,11 +15,14 @@ import { notify } from "@/lib/notifications/notification-queries"
 import { contactsForCrm, describeOutcome, visitReachesCrm } from "@/lib/missions/crm-sync"
 import { MISSION_TIME_ZONE } from "@/lib/missions/mission-schema"
 import {
+  missingConfiguredFields,
   visitReportDraftSchema,
   visitReportSubmitSchema,
   type VisitOutcome,
   type VisitReportDraft,
 } from "@/lib/missions/visit-report-schema"
+import { listFormFields } from "@/lib/missions/form-field-queries"
+import { validateFieldAnswers, type FieldAnswer, type FormField } from "@/lib/missions/form-fields"
 import type { ActionResult } from "@/types/action-result"
 
 /**
@@ -155,6 +158,35 @@ async function replaceContacts(
   return error
 }
 
+/**
+ * Replace the report's custom answers with the submitted set, keeping only
+ * fields that exist on the form and answers that are not blank. Delete then
+ * insert, as with contacts: a cleared answer must really clear.
+ */
+async function replaceCustomValues(
+  missions: ReturnType<Awaited<ReturnType<typeof createClient>>["schema"]>,
+  reportId: string,
+  companyId: string,
+  fields: FormField[],
+  custom: Record<string, unknown>
+) {
+  await missions.from("report_field_values").delete().eq("report_id", reportId)
+  const rows = fields
+    .filter((field) => !field.isCore && field.isActive)
+    .map((field) => ({ field, value: custom[field.reportingKey] }))
+    .filter(({ value }) => value !== null && value !== undefined && value !== "" && !(Array.isArray(value) && value.length === 0))
+    .map(({ field, value }) => ({
+      report_id: reportId,
+      company_id: companyId,
+      field_id: field.id,
+      reporting_key: field.reportingKey,
+      value,
+    }))
+  if (rows.length === 0) return null
+  const { error } = await missions.from("report_field_values").insert(rows)
+  return error
+}
+
 /** Autosave. Accepts an incomplete form so a draft is never lost to validation. */
 export async function saveVisitReportDraft(
   missionId: string,
@@ -207,11 +239,12 @@ export async function saveVisitReportDraft(
     reportId = data.id as string
   }
 
-  const mission = await getMission(access, missionId)
+  const [mission, fields] = await Promise.all([getMission(access, missionId), listFormFields(access, "visit_report")])
   const contactError = await replaceContacts(
     missions, reportId, access.companyId, parsed.data.contacts, mission?.clientCompanyId ?? null
   )
   if (contactError) return { success: false, error: "Kontak gagal disimpan." }
+  await replaceCustomValues(missions, reportId, access.companyId, fields, parsed.data.custom)
 
   return { success: true, data: { id: reportId } }
 }
@@ -228,6 +261,19 @@ export async function submitVisitReport(
   const parsed = visitReportSubmitSchema.safeParse(input)
   if (!parsed.success) {
     return { success: false, error: parsed.error.issues[0]?.message ?? "Laporan belum lengkap." }
+  }
+
+  // The admin's form rules, on top of the code's. Checked here as well as in
+  // the form, because a Server Action is a public endpoint.
+  const fields = await listFormFields(access, "visit_report")
+  const missing = missingConfiguredFields(parsed.data, fields)
+  if (missing.length > 0) {
+    const label = fields.find((field) => field.reportingKey === missing[0])?.label ?? missing[0]
+    return { success: false, error: `${label} wajib diisi.` }
+  }
+  const customCheck = validateFieldAnswers(fields, parsed.data.custom as Record<string, FieldAnswer>)
+  if (!customCheck.ok) {
+    return { success: false, error: Object.values(customCheck.errors)[0] ?? "Isian tambahan belum lengkap." }
   }
 
   const supabase = await createClient()
@@ -290,6 +336,7 @@ export async function submitVisitReport(
     missions, reportId, access.companyId, parsed.data.contacts, submitMission?.clientCompanyId ?? null
   )
   if (contactError) return { success: false, error: "Kontak gagal disimpan." }
+  await replaceCustomValues(missions, reportId, access.companyId, fields, parsed.data.custom)
 
   // The visit is done and recorded; move the mission on.
   await missions

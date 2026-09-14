@@ -22,7 +22,8 @@ import {
   updateFormField,
 } from "@/app/actions/form-field-actions"
 import {
-  FIELD_TYPES,
+  CUSTOM_FIELD_TYPES,
+  type FormKey,
   FIELD_TYPE_LABELS,
   canEditOptions,
   describeOptionsViolation,
@@ -92,7 +93,7 @@ function lockedTypeReason(reportingKey: string): string {
       return "Tersimpan sebagai satu nilai di setiap mission. Opsinya bisa diubah di bawah."
     case "primary_sales":
     case "supporting_sales":
-      return "Isinya orang, diambil dari daftar pengguna."
+      return "Pilihannya ditentukan sistem: daftar pengguna, atau nilai tetap yang dipakai laporan KPI."
     default:
       return "Field inti dipakai fitur lain, jadi tipenya terkunci. Label, urutan, dan wajib/opsional tetap bisa diubah."
   }
@@ -196,7 +197,7 @@ function FieldEditor({
               onChange={(e) => setDraft({ ...draft, fieldType: e.target.value as FieldType })}
               className="h-11 w-full rounded-md border border-input bg-field px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
             >
-              {FIELD_TYPES.map((type) => <option key={type} value={type}>{FIELD_TYPE_LABELS[type]}</option>)}
+              {CUSTOM_FIELD_TYPES.map((type) => <option key={type} value={type}>{FIELD_TYPE_LABELS[type]}</option>)}
             </select>
           )}
         </div>
@@ -230,7 +231,7 @@ function FieldEditor({
           // would fill in and watch do nothing.
           <p className="rounded-lg border border-dashed px-4 py-3 text-sm text-muted-foreground">
             {source === "directory"
-              ? "Pilihannya diambil dari daftar pengguna Sales Mission, jadi tidak diatur di sini. Tambah atau nonaktifkan orang lewat LeadEngine → Settings → Users."
+              ? "Pilihannya ditentukan sistem (daftar pengguna, atau nilai tetap yang dipakai laporan KPI dan CRM), jadi tidak diatur di sini."
               : "Pilihan untuk field ini tidak diatur di sini."}
           </p>
         )
@@ -255,7 +256,7 @@ function FieldEditor({
   )
 }
 
-export function FieldManager({ fields }: { fields: FormField[] }) {
+export function FieldManager({ fields, formKey }: { fields: FormField[]; formKey: FormKey }) {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [adding, setAdding] = useState(false)
   const [draft, setDraft] = useState<Draft>(EMPTY_DRAFT)
@@ -278,7 +279,7 @@ export function FieldManager({ fields }: { fields: FormField[] }) {
     if (!isChoiceType(field.fieldType) || !canEditOptions(field)) return
 
     setUsageLoading(true)
-    getFieldOptionUsage(field.id)
+    getFieldOptionUsage(formKey, field.id)
       .then((counts) => setUsage(counts))
       // A failed count must not block editing: the options still work, the
       // admin just does not get the "used 12 times" note.
@@ -326,7 +327,7 @@ export function FieldManager({ fields }: { fields: FormField[] }) {
               usage={null}
               usageLoading={false}
               onCancel={() => setAdding(false)}
-              onSave={() => run(() => createFormField(draft), "Field ditambahkan")}
+              onSave={() => run(() => createFormField(formKey, draft), "Field ditambahkan")}
             />
           </div>
         )}
@@ -343,7 +344,7 @@ export function FieldManager({ fields }: { fields: FormField[] }) {
                   usage={usage}
                   usageLoading={usageLoading}
                   onCancel={() => setEditingId(null)}
-                  onSave={() => run(() => updateFormField(field.id, draft), "Field disimpan")}
+                  onSave={() => run(() => updateFormField(formKey, field.id, draft), "Field disimpan")}
                 />
               ) : (
                 <div className="flex items-start gap-3">
@@ -352,7 +353,7 @@ export function FieldManager({ fields }: { fields: FormField[] }) {
                       type="button"
                       aria-label={`Naikkan ${field.label}`}
                       disabled={index === 0 || pending}
-                      onClick={() => run(() => moveFormField(field.id, "up"), "Urutan diperbarui")}
+                      onClick={() => run(() => moveFormField(formKey, field.id, "up"), "Urutan diperbarui")}
                       className="grid h-7 w-7 place-items-center rounded-md border text-muted-foreground transition-colors hover:bg-muted disabled:opacity-40"
                     >
                       <ArrowUp className="h-3.5 w-3.5" />
@@ -361,7 +362,7 @@ export function FieldManager({ fields }: { fields: FormField[] }) {
                       type="button"
                       aria-label={`Turunkan ${field.label}`}
                       disabled={index === active.length - 1 || pending}
-                      onClick={() => run(() => moveFormField(field.id, "down"), "Urutan diperbarui")}
+                      onClick={() => run(() => moveFormField(formKey, field.id, "down"), "Urutan diperbarui")}
                       className="grid h-7 w-7 place-items-center rounded-md border text-muted-foreground transition-colors hover:bg-muted disabled:opacity-40"
                     >
                       <ArrowDown className="h-3.5 w-3.5" />
@@ -407,7 +408,7 @@ export function FieldManager({ fields }: { fields: FormField[] }) {
                       aria-label={field.isCore ? `${field.label} tidak bisa dihapus` : `Hapus ${field.label}`}
                       title={field.isCore ? "Field inti tidak bisa dihapus" : undefined}
                       disabled={field.isCore || pending}
-                      onClick={() => run(() => archiveFormField(field.id), "Field dihapus dari form")}
+                      onClick={() => run(() => archiveFormField(formKey, field.id), "Field dihapus dari form")}
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
@@ -439,7 +440,7 @@ export function FieldManager({ fields }: { fields: FormField[] }) {
                   size="sm"
                   variant="outline"
                   disabled={pending}
-                  onClick={() => run(() => restoreFormField(field.id), "Field dikembalikan")}
+                  onClick={() => run(() => restoreFormField(formKey, field.id), "Field dikembalikan")}
                 >
                   <RotateCcw className="h-4 w-4" /> Kembalikan
                 </Button>

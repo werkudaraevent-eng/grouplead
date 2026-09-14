@@ -36,8 +36,18 @@ export const FIELD_TYPES = [
   "SELECT",
   "MULTI_SELECT",
   "BOOLEAN",
+  // Core-only: the report's "who did you meet" group. Named so the settings
+  // screen shows it for what it is; never offered for a custom field.
+  "CONTACTS",
 ] as const
 export type FieldType = (typeof FIELD_TYPES)[number]
+
+/** Types an admin may give a field they add. */
+export const CUSTOM_FIELD_TYPES = FIELD_TYPES.filter((type) => type !== "CONTACTS")
+
+export type FormKey = "mission" | "visit_report"
+export const FORM_KEYS: readonly FormKey[] = ["mission", "visit_report"]
+export const FORM_KEY_LABELS: Record<FormKey, string> = { mission: "Form mission", visit_report: "Form laporan" }
 
 export const FIELD_TYPE_LABELS: Record<FieldType, string> = {
   TEXT: "Teks singkat",
@@ -49,6 +59,7 @@ export const FIELD_TYPE_LABELS: Record<FieldType, string> = {
   SELECT: "Pilihan tunggal",
   MULTI_SELECT: "Pilihan ganda",
   BOOLEAN: "Ya / tidak",
+  CONTACTS: "Daftar kontak",
 }
 
 /** Types whose answers come from a fixed list the admin maintains. */
@@ -77,6 +88,14 @@ const CORE_OPTION_SOURCES: Record<string, OptionSource> = {
   contact_salutation: "config",
   primary_sales: "directory",
   supporting_sales: "directory",
+  // Visit report. The two vocabularies are the admin's; the three enums are
+  // codes the KPI screen and the CRM sync switch on, so they stay fixed.
+  client_needs: "config",
+  product_interest: "config",
+  visit_outcome: "directory",
+  interest_level: "directory",
+  next_action_type: "directory",
+  next_action_owner: "directory",
 }
 
 export function optionSource(
@@ -134,6 +153,43 @@ export const CORE_MISSION_FIELDS: Array<
   { reportingKey: "building", label: "Gedung / lantai", fieldType: "TEXT", isRequired: false, displayOrder: 150 },
   { reportingKey: "appointment_notes", label: "Catatan janji temu", fieldType: "LONG_TEXT", isRequired: false, displayOrder: 160 },
 ]
+
+/**
+ * The visit report's locked core fields. Types and the fixed enums are
+ * locked; labels, order, help text, requiredness (tightening only) and the
+ * two vocabularies are the admin's. Seeded with the lists the form used to
+ * hardcode, so day one looks the same and every day after is configurable.
+ */
+export const CORE_REPORT_FIELDS: Array<
+  Pick<FormField, "reportingKey" | "label" | "fieldType" | "isRequired" | "displayOrder"> & {
+    options?: string[]
+    helpText?: string
+  }
+> = [
+  { reportingKey: "visit_outcome", label: "Hasil kunjungan", fieldType: "SELECT", isRequired: true, displayOrder: 10 },
+  { reportingKey: "contacts_met", label: "Ketemu siapa", fieldType: "CONTACTS", isRequired: true, displayOrder: 20, helpText: "Minimal satu orang, kecuali klien tidak ada. Ini yang memperkaya database kontak." },
+  { reportingKey: "meeting_summary", label: "Ringkasan pertemuan", fieldType: "LONG_TEXT", isRequired: true, displayOrder: 30, helpText: "Apa yang dibahas dan apa yang disepakati." },
+  {
+    reportingKey: "client_needs", label: "Kebutuhan klien", fieldType: "MULTI_SELECT", isRequired: true, displayOrder: 40,
+    helpText: "Pilih yang relevan, atau tambahkan sendiri.",
+    options: ["Corporate gathering", "Meeting / rapat", "Outbound / team building", "Exhibition / pameran", "Product launch", "Tour / travel", "Akomodasi", "Transportasi", "Katering"],
+  },
+  {
+    reportingKey: "product_interest", label: "Produk yang diminati", fieldType: "MULTI_SELECT", isRequired: false, displayOrder: 50,
+    options: ["Event organizer", "Venue", "Akomodasi", "Transportasi", "Dokumentasi", "Produksi panggung"],
+  },
+  { reportingKey: "interest_level", label: "Tingkat minat", fieldType: "SELECT", isRequired: true, displayOrder: 60 },
+  { reportingKey: "opportunity_exists", label: "Ada peluang", fieldType: "BOOLEAN", isRequired: false, displayOrder: 70, helpText: "Bisa dikirim ke LeadEngine setelah laporan terkirim." },
+  { reportingKey: "estimated_value", label: "Estimasi nilai", fieldType: "CURRENCY", isRequired: false, displayOrder: 80 },
+  { reportingKey: "competitor_mentioned", label: "Kompetitor disebut", fieldType: "TEXT", isRequired: false, displayOrder: 90 },
+  { reportingKey: "next_action_type", label: "Next action", fieldType: "SELECT", isRequired: true, displayOrder: 100, helpText: "Yang tidak punya pemilik dan tanggal bukan next action." },
+  { reportingKey: "next_action_owner", label: "Penanggung jawab", fieldType: "SELECT", isRequired: false, displayOrder: 110 },
+  { reportingKey: "follow_up_date", label: "Tanggal follow-up", fieldType: "DATE", isRequired: false, displayOrder: 120 },
+]
+
+export function coreFieldsFor(formKey: FormKey) {
+  return formKey === "mission" ? CORE_MISSION_FIELDS : CORE_REPORT_FIELDS
+}
 
 export interface FormField {
   id: string
@@ -239,7 +295,7 @@ export function describeCoreFieldViolation(
     return "Field inti yang wajib tidak bisa dijadikan opsional."
   }
   if (change.options && !canEditOptions(field)) {
-    return "Pilihan pada field ini diambil dari daftar pengguna, bukan diatur di sini."
+    return "Pilihan pada field ini ditentukan sistem, bukan diatur di sini."
   }
 
   return null

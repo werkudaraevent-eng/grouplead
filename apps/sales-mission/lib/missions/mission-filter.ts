@@ -1,5 +1,6 @@
 import { awaitsConfirmation, canRespond, type ConfirmationPolicy } from "./assignment-workflow"
 import type { MissionListItem } from "./mission-schema"
+import { visitState, type VisitState } from "./visit-state"
 
 /**
  * Lenses on the mission list.
@@ -93,6 +94,9 @@ export function countMissionFilters(
   removable chips so what is narrowing the list is never hidden.
 */
 
+/** The visit states worth filtering by; "upcoming" is what the date facet is for. */
+export const REPORT_FACETS: readonly VisitState[] = ["needs_report", "draft", "reported"]
+
 export const DATE_PRESETS = ["today", "week", "month", "upcoming", "past", "custom"] as const
 export type DatePreset = (typeof DATE_PRESETS)[number]
 
@@ -114,6 +118,8 @@ export interface MissionQuery {
   sales: string[]
   /** User ids of whoever scheduled the mission. */
   creator: string[]
+  /** Visit states, from the report's point of view. */
+  report: VisitState[]
   location: string[]
   date: DatePreset | null
   /** YYYY-MM-DD, mission time. Only read when `date` is "custom". */
@@ -127,6 +133,7 @@ export const EMPTY_QUERY: MissionQuery = {
   type: [],
   sales: [],
   creator: [],
+  report: [],
   location: [],
   date: null,
   from: null,
@@ -155,6 +162,7 @@ export function parseMissionQuery(params: Record<string, string | string[] | und
     type: list(params.type),
     sales: list(params.sales),
     creator: list(params.creator),
+    report: list(params.report).filter((item): item is VisitState => REPORT_FACETS.includes(item as VisitState)),
     location: list(params.location),
     date: DATE_PRESETS.includes(date as DatePreset) ? (date as DatePreset) : null,
     from: DAY.test(from) ? from : null,
@@ -170,6 +178,7 @@ export function serializeMissionQuery(query: MissionQuery): URLSearchParams {
   if (query.type.length) params.set("type", query.type.join(","))
   if (query.sales.length) params.set("sales", query.sales.join(","))
   if (query.creator.length) params.set("creator", query.creator.join(","))
+  if (query.report.length) params.set("report", query.report.join(","))
   if (query.location.length) params.set("location", query.location.join(","))
   if (query.date) params.set("date", query.date)
   if (query.date === "custom") {
@@ -187,6 +196,7 @@ export function countActiveFacets(query: MissionQuery): number {
     (query.type.length ? 1 : 0) +
     (query.sales.length ? 1 : 0) +
     (query.creator.length ? 1 : 0) +
+    (query.report.length ? 1 : 0) +
     (query.location.length ? 1 : 0) +
     (query.date ? 1 : 0)
   )
@@ -253,6 +263,7 @@ export function applyMissionQuery<T extends MissionListItem>(missions: T[], quer
   const type = new Set(query.type.map(normalise))
   const sales = new Set(query.sales)
   const creator = new Set(query.creator)
+  const report = new Set(query.report)
   const location = new Set(query.location.map(normalise))
   const range = dateRangeFor(query, now)
 
@@ -275,6 +286,7 @@ export function applyMissionQuery<T extends MissionListItem>(missions: T[], quer
     if (type.size && !type.has(normalise(mission.missionType))) return false
     if (sales.size && !mission.assigneeIds.some((id) => sales.has(id))) return false
     if (creator.size && !creator.has(mission.createdBy)) return false
+    if (report.size && !report.has(visitState(mission, now))) return false
     if (location.size && !location.has(normalise(mission.location))) return false
     if (range) {
       if (!mission.scheduledStart) return false

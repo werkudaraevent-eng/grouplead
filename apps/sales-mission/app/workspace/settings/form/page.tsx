@@ -53,7 +53,7 @@ export default async function MissionFormSettingsPage() {
         </ul>
       </div>
 
-      <FieldManager fields={fields} />
+      <FieldManager fields={fields} formKey="mission" />
     </WorkspacePage>
   )
 }

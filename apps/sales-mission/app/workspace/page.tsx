@@ -4,6 +4,8 @@ import { CalendarDays, CheckCircle2, ClipboardList, MapPin } from "lucide-react"
 import { canPerform, getSalesMissionAccess } from "@/lib/sales-mission-access"
 import { getMissionSettings, getMissionSummary, listMissions } from "@/lib/missions/mission-queries"
 import { needsMyAnswer } from "@/lib/missions/mission-filter"
+import { reportOwed, visitState } from "@/lib/missions/visit-state"
+import { Button } from "@/components/ui/button"
 import type { ConfirmationPolicy } from "@/lib/missions/assignment-workflow"
 import { AcceptAssignmentButton, AssignmentOverflowMenu } from "@/app/workspace/missions/assignment-actions-menu"
 import { cn } from "@/lib/utils"
@@ -171,6 +173,13 @@ export default async function MissionHomePage() {
     )
     .slice(0, 5)
 
+  // Visits that happened and were not written down, for whoever writes them.
+  // Sorted oldest first: the one from last week is the one to chase.
+  const owedReports = missions
+    .filter((mission) => reportOwed(visitState(mission, now)) && (mission.viewerRole === "PRIMARY" || access.isSuperAdmin))
+    .sort((a, b) => (a.scheduledStart ?? "").localeCompare(b.scheduledStart ?? ""))
+    .slice(0, 8)
+
   // Owed answers on visits other than today's, which already carry the button.
   const awaiting = missions.filter(
     (mission) => needsMyAnswer(mission, settings) && !todaysMissions.some((item) => item.id === mission.id)
@@ -212,6 +221,36 @@ export default async function MissionHomePage() {
         their own card; these would otherwise be a chip in a list two clicks
         away, which is how a Tuesday visit stayed unanswered until Tuesday.
       */}
+      {owedReports.length > 0 && (
+        <section className="mt-6" aria-label="Laporan tertunda">
+          <h2 className="mb-2 text-base font-semibold text-foreground">Laporan tertunda</h2>
+          <div className="overflow-hidden rounded-xl border border-l-4 border-l-[var(--warning-foreground)] bg-card">
+            <div className="divide-y">
+              {owedReports.map((mission) => (
+                <div key={mission.id} className="flex flex-col gap-3 px-4 py-3.5 sm:flex-row sm:items-center sm:px-5">
+                  <Link href={`/workspace/missions/${mission.id}`} className="flex min-w-0 flex-1 items-center gap-4">
+                    <span className="w-24 shrink-0 text-xs font-medium tabular-nums text-muted-foreground">
+                      {formatMissionSchedule(mission.scheduledStart, now)}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-semibold text-foreground">{mission.clientCompanyName}</span>
+                      <span className="block truncate text-xs text-muted-foreground">
+                        {[mission.location, mission.primarySalesName].filter(Boolean).join(" · ")}
+                      </span>
+                    </span>
+                  </Link>
+                  <Button asChild size="sm" className="sm:self-center">
+                    <Link href={`/workspace/missions/${mission.id}/report`}>
+                      <ClipboardList className="h-4 w-4" /> {mission.reportStatus === "NONE" ? "Isi laporan" : "Lanjutkan laporan"}
+                    </Link>
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
       {awaiting.length > 0 && (
         <section className="mt-6" aria-label="Penugasan menunggu jawaban">
           <h2 className="mb-2 text-base font-semibold text-foreground">Menunggu jawabanmu</h2>

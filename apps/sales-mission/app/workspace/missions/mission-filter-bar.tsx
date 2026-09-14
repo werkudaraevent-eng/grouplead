@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils"
 import {
   DATE_PRESETS,
   DATE_PRESET_LABELS,
+  REPORT_FACETS,
   countActiveFacets,
   serializeMissionQuery,
   type DatePreset,
@@ -20,6 +21,7 @@ import {
 } from "@/lib/missions/mission-filter"
 import { STATUS_LABELS } from "@/lib/missions/status-labels"
 import type { MissionStatus } from "@/lib/missions/mission-schema"
+import { VISIT_STATE_LABELS, type VisitState } from "@/lib/missions/visit-state"
 
 /**
  * The filter panel.
@@ -218,6 +220,13 @@ export function MissionFilterBar({
           }}
         />
         <FacetSelect
+          label="Laporan"
+          options={REPORT_FACETS.map((state) => ({ value: state, label: VISIT_STATE_LABELS[state] }))}
+          value={query.report}
+          onChange={(report) => push({ ...query, report: report as VisitState[] })}
+          searchable={false}
+        />
+        <FacetSelect
           label="Dibuat oleh"
           options={people.map((person) => ({ value: person.id, label: person.name }))}
           value={query.creator}
@@ -258,6 +267,9 @@ export function MissionFilterBar({
           {query.sales.map((id) => (
             <Chip key={id} label={personName(id)} onRemove={() => push({ ...query, sales: query.sales.filter((s) => s !== id) })} />
           ))}
+          {query.report.map((state) => (
+            <Chip key={`report-${state}`} label={VISIT_STATE_LABELS[state]} onRemove={() => push({ ...query, report: query.report.filter((r) => r !== state) })} />
+          ))}
           {query.creator.map((id) => (
             <Chip key={`creator-${id}`} label={`Dibuat oleh ${personName(id)}`} onRemove={() => push({ ...query, creator: query.creator.filter((c) => c !== id) })} />
           ))}
@@ -279,7 +291,7 @@ export function MissionFilterBar({
           )}
           <button
             type="button"
-            onClick={() => { setText(""); push({ q: "", status: [], type: [], sales: [], creator: [], location: [], date: null, from: null, to: null }) }}
+            onClick={() => { setText(""); push({ q: "", status: [], type: [], sales: [], creator: [], report: [], location: [], date: null, from: null, to: null }) }}
             className="ml-1 text-xs font-semibold text-primary hover:underline"
           >
             Bersihkan semua

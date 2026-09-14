@@ -13,7 +13,9 @@ import {
   nextDisplayOrder,
   reorderField,
   toReportingKey,
+  FORM_KEYS,
   type FieldType,
+  type FormKey,
 } from "@/lib/missions/form-fields"
 import type { ActionResult } from "@/types/action-result"
 
@@ -24,7 +26,15 @@ import type { ActionResult } from "@/types/action-result"
  * delete button on a core field; this makes deleting one impossible.
  */
 
-const FORM_KEY = "mission" as const
+/** Which form an action is about. Refused unless it is one we know. */
+function resolveFormKey(value: unknown): FormKey | null {
+  return FORM_KEYS.includes(value as FormKey) ? (value as FormKey) : null
+}
+
+const PATHS: Record<FormKey, string[]> = {
+  mission: ["/workspace/settings/form", "/workspace/missions/new"],
+  visit_report: ["/workspace/settings/report-form", "/workspace/missions"],
+}
 
 async function authorize() {
   const access = await getSalesMissionAccess()
@@ -38,15 +48,19 @@ async function authorize() {
 }
 
 /** Add a field. The reporting key is derived once here and then frozen. */
-export async function createFormField(input: unknown): Promise<ActionResult<{ id: string }>> {
+export async function createFormField(formKeyInput: unknown, input: unknown): Promise<ActionResult<{ id: string }>> {
   const guard = await authorize()
   if ("error" in guard) return { success: false, error: guard.error }
   const { access } = guard
+  const FORM_KEY = resolveFormKey(formKeyInput)
+  if (!FORM_KEY) return { success: false, error: "Form tidak dikenali." }
 
   const parsed = fieldDefinitionSchema.safeParse(input)
   if (!parsed.success) {
     return { success: false, error: parsed.error.issues[0]?.message ?? "Definisi field tidak valid." }
   }
+
+  if (parsed.data.fieldType === "CONTACTS") return { success: false, error: "Tipe itu hanya untuk field inti." }
 
   // A new field is never core, so it always owns its options.
   const optionsViolation = describeOptionsViolation(
@@ -92,17 +106,18 @@ export async function createFormField(input: unknown): Promise<ActionResult<{ id
 
   if (error || !data) return { success: false, error: "Field gagal ditambahkan." }
 
-  revalidatePath("/workspace/settings/form")
-  revalidatePath("/workspace/missions/new")
+  for (const path of PATHS[FORM_KEY]) revalidatePath(path)
 
   return { success: true, data: { id: data.id as string } }
 }
 
 /** Edit a field. Core fields accept cosmetic changes and tightening only. */
-export async function updateFormField(fieldId: string, input: unknown): Promise<ActionResult> {
+export async function updateFormField(formKeyInput: unknown, fieldId: string, input: unknown): Promise<ActionResult> {
   const guard = await authorize()
   if ("error" in guard) return { success: false, error: guard.error }
   const { access } = guard
+  const FORM_KEY = resolveFormKey(formKeyInput)
+  if (!FORM_KEY) return { success: false, error: "Form tidak dikenali." }
 
   const parsed = fieldDefinitionSchema.safeParse(input)
   if (!parsed.success) {
@@ -170,8 +185,7 @@ export async function updateFormField(fieldId: string, input: unknown): Promise<
 
   if (error) return { success: false, error: "Field gagal disimpan." }
 
-  revalidatePath("/workspace/settings/form")
-  revalidatePath("/workspace/missions/new")
+  for (const path of PATHS[FORM_KEY]) revalidatePath(path)
 
   return { success: true }
 }
@@ -183,10 +197,12 @@ export async function updateFormField(fieldId: string, input: unknown): Promise<
  * foreign key on `mission_field_values` enforces the same thing at the database
  * level for anyone writing SQL by hand.
  */
-export async function archiveFormField(fieldId: string): Promise<ActionResult> {
+export async function archiveFormField(formKeyInput: unknown, fieldId: string): Promise<ActionResult> {
   const guard = await authorize()
   if ("error" in guard) return { success: false, error: guard.error }
   const { access } = guard
+  const FORM_KEY = resolveFormKey(formKeyInput)
+  if (!FORM_KEY) return { success: false, error: "Form tidak dikenali." }
 
   const fields = await listFormFields(access, FORM_KEY, { includeArchived: true })
   const field = fields.find((item) => item.id === fieldId)
@@ -205,16 +221,17 @@ export async function archiveFormField(fieldId: string): Promise<ActionResult> {
 
   if (error) return { success: false, error: "Field gagal dihapus." }
 
-  revalidatePath("/workspace/settings/form")
-  revalidatePath("/workspace/missions/new")
+  for (const path of PATHS[FORM_KEY]) revalidatePath(path)
 
   return { success: true }
 }
 
 /** Bring an archived field back. Its old answers reconnect by field id. */
-export async function restoreFormField(fieldId: string): Promise<ActionResult> {
+export async function restoreFormField(formKeyInput: unknown, fieldId: string): Promise<ActionResult> {
   const guard = await authorize()
   if ("error" in guard) return { success: false, error: guard.error }
+  const FORM_KEY = resolveFormKey(formKeyInput)
+  if (!FORM_KEY) return { success: false, error: "Form tidak dikenali." }
 
   const supabase = await createClient()
   const { error } = await supabase
@@ -226,8 +243,7 @@ export async function restoreFormField(fieldId: string): Promise<ActionResult> {
 
   if (error) return { success: false, error: "Field gagal dikembalikan." }
 
-  revalidatePath("/workspace/settings/form")
-  revalidatePath("/workspace/missions/new")
+  for (const path of PATHS[FORM_KEY]) revalidatePath(path)
 
   return { success: true }
 }
@@ -241,6 +257,7 @@ export async function restoreFormField(fieldId: string): Promise<ActionResult> {
  * before they decide. Zero is very different from forty.
  */
 export async function getFieldOptionUsage(
+  formKeyInput: unknown,
   fieldId: string
 ): Promise<Record<string, number> | null> {
   // null, never {}. An empty map renders as "0 uses" beside every option, which
@@ -248,6 +265,8 @@ export async function getFieldOptionUsage(
   const guard = await authorize()
   if ("error" in guard) return null
   const { access } = guard
+  const FORM_KEY = resolveFormKey(formKeyInput)
+  if (!FORM_KEY) return null
 
   const fields = await listFormFields(access, FORM_KEY, { includeArchived: true })
   const field = fields.find((item) => item.id === fieldId)
@@ -273,18 +292,32 @@ export async function getFieldOptionUsage(
     mission_type: "mission_type",
     contact_salutation: "contact_salutation",
   }
-  const column = field.isCore ? missionColumn[field.reportingKey] : undefined
+  // The report's vocabularies are text[] columns on the report itself.
+  const reportColumn: Record<string, string> = {
+    client_needs: "client_needs",
+    product_interest: "product_interest",
+  }
+  const column = field.isCore
+    ? FORM_KEY === "mission" ? missionColumn[field.reportingKey] : reportColumn[field.reportingKey]
+    : undefined
+  const valueTable = FORM_KEY === "mission" ? "mission_field_values" : "report_field_values"
 
   const countMatching = async (option: string): Promise<number> => {
     const base =
-      column
+      column && FORM_KEY === "visit_report"
+        ? schema
+            .from("visit_reports")
+            .select("id", { count: "exact", head: true })
+            .eq("company_id", access.companyId)
+            .contains(column, [option])
+        : column
         ? schema
             .from("missions")
             .select("id", { count: "exact", head: true })
             .eq("company_id", access.companyId)
             .eq(column, option)
         : schema
-            .from("mission_field_values")
+            .from(valueTable)
             .select("id", { count: "exact", head: true })
             .eq("company_id", access.companyId)
             .eq("field_id", fieldId)
@@ -316,10 +349,12 @@ export async function getFieldOptionUsage(
 }
 
 /** Move a field up or down. Ordering applies to core fields too. */
-export async function moveFormField(fieldId: string, direction: "up" | "down"): Promise<ActionResult> {
+export async function moveFormField(formKeyInput: unknown, fieldId: string, direction: "up" | "down"): Promise<ActionResult> {
   const guard = await authorize()
   if ("error" in guard) return { success: false, error: guard.error }
   const { access } = guard
+  const FORM_KEY = resolveFormKey(formKeyInput)
+  if (!FORM_KEY) return { success: false, error: "Form tidak dikenali." }
 
   const fields = await listFormFields(access, FORM_KEY)
   const updates = reorderField(fields, fieldId, direction)
@@ -336,8 +371,7 @@ export async function moveFormField(fieldId: string, direction: "up" | "down"): 
       .eq("company_id", access.companyId)
   }
 
-  revalidatePath("/workspace/settings/form")
-  revalidatePath("/workspace/missions/new")
+  for (const path of PATHS[FORM_KEY]) revalidatePath(path)
 
   return { success: true }
 }

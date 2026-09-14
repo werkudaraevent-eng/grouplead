@@ -52,6 +52,7 @@ import { CrmSyncStatus } from "./crm-sync-status"
 import { CancelMissionButton } from "./cancel-mission"
 import { visitReachesCrm } from "@/lib/missions/crm-sync"
 import { getLastEdit } from "@/lib/audit/audit-queries"
+import { listFormFields } from "@/lib/missions/form-field-queries"
 
 export const dynamic = "force-dynamic"
 
@@ -111,6 +112,13 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
     mission.status === "CANCELLED" ? getCancellation(access, missionId) : Promise.resolve(null),
     getLastEdit(access, missionId),
   ])
+  const reportFields = report ? await listFormFields(access, "visit_report") : []
+  const customAnswers = report
+    ? reportFields
+        .filter((field) => !field.isCore && field.isActive)
+        .map((field) => ({ field, value: report.custom[field.reportingKey] }))
+        .filter(({ value }) => value !== null && value !== undefined && value !== "" && !(Array.isArray(value) && value.length === 0))
+    : []
   const stamp = (iso: string) =>
     new Intl.DateTimeFormat("id-ID", { timeZone: MISSION_TIME_ZONE, weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }).format(new Date(iso))
   const leadEngineUrl = process.env.NEXT_PUBLIC_LEADENGINE_URL?.trim() || null
@@ -413,6 +421,22 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
                         <span key={need} className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-foreground">{need}</span>
                       ))}
                     </div>
+                  </div>
+                )}
+
+                {customAnswers.length > 0 && (
+                  <div className="grid gap-5 sm:grid-cols-2">
+                    {customAnswers.map(({ field, value }) => (
+                      <ReportField
+                        key={field.id}
+                        label={field.label}
+                        value={
+                          typeof value === "boolean" ? (value ? "Ya" : "Tidak")
+                          : Array.isArray(value) ? value.map(String).join(", ")
+                          : String(value)
+                        }
+                      />
+                    ))}
                   </div>
                 )}
 

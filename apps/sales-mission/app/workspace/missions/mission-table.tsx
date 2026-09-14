@@ -4,7 +4,7 @@ import { useMemo, useState, useTransition } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
-import { ArrowUpRight, Loader2, Trash2, X } from "lucide-react"
+import { ArrowUpRight, ClipboardList, Loader2, Trash2, X } from "lucide-react"
 import { deleteMissions } from "@/app/actions/mission-actions"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -23,6 +23,9 @@ import type { JoinStatus } from "@/lib/missions/mission-join"
 import { isAwaitingTeam, needsMyAnswer, type MissionFilter } from "@/lib/missions/mission-filter"
 import type { ConfirmationPolicy } from "@/lib/missions/assignment-workflow"
 import { EmptyState, JoinStatusLine, NewMissionAction, StatusBadge } from "@/app/workspace/workspace-page"
+import { VISIT_STATE_LABELS, reportOwed, visitState } from "@/lib/missions/visit-state"
+import { VISIT_OUTCOME_LABELS, type VisitOutcome } from "@/lib/missions/visit-report-schema"
+import { statusLabel } from "@/lib/missions/status-labels"
 import { AcceptAssignmentButton, AssignmentOverflowMenu } from "./assignment-actions-menu"
 import { JoinButton } from "./join-controls"
 
@@ -45,11 +48,64 @@ function TeamAnswersLine({ mission, policy }: { mission: MissionListItem; policy
 }
 
 /**
+ * Status, read from the report's side once the visit has passed.
+ *
+ * Before the slot, the lifecycle is the news ("Diterima"). After it, the
+ * question changes to "was it written down", so the label changes with it:
+ * "Belum ada laporan" in the warning tone, "Laporan draf", or "Selesai" with
+ * the outcome underneath. The lifecycle drops to the secondary line, the
+ * way Asana and Salesforce show "overdue" over a task's own state.
+ */
+function VisitStatus({ mission, now }: { mission: Row; now: Date }) {
+  const state = visitState(mission, now)
+  if (state === "needs_report" || state === "draft") {
+    return (
+      <span className="inline-flex items-center gap-2 text-sm text-foreground">
+        <span aria-hidden="true" className="h-2 w-2 shrink-0 rounded-full bg-[var(--warning-foreground)]" />
+        {VISIT_STATE_LABELS[state]}
+      </span>
+    )
+  }
+  if (state === "reported") {
+    return (
+      <>
+        <StatusBadge status="COMPLETED" />
+        {mission.visitOutcome && (
+          <span className="block text-xs text-muted-foreground">
+            {VISIT_OUTCOME_LABELS[mission.visitOutcome as VisitOutcome] ?? mission.visitOutcome}
+          </span>
+        )}
+      </>
+    )
+  }
+  return <StatusBadge status={mission.status} />
+}
+
+/** The lifecycle, once it has become secondary to the report. */
+function LifecycleLine({ mission, now }: { mission: Row; now: Date }) {
+  const state = visitState(mission, now)
+  if (state !== "needs_report" && state !== "draft") return null
+  return <span className="block text-xs text-muted-foreground">{statusLabel(mission.status)} · jadwal sudah lewat</span>
+}
+
+/**
  * The one column that does things. Material's rule for a row that needs a
  * decision: the primary action is a filled button in the row, the rest sit
  * behind an overflow menu, and a row that needs nothing gets only its link.
  */
-function ActionCell({ mission, policy, maxSupporting }: { mission: Row; policy: ConfirmationPolicy; maxSupporting: number }) {
+function ActionCell({
+  mission,
+  policy,
+  maxSupporting,
+  now,
+  canWriteAnyReport,
+}: {
+  mission: Row
+  policy: ConfirmationPolicy
+  maxSupporting: number
+  now: Date
+  canWriteAnyReport: boolean
+}) {
   const open = (
     <Link
       href={`/workspace/missions/${mission.id}`}
@@ -59,6 +115,23 @@ function ActionCell({ mission, policy, maxSupporting }: { mission: Row; policy: 
       <ArrowUpRight className="h-4 w-4" />
     </Link>
   )
+
+  // A visit that owes a report gets the report button, for whoever may write
+  // it: the primary, or an admin. Same rule as Terima: a row that needs
+  // something offers the thing, right there.
+  const state = visitState(mission, now)
+  if (reportOwed(state) && (mission.viewerRole === "PRIMARY" || canWriteAnyReport)) {
+    return (
+      <span className="flex items-center justify-end gap-1.5">
+        <Button asChild size="sm">
+          <Link href={`/workspace/missions/${mission.id}/report`}>
+            <ClipboardList className="h-4 w-4" /> {state === "draft" ? "Lanjutkan laporan" : "Isi laporan"}
+          </Link>
+        </Button>
+        {open}
+      </span>
+    )
+  }
 
   if (needsMyAnswer(mission, policy)) {
     return (
@@ -125,9 +198,12 @@ export function MissionTable({
   filtered = false,
   policy = { requireAssignmentConfirmation: false },
   maxSupporting = 2,
+  canWriteAnyReport = false,
 }: {
   missions: Row[]
   now: Date
+  /** Admins may write any report; the primary may write their own. */
+  canWriteAnyReport?: boolean
   /** Whether to offer "Mission baru" from the empty state. */
   canCreate?: boolean
   /** Whether rows can be ticked and removed. */
@@ -227,6 +303,7 @@ export function MissionTable({
       <ul className="space-y-3 md:hidden">
         {missions.map((mission) => {
           const asksMe = needsMyAnswer(mission, policy)
+          const owesMe = reportOwed(visitState(mission, now)) && (mission.viewerRole === "PRIMARY" || canWriteAnyReport)
           const ticked = selected.has(mission.id)
           return (
             <li
@@ -236,7 +313,7 @@ export function MissionTable({
                 // A row that asks the reader for something is marked by its
                 // edge, the way Material tones a list item that needs
                 // attention, rather than by a pill that shouts.
-                asksMe && "border-l-4 border-l-[var(--warning-foreground)]",
+                (asksMe || owesMe) && "border-l-4 border-l-[var(--warning-foreground)]",
                 ticked && "border-primary bg-primary/5"
               )}
             >
@@ -261,7 +338,7 @@ export function MissionTable({
                       <span className="block truncate font-semibold text-foreground">{mission.clientCompanyName}</span>
                       <span className="block truncate text-xs text-muted-foreground">{mission.missionType}</span>
                     </span>
-                    <StatusBadge status={mission.status} />
+                    <span className="text-right"><VisitStatus mission={mission} now={now} /></span>
                   </div>
 
                   <p className="mt-3 text-sm text-foreground">{formatMissionSchedule(mission.scheduledStart, now)}</p>
@@ -275,9 +352,15 @@ export function MissionTable({
                 </Link>
               </div>
 
-              {(asksMe || mission.joinStatus === "JOINABLE") && (
+              {(asksMe || owesMe || mission.joinStatus === "JOINABLE") && (
                 <div className="flex items-center justify-end gap-2 border-t px-4 py-3">
-                  {asksMe ? (
+                  {owesMe ? (
+                    <Button asChild size="default" className="h-11">
+                      <Link href={`/workspace/missions/${mission.id}/report`}>
+                        <ClipboardList className="h-4 w-4" /> {mission.reportStatus === "NONE" ? "Isi laporan" : "Lanjutkan laporan"}
+                      </Link>
+                    </Button>
+                  ) : asksMe ? (
                     <>
                       <AssignmentOverflowMenu missionId={mission.id} />
                       <AcceptAssignmentButton missionId={mission.id} size="default" className="h-11" />
@@ -322,12 +405,13 @@ export function MissionTable({
         <TableBody>
           {missions.map((mission) => {
             const asksMe = needsMyAnswer(mission, policy)
+            const owesMe = reportOwed(visitState(mission, now)) && (mission.viewerRole === "PRIMARY" || canWriteAnyReport)
             const ticked = selected.has(mission.id)
             return (
               <TableRow
                 key={mission.id}
                 data-state={ticked ? "selected" : undefined}
-                className={cn(asksMe && "shadow-[inset_4px_0_0_0_var(--warning-foreground)]", ticked && "bg-primary/5")}
+                className={cn((asksMe || owesMe) && "shadow-[inset_4px_0_0_0_var(--warning-foreground)]", ticked && "bg-primary/5")}
               >
                 {canDelete && (
                   <TableCell>
@@ -351,12 +435,13 @@ export function MissionTable({
                   )}
                 </TableCell>
                 <TableCell>
-                  <StatusBadge status={mission.status} />
+                  <VisitStatus mission={mission} now={now} />
+                  <LifecycleLine mission={mission} now={now} />
                   {mission.joinStatus && <JoinStatusLine status={mission.joinStatus} />}
                   <TeamAnswersLine mission={mission} policy={policy} />
                 </TableCell>
                 <TableCell className="w-px whitespace-nowrap">
-                  <ActionCell mission={mission} policy={policy} maxSupporting={maxSupporting} />
+                  <ActionCell mission={mission} policy={policy} maxSupporting={maxSupporting} now={now} canWriteAnyReport={canWriteAnyReport} />
                 </TableCell>
               </TableRow>
             )
