@@ -513,8 +513,21 @@ export async function rescheduleMission(missionId: string, input: unknown): Prom
   if (!access) return { success: false, error: "Anda tidak punya akses Sales Mission." }
   if (!(await canPerform(access, "sales_mission_mission", "update"))) return NO_MISSION_WRITE
 
-  const [role, settings] = await Promise.all([getMissionRole(access, missionId), getMissionSettings(access)])
-  const mayMove = access.isSuperAdmin || (role === "PRIMARY" && settings.primaryCanReschedule)
+  const supabase = await createClient()
+  const schema = supabase.schema("sales_mission")
+
+  const [role, settings, { data: mission }] = await Promise.all([
+    getMissionRole(access, missionId),
+    getMissionSettings(access),
+    schema.from("missions").select("status, scheduled_start, created_by").eq("id", missionId).eq("company_id", access.companyId).maybeSingle(),
+  ])
+  if (!mission) return { success: false, error: "Mission tidak ditemukan." }
+  // The scheduler owns the slot as much as the primary does: the appointment
+  // team that booked it is who the client calls back.
+  const mayMove =
+    access.isSuperAdmin ||
+    mission.created_by === access.userId ||
+    (role === "PRIMARY" && settings.primaryCanReschedule)
   if (!mayMove) {
     return {
       success: false,
@@ -529,16 +542,6 @@ export async function rescheduleMission(missionId: string, input: unknown): Prom
     return { success: false, error: parsed.error.issues[0]?.message ?? "Jadwal tidak valid." }
   }
 
-  const supabase = await createClient()
-  const schema = supabase.schema("sales_mission")
-
-  const { data: mission } = await schema
-    .from("missions")
-    .select("status, scheduled_start")
-    .eq("id", missionId)
-    .eq("company_id", access.companyId)
-    .maybeSingle()
-  if (!mission) return { success: false, error: "Mission tidak ditemukan." }
   if (!canRespond(mission.status as MissionStatus)) {
     return { success: false, error: "Jadwal mission ini sudah tidak bisa diubah." }
   }

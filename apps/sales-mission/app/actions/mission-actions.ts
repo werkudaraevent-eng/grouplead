@@ -8,6 +8,7 @@ import { MISSION_TIME_ZONE, MISSION_TYPES, createMissionSchema, toMissionTimesta
 import { listFormFields } from "@/lib/missions/form-field-queries"
 import { getMission, getMissionRole, getMissionSettings, listMissionTeam } from "@/lib/missions/mission-queries"
 import { notify } from "@/lib/notifications/notification-queries"
+import { rescheduleMission } from "@/app/actions/assignment-actions"
 import { recordCompanyVisit } from "@/lib/leadengine/client"
 import { deriveMissionStatus, initialResponse } from "@/lib/missions/assignment-workflow"
 import {
@@ -572,6 +573,21 @@ export async function updateMission(
     return { success: false, error: Object.values(validation.errors)[0] ?? "Isian tambahan belum lengkap." }
   }
 
+  // Schedule. One form, one save: if the slot changed, it moves through the
+  // same path Pindahkan jadwal used, so the team is told and, under
+  // confirmation, re-asked. Someone who may only propose is refused here;
+  // the form did not offer them the picker, so this only guards the endpoint.
+  const nextStart = toMissionTimestamp(input.date, input.startTime)
+  const nextEnd = input.endTime ? toMissionTimestamp(input.date, input.endTime) : null
+  const sameInstant = (a: string | null, b: string | null) =>
+    (a ? new Date(a).getTime() : null) === (b ? new Date(b).getTime() : null)
+  const scheduleChanged = !sameInstant(mission.scheduledStart, nextStart) || !sameInstant(mission.scheduledEnd, nextEnd)
+  const mayMoveSchedule =
+    access.isSuperAdmin || mission.createdBy === access.userId || (role === "PRIMARY" && settings.primaryCanReschedule)
+  if (scheduleChanged && !mayMoveSchedule) {
+    return { success: false, error: "Jadwal mission ini hanya bisa diusulkan, bukan diubah langsung. Gunakan Usulkan jadwal lain." }
+  }
+
   const { error: updateError } = await missions
     .from("missions")
     .update({
@@ -594,6 +610,13 @@ export async function updateMission(
     .eq("id", missionId)
     .eq("company_id", access.companyId)
   if (updateError) return { success: false, error: "Perubahan gagal disimpan." }
+
+  if (scheduleChanged) {
+    const reasonRaw = formData.get("scheduleReason")
+    const reason = typeof reasonRaw === "string" && reasonRaw.trim() ? reasonRaw.trim() : "Jadwal diubah dari form Ubah mission"
+    const moved = await rescheduleMission(missionId, { date: input.date, startTime: input.startTime, endTime: input.endTime ?? "", reason })
+    if (!moved.success) return { success: false, error: moved.error ?? "Detail tersimpan, tetapi jadwal gagal dipindahkan." }
+  }
 
   // Team diff. Roles are compared per person: someone moved from supporting
   // to primary keeps their answer, someone new gets the policy's answer.

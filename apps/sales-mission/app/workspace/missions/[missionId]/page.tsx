@@ -141,6 +141,13 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
   // answer: their answer was the scheduling. No banner, no Terima, no Tolak.
   const selfScheduled = isAssigned && mission.createdBy === access.userId
   const askedToConfirm = isAssigned && !selfScheduled && awaitsConfirmation(myResponse, settings) && canRespond(mission.status)
+  // Whether the Penugasan card has anything to offer once the answer is
+  // given: an answer to change, a decline to take back, or a proposal to
+  // make. Moving the slot is on the Ubah form, so it is not counted here.
+  const canProposeHere = !(access.isSuperAdmin || mission.createdBy === access.userId || (role === "PRIMARY" && settings.primaryCanReschedule))
+  const answerActions = selfScheduled
+    ? canProposeHere
+    : settings.requireAssignmentConfirmation || myResponse === "REJECTED" || canProposeHere
   // Seed the reschedule picker with the mission's own slot rather than today,
   // so the common case of nudging a visit by an hour needs one change.
   const wib = (iso: string, opts: Intl.DateTimeFormatOptions) =>
@@ -303,7 +310,7 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
             decline or propose another time. `id` lets the list's overflow menu
             deep-link here.
           */}
-          {((isAssigned && !askedToConfirm) || pendingReschedule || access.isSuperAdmin) && canRespond(mission.status) && (
+          {canRespond(mission.status) && (pendingReschedule || (isAssigned && !askedToConfirm && answerActions)) && (
             <article id="jawaban" className="overflow-hidden rounded-xl border bg-card">
               <div className="border-b px-5 py-4">
                 <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Penugasan</p>
@@ -337,17 +344,6 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
                   />
                 )}
 
-                {/* An admin who is not on the team still needs a way to move
-                    the visit; before this the only path was through a rep. */}
-                {!isAssigned && access.isSuperAdmin && canRespond(mission.status) && (
-                  <AssignmentResponsePanel
-                    missionId={missionId}
-                    myResponse="ACCEPTED"
-                    reschedule={reschedule}
-                    confirmationRequired={false}
-                    scheduleOnly
-                  />
-                )}
 
                 {isAssigned && !canRespond(mission.status) && (
                   <p className="text-sm text-muted-foreground">

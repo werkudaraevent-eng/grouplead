@@ -58,7 +58,6 @@ export function AssignmentResponsePanel({
   reschedule,
   banner = false,
   confirmationRequired = true,
-  scheduleOnly = false,
   selfScheduled = false,
 }: {
   missionId: string
@@ -66,8 +65,6 @@ export function AssignmentResponsePanel({
   reschedule: RescheduleOptions
   banner?: boolean
   confirmationRequired?: boolean
-  /** An admin who is not on the team: only the schedule is theirs to change. */
-  scheduleOnly?: boolean
   /** The viewer scheduled this visit for themself: no answer is owed and Tolak makes no sense. */
   selfScheduled?: boolean
 }) {
@@ -87,7 +84,10 @@ export function AssignmentResponsePanel({
     })
   }
 
-  const rescheduleLabel = reschedule.mode === "move" ? "Pindahkan jadwal" : "Usulkan jadwal lain"
+  // Moving the slot is an edit and lives on the Ubah form, one door. What
+  // remains here is the request path for those who may only propose.
+  const canPropose = reschedule.mode === "propose"
+  const rescheduleLabel = "Usulkan jadwal lain"
 
   const rescheduleForm = showForm && (
     <div className="rounded-lg border bg-muted/30 p-4">
@@ -104,7 +104,7 @@ export function AssignmentResponsePanel({
     </div>
   )
 
-  const rescheduleButton = (
+  const rescheduleButton = canPropose && (
     <Button
       size={banner ? "default" : "sm"}
       variant="outline"
@@ -138,7 +138,9 @@ export function AssignmentResponsePanel({
           Anda ditugaskan pada mission ini
         </h2>
         <p className="mt-1 text-sm text-[var(--warning-foreground)]">
-          Terima kalau Anda bisa berangkat. Kalau tidak, tolak atau ubah waktunya.
+          {canPropose
+            ? "Terima kalau Anda bisa berangkat. Kalau tidak, tolak atau usulkan waktu lain."
+            : "Terima kalau Anda bisa berangkat. Kalau tidak, tolak; kalau waktunya yang salah, gunakan Ubah."}
         </p>
         {/* Primary at the trailing edge; on a phone it sits lowest, nearest
             the thumb, which is what the column-reverse does below sm. */}
@@ -156,22 +158,14 @@ export function AssignmentResponsePanel({
   }
 
   if (selfScheduled) {
+    // Only reachable when the tenant keeps scheduling central: the scheduler
+    // may propose, not move. Otherwise the page does not render this at all.
     return (
       <div className="space-y-4">
         <p className="text-sm text-muted-foreground">
-          Anda menjadwalkan kunjungan ini sendiri. Kalau waktunya berubah, pindahkan jadwalnya; kalau tidak jadi,
-          batalkan mission dari kartu di atas.
+          Anda menjadwalkan kunjungan ini sendiri. Unit bisnis ini memusatkan jadwal di admin, jadi perubahan waktu
+          diusulkan; kalau tidak jadi, batalkan mission dari kartu di atas.
         </p>
-        <div className="flex flex-wrap gap-2">{rescheduleButton}</div>
-        {rescheduleForm}
-      </div>
-    )
-  }
-
-  if (scheduleOnly) {
-    return (
-      <div className="space-y-4">
-        <p className="text-sm text-muted-foreground">Anda bisa memindahkan jadwal mission ini sebagai admin. Tim akan diberi tahu.</p>
         <div className="flex flex-wrap gap-2">{rescheduleButton}</div>
         {rescheduleForm}
       </div>
@@ -190,9 +184,9 @@ export function AssignmentResponsePanel({
             ? "Anda menolak penugasan ini."
             : myResponse === "RESCHEDULE_REQUESTED"
               ? "Usulan jadwal Anda menunggu keputusan."
-              : reschedule.mode === "move"
-                ? "Penugasan ini milik Anda. Kalau waktunya berubah, pindahkan jadwalnya; kalau berhalangan, tolak."
-                : "Penugasan ini milik Anda. Kalau berhalangan, tolak atau usulkan waktu lain."}
+              : canPropose
+                ? "Penugasan ini milik Anda. Kalau berhalangan, tolak atau usulkan waktu lain."
+                : "Penugasan ini milik Anda. Kalau berhalangan, tolak; kalau waktunya yang salah, gunakan Ubah."}
         </p>
       )}
 

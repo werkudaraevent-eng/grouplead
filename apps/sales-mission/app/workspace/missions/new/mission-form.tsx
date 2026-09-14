@@ -331,6 +331,12 @@ export function MissionForm({
     action: (previous: CreateMissionState, formData: FormData) => Promise<CreateMissionState>
     schedule: ScheduleValue
     customValues: Record<string, unknown>
+    /**
+     * Whether this person may move the slot. If so the picker is here, one
+     * form for everything; if not, the slot is shown read-only and a change
+     * is a proposal made from the mission page.
+     */
+    canMoveSchedule: boolean
   }
 }) {
   // On success the action redirects server-side, so this state only ever holds
@@ -440,10 +446,9 @@ export function MissionForm({
         // One picker answers date, start and end together; the two time
         // fields below render nothing so the admin's ordering still holds.
         const endField = fields.find((item) => item.reportingKey === "end_time")
-        if (edit) {
-          // Read-only here. The schedule still submits (the schema expects
-          // it) but only Pindahkan jadwal may change it, because a moved
-          // visit has to reach the team and, under confirmation, re-ask them.
+        if (edit && !edit.canMoveSchedule) {
+          // Read-only for someone who may only propose. The slot still
+          // submits (the schema expects it); a change is refused server-side.
           return (
             <div key={field.id} className={`space-y-2 ${SPAN_CLASS.full}`}>
               <input type="hidden" name="date" value={schedule.date} />
@@ -455,12 +460,15 @@ export function MissionForm({
                   {schedule.endTime ? `–${schedule.endTime}` : ""}
                 </span>
                 <Link href={`/workspace/missions/${edit.missionId}#jawaban`} className="text-xs font-semibold text-primary hover:underline">
-                  Ubah lewat Pindahkan jadwal
+                  Usulkan jadwal lain di halaman mission
                 </Link>
               </p>
             </div>
           )
         }
+        const scheduleChanged =
+          edit !== undefined &&
+          (schedule.date !== edit.schedule.date || schedule.startTime !== edit.schedule.startTime || schedule.endTime !== edit.schedule.endTime)
         return (
           <FieldShell field={field} key={field.id} as="group">
             <SchedulePicker
@@ -469,9 +477,26 @@ export function MissionForm({
               people={assignedPeople}
               settings={conflictSettings}
               location={location || null}
+              missionId={edit?.missionId}
               now={new Date()}
               endRequired={endField?.isRequired ?? false}
             />
+            {/* Google Calendar's "send update to guests?", asked in place: the
+                team is told the slot moved, and this line travels with it. */}
+            {scheduleChanged && (
+              <div className="mt-3 space-y-1.5 rounded-md border border-[var(--warning-foreground)]/25 bg-[var(--warning)] px-4 py-3">
+                <Label htmlFor="field-schedule_reason" className="text-sm font-semibold text-[var(--warning-foreground)]">
+                  Jadwal berubah. Tim akan diberi tahu.
+                </Label>
+                <Input
+                  id="field-schedule_reason"
+                  name="scheduleReason"
+                  maxLength={1000}
+                  placeholder="Alasan perubahan jadwal (opsional), ikut dikirim ke tim"
+                  className="h-11 bg-card"
+                />
+              </div>
+            )}
           </FieldShell>
         )
       }

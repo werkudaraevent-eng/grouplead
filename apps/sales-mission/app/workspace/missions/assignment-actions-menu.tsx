@@ -91,7 +91,7 @@ export function AssignmentOverflowMenu({ missionId }: { missionId: string }) {
       <DropdownMenuContent align="end" className="w-52">
         <DropdownMenuItem asChild>
           <Link href={`/workspace/missions/${missionId}#jawaban`}>
-            <CalendarClock className="h-4 w-4" /> Minta jadwal ulang
+            <CalendarClock className="h-4 w-4" /> Ubah atau usulkan jadwal
           </Link>
         </DropdownMenuItem>
         <DropdownMenuItem onSelect={reject} className="text-[var(--danger-foreground)] focus:text-[var(--danger-foreground)]">

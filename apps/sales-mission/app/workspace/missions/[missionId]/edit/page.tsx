@@ -94,7 +94,7 @@ export default async function EditMissionPage({ params }: { params: Promise<{ mi
     <WorkspacePage
       eyebrow="Sales Mission / Mission"
       title="Ubah mission"
-      description={`Perbaiki detail kunjungan ke ${mission.clientCompanyName}. Jadwal diubah lewat Pindahkan jadwal di halaman mission.`}
+      description={`Perbaiki detail kunjungan ke ${mission.clientCompanyName}. Kalau jadwalnya ikut berubah, tim diberi tahu saat disimpan.`}
       action={<BackLink href={`/workspace/missions/${missionId}`} />}
     >
       <MissionForm
@@ -109,6 +109,8 @@ export default async function EditMissionPage({ params }: { params: Promise<{ mi
           action: updateMission.bind(null, missionId),
           schedule,
           customValues,
+          canMoveSchedule:
+            access.isSuperAdmin || mission.createdBy === access.userId || (role === "PRIMARY" && settings.primaryCanReschedule),
         }}
       />
     </WorkspacePage>
