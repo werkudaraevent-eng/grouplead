@@ -6,6 +6,7 @@ import { canPerform, getSalesMissionAccess } from "@/lib/sales-mission-access"
 import { listFormFields } from "@/lib/missions/form-field-queries"
 import { getMissionSettings, listTenantSales } from "@/lib/missions/mission-queries"
 import { initialResponse } from "@/lib/missions/assignment-workflow"
+import { notify } from "@/lib/notifications/notification-queries"
 import { MISSION_TYPES, toMissionTimestamp } from "@/lib/missions/mission-schema"
 import { configuredOptions } from "@/lib/missions/form-fields"
 import { searchClientCompanies } from "@/lib/leadengine/client"
@@ -243,6 +244,13 @@ export async function commitMissionImport(rows: RawRow[]): Promise<ImportResult>
       failed.push({ row: row.row, message: "Penugasan sales gagal. Baris dibatalkan." })
       continue
     }
+
+    await notify(
+      access,
+      "MISSION_ASSIGNED",
+      [primaryId, ...supportingIds].filter((id) => id !== access.userId),
+      { missionId: mission.id as string, clientName: row.clientCompanyName }
+    )
 
     const customEntries = Object.entries(row.custom)
     if (customEntries.length > 0) {

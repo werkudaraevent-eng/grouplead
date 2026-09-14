@@ -150,6 +150,14 @@ export async function leaveMission(missionId: string): Promise<ActionResult> {
 
   if (error) return { success: false, error: "Gagal keluar dari mission." }
 
+  // The primary is accountable for who is in the room, so they hear when
+  // someone drops out, the same as they hear when someone joins.
+  const [team, mission] = await Promise.all([listMissionTeam(access, missionId), getMission(access, missionId)])
+  const primary = team.find((member) => member.role === "PRIMARY")
+  if (primary && mission) {
+    await notify(access, "MISSION_LEFT", [primary.userId], { missionId, clientName: mission.clientCompanyName })
+  }
+
   revalidatePath("/workspace/missions")
   revalidatePath("/workspace/calendar")
   revalidatePath(`/workspace/missions/${missionId}`)

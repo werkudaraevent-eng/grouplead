@@ -251,6 +251,16 @@ export async function createMission(
     return { success: false, error: "Penugasan sales gagal disimpan. Mission dibatalkan." }
   }
 
+  // Everyone put on the visit hears about it, except the scheduler when they
+  // put themself on it: they know. This was missing, so a rep assigned at
+  // creation only learned of the visit by opening the app and looking.
+  await notify(
+    access,
+    "MISSION_ASSIGNED",
+    assigneeIds.filter((id) => id !== access.userId),
+    { missionId: mission.id, clientName: input.clientCompanyName }
+  )
+
   // Admin-configured fields. Validation uses the tenant's current configuration
   // rather than anything hardcoded, so a field made mandatory this morning is
   // mandatory this afternoon. Reuses the list already read for the type check.

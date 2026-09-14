@@ -5,6 +5,7 @@ import { z } from "zod"
 import { createClient } from "@/utils/supabase/server"
 import { canPerform, getSalesMissionAccess } from "@/lib/sales-mission-access"
 import { getMission, getMissionRole, getVisitReport } from "@/lib/missions/mission-queries"
+import { notify } from "@/lib/notifications/notification-queries"
 import { canPushLead } from "@/lib/missions/visit-report-schema"
 import {
   LeadEngineError,
@@ -468,6 +469,15 @@ export async function pushMissionToLeadEngine(
       success: false,
       error: `Lead ${leadId} sudah dibuat di LeadEngine, tetapi pencatatannya di Sales Mission gagal. Jangan kirim ulang — laporkan ke admin.`,
     }
+  }
+
+  // The person who now owns the lead hears about it, unless they pushed it
+  // themself. Best-effort: a missed notification must not undo a real lead.
+  if (parsed.data.ownerUserId !== access.userId) {
+    await notify(access, "LEAD_PUSHED", [parsed.data.ownerUserId], {
+      missionId,
+      clientName: mission.clientCompanyName,
+    })
   }
 
   revalidatePath(`/workspace/missions/${missionId}`)
