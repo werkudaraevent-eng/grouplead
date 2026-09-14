@@ -4,6 +4,8 @@ import { requireModule } from "@/lib/missions/nav-access"
 import { getBoardSnapshot } from "@/lib/board/board-queries"
 import { BoardView } from "@/app/board/board-view"
 import { AutoRefresh } from "./auto-refresh"
+import { hasServiceClientConfig } from "@/utils/supabase/service"
+import { EmptyState, WorkspacePage } from "@/app/workspace/workspace-page"
 
 export const dynamic = "force-dynamic"
 
@@ -24,6 +26,21 @@ export default async function InternalBoardPage() {
   const access = await getSalesMissionAccess()
   if (!access) redirect("/login?error=access_not_provisioned")
   await requireModule(access, "sales_mission_mission")
+
+  // The board reads the whole tenant through the service key, the one secret
+  // this app needs beyond the public Supabase pair. Without it there is
+  // nothing to draw, and the right message is "configure this", not "check
+  // your connection".
+  if (!hasServiceClientConfig()) {
+    return (
+      <WorkspacePage eyebrow="Sales Mission / Papan live" title="Papan live">
+        <EmptyState
+          title="Papan live belum dikonfigurasi"
+          description="Variabel SUPABASE_SERVICE_ROLE_KEY belum diset di deployment Sales Mission. Tambahkan di Vercel → Project → Settings → Environment Variables, lalu deploy ulang."
+        />
+      </WorkspacePage>
+    )
+  }
 
   const now = new Date()
   const snapshot = await getBoardSnapshot(access.companyId, now, { masked: false })

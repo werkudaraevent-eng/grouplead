@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import { resolveBoardToken } from "@/lib/board/board-access"
 import { getBoardSnapshot } from "@/lib/board/board-queries"
 import { BoardView } from "./board-view"
+import { hasServiceClientConfig } from "@/utils/supabase/service"
 
 export const dynamic = "force-dynamic"
 
@@ -29,6 +30,21 @@ export default async function BoardPage({
   searchParams: Promise<{ token?: string }>
 }) {
   const { token } = await searchParams
+
+  if (!hasServiceClientConfig()) {
+    return (
+      <main className="grid min-h-screen place-items-center bg-[var(--board-bg)] px-8 text-center text-[var(--board-text)]">
+        <div>
+          <p className="text-sm font-bold uppercase tracking-[0.2em] text-[var(--board-accent)]">Sales Mission</p>
+          <h1 className="mt-3 text-3xl font-bold">Papan belum dikonfigurasi</h1>
+          <p className="mt-3 max-w-md text-[var(--board-text-dim)]">
+            Deployment ini belum punya SUPABASE_SERVICE_ROLE_KEY. Minta admin menambahkannya di Vercel lalu deploy ulang.
+          </p>
+        </div>
+      </main>
+    )
+  }
+
   const resolved = token ? await resolveBoardToken(token) : null
 
   if (!resolved) {
