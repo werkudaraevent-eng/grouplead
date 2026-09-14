@@ -103,7 +103,7 @@ export async function POST(request: Request) {
 
     // Evaluated as the calling user, not bypassed: creating a company from Sales
     // Mission needs the same `companies` grant as creating one in LeadEngine.
-    const guard = await requirePermission('companies', 'create', companyId, supabase)
+    const guard = await requirePermission('companies', 'create', companyId, supabase, auth.context.userId)
     if (!guard.allowed) {
         return apiError(403, 'forbidden', 'You do not have permission to create a client company.')
     }

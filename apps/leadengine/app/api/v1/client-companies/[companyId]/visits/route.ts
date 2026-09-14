@@ -65,7 +65,7 @@ export async function POST(
 
     // A visit is a change to the account's record, so it needs the same grant
     // as editing the account. Evaluated as the caller, never bypassed.
-    const guard = await requirePermission('companies', 'update', tenantId, supabase)
+    const guard = await requirePermission('companies', 'update', tenantId, supabase, auth.context.userId)
     if (!guard.allowed) {
         return apiError(403, 'forbidden', 'You do not have permission to update client companies.')
     }

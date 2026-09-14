@@ -63,11 +63,16 @@ export async function requirePermission(
    * than bypassed with a service key.
    */
   client?: Awaited<ReturnType<typeof createClient>>,
+  /**
+   * The caller's id when the route already verified the token. The `/api/v1`
+   * routes authenticate first and then ask for a grant; without this the same
+   * token was sent to the auth server twice per request.
+   */
+  knownUserId?: string,
 ): Promise<PermissionGuard> {
   const supabase = client ?? (await createClient())
 
-  const { data: auth } = await supabase.auth.getUser()
-  const user = auth?.user
+  const user = knownUserId ? { id: knownUserId } : (await supabase.auth.getUser()).data?.user
   if (!user?.id) {
     return {
       allowed: false,

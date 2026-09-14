@@ -60,7 +60,7 @@ export async function PATCH(
     }
 
     // Updating a contact needs the same grant as updating one in LeadEngine.
-    const guard = await requirePermission('contacts', 'update', companyId, supabase)
+    const guard = await requirePermission('contacts', 'update', companyId, supabase, auth.context.userId)
     if (!guard.allowed) {
         return apiError(403, 'forbidden', 'You do not have permission to update a contact.')
     }

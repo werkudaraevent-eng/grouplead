@@ -45,12 +45,32 @@ export async function searchCompanies(query: string): Promise<CompanySearchResul
   const trimmed = query.trim()
   if (trimmed.length < 2) return { companies: [], previousNames: [], error: null }
 
-  // Runs whether or not the CRM answers: it is this app's own data, and it is
-  // most useful precisely when the CRM has no match.
-  const previousNames = await previousMissionNames(access, trimmed)
+  // Both lookups at once. The CRM hop is the slow one and the own-history
+  // read does not depend on it; waiting for them in turn added the whole of
+  // the short one to every keystroke.
+  const [previousNames, crm] = await Promise.all([
+    // Runs whether or not the CRM answers: it is this app's own data, and it
+    // is most useful precisely when the CRM has no match.
+    previousMissionNames(access, trimmed),
+    searchClientCompanies(trimmed).then(
+      (companies) => ({ ok: true as const, companies }),
+      (error: unknown) => ({ ok: false as const, error })
+    ),
+  ])
 
-  try {
-    const companies = await searchClientCompanies(trimmed)
+  if (!crm.ok) {
+    return {
+      companies: [],
+      previousNames,
+      error:
+        crm.error instanceof LeadEngineError
+          ? crm.error.message
+          : "Pencarian perusahaan tidak tersedia saat ini.",
+    }
+  }
+
+  {
+    const companies = crm.companies
     const known = new Set(companies.map((company) => company.name.trim().toLowerCase()))
     return {
       companies: companies.map((company) => ({
@@ -60,15 +80,6 @@ export async function searchCompanies(query: string): Promise<CompanySearchResul
       })),
       previousNames: previousNames.filter((name) => !known.has(name.toLowerCase())),
       error: null,
-    }
-  } catch (error) {
-    return {
-      companies: [],
-      previousNames,
-      error:
-        error instanceof LeadEngineError
-          ? error.message
-          : "Pencarian perusahaan tidak tersedia saat ini.",
     }
   }
 }

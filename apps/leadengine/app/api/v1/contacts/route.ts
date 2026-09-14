@@ -108,7 +108,7 @@ export async function POST(request: Request) {
 
     // Evaluated as the calling user: creating a contact from Sales Mission needs
     // the same grant as creating one in LeadEngine.
-    const guard = await requirePermission('contacts', 'create', companyId, supabase)
+    const guard = await requirePermission('contacts', 'create', companyId, supabase, auth.context.userId)
     if (!guard.allowed) {
         return apiError(403, 'forbidden', 'You do not have permission to create a contact.')
     }

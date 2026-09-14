@@ -1,3 +1,4 @@
+import { cache } from "react"
 import { createClient } from "@/utils/supabase/server"
 
 export interface SalesMissionAccess {
@@ -8,6 +9,14 @@ export interface SalesMissionAccess {
   avatarUrl: string | null
   /** Bypasses mission-level ownership checks. Sourced from `profiles.role`. */
   isSuperAdmin: boolean
+  /**
+   * What `canPerform` looks permissions up by, carried here so a sub-permission
+   * check is one query rather than a fresh sign-in check plus a profile read.
+   * `roleId` wins; `userType` is the legacy grant consulted only when there is
+   * no role at all.
+   */
+  roleId: string | null
+  userType: string | null
 }
 
 /**
@@ -17,8 +26,13 @@ export interface SalesMissionAccess {
  * existing `sales_mission` permission module, so a valid sign-in alone never
  * grants access to this app — the session is shared with LeadEngine, the
  * authorization is not.
+ *
+ * Memoised per request with React `cache`. A page calls this once at the top
+ * and then several helpers call it again; each call used to be a round trip to
+ * the auth server plus two table reads, so a detail page paid for the same
+ * answer four or five times before drawing anything.
  */
-export async function getSalesMissionAccess(): Promise<SalesMissionAccess | null> {
+export const getSalesMissionAccess = cache(async (): Promise<SalesMissionAccess | null> => {
   const supabase = await createClient()
   const { data: auth } = await supabase.auth.getUser()
   const user = auth.user
@@ -52,44 +66,27 @@ export async function getSalesMissionAccess(): Promise<SalesMissionAccess | null
 
   const globalRole = (profile.role ?? "").toLowerCase().replace(/\s+/g, "_")
   const isSuperAdmin = globalRole === "super_admin"
-  if (isSuperAdmin) {
-    return { userId: user.id, companyId: membership.company_id, displayName, avatarUrl, isSuperAdmin }
-  }
-
-  let permission: { can_read: string } | null = null
-  if (profile.role_id) {
-    const { data } = await supabase
-      .from("role_permissions")
-      .select("can_read")
-      .eq("role_id", profile.role_id)
-      .eq("company_id", membership.company_id)
-      .eq("module_id", "sales_mission")
-      .maybeSingle()
-    permission = data
-  }
-
+  const roleId = (profile.role_id as string | null) ?? null
   // Only a profile with no role at all consults the legacy user_type grants.
   // Falling back whenever the role happened to lack a row let a configured role
   // inherit access the permission matrix never showed and could not revoke.
   // Mirrors leadengine's require-permission.ts.
-  if (!permission && !profile.role_id) {
-    const userType = membership.user_type ?? globalRole
-    if (userType) {
-      const { data } = await supabase
-        .from("role_permissions")
-        .select("can_read")
-        .eq("user_type", userType)
-        .eq("company_id", membership.company_id)
-        .eq("module_id", "sales_mission")
-        .maybeSingle()
-      permission = data
-    }
-  }
+  const userType = roleId ? null : ((membership.user_type as string | null) ?? globalRole ?? null) || null
 
-  return permission?.can_read && permission.can_read !== "none"
-    ? { userId: user.id, companyId: membership.company_id, displayName, avatarUrl, isSuperAdmin }
-    : null
-}
+  const access: SalesMissionAccess = {
+    userId: user.id,
+    companyId: membership.company_id,
+    displayName,
+    avatarUrl,
+    isSuperAdmin,
+    roleId,
+    userType,
+  }
+  if (isSuperAdmin) return access
+
+  const permission = await loadModulePermission(access.companyId, roleId, userType, "sales_mission")
+  return permission?.can_read && permission.can_read !== "none" ? access : null
+})
 
 /**
  * What each module governs, so the admin matrix and the code agree:
@@ -114,6 +111,57 @@ export type SalesMissionModule =
 
 export type ModuleAction = "create" | "read" | "update" | "delete"
 
+interface ModulePermission {
+  can_create: boolean | null
+  can_read: string | null
+  can_update: boolean | null
+  can_delete: boolean | null
+}
+
+/**
+ * The one row that answers a permission question, memoised per request.
+ *
+ * A role answers for itself: with a role_id only that role's row is read,
+ * and the legacy user_type row is consulted only for a profile with no role.
+ * Keyed on primitives so React's cache dedupes the detail page's several
+ * `canPerform` calls for the same module into one read.
+ */
+const loadModulePermission = cache(
+  async (
+    companyId: string,
+    roleId: string | null,
+    userType: string | null,
+    moduleId: string
+  ): Promise<ModulePermission | null> => {
+    const supabase = await createClient()
+    const columns = "can_create, can_read, can_update, can_delete"
+
+    if (roleId) {
+      const { data } = await supabase
+        .from("role_permissions")
+        .select(columns)
+        .eq("role_id", roleId)
+        .eq("company_id", companyId)
+        .eq("module_id", moduleId)
+        .maybeSingle()
+      return (data as ModulePermission | null) ?? null
+    }
+
+    if (userType) {
+      const { data } = await supabase
+        .from("role_permissions")
+        .select(columns)
+        .eq("user_type", userType)
+        .eq("company_id", companyId)
+        .eq("module_id", moduleId)
+        .maybeSingle()
+      return (data as ModulePermission | null) ?? null
+    }
+
+    return null
+  }
+)
+
 /**
  * Fine-grained permission inside Sales Mission.
  *
@@ -125,6 +173,11 @@ export type ModuleAction = "create" | "read" | "update" | "delete"
  * Note this is deliberately weaker than the `sales_mission` gate itself, which
  * denies by default. Losing app access should lock you out; losing a
  * sub-permission that nobody has configured should not.
+ *
+ * Trusts the `access` it is handed. It used to re-verify the session and
+ * re-read the profile on every call, three round trips to answer a question
+ * the caller had already paid to answer; a screen with four checks spent more
+ * time on permissions than on its own data.
  */
 export async function canPerform(
   access: SalesMissionAccess,
@@ -133,57 +186,13 @@ export async function canPerform(
 ): Promise<boolean> {
   if (access.isSuperAdmin) return true
 
-  const supabase = await createClient()
-  const { data: auth } = await supabase.auth.getUser()
-  if (!auth.user) return false
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role, role_id")
-    .eq("id", auth.user.id)
-    .maybeSingle()
-
-  const columns = "can_create, can_read, can_update, can_delete"
-  let permission: Record<string, unknown> | null = null
-
-  if (profile?.role_id) {
-    const { data } = await supabase
-      .from("role_permissions")
-      .select(columns)
-      .eq("role_id", profile.role_id)
-      .eq("company_id", access.companyId)
-      .eq("module_id", moduleId)
-      .maybeSingle()
-    permission = data
-  }
-
-  // Same rule as the app gate above: a role answers for itself.
-  if (!permission && !profile?.role_id) {
-    const { data: membership } = await supabase
-      .from("company_members")
-      .select("user_type")
-      .eq("user_id", auth.user.id)
-      .eq("company_id", access.companyId)
-      .maybeSingle()
-
-    const userType = membership?.user_type ?? (profile?.role ?? "").toLowerCase().replace(/\s+/g, "_")
-    if (userType) {
-      const { data } = await supabase
-        .from("role_permissions")
-        .select(columns)
-        .eq("user_type", userType)
-        .eq("company_id", access.companyId)
-        .eq("module_id", moduleId)
-        .maybeSingle()
-      permission = data
-    }
-  }
+  const permission = await loadModulePermission(access.companyId, access.roleId, access.userType, moduleId)
 
   // Unconfigured module — see the note above.
   if (!permission) return true
 
   if (action === "read") {
-    const scope = permission.can_read as string | null
+    const scope = permission.can_read
     return Boolean(scope) && scope !== "none"
   }
 

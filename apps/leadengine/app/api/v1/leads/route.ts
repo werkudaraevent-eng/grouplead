@@ -54,7 +54,7 @@ export async function POST(request: Request) {
         return apiError(403, 'no_company_access', 'You do not have access to that business unit.')
     }
 
-    const guard = await requirePermission('leads', 'create', companyId, supabase)
+    const guard = await requirePermission('leads', 'create', companyId, supabase, auth.context.userId)
     if (!guard.allowed) {
         return apiError(403, 'permission_denied', guard.error.error ?? 'Not allowed to create leads.')
     }

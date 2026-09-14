@@ -79,7 +79,18 @@ export async function createMission(
     endpoint is handed". The form renders the same fallback, which keeps the two
     agreeing on what is offered and what is accepted.
   */
-  const formFields = await listFormFields(access, "mission")
+  // Three reads that do not depend on each other, so they share one wait.
+  const supabase = await createClient()
+  const assigneeIds = [parsed.data.primarySalesId, ...parsed.data.supportingSalesIds]
+  const [formFields, settings, memberCheck] = await Promise.all([
+    listFormFields(access, "mission"),
+    getMissionSettings(access),
+    supabase
+      .from("company_members")
+      .select("user_id")
+      .eq("company_id", access.companyId)
+      .in("user_id", assigneeIds),
+  ])
   const allowedTypes = configuredOptions(formFields, "mission_type", MISSION_TYPES)
 
   if (!allowedTypes.includes(parsed.data.missionType)) {
@@ -133,12 +144,10 @@ export async function createMission(
   }
 
   const input = parsed.data
-  const supabase = await createClient()
   const missions = supabase.schema("sales_mission")
 
   // Under the tenant's policy the assignment either waits for the rep or is
   // accepted on the spot. The mission's status follows from the same answer.
-  const settings = await getMissionSettings(access)
   const response = initialResponse(settings)
   const respondedAt = response === "ACCEPTED" ? new Date().toISOString() : null
   const initialStatus = response === "ACCEPTED" ? "ACCEPTED" : "ASSIGNED"
@@ -146,13 +155,7 @@ export async function createMission(
   // Never trust user ids from the client. An assignee must be a member of this
   // tenant, or a crafted request could assign missions to anyone in the shared
   // database.
-  const assigneeIds = [input.primarySalesId, ...input.supportingSalesIds]
-  const { data: members, error: memberError } = await supabase
-    .from("company_members")
-    .select("user_id")
-    .eq("company_id", access.companyId)
-    .in("user_id", assigneeIds)
-
+  const { data: members, error: memberError } = memberCheck
   if (memberError) return { success: false, error: "Gagal memverifikasi anggota tim." }
 
   const validIds = new Set((members ?? []).map((row) => row.user_id as string))
