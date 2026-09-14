@@ -71,17 +71,83 @@ async function reportStates(
   return map
 }
 
-export async function listMissions(access: SalesMissionAccess): Promise<MissionListItem[]> {
-  const { supabase, missions } = await missionSchema()
+/**
+ * Missions in a window, earliest first.
+ *
+ * Every caller that used to load the whole tenant now says what it needs:
+ * a month for the calendar, the last two months for Hari ini. A tenant a
+ * year in would otherwise hit PostgREST's row cap and quietly lose rows.
+ */
+export async function listMissions(
+  access: SalesMissionAccess,
+  window: { since?: Date; until?: Date } = {}
+): Promise<MissionListItem[]> {
+  const { missions } = await missionSchema()
 
-  const { data: missionRows, error } = await missions
+  let query = missions
     .from("missions")
     .select(MISSION_COLUMNS)
     .eq("company_id", access.companyId)
     .order("scheduled_start", { ascending: true, nullsFirst: false })
+  if (window.since) query = query.gte("scheduled_start", window.since.toISOString())
+  if (window.until) query = query.lte("scheduled_start", window.until.toISOString())
 
+  const { data: missionRows, error } = await query
   if (error || !missionRows?.length) return []
 
+  return hydrateMissions(access, missionRows as MissionRow[])
+}
+
+/** The given missions, in the given order. For a page of ids. */
+export async function listMissionsByIds(access: SalesMissionAccess, ids: string[]): Promise<MissionListItem[]> {
+  if (ids.length === 0) return []
+  const { missions } = await missionSchema()
+  const { data: missionRows } = await missions
+    .from("missions")
+    .select(MISSION_COLUMNS)
+    .eq("company_id", access.companyId)
+    .in("id", ids)
+  const rows = (missionRows ?? []) as MissionRow[]
+  const order = new Map(ids.map((id, index) => [id, index]))
+  rows.sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0))
+  return hydrateMissions(access, rows)
+}
+
+/**
+ * The viewer's own visits, as blocks, for judging whether they may join
+ * another one. Loaded on its own rather than derived from whichever rows a
+ * page happened to show, which stopped being the whole calendar once the
+ * list was paged.
+ */
+export async function listViewerCalendar(
+  access: SalesMissionAccess
+): Promise<Array<{ missionId: string; scheduledStart: string | null; scheduledEnd: string | null; location: string | null }>> {
+  const { missions } = await missionSchema()
+  const { data: rows } = await missions
+    .from("assignments")
+    .select("mission_id")
+    .eq("company_id", access.companyId)
+    .eq("user_id", access.userId)
+    .neq("response", "REJECTED")
+  const ids = (rows ?? []).map((row) => row.mission_id as string)
+  if (ids.length === 0) return []
+  const { data: own } = await missions
+    .from("missions")
+    .select("id, scheduled_start, scheduled_end, location, status")
+    .eq("company_id", access.companyId)
+    .in("id", ids)
+    .not("status", "in", "(CANCELLED,REJECTED,COMPLETED)")
+  return (own ?? []).map((row) => ({
+    missionId: row.id as string,
+    scheduledStart: (row.scheduled_start as string | null) ?? null,
+    scheduledEnd: (row.scheduled_end as string | null) ?? null,
+    location: (row.location as string | null) ?? null,
+  }))
+}
+
+/** Assignments, names, and report states for a set of mission rows. */
+async function hydrateMissions(access: SalesMissionAccess, missionRows: MissionRow[]): Promise<MissionListItem[]> {
+  const { supabase, missions } = await missionSchema()
   const missionIds = missionRows.map((row) => row.id)
   const { data: assignmentRows } = await missions
     .from("assignments")

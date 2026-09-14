@@ -8,8 +8,7 @@ import {
   getMissionRole,
   getMissionSettings,
   listMissionTeam,
-  listMissions,
-} from "@/lib/missions/mission-queries"
+  listViewerCalendar, } from "@/lib/missions/mission-queries"
 import { notify } from "@/lib/notifications/notification-queries"
 import { annotateJoinStatus, canJoin, joinBlockedReason } from "@/lib/missions/mission-join"
 import {
@@ -62,11 +61,13 @@ export async function joinMission(missionId: string): Promise<ActionResult> {
   if (!access) return { success: false, error: "Anda tidak punya akses Sales Mission." }
   if (!(await canPerform(access, "sales_mission_mission", "update"))) return NO_MISSION_WRITE
 
-  const [missions, settings] = await Promise.all([listMissions(access), getMissionSettings(access)])
-  const annotated = annotateJoinStatus(missions, settings)
-  const target = annotated.find((mission) => mission.id === missionId)
-
-  if (!target) return { success: false, error: "Mission tidak ditemukan." }
+  const [mission, settings, ownCalendar] = await Promise.all([
+    getMission(access, missionId),
+    getMissionSettings(access),
+    listViewerCalendar(access),
+  ])
+  if (!mission) return { success: false, error: "Mission tidak ditemukan." }
+  const target = annotateJoinStatus([mission], settings, ownCalendar)[0]
 
   if (!canJoin(target.joinStatus)) {
     return {

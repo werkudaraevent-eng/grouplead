@@ -5,7 +5,9 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { ArrowUpRight, ClipboardList, Loader2, Trash2, X } from "lucide-react"
-import { deleteMissions } from "@/app/actions/mission-actions"
+import { deleteMissions, matchingMissionIds } from "@/app/actions/mission-actions"
+import { useSearchParams } from "next/navigation"
+import { MissionPagination, SortHeader } from "./mission-pagination"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import {
@@ -164,14 +166,36 @@ function ActionCell({
  * list rather than beside the toolbar, so there is never a question of which
  * buttons act on the selection and which on the whole list.
  */
-function SelectionBar({ count, onClear, onDelete }: { count: number; onClear: () => void; onDelete: () => void }) {
+function SelectionBar({
+  count,
+  onClear,
+  onDelete,
+  allMatching,
+}: {
+  count: number
+  onClear: () => void
+  onDelete: () => void
+  /** Offered once every row on the page is ticked and more match beyond it. */
+  allMatching?: { total: number; pending: boolean; onSelect: () => void; selected: boolean }
+}) {
   return (
     <div
       role="region"
       aria-label="Tindakan untuk baris terpilih"
-      className="mb-3 flex items-center justify-between gap-3 rounded-xl border border-primary/30 bg-primary/5 px-4 py-2.5"
+      className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-primary/30 bg-primary/5 px-4 py-2.5"
     >
-      <span className="text-sm font-semibold text-foreground">{count} mission dipilih</span>
+      <span className="text-sm text-foreground">
+        <span className="font-semibold">{count} mission dipilih</span>
+        {allMatching && !allMatching.selected && (
+          <>
+            {" · "}
+            <button type="button" onClick={allMatching.onSelect} disabled={allMatching.pending} className="font-semibold text-primary hover:underline">
+              {allMatching.pending ? "Memuat…" : `Pilih semua ${allMatching.total} yang cocok`}
+            </button>
+          </>
+        )}
+        {allMatching?.selected && <span className="text-muted-foreground"> · semua yang cocok dengan filter</span>}
+      </span>
       <span className="flex items-center gap-2">
         <Button
           size="sm"
@@ -199,7 +223,10 @@ export function MissionTable({
   policy = { requireAssignmentConfirmation: false },
   maxSupporting = 2,
   canWriteAnyReport = false,
+  pagination,
 }: {
+  /** Present when the list is a page of a larger set. */
+  pagination?: { page: number; size: number; total: number; sort: "upcoming" | "asc" | "desc" }
   missions: Row[]
   now: Date
   /** Admins may write any report; the primary may write their own. */
@@ -219,12 +246,35 @@ export function MissionTable({
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [confirming, setConfirming] = useState(false)
   const [pending, start] = useTransition()
+  const [loadingAll, startLoadingAll] = useTransition()
+  // Ids beyond the page, once "pilih semua yang cocok" was used.
+  const [beyondPage, setBeyondPage] = useState<Set<string>>(new Set())
   const router = useRouter()
+  const searchParams = useSearchParams()
 
-  // Selection only ever refers to rows on screen; a filter change drops the rest.
   const visibleIds = useMemo(() => new Set(missions.map((mission) => mission.id)), [missions])
-  const chosen = [...selected].filter((id) => visibleIds.has(id))
-  const allChosen = missions.length > 0 && chosen.length === missions.length
+  // What is on screen, plus what "select all matching" added.
+  const chosen = [...new Set([...[...selected].filter((id) => visibleIds.has(id)), ...beyondPage])]
+  const pageChosen = chosen.filter((id) => visibleIds.has(id)).length
+  const allChosen = missions.length > 0 && pageChosen === missions.length
+  const moreMatch = pagination ? pagination.total > missions.length : false
+
+  const selectAllMatching = () => {
+    startLoadingAll(async () => {
+      const result = await matchingMissionIds(Object.fromEntries(searchParams))
+      if (result.success && result.data) {
+        setSelected(new Set(missions.map((mission) => mission.id)))
+        setBeyondPage(new Set(result.data.ids.filter((id) => !visibleIds.has(id))))
+        if (result.data.capped) toast.message(`Dipilih ${result.data.ids.length} dari ${result.data.total}. Paling banyak 500 sekaligus.`)
+      } else {
+        toast.error(result.error ?? "Gagal memuat daftar")
+      }
+    })
+  }
+  const clearSelection = () => {
+    setSelected(new Set())
+    setBeyondPage(new Set())
+  }
 
   const toggle = (id: string, next: boolean) =>
     setSelected((prev) => {
@@ -233,14 +283,17 @@ export function MissionTable({
       else copy.delete(id)
       return copy
     })
-  const toggleAll = (next: boolean) => setSelected(next ? new Set(missions.map((mission) => mission.id)) : new Set())
+  const toggleAll = (next: boolean) => {
+    setBeyondPage(new Set())
+    setSelected(next ? new Set(missions.map((mission) => mission.id)) : new Set())
+  }
 
   const remove = () => {
     start(async () => {
       const result = await deleteMissions(chosen)
       if (result.success) {
         toast.success(`${chosen.length} mission dihapus`)
-        setSelected(new Set())
+        clearSelection()
         setConfirming(false)
         router.refresh()
       } else {
@@ -296,7 +349,16 @@ export function MissionTable({
   return (
     <>
       {canDelete && chosen.length > 0 && (
-        <SelectionBar count={chosen.length} onClear={() => setSelected(new Set())} onDelete={() => setConfirming(true)} />
+        <SelectionBar
+          count={chosen.length}
+          onClear={clearSelection}
+          onDelete={() => setConfirming(true)}
+          allMatching={
+            allChosen && moreMatch && pagination
+              ? { total: pagination.total, pending: loadingAll, onSelect: selectAllMatching, selected: beyondPage.size > 0 }
+              : undefined
+          }
+        />
       )}
 
       {/* Mobile gets cards, not a squeezed table. */}
@@ -395,7 +457,7 @@ export function MissionTable({
               </TableHead>
             )}
             <TableHead>Mission</TableHead>
-            <TableHead>Jadwal</TableHead>
+            <TableHead>{pagination ? <SortHeader sort={pagination.sort} /> : "Jadwal"}</TableHead>
             <TableHead>Lokasi</TableHead>
             <TableHead>Sales utama</TableHead>
             <TableHead>Status</TableHead>
@@ -449,7 +511,13 @@ export function MissionTable({
         </TableBody>
       </Table>
       </div>
+      {pagination && <MissionPagination page={pagination.page} size={pagination.size} total={pagination.total} />}
       </div>
+      {pagination && (
+        <div className="mt-3 overflow-hidden rounded-xl border bg-card md:hidden">
+          <MissionPagination page={pagination.page} size={pagination.size} total={pagination.total} />
+        </div>
+      )}
 
       <Dialog open={confirming} onOpenChange={(next) => { if (!pending) setConfirming(next) }}>
         <DialogContent className="sm:max-w-md">

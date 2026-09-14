@@ -19,6 +19,8 @@ import {
 } from "@/lib/missions/form-fields"
 import type { ActionResult } from "@/types/action-result"
 import { CLEAR_ALL_PHRASE } from "@/lib/missions/clear-phrase"
+import { parseMissionQuery, resolveMissionFilter } from "@/lib/missions/mission-filter"
+import { listMatchingMissionIds, parsePageParams } from "@/lib/missions/mission-page-queries"
 
 /**
  * Write side of the mission domain.
@@ -706,4 +708,25 @@ export async function updateMission(
   revalidatePath("/workspace/calendar")
   revalidatePath(`/workspace/missions/${missionId}`)
   redirect(`/workspace/missions/${missionId}`)
+}
+
+/**
+ * Every mission id the current filters match, for "pilih semua N yang
+ * cocok" on the list. Capped at what deleteMissions accepts, and the caller
+ * is told when the cap bit.
+ */
+export async function matchingMissionIds(
+  params: Record<string, string>
+): Promise<ActionResult<{ ids: string[]; total: number; capped: boolean }>> {
+  const access = await getSalesMissionAccess()
+  if (!access) return { success: false, error: "Anda tidak punya akses Sales Mission." }
+  if (!(await canPerform(access, "sales_mission_mission", "delete"))) {
+    return { success: false, error: "Anda tidak punya izin menghapus mission." }
+  }
+  const settings = await getMissionSettings(access)
+  const requested = resolveMissionFilter(params.filter)
+  const lens = settings.requireAssignmentConfirmation ? requested : "all"
+  const { sort } = parsePageParams(params)
+  const { ids, total } = await listMatchingMissionIds(access, { query: parseMissionQuery(params), lens, sort, now: new Date() }, 500)
+  return { success: true, data: { ids, total, capped: total > ids.length } }
 }

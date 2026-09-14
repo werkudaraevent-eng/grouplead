@@ -34,8 +34,13 @@ export default async function CalendarPage({
   const params = await searchParams
   const now = new Date()
   const month = resolveMonth(params.month, now)
+  // The month on screen plus a week each side, so the day panel is right at
+  // the edges; nothing outside it is drawn here.
+  const monthStart = new Date(`${month}-01T00:00:00+07:00`)
+  const since = new Date(monthStart.getTime() - 7 * 86_400_000)
+  const until = new Date(new Date(Date.UTC(monthStart.getUTCFullYear(), monthStart.getUTCMonth() + 1, 1)).getTime() + 8 * 86_400_000)
   const [rawMissions, settings, canCreate] = await Promise.all([
-    listMissions(access),
+    listMissions(access, { since, until }),
     getMissionSettings(access),
     canPerform(access, "sales_mission_mission", "create"),
   ])

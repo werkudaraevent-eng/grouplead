@@ -4,8 +4,8 @@ import { canPerform, getSalesMissionAccess } from "@/lib/sales-mission-access"
 import { requireModule } from "@/lib/missions/nav-access"
 import { getBoardSnapshot } from "@/lib/board/board-queries"
 import { parseBoardOptions } from "@/lib/board/board-options"
-import { listMissions, listTenantSales } from "@/lib/missions/mission-queries"
-import { facetOptions } from "@/lib/missions/mission-filter"
+import { listTenantSales } from "@/lib/missions/mission-queries"
+import { listMissionFacets } from "@/lib/missions/mission-page-queries"
 import { EMPTY_AUDIT_FILTER, listAuditLog } from "@/lib/audit/audit-queries"
 import { hasServiceClientConfig } from "@/utils/supabase/service"
 import { EmptyState, WorkspacePage } from "@/app/workspace/workspace-page"
@@ -49,7 +49,7 @@ export default async function InternalBoardPage({
   const options = parseBoardOptions(params)
   const now = new Date()
 
-  const [snapshot, people, missions, isAdmin, activity, headerList] = await Promise.all([
+  const [snapshot, people, facets, isAdmin, activity, headerList] = await Promise.all([
     getBoardSnapshot(access.companyId, now, {
       masked: false,
       range: options.range,
@@ -57,7 +57,7 @@ export default async function InternalBoardPage({
       location: options.location,
     }),
     listTenantSales(access),
-    listMissions(access),
+    listMissionFacets(access),
     canPerform(access, "sales_mission_settings", "update"),
     options.panels.includes("activity")
       ? listAuditLog(access, EMPTY_AUDIT_FILTER, 0, 24).then((result) => result.rows)
@@ -80,7 +80,7 @@ export default async function InternalBoardPage({
       <BoardToolbar
         options={options}
         people={people.map((person) => ({ id: person.id, name: person.name, avatarUrl: person.avatarUrl }))}
-        locations={facetOptions(missions).locations}
+        locations={facets.locations}
       />
       <BoardDashboard
         snapshot={snapshot}

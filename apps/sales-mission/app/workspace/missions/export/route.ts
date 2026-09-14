@@ -2,10 +2,10 @@ import { NextResponse } from "next/server"
 import * as XLSX from "xlsx"
 import { canPerform, getSalesMissionAccess } from "@/lib/sales-mission-access"
 import { listFormFields } from "@/lib/missions/form-field-queries"
-import { listMissions } from "@/lib/missions/mission-queries"
-import { annotateJoinStatus } from "@/lib/missions/mission-join"
+import { listMissionsByIds, } from "@/lib/missions/mission-queries"
 import { getMissionSettings } from "@/lib/missions/mission-queries"
-import { applyMissionQuery, filterMissions, parseMissionQuery, resolveMissionFilter } from "@/lib/missions/mission-filter"
+import { parseMissionQuery, resolveMissionFilter } from "@/lib/missions/mission-filter"
+import { listMatchingMissionIds, parsePageParams } from "@/lib/missions/mission-page-queries"
 import { buildImportColumns, toExportRows } from "@/lib/missions/mission-io"
 
 export const dynamic = "force-dynamic"
@@ -29,22 +29,18 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 })
   }
 
-  const [missions, fields, settings] = await Promise.all([
-    listMissions(access),
-    listFormFields(access, "mission"),
-    getMissionSettings(access),
-  ])
+  const [fields, settings] = await Promise.all([listFormFields(access, "mission"), getMissionSettings(access)])
 
   // The same lens the list is showing, so "export" means "export what I see"
   // rather than silently handing back everything.
+  // The same filters the list applied, in the database, without the page.
   const url = new URL(request.url)
-  const filter = resolveMissionFilter(url.searchParams.get("filter"))
-  const query = parseMissionQuery(Object.fromEntries(url.searchParams))
-  const visible = applyMissionQuery(
-    filterMissions(annotateJoinStatus(missions, settings), filter, settings),
-    query,
-    new Date()
-  )
+  const params = Object.fromEntries(url.searchParams)
+  const requested = resolveMissionFilter(url.searchParams.get("filter"))
+  const lens = settings.requireAssignmentConfirmation ? requested : "all"
+  const { sort } = parsePageParams(params)
+  const { ids } = await listMatchingMissionIds(access, { query: parseMissionQuery(params), lens, sort, now: new Date() })
+  const visible = await listMissionsByIds(access, ids)
 
   const columns = buildImportColumns(fields)
   const rows = toExportRows(visible, columns)

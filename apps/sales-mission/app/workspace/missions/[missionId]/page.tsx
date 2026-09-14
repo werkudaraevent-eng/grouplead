@@ -12,8 +12,8 @@ import {
   getPendingReschedule,
   getVisitReport,
   listMissionTeam,
-  listMissions,
   listSupportingNotes,
+  listViewerCalendar,
   listTeamSchedules,
   listTenantSales,
 } from "@/lib/missions/mission-queries"
@@ -100,10 +100,10 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
     canPerform(access, "sales_mission_mission", "create"),
   ])
   const report = canReadReport ? await getVisitReport(access, missionId) : null
-  const [team, settings, allMissions] = await Promise.all([
+  const [team, settings, ownCalendar] = await Promise.all([
     listMissionTeam(access, missionId),
     getMissionSettings(access),
-    listMissions(access),
+    listViewerCalendar(access),
   ])
   const [pendingReschedule, salesOptions, schedules, cancellation, lastEdit] = await Promise.all([
     getPendingReschedule(access, missionId),
@@ -143,7 +143,7 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
 
   // Join eligibility is computed against the viewer's whole calendar, so it
   // needs the tenant's missions rather than this one alone.
-  const joinStatus = annotateJoinStatus(allMissions, settings).find((item) => item.id === missionId)?.joinStatus ?? "CLOSED"
+  const joinStatus = annotateJoinStatus([mission], settings, ownCalendar)[0]?.joinStatus ?? "CLOSED"
   const blockedReason = joinBlockedReason(joinStatus, settings.maxSupporting)
 
   const myResponse = (team.find((member) => member.userId === access.userId)?.response ?? "PENDING") as AssignmentResponse

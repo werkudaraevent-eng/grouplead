@@ -149,9 +149,11 @@ export default async function MissionHomePage() {
     )
   }
 
+  // Two months back covers every report anyone could still owe, and forward
+  // is open so "berikutnya" is never cut off.
   const [summary, missions, settings] = await Promise.all([
     getMissionSummary(access),
-    listMissions(access),
+    listMissions(access, { since: new Date(now.getTime() - 60 * 86_400_000) }),
     getMissionSettings(access),
   ])
   const today = missionDayKey(now)

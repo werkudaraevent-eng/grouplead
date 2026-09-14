@@ -174,16 +174,24 @@ export interface JoinCandidate {
  */
 export function annotateJoinStatus<T extends JoinCandidate>(
   missions: T[],
-  settings: JoinSettings = DEFAULT_JOIN_SETTINGS
+  settings: JoinSettings = DEFAULT_JOIN_SETTINGS,
+  /**
+   * The viewer's whole calendar. Derived from the list itself when omitted,
+   * which is only right when the list is the whole tenant; a paged list
+   * passes it explicitly.
+   */
+  calendar?: ScheduledBlock[]
 ): Array<T & { joinStatus: JoinStatus }> {
-  const ownBlocks: ScheduledBlock[] = missions
-    .filter((mission) => mission.viewerRole !== null)
-    .map((mission) => ({
-      missionId: mission.id,
-      scheduledStart: mission.scheduledStart,
-      scheduledEnd: mission.scheduledEnd,
-      location: mission.location,
-    }))
+  const ownBlocks: ScheduledBlock[] =
+    calendar ??
+    missions
+      .filter((mission) => mission.viewerRole !== null)
+      .map((mission) => ({
+        missionId: mission.id,
+        scheduledStart: mission.scheduledStart,
+        scheduledEnd: mission.scheduledEnd,
+        location: mission.location,
+      }))
 
   return missions.map((mission) => {
     const { hasConflict } = detectConflict(

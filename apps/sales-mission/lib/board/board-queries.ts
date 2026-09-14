@@ -1,6 +1,7 @@
 import { createServiceClient } from "@/utils/supabase/service"
 import { mapMissions, type AssignmentRow, type MissionRow } from "@/lib/missions/mission-schema"
-import { buildBoardSnapshot, type BoardSnapshot, type BoardSnapshotOptions } from "./board-snapshot"
+import { boardRangeBounds, buildBoardSnapshot, type BoardSnapshot, type BoardSnapshotOptions } from "./board-snapshot"
+import { missionDayKey } from "@/lib/missions/mission-calendar"
 
 /**
  * Board data for one tenant.
@@ -22,14 +23,30 @@ export async function getBoardSnapshot(
   const supabase = createServiceClient()
   const schema = supabase.schema("sales_mission")
 
-  const { data: missionRows } = await schema
-    .from("missions")
-    .select(MISSION_COLUMNS)
-    .eq("company_id", companyId)
-    .order("scheduled_start", { ascending: true, nullsFirst: false })
+  // Only the days on the board, not the tenant's whole history; the one
+  // all-days number ("mission berjalan") is counted separately.
+  const [from, to] = boardRangeBounds(options.range ?? "today", missionDayKey(now))
+  const [{ data: missionRows }, { count: openCount }] = await Promise.all([
+    schema
+      .from("missions")
+      .select(MISSION_COLUMNS)
+      .eq("company_id", companyId)
+      .gte("scheduled_start", `${from}T00:00:00+07:00`)
+      .lte("scheduled_start", `${to}T23:59:59.999+07:00`)
+      .order("scheduled_start", { ascending: true, nullsFirst: false }),
+    schema
+      .from("missions")
+      .select("id", { count: "exact", head: true })
+      .eq("company_id", companyId)
+      .in("status", ["SCHEDULED", "ASSIGNED", "ACCEPTED", "IN_PROGRESS"]),
+  ])
 
   const missions = (missionRows ?? []) as MissionRow[]
-  if (missions.length === 0) return buildBoardSnapshot([], now, options)
+  const withOpenCount = (snapshot: BoardSnapshot): BoardSnapshot => ({
+    ...snapshot,
+    counts: { ...snapshot.counts, openMissions: openCount ?? snapshot.counts.openMissions },
+  })
+  if (missions.length === 0) return withOpenCount(buildBoardSnapshot([], now, options))
 
   const { data: assignmentRows } = await schema
     .from("assignments")
@@ -50,5 +67,5 @@ export async function getBoardSnapshot(
     }
   }
 
-  return buildBoardSnapshot(mapMissions(missions, assignments, names), now, options)
+  return withOpenCount(buildBoardSnapshot(mapMissions(missions, assignments, names), now, options))
 }

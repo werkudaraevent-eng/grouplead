@@ -1,18 +1,10 @@
 import { redirect } from "next/navigation"
 import { canPerform, getSalesMissionAccess } from "@/lib/sales-mission-access"
 import { requireModule } from "@/lib/missions/nav-access"
-import { getMissionSettings, listMissions, listTenantSales } from "@/lib/missions/mission-queries"
+import { getMissionSettings, listTenantSales, listViewerCalendar } from "@/lib/missions/mission-queries"
+import { countMissions, listMissionFacets, listMissionsPage, parsePageParams } from "@/lib/missions/mission-page-queries"
 import { annotateJoinStatus } from "@/lib/missions/mission-join"
-import {
-  applyMissionQuery,
-  countMissionFilters,
-  facetOptions,
-  filterMissions,
-  isEmptyQuery,
-  parseMissionQuery,
-  resolveMissionFilter,
-  serializeMissionQuery,
-} from "@/lib/missions/mission-filter"
+import { isEmptyQuery, parseMissionQuery, resolveMissionFilter, serializeMissionQuery, type MissionFilter } from "@/lib/missions/mission-filter"
 import { MissionFilterChips, NewMissionAction, WorkspacePage } from "@/app/workspace/workspace-page"
 import { MissionTable } from "./mission-table"
 import { MissionFilterBar } from "./mission-filter-bar"
@@ -31,37 +23,42 @@ export default async function MissionsPage({
   if (!access) redirect("/login?error=access_not_provisioned")
   await requireModule(access, "sales_mission_mission")
 
-  const [missions, settings, canCreate, canDelete, people, params] = await Promise.all([
-    listMissions(access),
+  const params = await searchParams
+  const now = new Date()
+  const query = parseMissionQuery(params)
+  const { page, size, sort } = parsePageParams(params)
+
+  const [settings, canCreate, canDelete, people, facets, ownCalendar] = await Promise.all([
     getMissionSettings(access),
     canPerform(access, "sales_mission_mission", "create"),
     canPerform(access, "sales_mission_mission", "delete"),
     listTenantSales(access),
-    searchParams,
+    listMissionFacets(access),
+    listViewerCalendar(access),
   ])
-  // Where the viewer stands on each mission: on it, clashing with their own
-  // schedule, or free to join. Drives the Join button in the Aksi column.
-  const annotated = annotateJoinStatus(missions, settings)
 
-  // Counts come from the full list so a lens showing nothing still says so with
-  // a zero rather than disappearing. A lens the policy makes meaningless
-  // (waiting on answers, when nobody is asked) falls back to the full list.
+  // The lens picks whose answer; the panel picks which missions. A lens the
+  // policy makes meaningless (waiting on answers, when nobody is asked)
+  // falls back to the full list.
   const lensParam = Array.isArray(params.filter) ? params.filter[0] : params.filter
   const requested = resolveMissionFilter(lensParam)
-  const filter = settings.requireAssignmentConfirmation ? requested : "all"
-  const counts = countMissionFilters(annotated, settings)
-  const now = new Date()
+  const filter: MissionFilter = settings.requireAssignmentConfirmation ? requested : "all"
 
-  // The lens and the filter panel stack: the lens picks whose answer, the
-  // panel picks which missions. Both are in the URL, so the export link
-  // below carries both and exports exactly what is on screen.
-  const query = parseMissionQuery(params)
-  const lensed = filterMissions(annotated, filter, settings)
-  const visible = applyMissionQuery(lensed, query, now)
-  const facets = facetOptions(missions)
+  const base = { query, sort, now }
+  const [pageResult, mineCount, teamCount] = await Promise.all([
+    listMissionsPage(access, { ...base, lens: filter, page, size }),
+    settings.requireAssignmentConfirmation ? countMissions(access, { ...base, lens: "mine" }) : Promise.resolve(0),
+    settings.requireAssignmentConfirmation ? countMissions(access, { ...base, lens: "team" }) : Promise.resolve(0),
+  ])
+  const allCount = filter === "all" ? pageResult.total : await countMissions(access, { ...base, lens: "all" })
+
+  // Join eligibility is judged against the viewer's own calendar, which is
+  // loaded once rather than derived from whichever rows made this page.
+  const visible = annotateJoinStatus(pageResult.items, settings, ownCalendar)
 
   const exportParams = serializeMissionQuery(query)
   if (filter !== "all") exportParams.set("filter", filter)
+  if (sort !== "upcoming") exportParams.set("sort", sort)
   const exportHref = exportParams.toString() ? `/workspace/missions/export?${exportParams}` : "/workspace/missions/export"
 
   return (
@@ -75,11 +72,10 @@ export default async function MissionsPage({
       }
       action={
         <>
-          {/* Exports what the chosen lens is showing, so "export" means the
-              list on screen rather than everything silently. */}
-          <Button asChild variant="outline" size="sm">
+          {/* Exports everything the filters match, not the page on screen. */}
+          <Button asChild variant="outline" size="sm" title={`Export ${pageResult.total} mission yang cocok dengan filter`}>
             <a href={exportHref}>
-              <Download className="h-4 w-4" /> Export
+              <Download className="h-4 w-4" /> Export{pageResult.total > 0 ? ` (${pageResult.total})` : ""}
             </a>
           </Button>
           {canCreate && <ImportMissions />}
@@ -87,14 +83,14 @@ export default async function MissionsPage({
         </>
       }
     >
-      <MissionFilterChips active={filter} counts={counts} policy={settings} />
+      <MissionFilterChips active={filter} counts={{ all: allCount, mine: mineCount, team: teamCount }} policy={settings} />
       <MissionFilterBar
         query={query}
         people={people.map((person) => ({ id: person.id, name: person.name, avatarUrl: person.avatarUrl }))}
         types={facets.types}
         locations={facets.locations}
-        total={lensed.length}
-        shown={visible.length}
+        total={allCount}
+        shown={pageResult.total}
       />
       <MissionTable
         missions={visible}
@@ -106,6 +102,7 @@ export default async function MissionsPage({
         policy={settings}
         maxSupporting={settings.maxSupporting}
         canWriteAnyReport={access.isSuperAdmin}
+        pagination={{ page, size, total: pageResult.total, sort }}
       />
     </WorkspacePage>
   )
