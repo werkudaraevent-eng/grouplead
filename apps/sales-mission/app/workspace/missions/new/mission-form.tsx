@@ -2,7 +2,7 @@
 
 import { useActionState, useEffect, useRef, useState } from "react"
 import Link from "next/link"
-import { AlertCircle, Loader2, Plus } from "lucide-react"
+import { AlertCircle, Loader2, Plus, Save } from "lucide-react"
 import { createMission, type CreateMissionState } from "@/app/actions/mission-actions"
 import { MISSION_TYPES } from "@/lib/missions/mission-schema"
 import {
@@ -200,15 +200,17 @@ function FieldShell({
 }
 
 /** Input for an admin-created field, chosen by its configured type. */
-function CustomField({ field }: { field: FormField }) {
+function CustomField({ field, initial }: { field: FormField; initial?: unknown }) {
   const name = `custom__${field.reportingKey}`
   const id = `field-${field.reportingKey}`
+  const initialText = typeof initial === "string" || typeof initial === "number" ? String(initial) : ""
+  const initialList = Array.isArray(initial) ? initial.map(String) : []
 
   if (field.fieldType === "BOOLEAN") {
     return (
       <div className={`space-y-2 ${SPAN_CLASS.full}`}>
         <div className="flex min-h-12 items-center gap-2.5">
-          <Checkbox id={id} name={name} value="true" />
+          <Checkbox id={id} name={name} value="true" defaultChecked={initial === true} />
           <Label htmlFor={id} className="font-normal text-foreground">{field.label}</Label>
         </div>
         {field.helpText && <p className="text-xs text-muted-foreground">{field.helpText}</p>}
@@ -222,7 +224,7 @@ function CustomField({ field }: { field: FormField }) {
         <div className="flex flex-wrap gap-x-5 gap-y-1">
           {field.options.map((option) => (
             <div className="flex min-h-12 items-center gap-2.5" key={option}>
-              <Checkbox id={`${id}-${option}`} name={name} value={option} />
+              <Checkbox id={`${id}-${option}`} name={name} value={option} defaultChecked={initialList.includes(option)} />
               <Label htmlFor={`${id}-${option}`} className="font-normal text-foreground">{option}</Label>
             </div>
           ))}
@@ -234,7 +236,7 @@ function CustomField({ field }: { field: FormField }) {
   if (field.fieldType === "SELECT") {
     return (
       <FieldShell field={field}>
-        <select id={id} name={name} required={field.isRequired} defaultValue="" className={SELECT_CLASS}>
+        <select id={id} name={name} required={field.isRequired} defaultValue={initialText} className={SELECT_CLASS}>
           <option value="">{field.placeholder || "Pilih salah satu"}</option>
           {field.options.map((option) => <option key={option} value={option}>{option}</option>)}
         </select>
@@ -251,6 +253,7 @@ function CustomField({ field }: { field: FormField }) {
           required={field.isRequired}
           rows={3}
           maxLength={4000}
+          defaultValue={initialText}
           placeholder={field.placeholder ?? ""}
           className={TEXTAREA_CLASS}
         />
@@ -270,6 +273,7 @@ function CustomField({ field }: { field: FormField }) {
         type={inputType}
         inputMode={inputMode}
         required={field.isRequired}
+        defaultValue={initialText}
         placeholder={field.placeholder ?? ""}
         className="h-12"
       />
@@ -308,6 +312,7 @@ export function MissionForm({
   schedules,
   conflictSettings,
   prefill,
+  edit,
 }: {
   salesOptions: TenantSalesOption[]
   defaultDate: string
@@ -316,15 +321,26 @@ export function MissionForm({
   schedules: PersonSchedule[]
   conflictSettings: ConflictSettings
   prefill?: MissionPrefill
+  /**
+   * Editing an existing mission. The same form, already filled in, posting to
+   * updateMission. The schedule is shown but not editable here: moving it is
+   * a separate action that tells the team. Custom answers are seeded too.
+   */
+  edit?: {
+    missionId: string
+    action: (previous: CreateMissionState, formData: FormData) => Promise<CreateMissionState>
+    schedule: ScheduleValue
+    customValues: Record<string, unknown>
+  }
 }) {
   // On success the action redirects server-side, so this state only ever holds
   // a failure worth showing.
-  const [state, formAction, pending] = useActionState<CreateMissionState, FormData>(createMission, null)
+  const [state, formAction, pending] = useActionState<CreateMissionState, FormData>(edit?.action ?? createMission, null)
 
   // Tracked so the supporting list can exclude whoever is leading the visit.
   const [primarySalesId, setPrimarySalesId] = useState(prefill?.primarySalesId ?? "")
   const [supportingIds, setSupportingIds] = useState<string[]>(prefill?.supportingSalesIds ?? [])
-  const [schedule, setSchedule] = useState<ScheduleValue>({ date: defaultDate, startTime: "09:30", endTime: "" })
+  const [schedule, setSchedule] = useState<ScheduleValue>(edit?.schedule ?? { date: defaultDate, startTime: "09:30", endTime: "" })
   const [location, setLocation] = useState(prefill?.location ?? "")
 
   // The calendars the picker draws: whoever is being sent. Nothing until a
@@ -424,6 +440,27 @@ export function MissionForm({
         // One picker answers date, start and end together; the two time
         // fields below render nothing so the admin's ordering still holds.
         const endField = fields.find((item) => item.reportingKey === "end_time")
+        if (edit) {
+          // Read-only here. The schedule still submits (the schema expects
+          // it) but only Pindahkan jadwal may change it, because a moved
+          // visit has to reach the team and, under confirmation, re-ask them.
+          return (
+            <div key={field.id} className={`space-y-2 ${SPAN_CLASS.full}`}>
+              <input type="hidden" name="date" value={schedule.date} />
+              <input type="hidden" name="startTime" value={schedule.startTime} />
+              <input type="hidden" name="endTime" value={schedule.endTime} />
+              <p className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-dashed bg-muted/40 px-4 py-3 text-sm">
+                <span className="text-foreground">
+                  <span className="font-semibold">{field.label}:</span> {schedule.date}, {schedule.startTime}
+                  {schedule.endTime ? `–${schedule.endTime}` : ""}
+                </span>
+                <Link href={`/workspace/missions/${edit.missionId}#jawaban`} className="text-xs font-semibold text-primary hover:underline">
+                  Ubah lewat Pindahkan jadwal
+                </Link>
+              </p>
+            </div>
+          )
+        }
         return (
           <FieldShell field={field} key={field.id} as="group">
             <SchedulePicker
@@ -634,7 +671,7 @@ export function MissionForm({
           </header>
           <div className="grid gap-x-4 gap-y-5 px-5 py-5 sm:grid-cols-6 sm:px-6">
             {block.fields.map((field) =>
-              field.isCore ? coreField(field) : <CustomField key={field.id} field={field} />
+              field.isCore ? coreField(field) : <CustomField key={field.id} field={field} initial={edit?.customValues[field.reportingKey]} />
             )}
           </div>
         </section>
@@ -651,10 +688,16 @@ export function MissionForm({
       */}
       <div className="sticky bottom-0 -mx-4 flex flex-col gap-2 border-t bg-card px-4 py-3 sm:static sm:mx-0 sm:flex-row sm:justify-end sm:border-0 sm:bg-transparent sm:px-0 sm:py-0">
         <Button asChild variant="outline" type="button" className="h-12 md:h-10">
-          <Link href="/workspace/missions">Batal</Link>
+          <Link href={edit ? `/workspace/missions/${edit.missionId}` : "/workspace/missions"}>Batal</Link>
         </Button>
         <Button type="submit" disabled={pending} className="h-12 md:h-10">
-          {pending ? <><Loader2 className="h-4 w-4 animate-spin" /> Menyimpan…</> : <><Plus className="h-4 w-4" /> Simpan mission</>}
+          {pending ? (
+            <><Loader2 className="h-4 w-4 animate-spin" /> Menyimpan…</>
+          ) : edit ? (
+            <><Save className="h-4 w-4" /> Simpan perubahan</>
+          ) : (
+            <><Plus className="h-4 w-4" /> Simpan mission</>
+          )}
         </Button>
       </div>
     </form>

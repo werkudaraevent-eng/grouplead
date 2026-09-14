@@ -4,12 +4,12 @@ import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 import { createClient } from "@/utils/supabase/server"
 import { canPerform, getSalesMissionAccess } from "@/lib/sales-mission-access"
-import { MISSION_TIME_ZONE, MISSION_TYPES, createMissionSchema, toMissionTimestamp } from "@/lib/missions/mission-schema"
+import { MISSION_TIME_ZONE, MISSION_TYPES, createMissionSchema, toMissionTimestamp, type AssignmentResponse } from "@/lib/missions/mission-schema"
 import { listFormFields } from "@/lib/missions/form-field-queries"
 import { getMission, getMissionRole, getMissionSettings, listMissionTeam } from "@/lib/missions/mission-queries"
 import { notify } from "@/lib/notifications/notification-queries"
 import { recordCompanyVisit } from "@/lib/leadengine/client"
-import { initialResponse } from "@/lib/missions/assignment-workflow"
+import { deriveMissionStatus, initialResponse } from "@/lib/missions/assignment-workflow"
 import {
   DEFAULT_CONTACT_SALUTATIONS,
   configuredOptions,
@@ -27,23 +27,10 @@ import { CLEAR_ALL_PHRASE } from "@/lib/missions/clear-phrase"
  * calls it.
  */
 
-export type CreateMissionState = ActionResult<{ id: string }> | null
 
-/** Signature matches `useActionState`, so the form owns the pending and error state. */
-export async function createMission(
-  _previous: CreateMissionState,
-  formData: FormData
-): Promise<ActionResult<{ id: string }>> {
-  const access = await getSalesMissionAccess()
-  if (!access) return { success: false, error: "Anda tidak punya akses Sales Mission." }
-
-  // Lets an admin restrict a pure field-sales role to responding to missions
-  // rather than creating them. Unconfigured means unrestricted.
-  if (!(await canPerform(access, "sales_mission_mission", "create"))) {
-    return { success: false, error: "Anda tidak punya izin membuat mission." }
-  }
-
-  const parsed = createMissionSchema.safeParse({
+/** One reading of the form, so creating and editing cannot disagree about a field. */
+function readMissionForm(formData: FormData) {
+  return createMissionSchema.safeParse({
     clientCompanyName: formData.get("clientCompanyName"),
     clientCompanyId: formData.get("clientCompanyId") || undefined,
     missionType: formData.get("missionType"),
@@ -64,6 +51,42 @@ export async function createMission(
     building: formData.get("building") || undefined,
     appointmentNotes: formData.get("appointmentNotes") || undefined,
   })
+}
+
+/** Custom-field answers off the form, by the tenant's field types. */
+function readCustomAnswers(formData: FormData, customFields: Awaited<ReturnType<typeof listFormFields>>): Record<string, FieldAnswer> {
+  const answers: Record<string, FieldAnswer> = {}
+  for (const field of customFields) {
+    const name = `custom__${field.reportingKey}`
+    if (field.fieldType === "MULTI_SELECT") {
+      answers[field.reportingKey] = formData.getAll(name).map(String)
+    } else if (field.fieldType === "BOOLEAN") {
+      answers[field.reportingKey] = formData.get(name) === "true"
+    } else {
+      const raw = formData.get(name)
+      answers[field.reportingKey] = typeof raw === "string" && raw !== "" ? raw : null
+    }
+  }
+  return answers
+}
+
+export type CreateMissionState = ActionResult<{ id: string }> | null
+
+/** Signature matches `useActionState`, so the form owns the pending and error state. */
+export async function createMission(
+  _previous: CreateMissionState,
+  formData: FormData
+): Promise<ActionResult<{ id: string }>> {
+  const access = await getSalesMissionAccess()
+  if (!access) return { success: false, error: "Anda tidak punya akses Sales Mission." }
+
+  // Lets an admin restrict a pure field-sales role to responding to missions
+  // rather than creating them. Unconfigured means unrestricted.
+  if (!(await canPerform(access, "sales_mission_mission", "create"))) {
+    return { success: false, error: "Anda tidak punya izin membuat mission." }
+  }
+
+  const parsed = readMissionForm(formData)
 
   if (!parsed.success) {
     return { success: false, error: parsed.error.issues[0]?.message ?? "Data mission tidak valid." }
@@ -233,18 +256,7 @@ export async function createMission(
   const customFields = formFields.filter((field) => !field.isCore)
 
   if (customFields.length > 0) {
-    const answers: Record<string, FieldAnswer> = {}
-    for (const field of customFields) {
-      const name = `custom__${field.reportingKey}`
-      if (field.fieldType === "MULTI_SELECT") {
-        answers[field.reportingKey] = formData.getAll(name).map(String)
-      } else if (field.fieldType === "BOOLEAN") {
-        answers[field.reportingKey] = formData.get(name) === "true"
-      } else {
-        const raw = formData.get(name)
-        answers[field.reportingKey] = typeof raw === "string" && raw !== "" ? raw : null
-      }
-    }
+    const answers = readCustomAnswers(formData, customFields)
 
     const validation = validateFieldAnswers(customFields, answers)
     if (!validation.ok) {
@@ -462,4 +474,203 @@ export async function clearAllMissions(confirmation: string): Promise<ActionResu
   revalidatePath("/workspace/calendar")
   revalidatePath("/workspace/settings/data")
   return { success: true, data: { deleted: data?.length ?? 0 } }
+}
+
+/**
+ * Correct a mission's details after it was made.
+ *
+ * The same form as creating, already filled in, with two things deliberately
+ * left out: the schedule, which moves through Pindahkan jadwal so the team
+ * is told and re-asked under the confirmation policy, and the mission's own
+ * status. The team can change here, because picking the wrong person is the
+ * commonest mistake: a new assignee starts with the policy's answer and is
+ * told; a removed one is simply removed.
+ *
+ * For whoever scheduled it, the primary, and admins, while the visit is
+ * still ahead. The audit trigger records the before and after.
+ */
+export async function updateMission(
+  missionId: string,
+  _previous: CreateMissionState,
+  formData: FormData
+): Promise<ActionResult<{ id: string }>> {
+  const access = await getSalesMissionAccess()
+  if (!access) return { success: false, error: "Anda tidak punya akses Sales Mission." }
+  if (!(await canPerform(access, "sales_mission_mission", "update"))) {
+    return { success: false, error: "Anda tidak punya izin mengubah mission." }
+  }
+
+  const [mission, role] = await Promise.all([getMission(access, missionId), getMissionRole(access, missionId)])
+  if (!mission) return { success: false, error: "Mission tidak ditemukan." }
+  const mayEdit = access.isSuperAdmin || role === "PRIMARY" || mission.createdBy === access.userId
+  if (!mayEdit) return { success: false, error: "Hanya sales utama, pembuat mission, atau admin yang bisa mengubah." }
+  if (mission.status === "COMPLETED" || mission.status === "CANCELLED") {
+    return { success: false, error: "Mission yang sudah selesai atau dibatalkan tidak bisa diubah." }
+  }
+
+  const parsed = readMissionForm(formData)
+  if (!parsed.success) {
+    return { success: false, error: parsed.error.issues[0]?.message ?? "Data mission tidak valid." }
+  }
+  const input = parsed.data
+
+  const supabase = await createClient()
+  const missions = supabase.schema("sales_mission")
+  const assigneeIds = [input.primarySalesId, ...input.supportingSalesIds]
+  const [formFields, settings, memberCheck, team] = await Promise.all([
+    listFormFields(access, "mission"),
+    getMissionSettings(access),
+    supabase.from("company_members").select("user_id").eq("company_id", access.companyId).in("user_id", assigneeIds),
+    listMissionTeam(access, missionId),
+  ])
+
+  const allowedTypes = configuredOptions(formFields, "mission_type", MISSION_TYPES)
+  if (!allowedTypes.includes(input.missionType)) return { success: false, error: "Jenis mission itu tidak ada dalam daftar." }
+  const allowedSalutations = configuredOptions(formFields, "contact_salutation", DEFAULT_CONTACT_SALUTATIONS)
+  if (input.contactSalutation && !allowedSalutations.includes(input.contactSalutation)) {
+    return { success: false, error: "Sapaan itu tidak ada dalam daftar." }
+  }
+
+  // The admin's "wajib diisi" on core fields, same rule as creating. The
+  // schedule is not on this form, so its fields are not asked for here.
+  const coreValues: Record<string, unknown> = {
+    client_company: input.clientCompanyName,
+    mission_type: input.missionType,
+    location: input.location,
+    objective: input.objective,
+    primary_sales: input.primarySalesId,
+    supporting_sales: input.supportingSalesIds,
+    contact_salutation: input.contactSalutation,
+    contact_name: input.contactName,
+    contact_job_title: input.contactJobTitle,
+    contact_division: input.contactDivision,
+    contact_phone: input.contactPhone,
+    contact_email: input.contactEmail,
+    building: input.building,
+    appointment_notes: input.appointmentNotes,
+  }
+  for (const field of formFields) {
+    if (!field.isCore || !field.isRequired || !(field.reportingKey in coreValues)) continue
+    const value = coreValues[field.reportingKey]
+    const empty = value === null || value === undefined || value === "" || (Array.isArray(value) && value.length === 0)
+    if (empty) return { success: false, error: `${field.label} wajib diisi.` }
+  }
+
+  const { data: members, error: memberError } = memberCheck
+  if (memberError) return { success: false, error: "Gagal memverifikasi anggota tim." }
+  const validIds = new Set((members ?? []).map((row) => row.user_id as string))
+  if (assigneeIds.some((id) => !validIds.has(id))) {
+    return { success: false, error: "Sales yang dipilih bukan anggota unit bisnis ini." }
+  }
+
+  // Custom answers are validated before anything is written, so a bad
+  // answer leaves the mission exactly as it was.
+  const customFields = formFields.filter((field) => !field.isCore)
+  const answers = readCustomAnswers(formData, customFields)
+  const validation = validateFieldAnswers(customFields, answers)
+  if (!validation.ok) {
+    return { success: false, error: Object.values(validation.errors)[0] ?? "Isian tambahan belum lengkap." }
+  }
+
+  const { error: updateError } = await missions
+    .from("missions")
+    .update({
+      client_company_name_snapshot: input.clientCompanyName,
+      client_company_id: input.clientCompanyId ?? null,
+      mission_type: input.missionType,
+      objective: input.objective || null,
+      location: input.location || null,
+      contact_salutation: input.contactSalutation || null,
+      contact_id: input.contactId || null,
+      contact_name: input.contactName || null,
+      contact_job_title: input.contactJobTitle || null,
+      contact_division: input.contactDivision || null,
+      contact_phone: input.contactPhone || null,
+      contact_email: input.contactEmail || null,
+      building: input.building || null,
+      appointment_notes: input.appointmentNotes || null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", missionId)
+    .eq("company_id", access.companyId)
+  if (updateError) return { success: false, error: "Perubahan gagal disimpan." }
+
+  // Team diff. Roles are compared per person: someone moved from supporting
+  // to primary keeps their answer, someone new gets the policy's answer.
+  const before = new Map(team.map((member) => [member.userId, member.role]))
+  const after = new Map<string, "PRIMARY" | "SUPPORTING">([
+    [input.primarySalesId, "PRIMARY"],
+    ...input.supportingSalesIds.map((id) => [id, "SUPPORTING"] as const),
+  ])
+  const now = new Date().toISOString()
+  const removed = [...before.keys()].filter((id) => !after.has(id))
+  const added = [...after.keys()].filter((id) => !before.has(id))
+  const moved = [...after.entries()].filter(([id, roleNow]) => before.has(id) && before.get(id) !== roleNow)
+
+  if (removed.length > 0) {
+    await missions.from("assignments").delete().eq("mission_id", missionId).eq("company_id", access.companyId).in("user_id", removed)
+  }
+  for (const [id, roleNow] of moved) {
+    await missions.from("assignments").update({ assignment_role: roleNow }).eq("mission_id", missionId).eq("company_id", access.companyId).eq("user_id", id)
+  }
+  if (added.length > 0) {
+    const { error: addError } = await missions.from("assignments").insert(
+      added.map((id) => {
+        const response = initialResponse(settings, { selfAssigned: id === access.userId })
+        return {
+          mission_id: missionId,
+          company_id: access.companyId,
+          user_id: id,
+          assignment_role: after.get(id),
+          response,
+          responded_at: response === "ACCEPTED" ? now : null,
+        }
+      })
+    )
+    if (addError) return { success: false, error: "Detail tersimpan, tetapi tim gagal diperbarui." }
+    await notify(
+      access,
+      "MISSION_ASSIGNED",
+      added.filter((id) => id !== access.userId),
+      { missionId, clientName: input.clientCompanyName }
+    )
+  }
+
+  // The mission's status follows the team's answers, as everywhere else.
+  if (removed.length > 0 || added.length > 0 || moved.length > 0) {
+    const { data: rows } = await missions.from("assignments").select("assignment_role, response").eq("company_id", access.companyId).eq("mission_id", missionId)
+    const next = deriveMissionStatus(
+      mission.status,
+      (rows ?? []).map((row) => ({ role: row.assignment_role as "PRIMARY" | "SUPPORTING", response: row.response as AssignmentResponse }))
+    )
+    if (next !== mission.status) {
+      await missions.from("missions").update({ status: next }).eq("id", missionId).eq("company_id", access.companyId)
+      await missions.from("status_history").insert({
+        mission_id: missionId, company_id: access.companyId, from_status: mission.status, to_status: next,
+        changed_by: access.userId, reason: "Tim diubah",
+      })
+    }
+  }
+
+  // Custom answers: replace, so a cleared field really clears.
+  await missions.from("mission_field_values").delete().eq("mission_id", missionId).eq("company_id", access.companyId)
+  const rows = customFields
+    .filter((field) => {
+      const value = answers[field.reportingKey]
+      return value !== null && value !== "" && !(Array.isArray(value) && value.length === 0)
+    })
+    .map((field) => ({
+      mission_id: missionId,
+      company_id: access.companyId,
+      field_id: field.id,
+      reporting_key: field.reportingKey,
+      value: answers[field.reportingKey],
+    }))
+  if (rows.length > 0) await missions.from("mission_field_values").insert(rows)
+
+  revalidatePath("/workspace")
+  revalidatePath("/workspace/missions")
+  revalidatePath("/workspace/calendar")
+  revalidatePath(`/workspace/missions/${missionId}`)
+  redirect(`/workspace/missions/${missionId}`)
 }

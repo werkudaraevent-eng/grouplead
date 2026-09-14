@@ -1,0 +1,116 @@
+import { notFound, redirect } from "next/navigation"
+import { canPerform, getSalesMissionAccess } from "@/lib/sales-mission-access"
+import { requireModule } from "@/lib/missions/nav-access"
+import {
+  getMission,
+  getMissionRole,
+  getMissionSettings,
+  listMissionTeam,
+  listTeamSchedules,
+  listTenantSales,
+} from "@/lib/missions/mission-queries"
+import { getMissionFieldValues, listFormFields } from "@/lib/missions/form-field-queries"
+import { MISSION_TIME_ZONE } from "@/lib/missions/mission-schema"
+import { updateMission } from "@/app/actions/mission-actions"
+import { BackLink, EmptyState, WorkspacePage } from "@/app/workspace/workspace-page"
+import { MissionForm, type MissionPrefill } from "@/app/workspace/missions/new/mission-form"
+
+export const dynamic = "force-dynamic"
+
+/**
+ * Ubah mission.
+ *
+ * The create form, filled in. Same fields, same validation, same order the
+ * admin configured, so there is one form to learn. What it will not do is
+ * move the schedule: that is Pindahkan jadwal on the detail page, which
+ * tells the team and, under confirmation, re-asks them.
+ */
+export default async function EditMissionPage({ params }: { params: Promise<{ missionId: string }> }) {
+  const { missionId } = await params
+  const access = await getSalesMissionAccess()
+  if (!access) redirect("/login?error=access_not_provisioned")
+  await requireModule(access, "sales_mission_mission")
+
+  const [mission, role] = await Promise.all([getMission(access, missionId), getMissionRole(access, missionId)])
+  if (!mission) notFound()
+
+  const allowed =
+    (await canPerform(access, "sales_mission_mission", "update")) &&
+    mission.status !== "COMPLETED" &&
+    mission.status !== "CANCELLED" &&
+    (access.isSuperAdmin || role === "PRIMARY" || mission.createdBy === access.userId)
+
+  if (!allowed) {
+    return (
+      <WorkspacePage eyebrow="Sales Mission / Mission" title="Ubah mission" action={<BackLink href={`/workspace/missions/${missionId}`} />}>
+        <EmptyState
+          title="Mission ini tidak bisa diubah"
+          description="Hanya sales utama, pembuat mission, atau admin yang bisa mengubah, dan hanya selama mission belum selesai atau dibatalkan."
+        />
+      </WorkspacePage>
+    )
+  }
+
+  const now = new Date()
+  const [team, fields, salesOptions, schedules, settings, customValues] = await Promise.all([
+    listMissionTeam(access, missionId),
+    listFormFields(access, "mission"),
+    listTenantSales(access),
+    listTeamSchedules(access, now),
+    getMissionSettings(access),
+    getMissionFieldValues(access, missionId),
+  ])
+
+  const wib = (iso: string) =>
+    new Intl.DateTimeFormat("en-GB", { timeZone: MISSION_TIME_ZONE, hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(iso))
+  const day = (iso: string) => new Intl.DateTimeFormat("en-CA", { timeZone: MISSION_TIME_ZONE }).format(new Date(iso))
+
+  const prefill: MissionPrefill = {
+    clientCompanyName: mission.clientCompanyName,
+    clientCompanyId: mission.clientCompanyId,
+    missionType: mission.missionType,
+    location: mission.location ?? "",
+    objective: mission.objective ?? "",
+    primarySalesId: team.find((member) => member.role === "PRIMARY")?.userId ?? "",
+    supportingSalesIds: team.filter((member) => member.role === "SUPPORTING").map((member) => member.userId),
+    contactSalutation: mission.appointment.salutation ?? "",
+    contactId: mission.appointment.contactId ?? "",
+    contactName: mission.appointment.name ?? "",
+    contactJobTitle: mission.appointment.jobTitle ?? "",
+    contactDivision: mission.appointment.division ?? "",
+    contactPhone: mission.appointment.phone ?? "",
+    contactEmail: mission.appointment.email ?? "",
+    building: mission.appointment.building ?? "",
+    appointmentNotes: mission.appointment.notes ?? "",
+  }
+
+  const schedule = {
+    date: mission.scheduledStart ? day(mission.scheduledStart) : day(now.toISOString()),
+    startTime: mission.scheduledStart ? wib(mission.scheduledStart) : "09:30",
+    endTime: mission.scheduledEnd ? wib(mission.scheduledEnd) : "",
+  }
+
+  return (
+    <WorkspacePage
+      eyebrow="Sales Mission / Mission"
+      title="Ubah mission"
+      description={`Perbaiki detail kunjungan ke ${mission.clientCompanyName}. Jadwal diubah lewat Pindahkan jadwal di halaman mission.`}
+      action={<BackLink href={`/workspace/missions/${missionId}`} />}
+    >
+      <MissionForm
+        salesOptions={salesOptions}
+        defaultDate={schedule.date}
+        fields={fields}
+        schedules={schedules}
+        conflictSettings={settings}
+        prefill={prefill}
+        edit={{
+          missionId,
+          action: updateMission.bind(null, missionId),
+          schedule,
+          customValues,
+        }}
+      />
+    </WorkspacePage>
+  )
+}

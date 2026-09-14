@@ -1,6 +1,6 @@
 import Link from "next/link"
 import { notFound, redirect } from "next/navigation"
-import { Ban, Building2, CalendarDays, ClipboardList, Mail, MapPin, Phone, RotateCcw, UsersRound } from "lucide-react"
+import { Ban, Building2, CalendarDays, ClipboardList, Mail, MapPin, Pencil, Phone, RotateCcw, UsersRound } from "lucide-react"
 import { canPerform, getSalesMissionAccess } from "@/lib/sales-mission-access"
 import { requireModule } from "@/lib/missions/nav-access"
 import { PersonAvatar } from "@/components/person-avatar"
@@ -119,6 +119,12 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
     !isCancelled &&
     mission.status !== "COMPLETED" &&
     (access.isSuperAdmin || role === "PRIMARY" || mission.createdBy === access.userId)
+  // Details can be corrected by whoever scheduled it, the primary, or an
+  // admin, while the visit is still ahead. The schedule moves elsewhere.
+  const canEdit =
+    !isCancelled &&
+    mission.status !== "COMPLETED" &&
+    (access.isSuperAdmin || role === "PRIMARY" || mission.createdBy === access.userId)
   const canWriteReport = role === "PRIMARY" || access.isSuperAdmin
   const canManageTeam = role === "PRIMARY" || access.isSuperAdmin
   const reportSubmitted = report?.status === "SUBMITTED"
@@ -203,6 +209,13 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
             <div className="flex items-center gap-3 border-b px-5 py-4">
               <StatusBadge status={mission.status} />
               <span className="font-mono text-[11px] text-muted-foreground">ID {mission.id}</span>
+              {canEdit && (
+                <Button asChild variant="outline" size="sm" className="ml-auto">
+                  <Link href={`/workspace/missions/${missionId}/edit`}>
+                    <Pencil className="h-4 w-4" /> Ubah
+                  </Link>
+                </Button>
+              )}
             </div>
 
             <div className="grid divide-y sm:grid-cols-3 sm:divide-x sm:divide-y-0">
