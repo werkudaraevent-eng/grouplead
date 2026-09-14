@@ -249,6 +249,44 @@ export async function saveVisitReportDraft(
   return { success: true, data: { id: reportId } }
 }
 
+/**
+ * Throw a draft away. Opening the form and typing anything autosaves a
+ * draft, which then shows up as "Laporan tertunda"; someone who only meant
+ * to look, or filled the wrong mission, needs a way back to "belum diisi".
+ * A submitted report is never discarded here: it is the record of a visit.
+ */
+export async function discardVisitReportDraft(missionId: string): Promise<ActionResult> {
+  const guard = await authorizeReportWrite(missionId)
+  if ("error" in guard) return { success: false, error: guard.error }
+  const { access } = guard
+
+  const supabase = await createClient()
+  const missions = supabase.schema("sales_mission")
+  const { data: existing } = await missions
+    .from("visit_reports")
+    .select("id, status")
+    .eq("company_id", access.companyId)
+    .eq("mission_id", missionId)
+    .maybeSingle()
+
+  if (!existing) return { success: true }
+  if (existing.status === "SUBMITTED") {
+    return { success: false, error: "Laporan sudah dikirim dan tidak bisa dibuang." }
+  }
+
+  const reportId = existing.id as string
+  await missions.from("report_contacts").delete().eq("report_id", reportId)
+  await missions.from("report_field_values").delete().eq("report_id", reportId)
+  const { error } = await missions.from("visit_reports").delete().eq("id", reportId).eq("company_id", access.companyId)
+  if (error) return { success: false, error: "Draft gagal dibuang." }
+
+  revalidatePath("/workspace")
+  revalidatePath("/workspace/missions")
+  revalidatePath(`/workspace/missions/${missionId}`)
+  revalidatePath(`/workspace/missions/${missionId}/report`)
+  return { success: true }
+}
+
 /** Final submission. Enforces the complete-report rules and stamps the author. */
 export async function submitVisitReport(
   missionId: string,

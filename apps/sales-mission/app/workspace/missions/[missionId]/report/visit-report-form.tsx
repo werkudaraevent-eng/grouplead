@@ -3,8 +3,9 @@
 import { useCallback, useEffect, useRef, useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
+import { toast } from "sonner"
 import { AlertCircle, Check, Cloud, CloudOff, Loader2, Plus, Send, Trash2 } from "@/components/icons"
-import { saveVisitReportDraft, submitVisitReport } from "@/app/actions/visit-report-actions"
+import { discardVisitReportDraft, saveVisitReportDraft, submitVisitReport } from "@/app/actions/visit-report-actions"
 import {
   INTEREST_LEVELS,
   INTEREST_LEVEL_LABELS,
@@ -25,6 +26,7 @@ import type { VisitReportRecord } from "@/lib/missions/mission-queries"
 import type { TenantSalesOption } from "@/lib/missions/mission-queries"
 import type { ReportOptions } from "@/lib/missions/report-options"
 import { Button } from "@/components/ui/button"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { FormActionBar } from "@/components/form-action-bar"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
@@ -289,6 +291,11 @@ export function VisitReportForm({
   const [attempt, setAttempt] = useState(0)
   const [error, setError] = useState<string | null>(null)
   const [submitting, startSubmit] = useTransition()
+  // A draft exists once the server has one: loaded with the page, or saved
+  // since. Discarding sets this back and stops the autosave from recreating it.
+  const [hasDraft, setHasDraft] = useState(report !== null)
+  const [discarding, setDiscarding] = useState<"ask" | "busy" | null>(null)
+  const discarded = useRef(false)
 
   const dirty = useRef(false)
   const latest = useRef(draft)
@@ -310,12 +317,15 @@ export function VisitReportForm({
     if (!dirty.current) return
     const delay = attempt === 0 ? AUTOSAVE_DELAY_MS : Math.min(RETRY_CEILING_MS, RETRY_BASE_MS * 2 ** (attempt - 1))
     const timer = setTimeout(async () => {
+      if (discarded.current) return
       setSync("saving")
       const result = await saveVisitReportDraft(missionId, latest.current)
+      if (discarded.current) return
       if (result.success) {
         dirty.current = false
         setAttempt(0)
         setSync("saved")
+        setHasDraft(true)
       } else {
         setSync("pending")
         setAttempt((value) => value + 1)
@@ -546,10 +556,22 @@ export function VisitReportForm({
           </div>
         )}
         <div className="flex items-center gap-3">
-          <span className="flex min-w-0 flex-1 items-center gap-1.5 text-xs text-muted-foreground">
+          <span className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
             {sync === "saving" && <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Menyimpan…</>}
             {sync === "saved" && <><Cloud className="h-3.5 w-3.5" /> Tersimpan</>}
             {sync === "pending" && <span className="flex items-center gap-1.5 text-[var(--warning-foreground)]"><CloudOff className="h-3.5 w-3.5" /> Menunggu koneksi</span>}
+            {/* The way back to "belum diisi": a text button, the quietest kind,
+                because it undoes rather than does; the dialog carries the weight. */}
+            {hasDraft && (
+              <button
+                type="button"
+                onClick={() => setDiscarding("ask")}
+                disabled={submitting || discarding === "busy"}
+                className="inline-flex min-h-8 items-center gap-1 rounded-md px-1.5 font-medium text-[var(--danger-foreground)] hover:bg-[var(--danger)]"
+              >
+                <Trash2 className="h-3.5 w-3.5" /> Buang draf
+              </button>
+            )}
           </span>
           <Button asChild variant="outline" className="h-12 md:h-10">
             <Link href={`/workspace/missions/${missionId}`}>Kembali</Link>
@@ -559,6 +581,43 @@ export function VisitReportForm({
           </Button>
         </div>
       </FormActionBar>
+
+      <Dialog open={discarding !== null} onOpenChange={(open) => { if (!open && discarding !== "busy") setDiscarding(null) }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Buang draf laporan ini?</DialogTitle>
+            <DialogDescription>
+              Semua isian yang tersimpan untuk kunjungan ke {clientName} dihapus, dan mission kembali ke keadaan belum ada laporan. Laporan yang sudah dikirim tidak terpengaruh.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDiscarding(null)} disabled={discarding === "busy"}>Simpan draf</Button>
+            <Button
+              disabled={discarding === "busy"}
+              className="bg-[var(--danger-foreground)] text-white hover:bg-[var(--danger-foreground)]/90"
+              onClick={async () => {
+                setDiscarding("busy")
+                discarded.current = true
+                dirty.current = false
+                const result = await discardVisitReportDraft(missionId)
+                if (!result.success) {
+                  discarded.current = false
+                  setDiscarding(null)
+                  toast.error(result.error ?? "Draft gagal dibuang.")
+                  return
+                }
+                setHasDraft(false)
+                toast.success("Draf dibuang")
+                router.push(`/workspace/missions/${missionId}`)
+                router.refresh()
+              }}
+            >
+              {discarding === "busy" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+              Buang draf
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
