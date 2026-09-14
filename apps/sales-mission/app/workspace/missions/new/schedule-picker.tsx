@@ -77,8 +77,26 @@ export function SchedulePicker({
 }) {
   const [month, setMonth] = useState(value.date.slice(0, 7))
   const grid = useMemo(() => buildMonthGrid(month, [], now), [month, now])
-  const busy = useMemo(() => busyDays(people), [people])
-  const dayBlocks = useMemo(() => busyBlocksOn(value.date, people), [value.date, people])
+
+  // When editing, the mission's own slot is in the team's calendars. It is
+  // not "busy" for the purpose of choosing its new time, and painting it
+  // under the candidate put two labels on one rectangle. It is taken out of
+  // the busy layer and, once the candidate has moved away from it, drawn
+  // once as a ghost so the person can see from where to where.
+  const others = useMemo(
+    () =>
+      missionId
+        ? people.map((person) => ({ ...person, blocks: person.blocks.filter((block) => block.missionId !== missionId) }))
+        : people,
+    [people, missionId]
+  )
+  const original = useMemo(() => {
+    if (!missionId) return null
+    return busyBlocksOn(value.date, people).find((block) => block.missionId === missionId) ?? null
+  }, [people, missionId, value.date])
+
+  const busy = useMemo(() => busyDays(others), [others])
+  const dayBlocks = useMemo(() => busyBlocksOn(value.date, others), [value.date, others])
   const verdict = useMemo(
     () => judgeSlot({ ...value, location, missionId }, people, settings),
     [value, location, missionId, people, settings]
@@ -263,6 +281,19 @@ export function SchedulePicker({
                     </div>
                   )
                 })}
+
+                {original && (original.startMinute !== startMinute || original.endMinute !== endMinute) && (
+                  <div
+                    aria-hidden="true"
+                    className="absolute left-12 right-2 rounded-md border border-dashed border-muted-foreground/50 px-2 py-1 text-xs text-muted-foreground"
+                    style={{
+                      top: ((Math.max(original.startMinute, DAY_START) - DAY_START) / 60) * PX_PER_HOUR,
+                      height: Math.max(((Math.min(original.endMinute, DAY_END) - Math.max(original.startMinute, DAY_START)) / 60) * PX_PER_HOUR, 22),
+                    }}
+                  >
+                    Jadwal saat ini · {original.label}
+                  </div>
+                )}
 
                 {startMinute !== null && endMinute !== null && endMinute > startMinute && (
                   <div
