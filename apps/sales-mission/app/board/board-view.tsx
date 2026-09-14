@@ -114,7 +114,7 @@ export function BoardView({
         </section>
       )}
 
-      <section className={cn("mt-8 grid gap-6", show("schedule") && show("team") && "xl:grid-cols-[2fr_1fr]")}>
+      <section className={cn("mt-8 grid gap-6", show("schedule") && show("team") && "xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]")}>
         {show("schedule") && !week && (
           <div className="overflow-hidden rounded-2xl bg-[var(--board-panel)]">
             <h2 className="border-b border-[var(--board-line)] px-6 py-4 text-xl font-semibold">Jadwal hari ini</h2>

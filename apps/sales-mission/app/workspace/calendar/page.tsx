@@ -64,8 +64,8 @@ export default async function CalendarPage({
       title="Kalender"
       description="Lihat jadwal tim dan waktu perjalanan sebelum menugaskan kunjungan baru."
     >
-      <section className="grid gap-4 lg:grid-cols-[1.4fr_1fr]">
-        <article className="rounded-xl border bg-card">
+      <section className="grid gap-4 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
+        <article className="min-w-0 rounded-xl border bg-card">
           <div className="flex items-center justify-between border-b px-5 py-4">
             <div>
               <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Tampilan bulan</p>
@@ -137,7 +137,7 @@ export default async function CalendarPage({
           </div>
         </article>
 
-        <aside className="rounded-xl border bg-card">
+        <aside className="min-w-0 rounded-xl border bg-card">
           <div className="flex items-center justify-between gap-3 border-b px-5 py-4">
             <div>
               <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">{dayLabel}</p>

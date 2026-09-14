@@ -162,8 +162,8 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
       description={[mission.missionType, mission.location].filter(Boolean).join(" · ")}
       action={<BackLink />}
     >
-      <section className="grid gap-4 lg:grid-cols-[1.6fr_1fr]">
-        <div className="space-y-4">
+      <section className="grid gap-4 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
+        <div className="min-w-0 space-y-4">
           {isCancelled && (
             <section className="rounded-xl border border-[var(--danger-foreground)]/25 bg-[var(--danger)] p-5">
               <h2 className="flex items-center gap-2 text-base font-semibold text-[var(--danger-foreground)]">
@@ -467,7 +467,7 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
           </article>
         </div>
 
-        <div className="space-y-4">
+        <div className="min-w-0 space-y-4">
           <aside className="rounded-xl border bg-card">
             <div className="flex items-center justify-between gap-3 border-b px-5 py-4">
               <div>

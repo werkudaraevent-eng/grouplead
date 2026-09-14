@@ -142,7 +142,7 @@ export function BoardDashboard({
         </section>
       )}
 
-      <section className={cn("grid gap-4", show("schedule") && show("team") && "xl:grid-cols-[2fr_1fr]")}>
+      <section className={cn("grid gap-4", show("schedule") && show("team") && "xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]")}>
         {show("schedule") && (
           <article className="overflow-hidden rounded-xl border bg-card">
             <header className="flex items-center justify-between border-b px-5 py-4">
