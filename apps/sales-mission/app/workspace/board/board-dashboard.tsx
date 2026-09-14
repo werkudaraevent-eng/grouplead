@@ -181,29 +181,57 @@ export function BoardDashboard({
                 />
               )
             ) : (
-              <div className="grid divide-y md:grid-cols-7 md:divide-x md:divide-y-0">
-                {snapshot.days.map((day) => (
-                  <div key={day.date} className={cn("min-w-0", day.isToday && "bg-primary/5")}>
-                    <h3 className={cn("border-b px-3 py-2 text-xs font-semibold", day.isToday ? "text-primary" : "text-muted-foreground")}>
-                      {day.label} <span className="ml-1 tabular-nums">{day.missions.length}</span>
-                    </h3>
-                    <ul className="space-y-1.5 p-2">
-                      {day.missions.map((mission) => (
-                        <li key={mission.id}>
-                          <Link
-                            href={`/workspace/missions/${mission.id}`}
-                            className="block rounded-md border bg-card px-2 py-1.5 text-xs transition-colors hover:bg-muted/50"
-                          >
-                            <span className="block truncate font-semibold text-foreground">{mission.time} · {mission.clientLabel}</span>
-                            <span className="block truncate text-muted-foreground">{mission.primarySalesName ?? mission.location ?? mission.missionType}</span>
-                          </Link>
-                        </li>
-                      ))}
-                      {day.missions.length === 0 && <li className="px-2 py-3 text-xs text-muted-foreground">Kosong</li>}
-                    </ul>
-                  </div>
-                ))}
-              </div>
+              snapshot.missions.length === 0 ? (
+                <PanelEmpty
+                  icon={CalendarDays}
+                  title="Tidak ada kunjungan minggu ini"
+                  hint="Kunjungan yang dijadwalkan pekan ini akan tampil di sini, dikelompokkan per hari."
+                  action={<Link href="/workspace/calendar" className="text-sm font-semibold text-primary hover:underline">Buka kalender</Link>}
+                />
+              ) : (
+                /*
+                  A week as an agenda: rows grouped under day subheaders, the
+                  way a schedule view reads, rather than seven narrow columns
+                  each saying "Kosong". Today's group is tinted; an empty day
+                  is one quiet line so the week still reads as seven days.
+                */
+                <ul className="divide-y">
+                  {snapshot.days.map((day) => (
+                    <li key={day.date} className={cn(day.isToday && "bg-primary/5")}>
+                      <h3
+                        className={cn(
+                          "flex items-center justify-between px-5 py-2 text-xs font-semibold",
+                          day.isToday ? "text-primary" : "text-muted-foreground"
+                        )}
+                      >
+                        <span>{day.label}{day.isToday && " · Hari ini"}</span>
+                        <span className="tabular-nums">{day.missions.length > 0 ? `${day.missions.length} kunjungan` : "Kosong"}</span>
+                      </h3>
+                      {day.missions.length > 0 && (
+                        <ul className="pb-2">
+                          {day.missions.map((mission) => (
+                            <li key={mission.id}>
+                              <Link
+                                href={`/workspace/missions/${mission.id}`}
+                                className="flex items-center gap-4 px-5 py-2 text-sm transition-colors hover:bg-muted/50"
+                              >
+                                <span className="w-12 shrink-0 font-mono text-xs tabular-nums text-muted-foreground">{mission.time}</span>
+                                <span className="min-w-0 flex-1">
+                                  <span className="block truncate font-semibold text-foreground">{mission.clientLabel}</span>
+                                  <span className="block truncate text-xs text-muted-foreground">
+                                    {[mission.primarySalesName, mission.location].filter(Boolean).join(" · ") || mission.missionType}
+                                  </span>
+                                </span>
+                                <StatusBadge status={mission.status} />
+                              </Link>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )
             )}
           </article>
         )}
