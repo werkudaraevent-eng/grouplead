@@ -332,6 +332,8 @@ export interface CreateLeadPayload {
   remark: string | null
   source: string
   salesMissionId: string | null
+  /** Timeline entries to write on the new lead: the visit, and the hand-off. */
+  activities: Array<{ type: string; description: string; occurredAt: string | null }>
 }
 
 export async function createLead(payload: CreateLeadPayload): Promise<{ id: string }> {

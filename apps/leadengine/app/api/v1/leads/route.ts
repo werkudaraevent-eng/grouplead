@@ -29,6 +29,17 @@ const createLeadSchema = z.object({
     source: z.string().trim().max(200).nullish(),
     /** The Sales Mission visit this lead came from, kept apart from the label. */
     salesMissionId: z.string().uuid().nullish(),
+    /** Timeline entries to write on the new lead, oldest first. */
+    activities: z
+        .array(
+            z.object({
+                type: z.string().trim().min(1).max(60),
+                description: z.string().trim().min(1).max(4000),
+                occurredAt: z.string().datetime({ offset: true }).nullish(),
+            })
+        )
+        .max(10)
+        .optional(),
     companyId: z.string().uuid().nullish(),
 })
 
@@ -128,6 +139,22 @@ export async function POST(request: Request) {
 
     if (error || !lead) {
         return apiError(500, 'lead_create_failed', error?.message ?? 'Could not create the lead.')
+    }
+
+    // The visit that produced the lead belongs on its timeline, dated when it
+    // happened, so the CRM reader sees who was met and what was heard. Best
+    // effort: the lead exists either way, and a missing timeline entry must
+    // not read as a failed push and invite a duplicate.
+    if (input.activities?.length) {
+        await supabase.from('lead_activities').insert(
+            input.activities.map((activity) => ({
+                lead_id: lead.id,
+                user_id: auth.context.userId,
+                action_type: activity.type,
+                description: activity.description,
+                ...(activity.occurredAt ? { created_at: activity.occurredAt } : {}),
+            }))
+        )
     }
 
     return NextResponse.json({ lead: { id: lead.id } }, { status: 201 })
