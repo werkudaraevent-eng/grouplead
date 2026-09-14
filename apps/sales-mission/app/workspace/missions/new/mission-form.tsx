@@ -653,7 +653,7 @@ export function MissionForm({
     // Left-aligned, not centred. The page title sits at the left edge, so a
     // centred form left the heading and the thing it describes on different
     // axes with a stripe of empty page between them.
-    <form action={formAction} className="max-w-3xl space-y-4">
+    <form action={formAction} className="space-y-4">
       {state?.error ? (
         <div
           ref={errorRef}
