@@ -153,7 +153,7 @@ function MainLayoutInner({
                         <span className="font-bold text-sm">Werkudara Group</span>
                     </div>
                 </div>
-                <main id="main-content" className={`flex-1 overflow-y-auto overflow-x-auto bg-muted/30 thin-scrollbar min-w-[900px] transition-opacity duration-200 ${isSwitching ? "opacity-60 pointer-events-none" : "opacity-100"}`}>{children}</main>
+                <main id="main-content" className={`flex-1 overflow-y-auto overflow-x-auto bg-background thin-scrollbar min-w-[900px] transition-opacity duration-200 ${isSwitching ? "opacity-60 pointer-events-none" : "opacity-100"}`}>{children}</main>
             </div>
         </div>
     )

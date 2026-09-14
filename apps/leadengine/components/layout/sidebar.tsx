@@ -126,7 +126,7 @@ export function Sidebar({ onCollapse, isSheet = false, collapsed = false, onTogg
     const menuItemClasses = (isActive: boolean) =>
         `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-semibold transition-all duration-150 ${
             isActive
-                ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-sm"
+                ? "bg-sidebar-primary text-sidebar-primary-foreground"
                 : "text-sidebar-foreground hover:text-sidebar-accent-foreground hover:bg-sidebar-accent"
         }`
 
@@ -203,7 +203,7 @@ export function Sidebar({ onCollapse, isSheet = false, collapsed = false, onTogg
                             key={item.href}
                             href={item.href}
                             onClick={isSheet ? onCollapse : undefined}
-                            className={collapsed ? `flex items-center justify-center p-2.5 rounded-lg transition-all duration-150 ${isActive ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-sm" : "text-sidebar-foreground hover:text-sidebar-accent-foreground hover:bg-sidebar-accent"}` : menuItemClasses(isActive)}
+                            className={collapsed ? `flex items-center justify-center p-2.5 rounded-lg transition-all duration-150 ${isActive ? "bg-sidebar-primary text-sidebar-primary-foreground" : "text-sidebar-foreground hover:text-sidebar-accent-foreground hover:bg-sidebar-accent"}` : menuItemClasses(isActive)}
                             title={collapsed ? item.label : undefined}
                         >
                             <item.icon className={iconClasses(isActive)} />
@@ -224,7 +224,7 @@ export function Sidebar({ onCollapse, isSheet = false, collapsed = false, onTogg
                                     key={item.href}
                                     href={item.href}
                                     onClick={isSheet ? onCollapse : undefined}
-                                    className={collapsed ? `flex items-center justify-center p-2.5 rounded-lg transition-all duration-150 ${isActive ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-sm" : "text-sidebar-foreground hover:text-sidebar-accent-foreground hover:bg-sidebar-accent"}` : menuItemClasses(isActive)}
+                                    className={collapsed ? `flex items-center justify-center p-2.5 rounded-lg transition-all duration-150 ${isActive ? "bg-sidebar-primary text-sidebar-primary-foreground" : "text-sidebar-foreground hover:text-sidebar-accent-foreground hover:bg-sidebar-accent"}` : menuItemClasses(isActive)}
                                     title={collapsed ? item.label : undefined}
                                 >
                                     <item.icon className={iconClasses(isActive)} />

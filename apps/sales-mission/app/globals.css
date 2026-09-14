@@ -51,7 +51,21 @@
 :root {
   --radius: 0.625rem;
   /* ── Werkudara Group Brand Palette ── */
-  --background: #EFEFEF;
+  /* ── Tonal surfaces (Material 3) ──
+     Every surface comes from one neutral ramp tinted toward the primary blue,
+     stepped a few percent apart, so the page, the navigation panel, and the
+     cards read as layers of one material rather than three unrelated greys.
+     It used to be neutral #EFEFEF under white cards, with a white sidebar: the
+     sidebar matched the cards, so it read as a very tall card, and the grey
+     had no relation to the brand.
+
+       surface (page)                   --background  #F6F8FB
+       surface-container-low (nav)      --sidebar     #EEF2F7   --muted
+       surface-container-lowest (card)  --card        #FFFFFF
+       outline-variant (dividers)       --border      #D9E0E8   tinted, not black alpha
+
+     Secondary text stays #5F6B76: 5.1:1 on the page, 4.9:1 on the nav panel. */
+  --background: #F6F8FB;
   --foreground: #292D30;
   --card: #ffffff;
   --card-foreground: #292D30;
@@ -61,7 +75,7 @@
   --primary-foreground: #ffffff;
   --secondary: #C3E6F5;
   --secondary-foreground: #02378D;
-  --muted: #f4f6f8;
+  --muted: #EEF2F7;
   /* Carries every hint, timestamp, and description in the app, so it is held to
      the AA bar against the *page* background (#EFEFEF), not just against white.
      The previous #8a95a1 was 2.65:1 there. */
@@ -69,7 +83,7 @@
   --accent: #F9BB46;
   --accent-foreground: #3b2b00;
   --destructive: #ED6F22;
-  --border: rgba(0, 0, 0, 0.08);
+  --border: #D9E0E8;
   /* ── Form fields ──
      `--input` is what shadcn's `border-input` reads, and it was #ffffff. Every
      text field, select and combobox in the app therefore had a white border on
@@ -93,13 +107,17 @@
   --chart-3: oklch(0.398 0.07 227.392);
   --chart-4: oklch(0.828 0.189 84.429);
   --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: #ffffff;
-  --sidebar-foreground: #5b6a73;
-  --sidebar-primary: #e8f1fd;
+  /* Navigation panel = surface-container-low. The active item is the M3
+     secondary-container indicator: a tinted fill with the primary as its text,
+     no shadow, because an indicator is a state, not a raised object. Inactive
+     text is on-surface-variant, 6.5:1 on the panel. */
+  --sidebar: #EEF2F7;
+  --sidebar-foreground: #4A5865;
+  --sidebar-primary: #D9E4F5;
   --sidebar-primary-foreground: #02378D;
-  --sidebar-accent: #f2f6fb;
+  --sidebar-accent: #E3E9F2;
   --sidebar-accent-foreground: #292D30;
-  --sidebar-border: rgba(0, 0, 0, 0.08);
+  --sidebar-border: #D9E0E8;
   --sidebar-ring: #02378D;
   /* ── Semantic Colors ── */
   /* Each pair is a tinted surface plus text that is legible on it. --destructive

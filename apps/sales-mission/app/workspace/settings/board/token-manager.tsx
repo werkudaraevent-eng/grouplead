@@ -82,11 +82,11 @@ export function BoardTokenManager({ tokens, boardBaseUrl }: { tokens: BoardToken
             Hanya hash-nya yang kami simpan, jadi tautan ini tidak bisa dilihat ulang. Kalau hilang, cabut lalu buat baru.
           </p>
           <div className="mt-3 flex gap-2">
-            <Input readOnly value={issuedUrl} className="h-11 bg-white font-mono text-xs" onFocus={(e) => e.currentTarget.select()} />
+            <Input readOnly value={issuedUrl} className="h-11 bg-card font-mono text-xs" onFocus={(e) => e.currentTarget.select()} />
             <Button
               type="button"
               variant="outline"
-              className="h-11 shrink-0 bg-white"
+              className="h-11 shrink-0 bg-card"
               onClick={async () => {
                 await navigator.clipboard.writeText(issuedUrl)
                 toast.success("Tautan disalin")
