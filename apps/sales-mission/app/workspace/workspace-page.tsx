@@ -30,7 +30,7 @@ export function WorkspacePage({
   children: React.ReactNode
 }) {
   return (
-    <div className="flex h-full w-full flex-col overflow-hidden bg-background">
+    <div className="flex h-full w-full flex-col overflow-clip bg-background">
       <div className="shrink-0 px-4 pb-4 pt-6 sm:px-6 lg:px-8">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>

@@ -69,7 +69,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden">
+    <div className="flex h-screen overflow-clip">
       {/* Left Panel — Branding & Visual */}
       <div className="relative hidden overflow-hidden bg-primary lg:flex lg:w-[55%]">
         <div className="absolute inset-0 bg-gradient-to-br from-primary via-[#0247b3] to-[#013a91]" />

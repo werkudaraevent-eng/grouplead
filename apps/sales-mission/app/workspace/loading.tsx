@@ -11,7 +11,7 @@
  */
 export default function WorkspaceLoading() {
   return (
-    <div className="flex h-full w-full flex-col overflow-hidden bg-background" role="status" aria-live="polite">
+    <div className="flex h-full w-full flex-col overflow-clip bg-background" role="status" aria-live="polite">
       <span className="sr-only">Memuat halaman…</span>
 
       <div className="shrink-0 px-4 pb-4 pt-6 sm:px-6 lg:px-8">

@@ -392,11 +392,14 @@ export function WorkspaceShell({
     })
   }
 
+  // `overflow-clip`, not `overflow-hidden`: a hidden box can still be scrolled
+  // by the browser itself (a #hash link, focus(), scrollIntoView), which slid
+  // the whole shell up and left a white gap under the sidebar. Clip cannot.
   return (
-    <div className="flex h-screen overflow-hidden">
+    <div className="flex h-screen overflow-clip">
       <aside
         data-sidebar
-        className={`relative hidden shrink-0 flex-none overflow-hidden bg-sidebar transition-[width] duration-200 ease-out lg:flex lg:flex-col ${collapsed ? "lg:w-[60px]" : "lg:w-[220px]"}`}
+        className={`relative hidden shrink-0 flex-none overflow-clip bg-sidebar transition-[width] duration-200 ease-out lg:flex lg:flex-col ${collapsed ? "lg:w-[60px]" : "lg:w-[220px]"}`}
       >
         <SidebarBody displayName={displayName} avatarUrl={avatarUrl} unreadCount={unreadCount} navAccess={navAccess} collapsed={collapsed} onToggleCollapse={toggleCollapse} />
       </aside>
@@ -409,7 +412,7 @@ export function WorkspaceShell({
         </SheetContent>
       </Sheet>
 
-      <div className="flex min-w-0 flex-1 flex-col overflow-x-auto">
+      <div className="flex min-w-0 flex-1 flex-col overflow-clip">
         <div className="flex h-14 shrink-0 items-center border-b bg-background/95 px-4 backdrop-blur lg:hidden">
           <Button variant="ghost" size="icon" onClick={() => setMobileOpen(true)} className="mr-3 h-9 w-9" aria-label="Buka menu navigasi">
             <Menu className="h-5 w-5" />
