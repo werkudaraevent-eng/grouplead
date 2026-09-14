@@ -223,6 +223,32 @@ export async function findMissionElsewhere(access: SalesMissionAccess, missionId
   return access.companies.find((company) => company.id === companyId) ?? null
 }
 
+export interface LeadPushRecord {
+  leadId: string
+  pushedAt: string
+  pushedByName: string
+  ownerName: string
+}
+
+/** The one push a mission can have; the page shows it instead of the form. */
+export async function getLeadPush(access: SalesMissionAccess, missionId: string): Promise<LeadPushRecord | null> {
+  const { supabase, missions } = await missionSchema()
+  const { data } = await missions
+    .from("lead_pushes")
+    .select("lead_engine_lead_id, pushed_at, pushed_by, owner_user_id")
+    .eq("company_id", access.companyId)
+    .eq("mission_id", missionId)
+    .maybeSingle()
+  if (!data) return null
+  const names = await resolveNames(supabase, [data.pushed_by as string, data.owner_user_id as string])
+  return {
+    leadId: data.lead_engine_lead_id as string,
+    pushedAt: data.pushed_at as string,
+    pushedByName: names.get(data.pushed_by as string) ?? "—",
+    ownerName: names.get(data.owner_user_id as string) ?? "—",
+  }
+}
+
 export async function getMission(
   access: SalesMissionAccess,
   missionId: string

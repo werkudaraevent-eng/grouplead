@@ -94,8 +94,8 @@ export function PushLeadPanel({
         </p>
         {leadEngineUrl && (
           <Button asChild size="sm" variant="outline">
-            <a href={`${leadEngineUrl}/pipeline`} target="_blank" rel="noopener noreferrer">
-              <ExternalLink className="h-4 w-4" /> Lihat di LeadEngine
+            <a href={`${leadEngineUrl}/leads/${precheck.alreadyPushed.leadId}`} target="_blank" rel="noopener noreferrer">
+              <ExternalLink className="h-4 w-4" /> Buka lead di LeadEngine
             </a>
           </Button>
         )}
@@ -138,6 +138,10 @@ export function PushLeadPanel({
 
       if (result.success) {
         toast.success("Lead dibuat di LeadEngine")
+        // Flip to the "sudah dikirim" state now rather than waiting for the
+        // server render; the refresh then replaces this panel with the record.
+        const leadId = result.data?.leadId
+        if (leadId) setPrecheck((current) => (current ? { ...current, alreadyPushed: { leadId } } : current))
         router.refresh()
       } else {
         toast.error(result.error ?? "Gagal mengirim lead")

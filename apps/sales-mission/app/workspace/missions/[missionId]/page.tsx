@@ -1,6 +1,6 @@
 import Link from "next/link"
 import { notFound, redirect } from "next/navigation"
-import { Ban, Building2, CalendarDays, ClipboardList, Mail, MapPin, Pencil, Phone, RotateCcw, UsersRound } from "lucide-react"
+import { Ban, Building2, CalendarDays, ClipboardList, ExternalLink, Mail, MapPin, Pencil, Phone, RotateCcw, UsersRound } from "lucide-react"
 import { canPerform, getSalesMissionAccess } from "@/lib/sales-mission-access"
 import { requireModule } from "@/lib/missions/nav-access"
 import { PersonAvatar } from "@/components/person-avatar"
@@ -10,6 +10,7 @@ import { formatPhone, normalizePhone } from "@/lib/format/phone"
 import {
   findMissionElsewhere,
   getCancellation,
+  getLeadPush,
   getMission,
   getMissionRole,
   getMissionSettings,
@@ -131,7 +132,9 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
     listSupportingNotes(access, missionId),
     canPerform(access, "sales_mission_mission", "create"),
   ])
-  const report = canReadReport ? await getVisitReport(access, missionId) : null
+  const [report, leadPush] = canReadReport
+    ? await Promise.all([getVisitReport(access, missionId), getLeadPush(access, missionId)])
+    : [null, null]
   const [team, settings, ownCalendar] = await Promise.all([
     listMissionTeam(access, missionId),
     getMissionSettings(access),
@@ -408,146 +411,6 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
             </article>
           )}
 
-          <article className="overflow-hidden rounded-xl border bg-card">
-            <div className="flex items-center justify-between gap-3 border-b px-5 py-4">
-              <div>
-                <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Laporan kunjungan</p>
-                <h2 className="mt-1 text-base font-semibold text-foreground">
-                  {!canReadReport
-                    ? "Tidak termasuk akses Anda"
-                    : report
-                      ? reportSubmitted
-                        ? "Sudah dikirim"
-                        : "Draft tersimpan"
-                      : "Belum diisi"}
-                </h2>
-              </div>
-              {report && <StatusBadge status={report.status} />}
-            </div>
-
-            {!canReadReport ? (
-              <p className="px-5 py-6 text-sm text-muted-foreground">
-                Peran Anda tidak mencakup laporan kunjungan. Detail mission dan tim tetap terlihat.
-              </p>
-            ) : report ? (
-              <div className="space-y-5 px-5 py-5">
-                <div className="grid gap-5 sm:grid-cols-2">
-                  <ReportField label="Hasil" value={report.visitOutcome ? VISIT_OUTCOME_LABELS[report.visitOutcome] : "—"} />
-                  <ReportField label="Tingkat minat" value={report.interestLevel ? INTEREST_LEVEL_LABELS[report.interestLevel] : "—"} />
-                  <ReportField label="Next action" value={NEXT_ACTION_LABELS[report.nextActionType]} />
-                  <ReportField label="Follow-up" value={report.followUpDate ?? "—"} />
-                </div>
-
-                {report.meetingSummary && (
-                  <div>
-                    <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Ringkasan</p>
-                    <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-foreground">{report.meetingSummary}</p>
-                  </div>
-                )}
-
-                {report.clientNeeds.length > 0 && (
-                  <div>
-                    <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Kebutuhan klien</p>
-                    <div className="mt-2 flex flex-wrap gap-1.5">
-                      {report.clientNeeds.map((need) => (
-                        <span key={need} className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-foreground">{need}</span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {customAnswers.length > 0 && (
-                  <div className="grid gap-5 sm:grid-cols-2">
-                    {customAnswers.map(({ field, value }) => (
-                      <ReportField
-                        key={field.id}
-                        label={field.label}
-                        value={
-                          typeof value === "boolean" ? (value ? "Ya" : "Tidak")
-                          : Array.isArray(value) ? value.map(String).join(", ")
-                          : String(value)
-                        }
-                      />
-                    ))}
-                  </div>
-                )}
-
-                {canReadContacts && report.contacts.length > 0 && (
-                  <div>
-                    <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Ketemu siapa</p>
-                    <ul className="mt-2 space-y-1.5">
-                      {report.contacts.map((contact, index) => (
-                        <li key={index} className="text-sm text-foreground">
-                          {contact.fullName}
-                          {contact.jobTitle ? <span className="text-muted-foreground"> · {contact.jobTitle}</span> : null}
-                          {contact.isDecisionMaker ? <span className="ml-2 rounded-md bg-secondary px-1.5 py-0.5 text-xs font-medium text-secondary-foreground">Pengambil keputusan</span> : null}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-
-                {reportSubmitted && report.visitOutcome && (
-                  <CrmSyncStatus
-                    missionId={missionId}
-                    syncedAt={report.crmSyncedAt}
-                    error={report.crmSyncError}
-                    reachesCrm={visitReachesCrm(report.visitOutcome)}
-                    canRetry={canWriteReport}
-                  />
-                )}
-
-                {canPushLead(report) && !canWriteReport && (
-                  <p className="rounded-lg border border-dashed bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
-                    Laporan ini menandai adanya peluang. Sales utama dapat mengirimkannya ke LeadEngine.
-                  </p>
-                )}
-              </div>
-            ) : (
-              <p className="px-5 py-6 text-sm text-muted-foreground">
-                {canWriteReport
-                  ? "Isi laporan setelah kunjungan selesai."
-                  : "Laporan diisi oleh sales utama."}
-              </p>
-            )}
-
-            {report && canPushLead(report) && canWriteReport && (
-              <div className="border-t">
-                <div className="border-b bg-muted/30 px-5 py-4">
-                  <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Integrasi</p>
-                  <h3 className="mt-1 text-base font-semibold text-foreground">Kirim ke LeadEngine</h3>
-                </div>
-                <PushLeadPanel
-                  missionId={missionId}
-                  clientName={mission.clientCompanyName}
-                  salesOptions={salesOptions}
-                  defaultProjectName={mission.objective?.slice(0, 120) || `${mission.missionType} — ${mission.clientCompanyName}`}
-                  leadEngineUrl={leadEngineUrl}
-                />
-              </div>
-            )}
-
-            {/* Once submitted the report is shown in full above, so there is
-                nothing left to open. */}
-            {canReadReport && canWriteReport && !reportSubmitted && !isCancelled && (
-              <div className="border-t bg-muted/30 px-5 py-4">
-                {askedToConfirm ? (
-                  // A report on a visit the rep has not agreed to make yet is
-                  // a contradiction; the button waits for the answer above.
-                  <p className="text-sm text-muted-foreground">
-                    Terima penugasan di atas dulu, lalu laporan bisa diisi setelah kunjungan.
-                  </p>
-                ) : (
-                  <Button asChild className="h-11 w-full sm:w-auto">
-                    <Link href={`/workspace/missions/${missionId}/report`}>
-                      <ClipboardList className="h-4 w-4" />
-                      {report ? "Lanjutkan laporan" : "Isi laporan kunjungan"}
-                    </Link>
-                  </Button>
-                )}
-              </div>
-            )}
-          </article>
         </div>
 
         <div className="min-w-0 space-y-4">
@@ -611,6 +474,177 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
           </aside>
         </div>
       </section>
+
+      {/* The report is the widest thing on the page: a summary, needs, contacts,
+          the CRM hand-off. It gets the full width below the two columns rather
+          than the left one, where it trailed on alone under a short right column. */}
+      <article className="mt-4 overflow-hidden rounded-xl border bg-card">
+        <div className="flex items-center justify-between gap-3 border-b px-5 py-4">
+          <div>
+            <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Laporan kunjungan</p>
+            <h2 className="mt-1 text-base font-semibold text-foreground">
+              {!canReadReport
+                ? "Tidak termasuk akses Anda"
+                : report
+                  ? reportSubmitted
+                    ? "Sudah diisi"
+                    : "Draft tersimpan"
+                  : "Belum diisi"}
+            </h2>
+          </div>
+          {report && <StatusBadge status={report.status} />}
+        </div>
+
+        {!canReadReport ? (
+          <p className="px-5 py-6 text-sm text-muted-foreground">
+            Peran Anda tidak mencakup laporan kunjungan. Detail mission dan tim tetap terlihat.
+          </p>
+        ) : report ? (
+          <div className="space-y-5 px-5 py-5">
+            <div className="grid gap-5 sm:grid-cols-2">
+              <ReportField label="Hasil" value={report.visitOutcome ? VISIT_OUTCOME_LABELS[report.visitOutcome] : "—"} />
+              <ReportField label="Tingkat minat" value={report.interestLevel ? INTEREST_LEVEL_LABELS[report.interestLevel] : "—"} />
+              <ReportField label="Next action" value={NEXT_ACTION_LABELS[report.nextActionType]} />
+              <ReportField label="Follow-up" value={report.followUpDate ?? "—"} />
+            </div>
+
+            {report.meetingSummary && (
+              <div>
+                <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Ringkasan</p>
+                <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-foreground">{report.meetingSummary}</p>
+              </div>
+            )}
+
+            {report.clientNeeds.length > 0 && (
+              <div>
+                <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Kebutuhan klien</p>
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {report.clientNeeds.map((need) => (
+                    <span key={need} className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-foreground">{need}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {customAnswers.length > 0 && (
+              <div className="grid gap-5 sm:grid-cols-2">
+                {customAnswers.map(({ field, value }) => (
+                  <ReportField
+                    key={field.id}
+                    label={field.label}
+                    value={
+                      typeof value === "boolean" ? (value ? "Ya" : "Tidak")
+                      : Array.isArray(value) ? value.map(String).join(", ")
+                      : String(value)
+                    }
+                  />
+                ))}
+              </div>
+            )}
+
+            {canReadContacts && report.contacts.length > 0 && (
+              <div>
+                <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Ketemu siapa</p>
+                <ul className="mt-2 space-y-1.5">
+                  {report.contacts.map((contact, index) => (
+                    <li key={index} className="text-sm text-foreground">
+                      {contact.fullName}
+                      {contact.jobTitle ? <span className="text-muted-foreground"> · {contact.jobTitle}</span> : null}
+                      {contact.isDecisionMaker ? <span className="ml-2 rounded-md bg-secondary px-1.5 py-0.5 text-xs font-medium text-secondary-foreground">Pengambil keputusan</span> : null}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {reportSubmitted && report.visitOutcome && (
+              <CrmSyncStatus
+                missionId={missionId}
+                syncedAt={report.crmSyncedAt}
+                error={report.crmSyncError}
+                reachesCrm={visitReachesCrm(report.visitOutcome)}
+                canRetry={canWriteReport}
+              />
+            )}
+
+            {!leadPush && canPushLead(report) && !canWriteReport && (
+              <p className="rounded-lg border border-dashed bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
+                Laporan ini menandai adanya peluang. Sales utama dapat mengirimkannya ke LeadEngine.
+              </p>
+            )}
+          </div>
+        ) : (
+          <p className="px-5 py-6 text-sm text-muted-foreground">
+            {canWriteReport
+              ? "Isi laporan setelah kunjungan selesai."
+              : "Laporan diisi oleh sales utama."}
+          </p>
+        )}
+
+        {/* One push per mission. Once it exists the form is gone for good and
+            what remains is the record: which lead, when, by whom, owned by whom.
+            The record is read here on the server so a refresh after the push
+            shows it at once; the form's own "sudah dikirim" state only covers
+            the moment before that refresh lands. */}
+        {leadPush ? (
+          <div className="border-t">
+            <div className="border-b bg-muted/30 px-5 py-4">
+              <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Integrasi</p>
+              <h3 className="mt-1 flex items-center gap-2 text-base font-semibold text-foreground">
+                <span className="inline-block h-2 w-2 shrink-0 rounded-full bg-[var(--success-foreground)]" aria-hidden />
+                Terkirim ke LeadEngine
+              </h3>
+            </div>
+            <div className="flex flex-wrap items-center gap-3 px-5 py-4">
+              <p className="min-w-0 flex-1 text-sm text-muted-foreground">
+                Lead <span className="font-mono text-foreground">#{leadPush.leadId}</span> dibuat {stamp(leadPush.pushedAt)} oleh {leadPush.pushedByName}. Pemilik lead: {leadPush.ownerName}.
+              </p>
+              {leadEngineUrl && (
+                <Button asChild variant="outline" className="h-10">
+                  <a href={`${leadEngineUrl}/leads/${leadPush.leadId}`} target="_blank" rel="noopener noreferrer">
+                    <ExternalLink className="h-4 w-4" /> Buka lead di LeadEngine
+                  </a>
+                </Button>
+              )}
+            </div>
+          </div>
+        ) : report && canPushLead(report) && canWriteReport ? (
+          <div className="border-t">
+            <div className="border-b bg-muted/30 px-5 py-4">
+              <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Integrasi</p>
+              <h3 className="mt-1 text-base font-semibold text-foreground">Kirim ke LeadEngine</h3>
+            </div>
+            <PushLeadPanel
+              missionId={missionId}
+              clientName={mission.clientCompanyName}
+              salesOptions={salesOptions}
+              defaultProjectName={mission.objective?.slice(0, 120) || `${mission.missionType} — ${mission.clientCompanyName}`}
+              leadEngineUrl={leadEngineUrl}
+            />
+          </div>
+        ) : null}
+
+        {/* Once submitted the report is shown in full above, so there is
+            nothing left to open. */}
+        {canReadReport && canWriteReport && !reportSubmitted && !isCancelled && (
+          <div className="border-t bg-muted/30 px-5 py-4">
+            {askedToConfirm ? (
+              // A report on a visit the rep has not agreed to make yet is
+              // a contradiction; the button waits for the answer above.
+              <p className="text-sm text-muted-foreground">
+                Terima penugasan di atas dulu, lalu laporan bisa diisi setelah kunjungan.
+              </p>
+            ) : (
+              <Button asChild className="h-11 w-full sm:w-auto">
+                <Link href={`/workspace/missions/${missionId}/report`}>
+                  <ClipboardList className="h-4 w-4" />
+                  {report ? "Lanjutkan laporan" : "Isi laporan kunjungan"}
+                </Link>
+              </Button>
+            )}
+          </div>
+        )}
+      </article>
     </WorkspacePage>
   )
 }
