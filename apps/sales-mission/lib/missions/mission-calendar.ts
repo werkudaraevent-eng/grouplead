@@ -8,18 +8,20 @@ import { MISSION_TIME_ZONE, type MissionListItem } from "./mission-schema"
  * days from raw timestamps would drop it onto the wrong square.
  */
 
-export interface CalendarDay {
+export interface CalendarDay<T = unknown> {
   /** YYYY-MM-DD in mission time. */
   date: string
   dayOfMonth: number
   missionCount: number
+  /** The day's missions, earliest first, so a cell can name them rather than only count them. */
+  missions: T[]
   isToday: boolean
 }
 
-export interface MonthGrid {
+export interface MonthGrid<T = unknown> {
   /** Empty squares before the 1st, so the month starts on the right weekday (Monday-first). */
   leadingBlanks: number
-  days: CalendarDay[]
+  days: CalendarDay<T>[]
 }
 
 const MONTH_PATTERN = /^\d{4}-\d{2}$/
@@ -62,7 +64,7 @@ export function formatMonthLabel(month: string): string {
 /** Only the schedule matters here, so callers keep whatever else they carry. */
 type Schedulable = Pick<MissionListItem, "scheduledStart">
 
-export function buildMonthGrid(month: string, missions: Schedulable[], now: Date): MonthGrid {
+export function buildMonthGrid<T extends Schedulable>(month: string, missions: T[], now: Date): MonthGrid<T> {
   const year = Number(month.slice(0, 4))
   const monthIndex = Number(month.slice(5, 7)) - 1
 
@@ -72,24 +74,29 @@ export function buildMonthGrid(month: string, missions: Schedulable[], now: Date
   const firstWeekday = new Date(Date.UTC(year, monthIndex, 1)).getUTCDay()
   const leadingBlanks = (firstWeekday + 6) % 7
 
-  const countsByDay = new Map<string, number>()
+  const byDay = new Map<string, T[]>()
   for (const mission of missions) {
     if (!mission.scheduledStart) continue
     const start = new Date(mission.scheduledStart)
     if (Number.isNaN(start.getTime())) continue
     const key = missionDayKey(start)
-    countsByDay.set(key, (countsByDay.get(key) ?? 0) + 1)
+    byDay.set(key, [...(byDay.get(key) ?? []), mission])
+  }
+  for (const list of byDay.values()) {
+    list.sort((a, b) => (a.scheduledStart ?? "").localeCompare(b.scheduledStart ?? ""))
   }
 
   const today = missionDayKey(now)
 
-  const days: CalendarDay[] = Array.from({ length: daysInMonth }, (_, index) => {
+  const days: CalendarDay<T>[] = Array.from({ length: daysInMonth }, (_, index) => {
     const dayOfMonth = index + 1
     const date = `${month}-${String(dayOfMonth).padStart(2, "0")}`
+    const onDay = byDay.get(date) ?? []
     return {
       date,
       dayOfMonth,
-      missionCount: countsByDay.get(date) ?? 0,
+      missionCount: onDay.length,
+      missions: onDay,
       isToday: date === today,
     }
   })

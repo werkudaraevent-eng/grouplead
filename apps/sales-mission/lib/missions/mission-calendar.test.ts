@@ -88,6 +88,23 @@ describe("currentMissionMonth", () => {
 })
 
 describe("buildMonthGrid", () => {
+  it("hands each day its missions, earliest first, on the mission-time day", () => {
+    const grid = buildMonthGrid(
+      "2026-08",
+      [
+        { scheduledStart: "2026-08-29T07:00:00.000Z", name: "Zenith" }, // 14:00 WIB
+        { scheduledStart: "2026-08-29T02:30:00.000Z", name: "ZINIT" }, // 09:30 WIB
+        { scheduledStart: "2026-08-28T17:30:00.000Z", name: "Late" }, // 00:30 WIB on the 29th
+        { scheduledStart: null, name: "Unscheduled" },
+      ],
+      NOW
+    )
+    const day = grid.days.find((d) => d.date === "2026-08-29")!
+    expect(day.missionCount).toBe(3)
+    expect(day.missions.map((m) => m.name)).toEqual(["Late", "ZINIT", "Zenith"])
+    expect(grid.days.find((d) => d.date === "2026-08-28")!.missions).toEqual([])
+  })
+
   it("offsets the first day to a Monday-first grid", () => {
     // 2026-08-01 is a Saturday → five blanks before it.
     expect(buildMonthGrid("2026-08", [], NOW).leadingBlanks).toBe(5)

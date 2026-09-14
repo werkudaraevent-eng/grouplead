@@ -48,6 +48,9 @@ export default async function CalendarPage({
   // viewer stands relative to it.
   const missions = annotateJoinStatus(rawMissions, settings)
   const grid = buildMonthGrid(month, missions, now)
+  const monthTotal = grid.days.reduce((sum, day) => sum + day.missionCount, 0)
+  const timeOf = (iso: string | null) =>
+    iso ? new Intl.DateTimeFormat("en-GB", { timeZone: MISSION_TIME_ZONE, hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(iso)) : ""
 
   // A selected day outside the shown month would render an empty panel with no
   // explanation, so fall back to today or the first of the month.
@@ -95,48 +98,95 @@ export default async function CalendarPage({
           </div>
 
           <div className="p-5">
-            <div className="grid grid-cols-7 gap-1.5">
+            {/*
+              Material has no "calendar with events" component; its date picker
+              marks only today and the selection. Its badge does apply: a small
+              badge (a dot) says something exists, a large badge with a number
+              says how many. The month grid that Google Calendar itself draws
+              goes one step further and names the events. So: on a phone each
+              day gets the numbered badge; from `md` up the cell is tall enough
+              to list the first two visits as chips and count the rest.
+            */}
+            <div className="grid grid-cols-7 gap-1 md:gap-1.5">
               {WEEKDAYS.map((day, index) => (
                 <span key={`weekday-${index}`} className="grid h-7 place-items-center text-[10px] font-bold uppercase text-muted-foreground">
                   {day}
                 </span>
               ))}
               {Array.from({ length: grid.leadingBlanks }, (_, index) => (
-                <span key={`blank-${index}`} aria-hidden="true" className="h-11" />
+                <span key={`blank-${index}`} aria-hidden="true" className="h-11 md:h-auto" />
               ))}
-              {grid.days.map((day) => (
-                <Link
-                  key={day.date}
-                  href={`/workspace/calendar?month=${month}&day=${day.date}`}
-                  aria-label={`${day.dayOfMonth}, ${day.missionCount} mission`}
-                  aria-current={day.date === selectedDay ? "date" : undefined}
-                  className={cn(
-                    "relative grid h-11 place-items-center rounded-lg border border-transparent text-xs transition-colors",
-                    day.date === selectedDay
-                      ? "bg-primary font-bold text-primary-foreground"
-                      : day.isToday
-                        ? "border-primary font-bold text-primary hover:bg-muted"
-                        : "text-foreground hover:bg-muted"
-                  )}
-                >
-                  {day.dayOfMonth}
-                  {day.missionCount > 0 && (
-                    <span
-                      className={cn(
-                        "absolute bottom-1.5 h-1 w-1 rounded-full",
-                        day.date === selectedDay ? "bg-primary-foreground" : "bg-accent"
-                      )}
-                    />
-                  )}
-                </Link>
-              ))}
+              {grid.days.map((day) => {
+                const selected = day.date === selectedDay
+                const shown = day.missions.slice(0, 2)
+                const more = day.missionCount - shown.length
+                return (
+                  <Link
+                    key={day.date}
+                    href={`/workspace/calendar?month=${month}&day=${day.date}`}
+                    aria-label={`${day.dayOfMonth}, ${day.missionCount} mission`}
+                    aria-current={selected ? "date" : undefined}
+                    className={cn(
+                      "relative flex h-11 min-w-0 flex-col items-center justify-center rounded-lg border border-transparent text-xs transition-colors md:h-auto md:min-h-[4.5rem] md:items-stretch md:justify-start md:p-1.5",
+                      selected
+                        ? "bg-primary font-bold text-primary-foreground"
+                        : day.isToday
+                          ? "border-primary font-bold text-primary hover:bg-muted"
+                          : "text-foreground hover:bg-muted"
+                    )}
+                  >
+                    <span className="md:px-1">{day.dayOfMonth}</span>
+                    {day.missionCount > 0 && (
+                      <span
+                        className={cn(
+                          "absolute right-1 top-1 grid h-4 min-w-4 place-items-center rounded-full px-1 text-[10px] font-bold leading-none md:hidden",
+                          selected ? "bg-primary-foreground text-primary" : "bg-accent text-accent-foreground"
+                        )}
+                      >
+                        {day.missionCount}
+                      </span>
+                    )}
+                    {shown.length > 0 && (
+                      <span className="mt-1 hidden min-w-0 flex-col gap-0.5 md:flex">
+                        {shown.map((mission) => (
+                          <span
+                            key={mission.id}
+                            className={cn(
+                              "block truncate rounded px-1 py-0.5 text-[11px] font-medium leading-tight",
+                              selected ? "bg-primary-foreground/15 text-primary-foreground" : "bg-primary/10 text-primary"
+                            )}
+                            title={`${timeOf(mission.scheduledStart)} ${mission.clientCompanyName}`}
+                          >
+                            <span className="font-mono">{timeOf(mission.scheduledStart)}</span> {mission.clientCompanyName}
+                          </span>
+                        ))}
+                        {more > 0 && (
+                          <span className={cn("px-1 text-[11px] font-medium", selected ? "text-primary-foreground/80" : "text-muted-foreground")}>
+                            +{more} lagi
+                          </span>
+                        )}
+                      </span>
+                    )}
+                  </Link>
+                )
+              })}
             </div>
+
+            {/* A silent grid reads as broken. Name the unit whose calendar this
+                is, and, for someone who belongs to more than one, where the
+                other units' visits are. */}
+            {monthTotal === 0 && (
+              <p className="mt-4 rounded-lg border border-dashed bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
+                Tidak ada mission di unit {access.companyName} pada {formatMonthLabel(month)}.
+                {access.companies.length > 1 && " Mission unit lain ada di kalender unit itu; ganti unit lewat nama unit di sidebar."}
+              </p>
+            )}
 
             <div className="mt-5 flex items-center gap-2 border-t pt-4 text-xs text-muted-foreground">
               <CalendarDays className="h-3.5 w-3.5" />
-              {dayMissions.length} mission pada hari terpilih
+              {monthTotal} mission bulan ini · {dayMissions.length} pada hari terpilih
               <Link href="/workspace/missions" className="ml-auto font-semibold text-primary hover:underline">
-                View missions
+                Lihat semua mission
               </Link>
             </div>
           </div>
