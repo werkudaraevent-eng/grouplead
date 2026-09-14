@@ -4,6 +4,7 @@ import { Ban, Building2, CalendarDays, ClipboardList, Mail, MapPin, Pencil, Phon
 import { canPerform, getSalesMissionAccess } from "@/lib/sales-mission-access"
 import { requireModule } from "@/lib/missions/nav-access"
 import { PersonAvatar } from "@/components/person-avatar"
+import { formatPhone, normalizePhone } from "@/lib/format/phone"
 import {
   getCancellation,
   getMission,
@@ -293,7 +294,7 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
                     <Phone className="h-4 w-4 shrink-0 text-muted-foreground" />
                     <dt className="sr-only">Telepon</dt>
                     {/* Tappable: a rep standing at reception should not retype it. */}
-                    <dd><a href={`tel:${mission.appointment.phone}`} className="text-sm font-medium text-primary hover:underline">{mission.appointment.phone}</a></dd>
+                    <dd><a href={`tel:${normalizePhone(mission.appointment.phone)}`} className="text-sm font-medium text-primary hover:underline">{formatPhone(mission.appointment.phone)}</a></dd>
                   </div>
                 )}
                 {mission.appointment.email && (

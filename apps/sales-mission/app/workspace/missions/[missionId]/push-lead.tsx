@@ -9,6 +9,7 @@ import type { TenantSalesOption } from "@/lib/missions/mission-queries"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
+import { NumberInput } from "@/components/ui/number-input"
 import { Label } from "@/components/ui/label"
 
 /**
@@ -41,7 +42,7 @@ export function PushLeadPanel({
     pipelineId: "",
     pipelineStageId: "",
     ownerUserId: "",
-    estimatedValue: "" as string,
+    estimatedValue: null as number | null,
     remark: "",
     /** Empty means "register the typed name as a new CRM company". */
     linkedCompanyId: "",
@@ -127,7 +128,7 @@ export function PushLeadPanel({
         pipelineId: form.pipelineId,
         pipelineStageId: form.pipelineStageId || null,
         ownerUserId: form.ownerUserId,
-        estimatedValue: form.estimatedValue ? Number(form.estimatedValue) : null,
+        estimatedValue: form.estimatedValue,
         remark: form.remark,
         registerContactNames: registerContacts,
         enrichContactIds: enrichContacts,
@@ -344,13 +345,12 @@ export function PushLeadPanel({
 
         <div className="space-y-1.5">
           <Label htmlFor="push-value">Estimasi nilai</Label>
-          <Input
+          <NumberInput
             id="push-value"
-            className="h-11"
-            inputMode="numeric"
+            prefix="Rp"
+            inputClassName="h-11"
             value={form.estimatedValue}
-            onChange={(e) => setForm({ ...form, estimatedValue: e.target.value.replace(/[^\d]/g, "") })}
-            placeholder="0"
+            onChange={(next) => setForm({ ...form, estimatedValue: next })}
           />
         </div>
 

@@ -16,6 +16,9 @@ import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { NumberInput } from "@/components/ui/number-input"
+import { PhoneInput } from "@/components/ui/phone-input"
+import { parseNumber } from "@/lib/format/number"
 import { EmptyState } from "@/app/workspace/workspace-page"
 import { CompanyPicker } from "./company-picker"
 import { PeopleMultiPicker, PersonPicker } from "./people-picker"
@@ -261,9 +264,16 @@ function CustomField({ field, initial }: { field: FormField; initial?: unknown }
     )
   }
 
+  if (field.fieldType === "NUMBER" || field.fieldType === "CURRENCY") {
+    return (
+      <FieldShell field={field}>
+        <NumberField id={id} name={name} initial={initialText} currency={field.fieldType === "CURRENCY"} required={field.isRequired} placeholder={field.placeholder ?? "0"} />
+      </FieldShell>
+    )
+  }
+
   const inputType =
     field.fieldType === "DATE" ? "date" : field.fieldType === "TIME" ? "time" : "text"
-  const inputMode = field.fieldType === "NUMBER" || field.fieldType === "CURRENCY" ? "numeric" : undefined
 
   return (
     <FieldShell field={field}>
@@ -271,7 +281,6 @@ function CustomField({ field, initial }: { field: FormField; initial?: unknown }
         id={id}
         name={name}
         type={inputType}
-        inputMode={inputMode}
         required={field.isRequired}
         defaultValue={initialText}
         placeholder={field.placeholder ?? ""}
@@ -279,6 +288,12 @@ function CustomField({ field, initial }: { field: FormField; initial?: unknown }
       />
     </FieldShell>
   )
+}
+
+/** The form is uncontrolled, so a formatted number needs its own bit of state and a hidden input. */
+function NumberField({ id, name, initial, currency, required, placeholder }: { id: string; name: string; initial: string; currency: boolean; required: boolean; placeholder: string }) {
+  const [value, setValue] = useState<number | null>(() => parseNumber(initial))
+  return <NumberInput id={id} name={name} prefix={currency ? "Rp" : undefined} value={value} onChange={setValue} required={required} placeholder={placeholder} />
 }
 
 /**
@@ -572,7 +587,7 @@ export function MissionForm({
       case "contact_phone":
         return (
           <FieldShell field={field} key={field.id}>
-            <Input id="field-contact_phone" name="contactPhone" type="tel" inputMode="tel" autoComplete="tel" maxLength={50} required={field.isRequired} placeholder={field.placeholder ?? PLACEHOLDER_PHONE} value={contact.phone} onChange={(e) => setContact({ ...contact, phone: e.target.value })} className="h-12" />
+            <PhoneInput id="field-contact_phone" name="contactPhone" required={field.isRequired} placeholder={field.placeholder ?? PLACEHOLDER_PHONE} value={contact.phone} onChange={(next) => setContact({ ...contact, phone: next })} />
             {contact.id && <ContactSource crmValue={contact.crm?.phone} />}
           </FieldShell>
         )

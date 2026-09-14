@@ -1,4 +1,5 @@
 import { z } from "zod"
+import { isValidPhone, normalizePhone } from "@/lib/format/phone"
 
 /**
  * Mission domain contract: validation, constants, and the pure helpers that
@@ -81,7 +82,7 @@ export const createMissionSchema = z
     contactName: z.string().trim().max(150).optional().or(z.literal("")),
     contactJobTitle: z.string().trim().max(150).optional().or(z.literal("")),
     contactDivision: z.string().trim().max(150).optional().or(z.literal("")),
-    contactPhone: z.string().trim().max(50).optional().or(z.literal("")),
+    contactPhone: z.string().trim().max(50).refine(isValidPhone, "Nomor telepon tidak valid, isi 9 sampai 15 digit").transform(normalizePhone).optional().or(z.literal("")),
     contactEmail: z
       .string()
       .trim()

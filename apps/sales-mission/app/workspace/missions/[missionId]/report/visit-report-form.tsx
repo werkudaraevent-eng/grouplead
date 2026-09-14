@@ -28,6 +28,8 @@ import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { NumberInput } from "@/components/ui/number-input"
+import { PhoneInput } from "@/components/ui/phone-input"
 import { cn } from "@/lib/utils"
 
 /**
@@ -240,22 +242,24 @@ function CustomControl({ field, value, onChange }: { field: FormField; value: Fi
   if (field.fieldType === "LONG_TEXT") {
     return <textarea id={id} value={typeof value === "string" ? value : ""} onChange={(event) => onChange(event.target.value)} rows={4} maxLength={4000} placeholder={field.placeholder ?? ""} className={cn(FIELD_CLASS, "py-2.5")} />
   }
+  if (field.fieldType === "NUMBER" || field.fieldType === "CURRENCY") {
+    return (
+      <NumberInput
+        id={id}
+        prefix={field.fieldType === "CURRENCY" ? "Rp" : undefined}
+        value={typeof value === "number" ? value : null}
+        onChange={onChange}
+        placeholder={field.placeholder ?? "0"}
+      />
+    )
+  }
   const type = field.fieldType === "DATE" ? "date" : field.fieldType === "TIME" ? "time" : "text"
-  const numeric = field.fieldType === "NUMBER" || field.fieldType === "CURRENCY"
   return (
     <Input
       id={id}
       type={type}
-      inputMode={numeric ? "numeric" : undefined}
       value={value === null || value === undefined ? "" : String(value)}
-      onChange={(event) => {
-        if (numeric) {
-          const raw = event.target.value.replace(/[^\d.]/g, "")
-          onChange(raw === "" ? null : Number(raw))
-        } else {
-          onChange(event.target.value)
-        }
-      }}
+      onChange={(event) => onChange(event.target.value)}
       placeholder={field.placeholder ?? ""}
       className="h-12"
     />
@@ -387,7 +391,7 @@ export function VisitReportForm({
                     </div>
                     <div className="space-y-1.5">
                       <Label htmlFor={`contact-phone-${index}`}>Telepon</Label>
-                      <Input id={`contact-phone-${index}`} className="h-12 bg-card" inputMode="tel" value={contact.phone ?? ""} onChange={(e) => updateContact(index, { phone: e.target.value })} placeholder="08…" />
+                      <PhoneInput id={`contact-phone-${index}`} inputClassName="bg-card" value={contact.phone ?? ""} onChange={(next) => updateContact(index, { phone: next })} />
                     </div>
                     <div className="space-y-1.5">
                       <Label htmlFor={`contact-email-${index}`}>Email</Label>
@@ -442,7 +446,7 @@ export function VisitReportForm({
       case "estimated_value":
         return (
           <FieldShell key={field.id} field={field}>
-            <Input id="estimatedValue" className="h-12" inputMode="numeric" value={draft.estimatedValue ?? ""} onChange={(event) => { const raw = event.target.value.replace(/[^\d]/g, ""); update("estimatedValue", raw ? Number(raw) : null) }} placeholder={field.placeholder ?? "0"} />
+            <NumberInput id="estimatedValue" prefix="Rp" value={draft.estimatedValue} onChange={(next) => update("estimatedValue", next)} placeholder={field.placeholder ?? "0"} />
           </FieldShell>
         )
       case "competitor_mentioned":

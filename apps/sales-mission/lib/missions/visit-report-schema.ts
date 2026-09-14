@@ -1,4 +1,5 @@
 import { z } from "zod"
+import { isValidPhone, normalizePhone } from "@/lib/format/phone"
 import { visibleFields, type FormField } from "./form-fields"
 
 /**
@@ -74,7 +75,7 @@ export function outcomeRequiresContacts(outcome: VisitOutcome | null | undefined
 const contactSchema = z.object({
   fullName: z.string().trim().min(1, "Nama kontak wajib diisi").max(150),
   jobTitle: z.string().trim().max(150).optional().or(z.literal("")),
-  phone: z.string().trim().max(40).optional().or(z.literal("")),
+  phone: z.string().trim().max(40).transform(normalizePhone).optional().or(z.literal("")),
   email: z.union([z.string().trim().email("Format email tidak valid").max(150), z.literal("")]).optional(),
   isDecisionMaker: z.boolean().default(false),
 })
@@ -124,6 +125,12 @@ export const visitReportSubmitSchema = z.object(baseShape).superRefine((value, c
   if (outcomeRequiresContacts(value.visitOutcome) && value.contacts.length === 0) {
     ctx.addIssue({ code: "custom", path: ["contacts"], message: "Catat minimal satu kontak yang ditemui" })
   }
+
+  value.contacts.forEach((contact, index) => {
+    if (!isValidPhone(contact.phone ?? "")) {
+      ctx.addIssue({ code: "custom", path: ["contacts", index, "phone"], message: "Nomor telepon tidak valid, isi 9 sampai 15 digit" })
+    }
+  })
 
   if (value.nextActionType !== "NONE") {
     if (!value.nextActionOwner) {
