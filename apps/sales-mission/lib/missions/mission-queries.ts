@@ -67,7 +67,10 @@ export async function listMissions(access: SalesMissionAccess): Promise<MissionL
     .in("mission_id", missionIds)
 
   const assignments = (assignmentRows ?? []) as AssignmentRow[]
-  const names = await resolveNames(supabase, assignments.map((row) => row.user_id))
+  const names = await resolveNames(supabase, [
+    ...assignments.map((row) => row.user_id),
+    ...missionRows.map((row) => row.created_by as string),
+  ])
 
   return mapMissions(missionRows as MissionRow[], assignments, names, access.userId)
 }
@@ -140,7 +143,7 @@ export async function getMission(
     .eq("mission_id", missionId)
 
   const assignments = (assignmentRows ?? []) as AssignmentRow[]
-  const names = await resolveNames(supabase, assignments.map((row) => row.user_id))
+  const names = await resolveNames(supabase, [...assignments.map((row) => row.user_id), missionRow.created_by as string])
 
   return mapMissions([missionRow as MissionRow], assignments, names, access.userId)[0] ?? null
 }

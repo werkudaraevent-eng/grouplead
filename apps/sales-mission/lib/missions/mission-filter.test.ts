@@ -33,6 +33,8 @@ function mission(overrides: Partial<MissionListItem> & { id: string }): MissionL
     assigneeIds: [],
     allowJoin: true,
     createdBy: "creator",
+    createdByName: "Pembuat",
+    createdAt: "2026-09-01T01:00:00.000Z",
     appointment: {
       salutation: null,
       contactId: null,
@@ -179,6 +181,11 @@ describe("mission query", () => {
     expect(ids(applyMissionQuery(rows, { ...EMPTY_QUERY, status: ["ACCEPTED", "CANCELLED"] }, now))).toEqual(["a", "c"])
     expect(ids(applyMissionQuery(rows, { ...EMPTY_QUERY, status: ["ACCEPTED", "CANCELLED"], location: ["Jakarta Selatan"], type: ["meeting"] }, now))).toEqual(["a", "c"])
     expect(ids(applyMissionQuery(rows, { ...EMPTY_QUERY, status: ["CANCELLED"], location: ["Tangerang"] }, now))).toEqual([])
+  })
+
+  it("narrows to who scheduled the mission", () => {
+    const scheduled = [mission({ id: "x", createdBy: "u9" }), mission({ id: "y", createdBy: "u1" })]
+    expect(ids(applyMissionQuery(scheduled, { ...EMPTY_QUERY, creator: ["u9"] }, now))).toEqual(["x"])
   })
 
   it("matches a person whether they lead or support", () => {

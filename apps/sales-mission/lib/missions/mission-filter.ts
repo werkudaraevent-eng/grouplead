@@ -112,6 +112,8 @@ export interface MissionQuery {
   type: string[]
   /** User ids; matches primary or supporting. */
   sales: string[]
+  /** User ids of whoever scheduled the mission. */
+  creator: string[]
   location: string[]
   date: DatePreset | null
   /** YYYY-MM-DD, mission time. Only read when `date` is "custom". */
@@ -124,6 +126,7 @@ export const EMPTY_QUERY: MissionQuery = {
   status: [],
   type: [],
   sales: [],
+  creator: [],
   location: [],
   date: null,
   from: null,
@@ -151,6 +154,7 @@ export function parseMissionQuery(params: Record<string, string | string[] | und
     status: list(params.status),
     type: list(params.type),
     sales: list(params.sales),
+    creator: list(params.creator),
     location: list(params.location),
     date: DATE_PRESETS.includes(date as DatePreset) ? (date as DatePreset) : null,
     from: DAY.test(from) ? from : null,
@@ -165,6 +169,7 @@ export function serializeMissionQuery(query: MissionQuery): URLSearchParams {
   if (query.status.length) params.set("status", query.status.join(","))
   if (query.type.length) params.set("type", query.type.join(","))
   if (query.sales.length) params.set("sales", query.sales.join(","))
+  if (query.creator.length) params.set("creator", query.creator.join(","))
   if (query.location.length) params.set("location", query.location.join(","))
   if (query.date) params.set("date", query.date)
   if (query.date === "custom") {
@@ -181,6 +186,7 @@ export function countActiveFacets(query: MissionQuery): number {
     (query.status.length ? 1 : 0) +
     (query.type.length ? 1 : 0) +
     (query.sales.length ? 1 : 0) +
+    (query.creator.length ? 1 : 0) +
     (query.location.length ? 1 : 0) +
     (query.date ? 1 : 0)
   )
@@ -246,6 +252,7 @@ export function applyMissionQuery<T extends MissionListItem>(missions: T[], quer
   const status = new Set(query.status)
   const type = new Set(query.type.map(normalise))
   const sales = new Set(query.sales)
+  const creator = new Set(query.creator)
   const location = new Set(query.location.map(normalise))
   const range = dateRangeFor(query, now)
 
@@ -267,6 +274,7 @@ export function applyMissionQuery<T extends MissionListItem>(missions: T[], quer
     if (status.size && !status.has(mission.status)) return false
     if (type.size && !type.has(normalise(mission.missionType))) return false
     if (sales.size && !mission.assigneeIds.some((id) => sales.has(id))) return false
+    if (creator.size && !creator.has(mission.createdBy)) return false
     if (location.size && !location.has(normalise(mission.location))) return false
     if (range) {
       if (!mission.scheduledStart) return false

@@ -18,6 +18,8 @@ function mission(overrides: Partial<MissionListItem> & { id: string }): MissionL
     assigneeIds: [],
     allowJoin: true,
     createdBy: "creator",
+    createdByName: "Pembuat",
+    createdAt: "2026-09-01T01:00:00.000Z",
     supportingCount: 0,
     viewerRole: null,
     viewerResponse: null,

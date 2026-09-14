@@ -51,6 +51,7 @@ import { SupportingNotes } from "./supporting-notes"
 import { CrmSyncStatus } from "./crm-sync-status"
 import { CancelMissionButton } from "./cancel-mission"
 import { visitReachesCrm } from "@/lib/missions/crm-sync"
+import { getLastEdit } from "@/lib/audit/audit-queries"
 
 export const dynamic = "force-dynamic"
 
@@ -103,12 +104,15 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
     getMissionSettings(access),
     listMissions(access),
   ])
-  const [pendingReschedule, salesOptions, schedules, cancellation] = await Promise.all([
+  const [pendingReschedule, salesOptions, schedules, cancellation, lastEdit] = await Promise.all([
     getPendingReschedule(access, missionId),
     listTenantSales(access),
     listTeamSchedules(access, new Date()),
     mission.status === "CANCELLED" ? getCancellation(access, missionId) : Promise.resolve(null),
+    getLastEdit(access, missionId),
   ])
+  const stamp = (iso: string) =>
+    new Intl.DateTimeFormat("id-ID", { timeZone: MISSION_TIME_ZONE, weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }).format(new Date(iso))
   const leadEngineUrl = process.env.NEXT_PUBLIC_LEADENGINE_URL?.trim() || null
 
   const isAssigned = role !== null
@@ -237,6 +241,16 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
                 {mission.objective ?? "Objective belum diisi."}
               </h2>
             </div>
+
+            {/* Provenance lives here, not in the list: who booked it is what
+                you want once you are looking at the visit, not while scanning
+                for one. The full history is in Riwayat aktivitas. */}
+            <p className="flex flex-wrap gap-x-4 gap-y-1 border-t px-5 py-3 text-xs text-muted-foreground">
+              <span>Dijadwalkan oleh <span className="font-medium text-foreground">{mission.createdByName ?? "Nama tidak diketahui"}</span> · {stamp(mission.createdAt)}</span>
+              {lastEdit && (
+                <span>Diubah terakhir oleh <span className="font-medium text-foreground">{lastEdit.byName}</span> · {stamp(lastEdit.at)}</span>
+              )}
+            </p>
 
             {canCancel && (
               <div className="flex items-center justify-between gap-3 border-t bg-muted/30 px-5 py-3">

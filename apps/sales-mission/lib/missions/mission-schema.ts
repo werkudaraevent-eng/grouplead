@@ -228,6 +228,8 @@ export interface MissionListItem {
   allowJoin: boolean
   /** Who scheduled it, so a moved visit reaches the appointment team too. */
   createdBy: string
+  createdByName: string | null
+  createdAt: string
   /** Who the appointment is with. Empty on missions booked before this existed. */
   appointment: MissionAppointment
   supportingCount: number
@@ -284,6 +286,8 @@ export function mapMissions(
       // Missions created before the column existed default to open.
       allowJoin: mission.allow_join !== false,
       createdBy: mission.created_by,
+      createdByName: namesByUserId.get(mission.created_by) ?? null,
+      createdAt: mission.created_at,
       appointment: {
         salutation: mission.contact_salutation ?? null,
         contactId: mission.contact_id ?? null,

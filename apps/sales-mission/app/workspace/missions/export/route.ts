@@ -48,7 +48,7 @@ export async function GET(request: Request) {
 
   const columns = buildImportColumns(fields)
   const rows = toExportRows(visible, columns)
-  const headers = [...columns.map((column) => column.header), "Status"]
+  const headers = [...columns.map((column) => column.header), "Status", "Dibuat oleh", "Dibuat pada"]
 
   const sheet = XLSX.utils.json_to_sheet(rows, { header: headers })
   sheet["!cols"] = headers.map((header) => ({

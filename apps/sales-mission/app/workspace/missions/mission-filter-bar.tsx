@@ -218,6 +218,12 @@ export function MissionFilterBar({
           }}
         />
         <FacetSelect
+          label="Dibuat oleh"
+          options={people.map((person) => ({ value: person.id, label: person.name }))}
+          value={query.creator}
+          onChange={(creator) => push({ ...query, creator })}
+        />
+        <FacetSelect
           label="Lokasi"
           options={locations.map((location) => ({ value: location, label: location }))}
           value={query.location}
@@ -252,6 +258,9 @@ export function MissionFilterBar({
           {query.sales.map((id) => (
             <Chip key={id} label={personName(id)} onRemove={() => push({ ...query, sales: query.sales.filter((s) => s !== id) })} />
           ))}
+          {query.creator.map((id) => (
+            <Chip key={`creator-${id}`} label={`Dibuat oleh ${personName(id)}`} onRemove={() => push({ ...query, creator: query.creator.filter((c) => c !== id) })} />
+          ))}
           {query.location.map((location) => (
             <Chip key={location} label={location} onRemove={() => push({ ...query, location: query.location.filter((l) => l !== location) })} />
           ))}
@@ -270,7 +279,7 @@ export function MissionFilterBar({
           )}
           <button
             type="button"
-            onClick={() => { setText(""); push({ q: "", status: [], type: [], sales: [], location: [], date: null, from: null, to: null }) }}
+            onClick={() => { setText(""); push({ q: "", status: [], type: [], sales: [], creator: [], location: [], date: null, from: null, to: null }) }}
             className="ml-1 text-xs font-semibold text-primary hover:underline"
           >
             Bersihkan semua

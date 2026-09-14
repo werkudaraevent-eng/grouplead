@@ -383,8 +383,13 @@ export function toExportRows(
 
     const row: Record<string, string> = {}
     for (const column of columns) row[column.header] = value[column.key] ?? ""
-    // Status is export-only: it is not something an import may set.
+    // Export-only columns: not something an import may set, but what an
+    // audit or a recap is usually after.
     row["Status"] = mission.status
+    row["Dibuat oleh"] = mission.createdByName ?? ""
+    row["Dibuat pada"] = mission.createdAt
+      ? `${day.format(new Date(mission.createdAt))} ${time.format(new Date(mission.createdAt))}`
+      : ""
     return row
   })
 }

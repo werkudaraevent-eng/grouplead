@@ -92,3 +92,32 @@ export async function listAuditLog(
     })),
   }
 }
+
+/**
+ * Who last changed a mission's own row, and when. From the audit log, so it
+ * reflects any path that wrote the row, not only the edit form.
+ */
+export async function getLastEdit(
+  access: SalesMissionAccess,
+  missionId: string
+): Promise<{ byName: string; at: string } | null> {
+  const supabase = await createClient()
+  const { data } = await supabase
+    .schema("sales_mission")
+    .from("audit_log")
+    .select("actor_id, created_at")
+    .eq("company_id", access.companyId)
+    .eq("table_name", "missions")
+    .eq("entity_id", missionId)
+    .eq("action", "UPDATE")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  if (!data) return null
+  let byName = "Sistem"
+  if (data.actor_id) {
+    const { data: profile } = await supabase.from("profiles").select("full_name").eq("id", data.actor_id as string).maybeSingle()
+    byName = (profile?.full_name as string | null) ?? "Nama tidak diketahui"
+  }
+  return { byName, at: data.created_at as string }
+}

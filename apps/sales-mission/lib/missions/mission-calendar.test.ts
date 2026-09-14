@@ -26,6 +26,8 @@ function mission(id: string, scheduledStart: string | null): MissionListItem {
     assigneeIds: [],
     allowJoin: true,
     createdBy: "creator",
+    createdByName: "Pembuat",
+    createdAt: "2026-09-01T01:00:00.000Z",
     appointment: {
       salutation: null,
       contactId: null,
