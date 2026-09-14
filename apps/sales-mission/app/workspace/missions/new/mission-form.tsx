@@ -13,6 +13,7 @@ import {
 } from "@/lib/missions/form-fields"
 import type { TenantSalesOption } from "@/lib/missions/mission-queries"
 import { Button } from "@/components/ui/button"
+import { FormActionBar } from "@/components/form-action-bar"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -723,10 +724,9 @@ export function MissionForm({
         with an opaque card background, because seventeen fields put the save
         button a long scroll from wherever you finished; from sm up it is the
         last row of the form, where nothing scrolls beneath it and a bar parked
-        over the fields would only cover them. The negative margin below sm
-        matches the page's own padding so the bar runs edge to edge.
+        over the fields would only cover them. See FormActionBar.
       */}
-      <div className="sticky bottom-0 -mx-4 flex flex-col gap-2 border-t bg-card px-4 py-3 sm:static sm:mx-0 sm:flex-row sm:justify-end sm:border-0 sm:bg-transparent sm:px-0 sm:py-0">
+      <FormActionBar className="flex flex-col gap-2 sm:flex-row sm:justify-end">
         <Button asChild variant="outline" type="button" className="h-12 md:h-10">
           <Link href={edit ? `/workspace/missions/${edit.missionId}` : "/workspace/missions"}>Batal</Link>
         </Button>
@@ -739,7 +739,7 @@ export function MissionForm({
             <><Plus className="h-4 w-4" /> Simpan mission</>
           )}
         </Button>
-      </div>
+      </FormActionBar>
     </form>
   )
 }

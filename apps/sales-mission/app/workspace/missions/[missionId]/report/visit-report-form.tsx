@@ -25,6 +25,7 @@ import type { VisitReportRecord } from "@/lib/missions/mission-queries"
 import type { TenantSalesOption } from "@/lib/missions/mission-queries"
 import type { ReportOptions } from "@/lib/missions/report-options"
 import { Button } from "@/components/ui/button"
+import { FormActionBar } from "@/components/form-action-bar"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -531,14 +532,8 @@ export function VisitReportForm({
         </section>
       ))}
 
-      {/*
-        Action row. Same rule as the mission form: on a phone it pins to the
-        bottom of the viewport, opaque, because a long form puts the send
-        button a long scroll from wherever you finished; from sm up it is
-        simply the last row of the form, where nothing scrolls beneath it and
-        a bar parked over the fields would only cover them.
-      */}
-      <div className="sticky bottom-0 z-20 -mx-4 border-t bg-card px-4 py-3 sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:px-0 sm:py-0">
+      {/* Action row: fixed to the phone's bottom edge, the last row from sm up. */}
+      <FormActionBar>
         {missing.length > 0 ? (
           <p className="mb-2 text-xs text-muted-foreground">Belum lengkap: {missing.map((key) => labelFor(key).toLowerCase()).join(", ")}</p>
         ) : !submitting ? (
@@ -563,7 +558,7 @@ export function VisitReportForm({
             {submitting ? <><Loader2 className="h-4 w-4 animate-spin" /> Mengirim…</> : <><Send className="h-4 w-4" /> Kirim laporan</>}
           </Button>
         </div>
-      </div>
+      </FormActionBar>
     </div>
   )
 }
