@@ -1,23 +1,22 @@
 import { cache } from "react"
-import { cookies } from "next/headers"
 import { createClient } from "@/utils/supabase/server"
-import { ACTIVE_COMPANY_COOKIE, pickActiveMembership, type CompanyMembership } from "@/lib/active-company"
-
-export interface CompanyOption {
-  id: string
-  slug: string
-  name: string
-  isHolding: boolean
-}
 
 export interface SalesMissionAccess {
   userId: string
-  /** The business unit in use right now: the `active_company` cookie shared with LeadEngine, else the oldest membership. */
+  /**
+   * Always the holding company. Missions are a group activity, so every row
+   * Sales Mission writes is the holding's, and anyone who belongs to any unit
+   * of the group acts in it. Row security agrees (see the holding_tenant
+   * migration).
+   */
   companyId: string
   companyName: string
-  companySlug: string
-  /** Every unit this person belongs to, oldest first, for the switcher. */
-  companies: CompanyOption[]
+  /**
+   * Where a permission row may live, first match wins: the holding, then the
+   * person's own units oldest first. The admin sets the matrix up from
+   * whichever unit LeadEngine is showing, and both answers must keep working.
+   */
+  permissionScopes: string[]
   displayName: string
   /** Same `profiles.avatar_url` LeadEngine shows; the bucket is public. */
   avatarUrl: string | null
@@ -52,7 +51,7 @@ export const getSalesMissionAccess = cache(async (): Promise<SalesMissionAccess 
   const user = auth.user
   if (!user) return null
 
-  const [profileResult, membershipResult, cookieStore] = await Promise.all([
+  const [profileResult, membershipResult, holdingResult] = await Promise.all([
     supabase
       .from("profiles")
       .select("is_active, role, role_id, full_name, avatar_url")
@@ -60,35 +59,26 @@ export const getSalesMissionAccess = cache(async (): Promise<SalesMissionAccess 
       .maybeSingle(),
     supabase
       .from("company_members")
-      .select("company_id, user_type, created_at, companies(id, slug, name, is_holding)")
+      .select("company_id, user_type, created_at")
       .eq("user_id", user.id)
       .order("created_at", { ascending: true }),
-    cookies(),
+    supabase.schema("sales_mission").rpc("holding_company").maybeSingle(),
   ])
 
   const profile = profileResult.data
-  if (profileResult.error || membershipResult.error || profile?.is_active !== true) {
+  if (profileResult.error || membershipResult.error || holdingResult.error || profile?.is_active !== true) {
     return null
   }
 
-  // A person in two units used to land in whichever membership row the
-  // database returned first, which differed from the unit LeadEngine showed
-  // and even between requests. The cookie the CRM's switcher writes decides
-  // now, with the oldest membership as the fallback both apps share.
-  const memberships: CompanyMembership[] = (membershipResult.data ?? []).flatMap((row) => {
-    const company = row.companies as unknown as { id: string; slug: string; name: string; is_holding: boolean } | null
-    if (!company) return []
-    return [{
-      companyId: row.company_id as string,
-      slug: company.slug,
-      name: company.name,
-      isHolding: company.is_holding === true,
-      userType: (row.user_type as string | null) ?? null,
-      createdAt: (row.created_at as string) ?? "",
-    }]
-  })
-  const membership = pickActiveMembership(memberships, cookieStore.get(ACTIVE_COMPANY_COOKIE)?.value)
-  if (!membership) return null
+  // Belonging to any unit of the group is what admits a person; the holding
+  // is then the tenant for everyone. No membership at all means no access.
+  const memberships = (membershipResult.data ?? []).map((row) => ({
+    companyId: row.company_id as string,
+    userType: (row.user_type as string | null) ?? null,
+  }))
+  const holding = holdingResult.data as { id: string; name: string; slug: string } | null
+  if (memberships.length === 0 || !holding) return null
+  const membership = memberships[0]
 
   // The profile row is the only source for a person's name. Provider claims are
   // not used: a handed-down account would keep overwriting the corrected name
@@ -107,10 +97,9 @@ export const getSalesMissionAccess = cache(async (): Promise<SalesMissionAccess 
 
   const access: SalesMissionAccess = {
     userId: user.id,
-    companyId: membership.companyId,
-    companyName: membership.name,
-    companySlug: membership.slug,
-    companies: memberships.map((item) => ({ id: item.companyId, slug: item.slug, name: item.name, isHolding: item.isHolding })),
+    companyId: holding.id,
+    companyName: holding.name,
+    permissionScopes: [holding.id, ...memberships.map((item) => item.companyId).filter((id) => id !== holding.id)],
     displayName,
     avatarUrl,
     isSuperAdmin,
@@ -119,9 +108,18 @@ export const getSalesMissionAccess = cache(async (): Promise<SalesMissionAccess 
   }
   if (isSuperAdmin) return access
 
-  const permission = await loadModulePermission(access.companyId, roleId, userType, "sales_mission")
+  const permission = await loadPermissionAcross(access, "sales_mission")
   return permission?.can_read && permission.can_read !== "none" ? access : null
 })
+
+/** The first permission row found across the scopes the person may be configured in. */
+async function loadPermissionAcross(access: SalesMissionAccess, moduleId: string): Promise<ModulePermission | null> {
+  for (const scope of access.permissionScopes) {
+    const permission = await loadModulePermission(scope, access.roleId, access.userType, moduleId)
+    if (permission) return permission
+  }
+  return null
+}
 
 /**
  * What each module governs, so the admin matrix and the code agree:
@@ -221,7 +219,7 @@ export async function canPerform(
 ): Promise<boolean> {
   if (access.isSuperAdmin) return true
 
-  const permission = await loadModulePermission(access.companyId, access.roleId, access.userType, moduleId)
+  const permission = await loadPermissionAcross(access, moduleId)
 
   // Unconfigured module — see the note above. Deleting is the exception:
   // an unconfigured tenant should find the app working, not find that

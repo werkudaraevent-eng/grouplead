@@ -1,5 +1,5 @@
 import { createClient } from "@/utils/supabase/server"
-import type { CompanyOption, SalesMissionAccess } from "@/lib/sales-mission-access"
+import type { SalesMissionAccess } from "@/lib/sales-mission-access"
 import {
   mapMissions,
   type AssignmentRow,
@@ -208,19 +208,6 @@ export async function getMissionSettings(access: SalesMissionAccess): Promise<Mi
     requireAssignmentConfirmation: data?.require_assignment_confirmation ?? false,
     primaryCanReschedule: data?.primary_can_reschedule ?? true,
   }
-}
-
-/**
- * Which other unit of the viewer's a mission belongs to, if any. Row security
- * already limits the read to units they are a member of, so a hit here is by
- * construction somewhere they may switch to.
- */
-export async function findMissionElsewhere(access: SalesMissionAccess, missionId: string): Promise<CompanyOption | null> {
-  const { missions } = await missionSchema()
-  const { data } = await missions.from("missions").select("company_id").eq("id", missionId).maybeSingle()
-  const companyId = data?.company_id as string | undefined
-  if (!companyId || companyId === access.companyId) return null
-  return access.companies.find((company) => company.id === companyId) ?? null
 }
 
 export interface LeadPushRecord {

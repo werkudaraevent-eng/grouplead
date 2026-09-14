@@ -61,6 +61,22 @@ export function formatMonthLabel(month: string): string {
   )
 }
 
+/**
+ * The instants to load for a month: the month in mission time plus a week on
+ * either side, so the day panel is right at the edges. Computed from the
+ * month string, not from an instant: the first of the month at WIB midnight
+ * is still the previous month in UTC, and taking the UTC month from it once
+ * cut the window off on the 9th.
+ */
+export function monthWindow(month: string): { since: Date; until: Date } {
+  const year = Number(month.slice(0, 4))
+  const monthIndex = Number(month.slice(5, 7)) - 1
+  const offsetMs = 7 * 3_600_000 // WIB midnight is 17:00 UTC the day before
+  const start = Date.UTC(year, monthIndex, 1) - offsetMs
+  const end = Date.UTC(year, monthIndex + 1, 1) - offsetMs
+  return { since: new Date(start - 7 * 86_400_000), until: new Date(end + 7 * 86_400_000) }
+}
+
 /** Only the schedule matters here, so callers keep whatever else they carry. */
 type Schedulable = Pick<MissionListItem, "scheduledStart">
 

@@ -11,6 +11,7 @@ import {
   formatMonthLabel,
   missionDayKey,
   missionsOnDay,
+  monthWindow,
   resolveMonth,
   shiftMonth,
 } from "@/lib/missions/mission-calendar"
@@ -34,11 +35,7 @@ export default async function CalendarPage({
   const params = await searchParams
   const now = new Date()
   const month = resolveMonth(params.month, now)
-  // The month on screen plus a week each side, so the day panel is right at
-  // the edges; nothing outside it is drawn here.
-  const monthStart = new Date(`${month}-01T00:00:00+07:00`)
-  const since = new Date(monthStart.getTime() - 7 * 86_400_000)
-  const until = new Date(new Date(Date.UTC(monthStart.getUTCFullYear(), monthStart.getUTCMonth() + 1, 1)).getTime() + 8 * 86_400_000)
+  const { since, until } = monthWindow(month)
   const [rawMissions, settings, canCreate] = await Promise.all([
     listMissions(access, { since, until }),
     getMissionSettings(access),
@@ -172,13 +169,10 @@ export default async function CalendarPage({
               })}
             </div>
 
-            {/* A silent grid reads as broken. Name the unit whose calendar this
-                is, and, for someone who belongs to more than one, where the
-                other units' visits are. */}
+            {/* A silent grid reads as broken; say so in words. */}
             {monthTotal === 0 && (
               <p className="mt-4 rounded-lg border border-dashed bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
-                Tidak ada mission di unit {access.companyName} pada {formatMonthLabel(month)}.
-                {access.companies.length > 1 && " Mission unit lain ada di kalender unit itu; ganti unit lewat nama unit di sidebar."}
+                Tidak ada mission pada {formatMonthLabel(month)}.
               </p>
             )}
 

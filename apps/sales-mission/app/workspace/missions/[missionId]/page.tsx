@@ -4,11 +4,8 @@ import { Ban, Building2, CalendarDays, ClipboardList, ExternalLink, Mail, MapPin
 import { canPerform, getSalesMissionAccess } from "@/lib/sales-mission-access"
 import { requireModule } from "@/lib/missions/nav-access"
 import { PersonAvatar } from "@/components/person-avatar"
-import { SwitchCompanyButton } from "@/app/workspace/company-switcher"
-import type { CompanyOption } from "@/lib/sales-mission-access"
 import { formatPhone, normalizePhone } from "@/lib/format/phone"
 import {
-  findMissionElsewhere,
   getCancellation,
   getLeadPush,
   getMission,
@@ -82,28 +79,6 @@ function ReportField({ label, value }: { label: string; value: string }) {
   )
 }
 
-function WrongUnit({ current, target }: { current: string; target: CompanyOption }) {
-  return (
-    <div className="flex h-full items-center justify-center p-6">
-      <div className="w-full max-w-md rounded-xl border bg-card p-8 text-center shadow-sm">
-        <span className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-muted text-muted-foreground">
-          <Building2 className="h-6 w-6" />
-        </span>
-        <h1 className="mt-5 text-lg font-semibold text-foreground">Mission ini ada di unit {target.name}</h1>
-        <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-          Kamu sedang membuka Sales Mission sebagai {current}. Pindah unit untuk melihatnya; LeadEngine ikut berpindah.
-        </p>
-        <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
-          <SwitchCompanyButton slug={target.slug} label={`Pindah ke ${target.name}`} />
-          <Button asChild variant="outline" className="h-11">
-            <Link href="/workspace/missions">Lihat semua mission</Link>
-          </Button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
 export default async function MissionDetailPage({ params }: { params: Promise<{ missionId: string }> }) {
   const access = await getSalesMissionAccess()
   if (!access) redirect("/login?error=access_not_provisioned")
@@ -111,15 +86,7 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
 
   const { missionId } = await params
   const mission = await getMission(access, missionId)
-  // getMission is scoped to the unit in use. A mission in a unit the viewer
-  // does not belong to is indistinguishable from one that does not exist;
-  // that is the intent. A mission in another unit they DO belong to (a
-  // notification, a shared link) is offered as a switch instead of a 404.
-  if (!mission) {
-    const elsewhere = await findMissionElsewhere(access, missionId)
-    if (elsewhere) return <WrongUnit current={access.companyName} target={elsewhere} />
-    notFound()
-  }
+  if (!mission) notFound()
 
   // This page carries three different kinds of content, and the mission guard
   // above only covers one of them. Without these two the reporting module could

@@ -4,6 +4,7 @@ import {
   currentMissionMonth,
   formatMonthLabel,
   missionsOnDay,
+  monthWindow,
   resolveMonth,
   shiftMonth,
 } from "./mission-calendar"
@@ -84,6 +85,22 @@ describe("currentMissionMonth", () => {
   it("uses the Jakarta day, not the UTC one", () => {
     // 2026-09-01T00:30 WIB is still 2026-08-31 in UTC.
     expect(currentMissionMonth(new Date("2026-08-31T17:30:00.000Z"))).toBe("2026-09")
+  })
+})
+
+describe("monthWindow", () => {
+  it("covers the whole month in mission time, with a week either side", () => {
+    const { since, until } = monthWindow("2026-09")
+    expect(since.toISOString()).toBe("2026-08-24T17:00:00.000Z")
+    expect(until.toISOString()).toBe("2026-10-07T17:00:00.000Z")
+    // The bug this guards: a visit on the 21st must be inside the window.
+    const visit = new Date("2026-09-21T02:00:00.000Z")
+    expect(visit >= since && visit <= until).toBe(true)
+  })
+
+  it("handles the year boundary", () => {
+    const { until } = monthWindow("2026-12")
+    expect(until.toISOString()).toBe("2027-01-07T17:00:00.000Z")
   })
 })
 
