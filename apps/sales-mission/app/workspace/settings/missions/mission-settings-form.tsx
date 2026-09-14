@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
-import { Loader2, Save } from "lucide-react"
+import { Loader2, Save } from "@/components/icons"
 import { updateMissionSettings, type MissionSettingsInput } from "@/app/actions/mission-settings-actions"
 import type { MissionSettings } from "@/lib/missions/mission-queries"
 import { Button } from "@/components/ui/button"

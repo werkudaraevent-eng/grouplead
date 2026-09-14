@@ -1,6 +1,6 @@
 import Link from "next/link"
 import { notFound, redirect } from "next/navigation"
-import { Ban, Building2, CalendarDays, ClipboardList, ExternalLink, Mail, MapPin, Pencil, Phone, RotateCcw, UsersRound } from "lucide-react"
+import { Ban, Building2, CalendarDays, ClipboardList, ExternalLink, Mail, MapPin, Pencil, Phone, RotateCcw, UsersRound } from "@/components/icons"
 import { canPerform, getSalesMissionAccess } from "@/lib/sales-mission-access"
 import { requireModule } from "@/lib/missions/nav-access"
 import { PersonAvatar } from "@/components/person-avatar"

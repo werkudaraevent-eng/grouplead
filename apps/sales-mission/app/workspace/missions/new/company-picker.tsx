@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { Building2, Check, History, Loader2, X } from "lucide-react"
+import { Building2, Check, History, Loader2, X } from "@/components/icons"
 import { searchCompanies, type CompanySuggestion } from "@/app/actions/company-search-actions"
 import { Input } from "@/components/ui/input"
 

@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useMemo } from "react"
-import { X, BarChart3, PieChart, List, Hash } from "lucide-react"
+import { X, BarChart3, PieChart, List, Hash } from "@/components/icons"
 import { aggregateLeads, resolveField, computeFormula, type AggregateConfig } from "@/features/leads/lib/aggregate-leads"
 import { CustomWidgetRenderer } from "./custom-widget-renderer"
 import { KPI_ICONS, DEFAULT_KPI_ICON_KEY } from "./kpi-icons"

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { createClient } from "@/utils/supabase/client"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet"
 import { Button } from "@/components/ui/button"
-import { Loader2, Download } from "lucide-react"
+import { Loader2, Download } from "@/components/icons"
 import { useCurrency } from "@/contexts/currency-context"
 
 interface LeadRow {

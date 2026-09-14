@@ -8,7 +8,7 @@ import { useCurrency } from "@/contexts/currency-context"
 import { calculateAttainmentV2 } from "@/features/goals/lib/attainment-calculator"
 import { SectionCard, SectionTitle, SectionSub, StickyAxis } from "./shared"
 import { EmptyState } from "@/components/shared/empty-state"
-import { TrendingUp, Target, ArrowDown, ArrowUp, Building2, PieChart as PieChartIcon, BarChart3 } from "lucide-react"
+import { TrendingUp, Target, ArrowDown, ArrowUp, Building2, PieChart as PieChartIcon, BarChart3 } from "@/components/icons"
 import { useHasMounted } from "@/hooks/use-has-mounted"
 import {
   ResponsiveContainer,

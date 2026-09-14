@@ -3,7 +3,7 @@
 import { useEffect, useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
-import { AlertTriangle, Building2, ExternalLink, Loader2, Send, TriangleAlert } from "lucide-react"
+import { AlertTriangle, Building2, ExternalLink, Loader2, Send, TriangleAlert } from "@/components/icons"
 import { getPushPrecheck, pushMissionToLeadEngine, type PushPrecheck } from "@/app/actions/lead-push-actions"
 import type { TenantSalesOption } from "@/lib/missions/mission-queries"
 import { Button } from "@/components/ui/button"

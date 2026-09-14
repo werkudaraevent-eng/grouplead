@@ -15,7 +15,7 @@ import {
     Plus, Loader2, Target, TrendingUp,
     CheckCircle2, XCircle, Search, ChevronLeft, ChevronRight,
     Network, Building, AlertTriangle
-} from "lucide-react"
+} from "@/components/icons"
 import { useCurrency } from "@/contexts/currency-context"
 import type { ClientCompany, Contact } from "@/types"
 import { TimelineTab } from "./timeline-tab"

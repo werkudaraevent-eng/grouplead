@@ -11,7 +11,7 @@ import {
     Pencil, Check, X, Loader2, Plus,
     Bold, Italic, Underline as UnderlineIcon, List, ListOrdered,
     Heading2, Undo2, Redo2, Link2,
-} from "lucide-react"
+} from "@/components/icons"
 
 import { useEditor, EditorContent, type Editor } from "@tiptap/react"
 import StarterKit from "@tiptap/starter-kit"

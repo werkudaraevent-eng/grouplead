@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
-import { Ban, Loader2 } from "lucide-react"
+import { Ban, Loader2 } from "@/components/icons"
 import { cancelMission } from "@/app/actions/mission-actions"
 import { Button } from "@/components/ui/button"
 import {

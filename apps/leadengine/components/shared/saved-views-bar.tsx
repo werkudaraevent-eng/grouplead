@@ -14,7 +14,7 @@
  */
 
 import * as React from "react"
-import { MoreHorizontal, Plus, Save, Pencil, Trash2, Star } from "lucide-react"
+import { MoreHorizontal, Plus, Save, Pencil, Trash2, Star } from "@/components/icons"
 import { Button } from "@/components/ui/button"
 import {
     DropdownMenu,

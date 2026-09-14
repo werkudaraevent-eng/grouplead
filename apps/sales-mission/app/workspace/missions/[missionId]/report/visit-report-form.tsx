@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { AlertCircle, Check, Cloud, CloudOff, Loader2, Plus, Send, Trash2 } from "lucide-react"
+import { AlertCircle, Check, Cloud, CloudOff, Loader2, Plus, Send, Trash2 } from "@/components/icons"
 import { saveVisitReportDraft, submitVisitReport } from "@/app/actions/visit-report-actions"
 import {
   INTEREST_LEVELS,

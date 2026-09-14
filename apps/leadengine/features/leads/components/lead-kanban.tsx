@@ -24,7 +24,7 @@ import { Tooltip } from "@/components/ui/tooltip"
 import { toast } from "sonner"
 import { updatePipelineStageAction } from "@/app/actions/lead-actions"
 import { renameStageAction, cloneStageAction, deleteStageAction } from "@/app/actions/stage-actions"
-import { Building2, CalendarDays, CheckCircle2, ChevronsRight, Copy, Edit2, Globe, Loader2, MoreHorizontal, Pencil, Trash2, User, XCircle, Clock, Check, ThumbsDown, ThumbsUp } from "lucide-react"
+import { Building2, CalendarDays, CheckCircle2, ChevronsRight, Copy, Edit2, Globe, Loader2, MoreHorizontal, Pencil, Trash2, User, XCircle, Clock, Check, ThumbsDown, ThumbsUp } from "@/components/icons"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
 import {
@@ -50,7 +50,7 @@ import {
     PopoverContent,
     PopoverTrigger,
 } from "@/components/ui/popover"
-import { Settings2, Plus } from "lucide-react"
+import { Settings2, Plus } from "@/components/icons"
 import { TransitionPromptModal } from "./transition-prompt-modal"
 import { StageBackwardConfirmModal } from "./stage-backward-confirm-modal"
 import {

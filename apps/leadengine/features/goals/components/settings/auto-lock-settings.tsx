@@ -10,7 +10,7 @@ import { Switch } from "@/components/ui/switch"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { updateGoalSettingsV2Action } from "@/app/actions/goal-actions"
 import { toast } from "sonner"
-import { Loader2 } from "lucide-react"
+import { Loader2 } from "@/components/icons"
 
 export function AutoLockSettings() {
   const supabase = createClient()

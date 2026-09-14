@@ -15,7 +15,7 @@ import { Textarea } from "@/components/ui/textarea"
 import {
     Form, FormControl, FormField, FormItem, FormMessage
 } from "@/components/ui/form"
-import { Loader2, Check, ChevronsUpDown, Settings2 } from "lucide-react"
+import { Loader2, Check, ChevronsUpDown, Settings2 } from "@/components/icons"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import {
     Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList,

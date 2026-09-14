@@ -44,7 +44,7 @@ const DEFAULT_LAYOUT: LayoutItemsMap = {
     financial: ["native:estimated_value"],
     hidden: []
 }
-import { Save, Loader2, Check, ChevronsUpDown, Plus, Trash2, X, CalendarIcon, Settings2 } from "lucide-react"
+import { Save, Loader2, Check, ChevronsUpDown, Plus, Trash2, X, CalendarIcon, Settings2 } from "@/components/icons"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import { MultiDatePicker } from "@/components/shared/multi-date-picker"
 import { Switch } from "@/components/ui/switch"

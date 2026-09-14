@@ -14,7 +14,7 @@ import {
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Checkbox } from '@/components/ui/checkbox'
-import { Loader2 } from 'lucide-react'
+import { Loader2 } from "@/components/icons"
 import { toast } from 'sonner'
 import type { Company } from '@/types/company'
 import { normalizeStringFields } from '@/lib/text-normalize'

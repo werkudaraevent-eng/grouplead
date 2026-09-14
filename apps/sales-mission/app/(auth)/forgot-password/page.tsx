@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import { ArrowLeft, Loader2, MailCheck } from "lucide-react"
+import { ArrowLeft, Loader2, MailCheck } from "@/components/icons"
 import { createClient } from "@/utils/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"

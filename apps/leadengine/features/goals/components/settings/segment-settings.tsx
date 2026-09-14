@@ -24,7 +24,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { Loader2, Plus, Pencil, Trash2, Tags, AlertTriangle } from "lucide-react"
+import { Loader2, Plus, Pencil, Trash2, Tags, AlertTriangle } from "@/components/icons"
 import { toast } from "sonner"
 import type { GoalSegment, SegmentMappingEntry } from "@/types/goals"
 

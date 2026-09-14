@@ -26,7 +26,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Loader2 } from "lucide-react"
+import { Loader2 } from "@/components/icons"
 import type { GoalV2, SavedViewConfig } from "@/types/goals"
 
 export function ManagementDashboard() {

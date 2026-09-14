@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { CalendarCheck, CalendarDays, CheckCircle2, ClipboardList, History, MapPin, Users } from "lucide-react"
+import { CalendarCheck, CalendarDays, CheckCircle2, ClipboardList, History, MapPin, Users } from "@/components/icons"
 import type { BoardMission, BoardSnapshot } from "@/lib/board/board-snapshot"
 import type { BoardPanel } from "@/lib/board/board-options"
 import { describeAudit, groupAuditEvents, type AuditRow } from "@/lib/audit/describe-audit"

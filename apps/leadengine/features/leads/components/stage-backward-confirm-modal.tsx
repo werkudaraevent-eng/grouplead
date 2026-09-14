@@ -1,6 +1,6 @@
 "use client"
 
-import { AlertTriangle, CornerUpLeft } from "lucide-react"
+import { AlertTriangle, CornerUpLeft } from "@/components/icons"
 import {
     AlertDialog,
     AlertDialogAction,

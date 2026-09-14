@@ -41,7 +41,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import {
     ChevronLeft, ChevronRight, Columns3, Eye, EyeOff,
     GripVertical, RotateCcw, Trash2, Download, X,
-} from "lucide-react"
+} from "@/components/icons"
 
 // ── Bulk action types ──
 export interface BulkActions<TData> {

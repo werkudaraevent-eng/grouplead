@@ -7,7 +7,7 @@ import { createClient } from "@/utils/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Loader2, ArrowRight, BarChart3, Users, Target, TrendingUp, Eye, EyeOff } from "lucide-react"
+import { Loader2, ArrowRight, BarChart3, Users, Target, TrendingUp, Eye, EyeOff } from "@/components/icons"
 import { newSessionId, writeActiveSessionId } from "@/lib/session-guard"
 
 export default function LoginPage() {

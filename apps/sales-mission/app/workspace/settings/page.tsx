@@ -2,7 +2,7 @@ import Link from "next/link"
 import { redirect } from "next/navigation"
 import { getSalesMissionAccess } from "@/lib/sales-mission-access"
 import { requireModule } from "@/lib/missions/nav-access"
-import { ArrowUpRight, Bell, Building2, Database, History, ListChecks, MonitorPlay, ShieldCheck } from "lucide-react"
+import { ArrowUpRight, Bell, Building2, Database, History, ListChecks, MonitorPlay, ShieldCheck } from "@/components/icons"
 import { WorkspacePage } from "@/app/workspace/workspace-page"
 
 const SETTING_CARDS = [

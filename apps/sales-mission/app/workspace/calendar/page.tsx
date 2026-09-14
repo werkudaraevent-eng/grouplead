@@ -1,6 +1,6 @@
 import Link from "next/link"
 import { redirect } from "next/navigation"
-import { CalendarDays, ChevronLeft, ChevronRight, Plus } from "lucide-react"
+import { CalendarDays, ChevronLeft, ChevronRight, Plus } from "@/components/icons"
 import { canPerform, getSalesMissionAccess } from "@/lib/sales-mission-access"
 import { requireModule } from "@/lib/missions/nav-access"
 import { getMissionSettings, listMissions } from "@/lib/missions/mission-queries"

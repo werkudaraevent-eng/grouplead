@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation"
 import { useTransition } from "react"
-import { Check, ChevronsUpDown, Loader2 } from "lucide-react"
+import { Check, ChevronsUpDown, Loader2 } from "@/components/icons"
 import { toast } from "sonner"
 import { switchActiveCompany } from "@/app/actions/company-actions"
 import type { CompanyOption } from "@/lib/sales-mission-access"

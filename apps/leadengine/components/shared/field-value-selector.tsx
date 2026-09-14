@@ -7,7 +7,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Command, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem } from "@/components/ui/command"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Button } from "@/components/ui/button"
-import { Loader2, X, ChevronsUpDown } from "lucide-react"
+import { Loader2, X, ChevronsUpDown } from "@/components/icons"
 
 interface FieldValueSelectorProps {
   fieldKey: string

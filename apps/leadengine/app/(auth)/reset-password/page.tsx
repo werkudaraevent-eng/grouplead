@@ -7,7 +7,7 @@ import { createClient } from "@/utils/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Loader2, ArrowLeft, CheckCircle2, KeyRound, Eye, EyeOff } from "lucide-react"
+import { Loader2, ArrowLeft, CheckCircle2, KeyRound, Eye, EyeOff } from "@/components/icons"
 
 export default function ResetPasswordPage() {
     const router = useRouter()

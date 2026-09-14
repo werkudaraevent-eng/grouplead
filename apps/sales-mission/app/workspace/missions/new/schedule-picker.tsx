@@ -1,7 +1,7 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { AlertTriangle, CalendarDays, ChevronLeft, ChevronRight } from "lucide-react"
+import { AlertTriangle, CalendarDays, ChevronLeft, ChevronRight } from "@/components/icons"
 import type { ConflictSettings } from "@/lib/missions/mission-join"
 import { buildMonthGrid, formatMonthLabel, shiftMonth } from "@/lib/missions/mission-calendar"
 import {

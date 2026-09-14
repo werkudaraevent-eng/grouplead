@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react"
 import { askAI, type AskAIResponse } from "@/app/actions/ai-actions"
-import { MessageCircle, X, Send, Loader2, Bot, User } from "lucide-react"
+import { MessageCircle, X, Send, Loader2, Bot, User } from "@/components/icons"
 
 interface Message {
   role: "user" | "assistant"

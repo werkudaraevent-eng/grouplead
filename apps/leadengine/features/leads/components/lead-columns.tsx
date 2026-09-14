@@ -2,7 +2,7 @@
 
 import { ColumnDef } from "@tanstack/react-table"
 import { Lead, PipelineStage, TransitionRule } from "@/types"
-import { ArrowUpDown, ArrowUp, ArrowDown, ExternalLink } from "lucide-react"
+import { ArrowUpDown, ArrowUp, ArrowDown, ExternalLink } from "@/components/icons"
 import Link from "next/link"
 import { formatCurrency as formatCurrencyDefault } from "@/lib/format-currency"
 import { StageCellEditor } from "@/features/leads/components/stage-cell-editor"

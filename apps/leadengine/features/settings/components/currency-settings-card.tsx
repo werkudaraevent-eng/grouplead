@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { ChevronRight, Loader2, Check, DollarSign } from "lucide-react"
+import { ChevronRight, Loader2, Check, DollarSign } from "@/components/icons"
 import { toast } from "sonner"
 import { useCompany } from "@/contexts/company-context"
 import { useCurrency } from "@/contexts/currency-context"

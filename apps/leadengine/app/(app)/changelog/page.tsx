@@ -4,7 +4,7 @@ import { useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { usePermissions } from "@/contexts/permissions-context"
 import { CHANGELOG, CHANGE_TYPE_META } from "@/features/changelog/changelog-data"
-import { ScrollText, ShieldAlert, ArrowLeft } from "lucide-react"
+import { ScrollText, ShieldAlert, ArrowLeft } from "@/components/icons"
 import { Button } from "@/components/ui/button"
 
 function formatDate(iso: string): string {

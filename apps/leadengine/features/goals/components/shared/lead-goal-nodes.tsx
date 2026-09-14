@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import { createClient } from "@/utils/supabase/client"
 import { useCompany } from "@/contexts/company-context"
 import { findLeadNodePaths, buildAncestorPath } from "@/features/goals/lib/node-attribution"
-import { GitBranch } from "lucide-react"
+import { GitBranch } from "@/components/icons"
 import type { GoalNode, GoalSegment } from "@/types/goals"
 
 interface LeadGoalNodesProps {

@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
-import { AlertTriangle, Loader2, Trash2 } from "lucide-react"
+import { AlertTriangle, Loader2, Trash2 } from "@/components/icons"
 import { clearAllMissions } from "@/app/actions/mission-actions"
 import { CLEAR_ALL_PHRASE } from "@/lib/missions/clear-phrase"
 import { Button } from "@/components/ui/button"

@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { createClient } from "@/utils/supabase/client"
 import { toast } from "sonner"
-import { Pencil, Loader2, Check, X } from "lucide-react"
+import { Pencil, Loader2, Check, X } from "@/components/icons"
 import { usePermissions } from "@/contexts/permissions-context"
 
 interface HeaderMetricPopoverProps {

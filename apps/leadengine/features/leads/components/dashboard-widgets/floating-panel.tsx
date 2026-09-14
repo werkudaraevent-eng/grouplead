@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { createPortal } from "react-dom"
-import { Minus, X } from "lucide-react"
+import { Minus, X } from "@/components/icons"
 
 interface FloatingPanelProps {
   id: string

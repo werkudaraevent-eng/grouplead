@@ -2,7 +2,7 @@
 
 import { useActionState, useEffect, useRef, useState } from "react"
 import Link from "next/link"
-import { AlertCircle, Loader2, Plus, Save } from "lucide-react"
+import { AlertCircle, Loader2, Plus, Save } from "@/components/icons"
 import { createMission, type CreateMissionState } from "@/app/actions/mission-actions"
 import { MISSION_TYPES } from "@/lib/missions/mission-schema"
 import {

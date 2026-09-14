@@ -5,7 +5,7 @@ import {
   Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter,
 } from "@/components/ui/sheet"
 import { Button } from "@/components/ui/button"
-import { Loader2 } from "lucide-react"
+import { Loader2 } from "@/components/icons"
 import { updateGoalV2Action } from "@/app/actions/goal-actions"
 import { toast } from "sonner"
 import { GoalConfigOverview } from "./goal-config-overview"

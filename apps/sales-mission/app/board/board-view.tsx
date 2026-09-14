@@ -1,4 +1,4 @@
-import { CalendarCheck, CalendarDays, CheckCircle2, MapPin, Users } from "lucide-react"
+import { CalendarCheck, CalendarDays, CheckCircle2, MapPin, Users } from "@/components/icons"
 import type { BoardMission, BoardSnapshot } from "@/lib/board/board-snapshot"
 import type { BoardPanel } from "@/lib/board/board-options"
 import { MISSION_TIME_ZONE } from "@/lib/missions/mission-schema"

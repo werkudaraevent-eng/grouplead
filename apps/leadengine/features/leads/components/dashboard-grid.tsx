@@ -3,7 +3,7 @@
 import { Children, useState, useEffect, useCallback, useRef, useMemo } from "react"
 import { createPortal } from "react-dom"
 import { GridLayout, type Layout, type LayoutItem } from "react-grid-layout"
-import { Pencil, Check, X, RotateCcw, GripVertical, Plus, LayoutGrid } from "lucide-react"
+import { Pencil, Check, X, RotateCcw, GripVertical, Plus, LayoutGrid } from "@/components/icons"
 import {
     getDefaultLayout,
     DEFAULT_HIDDEN_WIDGETS,

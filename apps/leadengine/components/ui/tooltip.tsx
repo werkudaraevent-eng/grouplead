@@ -2,7 +2,7 @@
 
 import { ReactNode } from "react"
 import { Tooltip as TooltipPrimitive } from "radix-ui"
-import { HelpCircle } from "lucide-react"
+import { HelpCircle } from "@/components/icons"
 import { cn } from "@/lib/utils"
 
 interface TooltipProps {

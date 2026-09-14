@@ -11,7 +11,7 @@ import {
     Database,
     ShieldAlert,
     Trash2,
-} from "lucide-react"
+} from "@/components/icons"
 import { SettingsPageHeader } from "@/components/layout/settings-page-header"
 import { CurrencySettingsRow } from "@/features/settings/components/currency-settings-card"
 import { MaintenanceSection } from "@/features/settings/components/maintenance-section"

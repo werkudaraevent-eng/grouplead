@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Building2, Check, Globe, ChevronsUpDown, ChevronDown, Loader2 } from 'lucide-react'
+import { Building2, Check, Globe, ChevronsUpDown, ChevronDown, Loader2 } from "@/components/icons"
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,

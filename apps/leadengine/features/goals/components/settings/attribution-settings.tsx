@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/select"
 import { updateGoalV2Action } from "@/app/actions/goal-actions"
 import { toast } from "sonner"
-import { Loader2 } from "lucide-react"
+import { Loader2 } from "@/components/icons"
 import type { GoalV2 } from "@/types/goals"
 
 const MONTHS = [

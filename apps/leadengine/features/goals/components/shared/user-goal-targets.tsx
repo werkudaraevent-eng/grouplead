@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import { createClient } from "@/utils/supabase/client"
 import { useCompany } from "@/contexts/company-context"
-import { Target } from "lucide-react"
+import { Target } from "@/components/icons"
 import type { GoalUserTarget, GoalNode, GoalV2 } from "@/types/goals"
 import { useCurrency } from "@/contexts/currency-context"
 

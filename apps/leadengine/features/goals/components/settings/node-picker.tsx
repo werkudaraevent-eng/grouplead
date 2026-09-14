@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from "react"
 import { createClient } from "@/utils/supabase/client"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Button } from "@/components/ui/button"
-import { ChevronDown, Check, Loader2 } from "lucide-react"
+import { ChevronDown, Check, Loader2 } from "@/components/icons"
 import { cn } from "@/lib/utils"
 import type { GoalNode, GoalNodeTree } from "@/types/goals"
 

@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useTransition } from "react"
 import Link from "next/link"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
-import { ChevronDown, ChevronLeft, ChevronRight, Minus, Pencil, Plus, Search, Trash2, X } from "lucide-react"
+import { ChevronDown, ChevronLeft, ChevronRight, Minus, Pencil, Plus, Search, Trash2, X } from "@/components/icons"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"

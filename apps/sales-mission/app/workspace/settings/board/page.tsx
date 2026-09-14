@@ -1,7 +1,7 @@
 import Link from "next/link"
 import { headers } from "next/headers"
 import { redirect } from "next/navigation"
-import { MonitorPlay } from "lucide-react"
+import { MonitorPlay } from "@/components/icons"
 import { canPerform, getSalesMissionAccess } from "@/lib/sales-mission-access"
 import { createClient } from "@/utils/supabase/server"
 import { BackLink, EmptyState, WorkspacePage } from "@/app/workspace/workspace-page"

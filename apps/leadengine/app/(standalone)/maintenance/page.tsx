@@ -1,5 +1,5 @@
 import { createClient } from "@/utils/supabase/server"
-import { Wrench } from "lucide-react"
+import { Wrench } from "@/components/icons"
 
 export const dynamic = "force-dynamic"
 

@@ -21,7 +21,7 @@ import {
     format, parseISO, isValid,
     startOfMonth, endOfMonth, subMonths, subDays, startOfYear,
 } from "date-fns"
-import { CalendarDays, ChevronDown } from "lucide-react"
+import { CalendarDays, ChevronDown } from "@/components/icons"
 import type { DateRange } from "react-day-picker"
 
 import { Calendar } from "@/components/ui/calendar"

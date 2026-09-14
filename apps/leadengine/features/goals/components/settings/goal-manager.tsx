@@ -24,7 +24,7 @@ import {
 import { Switch } from "@/components/ui/switch"
 import { createGoalV2Action, updateGoalV2Action, deleteGoalV2Action } from "@/app/actions/goal-actions"
 import { toast } from "sonner"
-import { Plus, Loader2, Pencil, Trash2, Target } from "lucide-react"
+import { Plus, Loader2, Pencil, Trash2, Target } from "@/components/icons"
 import type { GoalV2 } from "@/types/goals"
 import { useCurrency } from "@/contexts/currency-context"
 

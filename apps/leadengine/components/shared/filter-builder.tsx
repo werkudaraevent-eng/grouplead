@@ -16,7 +16,7 @@
  */
 
 import * as React from "react"
-import { ChevronDown, Plus, X, Filter } from "lucide-react"
+import { ChevronDown, Plus, X, Filter } from "@/components/icons"
 import { Button } from "@/components/ui/button"
 import {
     Popover,

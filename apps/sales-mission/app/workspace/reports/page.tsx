@@ -9,7 +9,7 @@ import {
   Target,
   UserCheck,
   Users,
-} from "lucide-react"
+} from "@/components/icons"
 import { getSalesMissionAccess } from "@/lib/sales-mission-access"
 import { requireModule } from "@/lib/missions/nav-access"
 import { listReportRecords } from "@/lib/reporting/report-queries"

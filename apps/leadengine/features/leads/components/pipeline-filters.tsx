@@ -4,7 +4,7 @@ import {
     Filter, X, Plus, Trash2, Check, ChevronDown,
     User, Tags, Building, DollarSign, Calendar, FileText,
     MapPin, Globe, Briefcase, Hash, Layers, Search
-} from "lucide-react"
+} from "@/components/icons"
 import { Button } from "@/components/ui/button"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Input } from "@/components/ui/input"

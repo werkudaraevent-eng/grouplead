@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react"
 import {
   Pencil, ArrowLeftRight, Plus, Trash2, Copy, UserPlus,
-} from "lucide-react"
+} from "@/components/icons"
 
 interface GoalContextMenuProps {
   x: number

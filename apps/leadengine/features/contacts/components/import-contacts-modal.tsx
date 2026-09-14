@@ -17,7 +17,7 @@ import {
     Upload, Download, FileSpreadsheet, CheckCircle2, XCircle,
     AlertTriangle, Loader2, ArrowRight, ArrowLeft, Link2, Link2Off,
     RotateCcw,
-} from "lucide-react"
+} from "@/components/icons"
 import { normalizePhoneToE164 } from "@/lib/phone-normalize"
 import type { FormSchema } from "@/types"
 

@@ -1,7 +1,7 @@
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Loader2, Target } from "lucide-react"
+import { Loader2, Target } from "@/components/icons"
 import { useCurrency } from "@/contexts/currency-context"
 
 interface ForecastWidgetProps {

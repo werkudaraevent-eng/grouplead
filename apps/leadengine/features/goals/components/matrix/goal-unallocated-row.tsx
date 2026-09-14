@@ -1,6 +1,6 @@
 "use client"
 
-import { AlertTriangle } from "lucide-react"
+import { AlertTriangle } from "@/components/icons"
 import { computeMonthlyTarget } from "@/features/goals/lib/target-calculator"
 import type { GoalNodeTree, MonthlyWeights } from "@/types/goals"
 import { useCurrency } from "@/contexts/currency-context"

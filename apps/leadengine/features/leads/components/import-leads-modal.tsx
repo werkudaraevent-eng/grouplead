@@ -33,7 +33,7 @@ import {
     Upload, Download, FileSpreadsheet, CheckCircle2, XCircle,
     AlertTriangle, Loader2, ArrowRight, ArrowLeft, Link2, Link2Off,
     Sparkles, RotateCcw, Save, Workflow, Plus, Trash2,
-} from "lucide-react"
+} from "@/components/icons"
 
 // Shape of an import-mappable field. Native fields map straight onto lead
 // columns / resolver inputs; custom fields (sourced from `form_schemas`) are

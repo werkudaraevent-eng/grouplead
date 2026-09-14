@@ -21,7 +21,7 @@ import {
 import { Switch } from "@/components/ui/switch"
 import { createGoalV2Action, updateGoalV2Action, deleteGoalV2Action } from "@/app/actions/goal-actions"
 import { toast } from "sonner"
-import { Plus, Loader2, Pencil, Trash2, Target, ArrowRight, Star, MoreVertical, Calendar, TrendingUp } from "lucide-react"
+import { Plus, Loader2, Pencil, Trash2, Target, ArrowRight, Star, MoreVertical, Calendar, TrendingUp } from "@/components/icons"
 import { SettingsPageHeader } from "@/components/layout/settings-page-header"
 import type { GoalV2 } from "@/types/goals"
 import { useCurrency } from "@/contexts/currency-context"

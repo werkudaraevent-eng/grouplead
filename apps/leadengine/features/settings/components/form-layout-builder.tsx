@@ -7,7 +7,7 @@ import {
     SortableContext, arrayMove, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable,
 } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
-import { GripVertical, EyeOff, Eye, LayoutTemplate, Loader2, Save, X, Pencil, Zap, Plus, Trash2, Settings } from "lucide-react"
+import { GripVertical, EyeOff, Eye, LayoutTemplate, Loader2, Save, X, Pencil, Zap, Plus, Trash2, Settings } from "@/components/icons"
 import { Button } from "@/components/ui/button"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { Switch } from "@/components/ui/switch"

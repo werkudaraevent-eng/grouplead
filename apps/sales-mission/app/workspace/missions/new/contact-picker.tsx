@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { Check, Loader2, UserRound } from "lucide-react"
+import { Check, Loader2, UserRound } from "@/components/icons"
 import { lookupCompanyContacts, type ContactSuggestion } from "@/app/actions/contact-search-actions"
 import { mergeContactFields } from "@/lib/missions/contact-draft"
 import { Input } from "@/components/ui/input"

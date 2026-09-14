@@ -19,7 +19,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
-import { Bookmark, Save, Trash2 } from "lucide-react"
+import { Bookmark, Save, Trash2 } from "@/components/icons"
 import type { SavedView } from "@/types/goals"
 
 interface SavedViewSelectorProps {

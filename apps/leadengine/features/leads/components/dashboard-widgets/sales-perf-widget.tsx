@@ -5,7 +5,7 @@ import { useCurrency } from "@/contexts/currency-context"
 import { SectionCard, SectionTitle, SectionSub, InsightCallout, MiniSelect } from "./shared"
 import { EmptyState } from "@/components/shared/empty-state"
 import { getInitials, getAvatarColor } from "@/lib/avatar"
-import { Users } from "lucide-react"
+import { Users } from "@/components/icons"
 
 // Sort modes offered to the user. Default `achievement_asc` keeps the
 // action-oriented behaviour (worst performers surface at the top), but the

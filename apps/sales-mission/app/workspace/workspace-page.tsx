@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { ArrowLeft, ClipboardList, Plus } from "lucide-react"
+import { ArrowLeft, ClipboardList, Plus } from "@/components/icons"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { JOIN_STATUS_LABELS, type JoinStatus } from "@/lib/missions/mission-join"

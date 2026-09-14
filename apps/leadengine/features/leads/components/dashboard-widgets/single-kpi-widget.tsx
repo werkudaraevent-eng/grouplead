@@ -1,7 +1,7 @@
 "use client"
 
 import { cn } from "@/lib/utils"
-import { Info } from "lucide-react"
+import { Info } from "@/components/icons"
 import { Tooltip as TooltipPrimitive } from "radix-ui"
 import { useEffect, useId, useRef, useState, type ReactNode } from "react"
 

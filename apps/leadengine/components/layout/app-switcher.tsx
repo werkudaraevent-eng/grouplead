@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { Check, ExternalLink, LayoutDashboard, MapPinned } from "lucide-react"
+import { Check, ExternalLink, LayoutDashboard, MapPinned } from "@/components/icons"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { usePermissions } from "@/contexts/permissions-context"
 

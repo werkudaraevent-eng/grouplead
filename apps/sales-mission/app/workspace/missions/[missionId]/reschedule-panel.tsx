@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
-import { CalendarClock, Loader2 } from "lucide-react"
+import { CalendarClock, Loader2 } from "@/components/icons"
 import { rescheduleMission, requestReschedule } from "@/app/actions/assignment-actions"
 import type { ConflictSettings } from "@/lib/missions/mission-join"
 import type { PersonSchedule } from "@/lib/missions/schedule-availability"

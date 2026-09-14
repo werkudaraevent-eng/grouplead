@@ -16,7 +16,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { createClient } from "@/utils/supabase/client"
 import { useRouter } from "next/navigation"
-import { Loader2 } from "lucide-react"
+import { Loader2 } from "@/components/icons"
 
 interface WorkflowActionsProps {
     lead: Lead

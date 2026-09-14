@@ -15,7 +15,7 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
-import { Building2, Globe, Plus, Loader2, Users, Pencil, Trash2, Search, MoreHorizontal } from 'lucide-react'
+import { Building2, Globe, Plus, Loader2, Users, Pencil, Trash2, Search, MoreHorizontal } from "@/components/icons"
 import { SettingsPageHeader } from "@/components/layout/settings-page-header"
 import { toast } from 'sonner'
 import { CompanyForm } from '@/features/companies/components/company-form'

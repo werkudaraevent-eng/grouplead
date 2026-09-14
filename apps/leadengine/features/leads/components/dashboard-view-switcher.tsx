@@ -12,7 +12,7 @@ import {
   Trash2,
   Check,
   CircleDot,
-} from "lucide-react"
+} from "@/components/icons"
 import {
   DropdownMenu,
   DropdownMenuContent,

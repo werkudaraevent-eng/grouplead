@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/command"
 import { createClient } from "@/utils/supabase/client"
 import { toast } from "sonner"
-import { Pencil, Check, Loader2, X } from "lucide-react"
+import { Pencil, Check, Loader2, X } from "@/components/icons"
 import { cn } from "@/lib/utils"
 import { useMasterOptions } from "@/hooks/use-master-options"
 import { usePermissions } from "@/contexts/permissions-context"

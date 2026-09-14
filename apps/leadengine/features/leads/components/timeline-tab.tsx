@@ -8,7 +8,7 @@ import {
     Loader2, ArrowRightLeft, FileText, Mail,
     Calendar, Plus, Sparkles, Trash2, Edit3,
     User, Paperclip, Clock,
-} from "lucide-react"
+} from "@/components/icons"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"

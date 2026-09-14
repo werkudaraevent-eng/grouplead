@@ -7,7 +7,7 @@ import { toast } from "sonner"
 import {
     Loader2, Plus, CheckCircle2, Circle, Trash2,
     CheckSquare, User as UserIcon, CalendarDays, X,
-} from "lucide-react"
+} from "@/components/icons"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Calendar } from "@/components/ui/calendar"
 import {

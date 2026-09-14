@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Wrench, ShieldAlert, Loader2 } from "lucide-react"
+import { Wrench, ShieldAlert, Loader2 } from "@/components/icons"
 import { toast } from "sonner"
 import { Switch } from "@/components/ui/switch"
 import {

@@ -20,7 +20,7 @@ import {
     isAllTimeRange,
     type DashboardPeriod,
 } from "@/features/leads/lib/dashboard-period"
-import { Briefcase, Trophy, RefreshCw, TrendingUp, Calendar, FileDown, Sparkles, MessageCircle, Loader2, MoreHorizontal, Info, XCircle } from "lucide-react"
+import { Briefcase, Trophy, RefreshCw, TrendingUp, Calendar, FileDown, Sparkles, MessageCircle, Loader2, MoreHorizontal, Info, XCircle } from "@/components/icons"
 import { useCurrency } from "@/contexts/currency-context"
 import { MONTHS_SHORT, getVsLastYearPct } from "./dashboard-widgets/shared"
 import { formatRelativeTime, latestTimestamp } from "@/lib/relative-time"

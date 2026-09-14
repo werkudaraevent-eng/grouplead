@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Check, ChevronDown, X } from "lucide-react"
+import { Check, ChevronDown, X } from "@/components/icons"
 import {
   Command,
   CommandEmpty,

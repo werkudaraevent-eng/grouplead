@@ -3,7 +3,7 @@
 import { useMemo } from "react"
 import { Lead } from "@/types"
 import { SectionCard, SectionTitle, SectionSub } from "@/features/leads/components/dashboard-widgets/shared"
-import { Users, TrendingUp } from "lucide-react"
+import { Users, TrendingUp } from "@/components/icons"
 import { useCurrency } from "@/contexts/currency-context"
 
 interface ContactAnalyticsWidgetProps {

@@ -7,7 +7,7 @@ import {
     Award, Crown, Star, Heart, Gem, ShieldCheck,
     Handshake, Megaphone, Send, Mail, Phone, Radio,
     Layers, Package, ShoppingCart, Truck, Wrench, Settings,
-} from "lucide-react"
+} from "@/components/icons"
 import {
     Popover,
     PopoverContent,

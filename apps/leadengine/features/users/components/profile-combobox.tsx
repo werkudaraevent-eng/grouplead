@@ -6,7 +6,7 @@ import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator } from "@/components/ui/command"
-import { Check, ChevronsUpDown, X } from "lucide-react"
+import { Check, ChevronsUpDown, X } from "@/components/icons"
 import { cn } from "@/lib/utils"
 import { getInitials, getAvatarColor } from "@/lib/avatar"
 

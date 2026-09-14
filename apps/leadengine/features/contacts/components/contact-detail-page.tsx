@@ -14,7 +14,7 @@ import {
     Briefcase, FileText, Clock, Folder, Users, Mail,
     Target, TrendingUp, CheckCircle2, XCircle, Loader2, Linkedin,
     CalendarDays, Link2, Search, ChevronLeft, ChevronRight, ArrowUpRight, AlertTriangle
-} from "lucide-react"
+} from "@/components/icons"
 import { useCurrency } from "@/contexts/currency-context"
 
 import { ContactTimelineTab } from "./contact-timeline-tab"

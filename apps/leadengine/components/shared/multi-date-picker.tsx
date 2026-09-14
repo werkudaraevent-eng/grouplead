@@ -1,6 +1,6 @@
 "use client"
 import React, { useState, useMemo, useCallback } from "react"
-import { CalendarIcon, X } from "lucide-react"
+import { CalendarIcon, X } from "@/components/icons"
 import { cn } from "@/lib/utils"
 import { Popover, PopoverContent, PopoverAnchor } from "@/components/ui/popover"
 

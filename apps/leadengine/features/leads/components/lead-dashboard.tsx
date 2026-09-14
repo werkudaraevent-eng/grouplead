@@ -30,7 +30,7 @@ import {
     Archive, RotateCcw, Settings2, ArchiveRestore, Upload, Download,
     ChevronsLeft, ChevronsRight, TrendingUp, ArrowUpDown,
     Check, Clock, CalendarClock, DollarSign, GripVertical,
-} from "lucide-react"
+} from "@/components/icons"
 import { PipelineFilters, PipelineFilterState, INITIAL_FILTER_STATE, ActiveFilterPills, applyFilters } from "@/features/leads/components/pipeline-filters"
 import { PipelineIconPicker, PipelineIcon, DEFAULT_PIPELINE_ICON } from "@/features/leads/components/pipeline-icon-picker"
 import { useResizablePanel } from "@/hooks/use-resizable-panel"

@@ -2,7 +2,7 @@
 
 import { useEffect } from "react"
 import Link from "next/link"
-import { AlertTriangle, RotateCw } from "lucide-react"
+import { AlertTriangle, RotateCw } from "@/components/icons"
 import { Button } from "@/components/ui/button"
 
 /**

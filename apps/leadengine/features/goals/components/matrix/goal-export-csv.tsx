@@ -2,7 +2,7 @@
 
 import { useCallback } from "react"
 import { Button } from "@/components/ui/button"
-import { Download } from "lucide-react"
+import { Download } from "@/components/icons"
 import { computeMonthlyTarget } from "@/features/goals/lib/target-calculator"
 import type { GoalNodeTree, MonthlyWeights } from "@/types/goals"
 

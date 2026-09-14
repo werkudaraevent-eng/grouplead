@@ -11,7 +11,7 @@ import { Switch } from "@/components/ui/switch"
 import { SettingsPageHeader } from "@/components/layout/settings-page-header"
 import {
     Building2, Globe, Camera, Loader2, Save, Users, ArrowLeft,
-} from "lucide-react"
+} from "@/components/icons"
 import Link from "next/link"
 import type { Company } from "@/types/company"
 

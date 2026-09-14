@@ -5,7 +5,7 @@ import { Lead } from "@/types"
 import {
     TrendingUp, Target, BarChart3, AlertTriangle,
     ArrowUpRight, ArrowDownRight, Minus,
-} from "lucide-react"
+} from "@/components/icons"
 import { useCurrency } from "@/contexts/currency-context"
 
 /* ─── Stage Classification Engine ─────────────────────────────────────── */

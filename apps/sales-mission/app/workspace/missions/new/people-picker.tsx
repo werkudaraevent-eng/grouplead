@@ -1,7 +1,7 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { Check, ChevronsUpDown, Search, X } from "lucide-react"
+import { Check, ChevronsUpDown, Search, X } from "@/components/icons"
 import {
   Command,
   CommandEmpty,

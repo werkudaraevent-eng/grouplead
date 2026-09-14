@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useCallback } from "react"
-import { Sparkles, MessageCircle } from "lucide-react"
+import { Sparkles, MessageCircle } from "@/components/icons"
 import { useDashboardExportPDF } from "./dashboard-export-pdf"
 import { FloatingPanel } from "./floating-panel"
 import { AIAnalysisContent } from "./ai-analysis-content"

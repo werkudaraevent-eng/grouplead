@@ -1,6 +1,6 @@
 import Link from "next/link"
 import { redirect } from "next/navigation"
-import { CalendarDays, CheckCircle2, ClipboardList, MapPin } from "lucide-react"
+import { CalendarDays, CheckCircle2, ClipboardList, MapPin } from "@/components/icons"
 import { canPerform, getSalesMissionAccess } from "@/lib/sales-mission-access"
 import { getMissionSettings, getMissionSummary, listMissions } from "@/lib/missions/mission-queries"
 import { needsMyAnswer } from "@/lib/missions/mission-filter"

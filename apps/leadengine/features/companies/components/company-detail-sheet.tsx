@@ -8,7 +8,7 @@ import {
 import { Button } from "@/components/ui/button"
 import {
     Plus, Mail, Phone, Briefcase, Globe, MapPin, Building2, Users, Loader2,
-} from "lucide-react"
+} from "@/components/icons"
 import type { ClientCompany, Contact } from "@/types"
 import { formatPhoneDisplay } from "@/lib/phone-normalize"
 

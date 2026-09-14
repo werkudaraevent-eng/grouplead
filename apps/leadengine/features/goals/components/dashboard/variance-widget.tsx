@@ -1,7 +1,7 @@
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Loader2, ArrowDown, ArrowUp } from "lucide-react"
+import { Loader2, ArrowDown, ArrowUp } from "@/components/icons"
 import { useCurrency } from "@/contexts/currency-context"
 
 interface VarianceWidgetProps {

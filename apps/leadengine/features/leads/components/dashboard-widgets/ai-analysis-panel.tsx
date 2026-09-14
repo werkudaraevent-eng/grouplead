@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { analyzeDashboard, type DashboardAnalysis } from "@/app/actions/ai-actions"
-import { Sparkles, X, Loader2, TrendingUp, AlertTriangle, Lightbulb, FileText } from "lucide-react"
+import { Sparkles, X, Loader2, TrendingUp, AlertTriangle, Lightbulb, FileText } from "@/components/icons"
 
 /** Safely convert any AI response item to a renderable string */
 function stringify(val: unknown): string {

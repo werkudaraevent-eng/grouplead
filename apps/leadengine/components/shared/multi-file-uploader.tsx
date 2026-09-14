@@ -13,7 +13,7 @@ import {
     File as FileIcon,
     Trash2,
     ExternalLink,
-} from "lucide-react"
+} from "@/components/icons"
 import { createClient } from "@/utils/supabase/client"
 import { logFileUploadAction, logFileDeleteAction } from "@/app/actions/activity-log-actions"
 

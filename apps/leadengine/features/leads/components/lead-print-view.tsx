@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import type { Lead } from "@/types"
-import { Printer, Download, ArrowLeft } from "lucide-react"
+import { Printer, Download, ArrowLeft } from "@/components/icons"
 import { formatPhoneDisplay } from "@/lib/phone-normalize"
 
 // ─── Types ────────────────────────────────────────────────────

@@ -6,7 +6,7 @@ import { createClient } from "@/utils/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Loader2, ArrowLeft, MailCheck, KeyRound } from "lucide-react"
+import { Loader2, ArrowLeft, MailCheck, KeyRound } from "@/components/icons"
 
 export default function ForgotPasswordPage() {
     const [email, setEmail] = useState("")

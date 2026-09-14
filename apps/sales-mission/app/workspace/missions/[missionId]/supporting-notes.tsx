@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
-import { AlertCircle, Loader2, Plus } from "lucide-react"
+import { AlertCircle, Loader2, Plus } from "@/components/icons"
 import { addSupportingNote } from "@/app/actions/visit-report-actions"
 import type { SupportingNoteRecord } from "@/lib/missions/mission-queries"
 import { Button } from "@/components/ui/button"

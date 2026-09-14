@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import { createClient } from "@/utils/supabase/client"
 import { useCompany } from "@/contexts/company-context"
-import { GitBranch } from "lucide-react"
+import { GitBranch } from "@/components/icons"
 import type { GoalNode } from "@/types/goals"
 import { useCurrency } from "@/contexts/currency-context"
 

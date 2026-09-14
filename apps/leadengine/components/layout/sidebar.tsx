@@ -6,7 +6,7 @@ import { usePathname, useRouter } from "next/navigation"
 import {
     LayoutDashboard, KanbanSquare, Building2, Users,
     LogOut, ChevronLeft, ChevronsLeft, Settings, Loader2, Moon, Sun, History, ScrollText,
-} from "lucide-react"
+} from "@/components/icons"
 import { Button } from "@/components/ui/button"
 import { CompanySwitcherHeader } from "@/components/layout/company-switcher"
 import dynamic from "next/dynamic"

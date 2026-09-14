@@ -6,7 +6,7 @@ import { createClient } from "@/utils/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { toast } from "sonner"
-import { Loader2, Send } from "lucide-react"
+import { Loader2, Send } from "@/components/icons"
 import { logNoteAddedAction } from "@/app/actions/activity-log-actions"
 
 interface Note {

@@ -20,7 +20,7 @@ import {
 import { CompanyCombobox, ContactCombobox } from "@/components/shared/entity-combobox"
 import { CurrencyInput } from "@/components/shared/currency-input"
 import { ProfileCombobox } from "@/features/users/components/profile-combobox"
-import { Loader2, X, Zap } from "lucide-react"
+import { Loader2, X, Zap } from "@/components/icons"
 import {
     AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
     AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,

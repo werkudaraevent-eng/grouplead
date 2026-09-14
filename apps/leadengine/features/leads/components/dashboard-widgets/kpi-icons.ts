@@ -29,7 +29,7 @@ import {
     Building2,
     Gauge,
     type LucideIcon,
-} from "lucide-react"
+} from "@/components/icons"
 
 export interface KpiIconOption {
     /** Stable key persisted in `config.icon`. */

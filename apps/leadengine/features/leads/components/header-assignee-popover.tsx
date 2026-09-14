@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { createClient } from "@/utils/supabase/client"
 import { toast } from "sonner"
-import { Pencil, Loader2, Search } from "lucide-react"
+import { Pencil, Loader2, Search } from "@/components/icons"
 import { getInitials, getAvatarColor } from "@/lib/avatar"
 import { usePermissions } from "@/contexts/permissions-context"
 

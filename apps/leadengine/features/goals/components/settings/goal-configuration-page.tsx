@@ -10,7 +10,7 @@ import Link from "next/link";
 import { updateGoalV2Action } from "@/app/actions/goal-actions";
 import { createClient } from "@/utils/supabase/client";
 import { toast } from "sonner";
-import { Loader2, ArrowLeft } from "lucide-react";
+import { Loader2, ArrowLeft } from "@/components/icons";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useCurrency } from "@/contexts/currency-context";
 

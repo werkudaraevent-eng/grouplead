@@ -27,7 +27,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Switch } from "@/components/ui/switch"
-import { Plus, Pencil, Trash2, Loader2, ListChecks, FolderPlus, Tag, Link2, Upload, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Search, RotateCcw, GripVertical, Archive, GitBranch, Calculator } from "lucide-react"
+import { Plus, Pencil, Trash2, Loader2, ListChecks, FolderPlus, Tag, Link2, Upload, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Search, RotateCcw, GripVertical, Archive, GitBranch, Calculator } from "@/components/icons"
 import { toast } from "sonner"
 import { recalcMonthEventAction, type RecalcMonthEventResult } from "@/app/actions/settings-actions"
 import type { MasterOption, FormSchema } from "@/types"

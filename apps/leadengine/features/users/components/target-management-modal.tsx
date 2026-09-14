@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/select"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Loader2, Save, Plus, Trash2, Target } from "lucide-react"
+import { Loader2, Save, Plus, Trash2, Target } from "@/components/icons"
 import { Profile, SalesTarget } from "@/types"
 
 const schema = z.object({

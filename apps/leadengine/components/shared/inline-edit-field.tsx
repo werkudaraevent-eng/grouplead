@@ -10,11 +10,11 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { createClient } from "@/utils/supabase/client"
 import { toast } from "sonner"
-import { Pencil, Loader2, Check, X } from "lucide-react"
+import { Pencil, Loader2, Check, X } from "@/components/icons"
 import { cn } from "@/lib/utils"
 import { normalizePhoneToE164 } from "@/lib/phone-normalize"
 import { useCascadedOptions } from "@/hooks/use-cascaded-options"
-import type { LucideIcon } from "lucide-react"
+import type { LucideIcon } from "@/components/icons"
 import { usePermissions } from "@/contexts/permissions-context"
 
 /** Map a DB table to its permission module so inline edits respect the matrix. */

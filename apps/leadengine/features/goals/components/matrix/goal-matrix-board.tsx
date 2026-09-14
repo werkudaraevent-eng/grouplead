@@ -25,7 +25,7 @@ import { toast } from "sonner"
 import {
   Loader2, ChevronDown, ChevronRight, Search, Maximize2, Minimize2, ArrowRight,
   Scale, RotateCcw, Pencil, Check, X, Download, Eye, EyeOff, Calendar,
-} from "lucide-react"
+} from "@/components/icons"
 import { getDimensionRegistry, type DimensionOption } from "@/config/dimension-registry"
 import type { GoalV2, GoalNode, GoalNodeTree, MonthlyWeights } from "@/types/goals"
 import { useCurrency } from "@/contexts/currency-context"

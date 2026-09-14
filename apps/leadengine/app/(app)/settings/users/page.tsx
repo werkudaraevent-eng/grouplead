@@ -20,7 +20,7 @@ import { Tooltip } from "@/components/ui/tooltip"
 import {
     ShieldCheck, Plus, Loader2, Search, Mail, MoreHorizontal, UserCog, KeyRound, Filter, X, UserX, Trash2,
     AlertTriangle,
-} from "lucide-react"
+} from "@/components/icons"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { SettingsPageHeader } from "@/components/layout/settings-page-header"
 import { PermissionGate } from "@/features/users/components/permission-gate"

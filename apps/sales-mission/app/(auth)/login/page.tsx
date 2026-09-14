@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { CalendarCheck, ClipboardList, Eye, EyeOff, Loader2, MapPinned, Users } from "lucide-react"
+import { CalendarCheck, ClipboardList, Eye, EyeOff, Loader2, MapPinned, Users } from "@/components/icons"
 import { createClient } from "@/utils/supabase/client"
 import { clearActiveSessionId, newSessionId, writeActiveSessionId } from "@/lib/session-guard"
 import { Button } from "@/components/ui/button"

@@ -4,7 +4,7 @@ import { Lead } from "@/types"
 import {
     Building2, User, Mail, Phone, MapPin, DollarSign,
     ArrowRight, Briefcase, CalendarDays, Globe
-} from "lucide-react"
+} from "@/components/icons"
 import { WorkflowActions } from "@/features/tasks/components/workflow-actions"
 import { useCurrency } from "@/contexts/currency-context"
 import { formatPhoneDisplay } from "@/lib/phone-normalize"

@@ -17,7 +17,7 @@
  */
 
 import * as React from "react"
-import { Check, ChevronsUpDown, Loader2, X } from "lucide-react"
+import { Check, ChevronsUpDown, Loader2, X } from "@/components/icons"
 
 import { Button } from "@/components/ui/button"
 import {

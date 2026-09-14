@@ -7,7 +7,7 @@ import {
     ArrowDown, ArrowUp, ArrowUpDown, Briefcase, Building2, Columns, Download,
     Eye, EyeOff, Globe, GripVertical, MoreHorizontal, Pencil, Phone,
     Plus, RotateCcw, Search, Trash2, Upload, Users, AlertTriangle, GitMerge,
-} from "lucide-react"
+} from "@/components/icons"
 import { toast } from "sonner"
 
 import { createClient } from "@/utils/supabase/client"

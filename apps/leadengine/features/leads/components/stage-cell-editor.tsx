@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
-import { ChevronDown, Check, Loader2 } from "lucide-react"
+import { ChevronDown, Check, Loader2 } from "@/components/icons"
 import { Lead, PipelineStage, TransitionRule } from "@/types"
 import { cn } from "@/lib/utils"
 import {

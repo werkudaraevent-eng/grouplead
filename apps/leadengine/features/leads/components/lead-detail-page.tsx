@@ -32,7 +32,7 @@ import {
     Tags, Layers, History, MoreHorizontal,
     ChevronLeft, ChevronRight, Trash2, GitMerge, Target, ChevronDown, ThumbsUp, ThumbsDown,
     Download,
-} from "lucide-react"
+} from "@/components/icons"
 import { InlineEditor } from "@/features/leads/components/inline-editor"
 import { NotesTab } from "@/features/leads/components/notes-tab"
 import { TimelineTab } from "@/features/leads/components/timeline-tab"

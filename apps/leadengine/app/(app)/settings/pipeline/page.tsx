@@ -11,7 +11,7 @@ import { flushSync } from 'react-dom'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Plus, MoreVertical, Pencil, Trash2, CheckCircle2, GripVertical, AlertTriangle, Check, X, Loader2, Star } from "lucide-react"
+import { Plus, MoreVertical, Pencil, Trash2, CheckCircle2, GripVertical, AlertTriangle, Check, X, Loader2, Star } from "@/components/icons"
 import { SettingsPageHeader } from "@/components/layout/settings-page-header"
 import { usePermissions } from "@/contexts/permissions-context"
 import {

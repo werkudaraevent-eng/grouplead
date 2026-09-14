@@ -18,7 +18,7 @@ import {
   Moon,
   Settings,
   Sun,
-} from "lucide-react"
+} from "@/components/icons"
 import dynamic from "next/dynamic"
 import { CompanySwitcher } from "./company-switcher"
 import type { CompanyOption } from "@/lib/sales-mission-access"

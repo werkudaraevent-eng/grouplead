@@ -22,7 +22,7 @@
  */
 
 import * as React from "react"
-import { Check, ChevronsUpDown } from "lucide-react"
+import { Check, ChevronsUpDown } from "@/components/icons"
 import type { CountryCode } from "libphonenumber-js"
 
 import { Input } from "@/components/ui/input"

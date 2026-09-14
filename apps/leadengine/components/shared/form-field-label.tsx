@@ -15,7 +15,7 @@
  */
 
 import * as React from "react"
-import { Info } from "lucide-react"
+import { Info } from "@/components/icons"
 import { Tooltip } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
 

@@ -2,7 +2,7 @@
 
 import { useTransition } from "react"
 import { useRouter } from "next/navigation"
-import { AlertCircle, Check, Loader2, RefreshCw } from "lucide-react"
+import { AlertCircle, Check, Loader2, RefreshCw } from "@/components/icons"
 import { toast } from "sonner"
 import { retryCrmSync } from "@/app/actions/visit-report-actions"
 import { Button } from "@/components/ui/button"

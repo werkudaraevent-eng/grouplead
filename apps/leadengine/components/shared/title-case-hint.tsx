@@ -1,7 +1,7 @@
 "use client"
 
 import { useMemo } from "react"
-import { Sparkles } from "lucide-react"
+import { Sparkles } from "@/components/icons"
 import { suggestTitleCase } from "@/lib/text-normalize"
 
 interface TitleCaseHintProps {

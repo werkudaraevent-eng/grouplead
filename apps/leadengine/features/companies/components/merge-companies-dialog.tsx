@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useTransition } from "react"
-import { GitMerge, Loader2 } from "lucide-react"
+import { GitMerge, Loader2 } from "@/components/icons"
 import { toast } from "sonner"
 import { mergeClientCompaniesAction } from "@/app/actions/company-actions"
 import { Button } from "@/components/ui/button"

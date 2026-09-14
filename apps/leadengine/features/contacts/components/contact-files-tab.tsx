@@ -12,7 +12,7 @@ import { toast } from "sonner"
 import {
     Upload, Loader2, FileText, FileSpreadsheet, FileImage, File,
     Download, Trash2, Folder,
-} from "lucide-react"
+} from "@/components/icons"
 import { formatDistanceToNow } from "date-fns"
 
 interface ContactAttachmentRow {

@@ -4,7 +4,7 @@ import { useTransition } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
-import { CalendarClock, Check, Loader2, MoreHorizontal, X } from "lucide-react"
+import { CalendarClock, Check, Loader2, MoreHorizontal, X } from "@/components/icons"
 import { respondToAssignment } from "@/app/actions/assignment-actions"
 import { Button } from "@/components/ui/button"
 import {

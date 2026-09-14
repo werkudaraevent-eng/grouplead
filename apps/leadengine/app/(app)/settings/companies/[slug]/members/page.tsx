@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { createClient } from '@/utils/supabase/client'
-import { Loader2 } from 'lucide-react'
+import { Loader2 } from "@/components/icons"
 
 /**
  * Deprecated: Company members are now managed via User Management with BU filter.

@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from "react"
 import { createClient } from "@/utils/supabase/client"
 import { useCompany } from "@/contexts/company-context"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Loader2, Building2 } from "lucide-react"
+import { Loader2, Building2 } from "@/components/icons"
 import type { GoalNode } from "@/types/goals"
 import { useCurrency } from "@/contexts/currency-context"
 

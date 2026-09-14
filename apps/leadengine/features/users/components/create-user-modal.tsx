@@ -21,7 +21,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Loader2, UserPlus, Building2 } from "lucide-react"
+import { Loader2, UserPlus, Building2 } from "@/components/icons"
 
 /* ─── Schema (department OBLITERATED) ───────────────────────────────────── */
 const schema = z

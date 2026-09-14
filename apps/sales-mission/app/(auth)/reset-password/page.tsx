@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { CheckCircle2, Eye, EyeOff, KeyRound, Loader2 } from "lucide-react"
+import { CheckCircle2, Eye, EyeOff, KeyRound, Loader2 } from "@/components/icons"
 import { createClient } from "@/utils/supabase/client"
 import { clearActiveSessionId } from "@/lib/session-guard"
 import { Button } from "@/components/ui/button"

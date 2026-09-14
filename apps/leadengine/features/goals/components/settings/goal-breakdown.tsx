@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select"
-import { Loader2, BarChart3 } from "lucide-react"
+import { Loader2, BarChart3 } from "@/components/icons"
 import { NodeBreakdownWidget } from "@/features/goals/components/dashboard/node-breakdown-widget"
 import type { GoalV2 } from "@/types/goals"
 

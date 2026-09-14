@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react"
 import { createClient } from "@/utils/supabase/client"
-import { Loader2, User } from "lucide-react"
+import { Loader2, User } from "@/components/icons"
 import { useCurrency } from "@/contexts/currency-context"
 
 interface StageHistoryEntry {

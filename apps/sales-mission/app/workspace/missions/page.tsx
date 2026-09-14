@@ -9,7 +9,7 @@ import { MissionFilterChips, NewMissionAction, WorkspacePage } from "@/app/works
 import { MissionTable } from "./mission-table"
 import { MissionFilterBar } from "./mission-filter-bar"
 import { Button } from "@/components/ui/button"
-import { Download } from "lucide-react"
+import { Download } from "@/components/icons"
 import { ImportMissions } from "./import-missions"
 
 export const dynamic = "force-dynamic"

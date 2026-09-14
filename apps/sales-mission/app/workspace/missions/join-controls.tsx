@@ -3,7 +3,7 @@
 import { useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
-import { DoorOpen, Loader2, Lock, LockOpen, UserMinus, UserPlus } from "lucide-react"
+import { DoorOpen, Loader2, Lock, LockOpen, UserMinus, UserPlus } from "@/components/icons"
 import {
   joinMission,
   leaveMission,

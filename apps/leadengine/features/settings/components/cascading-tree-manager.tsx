@@ -18,7 +18,7 @@ import {
 import {
     ChevronRight, ChevronDown, Plus, Pencil, Trash2, Loader2,
     GitBranch, Circle, AlertTriangle, Check, Search,
-} from "lucide-react"
+} from "@/components/icons"
 import { toast } from "sonner"
 import type { MasterOption } from "@/types"
 import { cn } from "@/lib/utils"

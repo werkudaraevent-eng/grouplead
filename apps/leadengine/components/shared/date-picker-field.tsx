@@ -12,7 +12,7 @@
 
 import * as React from "react"
 import { format, isValid, parseISO } from "date-fns"
-import { CalendarDays, X } from "lucide-react"
+import { CalendarDays, X } from "@/components/icons"
 
 import { Button } from "@/components/ui/button"
 import { Calendar } from "@/components/ui/calendar"

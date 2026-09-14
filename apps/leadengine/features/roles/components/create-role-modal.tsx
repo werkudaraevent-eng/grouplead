@@ -18,7 +18,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
-import { Loader2, Shield, Pencil } from "lucide-react"
+import { Loader2, Shield, Pencil } from "@/components/icons"
 import type { Role } from "@/types/company"
 
 const schema = z.object({

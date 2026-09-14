@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
-import { Copy, Loader2, Plus, ShieldOff, TriangleAlert } from "lucide-react"
+import { Copy, Loader2, Plus, ShieldOff, TriangleAlert } from "@/components/icons"
 import { createBoardToken, revokeBoardToken } from "@/app/actions/board-token-actions"
 import { MISSION_TIME_ZONE } from "@/lib/missions/mission-schema"
 import { Button } from "@/components/ui/button"

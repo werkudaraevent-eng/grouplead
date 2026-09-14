@@ -8,7 +8,7 @@ import {
     Search, Filter, ChevronLeft, ChevronRight, Activity,
     Plus, Pencil, Trash2, ArrowRightLeft, Upload, Download,
     LogIn, Settings, Users, ShieldAlert,
-} from "lucide-react"
+} from "@/components/icons"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import {

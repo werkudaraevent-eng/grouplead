@@ -10,7 +10,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { GripVertical, Plus, Trash2, Loader2 } from "lucide-react"
+import { GripVertical, Plus, Trash2, Loader2 } from "@/components/icons"
 import { getDimensionRegistry, type DimensionOption } from "@/config/dimension-registry"
 import type { GoalNode } from "@/types/goals"
 

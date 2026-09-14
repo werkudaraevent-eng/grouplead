@@ -10,7 +10,7 @@ import {
     AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
     AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { Trash2, RotateCcw, ShieldAlert, Loader2, KanbanSquare, Building2, Users } from "lucide-react"
+import { Trash2, RotateCcw, ShieldAlert, Loader2, KanbanSquare, Building2, Users } from "@/components/icons"
 import {
     listTrash, restoreTrashItem, purgeTrashItem,
     getTrashRetentionDays, setTrashRetentionDays, purgeExpiredTrash,

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from "react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
-import { Search, SlidersHorizontal, X } from "lucide-react"
+import { Search, SlidersHorizontal, X } from "@/components/icons"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { FacetButton, FacetSelect } from "@/components/facet-select"
 import { Button } from "@/components/ui/button"

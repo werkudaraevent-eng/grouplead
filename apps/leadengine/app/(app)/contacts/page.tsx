@@ -8,7 +8,7 @@ import {
     Eye, EyeOff, Facebook, Globe, GripVertical, Instagram, Link2,
     Linkedin, Mail, MoreHorizontal, Pencil, Phone, Plus, RotateCcw,
     Search, Trash2, Twitter, Upload, Users, AlertTriangle,
-} from "lucide-react"
+} from "@/components/icons"
 import { toast } from "sonner"
 
 import { createClient } from "@/utils/supabase/client"

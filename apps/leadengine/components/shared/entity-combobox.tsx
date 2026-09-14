@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import {
     Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select"
-import { ChevronsUpDown, Check, Plus, Loader2, X, Building2 } from "lucide-react"
+import { ChevronsUpDown, Check, Plus, Loader2, X, Building2 } from "@/components/icons"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 import type { ClientCompany, Contact } from "@/types"

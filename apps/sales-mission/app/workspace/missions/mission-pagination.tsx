@@ -2,7 +2,7 @@
 
 import { useTransition } from "react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
-import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react"
+import { ChevronLeft, ChevronRight, Loader2 } from "@/components/icons"
 import { Button } from "@/components/ui/button"
 import { PAGE_SIZES } from "@/lib/missions/mission-paging"
 
