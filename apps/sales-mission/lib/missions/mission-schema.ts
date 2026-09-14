@@ -221,6 +221,9 @@ export interface MissionListItem {
   scheduledEnd: string | null
   primarySalesName: string | null
   supportingSalesNames: string[]
+  /** User ids behind the names above, for filtering by person. */
+  primarySalesId: string | null
+  assigneeIds: string[]
   /** Primary can close a sensitive meeting to further joiners. */
   allowJoin: boolean
   /** Who scheduled it, so a moved visit reaches the appointment team too. */
@@ -296,6 +299,8 @@ export function mapMissions(
       viewerRole: (viewer?.assignment_role as "PRIMARY" | "SUPPORTING" | undefined) ?? null,
       viewerResponse: (viewer?.response as AssignmentResponse | undefined) ?? null,
       pendingResponses: missionAssignments.filter((item) => item.response === "PENDING").length,
+      primarySalesId: primary?.user_id ?? null,
+      assigneeIds: missionAssignments.map((item) => item.user_id),
       primarySalesName: primary ? namesByUserId.get(primary.user_id) ?? null : null,
       supportingSalesNames: supporting
         .map((item) => namesByUserId.get(item.user_id))

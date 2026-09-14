@@ -5,7 +5,7 @@ import { listFormFields } from "@/lib/missions/form-field-queries"
 import { listMissions } from "@/lib/missions/mission-queries"
 import { annotateJoinStatus } from "@/lib/missions/mission-join"
 import { getMissionSettings } from "@/lib/missions/mission-queries"
-import { resolveMissionFilter, filterMissions } from "@/lib/missions/mission-filter"
+import { applyMissionQuery, filterMissions, parseMissionQuery, resolveMissionFilter } from "@/lib/missions/mission-filter"
 import { buildImportColumns, toExportRows } from "@/lib/missions/mission-io"
 
 export const dynamic = "force-dynamic"
@@ -37,8 +37,14 @@ export async function GET(request: Request) {
 
   // The same lens the list is showing, so "export" means "export what I see"
   // rather than silently handing back everything.
-  const filter = resolveMissionFilter(new URL(request.url).searchParams.get("filter"))
-  const visible = filterMissions(annotateJoinStatus(missions, settings), filter, settings)
+  const url = new URL(request.url)
+  const filter = resolveMissionFilter(url.searchParams.get("filter"))
+  const query = parseMissionQuery(Object.fromEntries(url.searchParams))
+  const visible = applyMissionQuery(
+    filterMissions(annotateJoinStatus(missions, settings), filter, settings),
+    query,
+    new Date()
+  )
 
   const columns = buildImportColumns(fields)
   const rows = toExportRows(visible, columns)

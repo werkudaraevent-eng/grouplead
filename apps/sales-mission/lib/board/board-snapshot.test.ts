@@ -14,6 +14,8 @@ function mission(overrides: Partial<MissionListItem> & { id: string }): MissionL
     scheduledEnd: null,
     primarySalesName: "Wg, Hanung",
     supportingSalesNames: [],
+    primarySalesId: null,
+    assigneeIds: [],
     allowJoin: true,
     createdBy: "creator",
     supportingCount: 0,

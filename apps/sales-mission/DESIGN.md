@@ -56,3 +56,7 @@ What we actually adopted:
 
 Indonesian throughout the product surface. English is for code and comments.
 One word per concept: a field is a "field", not sometimes "kolom".
+| Filtering a list | Search always visible; each facet a button that opens a checklist (values OR, facets AND); everything active repeated as removable chips; state in the URL (Linear, HubSpot, Notion) | `MissionFilterBar`: search + Status, Sales, Lokasi, Jenis, Tanggal facets, chips with × and "Bersihkan semua", `?q=&status=&sales=…` |
+| Acting on many rows | Checkbox per row and in the header; a selection bar appears with the count and only the actions that apply to a set (Gmail, Linear) | `MissionTable` with `canDelete`: bar reads "N mission dipilih · Hapus · Batal"; confirm dialog states what cascades |
+| Destroying everything | Type-to-confirm in a bordered danger zone, away from the list (GitHub) | Pengaturan → Data: "HAPUS SEMUA MISSION" phrase, checked again on the server |
+| Audit trail | One line per action in plain words, who and when beside it, before/after a click away; filters for who, what, which, when (Salesforce Setup Audit Trail, HubSpot activity log) | Pengaturan → Riwayat aktivitas; rows written by database triggers, grouped per transaction |

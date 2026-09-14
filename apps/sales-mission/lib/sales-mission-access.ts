@@ -188,8 +188,10 @@ export async function canPerform(
 
   const permission = await loadModulePermission(access.companyId, access.roleId, access.userType, moduleId)
 
-  // Unconfigured module — see the note above.
-  if (!permission) return true
+  // Unconfigured module — see the note above. Deleting is the exception:
+  // an unconfigured tenant should find the app working, not find that
+  // everyone can remove every mission. That grant is given on purpose.
+  if (!permission) return action !== "delete"
 
   if (action === "read") {
     const scope = permission.can_read

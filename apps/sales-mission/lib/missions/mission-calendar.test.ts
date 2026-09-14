@@ -22,6 +22,8 @@ function mission(id: string, scheduledStart: string | null): MissionListItem {
     scheduledEnd: null,
     primarySalesName: null,
     supportingSalesNames: [],
+    primarySalesId: null,
+    assigneeIds: [],
     allowJoin: true,
     createdBy: "creator",
     appointment: {

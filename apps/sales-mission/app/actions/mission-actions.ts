@@ -17,6 +17,7 @@ import {
   type FieldAnswer,
 } from "@/lib/missions/form-fields"
 import type { ActionResult } from "@/types/action-result"
+import { CLEAR_ALL_PHRASE } from "@/lib/missions/clear-phrase"
 
 /**
  * Write side of the mission domain.
@@ -385,4 +386,77 @@ export async function cancelMission(missionId: string, reason: string): Promise<
   revalidatePath(`/workspace/missions/${missionId}`)
 
   return { success: true }
+}
+
+/**
+ * Remove missions outright.
+ *
+ * Hard delete, not a recycle bin: the child rows cascade, and the audit log's
+ * DELETE row keeps the full record of each mission with who removed it, which
+ * is the part an admin later needs. Held to the mission module's `delete`
+ * grant, which no default role carries; an admin hands it out deliberately.
+ */
+export async function deleteMissions(ids: string[]): Promise<ActionResult<{ deleted: number }>> {
+  const access = await getSalesMissionAccess()
+  if (!access) return { success: false, error: "Anda tidak punya akses Sales Mission." }
+  if (!(await canPerform(access, "sales_mission_mission", "delete"))) {
+    return { success: false, error: "Anda tidak punya izin menghapus mission." }
+  }
+
+  const unique = [...new Set(ids)].filter((id) => /^[0-9a-f-]{36}$/i.test(id))
+  if (unique.length === 0) return { success: false, error: "Tidak ada mission yang dipilih." }
+  if (unique.length > 500) return { success: false, error: "Pilih paling banyak 500 mission sekaligus." }
+
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .schema("sales_mission")
+    .from("missions")
+    .delete()
+    .eq("company_id", access.companyId)
+    .in("id", unique)
+    .select("id")
+
+  if (error) return { success: false, error: "Mission gagal dihapus." }
+
+  revalidatePath("/workspace")
+  revalidatePath("/workspace/missions")
+  revalidatePath("/workspace/calendar")
+  return { success: true, data: { deleted: data?.length ?? 0 } }
+}
+
+/**
+ * Empty the tenant's missions, for clearing a trial before real use.
+ *
+ * Type-to-confirm, the way GitHub guards deleting a repository: the phrase is
+ * checked here as well as in the dialog, because a Server Action is a public
+ * endpoint and the dialog is only a courtesy.
+ */
+export async function clearAllMissions(confirmation: string): Promise<ActionResult<{ deleted: number }>> {
+  const access = await getSalesMissionAccess()
+  if (!access) return { success: false, error: "Anda tidak punya akses Sales Mission." }
+  if (!(await canPerform(access, "sales_mission_settings", "update"))) {
+    return { success: false, error: "Hanya admin Sales Mission yang bisa mengosongkan data." }
+  }
+  if (!(await canPerform(access, "sales_mission_mission", "delete"))) {
+    return { success: false, error: "Peran Anda tidak punya izin menghapus mission." }
+  }
+  if (confirmation.trim() !== CLEAR_ALL_PHRASE) {
+    return { success: false, error: `Ketik persis "${CLEAR_ALL_PHRASE}" untuk melanjutkan.` }
+  }
+
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .schema("sales_mission")
+    .from("missions")
+    .delete()
+    .eq("company_id", access.companyId)
+    .select("id")
+
+  if (error) return { success: false, error: "Data gagal dikosongkan." }
+
+  revalidatePath("/workspace")
+  revalidatePath("/workspace/missions")
+  revalidatePath("/workspace/calendar")
+  revalidatePath("/workspace/settings/data")
+  return { success: true, data: { deleted: data?.length ?? 0 } }
 }
