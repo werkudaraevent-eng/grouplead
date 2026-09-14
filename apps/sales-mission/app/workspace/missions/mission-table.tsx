@@ -8,6 +8,7 @@ import { ArrowUpRight, ClipboardList, Loader2, Trash2, X } from "@/components/ic
 import { deleteMissions, matchingMissionIds } from "@/app/actions/mission-actions"
 import { useSearchParams } from "next/navigation"
 import { MissionPagination, SortHeader } from "./mission-pagination"
+import type { MissionSort } from "@/lib/missions/mission-paging"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import {
@@ -226,7 +227,7 @@ export function MissionTable({
   pagination,
 }: {
   /** Present when the list is a page of a larger set. */
-  pagination?: { page: number; size: number; total: number; sort: "upcoming" | "asc" | "desc" }
+  pagination?: { page: number; size: number; total: number; sort: MissionSort }
   missions: Row[]
   now: Date
   /** Admins may write any report; the primary may write their own. */
@@ -456,11 +457,11 @@ export function MissionTable({
                 />
               </TableHead>
             )}
-            <TableHead>Mission</TableHead>
-            <TableHead>{pagination ? <SortHeader sort={pagination.sort} /> : "Jadwal"}</TableHead>
-            <TableHead>Lokasi</TableHead>
-            <TableHead>Sales utama</TableHead>
-            <TableHead>Status</TableHead>
+            <TableHead>{pagination ? <SortHeader column="client" label="Mission" sort={pagination.sort} /> : "Mission"}</TableHead>
+            <TableHead>{pagination ? <SortHeader column="schedule" label="Jadwal" sort={pagination.sort} /> : "Jadwal"}</TableHead>
+            <TableHead>{pagination ? <SortHeader column="location" label="Lokasi" sort={pagination.sort} /> : "Lokasi"}</TableHead>
+            <TableHead>{pagination ? <SortHeader column="sales" label="Sales utama" sort={pagination.sort} /> : "Sales utama"}</TableHead>
+            <TableHead>{pagination ? <SortHeader column="status" label="Status" sort={pagination.sort} /> : "Status"}</TableHead>
             <TableHead className="text-right">Aksi</TableHead>
           </TableRow>
         </TableHeader>
