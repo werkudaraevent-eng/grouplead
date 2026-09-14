@@ -59,6 +59,7 @@ export function AssignmentResponsePanel({
   banner = false,
   confirmationRequired = true,
   scheduleOnly = false,
+  selfScheduled = false,
 }: {
   missionId: string
   myResponse: AssignmentResponse
@@ -67,6 +68,8 @@ export function AssignmentResponsePanel({
   confirmationRequired?: boolean
   /** An admin who is not on the team: only the schedule is theirs to change. */
   scheduleOnly?: boolean
+  /** The viewer scheduled this visit for themself: no answer is owed and Tolak makes no sense. */
+  selfScheduled?: boolean
 }) {
   const [pending, start] = useTransition()
   const [showForm, setShowForm] = useState(false)
@@ -149,6 +152,19 @@ export function AssignmentResponsePanel({
         </div>
         {rescheduleForm && <div className="mt-4">{rescheduleForm}</div>}
       </section>
+    )
+  }
+
+  if (selfScheduled) {
+    return (
+      <div className="space-y-4">
+        <p className="text-sm text-muted-foreground">
+          Anda menjadwalkan kunjungan ini sendiri. Kalau waktunya berubah, pindahkan jadwalnya; kalau tidak jadi,
+          batalkan mission dari kartu di atas.
+        </p>
+        <div className="flex flex-wrap gap-2">{rescheduleButton}</div>
+        {rescheduleForm}
+      </div>
     )
   }
 

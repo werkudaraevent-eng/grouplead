@@ -98,6 +98,10 @@ describe("initialResponse", () => {
     expect(initialResponse(CONFIRM)).toBe("PENDING")
     expect(initialResponse(NO_CONFIRM)).toBe("ACCEPTED")
   })
+
+  it("treats scheduling yourself as accepting, whatever the policy", () => {
+    expect(initialResponse(CONFIRM, { selfAssigned: true })).toBe("ACCEPTED")
+  })
 })
 
 describe("awaitsConfirmation", () => {

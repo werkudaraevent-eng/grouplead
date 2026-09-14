@@ -166,9 +166,11 @@ export async function commitMissionImport(rows: RawRow[]): Promise<ImportResult>
   // Same policy as the form: imported assignments are accepted on the spot
   // unless the tenant asks reps to confirm.
   const settings = await getMissionSettings(access)
-  const response = initialResponse(settings)
-  const respondedAt = response === "ACCEPTED" ? new Date().toISOString() : null
-  const initialStatus = response === "ACCEPTED" ? "ACCEPTED" : "ASSIGNED"
+  const now = new Date().toISOString()
+  const answerFor = (userId: string) => {
+    const response = initialResponse(settings, { selfAssigned: userId === access.userId })
+    return { response, responded_at: response === "ACCEPTED" ? now : null }
+  }
 
   // Resolve every distinct company name once rather than per row.
   const companyIds = new Map<string, string>()
@@ -193,7 +195,7 @@ export async function commitMissionImport(rows: RawRow[]): Promise<ImportResult>
         client_company_name_snapshot: row.clientCompanyName,
         client_company_id: companyIds.get(row.clientCompanyName) ?? null,
         mission_type: row.missionType,
-        status: initialStatus,
+        status: answerFor(primaryId).response === "ACCEPTED" ? "ACCEPTED" : "ASSIGNED",
         objective: row.objective || null,
         location: row.location || null,
         scheduled_start: toMissionTimestamp(row.date, row.startTime),
@@ -222,9 +224,9 @@ export async function commitMissionImport(rows: RawRow[]): Promise<ImportResult>
       .filter((id): id is string => Boolean(id))
 
     const { error: assignmentError } = await missions.from("assignments").insert([
-      { mission_id: mission.id, company_id: access.companyId, user_id: primaryId, assignment_role: "PRIMARY", response, responded_at: respondedAt },
+      { mission_id: mission.id, company_id: access.companyId, user_id: primaryId, assignment_role: "PRIMARY", ...answerFor(primaryId) },
       ...supportingIds.map((userId) => ({
-        mission_id: mission.id, company_id: access.companyId, user_id: userId, assignment_role: "SUPPORTING", response, responded_at: respondedAt,
+        mission_id: mission.id, company_id: access.companyId, user_id: userId, assignment_role: "SUPPORTING", ...answerFor(userId),
       })),
     ])
 

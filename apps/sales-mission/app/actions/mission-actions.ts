@@ -149,9 +149,14 @@ export async function createMission(
 
   // Under the tenant's policy the assignment either waits for the rep or is
   // accepted on the spot. The mission's status follows from the same answer.
-  const response = initialResponse(settings)
-  const respondedAt = response === "ACCEPTED" ? new Date().toISOString() : null
-  const initialStatus = response === "ACCEPTED" ? "ACCEPTED" : "ASSIGNED"
+  const now = new Date().toISOString()
+  // Each person's answer on their own terms: the scheduler putting themself
+  // on the visit has already said yes; everyone else follows the policy.
+  const answerFor = (userId: string) => {
+    const response = initialResponse(settings, { selfAssigned: userId === access.userId })
+    return { response, responded_at: response === "ACCEPTED" ? now : null }
+  }
+  const initialStatus = answerFor(parsed.data.primarySalesId).response === "ACCEPTED" ? "ACCEPTED" : "ASSIGNED"
 
   // Never trust user ids from the client. An assignee must be a member of this
   // tenant, or a crafted request could assign missions to anyone in the shared
@@ -203,16 +208,14 @@ export async function createMission(
       company_id: access.companyId,
       user_id: input.primarySalesId,
       assignment_role: "PRIMARY",
-      response,
-      responded_at: respondedAt,
+      ...answerFor(input.primarySalesId),
     },
     ...input.supportingSalesIds.map((userId) => ({
       mission_id: mission.id,
       company_id: access.companyId,
       user_id: userId,
       assignment_role: "SUPPORTING",
-      response,
-      responded_at: respondedAt,
+      ...answerFor(userId),
     })),
   ])
 

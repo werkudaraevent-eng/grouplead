@@ -37,7 +37,15 @@ export interface ConfirmationPolicy {
  * cannot make it says so through Tolak or Minta jadwal ulang rather than by
  * withholding a click. With it on, the rep is asked.
  */
-export function initialResponse(policy: ConfirmationPolicy): AssignmentResponse {
+export function initialResponse(
+  policy: ConfirmationPolicy,
+  options: { selfAssigned?: boolean } = {}
+): AssignmentResponse {
+  // Putting yourself on a visit is the acceptance. Asking the scheduler to
+  // then confirm their own decision, or offering them Tolak on it, is a
+  // question with no sensible answer; a self-scheduled visit that cannot
+  // happen is moved or cancelled.
+  if (options.selfAssigned) return "ACCEPTED"
   return policy.requireAssignmentConfirmation ? "PENDING" : "ACCEPTED"
 }
 

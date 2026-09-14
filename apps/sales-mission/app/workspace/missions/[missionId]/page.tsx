@@ -131,7 +131,10 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
   const myResponse = (team.find((member) => member.userId === access.userId)?.response ?? "PENDING") as AssignmentResponse
   // The one thing this page asks of the viewer while confirmation is on. It
   // leads the page; nothing below it is what they came here for until then.
-  const askedToConfirm = isAssigned && awaitsConfirmation(myResponse, settings) && canRespond(mission.status)
+  // Someone who scheduled the visit and put themself on it has nothing to
+  // answer: their answer was the scheduling. No banner, no Terima, no Tolak.
+  const selfScheduled = isAssigned && mission.createdBy === access.userId
+  const askedToConfirm = isAssigned && !selfScheduled && awaitsConfirmation(myResponse, settings) && canRespond(mission.status)
   // Seed the reschedule picker with the mission's own slot rather than today,
   // so the common case of nudging a visit by an hour needs one change.
   const wib = (iso: string, opts: Intl.DateTimeFormatOptions) =>
@@ -317,6 +320,7 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
                     myResponse={myResponse}
                     reschedule={reschedule}
                     confirmationRequired={settings.requireAssignmentConfirmation}
+                    selfScheduled={selfScheduled}
                   />
                 )}
 
