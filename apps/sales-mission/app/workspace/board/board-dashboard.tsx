@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { CalendarCheck, CheckCircle2, ClipboardList, MapPin } from "lucide-react"
+import { CalendarCheck, CalendarDays, CheckCircle2, ClipboardList, History, MapPin, Users } from "lucide-react"
 import type { BoardMission, BoardSnapshot } from "@/lib/board/board-snapshot"
 import type { BoardPanel } from "@/lib/board/board-options"
 import { describeAudit, groupAuditEvents, type AuditRow } from "@/lib/audit/describe-audit"
@@ -32,6 +32,24 @@ function Metric({ icon: Icon, label, value, tone }: { icon: typeof ClipboardList
         <span className="block text-2xl font-bold tabular-nums text-foreground">{value}</span>
       </span>
     </article>
+  )
+}
+
+/**
+ * An empty panel says so the way Material's empty state does: an icon, a
+ * short title, one line of what would fill it, centred. A lone sentence
+ * against the left edge read as a bug.
+ */
+function PanelEmpty({ icon: Icon, title, hint, action }: { icon: typeof Users; title: string; hint: string; action?: React.ReactNode }) {
+  return (
+    <div className="flex flex-col items-center px-6 py-10 text-center">
+      <span className="grid h-11 w-11 place-items-center rounded-full bg-muted text-muted-foreground">
+        <Icon className="h-5 w-5" />
+      </span>
+      <p className="mt-3 text-sm font-semibold text-foreground">{title}</p>
+      <p className="mt-1 max-w-xs text-sm text-muted-foreground">{hint}</p>
+      {action && <div className="mt-4">{action}</div>}
+    </div>
   )
 }
 
@@ -155,7 +173,12 @@ export function BoardDashboard({
                   <DayTimeline missions={snapshot.missions} nowMinute={nowMinute} isToday />
                 </div>
               ) : (
-                <p className="px-5 py-10 text-sm text-muted-foreground">Tidak ada mission terjadwal hari ini.</p>
+                <PanelEmpty
+                  icon={CalendarDays}
+                  title="Tidak ada kunjungan hari ini"
+                  hint="Kunjungan yang dijadwalkan untuk hari ini akan tergambar di sini sebagai garis waktu."
+                  action={<Link href="/workspace/calendar" className="text-sm font-semibold text-primary hover:underline">Buka kalender</Link>}
+                />
               )
             ) : (
               <div className="grid divide-y md:grid-cols-7 md:divide-x md:divide-y-0">
@@ -206,7 +229,11 @@ export function BoardDashboard({
                 ))}
               </ul>
             ) : (
-              <p className="px-5 py-10 text-sm text-muted-foreground">{week ? "Belum ada yang bertugas minggu ini." : "Belum ada yang bertugas hari ini."}</p>
+              <PanelEmpty
+                icon={Users}
+                title={week ? "Belum ada yang bertugas minggu ini" : "Belum ada yang bertugas hari ini"}
+                hint="Setiap sales yang punya kunjungan muncul di sini dengan tujuan berikutnya."
+              />
             )}
           </aside>
         )}
@@ -233,7 +260,7 @@ export function BoardDashboard({
               })}
             </ul>
           ) : (
-            <p className="px-5 py-8 text-sm text-muted-foreground">Belum ada aktivitas tercatat.</p>
+            <PanelEmpty icon={History} title="Belum ada aktivitas" hint="Setiap perubahan pada mission tercatat di sini secara otomatis." />
           )}
         </article>
       )}

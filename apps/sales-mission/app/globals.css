@@ -150,6 +150,13 @@
   --board-active-surface: rgba(14, 165, 233, 0.15);
   --board-running: #fcd34d;
   --board-running-surface: rgba(245, 158, 11, 0.15);
+  /* M3 tonal elevation on a dark surface: each level is a lighter wash of
+     the same neutral, not a border. The primary container is the one tinted
+     surface, reserved for the single thing the room should look at. */
+  --board-surface-1: #161b22;
+  --board-surface-2: #1c222b;
+  --board-primary-container: #1E3A6E;
+  --board-on-primary-container: #D6E3FF;
 }
 
 /* ── Dark Sidebar Panel (Bigin-style) ── */

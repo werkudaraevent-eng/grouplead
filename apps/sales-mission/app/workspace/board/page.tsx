@@ -9,7 +9,7 @@ import { facetOptions } from "@/lib/missions/mission-filter"
 import { EMPTY_AUDIT_FILTER, listAuditLog } from "@/lib/audit/audit-queries"
 import { hasServiceClientConfig } from "@/utils/supabase/service"
 import { EmptyState, WorkspacePage } from "@/app/workspace/workspace-page"
-import { BoardControls } from "./board-controls"
+import { BoardActions, BoardToolbar } from "./board-controls"
 import { BoardDashboard } from "./board-dashboard"
 
 export const dynamic = "force-dynamic"
@@ -75,13 +75,12 @@ export default async function InternalBoardPage({
       eyebrow="Sales Mission / Papan live"
       title="Papan live"
       description="Siapa di mana hari ini. Atur di sini, lalu kirim tampilan yang sama ke layar kantor."
+      action={<BoardActions options={options} isAdmin={isAdmin} baseUrl={`${proto}://${host}`} />}
     >
-      <BoardControls
+      <BoardToolbar
         options={options}
         people={people.map((person) => ({ id: person.id, name: person.name, avatarUrl: person.avatarUrl }))}
         locations={facetOptions(missions).locations}
-        isAdmin={isAdmin}
-        baseUrl={`${proto}://${host}`}
       />
       <BoardDashboard
         snapshot={snapshot}

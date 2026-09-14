@@ -4,7 +4,7 @@ import { useEffect, useState, useTransition } from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { toast } from "sonner"
-import { Check, Copy, Link2, Loader2, MonitorPlay, Pause, Play, Settings2 } from "lucide-react"
+import { Check, Copy, Link2, Loader2, MonitorPlay, Pause, Play, Settings2, SlidersHorizontal } from "lucide-react"
 import { createBoardToken } from "@/app/actions/board-token-actions"
 import { FacetSelect } from "@/components/facet-select"
 import { PersonAvatar } from "@/components/person-avatar"
@@ -17,6 +17,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
@@ -28,26 +36,37 @@ import {
   BOARD_RANGE_LABELS,
   serializeBoardOptions,
   type BoardOptions,
-  type BoardPanel,
 } from "@/lib/board/board-options"
 
 /**
- * The control bar above the dashboard.
+ * Controls for the board, split the way Material splits them.
  *
- * What is set here is what the screen shows: the same options travel in the
- * URL to the preview and into the screen link. So an admin sets up the board
- * where they can see it, then sends exactly that to the TV. Two kinds of
- * control, kept visually distinct the way Material separates them:
+ *   - Page actions (BoardActions) sit beside the title, where every other
+ *     page keeps its primary action. One filled button opens the screen;
+ *     one outlined, admin-only button mints a link, because that is a
+ *     credential and deserves a moment's more friction.
+ *   - The toolbar (BoardToolbar) is one row: what to show (segmented range,
+ *     Sales and Lokasi facets) on the left, and how it is shown (live
+ *     status, a "Tampilan" menu of panel toggles) on the right. Panel
+ *     toggles are view settings, not filters, so they live in a menu rather
+ *     than as four permanently-ticked chips shouting from the bar.
  *
- *   - Selection: a segmented button for the range (one of two), facet
- *     buttons for people and places (many of many), filter chips for panels
- *     (toggles). These change what is shown, immediately.
- *   - Action: "Tampilkan di layar" is the one filled button; it opens the
- *     screen. "Buat tautan layar" is outlined and admin-only, because it
- *     mints a credential.
+ * Everything the toolbar sets is in the URL, and the actions read it from
+ * there: set it up here, send exactly that to the TV.
  */
 
 const INTERVAL_MS = 30_000
+
+function useBoardUrl(options: BoardOptions) {
+  const router = useRouter()
+  const pathname = usePathname()
+  const [pending, start] = useTransition()
+  const push = (next: BoardOptions) => {
+    const qs = serializeBoardOptions(next).toString()
+    start(() => router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false }))
+  }
+  return { push, pending, router }
+}
 
 function Segmented({ value, onChange }: { value: BoardOptions["range"]; onChange: (next: BoardOptions["range"]) => void }) {
   return (
@@ -72,122 +91,130 @@ function Segmented({ value, onChange }: { value: BoardOptions["range"]; onChange
   )
 }
 
-function PanelChip({ panel, on, onToggle }: { panel: BoardPanel; on: boolean; onToggle: () => void }) {
-  return (
-    <button
-      type="button"
-      role="checkbox"
-      aria-checked={on}
-      onClick={onToggle}
-      className={cn(
-        "inline-flex h-10 items-center gap-1.5 rounded-full border px-3 text-sm font-medium transition-colors md:h-9",
-        on ? "border-primary/50 bg-primary/5 text-foreground" : "border-input bg-card text-muted-foreground hover:bg-muted"
-      )}
-    >
-      {on && <Check className="h-3.5 w-3.5 text-primary" />}
-      {BOARD_PANEL_LABELS[panel]}
-    </button>
-  )
-}
-
-export function BoardControls({
+export function BoardToolbar({
   options,
   people,
   locations,
-  isAdmin,
-  baseUrl,
 }: {
   options: BoardOptions
   people: Array<{ id: string; name: string; avatarUrl: string | null }>
   locations: string[]
-  isAdmin: boolean
-  baseUrl: string
 }) {
-  const router = useRouter()
-  const pathname = usePathname()
-  const [pending, start] = useTransition()
+  const { push, pending, router } = useBoardUrl(options)
   const [running, setRunning] = useState(true)
-
-  const push = (next: BoardOptions) => {
-    const qs = serializeBoardOptions(next).toString()
-    start(() => router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false }))
-  }
+  const [updatedAt, setUpdatedAt] = useState<Date | null>(null)
 
   // Refresh without reloading: a reload would throw away scroll and focus.
   // The pause exists because auto-updating content nobody can stop is a
   // WCAG 2.2.4 failure.
   useEffect(() => {
     if (!running) return
-    const timer = setInterval(() => router.refresh(), INTERVAL_MS)
+    const timer = setInterval(() => {
+      router.refresh()
+      setUpdatedAt(new Date())
+    }, INTERVAL_MS)
     return () => clearInterval(timer)
   }, [running, router])
 
-  const screenQuery = serializeBoardOptions(options)
-  const previewHref = `/board?${new URLSearchParams({ ...Object.fromEntries(screenQuery), names: "1" })}`
+  const stamp = updatedAt
+    ? new Intl.DateTimeFormat("id-ID", { timeZone: "Asia/Jakarta", hour: "2-digit", minute: "2-digit" }).format(updatedAt)
+    : null
 
   return (
-    <div className="mb-4 space-y-3">
-      <div className="flex flex-wrap items-center gap-2">
-        <Segmented value={options.range} onChange={(range) => push({ ...options, range })} />
-        <FacetSelect
-          label="Sales"
-          options={people.map((person) => ({ value: person.id, label: person.name }))}
-          value={options.sales}
-          onChange={(sales) => push({ ...options, sales })}
-          renderOption={(option) => {
-            const person = people.find((item) => item.id === option.value)
-            return (
-              <span className="flex min-w-0 items-center gap-2">
-                <PersonAvatar name={option.label} avatarUrl={person?.avatarUrl ?? null} size="sm" />
-                <span className="truncate">{option.label}</span>
-              </span>
-            )
-          }}
-        />
-        <FacetSelect
-          label="Lokasi"
-          options={locations.map((location) => ({ value: location, label: location }))}
-          value={options.location}
-          onChange={(location) => push({ ...options, location })}
-        />
-        <span className="hidden h-6 w-px bg-border sm:block" aria-hidden="true" />
-        <span className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Panel yang tampil">
-          {BOARD_PANELS.map((panel) => (
-            <PanelChip
-              key={panel}
-              panel={panel}
-              on={options.panels.includes(panel)}
-              onToggle={() => {
-                const next = options.panels.includes(panel)
-                  ? options.panels.filter((item) => item !== panel)
-                  : [...options.panels, panel]
-                // The last panel cannot be switched off; an empty board is a bug.
-                if (next.length > 0) push({ ...options, panels: BOARD_PANELS.filter((item) => next.includes(item)) })
-              }}
-            />
-          ))}
-        </span>
+    <div className="mb-4 flex flex-wrap items-center gap-2">
+      <Segmented value={options.range} onChange={(range) => push({ ...options, range })} />
+      <FacetSelect
+        label="Sales"
+        options={people.map((person) => ({ value: person.id, label: person.name }))}
+        value={options.sales}
+        onChange={(sales) => push({ ...options, sales })}
+        renderOption={(option) => {
+          const person = people.find((item) => item.id === option.value)
+          return (
+            <span className="flex min-w-0 items-center gap-2">
+              <PersonAvatar name={option.label} avatarUrl={person?.avatarUrl ?? null} size="sm" />
+              <span className="truncate">{option.label}</span>
+            </span>
+          )
+        }}
+      />
+      <FacetSelect
+        label="Lokasi"
+        options={locations.map((location) => ({ value: location, label: location }))}
+        value={options.location}
+        onChange={(location) => push({ ...options, location })}
+      />
 
-        <span className="ml-auto flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setRunning((value) => !value)}
-            aria-pressed={running}
-            title={running ? "Pembaruan otomatis tiap 30 detik. Klik untuk menjeda." : "Pembaruan dijeda."}
-            className="inline-flex h-10 items-center gap-1.5 rounded-full border bg-card px-3 text-xs font-medium text-muted-foreground hover:bg-muted md:h-9"
-          >
-            {pending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : running ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
-            {running ? "Live" : "Dijeda"}
-          </button>
-          {isAdmin && <ScreenLinkDialog options={options} baseUrl={baseUrl} />}
-          <Button asChild className="h-10 md:h-9">
-            <Link href={previewHref} target="_blank" rel="noopener">
-              <MonitorPlay className="h-4 w-4" /> Tampilkan di layar
-            </Link>
-          </Button>
-        </span>
-      </div>
+      <span className="ml-auto flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => setRunning((value) => !value)}
+          aria-pressed={running}
+          title={running ? "Diperbarui otomatis tiap 30 detik. Klik untuk menjeda." : "Pembaruan dijeda. Klik untuk melanjutkan."}
+          className="inline-flex h-10 items-center gap-2 rounded-full px-3 text-xs font-medium text-muted-foreground hover:bg-muted md:h-9"
+        >
+          {pending ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <span
+              aria-hidden="true"
+              className={cn("h-2 w-2 rounded-full", running ? "bg-[var(--success-foreground)]" : "bg-muted-foreground")}
+            />
+          )}
+          {running ? (stamp ? `Live · ${stamp}` : "Live") : "Dijeda"}
+          {running ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
+        </button>
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="sm" className="h-10 md:h-9">
+              <SlidersHorizontal className="h-4 w-4" /> Tampilan
+              {options.panels.length < BOARD_PANELS.length && (
+                <span className="rounded-full bg-primary px-1.5 text-[11px] font-bold tabular-nums text-primary-foreground">
+                  {options.panels.length}
+                </span>
+              )}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuLabel>Panel yang tampil</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            {BOARD_PANELS.map((panel) => {
+              const on = options.panels.includes(panel)
+              return (
+                <DropdownMenuCheckboxItem
+                  key={panel}
+                  checked={on}
+                  // The last panel cannot be switched off; an empty board is a bug.
+                  disabled={on && options.panels.length === 1}
+                  onCheckedChange={(next) => {
+                    const list = next ? [...options.panels, panel] : options.panels.filter((item) => item !== panel)
+                    push({ ...options, panels: BOARD_PANELS.filter((item) => list.includes(item)) })
+                  }}
+                >
+                  {BOARD_PANEL_LABELS[panel]}
+                  {panel === "activity" && <span className="ml-auto text-[10px] text-muted-foreground">tidak di TV</span>}
+                </DropdownMenuCheckboxItem>
+              )
+            })}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </span>
     </div>
+  )
+}
+
+export function BoardActions({ options, isAdmin, baseUrl }: { options: BoardOptions; isAdmin: boolean; baseUrl: string }) {
+  const previewHref = `/board?${new URLSearchParams({ ...Object.fromEntries(serializeBoardOptions(options)), names: "1" })}`
+  return (
+    <>
+      {isAdmin && <ScreenLinkDialog options={options} baseUrl={baseUrl} />}
+      <Button asChild size="sm">
+        <Link href={previewHref} target="_blank" rel="noopener">
+          <MonitorPlay className="h-4 w-4" /> Tampilkan di layar
+        </Link>
+      </Button>
+    </>
   )
 }
 
@@ -239,7 +266,7 @@ function ScreenLinkDialog({ options, baseUrl }: { options: BoardOptions; baseUrl
 
   return (
     <>
-      <Button variant="outline" className="h-10 md:h-9" onClick={() => setOpen(true)}>
+      <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
         <Link2 className="h-4 w-4" /> Buat tautan layar
       </Button>
       <Dialog open={open} onOpenChange={(next) => { if (!pending) (next ? setOpen(true) : reset()) }}>
