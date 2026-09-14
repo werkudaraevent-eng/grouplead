@@ -342,7 +342,8 @@ export async function pushMissionToLeadEngine(
       ownerUserId: parsed.data.ownerUserId,
       estimatedValue: parsed.data.estimatedValue ?? report.estimatedValue ?? null,
       remark: parsed.data.remark?.trim() || report.meetingSummary || null,
-      source: `Sales Mission · ${missionId}`,
+      source: "Sales Mission",
+      salesMissionId: missionId,
     })
     leadId = created.id
   } catch (error) {

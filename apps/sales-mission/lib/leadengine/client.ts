@@ -331,6 +331,7 @@ export interface CreateLeadPayload {
   estimatedValue: number | null
   remark: string | null
   source: string
+  salesMissionId: string | null
 }
 
 export async function createLead(payload: CreateLeadPayload): Promise<{ id: string }> {

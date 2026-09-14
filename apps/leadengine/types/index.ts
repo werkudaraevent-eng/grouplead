@@ -164,6 +164,8 @@ export interface Lead {
     line_industry: string | null;
     area: string | null;
     lead_source: string | null;
+    /** The Sales Mission visit this lead was pushed from, when it was. */
+    sales_mission_id: string | null;
     referral_source: string | null;
 
     // Account relationship (per-lead, see migrations/20260515062000_add_account_status_to_leads.sql)

@@ -25,8 +25,10 @@ const createLeadSchema = z.object({
     ownerUserId: z.string().uuid(),
     estimatedValue: z.number().nonnegative().nullish(),
     remark: z.string().trim().max(4000).nullish(),
-    /** Free-form provenance, e.g. "Sales Mission · <missionId>". */
+    /** The lead_source label; must match a master option so filters and goals can group by it. */
     source: z.string().trim().max(200).nullish(),
+    /** The Sales Mission visit this lead came from, kept apart from the label. */
+    salesMissionId: z.string().uuid().nullish(),
     companyId: z.string().uuid().nullish(),
 })
 
@@ -118,6 +120,7 @@ export async function POST(request: Request) {
             estimated_value: input.estimatedValue ?? null,
             remark: input.remark ?? null,
             lead_source: input.source ?? 'Sales Mission',
+            sales_mission_id: input.salesMissionId ?? null,
             kanban_sort_order: kanbanSortOrder,
         })
         .select('id')

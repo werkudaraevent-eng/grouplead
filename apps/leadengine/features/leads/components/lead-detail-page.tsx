@@ -8,6 +8,16 @@ import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { LeadForm } from "@/features/leads/components/lead-form"
 import { Sheet, SheetContent, SheetTitle, SheetDescription } from "@/components/ui/sheet"
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { PermissionGate } from "@/features/users/components/permission-gate"
 import { usePermissions } from "@/contexts/permissions-context"
@@ -44,6 +54,8 @@ interface LeadDetailPageProps {
     lastModifiedBy?: string
     lastModified?: string
 }
+
+const salesMissionUrl = process.env.NEXT_PUBLIC_SALES_MISSION_URL?.trim() || null
 
 export function LeadDetailPage({ lead, prevLeadId, nextLeadId, lastModifiedBy = "System", lastModified }: LeadDetailPageProps) {
     const router = useRouter()
@@ -207,6 +219,18 @@ export function LeadDetailPage({ lead, prevLeadId, nextLeadId, lastModifiedBy = 
         d ? new Date(d).toLocaleString("en-GB", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "—"
 
     // ─── PDF Export (opens print-friendly HTML route; browser handles Save as PDF) ──
+    const [deleteOpen, setDeleteOpen] = useState(false)
+    const handleDelete = async () => {
+        const result = await deleteLeadAction(lead.id)
+        if (!result.success) {
+            toast.error(`Failed: ${result.error || "Permission denied"}`)
+            return
+        }
+        setDeleteOpen(false)
+        toast.success('Lead moved to Recycle Bin')
+        router.push('/leads')
+    }
+
     const handleExportPdf = () => {
         window.open(`/leads/${lead.id}/print`, "_blank", "noopener,noreferrer")
     }
@@ -228,8 +252,9 @@ export function LeadDetailPage({ lead, prevLeadId, nextLeadId, lastModifiedBy = 
                             <div className="flex items-center gap-1 mt-0.5">
                                 <button
                                     onClick={() => router.push('/leads')}
-                                    className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+                                    className="w-8 h-8 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
                                     title="Back to leads"
+                                    aria-label="Back to leads"
                                 >
                                     <ArrowLeft className="h-[18px] w-[18px]" />
                                 </button>
@@ -284,7 +309,7 @@ export function LeadDetailPage({ lead, prevLeadId, nextLeadId, lastModifiedBy = 
                                 {/* Inline Metric Strip */}
                                 <div className="flex min-w-0 flex-wrap items-center gap-x-5 gap-y-2 mt-2">
                                     <div className="flex items-center gap-2 text-[13px]">
-                                        <span className="text-slate-400 font-medium flex items-center gap-1.5">
+                                        <span className="text-muted-foreground font-medium flex items-center gap-1.5">
                                             <Wallet className="h-3.5 w-3.5" /> Amount:
                                         </span>
                                         <HeaderMetricPopover
@@ -298,7 +323,7 @@ export function LeadDetailPage({ lead, prevLeadId, nextLeadId, lastModifiedBy = 
                                     </div>
                                     <div className="w-px h-4 bg-slate-200" />
                                     <div className="flex items-center gap-2 text-[13px]">
-                                        <span className="text-slate-400 font-medium flex items-center gap-1.5">
+                                        <span className="text-muted-foreground font-medium flex items-center gap-1.5">
                                             <CalendarDays className="h-3.5 w-3.5" /> Close Date:
                                         </span>
                                         <HeaderMetricPopover
@@ -312,7 +337,7 @@ export function LeadDetailPage({ lead, prevLeadId, nextLeadId, lastModifiedBy = 
                                     </div>
                                     <div className="w-px h-4 bg-slate-200" />
                                     <div className="flex items-center gap-2 text-[13px]">
-                                        <span className="text-slate-400 font-medium flex items-center gap-1.5">
+                                        <span className="text-muted-foreground font-medium flex items-center gap-1.5">
                                             <User className="h-3.5 w-3.5" /> PIC:
                                         </span>
                                         <HeaderAssigneePopover
@@ -364,7 +389,7 @@ export function LeadDetailPage({ lead, prevLeadId, nextLeadId, lastModifiedBy = 
                                     <Button
                                         onClick={() => setEditOpen(true)}
                                         size="sm"
-                                        className="h-9 bg-slate-900 hover:bg-slate-800 text-white"
+                                        className="h-9 bg-primary text-primary-foreground hover:bg-primary/90"
                                     >
                                         <Pencil className="h-3.5 w-3.5 mr-1.5" />
                                         Edit Details
@@ -375,23 +400,14 @@ export function LeadDetailPage({ lead, prevLeadId, nextLeadId, lastModifiedBy = 
                                 <PermissionGate resource="leads" action="delete">
                                     <DropdownMenu>
                                         <DropdownMenuTrigger asChild>
-                                            <button className="w-9 h-9 flex items-center justify-center rounded-lg border border-slate-200 text-slate-400 hover:text-slate-700 hover:bg-slate-50 transition-colors">
+                                            <button className="w-9 h-9 flex items-center justify-center rounded-lg border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors" aria-label="More actions">
                                                 <MoreHorizontal className="h-4 w-4" />
                                             </button>
                                         </DropdownMenuTrigger>
                                         <DropdownMenuContent align="end" className="w-48">
                                             <DropdownMenuItem
                                                 className="text-red-600 focus:bg-red-50 focus:text-red-700 cursor-pointer"
-                                                onClick={async () => {
-                                                    if (!confirm('Move this lead to the Recycle Bin? An admin can restore it later.')) return
-                                                    const result = await deleteLeadAction(lead.id)
-                                                    if (!result.success) {
-                                                        toast.error(`Failed: ${result.error || "Permission denied"}`)
-                                                    } else {
-                                                        toast.success('Lead moved to Recycle Bin')
-                                                        router.push('/leads')
-                                                    }
-                                                }}
+                                                onClick={() => setDeleteOpen(true)}
                                             >
                                                 <Trash2 className="h-4 w-4 mr-2" />
                                                 Delete Lead
@@ -408,7 +424,7 @@ export function LeadDetailPage({ lead, prevLeadId, nextLeadId, lastModifiedBy = 
                         {stages.length > 0 && (
                             <>
                                 {/* Helper caption — tells the user what this is and that it's interactive */}
-                                <p className="px-2 mb-1 text-[11px] font-medium text-slate-400">
+                                <p className="px-2 mb-1 text-xs font-medium text-muted-foreground">
                                     Pipeline stage{canEditLead && <> <span className="text-slate-300">·</span> click a stage to move this lead</>}
                                 </p>
                                 <div className="flex items-start w-full px-2 pt-3 pb-1 overflow-x-auto thin-scrollbar">
@@ -464,7 +480,7 @@ export function LeadDetailPage({ lead, prevLeadId, nextLeadId, lastModifiedBy = 
                                                             <span className="text-[10px] font-semibold">{idx + 1}</span>
                                                         )}
                                                     </button>
-                                                    <span className={`text-[10px] leading-tight text-center truncate max-w-full ${labelClass}`} title={stage.name}>
+                                                    <span className={`text-[11px] leading-tight text-center truncate max-w-full ${labelClass}`} title={stage.name}>
                                                         {stage.name}
                                                     </span>
                                                 </div>
@@ -492,29 +508,13 @@ export function LeadDetailPage({ lead, prevLeadId, nextLeadId, lastModifiedBy = 
                 >
 
                     {/* Card 1: Deal Information */}
-                    <div className="bg-white border border-slate-200/80 rounded-lg flex flex-col overflow-hidden shrink-0">
-                        <div className="px-4 py-3 border-b border-slate-100 flex justify-between items-center">
-                            <h3 className="font-semibold text-[13px] text-[#292D30]">Deal Information</h3>
-                            <PermissionGate resource="leads" action="update">
-                                <button
-                                    onClick={() => setEditOpen(true)}
-                                    className="text-slate-400 hover:text-slate-600 transition-colors"
-                                    title="Edit all fields"
-                                >
-                                    <Pencil className="h-3.5 w-3.5" />
-                                </button>
-                            </PermissionGate>
+                    <div className="bg-card border border-border rounded-lg flex flex-col overflow-hidden shrink-0">
+                        <div className="px-5 py-4 border-b border-border">
+                            <h3 className="font-semibold text-sm text-foreground">Deal Information</h3>
                         </div>
-                        <div className="px-4 py-3.5 flex flex-col gap-2">
+                        <div className="px-3 py-2 flex flex-col">
                             {lead.company?.name && (
-                                <div className="flex items-center justify-between gap-3">
-                                    <span className="text-[11px] text-slate-400 flex items-center gap-1.5 shrink-0">
-                                        <Building2 className="h-3 w-3 text-slate-300" /> Subsidiary
-                                    </span>
-                                    <span className="text-[12px] font-semibold text-[#02378D]">
-                                        {lead.company.name}
-                                    </span>
-                                </div>
+                                <KVRow icon={Building2} label="Subsidiary" value={lead.company.name} />
                             )}
                             <EditableRow icon={Wallet} label="Estimated Value" readOnly={fmtCurrency(lead.estimated_value)}>
                                 <HeaderMetricPopover
@@ -524,7 +524,7 @@ export function LeadDetailPage({ lead, prevLeadId, nextLeadId, lastModifiedBy = 
                                     displayValue={lead.estimated_value != null ? fmtCurrency(lead.estimated_value) : "Set value"}
                                     inputType="number"
                                     rawValue={lead.estimated_value}
-                                    triggerClassName="flex-row-reverse text-[12px] font-medium text-[#292D30] hover:text-blue-600"
+                                    triggerClassName="flex-row-reverse text-sm font-medium text-foreground hover:text-primary"
                                 />
                             </EditableRow>
                             {/* Actual Value — the booked revenue. Only relevant
@@ -540,7 +540,7 @@ export function LeadDetailPage({ lead, prevLeadId, nextLeadId, lastModifiedBy = 
                                         displayValue={lead.actual_value != null ? fmtCurrency(lead.actual_value) : "Set value"}
                                         inputType="number"
                                         rawValue={lead.actual_value}
-                                        triggerClassName="flex-row-reverse text-[12px] font-medium text-[#292D30] hover:text-blue-600"
+                                        triggerClassName="flex-row-reverse text-sm font-medium text-foreground hover:text-primary"
                                     />
                                 </EditableRow>
                             )}
@@ -552,7 +552,7 @@ export function LeadDetailPage({ lead, prevLeadId, nextLeadId, lastModifiedBy = 
                                     displayValue={fmtDate(lead.target_close_date)}
                                     inputType="date"
                                     rawValue={lead.target_close_date}
-                                    triggerClassName="flex-row-reverse text-[12px] font-medium text-[#292D30] hover:text-blue-600"
+                                    triggerClassName="flex-row-reverse text-sm font-medium text-foreground hover:text-primary"
                                 />
                             </EditableRow>
                             {/* Closed Won / Lost are system-set on stage transition
@@ -568,6 +568,16 @@ export function LeadDetailPage({ lead, prevLeadId, nextLeadId, lastModifiedBy = 
                             <EditableRow icon={MapPin} label="Lead Source" readOnly={lead.lead_source}>
                                 <InlineSelectPopover leadId={lead.id} fieldPath="lead_source" optionType="lead_source" label="Lead Source" rawValue={lead.lead_source} />
                             </EditableRow>
+                            {lead.sales_mission_id && salesMissionUrl && (
+                                <a
+                                    href={`${salesMissionUrl}/workspace/missions/${lead.sales_mission_id}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="-mt-1 mb-1 flex min-h-8 items-center justify-end gap-1.5 px-2 text-xs font-medium text-primary hover:underline"
+                                >
+                                    Open the visit in Sales Mission <ChevronRight className="h-3.5 w-3.5" />
+                                </a>
+                            )}
                             <EditableRow icon={Tags} label="Category" readOnly={lead.category}>
                                 <InlineSelectPopover leadId={lead.id} fieldPath="category" optionType="category" label="Category" rawValue={lead.category} />
                             </EditableRow>
@@ -729,7 +739,7 @@ export function LeadDetailPage({ lead, prevLeadId, nextLeadId, lastModifiedBy = 
                     )}
 
                     {/* Meta Footer */}
-                    <div className="text-[11px] text-slate-400 px-1 pb-2 shrink-0 flex flex-col gap-0.5 mt-auto">
+                    <div className="text-xs text-muted-foreground px-1 pb-2 shrink-0 flex flex-col gap-0.5 mt-auto">
                         <p suppressHydrationWarning>Created: {lead.created_at ? fmtDateTime(lead.created_at) : "—"}</p>
                         <p suppressHydrationWarning>Last Modified: <span suppressHydrationWarning className="font-medium text-slate-500">{lastModified ? fmtDateTime(lastModified) : (lead.updated_at ? fmtDateTime(lead.updated_at) : "—")}</span></p>
                         <p suppressHydrationWarning>By: <span className="font-medium text-slate-500">{lastModifiedBy}</span></p>
@@ -813,7 +823,23 @@ export function LeadDetailPage({ lead, prevLeadId, nextLeadId, lastModifiedBy = 
 
             {/* ═══ Edit Side-Sheet ═════════════════════════════════ */}
             <Sheet open={editOpen} onOpenChange={setEditOpen}>
-                <SheetContent
+                <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Move this lead to the Recycle Bin?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            {lead.project_name || "This lead"} disappears from the pipeline. An admin can restore it from the Recycle Bin later.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Keep lead</AlertDialogCancel>
+                        <AlertDialogAction className="bg-red-600 text-white hover:bg-red-700" onClick={(event) => { event.preventDefault(); void handleDelete() }}>
+                            Move to Recycle Bin
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+            <SheetContent
                     side="right"
                     className="w-full sm:max-w-2xl p-0 flex flex-col border-l border-border overflow-hidden"
                     onInteractOutside={(e) => e.preventDefault()}
@@ -852,7 +878,7 @@ function TabBtn({ value, icon: Icon, label, hasBadge }: { value: string; icon: t
         <TabsTrigger
             value={value}
             className={
-                "flex-none! rounded-none! border-none! h-auto! px-4 pb-2.5 pt-2.5 text-[13px]" +
+                "flex-none! rounded-none! border-none! h-auto! px-4 py-3 text-sm" +
                 " text-slate-400 hover:text-slate-600 data-[state=active]:text-blue-600" +
                 " shadow-none! ring-0! outline-none!" +
                 " bg-white! data-[state=active]:bg-white!" +
@@ -876,27 +902,25 @@ function TabBtn({ value, icon: Icon, label, hasBadge }: { value: string; icon: t
 
 /** Key-Value row for info cards */
 function KVRow({
-    icon: Icon,
     label,
     value,
     highlight,
 }: {
-    icon: typeof Building2
+    /** Kept so callers stay untouched; a key-value row no longer draws it. */
+    icon?: typeof Building2
     label: string
     value: string | null | undefined
     highlight?: boolean
 }) {
     return (
-        <div className="flex items-center justify-between gap-3">
-            <span className="text-[11px] text-slate-400 flex items-center gap-1.5 shrink-0">
-                <Icon className="h-3 w-3 text-slate-300" /> {label}
-            </span>
+        <div className="flex min-h-9 items-center justify-between gap-3 px-2">
+            <span className="text-xs text-muted-foreground shrink-0">{label}</span>
             {highlight && value ? (
-                <span className="text-[11px] font-semibold bg-slate-100 text-slate-700 px-2 py-0.5 rounded-md">
+                <span className="text-xs font-semibold bg-muted text-foreground px-2 py-0.5 rounded-md">
                     {value}
                 </span>
             ) : (
-                <span className={`text-[12px] font-medium text-right truncate ${value && value !== '—' ? 'text-[#292D30]' : 'text-slate-300'}`}>
+                <span className={`text-sm font-medium text-right truncate ${value && value !== '—' ? 'text-foreground' : 'text-muted-foreground/60'}`}>
                     {value || "—"}
                 </span>
             )}
@@ -914,27 +938,25 @@ function KVRow({
  * hover/pencil, so the same row degrades cleanly to read-only.
  */
 function EditableRow({
-    icon: Icon,
     label,
     readOnly,
     children,
 }: {
-    icon: typeof Building2
+    /** Kept so callers stay untouched; a key-value row no longer draws it. */
+    icon?: typeof Building2
     label: string
     /** Display value used for the read-only (no-permission) fallback. */
     readOnly: string | null | undefined
     children: React.ReactNode
 }) {
     return (
-        <div className="group/row flex items-center justify-between gap-3 rounded -mx-1.5 px-1.5 py-0.5 transition-colors hover:bg-slate-50">
-            <span className="text-[11px] text-slate-400 flex items-center gap-1.5 shrink-0">
-                <Icon className="h-3 w-3 text-slate-300" /> {label}
-            </span>
+        <div className="group/row flex min-h-9 items-center justify-between gap-3 rounded-md px-2 transition-colors hover:bg-muted/60">
+            <span className="text-xs text-muted-foreground shrink-0">{label}</span>
             <PermissionGate
                 resource="leads"
                 action="update"
                 fallback={
-                    <span className={`text-[12px] font-medium text-right truncate ${readOnly && readOnly !== '—' ? 'text-[#292D30]' : 'text-slate-300'}`}>
+                    <span className={`text-sm font-medium text-right truncate ${readOnly && readOnly !== '—' ? 'text-foreground' : 'text-muted-foreground/60'}`}>
                         {readOnly || "—"}
                     </span>
                 }
