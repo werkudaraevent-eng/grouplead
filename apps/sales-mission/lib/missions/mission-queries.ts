@@ -253,6 +253,9 @@ export async function getMission(
     .eq("id", missionId)
     .maybeSingle()
 
+  // A query error and "no such mission" both end in a 404, so the error must
+  // at least reach the server log or it is invisible.
+  if (error) console.error("[getMission]", missionId, error.code, error.message, error.details ?? "")
   if (error || !missionRow) return null
 
   const { data: assignmentRows } = await missions
