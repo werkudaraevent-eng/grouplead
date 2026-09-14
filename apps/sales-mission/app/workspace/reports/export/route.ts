@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server"
+import * as XLSX from "xlsx"
 import { canPerform, getSalesMissionAccess } from "@/lib/sales-mission-access"
 import { listReportRecords } from "@/lib/reporting/report-queries"
 import { currentMonthRange, filterByRange, toCsv, toCsvRows } from "@/lib/reporting/kpi"
@@ -39,7 +40,30 @@ export async function GET(request: Request) {
   }
 
   const records = filterByRange(await listReportRecords(access), range)
-  const csv = toCsv(toCsvRows(records))
+  const rows = toCsvRows(records)
+
+  // Excel is what the file is opened in; CSV stays for anything that reads
+  // it by machine. Same rows either way, so the two never disagree.
+  if (url.searchParams.get("format") === "xlsx") {
+    const [header, ...body] = rows
+    const numeric = new Set(["estimated_value", "contacts_met"])
+    const typed = body.map((row) => row.map((cell, index) => (numeric.has(header[index]) && cell !== "" ? Number(cell) : cell)))
+    const sheet = XLSX.utils.aoa_to_sheet([header, ...typed])
+    sheet["!cols"] = header.map((name) => ({ wch: Math.max(name.length + 2, 16) }))
+    sheet["!freeze"] = { xSplit: 0, ySplit: 1 }
+    const book = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(book, sheet, "Laporan kunjungan")
+    const buffer = XLSX.write(book, { type: "buffer", bookType: "xlsx" }) as Buffer
+    return new NextResponse(new Uint8Array(buffer), {
+      headers: {
+        "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "Content-Disposition": `attachment; filename="sales-mission-${range.from}_${range.to}.xlsx"`,
+        "Cache-Control": "no-store",
+      },
+    })
+  }
+
+  const csv = toCsv(rows)
 
   // BOM so Excel opens UTF-8 correctly — without it Indonesian names with
   // accents arrive mangled, and the first thing anyone does with this file is

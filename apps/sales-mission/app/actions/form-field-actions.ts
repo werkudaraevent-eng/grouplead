@@ -314,6 +314,7 @@ export async function getFieldOptionUsage(
         ? schema
             .from("missions")
             .select("id", { count: "exact", head: true })
+            .is("deleted_at", null)
             .eq("company_id", access.companyId)
             .eq(column, option)
         : schema

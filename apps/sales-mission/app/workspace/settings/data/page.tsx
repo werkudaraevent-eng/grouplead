@@ -2,6 +2,7 @@ import { redirect } from "next/navigation"
 import { canPerform, getSalesMissionAccess } from "@/lib/sales-mission-access"
 import { createClient } from "@/utils/supabase/server"
 import { BackLink, EmptyState, WorkspacePage } from "@/app/workspace/workspace-page"
+import Link from "next/link"
 import { ClearMissions } from "./clear-missions"
 
 export const dynamic = "force-dynamic"
@@ -30,11 +31,10 @@ export default async function DataSettingsPage() {
   }
 
   const supabase = await createClient()
-  const { count } = await supabase
-    .schema("sales_mission")
-    .from("missions")
-    .select("id", { count: "exact", head: true })
-    .eq("company_id", access.companyId)
+  const [{ count }, { count: binned }] = await Promise.all([
+    supabase.schema("sales_mission").from("missions").select("id", { count: "exact", head: true }).eq("company_id", access.companyId).is("deleted_at", null),
+    supabase.schema("sales_mission").from("missions").select("id", { count: "exact", head: true }).eq("company_id", access.companyId).not("deleted_at", "is", null),
+  ])
 
   return (
     <WorkspacePage
@@ -43,7 +43,13 @@ export default async function DataSettingsPage() {
       description="Mengosongkan data unit bisnis ini. Setiap penghapusan tercatat di Riwayat aktivitas."
       action={<BackLink href="/workspace/settings" />}
     >
-      <ClearMissions count={count ?? 0} canDelete={canDelete} />
+      <div className="space-y-4">
+        <p className="text-sm text-muted-foreground">
+          {binned ?? 0} mission sedang di sampah.{" "}
+          <Link href="/workspace/settings/recycle-bin" className="font-semibold text-primary hover:underline">Buka sampah</Link>
+        </p>
+        <ClearMissions count={count ?? 0} canDelete={canDelete} />
+      </div>
     </WorkspacePage>
   )
 }

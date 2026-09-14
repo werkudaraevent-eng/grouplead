@@ -204,7 +204,7 @@ function SelectionBar({
           onClick={onDelete}
           className="text-[var(--danger-foreground)] hover:text-[var(--danger-foreground)]"
         >
-          <Trash2 className="h-4 w-4" /> Hapus
+          <Trash2 className="h-4 w-4" /> Ke sampah
         </Button>
         <Button size="sm" variant="ghost" onClick={onClear} aria-label="Batalkan pilihan">
           <X className="h-4 w-4" /> Batal
@@ -293,12 +293,12 @@ export function MissionTable({
     start(async () => {
       const result = await deleteMissions(chosen)
       if (result.success) {
-        toast.success(`${chosen.length} mission dihapus`)
+        toast.success(`${chosen.length} mission dipindahkan ke sampah`)
         clearSelection()
         setConfirming(false)
         router.refresh()
       } else {
-        toast.error(result.error ?? "Mission gagal dihapus")
+        toast.error(result.error ?? "Mission gagal dipindahkan ke sampah")
       }
     })
   }
@@ -523,10 +523,10 @@ export function MissionTable({
       <Dialog open={confirming} onOpenChange={(next) => { if (!pending) setConfirming(next) }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Hapus {chosen.length} mission?</DialogTitle>
+            <DialogTitle>Pindahkan {chosen.length} mission ke sampah?</DialogTitle>
             <DialogDescription>
-              Laporan kunjungan, penugasan, catatan, dan usulan jadwal di dalamnya ikut terhapus. Riwayat aktivitas
-              tetap mencatat siapa yang menghapus dan apa isinya. Tidak bisa dibatalkan.
+              Mission hilang dari daftar, kalender, dan papan, tetapi laporan, penugasan, dan catatannya tetap tersimpan.
+              Admin bisa memulihkannya dari Pengaturan → Sampah selama 30 hari; setelah itu terhapus permanen.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -537,7 +537,7 @@ export function MissionTable({
               className="bg-[var(--danger-foreground)] text-white hover:bg-[var(--danger-foreground)]/90"
             >
               {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-              Hapus {chosen.length} mission
+              Pindahkan ke sampah
             </Button>
           </DialogFooter>
         </DialogContent>

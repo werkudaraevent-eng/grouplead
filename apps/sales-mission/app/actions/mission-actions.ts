@@ -417,12 +417,13 @@ export async function cancelMission(missionId: string, reason: string): Promise<
 }
 
 /**
- * Remove missions outright.
+ * Move missions to the recycle bin.
  *
- * Hard delete, not a recycle bin: the child rows cascade, and the audit log's
- * DELETE row keeps the full record of each mission with who removed it, which
- * is the part an admin later needs. Held to the mission module's `delete`
- * grant, which no default role carries; an admin hands it out deliberately.
+ * A soft delete: the row is marked, everything under it stays, and every
+ * read of live missions skips marked rows. An admin restores from the bin
+ * or removes for good (recycle-bin-actions); what nobody touches is purged
+ * after the retention period. Held to the mission module's `delete` grant,
+ * which no default role carries; an admin hands it out deliberately.
  */
 export async function deleteMissions(ids: string[]): Promise<ActionResult<{ deleted: number }>> {
   const access = await getSalesMissionAccess()
@@ -436,24 +437,28 @@ export async function deleteMissions(ids: string[]): Promise<ActionResult<{ dele
   if (unique.length > 500) return { success: false, error: "Pilih paling banyak 500 mission sekaligus." }
 
   const supabase = await createClient()
+  const now = new Date().toISOString()
   const { data, error } = await supabase
     .schema("sales_mission")
     .from("missions")
-    .delete()
+    .update({ deleted_at: now, deleted_by: access.userId, updated_at: now })
     .eq("company_id", access.companyId)
     .in("id", unique)
+    .is("deleted_at", null)
     .select("id")
 
-  if (error) return { success: false, error: "Mission gagal dihapus." }
+  if (error) return { success: false, error: "Mission gagal dipindahkan ke sampah." }
 
   revalidatePath("/workspace")
   revalidatePath("/workspace/missions")
   revalidatePath("/workspace/calendar")
+  revalidatePath("/workspace/settings/recycle-bin")
   return { success: true, data: { deleted: data?.length ?? 0 } }
 }
 
 /**
- * Empty the tenant's missions, for clearing a trial before real use.
+ * Move every mission to the recycle bin, for clearing a trial before real
+ * use. The bin's own "kosongkan" then removes them for good.
  *
  * Type-to-confirm, the way GitHub guards deleting a repository: the phrase is
  * checked here as well as in the dialog, because a Server Action is a public
@@ -473,11 +478,13 @@ export async function clearAllMissions(confirmation: string): Promise<ActionResu
   }
 
   const supabase = await createClient()
+  const now = new Date().toISOString()
   const { data, error } = await supabase
     .schema("sales_mission")
     .from("missions")
-    .delete()
+    .update({ deleted_at: now, deleted_by: access.userId, updated_at: now })
     .eq("company_id", access.companyId)
+    .is("deleted_at", null)
     .select("id")
 
   if (error) return { success: false, error: "Data gagal dikosongkan." }
@@ -486,6 +493,7 @@ export async function clearAllMissions(confirmation: string): Promise<ActionResu
   revalidatePath("/workspace/missions")
   revalidatePath("/workspace/calendar")
   revalidatePath("/workspace/settings/data")
+  revalidatePath("/workspace/settings/recycle-bin")
   return { success: true, data: { deleted: data?.length ?? 0 } }
 }
 

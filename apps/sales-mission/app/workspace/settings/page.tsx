@@ -2,7 +2,7 @@ import Link from "next/link"
 import { redirect } from "next/navigation"
 import { getSalesMissionAccess } from "@/lib/sales-mission-access"
 import { requireModule } from "@/lib/missions/nav-access"
-import { ArrowUpRight, Bell, Building2, Database, History, ListChecks, MonitorPlay, ShieldCheck } from "@/components/icons"
+import { ArrowUpRight, Bell, Building2, Database, History, ListChecks, MonitorPlay, ShieldCheck, Trash2 } from "@/components/icons"
 import { WorkspacePage } from "@/app/workspace/workspace-page"
 
 const SETTING_CARDS = [
@@ -40,6 +40,13 @@ const SETTING_CARDS = [
     title: "Riwayat aktivitas",
     description: "Siapa membuat, mengubah, dan menghapus apa, dengan isi perubahannya. Dicatat otomatis untuk setiap perubahan.",
     href: "/workspace/settings/activity",
+  },
+  {
+    icon: Trash2,
+    tone: "bg-muted text-muted-foreground",
+    title: "Sampah",
+    description: "Mission yang dihapus tinggal di sini 30 hari. Pulihkan, atau hapus permanen.",
+    href: "/workspace/settings/recycle-bin",
   },
   {
     icon: Database,

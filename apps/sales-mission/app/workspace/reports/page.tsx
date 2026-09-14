@@ -124,11 +124,16 @@ export default async function ReportsPage({
       title="Laporan"
       description="Dihitung dari laporan kunjungan yang sudah dikirim. Draft tidak ikut."
       action={
-        <Button asChild variant="outline" size="sm">
-          <a href={`/workspace/reports/export?from=${range.from}&to=${range.to}`}>
-            <Download className="h-4 w-4" /> Ekspor CSV
-          </a>
-        </Button>
+        <>
+          <Button asChild size="sm">
+            <a href={`/workspace/reports/export?from=${range.from}&to=${range.to}&format=xlsx`}>
+              <Download className="h-4 w-4" /> Ekspor Excel
+            </a>
+          </Button>
+          <Button asChild variant="outline" size="sm">
+            <a href={`/workspace/reports/export?from=${range.from}&to=${range.to}`}>CSV</a>
+          </Button>
+        </>
       }
     >
       <form className="mb-4 flex flex-wrap items-end gap-3 rounded-xl border bg-card px-5 py-4" action="/workspace/reports">

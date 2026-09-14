@@ -95,6 +95,7 @@ async function previousMissionNames(
     .schema("sales_mission")
     .from("missions")
     .select("client_company_name_snapshot")
+    .is("deleted_at", null)
     .eq("company_id", access.companyId)
     .is("client_company_id", null)
     .ilike("client_company_name_snapshot", `%${escaped}%`)

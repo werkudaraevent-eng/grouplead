@@ -26,7 +26,7 @@ export function ClearMissions({ count, canDelete }: { count: number; canDelete: 
     start(async () => {
       const result = await clearAllMissions(typed)
       if (result.success) {
-        toast.success(`${result.data?.deleted ?? 0} mission dihapus. Data unit bisnis ini sekarang kosong.`)
+        toast.success(`${result.data?.deleted ?? 0} mission dipindahkan ke sampah. Daftar mission sekarang kosong.`)
         setTyped("")
         router.refresh()
       } else {
@@ -40,19 +40,20 @@ export function ClearMissions({ count, canDelete }: { count: number; canDelete: 
       <header className="flex items-start gap-3 border-b border-[var(--danger-foreground)]/20 bg-[var(--danger)] px-5 py-4">
         <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-[var(--danger-foreground)]" />
         <div>
-          <h2 className="text-base font-semibold text-[var(--danger-foreground)]">Hapus semua mission</h2>
-          <p className="mt-0.5 text-sm text-[var(--danger-foreground)]">Zona berbahaya. Tidak bisa dibatalkan.</p>
+          <h2 className="text-base font-semibold text-[var(--danger-foreground)]">Kosongkan semua mission</h2>
+          <p className="mt-0.5 text-sm text-[var(--danger-foreground)]">Zona berbahaya. Semuanya masuk ke sampah dulu.</p>
         </div>
       </header>
 
       <div className="space-y-4 px-5 py-5">
         <p className="text-sm leading-relaxed text-foreground">
-          Menghapus <strong>{count} mission</strong> di unit bisnis ini beserta laporan kunjungan, penugasan, catatan
-          pendukung, usulan jadwal, dan isian field tambahan di dalamnya. Pengaturan form, aturan mission, dan tautan
-          papan tidak disentuh. Perusahaan dan kontak yang sudah masuk ke LeadEngine tetap ada di sana.
+          Memindahkan <strong>{count} mission</strong> beserta laporan kunjungan, penugasan, catatan pendukung, usulan
+          jadwal, dan isian field tambahannya ke sampah. Pengaturan form, aturan mission, dan tautan papan tidak
+          disentuh. Perusahaan dan kontak yang sudah masuk ke LeadEngine tetap ada di sana.
         </p>
         <p className="text-sm leading-relaxed text-muted-foreground">
-          Riwayat aktivitas menyimpan isi setiap mission yang dihapus dan siapa yang menghapusnya.
+          Dari sampah, admin bisa memulihkan atau menghapus permanen selama 30 hari. Riwayat aktivitas mencatat
+          setiap langkahnya.
         </p>
 
         {!canDelete && (
@@ -84,7 +85,7 @@ export function ClearMissions({ count, canDelete }: { count: number; canDelete: 
             className="h-11 bg-[var(--danger-foreground)] text-white hover:bg-[var(--danger-foreground)]/90 disabled:opacity-40"
           >
             {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-            Hapus {count} mission
+            Pindahkan {count} mission ke sampah
           </Button>
         </div>
       </div>

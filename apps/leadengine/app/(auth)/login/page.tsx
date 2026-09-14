@@ -196,7 +196,7 @@ export default function LoginPage() {
                                 onChange={(e) => setEmail(e.target.value)}
                                 required
                                 autoComplete="email"
-                                className="h-11 bg-muted/40 border-border/60 focus:bg-white transition-colors"
+                                className="h-12 bg-muted/40 focus:bg-white transition-colors"
                             />
                         </div>
 
@@ -207,7 +207,7 @@ export default function LoginPage() {
                                 </Label>
                                 <Link
                                     href="/forgot-password"
-                                    className="text-xs font-medium text-[#02378D] hover:text-[#02378D]/80 transition-colors"
+                                    className="inline-flex min-h-8 items-center text-sm font-medium text-primary hover:text-primary/80 transition-colors"
                                 >
                                     Forgot password?
                                 </Link>
@@ -221,7 +221,7 @@ export default function LoginPage() {
                                     onChange={(e) => setPassword(e.target.value)}
                                     required
                                     autoComplete="current-password"
-                                    className="h-11 bg-muted/40 border-border/60 focus:bg-white transition-colors pr-11"
+                                    className="h-12 bg-muted/40 focus:bg-white transition-colors pr-12"
                                 />
                                 <button
                                     type="button"
@@ -229,8 +229,7 @@ export default function LoginPage() {
                                     aria-label={showPassword ? "Hide password" : "Show password"}
                                     aria-pressed={showPassword}
                                     title={showPassword ? "Hide password" : "Show password"}
-                                    tabIndex={-1}
-                                    className="absolute right-2 top-1/2 -translate-y-1/2 inline-flex items-center justify-center h-8 w-8 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                                    className="absolute right-1 top-1/2 -translate-y-1/2 inline-flex items-center justify-center h-10 w-10 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
                                 >
                                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                                 </button>
@@ -239,7 +238,7 @@ export default function LoginPage() {
 
                         <Button
                             type="submit"
-                            className="w-full h-11 text-[15px] font-medium bg-[#02378D] hover:bg-[#02378D]/90 transition-all duration-200 shadow-lg shadow-[#02378D]/20 hover:shadow-xl hover:shadow-[#02378D]/30"
+                            className="w-full h-12 text-[15px] font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
                             disabled={loading}
                         >
                             {loading ? (
@@ -255,7 +254,7 @@ export default function LoginPage() {
                         <p className="text-xs text-muted-foreground text-center">
                             Protected by enterprise-grade security.
                             <br />
-                            <span className="text-muted-foreground/70">© {new Date().getFullYear()} Werkudara Group. All rights reserved.</span>
+                            <span>© {new Date().getFullYear()} Werkudara Group. All rights reserved.</span>
                         </p>
                     </div>
                 </div>

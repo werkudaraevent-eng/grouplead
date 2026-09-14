@@ -30,6 +30,7 @@ export async function getBoardSnapshot(
     schema
       .from("missions")
       .select(MISSION_COLUMNS)
+      .is("deleted_at", null)
       .eq("company_id", companyId)
       .gte("scheduled_start", `${from}T00:00:00+07:00`)
       .lte("scheduled_start", `${to}T23:59:59.999+07:00`)
@@ -37,6 +38,7 @@ export async function getBoardSnapshot(
     schema
       .from("missions")
       .select("id", { count: "exact", head: true })
+      .is("deleted_at", null)
       .eq("company_id", companyId)
       .in("status", ["SCHEDULED", "ASSIGNED", "ACCEPTED", "IN_PROGRESS"]),
   ])

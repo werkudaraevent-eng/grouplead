@@ -164,14 +164,14 @@ export default function LoginPage() {
                 onChange={(event) => setEmail(event.target.value)}
                 required
                 autoComplete="email"
-                className="h-11 border-border/60 bg-muted/40 transition-colors focus:bg-white"
+                className="h-12 bg-muted/40 transition-colors focus:bg-white"
               />
             </div>
 
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
                 <Label htmlFor="password">Kata sandi</Label>
-                <Link href="/forgot-password" className="text-xs font-medium text-primary transition-colors hover:text-primary/80">
+                <Link href="/forgot-password" className="inline-flex min-h-8 items-center text-sm font-medium text-primary transition-colors hover:text-primary/80">
                   Lupa kata sandi?
                 </Link>
               </div>
@@ -184,15 +184,14 @@ export default function LoginPage() {
                   onChange={(event) => setPassword(event.target.value)}
                   required
                   autoComplete="current-password"
-                  className="h-11 border-border/60 bg-muted/40 pr-11 transition-colors focus:bg-white"
+                  className="h-12 bg-muted/40 pr-12 transition-colors focus:bg-white"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword((value) => !value)}
                   aria-label={showPassword ? "Hide password" : "Show password"}
                   aria-pressed={showPassword}
-                  tabIndex={-1}
-                  className="absolute right-2 top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                  className="absolute right-1 top-1/2 inline-flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                 >
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
@@ -202,7 +201,7 @@ export default function LoginPage() {
             <Button
               type="submit"
               disabled={loading}
-              className="h-11 w-full text-[15px] font-medium shadow-lg shadow-primary/20 transition-all duration-200 hover:shadow-xl hover:shadow-primary/30"
+              className="h-12 w-full text-[15px] font-medium"
             >
               {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
               {loading ? "Memproses…" : "Masuk"}
@@ -213,7 +212,7 @@ export default function LoginPage() {
             <p className="text-center text-xs text-muted-foreground">
               Akses diatur oleh administrator Werkudara Group.
               <br />
-              <span className="text-muted-foreground/70">© {new Date().getFullYear()} Werkudara Group. All rights reserved.</span>
+              <span>© {new Date().getFullYear()} Werkudara Group. All rights reserved.</span>
             </p>
           </div>
         </div>

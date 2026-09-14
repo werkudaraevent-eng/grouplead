@@ -215,6 +215,7 @@ async function syncMissionStatus(
   const { data: mission } = await schema
     .from("missions")
     .select("status")
+    .is("deleted_at", null)
     .eq("id", missionId)
     .eq("company_id", companyId)
     .maybeSingle()
@@ -274,6 +275,7 @@ export async function respondToAssignment(
   const { data: mission } = await schema
     .from("missions")
     .select("status")
+    .is("deleted_at", null)
     .eq("id", missionId)
     .eq("company_id", access.companyId)
     .maybeSingle()
@@ -528,7 +530,7 @@ export async function rescheduleMission(missionId: string, input: unknown): Prom
   const [role, settings, { data: mission }] = await Promise.all([
     getMissionRole(access, missionId),
     getMissionSettings(access),
-    schema.from("missions").select("status, scheduled_start, created_by").eq("id", missionId).eq("company_id", access.companyId).maybeSingle(),
+    schema.from("missions").select("status, scheduled_start, created_by").is("deleted_at", null).eq("id", missionId).eq("company_id", access.companyId).maybeSingle(),
   ])
   if (!mission) return { success: false, error: "Mission tidak ditemukan." }
   // The scheduler owns the slot as much as the primary does: the appointment

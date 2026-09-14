@@ -55,6 +55,8 @@ export const AUDIT_TABLE_LABELS = TABLE_LABELS
 
 const COLUMN_LABELS: Record<string, string> = {
   status: "status",
+  deleted_at: "sampah",
+  deleted_by: "dihapus oleh",
   scheduled_start: "jam mulai",
   scheduled_end: "jam selesai",
   location: "lokasi",
@@ -196,7 +198,12 @@ export function describeAudit(row: AuditRow): AuditDescription {
   switch (row.tableName) {
     case "missions":
       if (row.action === "INSERT") return { sentence: `membuat mission ke ${name}`, tone: "create", details }
-      if (row.action === "DELETE") return { sentence: `menghapus mission ke ${name}`, tone: "delete", details }
+      if (row.action === "DELETE") return { sentence: `menghapus permanen mission ke ${name}`, tone: "delete", details }
+      if (has("deleted_at")) {
+        return to("deleted_at")
+          ? { sentence: `memindahkan mission ke ${name} ke sampah`, tone: "delete", details }
+          : { sentence: `memulihkan mission ke ${name} dari sampah`, tone: "create", details }
+      }
       if (has("status")) {
         const next = to("status")
         if (next === "CANCELLED") return { sentence: `membatalkan mission ke ${name}`, tone: "delete", details }

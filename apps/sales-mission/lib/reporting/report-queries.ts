@@ -37,6 +37,7 @@ export async function listReportRecords(access: SalesMissionAccess): Promise<Rep
       schema
         .from("missions")
         .select("id, mission_type, client_company_name_snapshot")
+        .is("deleted_at", null)
         .eq("company_id", access.companyId)
         .in("id", missionIds),
       schema

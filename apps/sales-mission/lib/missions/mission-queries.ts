@@ -87,6 +87,7 @@ export async function listMissions(
   let query = missions
     .from("missions")
     .select(MISSION_COLUMNS)
+    .is("deleted_at", null)
     .eq("company_id", access.companyId)
     .order("scheduled_start", { ascending: true, nullsFirst: false })
   if (window.since) query = query.gte("scheduled_start", window.since.toISOString())
@@ -105,6 +106,7 @@ export async function listMissionsByIds(access: SalesMissionAccess, ids: string[
   const { data: missionRows } = await missions
     .from("missions")
     .select(MISSION_COLUMNS)
+    .is("deleted_at", null)
     .eq("company_id", access.companyId)
     .in("id", ids)
   const rows = (missionRows ?? []) as MissionRow[]
@@ -134,6 +136,7 @@ export async function listViewerCalendar(
   const { data: own } = await missions
     .from("missions")
     .select("id, scheduled_start, scheduled_end, location, status")
+    .is("deleted_at", null)
     .eq("company_id", access.companyId)
     .in("id", ids)
     .not("status", "in", "(CANCELLED,REJECTED,COMPLETED)")
@@ -245,6 +248,7 @@ export async function getMission(
   const { data: missionRow, error } = await missions
     .from("missions")
     .select(MISSION_COLUMNS)
+    .is("deleted_at", null)
     .eq("company_id", access.companyId)
     .eq("id", missionId)
     .maybeSingle()
@@ -567,6 +571,7 @@ export async function listTeamSchedules(
   const { data: missionRows } = await missions
     .from("missions")
     .select("id, scheduled_start, scheduled_end, location, status")
+    .is("deleted_at", null)
     .eq("company_id", access.companyId)
     .not("status", "in", "(CANCELLED,REJECTED)")
     .gte("scheduled_start", new Date(from.getTime() - 24 * 3600 * 1000).toISOString())
@@ -644,7 +649,7 @@ export async function getMissionSummary(access: SalesMissionAccess): Promise<Mis
   const dayStart = `${jakartaDay}T00:00:00+07:00`
   const dayEnd = `${jakartaDay}T23:59:59+07:00`
 
-  const base = () => missions.from("missions").select("id", { count: "exact", head: true }).eq("company_id", access.companyId)
+  const base = () => missions.from("missions").select("id", { count: "exact", head: true }).is("deleted_at", null).eq("company_id", access.companyId)
 
   const [open, today, completed] = await Promise.all([
     base().in("status", openStatuses),
