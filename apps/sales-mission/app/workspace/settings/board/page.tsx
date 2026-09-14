@@ -31,13 +31,14 @@ export default async function BoardSettingsPage() {
   const { data } = await supabase
     .schema("sales_mission")
     .from("board_tokens")
-    .select("id, label, created_at, expires_at, revoked_at, last_used_at")
+    .select("id, label, created_at, expires_at, revoked_at, last_used_at, show_client_names")
     .eq("company_id", access.companyId)
     .order("created_at", { ascending: false })
 
   const tokens: BoardTokenRow[] = (data ?? []).map((row) => ({
     id: row.id as string,
     label: row.label as string,
+    showClientNames: row.show_client_names === true,
     createdAt: row.created_at as string,
     expiresAt: (row.expires_at as string | null) ?? null,
     revokedAt: (row.revoked_at as string | null) ?? null,
@@ -55,17 +56,17 @@ export default async function BoardSettingsPage() {
     <WorkspacePage
       eyebrow="Sales Mission / Administration"
       title="Papan live"
-      description="Tautan untuk layar kantor, dan tampilan internal untuk tim."
+      description="Tautan layar yang pernah dibuat: cabut yang tidak dipakai. Membuat tautan baru dilakukan dari halaman Papan live."
       action={<BackLink href="/workspace/settings" />}
     >
       <div className="mb-4 rounded-xl border border-dashed bg-muted/40 px-5 py-4 text-sm text-muted-foreground">
-        Papan TV <strong className="text-foreground">menyamarkan nama klien</strong> — hanya menampilkan tim, jadwal,
-        area, dan status. Layar di ruang terbuka terbaca tamu, kandidat, dan vendor, dan foto layar berjalan lebih jauh
-        dari yang siapa pun kira. Tampilan internal menampilkan nama penuh dan butuh login.
+        Tautan layar dibuat dari <strong className="text-foreground">Papan live</strong>: atur rentang, sales, lokasi, dan
+        panel di sana, lalu “Buat tautan layar” membawa pengaturan itu ke TV. Nama klien disamarkan kecuali dinyalakan
+        saat tautan dibuat; layar di ruang terbuka terbaca tamu, dan foto layar berjalan lebih jauh dari yang siapa pun kira.
         <div className="mt-3">
           <Button asChild size="sm" variant="outline">
-            <Link href="/workspace/board" target="_blank">
-              <MonitorPlay className="h-4 w-4" /> Buka tampilan internal
+            <Link href="/workspace/board">
+              <MonitorPlay className="h-4 w-4" /> Buka Papan live
             </Link>
           </Button>
         </div>

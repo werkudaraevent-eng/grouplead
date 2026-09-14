@@ -37,7 +37,8 @@ const PAGE = 100
 export async function listAuditLog(
   access: SalesMissionAccess,
   filter: AuditFilter,
-  page: number
+  page: number,
+  pageSize = PAGE
 ): Promise<{ rows: AuditRow[]; hasMore: boolean }> {
   const supabase = await createClient()
   let query = supabase
@@ -47,7 +48,7 @@ export async function listAuditLog(
     .eq("company_id", access.companyId)
     .order("created_at", { ascending: false })
     .order("id", { ascending: false })
-    .range(page * PAGE, page * PAGE + PAGE)
+    .range(page * pageSize, page * pageSize + pageSize)
 
   if (filter.actorId) query = query.eq("actor_id", filter.actorId)
   if (filter.tableName) query = query.eq("table_name", filter.tableName)
@@ -62,8 +63,8 @@ export async function listAuditLog(
 
   const { data } = await query
   const raw = data ?? []
-  const hasMore = raw.length > PAGE
-  const slice = raw.slice(0, PAGE)
+  const hasMore = raw.length > pageSize
+  const slice = raw.slice(0, pageSize)
 
   const actorIds = [...new Set(slice.map((row) => row.actor_id as string | null).filter((id): id is string => Boolean(id)))]
   const names = new Map<string, string>()

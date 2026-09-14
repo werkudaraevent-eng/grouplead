@@ -1,36 +1,39 @@
+import { headers } from "next/headers"
 import { redirect } from "next/navigation"
-import { getSalesMissionAccess } from "@/lib/sales-mission-access"
+import { canPerform, getSalesMissionAccess } from "@/lib/sales-mission-access"
 import { requireModule } from "@/lib/missions/nav-access"
 import { getBoardSnapshot } from "@/lib/board/board-queries"
-import { BoardView } from "@/app/board/board-view"
-import { AutoRefresh } from "./auto-refresh"
+import { parseBoardOptions } from "@/lib/board/board-options"
+import { listMissions, listTenantSales } from "@/lib/missions/mission-queries"
+import { facetOptions } from "@/lib/missions/mission-filter"
+import { EMPTY_AUDIT_FILTER, listAuditLog } from "@/lib/audit/audit-queries"
 import { hasServiceClientConfig } from "@/utils/supabase/service"
 import { EmptyState, WorkspacePage } from "@/app/workspace/workspace-page"
+import { BoardControls } from "./board-controls"
+import { BoardDashboard } from "./board-dashboard"
 
 export const dynamic = "force-dynamic"
 
 /**
- * Internal board.
+ * Papan live, inside the app.
  *
- * Same layout as the TV, but client names are shown in full — which is why it
- * asks for the mission module and not just the app gate. The old reasoning
- * ("nothing here they could not read on the missions list") stopped holding the
- * moment the missions list itself became gated: this page reads the whole
- * tenant through a service-role client, so it would have been the way around
- * that guard.
+ * A dashboard on the app's own surfaces, with a control bar whose settings
+ * are exactly what a screen link carries. The old page rendered the TV
+ * component inside the workspace: a dark, room-sized layout at desk
+ * distance, with the screen link three menus away in Pengaturan.
  *
- * The TV board at /board is a different audience with its own signed token and
- * masked names, and is unaffected.
+ * Reads the whole tenant through the service client, so it asks for the
+ * mission module and not just the app gate.
  */
-export default async function InternalBoardPage() {
+export default async function InternalBoardPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>
+}) {
   const access = await getSalesMissionAccess()
   if (!access) redirect("/login?error=access_not_provisioned")
   await requireModule(access, "sales_mission_mission")
 
-  // The board reads the whole tenant through the service key, the one secret
-  // this app needs beyond the public Supabase pair. Without it there is
-  // nothing to draw, and the right message is "configure this", not "check
-  // your connection".
   if (!hasServiceClientConfig()) {
     return (
       <WorkspacePage eyebrow="Sales Mission / Papan live" title="Papan live">
@@ -42,13 +45,51 @@ export default async function InternalBoardPage() {
     )
   }
 
+  const params = await searchParams
+  const options = parseBoardOptions(params)
   const now = new Date()
-  const snapshot = await getBoardSnapshot(access.companyId, now, { masked: false })
+
+  const [snapshot, people, missions, isAdmin, activity, headerList] = await Promise.all([
+    getBoardSnapshot(access.companyId, now, {
+      masked: false,
+      range: options.range,
+      sales: options.sales,
+      location: options.location,
+    }),
+    listTenantSales(access),
+    listMissions(access),
+    canPerform(access, "sales_mission_settings", "update"),
+    options.panels.includes("activity")
+      ? listAuditLog(access, EMPTY_AUDIT_FILTER, 0, 24).then((result) => result.rows)
+      : Promise.resolve([]),
+    headers(),
+  ])
+
+  // Built from the request so a copied link works in whatever environment
+  // the admin is actually using, rather than a hardcoded production host.
+  const host = headerList.get("x-forwarded-host") ?? headerList.get("host") ?? "localhost:3001"
+  const proto = headerList.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https")
 
   return (
-    <>
-      <BoardView snapshot={snapshot} subtitle="Tampilan internal — nama klien ditampilkan" now={now} />
-      <AutoRefresh />
-    </>
+    <WorkspacePage
+      eyebrow="Sales Mission / Papan live"
+      title="Papan live"
+      description="Siapa di mana hari ini. Atur di sini, lalu kirim tampilan yang sama ke layar kantor."
+    >
+      <BoardControls
+        options={options}
+        people={people.map((person) => ({ id: person.id, name: person.name, avatarUrl: person.avatarUrl }))}
+        locations={facetOptions(missions).locations}
+        isAdmin={isAdmin}
+        baseUrl={`${proto}://${host}`}
+      />
+      <BoardDashboard
+        snapshot={snapshot}
+        panels={options.panels}
+        activity={activity}
+        people={people.map((person) => ({ name: person.name, avatarUrl: person.avatarUrl }))}
+        now={now}
+      />
+    </WorkspacePage>
   )
 }

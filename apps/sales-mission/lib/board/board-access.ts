@@ -39,6 +39,8 @@ export interface BoardTokenResolution {
   companyId: string
   tokenId: string
   label: string
+  /** Bound to the link when it was made; the URL cannot change it. */
+  showClientNames: boolean
 }
 
 /**
@@ -58,7 +60,7 @@ export async function resolveBoardToken(token: string): Promise<BoardTokenResolu
   const { data } = await supabase
     .schema("sales_mission")
     .from("board_tokens")
-    .select("id, company_id, label, token_hash, expires_at, revoked_at")
+    .select("id, company_id, label, token_hash, expires_at, revoked_at, show_client_names")
     .eq("token_hash", hash)
     .maybeSingle()
 
@@ -81,5 +83,6 @@ export async function resolveBoardToken(token: string): Promise<BoardTokenResolu
     companyId: data.company_id as string,
     tokenId: data.id as string,
     label: data.label as string,
+    showClientNames: data.show_client_names === true,
   }
 }

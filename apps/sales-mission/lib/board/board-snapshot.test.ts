@@ -115,7 +115,7 @@ describe("buildBoardSnapshot", () => {
       }),
     ]
     const snapshot = buildBoardSnapshot(shared, NOW, { masked: true })
-    expect(snapshot.team).toEqual([
+    expect(snapshot.team.map(({ name, missionCount }) => ({ name, missionCount }))).toEqual([
       { name: "Raka", missionCount: 2 },
       { name: "Nadia", missionCount: 1 },
     ])
@@ -143,5 +143,40 @@ describe("buildBoardSnapshot", () => {
   it("ignores missions with an unparseable schedule", () => {
     const broken = [mission({ id: "broken", scheduledStart: "not-a-date" })]
     expect(buildBoardSnapshot(broken, NOW, { masked: true }).missions).toEqual([])
+  })
+})
+
+describe("buildBoardSnapshot ranges and filters", () => {
+  // NOW is Tue 1 Sep 2026 (see top of file). The week is Mon 31 Aug – Sun 6 Sep.
+  const spread = [
+    mission({ id: "mon", scheduledStart: "2026-08-31T02:30:00.000Z", assigneeIds: ["u1"], location: "Bogor" }),
+    mission({ id: "tue", scheduledStart: "2026-09-01T02:30:00.000Z", assigneeIds: ["u2"], location: "Jakarta" }),
+    mission({ id: "sun", scheduledStart: "2026-09-06T02:30:00.000Z", assigneeIds: ["u1", "u2"], location: "Jakarta" }),
+    mission({ id: "next-mon", scheduledStart: "2026-09-07T02:30:00.000Z", assigneeIds: ["u1"] }),
+  ]
+
+  it("shows the Monday-first week and groups it by day", () => {
+    const snapshot = buildBoardSnapshot(spread, NOW, { masked: false, range: "week" })
+    expect(snapshot.from).toBe("2026-08-31")
+    expect(snapshot.to).toBe("2026-09-06")
+    expect(snapshot.missions.map((m) => m.id)).toEqual(["mon", "tue", "sun"])
+    expect(snapshot.days).toHaveLength(7)
+    expect(snapshot.days[1].isToday).toBe(true)
+    expect(snapshot.days[6].missions.map((m) => m.id)).toEqual(["sun"])
+  })
+
+  it("narrows to the chosen people and places before counting anything", () => {
+    const byPerson = buildBoardSnapshot(spread, NOW, { masked: false, range: "week", sales: ["u2"] })
+    expect(byPerson.missions.map((m) => m.id)).toEqual(["tue", "sun"])
+    const byPlace = buildBoardSnapshot(spread, NOW, { masked: false, range: "week", location: ["bogor"] })
+    expect(byPlace.missions.map((m) => m.id)).toEqual(["mon"])
+    expect(byPlace.counts.openMissions).toBe(1)
+  })
+
+  it("tells each person where they are headed next", () => {
+    // NOW is 10:00 WIB; the Tuesday visit at 09:30 has started, so it is not "next".
+    const snapshot = buildBoardSnapshot(spread, NOW, { masked: true, range: "week" })
+    const u2 = snapshot.team.find((m) => m.name === "Wg, Hanung")
+    expect(u2?.next).toMatch(/09\.30 · PT A•••$/)
   })
 })

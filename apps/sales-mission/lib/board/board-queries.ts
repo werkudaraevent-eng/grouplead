@@ -1,6 +1,6 @@
 import { createServiceClient } from "@/utils/supabase/service"
 import { mapMissions, type AssignmentRow, type MissionRow } from "@/lib/missions/mission-schema"
-import { buildBoardSnapshot, type BoardSnapshot } from "./board-snapshot"
+import { buildBoardSnapshot, type BoardSnapshot, type BoardSnapshotOptions } from "./board-snapshot"
 
 /**
  * Board data for one tenant.
@@ -17,7 +17,7 @@ const MISSION_COLUMNS =
 export async function getBoardSnapshot(
   companyId: string,
   now: Date,
-  options: { masked: boolean }
+  options: BoardSnapshotOptions
 ): Promise<BoardSnapshot> {
   const supabase = createServiceClient()
   const schema = supabase.schema("sales_mission")

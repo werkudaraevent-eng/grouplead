@@ -202,8 +202,9 @@ function shiftDay(day: string, days: number): string {
 
 /** Monday-first week containing `day`. */
 function weekBounds(day: string): [string, string] {
-  const date = new Date(`${day}T00:00:00+07:00`)
-  const weekday = (date.getUTCDay() + 6) % 7 // Mon = 0
+  // Weekday of the calendar date itself; the WIB midnight instant is the
+  // previous UTC day and would shift the whole week back.
+  const weekday = (new Date(`${day}T00:00:00Z`).getUTCDay() + 6) % 7 // Mon = 0
   const monday = shiftDay(day, -weekday)
   return [monday, shiftDay(monday, 6)]
 }

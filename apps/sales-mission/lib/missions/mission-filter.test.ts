@@ -5,6 +5,7 @@ import {
   availableMissionFilters,
   countActiveFacets,
   countMissionFilters,
+  dateRangeFor,
   facetOptions,
   isEmptyQuery,
   parseMissionQuery,
@@ -182,6 +183,11 @@ describe("mission query", () => {
 
   it("matches a person whether they lead or support", () => {
     expect(ids(applyMissionQuery(rows, { ...EMPTY_QUERY, sales: ["u2"] }, now))).toEqual(["b", "c"])
+  })
+
+  it("starts the week on the Monday of the calendar date, not of the UTC instant", () => {
+    // Wed 16 Sep 2026 → Mon 14 – Sun 20.
+    expect(dateRangeFor({ ...EMPTY_QUERY, date: "week" }, now)).toEqual(["2026-09-14", "2026-09-20"])
   })
 
   it("resolves date presets in mission time", () => {

@@ -9,10 +9,12 @@ import { MISSION_TIME_ZONE } from "@/lib/missions/mission-schema"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Switch } from "@/components/ui/switch"
 
 export interface BoardTokenRow {
   id: string
   label: string
+  showClientNames: boolean
   createdAt: string
   expiresAt: string | null
   revokedAt: string | null
@@ -34,6 +36,7 @@ function formatWhen(iso: string | null) {
 export function BoardTokenManager({ tokens, boardBaseUrl }: { tokens: BoardTokenRow[]; boardBaseUrl: string }) {
   const [label, setLabel] = useState("")
   const [expiresInDays, setExpiresInDays] = useState("")
+  const [showNames, setShowNames] = useState(false)
   const [issued, setIssued] = useState<string | null>(null)
   const [pending, start] = useTransition()
   const router = useRouter()
@@ -43,11 +46,12 @@ export function BoardTokenManager({ tokens, boardBaseUrl }: { tokens: BoardToken
   const create = () => {
     start(async () => {
       const days = expiresInDays ? Number(expiresInDays) : undefined
-      const result = await createBoardToken(label, Number.isFinite(days) ? days : undefined)
+      const result = await createBoardToken(label, Number.isFinite(days) ? days : undefined, showNames)
       if (result.success && result.data) {
         setIssued(result.data.token)
         setLabel("")
         setExpiresInDays("")
+        setShowNames(false)
         router.refresh()
       } else {
         toast.error(result.error ?? "Tautan gagal dibuat")
@@ -101,7 +105,7 @@ export function BoardTokenManager({ tokens, boardBaseUrl }: { tokens: BoardToken
           <h2 className="mt-1 text-base font-semibold text-foreground">Buat tautan papan</h2>
         </div>
 
-        <div className="grid gap-4 px-5 py-5 sm:grid-cols-[2fr_1fr_auto] sm:items-end">
+        <div className="grid gap-4 px-5 py-5 sm:grid-cols-[2fr_1fr] sm:items-end">
           <div className="space-y-1.5">
             <Label htmlFor="token-label">Nama layar</Label>
             <Input id="token-label" className="h-11" value={label} maxLength={100} onChange={(e) => setLabel(e.target.value)} placeholder="TV lobi lantai 3" />
@@ -110,7 +114,16 @@ export function BoardTokenManager({ tokens, boardBaseUrl }: { tokens: BoardToken
             <Label htmlFor="token-expiry">Berlaku (hari)</Label>
             <Input id="token-expiry" className="h-11" inputMode="numeric" value={expiresInDays} onChange={(e) => setExpiresInDays(e.target.value.replace(/[^\d]/g, ""))} placeholder="Kosong = tanpa batas" />
           </div>
-          <Button className="h-11" onClick={create} disabled={pending || !label.trim()}>
+          <div className="flex items-start justify-between gap-4 rounded-lg border px-4 py-3 sm:col-span-2">
+            <div>
+              <Label htmlFor="token-names" className="text-sm font-semibold text-foreground">Tampilkan nama klien</Label>
+              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                Mati: “PT A•••”. Nyalakan hanya untuk layar yang tidak dilewati tamu. Terikat ke tautan; tidak bisa diubah dari URL.
+              </p>
+            </div>
+            <Switch id="token-names" checked={showNames} onCheckedChange={setShowNames} />
+          </div>
+          <Button className="h-11 sm:col-span-2 sm:justify-self-end" onClick={create} disabled={pending || !label.trim()}>
             {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />} Buat
           </Button>
         </div>
@@ -138,6 +151,9 @@ export function BoardTokenManager({ tokens, boardBaseUrl }: { tokens: BoardToken
                       )}
                       {!token.revokedAt && expired && (
                         <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-bold uppercase text-muted-foreground">Kedaluwarsa</span>
+                      )}
+                      {token.showClientNames && (
+                        <span className="rounded-full bg-[var(--warning)] px-2 py-0.5 text-[10px] font-bold text-[var(--warning-foreground)]">Nama klien tampil</span>
                       )}
                     </p>
                     <p className="mt-0.5 text-xs text-muted-foreground">

@@ -21,7 +21,8 @@ async function authorize() {
 
 export async function createBoardToken(
   label: string,
-  expiresInDays?: number
+  expiresInDays?: number,
+  showClientNames = false
 ): Promise<ActionResult<{ token: string }>> {
   const guard = await authorize()
   if ("error" in guard) return { success: false, error: guard.error }
@@ -45,11 +46,15 @@ export async function createBoardToken(
     token_hash: hash,
     expires_at: expiresAt,
     created_by: access.userId,
+    // Decided here, once, by the admin. A screen in an open office keeps it
+    // false; a screen in the sales room may not need to.
+    show_client_names: showClientNames,
   })
 
   if (error) return { success: false, error: "Tautan gagal dibuat." }
 
   revalidatePath("/workspace/settings/board")
+  revalidatePath("/workspace/board")
 
   // The only time the plaintext exists outside the browser that asked for it.
   // Nothing stores it, so a lost link means creating a new one.
