@@ -188,6 +188,17 @@ export async function commitMissionImport(rows: RawRow[]): Promise<ImportResult>
   let created = 0
 
   for (const row of valid) {
+    // Validation already refused unknown emails, so this only guards the type;
+    // a row that somehow lost its primary must not become an orphan mission.
+    const primaryId = byEmail.get(row.primarySalesEmail)
+    if (!primaryId) {
+      failed.push({ row: row.row, message: "Sales utama tidak dikenali." })
+      continue
+    }
+    const supportingIds = row.supportingSalesEmails
+      .map((email) => byEmail.get(email))
+      .filter((id): id is string => Boolean(id))
+
     const { data: mission, error } = await missions
       .from("missions")
       .insert({
@@ -217,11 +228,6 @@ export async function commitMissionImport(rows: RawRow[]): Promise<ImportResult>
       failed.push({ row: row.row, message: "Mission gagal disimpan." })
       continue
     }
-
-    const primaryId = byEmail.get(row.primarySalesEmail)
-    const supportingIds = row.supportingSalesEmails
-      .map((email) => byEmail.get(email))
-      .filter((id): id is string => Boolean(id))
 
     const { error: assignmentError } = await missions.from("assignments").insert([
       { mission_id: mission.id, company_id: access.companyId, user_id: primaryId, assignment_role: "PRIMARY", ...answerFor(primaryId) },
