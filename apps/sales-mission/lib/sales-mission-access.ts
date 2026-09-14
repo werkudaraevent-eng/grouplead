@@ -1,9 +1,23 @@
 import { cache } from "react"
+import { cookies } from "next/headers"
 import { createClient } from "@/utils/supabase/server"
+import { ACTIVE_COMPANY_COOKIE, pickActiveMembership, type CompanyMembership } from "@/lib/active-company"
+
+export interface CompanyOption {
+  id: string
+  slug: string
+  name: string
+  isHolding: boolean
+}
 
 export interface SalesMissionAccess {
   userId: string
+  /** The business unit in use right now: the `active_company` cookie shared with LeadEngine, else the oldest membership. */
   companyId: string
+  companyName: string
+  companySlug: string
+  /** Every unit this person belongs to, oldest first, for the switcher. */
+  companies: CompanyOption[]
   displayName: string
   /** Same `profiles.avatar_url` LeadEngine shows; the bucket is public. */
   avatarUrl: string | null
@@ -38,7 +52,7 @@ export const getSalesMissionAccess = cache(async (): Promise<SalesMissionAccess 
   const user = auth.user
   if (!user) return null
 
-  const [profileResult, membershipResult] = await Promise.all([
+  const [profileResult, membershipResult, cookieStore] = await Promise.all([
     supabase
       .from("profiles")
       .select("is_active, role, role_id, full_name, avatar_url")
@@ -46,17 +60,35 @@ export const getSalesMissionAccess = cache(async (): Promise<SalesMissionAccess 
       .maybeSingle(),
     supabase
       .from("company_members")
-      .select("company_id, user_type")
+      .select("company_id, user_type, created_at, companies(id, slug, name, is_holding)")
       .eq("user_id", user.id)
-      .limit(1)
-      .maybeSingle(),
+      .order("created_at", { ascending: true }),
+    cookies(),
   ])
 
   const profile = profileResult.data
-  const membership = membershipResult.data
-  if (profileResult.error || membershipResult.error || profile?.is_active !== true || !membership?.company_id) {
+  if (profileResult.error || membershipResult.error || profile?.is_active !== true) {
     return null
   }
+
+  // A person in two units used to land in whichever membership row the
+  // database returned first, which differed from the unit LeadEngine showed
+  // and even between requests. The cookie the CRM's switcher writes decides
+  // now, with the oldest membership as the fallback both apps share.
+  const memberships: CompanyMembership[] = (membershipResult.data ?? []).flatMap((row) => {
+    const company = row.companies as unknown as { id: string; slug: string; name: string; is_holding: boolean } | null
+    if (!company) return []
+    return [{
+      companyId: row.company_id as string,
+      slug: company.slug,
+      name: company.name,
+      isHolding: company.is_holding === true,
+      userType: (row.user_type as string | null) ?? null,
+      createdAt: (row.created_at as string) ?? "",
+    }]
+  })
+  const membership = pickActiveMembership(memberships, cookieStore.get(ACTIVE_COMPANY_COOKIE)?.value)
+  if (!membership) return null
 
   // The profile row is the only source for a person's name. Provider claims are
   // not used: a handed-down account would keep overwriting the corrected name
@@ -71,11 +103,14 @@ export const getSalesMissionAccess = cache(async (): Promise<SalesMissionAccess 
   // Falling back whenever the role happened to lack a row let a configured role
   // inherit access the permission matrix never showed and could not revoke.
   // Mirrors leadengine's require-permission.ts.
-  const userType = roleId ? null : ((membership.user_type as string | null) ?? globalRole ?? null) || null
+  const userType = roleId ? null : (membership.userType ?? globalRole ?? null) || null
 
   const access: SalesMissionAccess = {
     userId: user.id,
-    companyId: membership.company_id,
+    companyId: membership.companyId,
+    companyName: membership.name,
+    companySlug: membership.slug,
+    companies: memberships.map((item) => ({ id: item.companyId, slug: item.slug, name: item.name, isHolding: item.isHolding })),
     displayName,
     avatarUrl,
     isSuperAdmin,

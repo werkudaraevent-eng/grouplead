@@ -22,7 +22,14 @@ export function CompanyProvider({ initialCompany, companies: initialCompanies, c
   const [isSwitching, startTransition] = useTransition()
 
   const switchCompany = useCallback((slug: string) => {
-    document.cookie = `active_company=${slug}; path=/; max-age=${60 * 60 * 24 * 365}; SameSite=Lax`
+    // Set on the parent domain so Sales Mission, on a sibling subdomain,
+    // opens in the same unit. Explicit config wins; otherwise the parent of a
+    // three-label host; localhost gets no domain attribute.
+    const configured = process.env.NEXT_PUBLIC_AUTH_COOKIE_DOMAIN?.trim()
+    const labels = location.hostname.split('.')
+    const domain = configured || (labels.length >= 3 && !/^[\d.]+$/.test(location.hostname) ? `.${labels.slice(-2).join('.')}` : '')
+    const secure = location.protocol === 'https:' ? '; Secure' : ''
+    document.cookie = `active_company=${slug}; path=/; max-age=${60 * 60 * 24 * 365}; SameSite=Lax${domain ? `; Domain=${domain}` : ''}${secure}`
     if (slug === 'holding') {
       const holdingCompany = companies.find(c => c.isHolding)
       if (holdingCompany) setActiveCompany({ ...holdingCompany, isHolding: true })

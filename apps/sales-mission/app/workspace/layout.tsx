@@ -16,7 +16,14 @@ export default async function WorkspaceLayout({ children }: Readonly<{ children:
   ])
 
   return (
-    <WorkspaceShell displayName={access.displayName} avatarUrl={access.avatarUrl} unreadCount={unreadCount} navAccess={navAccess}>
+    <WorkspaceShell
+      displayName={access.displayName}
+      avatarUrl={access.avatarUrl}
+      unreadCount={unreadCount}
+      navAccess={navAccess}
+      company={{ id: access.companyId, slug: access.companySlug, name: access.companyName, isHolding: false }}
+      companies={access.companies}
+    >
       {children}
     </WorkspaceShell>
   )

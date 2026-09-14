@@ -20,6 +20,8 @@ import {
   Sun,
 } from "lucide-react"
 import dynamic from "next/dynamic"
+import { CompanySwitcher } from "./company-switcher"
+import type { CompanyOption } from "@/lib/sales-mission-access"
 
 /**
  * Client-only, and that is load-bearing rather than an optimisation.
@@ -143,6 +145,8 @@ function SidebarBody({
   avatarUrl,
   unreadCount,
   navAccess,
+  company,
+  companies,
   collapsed,
   onToggleCollapse,
   isSheet = false,
@@ -152,6 +156,8 @@ function SidebarBody({
   avatarUrl: string | null
   unreadCount: number
   navAccess: NavAccess
+  company: CompanyOption
+  companies: CompanyOption[]
   collapsed: boolean
   onToggleCollapse?: () => void
   isSheet?: boolean
@@ -235,15 +241,15 @@ function SidebarBody({
     <div className="group/sidebar relative flex h-full flex-col bg-sidebar text-sidebar-foreground transition-colors duration-300">
       <div className={`relative min-h-14 shrink-0 border-b border-sidebar-border ${collapsed ? "flex flex-col items-center gap-2 px-2 py-2" : "flex items-center gap-2 py-2 pl-3 pr-0"}`}>
         {!collapsed ? (
-          <Link href="/workspace" className="flex min-w-0 flex-1 items-center gap-2.5 overflow-hidden" onClick={onNavigate}>
-            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-primary text-primary-foreground">
+          <div className="flex min-w-0 flex-1 items-center gap-2.5 overflow-hidden">
+            <Link href="/workspace" className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-primary text-primary-foreground" onClick={onNavigate} aria-label="Beranda Sales Mission">
               <MapPinned className="h-4 w-4" />
+            </Link>
+            <span className="min-w-0 flex-1">
+              <Link href="/workspace" className="block truncate text-sm font-bold text-sidebar-accent-foreground" onClick={onNavigate}>Sales Mission</Link>
+              <CompanySwitcher active={company} companies={companies} />
             </span>
-            <span className="min-w-0">
-              <span className="block truncate text-sm font-bold text-sidebar-accent-foreground">Sales Mission</span>
-              <span className="block truncate text-[11px] text-sidebar-foreground">Werkudara Group</span>
-            </span>
-          </Link>
+          </div>
         ) : (
           <Link href="/workspace" className="flex items-center justify-center transition-opacity duration-150 group-hover/sidebar:opacity-0" aria-label="Beranda Sales Mission">
             <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-primary text-primary-foreground">
@@ -370,12 +376,16 @@ export function WorkspaceShell({
   avatarUrl = null,
   unreadCount = 0,
   navAccess,
+  company,
+  companies,
 }: {
   children: React.ReactNode
   displayName: string
   avatarUrl?: string | null
   unreadCount?: number
   navAccess: NavAccess
+  company: CompanyOption
+  companies: CompanyOption[]
 }) {
   const [collapsed, setCollapsed] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -401,14 +411,14 @@ export function WorkspaceShell({
         data-sidebar
         className={`relative hidden shrink-0 flex-none overflow-clip bg-sidebar transition-[width] duration-200 ease-out lg:flex lg:flex-col ${collapsed ? "lg:w-[60px]" : "lg:w-[220px]"}`}
       >
-        <SidebarBody displayName={displayName} avatarUrl={avatarUrl} unreadCount={unreadCount} navAccess={navAccess} collapsed={collapsed} onToggleCollapse={toggleCollapse} />
+        <SidebarBody displayName={displayName} avatarUrl={avatarUrl} unreadCount={unreadCount} navAccess={navAccess} company={company} companies={companies} collapsed={collapsed} onToggleCollapse={toggleCollapse} />
       </aside>
 
       <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
         <SheetContent side="left" className="w-72 border-r-0 p-0">
           <SheetTitle className="sr-only">Menu navigasi</SheetTitle>
           <SheetDescription className="sr-only">Navigasi utama Sales Mission untuk layar kecil.</SheetDescription>
-          <SidebarBody displayName={displayName} avatarUrl={avatarUrl} unreadCount={unreadCount} navAccess={navAccess} collapsed={false} isSheet onNavigate={() => setMobileOpen(false)} />
+          <SidebarBody displayName={displayName} avatarUrl={avatarUrl} unreadCount={unreadCount} navAccess={navAccess} company={company} companies={companies} collapsed={false} isSheet onNavigate={() => setMobileOpen(false)} />
         </SheetContent>
       </Sheet>
 
