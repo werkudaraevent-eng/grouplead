@@ -201,11 +201,16 @@
   /* The app shell owns all scrolling: its panels scroll, the window never
      does. Anything the browser might do to the window (an anchor, a focus,
      a portal that outgrows the viewport) must not slide the whole shell up
-     and leave a blank strip under the sidebar. */
+     and leave a blank strip under the sidebar.
+
+     `clip`, not `hidden`: a hidden box hides its scrollbar but is still a
+     scroll container, and a fragment jump (#laporan) or scrollIntoView will
+     scroll it. A clipped box cannot be scrolled by anything, so the jump
+     lands in the shell's own panel, which is the only place it should. */
   html:has(> body > .app-shell),
   body:has(> .app-shell) {
     height: 100%;
-    overflow: hidden;
+    overflow: clip;
   }
   /* Placeholders follow the muted token rather than a hardcoded slate, so they
      are held to the same contrast bar as every other secondary text. */
