@@ -61,7 +61,7 @@ function DialogContent({
       <DialogPrimitive.Content
         data-slot="dialog-content"
         className={cn(
-          "fixed top-[50%] left-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-lg border bg-background p-6 shadow-lg duration-200 outline-none data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 sm:max-w-lg",
+          "dialog-scroll fixed top-[50%] left-[50%] z-50 flex max-h-[calc(100dvh-2rem)] w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] flex-col gap-4 overflow-y-auto rounded-lg border bg-background p-6 shadow-lg duration-200 outline-none data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 sm:max-w-lg",
           className
         )}
         {...props}
@@ -78,6 +78,45 @@ function DialogContent({
         )}
       </DialogPrimitive.Content>
     </DialogPortal>
+  )
+}
+
+/**
+ * The part of a dialog that scrolls.
+ *
+ * Material keeps the headline and the actions in place and scrolls only the
+ * content between them, with a divider at each end while there is more to
+ * see. Without this a tall form scrolled the whole dialog, the browser's
+ * scrollbar sat on the rounded edge, and the buttons left with the fields.
+ */
+function DialogBody({ className, children, ...props }: React.ComponentProps<"div">) {
+  const ref = React.useRef<HTMLDivElement>(null)
+  const [scrollable, setScrollable] = React.useState(false)
+
+  React.useEffect(() => {
+    const node = ref.current
+    if (!node) return
+    const measure = () => setScrollable(node.scrollHeight > node.clientHeight + 1)
+    measure()
+    const observer = new ResizeObserver(measure)
+    observer.observe(node)
+    return () => observer.disconnect()
+  }, [])
+
+  return (
+    <div
+      ref={ref}
+      data-slot="dialog-body"
+      data-scrollable={scrollable || undefined}
+      className={cn(
+        "dialog-scroll -mx-6 min-h-0 flex-1 overflow-y-auto px-6",
+        scrollable && "border-y py-4",
+        className
+      )}
+      {...props}
+    >
+      {children}
+    </div>
   )
 }
 
@@ -147,6 +186,7 @@ function DialogDescription({
 export {
   Dialog,
   DialogClose,
+  DialogBody,
   DialogContent,
   DialogDescription,
   DialogFooter,

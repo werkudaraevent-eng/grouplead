@@ -11,7 +11,7 @@ import {
     DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import {
-    Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+    Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -19,7 +19,7 @@ import { Switch } from "@/components/ui/switch"
 import { Tooltip } from "@/components/ui/tooltip"
 import {
     ShieldCheck, Plus, Loader2, Search, Mail, MoreHorizontal, UserCog, KeyRound, Filter, X, UserX, Trash2,
-    AlertTriangle,
+    AlertTriangle, Building2,
 } from "@/components/icons"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { SettingsPageHeader } from "@/components/layout/settings-page-header"
@@ -33,13 +33,18 @@ import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 import { getAvatarColor } from "@/lib/avatar"
 
-const ROLE_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
-    super_admin: { label: "Super Admin", color: "text-red-600", bg: "bg-red-50" },
-    admin: { label: "Admin", color: "text-violet-600", bg: "bg-violet-50" },
-    executive: { label: "Executive", color: "text-blue-600", bg: "bg-blue-50" },
-    leader: { label: "Leader", color: "text-emerald-600", bg: "bg-emerald-50" },
-    sales: { label: "Sales", color: "text-amber-600", bg: "bg-amber-50" },
-    staff: { label: "Staff", color: "text-slate-500", bg: "bg-slate-50" },
+/**
+ * A role is a passive label: a coloured dot and a word, never a pill that
+ * looks pressable. The dot carries the colour so a table of thirty rows is
+ * not thirty tinted blocks.
+ */
+const ROLE_CONFIG: Record<string, { label: string; dot: string }> = {
+    super_admin: { label: "Super Admin", dot: "bg-destructive" },
+    admin: { label: "Admin", dot: "bg-violet-500" },
+    executive: { label: "Executive", dot: "bg-primary" },
+    leader: { label: "Leader", dot: "bg-[var(--success-foreground)]" },
+    sales: { label: "Sales", dot: "bg-accent" },
+    staff: { label: "Staff", dot: "bg-muted-foreground" },
 }
 
 export default function UserManagementPage() {
@@ -188,7 +193,7 @@ export default function UserManagementPage() {
                 breadcrumbs={[{ label: "Users" }]}
                 actions={
                     <PermissionGate resource="members" action="create">
-                        <Button size="sm" onClick={() => setInviteOpen(true)}><Plus className="h-3.5 w-3.5 mr-1.5" /> Create User</Button>
+                        <Button size="sm" onClick={() => setInviteOpen(true)}><Plus className="h-4 w-4" /> Create User</Button>
                     </PermissionGate>
                 }
             />
@@ -209,7 +214,7 @@ export default function UserManagementPage() {
                     </div>
 
                     <Select value={filterRole} onValueChange={setFilterRole}>
-                        <SelectTrigger className="h-9 w-[140px] text-xs">
+                        <SelectTrigger className="h-9 w-[150px] text-sm">
                             <Filter className="h-3 w-3 mr-1.5 text-muted-foreground" />
                             <SelectValue placeholder="Role" />
                         </SelectTrigger>
@@ -224,7 +229,7 @@ export default function UserManagementPage() {
                     </Select>
 
                     <Select value={filterStatus} onValueChange={setFilterStatus}>
-                        <SelectTrigger className="h-9 w-[130px] text-xs">
+                        <SelectTrigger className="h-9 w-[140px] text-sm">
                             <SelectValue placeholder="Status" />
                         </SelectTrigger>
                         <SelectContent>
@@ -236,7 +241,7 @@ export default function UserManagementPage() {
 
                     {uniqueBUs.length > 1 && (
                         <Select value={filterBU} onValueChange={setFilterBU}>
-                            <SelectTrigger className="h-9 w-[180px] text-xs">
+                            <SelectTrigger className="h-9 w-[200px] text-sm">
                                 <SelectValue placeholder="Business unit" />
                             </SelectTrigger>
                             <SelectContent>
@@ -249,8 +254,8 @@ export default function UserManagementPage() {
                     )}
 
                     {hasActiveFilters && (
-                        <Button variant="ghost" size="sm" onClick={clearFilters} className="h-9 text-xs text-muted-foreground hover:text-foreground gap-1">
-                            <X className="h-3 w-3" /> Clear filters
+                        <Button variant="ghost" size="sm" onClick={clearFilters} className="h-9 text-sm text-muted-foreground hover:text-foreground gap-1">
+                            <X className="h-3.5 w-3.5" /> Clear filters
                         </Button>
                     )}
 
@@ -301,7 +306,7 @@ export default function UserManagementPage() {
                         )}
                         {filtered.map((p) => {
                             const roleKey = typeof p.role === "string" ? p.role : ""
-                            const role = ROLE_CONFIG[roleKey] || { label: roleKey || "—", color: "text-muted-foreground", bg: "bg-muted" }
+                            const role = ROLE_CONFIG[roleKey] || { label: roleKey || "—", dot: "bg-muted-foreground" }
                             const inactive = p.is_active === false
                             const companies = p.company_memberships?.filter(cm => cm.company?.name) || []
                             const reportsToName = p.reports_to ? profiles.find((u) => u.id === p.reports_to)?.full_name : null
@@ -312,46 +317,44 @@ export default function UserManagementPage() {
                                     className="group transition-colors hover:bg-muted/20"
                                 >
                                     {/* User */}
-                                    <TableCell className="py-2">
+                                    <TableCell className="py-2.5">
                                         <div className="flex items-center gap-3">
                                             {p.avatar_url && !inactive ? (
                                                 // eslint-disable-next-line @next/next/no-img-element
                                                 <img
                                                     src={p.avatar_url}
                                                     alt={p.full_name || "User"}
-                                                    className="w-8 h-8 rounded-full object-cover shrink-0 border border-border transition-transform group-hover:scale-105"
+                                                    className="h-9 w-9 shrink-0 rounded-full border border-border object-cover"
                                                 />
                                             ) : (
                                                 <div className={cn(
-                                                    "w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0 transition-transform group-hover:scale-105",
-                                                    inactive ? "bg-muted text-muted-foreground/60" : getAvatarColor(p.full_name)
+                                                    "flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold",
+                                                    inactive ? "bg-muted text-muted-foreground" : getAvatarColor(p.full_name)
                                                 )}>
                                                     {getInitials(p.full_name)}
                                                 </div>
                                             )}
                                             <div className="min-w-0">
                                                 <p className={cn(
-                                                    "font-medium text-[13px] leading-tight truncate",
+                                                    "truncate text-sm font-medium leading-tight",
                                                     inactive && "text-muted-foreground"
                                                 )}>{p.full_name || "Unnamed"}</p>
-                                                <p className="text-[11px] text-muted-foreground/70 truncate mt-0.5">{p.email}</p>
+                                                <p className="mt-0.5 truncate text-xs text-muted-foreground">{p.email}</p>
                                             </div>
                                         </div>
                                     </TableCell>
 
-                                    {/* Role — fixed: no more clipping */}
-                                    <TableCell className="py-2">
-                                        <span className={cn(
-                                            "inline-flex items-center gap-1 text-[11px] font-semibold leading-none px-2 py-1.5 rounded-md whitespace-nowrap",
-                                            role.bg, role.color
-                                        )}>
-                                            {roleKey === "super_admin" && <ShieldCheck className="h-3 w-3 shrink-0" />}
+                                    {/* Role: a dot and a word */}
+                                    <TableCell className="py-2.5">
+                                        <span className="inline-flex items-center gap-2 whitespace-nowrap text-sm text-foreground">
+                                            <span aria-hidden="true" className={cn("h-2 w-2 shrink-0 rounded-full", role.dot)} />
                                             {role.label}
+                                            {roleKey === "super_admin" && <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />}
                                         </span>
                                     </TableCell>
 
                                     {/* Business Unit — if holding present, just show "All units" */}
-                                    <TableCell className="py-2">
+                                    <TableCell className="py-2.5">
                                         {(() => {
                                             const hasHolding = companies.some(cm => (cm.company as { is_holding?: boolean })?.is_holding)
                                             if (companies.length === 0) {
@@ -363,16 +366,17 @@ export default function UserManagementPage() {
                                                 return (
                                                     <span
                                                         title="This user has no business unit, so they cannot use LeadEngine or Sales Mission. Edit the user to assign one."
-                                                        className="inline-flex items-center gap-1 rounded border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700"
+                                                        className="inline-flex items-center gap-1.5 text-sm font-medium text-[var(--warning-foreground)]"
                                                     >
-                                                        <AlertTriangle className="h-3 w-3" />
+                                                        <AlertTriangle className="h-4 w-4" />
                                                         No access
                                                     </span>
                                                 )
                                             }
                                             if (hasHolding) {
                                                 return (
-                                                    <span className="inline-flex items-center gap-1 text-[11px] font-medium text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">
+                                                    <span className="inline-flex items-center gap-1.5 text-sm text-foreground">
+                                                        <Building2 className="h-4 w-4 text-muted-foreground" />
                                                         All units
                                                     </span>
                                                 )
@@ -380,52 +384,33 @@ export default function UserManagementPage() {
                                             // No holding — show individual subsidiaries
                                             const subs = companies.filter(cm => !(cm.company as { is_holding?: boolean })?.is_holding)
                                             return (
-                                                <div className="flex items-center gap-1 flex-wrap">
-                                                    {subs.slice(0, 2).map((cm) => (
-                                                        <span
-                                                            key={cm.company_id}
-                                                            className="text-[11px] font-medium text-muted-foreground bg-muted/60 px-1.5 py-0.5 rounded"
-                                                        >
-                                                            {cm.company?.name}
-                                                        </span>
-                                                    ))}
-                                                    {subs.length > 2 && (
-                                                        <span className="text-[10px] font-medium text-muted-foreground/60 px-1">
-                                                            +{subs.length - 2}
-                                                        </span>
-                                                    )}
-                                                </div>
+                                                <span className="block truncate text-sm text-foreground" title={subs.map((cm) => cm.company?.name).filter(Boolean).join(", ")}>
+                                                    {subs.slice(0, 2).map((cm) => cm.company?.name).filter(Boolean).join(", ")}
+                                                    {subs.length > 2 && <span className="text-muted-foreground"> +{subs.length - 2}</span>}
+                                                </span>
                                             )
                                         })()}
                                     </TableCell>
 
                                     {/* Reports To */}
-                                    <TableCell className="py-2">
+                                    <TableCell className="py-2.5">
                                         {reportsToName ? (
-                                            <span className="text-[13px]">{reportsToName}</span>
+                                            <span className="text-sm text-foreground">{reportsToName}</span>
                                         ) : (
-                                            <span className="text-[11px] text-muted-foreground/40">—</span>
+                                            <span className="text-sm text-muted-foreground">—</span>
                                         )}
                                     </TableCell>
 
                                     {/* Status — interactive toggle (controls login access) */}
-                                    <TableCell className="py-2">
+                                    <TableCell className="py-2.5">
                                         <PermissionGate
                                             resource="members"
                                             action="update"
                                             fallback={
-                                                <div className="flex items-center gap-1.5">
-                                                    <div className={cn(
-                                                        "w-1.5 h-1.5 rounded-full shrink-0",
-                                                        inactive ? "bg-red-400" : "bg-emerald-500"
-                                                    )} />
-                                                    <span className={cn(
-                                                        "text-[11px] font-medium",
-                                                        inactive ? "text-red-500" : "text-muted-foreground"
-                                                    )}>
-                                                        {inactive ? "Inactive" : "Active"}
-                                                    </span>
-                                                </div>
+                                                <span className="inline-flex items-center gap-2 text-sm text-foreground">
+                                                    <span aria-hidden="true" className={cn("h-2 w-2 shrink-0 rounded-full", inactive ? "bg-muted-foreground" : "bg-[var(--success-foreground)]")} />
+                                                    {inactive ? "Inactive" : "Active"}
+                                                </span>
                                             }
                                         >
                                             <div className="flex items-center gap-2">
@@ -442,10 +427,7 @@ export default function UserManagementPage() {
                                                         aria-label={inactive ? "Activate user" : "Deactivate user"}
                                                     />
                                                 </Tooltip>
-                                                <span className={cn(
-                                                    "text-[11px] font-medium w-[52px]",
-                                                    inactive ? "text-muted-foreground" : "text-emerald-600"
-                                                )}>
+                                                <span className={cn("w-[56px] text-sm", inactive ? "text-muted-foreground" : "text-foreground")}>
                                                     {inactive ? "Inactive" : "Active"}
                                                 </span>
                                             </div>
@@ -453,12 +435,14 @@ export default function UserManagementPage() {
                                     </TableCell>
 
                                     {/* Actions */}
-                                    <TableCell className="py-2">
+                                    <TableCell className="py-2.5">
+                                        {/* Always visible: a control that appears on hover does not exist on a touch screen. */}
                                         <DropdownMenu>
                                             <DropdownMenuTrigger asChild>
                                                 <Button
                                                     variant="ghost"
-                                                    className="h-7 w-7 p-0 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity"
+                                                    className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
+                                                    aria-label={`Aksi untuk ${p.full_name || p.email}`}
                                                 >
                                                     <MoreHorizontal className="h-4 w-4" />
                                                 </Button>
@@ -473,7 +457,7 @@ export default function UserManagementPage() {
                                                 <DropdownMenuSeparator />
                                                 <DropdownMenuItem
                                                     onClick={() => { setDeleteProfile(p); setDeleteMode("delete") }}
-                                                    className="text-red-600 focus:text-red-600"
+                                                    className="text-destructive focus:text-destructive"
                                                 >
                                                     <Trash2 className="h-3.5 w-3.5 mr-2" /> Delete permanently
                                                 </DropdownMenuItem>
@@ -506,7 +490,7 @@ export default function UserManagementPage() {
                             Force-reset the password for <strong>{resetProfile?.full_name || resetProfile?.email}</strong>. The user will need to use the new password on their next login.
                         </DialogDescription>
                     </DialogHeader>
-                    <div className="space-y-3 py-2">
+                    <DialogBody className="space-y-3">
                         <div className="space-y-1.5">
                             <Label htmlFor="new-password">New Password</Label>
                             <Input
@@ -518,7 +502,7 @@ export default function UserManagementPage() {
                                 autoComplete="new-password"
                             />
                         </div>
-                    </div>
+                    </DialogBody>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => { setResetProfile(null); setNewPassword("") }}>Cancel</Button>
                         <Button
@@ -538,8 +522,8 @@ export default function UserManagementPage() {
                     <DialogHeader>
                         <DialogTitle className="flex items-center gap-2">
                             {deleteMode === "delete"
-                                ? <><Trash2 className="h-5 w-5 text-red-500" /> Delete user</>
-                                : <><UserX className="h-5 w-5 text-amber-500" /> Deactivate user</>
+                                ? <><Trash2 className="h-5 w-5 text-destructive" /> Delete user</>
+                                : <><UserX className="h-5 w-5 text-[var(--warning-foreground)]" /> Deactivate user</>
                             }
                         </DialogTitle>
                         <DialogDescription>

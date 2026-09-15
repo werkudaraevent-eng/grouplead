@@ -10,7 +10,7 @@ import { provisionUserAction } from "@/app/actions/user-actions"
 import { createClient } from "@/utils/supabase/client"
 import type { UserType } from "@/types/company"
 import {
-    Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+    Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog"
 import {
     Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
@@ -160,13 +160,16 @@ export function CreateUserModal({ open, onOpenChange, onCreated }: CreateUserMod
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-md">
+            <DialogContent className="sm:max-w-lg">
                 <DialogHeader>
                     <DialogTitle>Create New User</DialogTitle>
                     <DialogDescription>Choose how this person gets in: an emailed invite they answer themselves, or a password you set for them.</DialogDescription>
                 </DialogHeader>
                 <Form {...form}>
-                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-2">
+                    {/* The form is a flex column so the body can shrink and scroll while
+                        the footer stays put; the dialog itself never grows past the screen. */}
+                    <form onSubmit={form.handleSubmit(onSubmit)} className="flex min-h-0 flex-1 flex-col gap-4">
+                      <DialogBody className="space-y-4">
                         <FormField control={form.control} name="full_name" render={({ field }) => (
                             <FormItem>
                                 <FormLabel>Full Name</FormLabel>
@@ -189,7 +192,7 @@ export function CreateUserModal({ open, onOpenChange, onCreated }: CreateUserMod
                                         <SelectItem value="password">Tetapkan password sekarang</SelectItem>
                                     </SelectContent>
                                 </Select>
-                                <p className="text-[11px] text-muted-foreground">
+                                <p className="text-xs leading-relaxed text-muted-foreground">
                                     {field.value === "password"
                                         ? "Anda akan mengetahui password orang ini. Minta dia menggantinya setelah masuk; pembuatannya tercatat di audit log."
                                         : "Password dibuat sendiri oleh yang bersangkutan, jadi tidak ada orang lain yang mengetahuinya."}
@@ -275,7 +278,7 @@ export function CreateUserModal({ open, onOpenChange, onCreated }: CreateUserMod
                                     <p className="text-[0.7rem] text-muted-foreground mb-2">
                                         Select the companies this user will have access to. This defines their data scope.
                                     </p>
-                                    <div className="flex flex-col gap-3 border rounded-xl p-3 bg-slate-50/50 max-h-52 overflow-y-auto">
+                                    <div className="flex flex-col gap-3 rounded-xl border bg-muted/40 p-3">
                                         {/* Group Level (HQ) */}
                                         {holdingCompanies.length > 0 && (
                                             <div className="flex flex-col gap-1.5">
@@ -307,6 +310,7 @@ export function CreateUserModal({ open, onOpenChange, onCreated }: CreateUserMod
                                 </div>
                             )
                         })()}
+                      </DialogBody>
                         <DialogFooter>
                             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
                             <Button type="submit" disabled={isPending}>
