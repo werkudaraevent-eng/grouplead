@@ -1,4 +1,5 @@
 import { createClient } from "@/utils/supabase/server"
+import { photoPathsForProspects, removePhotoFiles } from "@/lib/photos/photo-storage"
 import type { SalesMissionAccess } from "@/lib/sales-mission-access"
 import { purgeCutoff } from "@/lib/missions/recycle-bin"
 
@@ -42,13 +43,18 @@ export async function listDeletedProspects(access: SalesMissionAccess): Promise<
 /** Retention, applied when the bin is opened; same rule as missions. */
 export async function purgeExpiredProspects(access: SalesMissionAccess, now: Date): Promise<number> {
   const supabase = await createClient()
-  const { data } = await supabase
-    .schema("sales_mission")
+  const schema = supabase.schema("sales_mission")
+  const { data: expired } = await schema
     .from("prospects")
-    .delete()
+    .select("id")
     .eq("company_id", access.companyId)
     .not("deleted_at", "is", null)
     .lt("deleted_at", purgeCutoff(now))
-    .select("id")
+  const ids = (expired ?? []).map((row) => row.id as string)
+  if (ids.length === 0) return 0
+  try {
+    await removePhotoFiles(access, await photoPathsForProspects(schema, access.companyId, ids))
+  } catch {}
+  const { data } = await schema.from("prospects").delete().eq("company_id", access.companyId).in("id", ids).select("id")
   return data?.length ?? 0
 }

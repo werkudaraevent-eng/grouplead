@@ -12,6 +12,8 @@ import { parseNumber } from "@/lib/format/number"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { MultiChoiceWithOther, SelectWithOther } from "@/components/ui/choice-with-other"
+import { PhotoField } from "@/components/photo-field"
+import { parsePhotoAnswer } from "@/lib/photos/photo-answer"
 import { FormActionBar } from "@/components/form-action-bar"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -116,6 +118,14 @@ function CustomField({ field, initial }: { field: FormField; initial?: unknown }
       </FieldShell>
     )
   }
+  if (field.fieldType === "PHOTO") {
+    return (
+      <FieldShell field={field}>
+        <PhotoField id={id} name={name} scope="prospects" defaultValue={parsePhotoAnswer(initial)} hint={field.placeholder || undefined} />
+      </FieldShell>
+    )
+  }
+
   if (field.fieldType === "LONG_TEXT") {
     return (
       <FieldShell field={field}>

@@ -6,6 +6,8 @@ import { requireModule } from "@/lib/missions/nav-access"
 import { listTenantSales } from "@/lib/missions/mission-queries"
 import { listFormFields } from "@/lib/missions/form-field-queries"
 import { customAnswers } from "@/lib/prospects/prospect-form-fields"
+import { parsePhotoAnswer } from "@/lib/photos/photo-answer"
+import { PhotoGallery } from "@/components/photo-gallery"
 import { MISSION_TIME_ZONE, formatMissionSchedule } from "@/lib/missions/mission-schema"
 import { statusLabel } from "@/lib/missions/status-labels"
 import { getProspect } from "@/lib/prospects/prospect-queries"
@@ -121,6 +123,15 @@ export default async function ProspectDetailPage({ params }: { params: Promise<{
               ))}
               <Fact label="Sumber">{prospect.source === "import" ? `Impor${prospect.batchFileName ? ` · ${prospect.batchFileName}` : ""}` : "Manual"}{prospect.createdByName ? ` · ${prospect.createdByName}` : ""} · {stamp(prospect.createdAt)}</Fact>
             </dl>
+            {fields.some((field) => field.fieldType === "PHOTO" && field.isActive && parsePhotoAnswer(prospect.customValues[field.reportingKey]).length > 0) && (
+              <div className="space-y-4 border-t px-5 py-4">
+                {fields
+                  .filter((field) => field.fieldType === "PHOTO" && field.isActive)
+                  .map((field) => (
+                    <PhotoGallery key={field.id} access={access} label={field.label} photos={parsePhotoAnswer(prospect.customValues[field.reportingKey])} />
+                  ))}
+              </div>
+            )}
             {prospect.notes && (
               <div className="border-t bg-muted/30 px-5 py-4">
                 <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Catatan</p>

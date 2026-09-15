@@ -4,6 +4,8 @@ import { AlertCircle, Ban, Building2, CalendarDays, ClipboardList, ExternalLink,
 import { canEditSubmittedReport, describeEditWindow } from "@/lib/missions/report-edit"
 import { listReportChoices } from "@/lib/missions/report-choice-queries"
 import { labelOf } from "@/lib/missions/report-choices"
+import { parsePhotoAnswer } from "@/lib/photos/photo-answer"
+import { PhotoGallery } from "@/components/photo-gallery"
 import { RequestClarificationButton } from "./report-admin-actions"
 import { canPerform, getSalesMissionAccess } from "@/lib/sales-mission-access"
 import { requireModule } from "@/lib/missions/nav-access"
@@ -122,7 +124,7 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
   const choices = report ? await listReportChoices(access) : null
   const customAnswers = report
     ? reportFields
-        .filter((field) => !field.isCore && field.isActive)
+        .filter((field) => (!field.isCore || field.fieldType === "PHOTO") && field.isActive)
         .map((field) => ({ field, value: report.custom[field.reportingKey] }))
         .filter(({ value }) => value !== null && value !== undefined && value !== "" && !(Array.isArray(value) && value.length === 0))
     : []
@@ -552,9 +554,9 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
               </div>
             )}
 
-            {customAnswers.length > 0 && (
+            {customAnswers.some(({ field }) => field.fieldType !== "PHOTO") && (
               <div className="grid gap-5 sm:grid-cols-2">
-                {customAnswers.map(({ field, value }) => (
+                {customAnswers.filter(({ field }) => field.fieldType !== "PHOTO").map(({ field, value }) => (
                   <ReportField
                     key={field.id}
                     label={field.label}
@@ -567,6 +569,10 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
                 ))}
               </div>
             )}
+
+            {customAnswers.filter(({ field }) => field.fieldType === "PHOTO").map(({ field, value }) => (
+              <PhotoGallery key={field.id} access={access} label={field.label} photos={parsePhotoAnswer(value)} />
+            ))}
 
             {canReadContacts && report.contacts.length > 0 && (
               <div>

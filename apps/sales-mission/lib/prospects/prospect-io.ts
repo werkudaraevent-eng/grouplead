@@ -47,6 +47,7 @@ function exampleForCustomField(field: FormField): string {
 export function buildProspectColumns(fields: FormField[]): ImportColumn[] {
   const columns: ImportColumn[] = []
   for (const field of visibleFields(fields)) {
+    if (field.fieldType === "PHOTO") continue
     if (field.reportingKey === "owner") {
       columns.push({ header: OWNER_EMAIL_COLUMN, key: "owner_email", required: field.isRequired, example: "yulia@werkudara.com" })
       continue
@@ -161,7 +162,7 @@ export function parseProspectRow(
 
   const custom: Record<string, FieldAnswer> = {}
   for (const field of visibleFields(options.fields)) {
-    if (field.isCore) continue
+    if (field.isCore || field.fieldType === "PHOTO") continue
     const value = cell(field.label)
     if (!value) continue
 

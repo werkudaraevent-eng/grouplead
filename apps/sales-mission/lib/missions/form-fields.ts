@@ -1,4 +1,5 @@
 import { z } from "zod"
+import { parsePhotoAnswer, photoAnswerViolation, type PhotoAnswer } from "@/lib/photos/photo-answer"
 
 /**
  * Admin-configurable form fields.
@@ -47,6 +48,8 @@ export const FIELD_TYPES = [
   "SELECT",
   "MULTI_SELECT",
   "BOOLEAN",
+  // Photos, taken or picked on the device, stored in the company's bucket.
+  "PHOTO",
   // Core-only: the report's "who did you meet" group. Named so the settings
   // screen shows it for what it is; never offered for a custom field.
   "CONTACTS",
@@ -71,6 +74,7 @@ export const FIELD_TYPE_LABELS: Record<FieldType, string> = {
   MULTI_SELECT: "Pilihan ganda",
   BOOLEAN: "Ya / tidak",
   CONTACTS: "Daftar kontak",
+  PHOTO: "Foto",
 }
 
 /** Types whose answers come from a fixed list the admin maintains. */
@@ -209,6 +213,10 @@ export const CORE_REPORT_FIELDS: Array<
   { reportingKey: "next_action_type", label: "Next action", fieldType: "SELECT", isRequired: true, displayOrder: 100, helpText: "Yang tidak punya pemilik dan tanggal bukan next action." },
   { reportingKey: "next_action_owner", label: "Penanggung jawab", fieldType: "SELECT", isRequired: false, displayOrder: 110 },
   { reportingKey: "follow_up_date", label: "Tanggal follow-up", fieldType: "DATE", isRequired: false, displayOrder: 120 },
+  // Photos ride with the custom answers; core only so the admin can rename,
+  // require or drop them, and so they arrive on every tenant's form.
+  { reportingKey: "visit_photos", label: "Foto bukti kunjungan", fieldType: "PHOTO", isRequired: false, displayOrder: 125, helpText: "Suasana pertemuan, papan nama, atau produk yang dibahas." },
+  { reportingKey: "business_card_photos", label: "Foto kartu nama", fieldType: "PHOTO", isRequired: false, displayOrder: 130, helpText: "Kartu nama orang yang ditemui, supaya nomor dan jabatannya tidak salah ketik." },
 ]
 
 /**
@@ -358,7 +366,8 @@ export function describeCoreFieldViolation(
 ): string | null {
   if (!field.isCore) return null
 
-  if (change.archive) return "Field inti tidak bisa dihapus."
+  // A photo field carries nothing the code reads, so the admin may drop it.
+  if (change.archive && field.fieldType !== "PHOTO") return "Field inti tidak bisa dihapus."
   if (change.fieldType && change.fieldType !== field.fieldType) {
     return "Tipe field inti tidak bisa diubah."
   }
@@ -427,16 +436,20 @@ export function visibleFields(fields: FormField[]): FormField[] {
   return fields.filter((field) => field.isActive).sort((a, b) => a.displayOrder - b.displayOrder)
 }
 
-export type FieldAnswer = string | string[] | number | boolean | null
+export type FieldAnswer = string | string[] | number | boolean | null | PhotoAnswer[]
 
 /** Custom-field answers off a submitted form, by the tenant's field types. */
 export function readCustomAnswers(formData: FormData, customFields: FormField[]): Record<string, FieldAnswer> {
   const answers: Record<string, FieldAnswer> = {}
   for (const field of customFields) {
-    if (field.isCore) continue
+    // Core fields answer through their own columns, except photos, which
+    // always live with the custom answers.
+    if (field.isCore && field.fieldType !== "PHOTO") continue
     const name = `custom__${field.reportingKey}`
     if (field.fieldType === "MULTI_SELECT") {
       answers[field.reportingKey] = formData.getAll(name).map(String)
+    } else if (field.fieldType === "PHOTO") {
+      answers[field.reportingKey] = parsePhotoAnswer(formData.get(name))
     } else if (field.fieldType === "BOOLEAN") {
       answers[field.reportingKey] = formData.get(name) === "true"
     } else {
@@ -461,7 +474,7 @@ export function validateFieldAnswers(
   const errors: Record<string, string> = {}
 
   for (const field of visibleFields(fields)) {
-    if (field.isCore) continue
+    if (field.isCore && field.fieldType !== "PHOTO") continue
 
     const answer = answers[field.reportingKey]
     const empty =
@@ -496,6 +509,11 @@ export function validateFieldAnswers(
           errors[field.reportingKey] = `${field.label} bukan jam yang valid`
         }
         break
+      case "PHOTO": {
+        const violation = photoAnswerViolation(answer, field.label)
+        if (violation) errors[field.reportingKey] = violation
+        break
+      }
       case "SELECT":
         if (typeof answer !== "string" || (!field.options.includes(answer) && !field.allowOther)) {
           errors[field.reportingKey] = `${field.label} berisi pilihan yang tidak dikenal`

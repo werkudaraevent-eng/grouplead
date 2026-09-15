@@ -176,7 +176,7 @@ async function replaceCustomValues(
 ) {
   await missions.from("report_field_values").delete().eq("report_id", reportId)
   const rows = fields
-    .filter((field) => !field.isCore && field.isActive)
+    .filter((field) => (!field.isCore || field.fieldType === "PHOTO") && field.isActive)
     .map((field) => ({ field, value: custom[field.reportingKey] }))
     .filter(({ value }) => value !== null && value !== undefined && value !== "" && !(Array.isArray(value) && value.length === 0))
     .map(({ field, value }) => ({

@@ -1,5 +1,6 @@
 import { visibleFields, type FormField } from "@/lib/missions/form-fields"
 import { formatNumber } from "@/lib/format/number"
+import { describePhotoCount, parsePhotoAnswer } from "@/lib/photos/photo-answer"
 
 /**
  * The prospect form as a configured form.
@@ -110,6 +111,7 @@ export function isEmptyAnswer(value: unknown): boolean {
 
 /** A stored answer as the text a detail page shows. */
 export function formatAnswer(field: Pick<FormField, "fieldType">, value: unknown): string {
+  if (field.fieldType === "PHOTO") return describePhotoCount(parsePhotoAnswer(value).length)
   if (typeof value === "boolean") return value ? "Ya" : "Tidak"
   if (Array.isArray(value)) return value.map(String).join(", ")
   if (field.fieldType === "CURRENCY") {

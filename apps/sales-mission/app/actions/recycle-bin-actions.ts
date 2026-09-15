@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache"
 import { createClient } from "@/utils/supabase/server"
 import { canPerform, getSalesMissionAccess, type SalesMissionAccess } from "@/lib/sales-mission-access"
 import type { ActionResult } from "@/types/action-result"
+import { photoPathsForMissions, photoPathsForProspects, removePhotoFiles } from "@/lib/photos/photo-storage"
 
 const PATHS = ["/workspace", "/workspace/missions", "/workspace/calendar", "/workspace/settings/recycle-bin", "/workspace/settings/data"]
 
@@ -56,6 +57,7 @@ export async function purgeMissions(ids: string[]): Promise<ActionResult<{ purge
   const unique = validIds(ids)
   if (unique.length === 0) return { success: false, error: "Tidak ada mission yang dipilih." }
 
+  await removePhotosFor(gate.access, "missions", unique)
   const supabase = await createClient()
   const { data, error } = await supabase
     .schema("sales_mission")
@@ -96,6 +98,7 @@ export async function purgeProspects(ids: string[]): Promise<ActionResult<{ purg
   if ("error" in gate) return { success: false, error: gate.error }
   const unique = validIds(ids)
   if (unique.length === 0) return { success: false, error: "Tidak ada prospek yang dipilih." }
+  await removePhotosFor(gate.access, "prospects", unique)
   const supabase = await createClient()
   const { data, error } = await supabase
     .schema("sales_mission")
@@ -113,6 +116,7 @@ export async function purgeProspects(ids: string[]): Promise<ActionResult<{ purg
 export async function emptyProspectBin(): Promise<ActionResult<{ purged: number }>> {
   const gate = await requireBinAdmin()
   if ("error" in gate) return { success: false, error: gate.error }
+  await removePhotosFor(gate.access, "prospects")
   const supabase = await createClient()
   const { data, error } = await supabase
     .schema("sales_mission")
@@ -126,11 +130,36 @@ export async function emptyProspectBin(): Promise<ActionResult<{ purged: number 
   return { success: true, data: { purged: data?.length ?? 0 } }
 }
 
+/**
+ * Photos go with the rows they belong to. Read before the delete, since the
+ * answers cascade away with the mission or prospect and the files would
+ * otherwise stay behind for good. Best effort: a storage hiccup must not
+ * stop the purge the admin asked for.
+ */
+async function removePhotosFor(access: SalesMissionAccess, kind: "missions" | "prospects", ids?: string[]) {
+  try {
+    const supabase = await createClient()
+    const schema = supabase.schema("sales_mission")
+    let targets = ids
+    if (!targets) {
+      const { data } = await schema.from(kind).select("id").eq("company_id", access.companyId).not("deleted_at", "is", null)
+      targets = (data ?? []).map((row) => row.id as string)
+    }
+    const paths = kind === "missions"
+      ? await photoPathsForMissions(schema, access.companyId, targets)
+      : await photoPathsForProspects(schema, access.companyId, targets)
+    await removePhotoFiles(access, paths)
+  } catch {
+    // The rows still go; an orphaned file is the lesser problem.
+  }
+}
+
 /** Empty the bin. */
 export async function emptyRecycleBin(): Promise<ActionResult<{ purged: number }>> {
   const gate = await requireBinAdmin()
   if ("error" in gate) return { success: false, error: gate.error }
 
+  await removePhotosFor(gate.access, "missions")
   const supabase = await createClient()
   const { data, error } = await supabase
     .schema("sales_mission")

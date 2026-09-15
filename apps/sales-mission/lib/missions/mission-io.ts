@@ -62,6 +62,8 @@ export function buildImportColumns(fields: FormField[]): ImportColumn[] {
   const columns: ImportColumn[] = []
 
   for (const field of visibleFields(fields)) {
+    // A spreadsheet cannot carry a photo; the field is filled on the form.
+    if (field.fieldType === "PHOTO") continue
     if (field.reportingKey === "primary_sales") {
       columns.push({
         header: SALES_EMAIL_COLUMN,
@@ -281,7 +283,7 @@ export function parseRow(
 
   const custom: Record<string, string | string[] | boolean> = {}
   for (const field of visibleFields(fields)) {
-    if (field.isCore) continue
+    if (field.isCore || field.fieldType === "PHOTO") continue
     const value = (raw[field.label] ?? "").trim()
     if (!value) continue
 

@@ -1,6 +1,7 @@
 import { createClient } from "@/utils/supabase/server"
 import type { SalesMissionAccess } from "@/lib/sales-mission-access"
 import { purgeCutoff } from "./recycle-bin"
+import { photoPathsForMissions, removePhotoFiles } from "@/lib/photos/photo-storage"
 
 export interface DeletedMission {
   id: string
@@ -53,13 +54,19 @@ export async function listDeletedMissions(access: SalesMissionAccess): Promise<D
  */
 export async function purgeExpiredMissions(access: SalesMissionAccess, now: Date): Promise<number> {
   const supabase = await createClient()
-  const { data } = await supabase
-    .schema("sales_mission")
+  const schema = supabase.schema("sales_mission")
+  const { data: expired } = await schema
     .from("missions")
-    .delete()
+    .select("id")
     .eq("company_id", access.companyId)
     .not("deleted_at", "is", null)
     .lt("deleted_at", purgeCutoff(now))
-    .select("id")
+  const ids = (expired ?? []).map((row) => row.id as string)
+  if (ids.length === 0) return 0
+  // The photos go with the rows; best effort, the purge itself must not wait on storage.
+  try {
+    await removePhotoFiles(access, await photoPathsForMissions(schema, access.companyId, ids))
+  } catch {}
+  const { data } = await schema.from("missions").delete().eq("company_id", access.companyId).in("id", ids).select("id")
   return data?.length ?? 0
 }

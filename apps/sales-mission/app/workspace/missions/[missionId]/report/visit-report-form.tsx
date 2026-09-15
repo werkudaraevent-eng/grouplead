@@ -18,6 +18,8 @@ import {
 } from "@/lib/missions/visit-report-schema"
 import { visibleFields, type FieldAnswer, type FormField } from "@/lib/missions/form-fields"
 import { choicesFor, isNoAction, noActionCode, type ChoiceSet } from "@/lib/missions/report-choices"
+import { parsePhotoAnswer } from "@/lib/photos/photo-answer"
+import { PhotoField } from "@/components/photo-field"
 import type { VisitReportRecord } from "@/lib/missions/mission-queries"
 import type { TenantSalesOption } from "@/lib/missions/mission-queries"
 import type { ReportOptions } from "@/lib/missions/report-options"
@@ -93,6 +95,8 @@ const DRAFT_TO_KEY: Record<string, string> = {
 const CORE_SECTIONS: Record<string, string> = {
   visit_outcome: "Hasil kunjungan",
   contacts_met: "Hasil kunjungan",
+  visit_photos: "Hasil kunjungan",
+  business_card_photos: "Hasil kunjungan",
   meeting_summary: "Isi pertemuan",
   client_needs: "Isi pertemuan",
   product_interest: "Isi pertemuan",
@@ -242,8 +246,11 @@ function SingleChip({ options, value, onChange, allowCustom }: { options: string
 }
 
 /** A field the admin added, by its configured type, bound to the draft. */
-function CustomControl({ field, value, onChange }: { field: FormField; value: FieldAnswer | undefined; onChange: (next: FieldAnswer) => void }) {
+function CustomControl({ field, value, onChange, scope }: { field: FormField; value: FieldAnswer | undefined; onChange: (next: FieldAnswer) => void; scope: string }) {
   const id = `custom-${field.reportingKey}`
+  if (field.fieldType === "PHOTO") {
+    return <PhotoField id={id} scope={scope} value={parsePhotoAnswer(value)} onChange={(next) => onChange(next)} hint={field.placeholder || undefined} />
+  }
   if (field.fieldType === "BOOLEAN") {
     return (
       <div className="flex min-h-12 items-center gap-2.5">
@@ -253,7 +260,7 @@ function CustomControl({ field, value, onChange }: { field: FormField; value: Fi
     )
   }
   if (field.fieldType === "MULTI_SELECT") {
-    const list = Array.isArray(value) ? value : []
+    const list = Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : []
     return <MultiChip options={field.options} value={list} onToggle={(option) => onChange(list.includes(option) ? list.filter((item) => item !== option) : [...list, option])} onAddCustom={(option) => { if (!list.includes(option)) onChange([...list, option]) }} allowCustom={field.allowOther} />
   }
   if (field.fieldType === "SELECT") {
@@ -532,6 +539,20 @@ export function VisitReportForm({
             </select>
           </FieldShell>
         )
+      case "visit_photos":
+      case "business_card_photos":
+        return (
+          <FieldShell key={field.id} field={field}>
+            <PhotoField
+              id={`custom-${field.reportingKey}`}
+              scope={missionId}
+              value={parsePhotoAnswer(draft.custom[field.reportingKey])}
+              onChange={(next) => updateCustom(field.reportingKey, next)}
+              max={field.reportingKey === "business_card_photos" ? 3 : 5}
+              hint={field.placeholder || undefined}
+            />
+          </FieldShell>
+        )
       case "follow_up_date":
         if (isNoAction(draft.nextActionType, choices)) return null
         return (
@@ -610,7 +631,7 @@ export function VisitReportForm({
                 renderCore(field)
               ) : (
                 <FieldShell key={field.id} field={field}>
-                  <CustomControl field={field} value={draft.custom[field.reportingKey]} onChange={(next) => updateCustom(field.reportingKey, next)} />
+                  <CustomControl field={field} value={draft.custom[field.reportingKey]} onChange={(next) => updateCustom(field.reportingKey, next)} scope={missionId} />
                 </FieldShell>
               )
             )}

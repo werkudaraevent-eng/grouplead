@@ -274,6 +274,11 @@ export function missingConfiguredFields(draft: VisitReportDraft, fields: FormFie
   for (const field of visibleFields(fields)) {
     if (!field.isRequired) continue
     if (field.isCore) {
+      // Photos live with the custom answers whatever their core-ness.
+      if (field.fieldType === "PHOTO") {
+        if (isBlank(draft.custom[field.reportingKey])) missing.push(field.reportingKey)
+        continue
+      }
       const key = CORE_DRAFT_KEYS[field.reportingKey]
       if (!key) continue
       // Owner and date are conditional on a next action; the schema handles them.
