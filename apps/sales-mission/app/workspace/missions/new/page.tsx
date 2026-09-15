@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation"
-import { canPerform, getSalesMissionAccess } from "@/lib/sales-mission-access"
+import { canPerform, getSalesMissionAccess, resolveScope } from "@/lib/sales-mission-access"
+import { personInScope } from "@/lib/access/record-scope"
 import { getMission, getMissionSettings, listMissionTeam, listTeamSchedules, listTenantSales } from "@/lib/missions/mission-queries"
 import { listFormFields } from "@/lib/missions/form-field-queries"
 import { MISSION_TIME_ZONE } from "@/lib/missions/mission-schema"
@@ -22,12 +23,17 @@ export default async function NewMissionPage({
   }
 
   const now = new Date()
-  const [salesOptions, fields, schedules, settings] = await Promise.all([
+  const [people, fields, schedules, settings, missionCtx] = await Promise.all([
     listTenantSales(access),
     listFormFields(access, "mission"),
     listTeamSchedules(access, now),
     getMissionSettings(access),
+    resolveScope(access, "sales_mission_mission"),
   ])
+  // Naming the sales utama hands them the mission, so the choice stays
+  // inside the viewer's Cakupan ubah: themself on Sendiri, their chain on
+  // Tim, anyone on Semua. Supporting sales are invited, not handed anything.
+  const salesOptions = people.map((person) => ({ ...person, canLead: person.canLead && personInScope(missionCtx, person.id) }))
   const params = await searchParams
 
   // Default to today in Werkudara's timezone, not the server's. The calendar

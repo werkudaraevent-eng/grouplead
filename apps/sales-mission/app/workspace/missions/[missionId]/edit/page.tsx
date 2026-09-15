@@ -1,7 +1,7 @@
 import { notFound, redirect } from "next/navigation"
 import { getSalesMissionAccess } from "@/lib/sales-mission-access"
 import { resolveMissionGates } from "@/lib/missions/mission-rights"
-import { describeOutOfScope } from "@/lib/access/record-scope"
+import { describeOutOfScope, personInScope } from "@/lib/access/record-scope"
 import { requireModule } from "@/lib/missions/nav-access"
 import {
   getMission,
@@ -103,7 +103,12 @@ export default async function EditMissionPage({ params }: { params: Promise<{ mi
       action={<BackLink href={`/workspace/missions/${missionId}`} />}
     >
       <MissionForm
-        salesOptions={salesOptions}
+        // The current sales utama stays choosable even when out of reach, so
+        // the form can be saved without silently reassigning the visit.
+        salesOptions={salesOptions.map((person) => ({
+          ...person,
+          canLead: person.canLead && (personInScope(gates.missionCtx, person.id) || person.id === prefill.primarySalesId),
+        }))}
         defaultDate={schedule.date}
         fields={fields}
         schedules={schedules}

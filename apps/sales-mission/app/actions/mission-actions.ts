@@ -5,7 +5,7 @@ import { redirect } from "next/navigation"
 import { createClient } from "@/utils/supabase/server"
 import { canPerform, getSalesMissionAccess, isSettingsAdmin, resolveScope } from "@/lib/sales-mission-access"
 import { resolveMissionGates } from "@/lib/missions/mission-rights"
-import { describeOutOfScope, inScope, missionOwners } from "@/lib/access/record-scope"
+import { describeAssignReach, describeOutOfScope, inScope, missionOwners, personInScope } from "@/lib/access/record-scope"
 import { MISSION_TIME_ZONE, MISSION_TYPES, createMissionSchema, toMissionTimestamp, type AssignmentResponse } from "@/lib/missions/mission-schema"
 import { listFormFields } from "@/lib/missions/form-field-queries"
 import { getMission, getMissionRole, getMissionSettings, listAssignableIds, listMissionTeam } from "@/lib/missions/mission-queries"
@@ -206,6 +206,11 @@ export async function createMission(
   const validIds = assignable.members
   if (!assignable.leads.has(parsed.data.primarySalesId)) {
     return { success: false, error: "Sales utama harus punya izin Laporan kunjungan → Buat di Role & Izin." }
+  }
+  // Naming the sales utama hands them the mission: within Cakupan ubah.
+  const missionCtx = await resolveScope(access, "sales_mission_mission")
+  if (!personInScope(missionCtx, parsed.data.primarySalesId)) {
+    return { success: false, error: describeAssignReach(missionCtx.scope, "sales utama") }
   }
   const unknown = assigneeIds.filter((id) => !validIds.has(id))
   if (unknown.length > 0) {
@@ -625,6 +630,12 @@ export async function updateMission(
   const validIds = assignable.members
   if (!assignable.leads.has(input.primarySalesId)) {
     return { success: false, error: "Sales utama harus punya izin Laporan kunjungan → Buat di Role & Izin." }
+  }
+  // Handing the visit to a new sales utama is reaching them: within Cakupan
+  // ubah. Keeping the current one is not a hand-over.
+  const currentPrimaryId = team.find((member) => member.role === "PRIMARY")?.userId ?? null
+  if (input.primarySalesId !== currentPrimaryId && !personInScope(gates.missionCtx, input.primarySalesId)) {
+    return { success: false, error: describeAssignReach(gates.missionCtx.scope, "sales utama") }
   }
   if (assigneeIds.some((id) => !validIds.has(id))) {
     return { success: false, error: "Sales yang dipilih bukan anggota grup ini." }

@@ -121,6 +121,23 @@ export function describeReadScope(scope: RecordScope, noun: ScopedNoun): string 
 }
 
 /**
+ * Whom a record may be handed to, in the matrix's words: the sales utama of
+ * a new mission, the holder of a prospect. Assigning is reaching, so the
+ * same Cakupan ubah answers (Salesforce keeps "transfer records" beside
+ * edit for the same reason).
+ */
+export function describeAssignReach(scope: RecordScope, noun: "sales utama" | "pemegang"): string {
+  switch (scope) {
+    case "own":
+      return `Cakupan ubah peran Anda Sendiri: ${noun} hanya bisa Anda sendiri.`
+    case "team":
+      return `Cakupan ubah peran Anda Tim: ${noun} hanya bisa Anda atau orang di bawah Anda.`
+    default:
+      return `Peran Anda tidak boleh menetapkan ${noun} itu.`
+  }
+}
+
+/**
  * One sentence for a refusal, in the words the matrix uses, so an admin
  * reading the message knows which control to change.
  */

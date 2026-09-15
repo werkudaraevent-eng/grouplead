@@ -194,19 +194,19 @@ const SCOPE_OPTIONS: ReadonlyArray<{ value: RecordScope; label: string; readHint
     value: "own",
     label: "Sendiri",
     readHint: "Hanya record miliknya: mission yang ia sales utama, ia jadwalkan, atau ia ikuti; laporan mission itu; prospek yang ia pegang atau belum dipegang siapa pun. Record lain tidak tampil di daftar, kalender, papan, maupun laporan.",
-    writeHint: "Ubah, Hapus, dan tindakan pada record (isi laporan, kelola tim, batalkan, tugaskan) hanya untuk record miliknya: mission yang ia sales utama atau ia jadwalkan, laporan mission-nya sendiri, prospek yang ia pegang.",
+    writeHint: "Ubah, Hapus, dan tindakan pada record (isi laporan, kelola tim, batalkan, tugaskan) hanya untuk record miliknya: mission yang ia sales utama atau ia jadwalkan, laporan mission-nya sendiri, prospek yang ia pegang. Saat membuat mission atau prospek, sales utama dan pemegang hanya bisa dirinya sendiri.",
   },
   {
     value: "team",
     label: "Tim",
     readHint: "Miliknya, ditambah milik orang yang Atasan-nya adalah dia, berantai ke bawah (Settings → Users).",
-    writeHint: "Ubah, Hapus, dan tindakan pada record untuk miliknya, ditambah milik orang yang Atasan-nya adalah dia, berantai ke bawah.",
+    writeHint: "Ubah, Hapus, dan tindakan pada record untuk miliknya, ditambah milik orang yang Atasan-nya adalah dia, berantai ke bawah. Sales utama dan pemegang yang bisa ia tetapkan: dirinya atau orang di bawahnya.",
   },
   {
     value: "all",
     label: "Semua",
     readHint: "Semua record di unit bisnis.",
-    writeHint: "Ubah, Hapus, dan tindakan pada record untuk semua record di unit bisnis.",
+    writeHint: "Ubah, Hapus, dan tindakan pada record untuk semua record di unit bisnis; sales utama dan pemegang bisa siapa saja.",
   },
 ]
 const SCOPE_LABEL: Record<RecordScope, string> = { own: "Sendiri", team: "Tim", all: "Semua" }
