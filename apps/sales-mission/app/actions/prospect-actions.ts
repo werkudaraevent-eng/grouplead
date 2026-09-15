@@ -5,7 +5,8 @@ import { redirect } from "next/navigation"
 import { createClient } from "@/utils/supabase/server"
 import { canPerform, getSalesMissionAccess, type SalesMissionAccess } from "@/lib/sales-mission-access"
 import { listFormFields } from "@/lib/missions/form-field-queries"
-import { DEFAULT_CONTACT_SALUTATIONS, configuredOptions } from "@/lib/missions/form-fields"
+import { DEFAULT_CONTACT_SALUTATIONS, configuredOptions, readCustomAnswers, validateFieldAnswers, type FieldAnswer, type FormField } from "@/lib/missions/form-fields"
+import { isEmptyAnswer, missingRequiredCore } from "@/lib/prospects/prospect-form-fields"
 import { normalizePhone } from "@/lib/format/phone"
 import { listProspectStatuses } from "@/lib/prospects/prospect-status-queries"
 import { entryStatus } from "@/lib/prospects/prospect-status"
@@ -90,6 +91,35 @@ async function memberIds(access: SalesMissionAccess, ids: string[]): Promise<Set
   return new Set((data ?? []).map((row) => row.user_id as string))
 }
 
+/**
+ * The tenant's prospect form applied to a submission: a core field the admin
+ * made required must be filled, and the custom answers must fit their types.
+ * Returns the custom fields and answers to store, or the first error.
+ */
+async function checkAgainstForm(access: SalesMissionAccess, formData: FormData, input: ProspectInput) {
+  const fields = await listFormFields(access, "prospect")
+  const missing = missingRequiredCore(fields, input)
+  if (missing) return { error: `${missing} wajib diisi.` }
+  const customFields = fields.filter((field) => !field.isCore)
+  const answers = readCustomAnswers(formData, customFields)
+  const validation = validateFieldAnswers(customFields, answers)
+  if (!validation.ok) return { error: Object.values(validation.errors)[0] ?? "Isian tambahan belum lengkap." }
+  return { customFields, answers }
+}
+
+/** Write the custom answers: emptied ones go, the rest are upserted, so an edit is not a delete-and-recreate in the audit log. */
+async function saveCustomAnswers(access: SalesMissionAccess, prospectId: string, customFields: FormField[], answers: Record<string, FieldAnswer>) {
+  if (customFields.length === 0) return
+  const supabase = await createClient()
+  const schema = supabase.schema("sales_mission")
+  const emptied = customFields.filter((field) => isEmptyAnswer(answers[field.reportingKey])).map((field) => field.id)
+  const rows = customFields
+    .filter((field) => !isEmptyAnswer(answers[field.reportingKey]))
+    .map((field) => ({ prospect_id: prospectId, company_id: access.companyId, field_id: field.id, reporting_key: field.reportingKey, value: answers[field.reportingKey], updated_at: new Date().toISOString() }))
+  if (emptied.length > 0) await schema.from("prospect_field_values").delete().eq("company_id", access.companyId).eq("prospect_id", prospectId).in("field_id", emptied)
+  if (rows.length > 0) await schema.from("prospect_field_values").upsert(rows, { onConflict: "prospect_id,field_id" })
+}
+
 async function checkSalutation(access: SalesMissionAccess, value: string | undefined): Promise<string | null> {
   if (!value) return null
   const fields = await listFormFields(access, "mission")
@@ -107,6 +137,8 @@ export async function createProspect(_previous: ProspectFormState, formData: For
 
   const salutationError = await checkSalutation(access, parsed.data.contactSalutation)
   if (salutationError) return { success: false, error: salutationError }
+  const form = await checkAgainstForm(access, formData, parsed.data)
+  if ("error" in form) return { success: false, error: form.error }
 
   const ownerId = parsed.data.ownerId || null
   if (ownerId && !(await memberIds(access, [ownerId])).has(ownerId)) {
@@ -125,6 +157,7 @@ export async function createProspect(_previous: ProspectFormState, formData: For
     .select("id")
     .single()
   if (error || !data) return { success: false, error: "Prospek gagal disimpan." }
+  await saveCustomAnswers(access, data.id as string, form.customFields, form.answers)
 
   PATHS.forEach((path) => revalidatePath(path))
   redirect(`/workspace/prospects/${data.id}`)
@@ -139,6 +172,8 @@ export async function updateProspect(prospectId: string, _previous: ProspectForm
   if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message ?? "Data prospek tidak valid." }
   const salutationError = await checkSalutation(access, parsed.data.contactSalutation)
   if (salutationError) return { success: false, error: salutationError }
+  const form = await checkAgainstForm(access, formData, parsed.data)
+  if ("error" in form) return { success: false, error: form.error }
 
   const supabase = await createClient()
   const schema = supabase.schema("sales_mission")
@@ -162,6 +197,7 @@ export async function updateProspect(prospectId: string, _previous: ProspectForm
     .eq("company_id", access.companyId)
     .eq("id", prospectId)
   if (error) return { success: false, error: "Perubahan gagal disimpan." }
+  await saveCustomAnswers(access, prospectId, form.customFields, form.answers)
 
   PATHS.forEach((path) => revalidatePath(path))
   revalidatePath(`/workspace/prospects/${prospectId}`)

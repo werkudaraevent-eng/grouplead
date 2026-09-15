@@ -170,7 +170,7 @@ export async function getProspect(access: SalesMissionAccess, prospectId: string
   if (!item) return null
 
   const schema = supabase.schema("sales_mission")
-  const [batch, creator, mission] = await Promise.all([
+  const [batch, creator, mission, values] = await Promise.all([
     item.importBatchId
       ? schema.from("prospect_import_batches").select("file_name").eq("id", item.importBatchId).maybeSingle()
       : Promise.resolve({ data: null }),
@@ -178,11 +178,16 @@ export async function getProspect(access: SalesMissionAccess, prospectId: string
     item.missionId
       ? schema.from("missions").select("id, status, scheduled_start").eq("id", item.missionId).is("deleted_at", null).maybeSingle()
       : Promise.resolve({ data: null }),
+    schema.from("prospect_field_values").select("reporting_key, value").eq("company_id", access.companyId).eq("prospect_id", prospectId),
   ])
+
+  const customValues: Record<string, unknown> = {}
+  for (const row of values.data ?? []) customValues[row.reporting_key as string] = row.value
 
   return {
     ...item,
     attempts,
+    customValues,
     batchFileName: (batch.data?.file_name as string | undefined) ?? null,
     createdByName: item.createdBy ? (creator.get(item.createdBy)?.name ?? null) : null,
     mission: mission.data

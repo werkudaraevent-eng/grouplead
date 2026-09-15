@@ -21,6 +21,13 @@ const SETTING_CARDS = [
     href: "/workspace/settings/report-form",
   },
   {
+    icon: ListChecks,
+    tone: "bg-primary/10 text-primary",
+    title: "Form prospek",
+    description: "Field pada form prospek dan kolom template impornya: tambah, urutkan, wajibkan.",
+    href: "/workspace/settings/prospect-form",
+  },
+  {
     icon: MonitorPlay,
     tone: "bg-[var(--success)] text-[var(--success-foreground)]",
     title: "Papan live",

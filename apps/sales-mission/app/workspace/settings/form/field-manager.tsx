@@ -82,7 +82,13 @@ function toDraft(field: FormField): Draft {
 }
 
 /** Why a core field's type cannot move, stated per field rather than in general. */
-function lockedTypeReason(reportingKey: string): string {
+function lockedTypeReason(reportingKey: string, formKey: FormKey): string {
+  if (formKey === "prospect" && reportingKey === "contact_salutation") {
+    return "Daftar sapaan diatur di Form mission, supaya prospek dan mission memakai daftar yang sama."
+  }
+  if (formKey === "prospect" && reportingKey === "owner") {
+    return "Pilihannya daftar pengguna. Tersimpan sebagai pemegang prospek."
+  }
   switch (reportingKey) {
     case "date":
     case "start_time":
@@ -110,6 +116,7 @@ function lockedTypeReason(reportingKey: string): string {
  * modes and keeps them one component.
  */
 function FieldEditor({
+  formKey,
   field,
   draft,
   setDraft,
@@ -119,6 +126,7 @@ function FieldEditor({
   usage,
   usageLoading,
 }: {
+  formKey: FormKey
   field: FormField | null
   draft: Draft
   setDraft: (next: Draft) => void
@@ -137,16 +145,17 @@ function FieldEditor({
     isCore,
     reportingKey: field?.reportingKey ?? "",
     fieldType: draft.fieldType,
-  })
+  }, formKey)
   const source = optionSource({
     isCore,
     reportingKey: field?.reportingKey ?? "",
     fieldType: draft.fieldType,
-  })
+  }, formKey)
 
   const optionsError = describeOptionsViolation(
     { isCore, reportingKey: field?.reportingKey ?? "", fieldType: draft.fieldType },
-    draft.options
+    draft.options,
+    formKey
   )
   const labelError = draft.label.trim() ? null : "Nama field wajib diisi"
   const blocked = Boolean(labelError || optionsError)
@@ -188,7 +197,7 @@ function FieldEditor({
               >
                 {FIELD_TYPE_LABELS[draft.fieldType]}
               </p>
-              <p className="text-xs text-muted-foreground">{lockedTypeReason(field?.reportingKey ?? "")}</p>
+              <p className="text-xs text-muted-foreground">{lockedTypeReason(field?.reportingKey ?? "", formKey)}</p>
             </>
           ) : (
             <select
@@ -276,7 +285,7 @@ export function FieldManager({ fields, formKey }: { fields: FormField[]; formKey
     setAdding(false)
     setUsage(null)
 
-    if (!isChoiceType(field.fieldType) || !canEditOptions(field)) return
+    if (!isChoiceType(field.fieldType) || !canEditOptions(field, formKey)) return
 
     setUsageLoading(true)
     getFieldOptionUsage(formKey, field.id)
@@ -320,6 +329,7 @@ export function FieldManager({ fields, formKey }: { fields: FormField[]; formKey
         {adding && (
           <div className="border-b px-5 py-5">
             <FieldEditor
+              formKey={formKey}
               field={null}
               draft={draft}
               setDraft={setDraft}
@@ -337,6 +347,7 @@ export function FieldManager({ fields, formKey }: { fields: FormField[]; formKey
             <li key={field.id} className="px-5 py-4">
               {editingId === field.id ? (
                 <FieldEditor
+                  formKey={formKey}
                   field={field}
                   draft={draft}
                   setDraft={setDraft}

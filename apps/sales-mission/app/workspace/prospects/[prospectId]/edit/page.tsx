@@ -16,10 +16,11 @@ export default async function EditProspectPage({ params }: { params: Promise<{ p
   const { prospectId } = await params
   if (!(await canPerform(access, "sales_mission_prospect", "update"))) redirect(`/workspace/prospects/${prospectId}`)
 
-  const [prospect, salesOptions, fields, isAdmin] = await Promise.all([
+  const [prospect, salesOptions, fields, prospectFields, isAdmin] = await Promise.all([
     getProspect(access, prospectId),
     listTenantSales(access),
     listFormFields(access, "mission"),
+    listFormFields(access, "prospect"),
     access.isSuperAdmin ? Promise.resolve(true) : canPerform(access, "sales_mission_settings", "update"),
   ])
   if (!prospect) notFound()
@@ -27,7 +28,7 @@ export default async function EditProspectPage({ params }: { params: Promise<{ p
 
   return (
     <WorkspacePage eyebrow="Sales Mission / Prospek" title={`Ubah ${prospect.clientCompanyName}`} description="Perbaiki data perusahaan atau kontaknya. Status dan catatan kontak diubah dari halaman prospek." action={<BackLink href={`/workspace/prospects/${prospectId}`} />}>
-      <ProspectForm salesOptions={salesOptions} salutations={configuredOptions(fields, "contact_salutation", DEFAULT_CONTACT_SALUTATIONS)} viewerId={access.userId} canAssignOthers={isAdmin} prospect={prospect} />
+      <ProspectForm fields={prospectFields} salesOptions={salesOptions} salutations={configuredOptions(fields, "contact_salutation", DEFAULT_CONTACT_SALUTATIONS)} viewerId={access.userId} canAssignOthers={isAdmin} prospect={prospect} />
     </WorkspacePage>
   )
 }

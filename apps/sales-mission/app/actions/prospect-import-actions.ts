@@ -10,6 +10,7 @@ import { searchClientCompanies } from "@/lib/leadengine/client"
 import type { RawRow, RowIssue } from "@/lib/missions/mission-io"
 import {
   OWNER_EMAIL_COLUMN,
+  buildProspectColumns,
   dedupeKeys,
   findExistingDuplicates,
   findInFileDuplicates,
@@ -58,8 +59,10 @@ async function validate(rows: RawRow[]) {
   if ("error" in guard) return { error: guard.error }
   const { access } = guard
 
-  const [fields, sales] = await Promise.all([listFormFields(access, "mission"), listTenantSales(access)])
+  const [fields, prospectFields, sales] = await Promise.all([listFormFields(access, "mission"), listFormFields(access, "prospect"), listTenantSales(access)])
   const salutations = configuredOptions(fields, "contact_salutation", DEFAULT_CONTACT_SALUTATIONS)
+  const columns = buildProspectColumns(prospectFields)
+  const customFields = prospectFields.filter((field) => !field.isCore)
   const byEmail = new Map<string, string>()
   for (const person of sales) if (person.email) byEmail.set(person.email.toLowerCase(), person.id)
 
@@ -67,7 +70,7 @@ async function validate(rows: RawRow[]) {
   const issues: RowIssue[] = []
   rows.forEach((raw, index) => {
     const rowNumber = index + 2
-    const result = parseProspectRow(raw, rowNumber, { salutations })
+    const result = parseProspectRow(raw, rowNumber, { columns, fields: prospectFields, salutations })
     issues.push(...result.issues)
     if (result.row.ownerEmail && !byEmail.has(result.row.ownerEmail)) {
       issues.push({ row: rowNumber, column: OWNER_EMAIL_COLUMN, message: `"${result.row.ownerEmail}" bukan anggota unit bisnis ini.` })
@@ -86,7 +89,7 @@ async function validate(rows: RawRow[]) {
   const duplicates = [...inFile, ...against]
 
   const broken = new Set([...issues, ...duplicates].map((issue) => issue.row))
-  return { access, byEmail, parsed, issues: [...issues, ...duplicates], duplicates: duplicates.length, valid: parsed.filter((row) => !broken.has(row.row)) }
+  return { access, byEmail, customFields, parsed, issues: [...issues, ...duplicates], duplicates: duplicates.length, valid: parsed.filter((row) => !broken.has(row.row)) }
 }
 
 export async function checkProspectImport(rows: RawRow[]): Promise<ProspectImportCheck> {
@@ -111,7 +114,7 @@ export async function checkProspectImport(rows: RawRow[]): Promise<ProspectImpor
 export async function commitProspectImport(rows: RawRow[], options: { defaultOwnerId: string | null; fileName: string }): Promise<ProspectImportResult> {
   const result = await validate(rows)
   if ("error" in result) return { success: false, error: result.error, created: 0, skipped: 0 }
-  const { access, byEmail, valid } = result
+  const { access, byEmail, customFields, valid } = result
   if (valid.length === 0) return { success: false, error: "Tidak ada baris yang bisa diimpor.", created: 0, skipped: rows.length }
 
   const defaultOwner = options.defaultOwnerId && /^[0-9a-f-]{36}$/i.test(options.defaultOwnerId) ? options.defaultOwnerId : null
@@ -175,7 +178,24 @@ export async function commitProspectImport(rows: RawRow[], options: { defaultOwn
         }))
       )
       .select("id")
-    if (!error) created += data?.length ?? 0
+    if (error) continue
+    created += data?.length ?? 0
+
+    // The custom answers, matched to the rows by position: RETURNING keeps
+    // the insert order. Best effort, like the mission import's answers.
+    if (customFields.length > 0 && data) {
+      const values = data.flatMap((inserted, index) => {
+        const row = chunk[index]
+        if (!row) return []
+        return customFields
+          .filter((field) => {
+            const value = row.custom[field.reportingKey]
+            return value !== null && value !== undefined && value !== "" && !(Array.isArray(value) && value.length === 0)
+          })
+          .map((field) => ({ prospect_id: inserted.id as string, company_id: access.companyId, field_id: field.id, reporting_key: field.reportingKey, value: row.custom[field.reportingKey] }))
+      })
+      if (values.length > 0) await schema.from("prospect_field_values").insert(values)
+    }
   }
 
   revalidatePath("/workspace/prospects")

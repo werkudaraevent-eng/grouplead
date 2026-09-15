@@ -13,15 +13,16 @@ export default async function NewProspectPage() {
   if (!access) redirect("/login?error=access_not_provisioned")
   if (!(await canPerform(access, "sales_mission_prospect", "create"))) redirect("/workspace/prospects")
 
-  const [salesOptions, fields, isAdmin] = await Promise.all([
+  const [salesOptions, fields, prospectFields, isAdmin] = await Promise.all([
     listTenantSales(access),
     listFormFields(access, "mission"),
+    listFormFields(access, "prospect"),
     access.isSuperAdmin ? Promise.resolve(true) : canPerform(access, "sales_mission_settings", "update"),
   ])
 
   return (
     <WorkspacePage eyebrow="Sales Mission / Prospek" title="Prospek baru" description="Satu perusahaan dan satu orang yang akan dihubungi." action={<BackLink href="/workspace/prospects" />}>
-      <ProspectForm salesOptions={salesOptions} salutations={configuredOptions(fields, "contact_salutation", DEFAULT_CONTACT_SALUTATIONS)} viewerId={access.userId} canAssignOthers={isAdmin} />
+      <ProspectForm fields={prospectFields} salesOptions={salesOptions} salutations={configuredOptions(fields, "contact_salutation", DEFAULT_CONTACT_SALUTATIONS)} viewerId={access.userId} canAssignOthers={isAdmin} />
     </WorkspacePage>
   )
 }

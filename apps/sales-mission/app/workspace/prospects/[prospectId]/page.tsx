@@ -4,6 +4,8 @@ import { Building2, CalendarCheck, Globe, Mail, MapPin, MessageCircle, Phone } f
 import { canPerform, getSalesMissionAccess } from "@/lib/sales-mission-access"
 import { requireModule } from "@/lib/missions/nav-access"
 import { listTenantSales } from "@/lib/missions/mission-queries"
+import { listFormFields } from "@/lib/missions/form-field-queries"
+import { customAnswers } from "@/lib/prospects/prospect-form-fields"
 import { MISSION_TIME_ZONE, formatMissionSchedule } from "@/lib/missions/mission-schema"
 import { statusLabel } from "@/lib/missions/status-labels"
 import { getProspect } from "@/lib/prospects/prospect-queries"
@@ -34,7 +36,7 @@ export default async function ProspectDetailPage({ params }: { params: Promise<{
   await requireModule(access, "sales_mission_prospect")
 
   const { prospectId } = await params
-  const [prospect, statuses, people, canUpdate, canDelete, canCreateMission, isAdmin] = await Promise.all([
+  const [prospect, statuses, people, canUpdate, canDelete, canCreateMission, isAdmin, fields] = await Promise.all([
     getProspect(access, prospectId),
     listProspectStatuses(access, { includeArchived: true }),
     listTenantSales(access),
@@ -42,9 +44,11 @@ export default async function ProspectDetailPage({ params }: { params: Promise<{
     canPerform(access, "sales_mission_prospect", "delete"),
     canPerform(access, "sales_mission_mission", "create"),
     access.isSuperAdmin ? Promise.resolve(true) : canPerform(access, "sales_mission_settings", "update"),
+    listFormFields(access, "prospect"),
   ])
   if (!prospect) notFound()
 
+  const extra = customAnswers(fields, prospect.customValues)
   const viewer = { userId: access.userId, isAdmin }
   const editable = canUpdate && canEditProspect(prospect, viewer)
   const today = new Intl.DateTimeFormat("en-CA", { timeZone: MISSION_TIME_ZONE }).format(new Date())
@@ -112,6 +116,9 @@ export default async function ProspectDetailPage({ params }: { params: Promise<{
                 </Fact>
               )}
               {prospect.contactEmail && <Fact label="Email"><a href={`mailto:${prospect.contactEmail}`} className="inline-flex items-center gap-1.5 font-medium text-primary hover:underline"><Mail className="h-4 w-4" />{prospect.contactEmail}</a></Fact>}
+              {extra.map(({ field, text }) => (
+                <Fact key={field.id} label={field.label}><span className="whitespace-pre-wrap">{text}</span></Fact>
+              ))}
               <Fact label="Sumber">{prospect.source === "import" ? `Impor${prospect.batchFileName ? ` · ${prospect.batchFileName}` : ""}` : "Manual"}{prospect.createdByName ? ` · ${prospect.createdByName}` : ""} · {stamp(prospect.createdAt)}</Fact>
             </dl>
             {prospect.notes && (

@@ -34,6 +34,7 @@ function resolveFormKey(value: unknown): FormKey | null {
 const PATHS: Record<FormKey, string[]> = {
   mission: ["/workspace/settings/form", "/workspace/missions/new"],
   visit_report: ["/workspace/settings/report-form", "/workspace/missions"],
+  prospect: ["/workspace/settings/prospect-form", "/workspace/prospects", "/workspace/prospects/new"],
 }
 
 async function authorize() {
@@ -146,17 +147,17 @@ export async function updateFormField(formKeyInput: unknown, fieldId: string, in
   // for a directory-backed one the client sends the current values back and the
   // guard would otherwise refuse a save that changed nothing.
   const optionsChanged =
-    canEditOptions(target) &&
+    canEditOptions(target, FORM_KEY) &&
     JSON.stringify(parsed.data.options) !== JSON.stringify(field.options)
 
   const violation = describeCoreFieldViolation(field, {
     isRequired: parsed.data.isRequired,
     fieldType: parsed.data.fieldType as FieldType,
     options: optionsChanged ? parsed.data.options : undefined,
-  })
+  }, FORM_KEY)
   if (violation) return { success: false, error: violation }
 
-  const optionsViolation = describeOptionsViolation(target, parsed.data.options)
+  const optionsViolation = describeOptionsViolation(target, parsed.data.options, FORM_KEY)
   if (optionsViolation) return { success: false, error: optionsViolation }
 
   const supabase = await createClient()
@@ -173,7 +174,7 @@ export async function updateFormField(formKeyInput: unknown, fieldId: string, in
       help_text: parsed.data.helpText?.trim() || null,
       // Owned lists are written; directory-backed ones keep whatever they had,
       // which is the empty array their options were never stored in.
-      options: canEditOptions(target)
+      options: canEditOptions(target, FORM_KEY)
         ? isChoiceType(effectiveType)
           ? parsed.data.options
           : []
@@ -297,10 +298,12 @@ export async function getFieldOptionUsage(
     client_needs: "client_needs",
     product_interest: "product_interest",
   }
+  // The prospect form's core choice fields are directory-owned, so there is
+  // nothing to count for them; only its custom fields reach the value table.
   const column = field.isCore
-    ? FORM_KEY === "mission" ? missionColumn[field.reportingKey] : reportColumn[field.reportingKey]
+    ? FORM_KEY === "mission" ? missionColumn[field.reportingKey] : FORM_KEY === "visit_report" ? reportColumn[field.reportingKey] : undefined
     : undefined
-  const valueTable = FORM_KEY === "mission" ? "mission_field_values" : "report_field_values"
+  const valueTable = FORM_KEY === "mission" ? "mission_field_values" : FORM_KEY === "prospect" ? "prospect_field_values" : "report_field_values"
 
   const countMatching = async (option: string): Promise<number> => {
     const base =

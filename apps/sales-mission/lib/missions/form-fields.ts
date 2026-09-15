@@ -45,9 +45,9 @@ export type FieldType = (typeof FIELD_TYPES)[number]
 /** Types an admin may give a field they add. */
 export const CUSTOM_FIELD_TYPES = FIELD_TYPES.filter((type) => type !== "CONTACTS")
 
-export type FormKey = "mission" | "visit_report"
-export const FORM_KEYS: readonly FormKey[] = ["mission", "visit_report"]
-export const FORM_KEY_LABELS: Record<FormKey, string> = { mission: "Form mission", visit_report: "Form laporan" }
+export type FormKey = "mission" | "visit_report" | "prospect"
+export const FORM_KEYS: readonly FormKey[] = ["mission", "visit_report", "prospect"]
+export const FORM_KEY_LABELS: Record<FormKey, string> = { mission: "Form mission", visit_report: "Form laporan", prospect: "Form prospek" }
 
 export const FIELD_TYPE_LABELS: Record<FieldType, string> = {
   TEXT: "Teks singkat",
@@ -96,23 +96,30 @@ const CORE_OPTION_SOURCES: Record<string, OptionSource> = {
   interest_level: "directory",
   next_action_type: "directory",
   next_action_owner: "directory",
+  // The prospect form's salutation list is the mission form's, so a prospect
+  // converts into a mission without its salutation falling out of the list.
+  // Keyed by form so the same reporting key stays editable on the mission form.
+  "prospect:contact_salutation": "directory",
+  "prospect:owner": "directory",
 }
 
 export function optionSource(
-  field: Pick<FormField, "isCore" | "reportingKey" | "fieldType">
+  field: Pick<FormField, "isCore" | "reportingKey" | "fieldType">,
+  formKey?: FormKey
 ): OptionSource | null {
   if (!isChoiceType(field.fieldType)) return null
   if (!field.isCore) return "config"
   // An unlisted core choice field is treated as directory-owned: refusing to
   // edit a list we do not understand is the safe default.
-  return CORE_OPTION_SOURCES[field.reportingKey] ?? "directory"
+  return (formKey ? CORE_OPTION_SOURCES[`${formKey}:${field.reportingKey}`] : undefined) ?? CORE_OPTION_SOURCES[field.reportingKey] ?? "directory"
 }
 
 /** Whether this field's options are the admin's to edit. */
 export function canEditOptions(
-  field: Pick<FormField, "isCore" | "reportingKey" | "fieldType">
+  field: Pick<FormField, "isCore" | "reportingKey" | "fieldType">,
+  formKey?: FormKey
 ): boolean {
-  return optionSource(field) === "config"
+  return optionSource(field, formKey) === "config"
 }
 
 /**
@@ -191,8 +198,34 @@ export const CORE_REPORT_FIELDS: Array<
   { reportingKey: "follow_up_date", label: "Tanggal follow-up", fieldType: "DATE", isRequired: false, displayOrder: 120 },
 ]
 
+/**
+ * The prospect form's locked core fields. Types are locked because the
+ * import, duplicate detection and the hand-over to a mission read these
+ * columns; labels, order, help text and requiredness are the admin's.
+ */
+export const CORE_PROSPECT_FIELDS: Array<
+  Pick<FormField, "reportingKey" | "label" | "fieldType" | "isRequired" | "displayOrder"> & {
+    options?: string[]
+    helpText?: string
+  }
+> = [
+  { reportingKey: "client_company", label: "Perusahaan", fieldType: "TEXT", isRequired: true, displayOrder: 10 },
+  { reportingKey: "industry", label: "Industri", fieldType: "TEXT", isRequired: false, displayOrder: 20 },
+  { reportingKey: "website", label: "Website", fieldType: "TEXT", isRequired: false, displayOrder: 30 },
+  { reportingKey: "address", label: "Alamat jalan", fieldType: "TEXT", isRequired: false, displayOrder: 40 },
+  { reportingKey: "location", label: "Kota", fieldType: "TEXT", isRequired: false, displayOrder: 50 },
+  { reportingKey: "contact_salutation", label: "Sapaan", fieldType: "SELECT", isRequired: false, displayOrder: 60, helpText: "Daftar sapaan mengikuti Form mission." },
+  { reportingKey: "contact_name", label: "Nama kontak", fieldType: "TEXT", isRequired: false, displayOrder: 70 },
+  { reportingKey: "contact_job_title", label: "Jabatan", fieldType: "TEXT", isRequired: false, displayOrder: 80 },
+  { reportingKey: "contact_division", label: "Divisi", fieldType: "TEXT", isRequired: false, displayOrder: 90 },
+  { reportingKey: "contact_phone", label: "Telepon", fieldType: "TEXT", isRequired: false, displayOrder: 100 },
+  { reportingKey: "contact_email", label: "Email", fieldType: "TEXT", isRequired: false, displayOrder: 110 },
+  { reportingKey: "notes", label: "Catatan", fieldType: "LONG_TEXT", isRequired: false, displayOrder: 120 },
+  { reportingKey: "owner", label: "Pemegang", fieldType: "SELECT", isRequired: false, displayOrder: 130 },
+]
+
 export function coreFieldsFor(formKey: FormKey) {
-  return formKey === "mission" ? CORE_MISSION_FIELDS : CORE_REPORT_FIELDS
+  return formKey === "mission" ? CORE_MISSION_FIELDS : formKey === "prospect" ? CORE_PROSPECT_FIELDS : CORE_REPORT_FIELDS
 }
 
 export interface FormField {
@@ -257,9 +290,10 @@ export type FieldDefinitionInput = z.infer<typeof fieldDefinitionSchema>
  */
 export function describeOptionsViolation(
   field: Pick<FormField, "isCore" | "reportingKey" | "fieldType">,
-  options: string[]
+  options: string[],
+  formKey?: FormKey
 ): string | null {
-  if (!canEditOptions(field)) return null
+  if (!canEditOptions(field, formKey)) return null
   if (options.length === 0) return "Field pilihan butuh minimal satu opsi"
 
   // Compared trimmed, because that is what gets stored: fieldDefinitionSchema
@@ -287,7 +321,8 @@ export function describeOptionsViolation(
  */
 export function describeCoreFieldViolation(
   field: Pick<FormField, "isCore" | "isRequired" | "fieldType" | "reportingKey">,
-  change: { isRequired?: boolean; fieldType?: FieldType; archive?: boolean; options?: string[] }
+  change: { isRequired?: boolean; fieldType?: FieldType; archive?: boolean; options?: string[] },
+  formKey?: FormKey
 ): string | null {
   if (!field.isCore) return null
 
@@ -298,7 +333,7 @@ export function describeCoreFieldViolation(
   if (change.isRequired === false && field.isRequired) {
     return "Field inti yang wajib tidak bisa dijadikan opsional."
   }
-  if (change.options && !canEditOptions(field)) {
+  if (change.options && !canEditOptions(field, formKey)) {
     return "Pilihan pada field ini ditentukan sistem, bukan diatur di sini."
   }
 
@@ -329,6 +364,24 @@ export function visibleFields(fields: FormField[]): FormField[] {
 }
 
 export type FieldAnswer = string | string[] | number | boolean | null
+
+/** Custom-field answers off a submitted form, by the tenant's field types. */
+export function readCustomAnswers(formData: FormData, customFields: FormField[]): Record<string, FieldAnswer> {
+  const answers: Record<string, FieldAnswer> = {}
+  for (const field of customFields) {
+    if (field.isCore) continue
+    const name = `custom__${field.reportingKey}`
+    if (field.fieldType === "MULTI_SELECT") {
+      answers[field.reportingKey] = formData.getAll(name).map(String)
+    } else if (field.fieldType === "BOOLEAN") {
+      answers[field.reportingKey] = formData.get(name) === "true"
+    } else {
+      const raw = formData.get(name)
+      answers[field.reportingKey] = typeof raw === "string" && raw !== "" ? raw : null
+    }
+  }
+  return answers
+}
 
 /**
  * Validate answers to the custom (non-core) fields.

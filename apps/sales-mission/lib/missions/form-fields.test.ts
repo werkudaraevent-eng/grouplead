@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest"
 import {
+  CORE_PROSPECT_FIELDS,
+  coreFieldsFor,
   CORE_MISSION_FIELDS,
   configuredOptions,
   describeCoreFieldViolation,
@@ -415,5 +417,20 @@ describe("describeOptionsViolation, whitespace", () => {
 
   it("still accepts genuinely different options", () => {
     expect(describeOptionsViolation(owned, ["Meeting", "Meeting Ulang"])).toBeNull()
+  })
+})
+
+describe("prospect form", () => {
+  it("seeds its own core set with the company required", () => {
+    expect(coreFieldsFor("prospect")).toBe(CORE_PROSPECT_FIELDS)
+    expect(CORE_PROSPECT_FIELDS.find((field) => field.reportingKey === "client_company")?.isRequired).toBe(true)
+    expect(CORE_PROSPECT_FIELDS.map((field) => field.reportingKey)).toContain("owner")
+  })
+
+  it("keeps the salutation list on the mission form", () => {
+    const salutation = { isCore: true, reportingKey: "contact_salutation", fieldType: "SELECT" as const }
+    expect(optionSource(salutation, "mission")).toBe("config")
+    expect(optionSource(salutation, "prospect")).toBe("directory")
+    expect(optionSource(salutation)).toBe("config")
   })
 })

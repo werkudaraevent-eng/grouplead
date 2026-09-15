@@ -136,6 +136,8 @@ export interface ProspectDetail extends ProspectListItem {
   batchFileName: string | null
   createdByName: string | null
   mission: { id: string; status: string; scheduledStart: string | null } | null
+  /** Answers to the admin's custom fields, by reporting key. */
+  customValues: Record<string, unknown>
 }
 
 /** "hari ini", "besok", "terlambat 3 hari", "Rab, 17 Sep". Days in mission time. */

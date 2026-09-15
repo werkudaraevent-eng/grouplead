@@ -52,6 +52,7 @@ const TABLE_LABELS: Record<string, string> = {
   prospects: "prospek",
   prospect_attempts: "kontak prospek",
   prospect_statuses: "status prospek",
+  prospect_field_values: "isian field tambahan prospek",
 }
 
 export const AUDIT_TABLE_LABELS = TABLE_LABELS
@@ -369,6 +370,7 @@ const TABLE_RANK: Record<string, number> = {
   prospects: 8,
   prospect_attempts: 9,
   prospect_statuses: 10,
+  prospect_field_values: 11,
 }
 
 export function groupAuditEvents(rows: AuditRow[]): AuditEvent[] {
