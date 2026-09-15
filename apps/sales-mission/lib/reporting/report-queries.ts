@@ -94,7 +94,10 @@ export async function listReportRecords(access: SalesMissionAccess): Promise<Rep
     (pushes ?? []).map((row) => [row.mission_id as string, row.lead_engine_lead_id as string])
   )
 
-  return reports.map((row) => {
+  // A report on a mission in the bin goes with the mission: the missions
+  // read above already skips deleted rows, so a report with no mission here
+  // is one whose visit was withdrawn, and it must not count.
+  return reports.filter((row) => missionById.has(row.mission_id as string)).map((row) => {
     const missionId = row.mission_id as string
     const mission = missionById.get(missionId)
     const primaryId = primaryByMission.get(missionId)
