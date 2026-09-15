@@ -7,7 +7,8 @@ import { useCompany } from "@/contexts/company-context"
 import { usePermissions } from "@/contexts/permissions-context"
 import { PermissionGate } from "@/features/users/components/permission-gate"
 import { RoleModal } from "@/features/roles/components/create-role-modal"
-import { Loader2, ShieldCheck, Shield, Lock, Crown, UserCog, User, Plus, ChevronRight, Pencil, Trash2, Info, Check } from "@/components/icons"
+import { Loader2, ShieldCheck, Shield, Lock, Crown, UserCog, User, Plus, ChevronRight, ChevronDown, Pencil, Trash2, Info, Check, MoreVertical } from "@/components/icons"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Tooltip } from "@/components/ui/tooltip"
 import { SettingsPageHeader } from "@/components/layout/settings-page-header"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -59,7 +60,14 @@ const MODULE_GROUPS = [
   },
 ] as const
 
-const MODULE_DISPLAY: Record<string, { name: string; description: string; level?: number }> = {
+/**
+ * `description` is the one supporting line under the module name, the way a
+ * Material list item carries a headline and one line of supporting text.
+ * `details` is the full rule, read on demand from the info icon: HubSpot and
+ * Salesforce both keep the matrix scannable and put the explanation a hover
+ * away, because a paragraph in a table cell is what breaks the table.
+ */
+const MODULE_DISPLAY: Record<string, { name: string; description: string; details?: string; level?: number }> = {
   dashboard: {
     name: "Dashboard",
     description: "Dashboard performa eksekutif dan sales.",
@@ -67,32 +75,38 @@ const MODULE_DISPLAY: Record<string, { name: string; description: string; level?
   },
   sales_mission: {
     name: "Sales Mission",
-    description: "Membuka aplikasi Sales Mission. Tanpa ini, tidak ada yang bisa dijangkau di dalamnya. Tiap sakelar dan Cakupan di baris ini disalin ke lima modul di bawah.",
+    description: "Pintu masuk aplikasi. Baris ini disalin ke lima modul di bawahnya.",
+    details: "Tanpa Lihat di sini, tidak ada yang bisa dijangkau di dalam Sales Mission. Tiap sakelar dan Cakupan di baris ini disalin ke lima modul di bawah; setelah itu tiap modul bisa diatur sendiri-sendiri.",
     level: 0,
   },
   sales_mission_mission: {
     name: "Mission",
-    description: "Lihat: semua mission unit bisnis (jadwal bersama). Buat: menjadwalkan mission baru dan mengimpor. Ubah: detail, jadwal, tim, dan pembatalan mission di dalam Cakupan. Hapus: memindahkan mission di dalam Cakupan ke sampah. Pemilik mission: sales utama dan yang menjadwalkan.",
+    description: "Menjadwalkan dan mengubah kunjungan. Pemilik: sales utama dan yang menjadwalkan.",
+    details: "Lihat: semua mission unit bisnis (jadwal bersama). Buat: menjadwalkan mission baru dan mengimpor. Ubah: detail, jadwal, tim, dan pembatalan mission di dalam Cakupan. Hapus: memindahkan mission di dalam Cakupan ke sampah.",
     level: 1,
   },
   sales_mission_result: {
     name: "Laporan kunjungan",
-    description: "Lihat: membaca laporan dan halaman Laporan. Buat: mengisi laporan dan mengirim lead untuk mission di dalam Cakupan (pemilik laporan: sales utama). Ubah: mengubah laporan terkirim milik orang di dalam Cakupan kapan saja dan meminta klarifikasi; penulisnya sendiri selalu boleh mengubah dalam jendela hari di Pengaturan mission.",
+    description: "Mengisi dan mengubah laporan, mengirim lead. Pemilik: sales utama.",
+    details: "Lihat: membaca laporan dan halaman Laporan. Buat: mengisi laporan dan mengirim lead untuk mission di dalam Cakupan. Ubah: mengubah laporan terkirim milik orang di dalam Cakupan kapan saja dan meminta klarifikasi; penulisnya sendiri selalu boleh mengubah dalam jendela hari yang diatur di Pengaturan mission.",
     level: 1,
   },
   sales_mission_contact: {
     name: "Kontak mission",
-    description: "Membaca kontak klien pada mission dan laporan. Tanpa Cakupan: kontak ditulis lewat laporan, jadi mengikuti izin Laporan kunjungan.",
+    description: "Membaca kontak klien pada mission dan laporan.",
+    details: "Tanpa Cakupan: kontak ditulis lewat laporan, jadi mengikuti izin Laporan kunjungan.",
     level: 1,
   },
   sales_mission_settings: {
     name: "Pengaturan mission",
-    description: "Ubah di sini berarti admin Sales Mission: pengaturan mission, form, pilihan laporan, status prospek, papan, dan sampah. Tanpa Cakupan.",
+    description: "Ubah di sini berarti admin Sales Mission.",
+    details: "Pengaturan mission, form, pilihan laporan, status prospek, papan, dan sampah. Tanpa Cakupan: ini bukan record milik seseorang.",
     level: 1,
   },
   sales_mission_prospect: {
     name: "Prospek",
-    description: "Lihat: seluruh daftar prospek. Buat: menambah dan mengimpor. Ubah dan Hapus: prospek di dalam Cakupan; prospek tanpa pemegang boleh diambil siapa pun yang punya Ubah. Cakupan Tim atau Semua juga mengizinkan menugaskan prospek ke orang lain.",
+    description: "Daftar calon klien sebelum jadi mission. Pemilik: pemegangnya.",
+    details: "Lihat: seluruh daftar prospek. Buat: menambah dan mengimpor. Ubah dan Hapus: prospek di dalam Cakupan; prospek tanpa pemegang boleh diambil siapa pun yang punya Ubah. Cakupan Tim atau Semua juga mengizinkan menugaskan prospek ke orang lain.",
     level: 1,
   },
   settings: {
@@ -248,6 +262,8 @@ export default function GlobalPermissionsPage() {
   const [toggling, setToggling] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({})
+  /** The reading guide folds away: the matrix is the page, the guide is there when asked. */
+  const [helpOpen, setHelpOpen] = useState(false)
 
   const supabase = createClient()
   const companyId = selectedCompanyId ?? activeCompany?.id ?? null
@@ -913,16 +929,26 @@ export default function GlobalPermissionsPage() {
     const readOff = !isSuperAdmin && (perm?.can_read ?? 'none') === 'none'
     const label = display?.name ?? mod.name
     const description = display?.description ?? mod.description
+    const details = display?.details
 
     return (
       <tr key={mod.id} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
-        <td className="px-4 py-4">
+        <td className="px-4 py-3">
           <div className={cn("flex items-start gap-2", level > 0 && "pl-6")}>
-            {level > 0 && <span className="mt-1.5 h-px w-3 shrink-0 bg-border" />}
-            <div>
-              <div className="font-medium text-foreground">{label}</div>
+            {level > 0 && <span className="mt-2.5 h-px w-3 shrink-0 bg-border" />}
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5">
+                <span className="truncate font-medium text-foreground">{label}</span>
+                {details && (
+                  <Tooltip content={details} position="right">
+                    <button type="button" aria-label={`Penjelasan ${label}`} className="grid h-6 w-6 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground">
+                      <Info className="h-3.5 w-3.5" aria-hidden="true" />
+                    </button>
+                  </Tooltip>
+                )}
+              </div>
               {description && (
-                <div className="text-xs text-muted-foreground mt-0.5">{description}</div>
+                <div className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{description}</div>
               )}
             </div>
           </div>
@@ -933,7 +959,7 @@ export default function GlobalPermissionsPage() {
           right met Buat first and had no reason to look further right for the
           column that governs it.
         */}
-        <td className="text-center px-4 py-4">
+        <td className="text-center px-2 py-3">
           <div className="flex justify-center">
             <Switch
               checked={isSuperAdmin ? true : !readOff}
@@ -946,7 +972,7 @@ export default function GlobalPermissionsPage() {
             />
           </div>
         </td>
-        <td className="text-center px-4 py-4">
+        <td className="text-center px-2 py-3">
           <div className="flex justify-center">
             <Switch
               checked={isSuperAdmin ? true : (perm?.can_create ?? false)}
@@ -956,7 +982,7 @@ export default function GlobalPermissionsPage() {
             />
           </div>
         </td>
-        <td className="text-center px-4 py-4">
+        <td className="text-center px-2 py-3">
           <div className="flex justify-center">
             <Switch
               checked={isSuperAdmin ? true : (perm?.can_update ?? false)}
@@ -966,7 +992,7 @@ export default function GlobalPermissionsPage() {
             />
           </div>
         </td>
-        <td className="text-center px-4 py-4">
+        <td className="text-center px-2 py-3">
           <div className="flex justify-center">
             <Switch
               checked={isSuperAdmin ? true : (perm?.can_delete ?? false)}
@@ -976,7 +1002,7 @@ export default function GlobalPermissionsPage() {
             />
           </div>
         </td>
-        <td className="px-4 py-4">
+        <td className="px-2 py-3">
           {(() => {
             if (mod.id !== SALES_MISSION_PARENT && !SCOPED_MODULE_IDS.has(mod.id)) {
               return <span className="block text-center text-xs text-muted-foreground" aria-label="Tanpa cakupan">—</span>
@@ -1007,25 +1033,31 @@ export default function GlobalPermissionsPage() {
             )
           })()}
         </td>
-        <td className="px-4 py-4">
+        <td className="px-2 py-3">
+          {/* Row presets live in an overflow menu: secondary actions on a
+              list row (M3 list item trailing icon), not three more buttons
+              widening every row. */}
           {!isSuperAdmin && canManagePermissions && (
-            <div className="flex justify-end gap-1">
-              {([
-                ["none", "Mati"],
-                ["read", "Lihat"],
-                ["full", "Penuh"],
-              ] as const).map(([preset, presetLabel]) => (
-                <button
-                  key={preset}
-                  type="button"
-                  onClick={() => applyRowPreset(mod.id, preset)}
-                  disabled={toggling === `${mod.id}:${selectedRole.id}:preset`}
-                  aria-label={`${presetLabel} untuk ${label}`}
-                  className="rounded-md border px-2 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-50"
-                >
-                  {presetLabel}
-                </button>
-              ))}
+            <div className="flex justify-end">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    aria-label={`Set cepat ${label}`}
+                    disabled={toggling === `${mod.id}:${selectedRole.id}:preset`}
+                    className="grid h-8 w-8 place-items-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50"
+                  >
+                    <MoreVertical className="h-4 w-4" aria-hidden="true" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-52">
+                  <DropdownMenuLabel>Set cepat</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onSelect={() => applyRowPreset(mod.id, "none")}>Mati: tidak ada akses</DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => applyRowPreset(mod.id, "read")}>Lihat saja</DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => applyRowPreset(mod.id, "full")}>Penuh: semua kolom, Cakupan Semua</DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           )}
         </td>
@@ -1051,6 +1083,9 @@ export default function GlobalPermissionsPage() {
                   <SelectValue placeholder="Pilih perusahaan" />
                 </SelectTrigger>
                 <SelectContent>
+                  {companies.filter((c) => c.isHolding).map((c) => (
+                    <SelectItem key={c.id} value={c.id}>{c.name} · seluruh grup</SelectItem>
+                  ))}
                   {companies.filter((c) => !c.isHolding).map((c) => (
                     <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
                   ))}
@@ -1071,9 +1106,13 @@ export default function GlobalPermissionsPage() {
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
           </div>
         ) : (
-          <div className="grid grid-cols-12 gap-6">
+          // M3 list-detail: a fixed-width role list that stays put while the
+          // detail scrolls, and a detail pane that takes the rest. A
+          // twelve-column split left a quarter of the width to five role
+          // names and starved the matrix.
+          <div className="grid gap-6 lg:grid-cols-[264px_minmax(0,1fr)]">
             {/* ─── Left: Dynamic Role Sidebar ──────────────────────────── */}
-            <div className="col-span-12 lg:col-span-3">
+            <div className="lg:sticky lg:top-24 lg:self-start">
               <div className="flex items-center justify-between mb-3 px-1">
                 <h3 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
                   Hierarki role
@@ -1132,7 +1171,7 @@ export default function GlobalPermissionsPage() {
             </div>
 
             {/* ─── Right: Permissions Matrix ────────────────────────────── */}
-            <div className="col-span-12 lg:col-span-9">
+            <div className="min-w-0">
               {selectedRole ? (
                 <Card>
                   <CardHeader>
@@ -1207,11 +1246,25 @@ export default function GlobalPermissionsPage() {
                         own assignment, which is why that is what this panel now
                         points at.
                       */}
-                      <div className="bg-muted/40 border border-border rounded-lg p-4 mb-5 flex flex-col gap-2">
-                        <div className="flex items-center gap-2 text-foreground font-semibold text-sm">
-                          <Info className="w-4 h-4 text-primary shrink-0" />
-                          <span>Bagaimana akses dibaca</span>
-                        </div>
+                      <div className="mb-5 rounded-lg border border-border bg-muted/40">
+                        <button
+                          type="button"
+                          onClick={() => setHelpOpen((open) => !open)}
+                          aria-expanded={helpOpen}
+                          aria-controls="permissions-guide"
+                          className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left"
+                        >
+                          <span className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                            <Info className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
+                            Bagaimana akses dibaca
+                          </span>
+                          <span className="flex items-center gap-2 text-xs text-muted-foreground">
+                            {helpOpen ? "Sembunyikan" : "Lihat panduan"}
+                            <ChevronDown className={cn("h-4 w-4 transition-transform", helpOpen && "rotate-180")} aria-hidden="true" />
+                          </span>
+                        </button>
+                        {helpOpen && (
+                        <div id="permissions-guide" className="flex flex-col gap-2 px-4 pb-4">
                         <ul className="text-[13px] text-muted-foreground space-y-1.5 ml-6 list-disc">
                           <li><strong className="text-foreground">Lihat menyala:</strong> modul terbuka, sebatas unit bisnis yang menjadi milik orangnya.</li>
                           <li><strong className="text-foreground">Lihat mati:</strong> modul hilang dari sidebar, dan Buat / Ubah / Hapus ikut dimatikan.</li>
@@ -1238,29 +1291,41 @@ export default function GlobalPermissionsPage() {
                           <li><strong className="text-foreground">Yang menjadwalkan</strong> tanpa menjadi sales utama boleh mengubah mission-nya, tetapi tidak mengisi laporannya, kecuali Cakupan Laporan kunjungan Tim atau Semua.</li>
                           <li><strong className="text-foreground">Bawaan:</strong> Super Admin, Admin, Executive = Semua; Leader = Tim; Staff dan peran lain = Sendiri.</li>
                         </ul>
+                        </div>
+                        )}
                       </div>
 
                       {/*
-                        The scroll container is bounded so `sticky` has
-                        something to stick to. It was declared before and never
-                        worked: with the page as the only scroller, the header
-                        left the viewport with the rows and four columns of
-                        switches lost their names as soon as the admin scrolled.
-                        The sticky declaration moved onto the cells, which is
-                        what browsers honour on a thead, and the background is
-                        opaque so rows do not show through it.
+                        The page is the only scroller. The table used to sit in
+                        its own bounded box, which gave the admin a scrollbar
+                        inside a scrollbar and a matrix squeezed into a window
+                        a third of the screen high. Fixed layout: the module
+                        column takes whatever the switches and the Cakupan
+                        control leave, so names and their one supporting line
+                        sit on a wide column instead of wrapping word by word.
+                        Below the table's minimum width it scrolls sideways,
+                        never up and down.
                       */}
-                      <div className="data-table-scroll max-h-[70vh] overflow-auto rounded-lg border">
-                        <table className="w-full text-sm">
+                      <div className="overflow-x-auto rounded-lg border">
+                        <table className="w-full min-w-[880px] table-fixed text-sm">
+                          <colgroup>
+                            <col />
+                            <col className="w-[76px]" />
+                            <col className="w-[76px]" />
+                            <col className="w-[76px]" />
+                            <col className="w-[76px]" />
+                            <col className="w-[248px]" />
+                            <col className="w-[56px]" />
+                          </colgroup>
                           <thead>
-                            <tr className="border-b">
-                              <th className="sticky top-0 z-10 bg-muted text-left px-4 py-3 font-semibold text-xs uppercase tracking-wider text-muted-foreground w-[200px]">Modul</th>
-                              <th className="sticky top-0 z-10 bg-muted text-center px-4 py-3 font-semibold text-xs uppercase tracking-wider text-muted-foreground">Lihat</th>
-                              <th className="sticky top-0 z-10 bg-muted text-center px-4 py-3 font-semibold text-xs uppercase tracking-wider text-muted-foreground">Buat</th>
-                              <th className="sticky top-0 z-10 bg-muted text-center px-4 py-3 font-semibold text-xs uppercase tracking-wider text-muted-foreground">Ubah</th>
-                              <th className="sticky top-0 z-10 bg-muted text-center px-4 py-3 font-semibold text-xs uppercase tracking-wider text-muted-foreground">Hapus</th>
-                              <th className="sticky top-0 z-10 bg-muted text-center px-4 py-3 font-semibold text-xs uppercase tracking-wider text-muted-foreground">Cakupan</th>
-                              <th className="sticky top-0 z-10 bg-muted text-right px-4 py-3 font-semibold text-xs uppercase tracking-wider text-muted-foreground">Set cepat</th>
+                            <tr className="border-b bg-muted">
+                              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Modul</th>
+                              <th className="px-2 py-3 text-center text-xs font-semibold uppercase tracking-wider text-muted-foreground">Lihat</th>
+                              <th className="px-2 py-3 text-center text-xs font-semibold uppercase tracking-wider text-muted-foreground">Buat</th>
+                              <th className="px-2 py-3 text-center text-xs font-semibold uppercase tracking-wider text-muted-foreground">Ubah</th>
+                              <th className="px-2 py-3 text-center text-xs font-semibold uppercase tracking-wider text-muted-foreground">Hapus</th>
+                              <th className="px-2 py-3 text-center text-xs font-semibold uppercase tracking-wider text-muted-foreground">Cakupan</th>
+                              <th className="px-2 py-3" aria-label="Set cepat" />
                             </tr>
                           </thead>
                           <>
