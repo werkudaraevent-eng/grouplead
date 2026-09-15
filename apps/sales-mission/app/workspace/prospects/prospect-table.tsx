@@ -311,7 +311,25 @@ export function ProspectTable({
 
       <div className="hidden rounded-xl border bg-card md:block">
         <div className="data-table-scroll overflow-x-auto rounded-xl">
-          <Table className="min-w-[880px]">
+          {/*
+            Fixed layout, so the width of a column is decided here and not by
+            whichever cell happens to hold the longest unbreakable string. The
+            two identifier columns (company, contact) take whatever is left;
+            the rest have a set width sized to their content. Lower-priority
+            columns leave at narrower widths before anything scrolls: the
+            owner below xl, the created date below 2xl. Long text truncates
+            with the full value on hover; the detail page has the rest.
+          */}
+          <Table className="min-w-[960px] table-fixed">
+            <colgroup>
+              {selectable && <col className="w-10" />}
+              <col />
+              <col />
+              <col className="w-[200px]" />
+              <col className="hidden w-[200px] xl:table-column" />
+              <col className="hidden w-[88px] 2xl:table-column" />
+              <col className="w-[210px]" />
+            </colgroup>
             <TableHeader>
               <TableRow className="hover:bg-transparent">
                 {selectable && (
@@ -322,8 +340,8 @@ export function ProspectTable({
                 <TableHead><Sort column="company" label="Perusahaan" sort={pagination.sort} /></TableHead>
                 <TableHead><Sort column="contact" label="Kontak" sort={pagination.sort} /></TableHead>
                 <TableHead><Sort column="status" label="Status" sort={pagination.sort} /></TableHead>
-                <TableHead><Sort column="owner" label="Pemegang" sort={pagination.sort} /></TableHead>
-                <TableHead><Sort column="created" label="Dibuat" sort={pagination.sort} /></TableHead>
+                <TableHead className="hidden xl:table-cell"><Sort column="owner" label="Pemegang" sort={pagination.sort} /></TableHead>
+                <TableHead className="hidden 2xl:table-cell"><Sort column="created" label="Dibuat" sort={pagination.sort} /></TableHead>
                 <TableHead className="text-right">Aksi</TableHead>
               </TableRow>
             </TableHeader>
@@ -338,29 +356,29 @@ export function ProspectTable({
                       </TableCell>
                     )}
                     <TableCell>
-                      <span className="block font-semibold text-foreground">{prospect.clientCompanyName}</span>
-                      <span className="block text-xs text-muted-foreground">{[prospect.industry, prospect.location].filter(Boolean).join(" · ") || "—"}</span>
+                      <Link href={`/workspace/prospects/${prospect.id}`} className="block truncate font-semibold text-foreground hover:underline" title={prospect.clientCompanyName}>{prospect.clientCompanyName}</Link>
+                      <span className="block truncate text-xs text-muted-foreground" title={[prospect.industry, prospect.location].filter(Boolean).join(" · ") || undefined}>{[prospect.industry, prospect.location].filter(Boolean).join(" · ") || "—"}</span>
                     </TableCell>
                     <TableCell className="text-sm">
-                      <span className="block text-foreground">{[prospect.contactSalutation, prospect.contactName].filter(Boolean).join(" ") || <span className="text-muted-foreground">Belum ada kontak</span>}</span>
-                      <span className="block text-xs text-muted-foreground">{[prospect.contactPhone ? formatPhone(prospect.contactPhone) : null, prospect.contactEmail].filter(Boolean).join(" · ") || prospect.contactJobTitle || ""}</span>
+                      <span className="block truncate text-foreground">{[prospect.contactSalutation, prospect.contactName].filter(Boolean).join(" ") || <span className="text-muted-foreground">Belum ada kontak</span>}</span>
+                      <span className="block truncate text-xs text-muted-foreground" title={[prospect.contactPhone ? formatPhone(prospect.contactPhone) : null, prospect.contactEmail].filter(Boolean).join(" · ") || undefined}>{[prospect.contactPhone ? formatPhone(prospect.contactPhone) : null, prospect.contactEmail].filter(Boolean).join(" · ") || prospect.contactJobTitle || ""}</span>
                     </TableCell>
                     <TableCell>
                       <ProspectStatusLabel prospect={prospect} />
                       <ContactLine prospect={prospect} today={today} />
                     </TableCell>
-                    <TableCell className="text-sm">
+                    <TableCell className="hidden text-sm xl:table-cell">
                       {prospect.ownerName ? (
-                        <span className="flex items-center gap-2"><PersonAvatar name={prospect.ownerName} avatarUrl={prospect.ownerAvatarUrl} size="sm" /><span className="truncate">{prospect.ownerName}</span></span>
+                        <span className="flex items-center gap-2"><PersonAvatar name={prospect.ownerName} avatarUrl={prospect.ownerAvatarUrl} size="sm" /><span className="truncate" title={prospect.ownerName}>{prospect.ownerName}</span></span>
                       ) : (
                         <span className="text-muted-foreground">Belum ada</span>
                       )}
                     </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
+                    <TableCell className="hidden text-sm text-muted-foreground 2xl:table-cell">
                       {new Intl.DateTimeFormat("id-ID", { timeZone: MISSION_TIME_ZONE, day: "numeric", month: "short" }).format(new Date(prospect.createdAt))}
                       {prospect.source === "import" && <span className="block text-xs">impor</span>}
                     </TableCell>
-                    <TableCell className="w-px whitespace-nowrap"><Actions prospect={prospect} /></TableCell>
+                    <TableCell className="whitespace-nowrap"><Actions prospect={prospect} /></TableCell>
                   </TableRow>
                 )
               })}

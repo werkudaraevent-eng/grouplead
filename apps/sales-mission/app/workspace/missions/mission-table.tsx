@@ -445,7 +445,20 @@ export function MissionTable({
       */}
       <div className="hidden rounded-xl border bg-card md:block">
       <div className="data-table-scroll overflow-x-auto rounded-xl">
-      <Table className="min-w-[760px]">
+      {/* Same rule as the prospect table: fixed layout, the mission column
+          takes what is left, the rest are sized to their content, and the
+          location and sales columns leave at narrower widths before
+          anything scrolls. */}
+      <Table className="min-w-[960px] table-fixed">
+        <colgroup>
+          {canDelete && <col className="w-10" />}
+          <col />
+          <col className="w-[150px]" />
+          <col className="hidden w-[160px] 2xl:table-column" />
+          <col className="hidden w-[190px] xl:table-column" />
+          <col className="w-[240px]" />
+          <col className="w-[230px]" />
+        </colgroup>
         <TableHeader>
           <TableRow className="hover:bg-transparent">
             {canDelete && (
@@ -459,8 +472,8 @@ export function MissionTable({
             )}
             <TableHead>{pagination ? <SortHeader column="client" label="Mission" sort={pagination.sort} /> : "Mission"}</TableHead>
             <TableHead>{pagination ? <SortHeader column="schedule" label="Jadwal" sort={pagination.sort} /> : "Jadwal"}</TableHead>
-            <TableHead>{pagination ? <SortHeader column="location" label="Lokasi" sort={pagination.sort} /> : "Lokasi"}</TableHead>
-            <TableHead>{pagination ? <SortHeader column="sales" label="Sales utama" sort={pagination.sort} /> : "Sales utama"}</TableHead>
+            <TableHead className="hidden 2xl:table-cell">{pagination ? <SortHeader column="location" label="Lokasi" sort={pagination.sort} /> : "Lokasi"}</TableHead>
+            <TableHead className="hidden xl:table-cell">{pagination ? <SortHeader column="sales" label="Sales utama" sort={pagination.sort} /> : "Sales utama"}</TableHead>
             <TableHead>{pagination ? <SortHeader column="status" label="Status" sort={pagination.sort} /> : "Status"}</TableHead>
             <TableHead className="text-right">Aksi</TableHead>
           </TableRow>
@@ -486,13 +499,13 @@ export function MissionTable({
                   </TableCell>
                 )}
                 <TableCell>
-                  <span className="block font-semibold text-foreground">{mission.clientCompanyName}</span>
-                  <span className="block text-xs text-muted-foreground">{mission.missionType}</span>
+                  <span className="block truncate font-semibold text-foreground" title={mission.clientCompanyName}>{mission.clientCompanyName}</span>
+                  <span className="block truncate text-xs text-muted-foreground">{mission.missionType}</span>
                 </TableCell>
                 <TableCell className="text-sm">{formatMissionSchedule(mission.scheduledStart, now)}</TableCell>
-                <TableCell className="text-sm text-muted-foreground">{mission.location ?? "Belum diisi"}</TableCell>
-                <TableCell className="text-sm">
-                  {mission.primarySalesName ?? <span className="text-muted-foreground">Belum ditugaskan</span>}
+                <TableCell className="hidden truncate text-sm text-muted-foreground 2xl:table-cell" title={mission.location ?? undefined}>{mission.location ?? "Belum diisi"}</TableCell>
+                <TableCell className="hidden text-sm xl:table-cell">
+                  <span className="block truncate" title={mission.primarySalesName ?? undefined}>{mission.primarySalesName ?? <span className="text-muted-foreground">Belum ditugaskan</span>}</span>
                   {mission.supportingCount > 0 && (
                     <span className="block text-xs text-muted-foreground">+{mission.supportingCount} pendukung</span>
                   )}
@@ -503,7 +516,7 @@ export function MissionTable({
                   {mission.joinStatus && <JoinStatusLine status={mission.joinStatus} />}
                   <TeamAnswersLine mission={mission} policy={policy} />
                 </TableCell>
-                <TableCell className="w-px whitespace-nowrap">
+                <TableCell className="whitespace-nowrap">
                   <ActionCell mission={mission} policy={policy} maxSupporting={maxSupporting} now={now} canWriteAnyReport={canWriteAnyReport} />
                 </TableCell>
               </TableRow>
