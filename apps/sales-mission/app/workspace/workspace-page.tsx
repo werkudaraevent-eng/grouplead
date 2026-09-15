@@ -106,7 +106,8 @@ export function StatusBadge({ status }: { status: string }) {
  * text.
  */
 export function JoinStatusLine({ status }: { status: JoinStatus }) {
-  if (status === "JOINABLE") return null
+  // Joinable becomes the button; over is already said by the status itself.
+  if (status === "JOINABLE" || status === "OVER") return null
   return (
     <span
       className={cn(

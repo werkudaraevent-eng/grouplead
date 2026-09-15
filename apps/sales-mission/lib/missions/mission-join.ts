@@ -106,10 +106,11 @@ export function detectConflict(
   return { hasConflict: conflictingMissionIds.length > 0, conflictingMissionIds }
 }
 
-export type JoinStatus = "ASSIGNED" | "CONFLICT" | "JOINABLE" | "FULL" | "CLOSED"
+export type JoinStatus = "ASSIGNED" | "OVER" | "CONFLICT" | "JOINABLE" | "FULL" | "CLOSED"
 
 export const JOIN_STATUS_LABELS: Record<JoinStatus, string> = {
   ASSIGNED: "Kamu ditugaskan",
+  OVER: "Sudah selesai",
   CONFLICT: "Bentrok jadwal",
   JOINABLE: "Bisa join",
   FULL: "Sudah penuh",
@@ -119,6 +120,8 @@ export const JOIN_STATUS_LABELS: Record<JoinStatus, string> = {
 export interface JoinContext {
   /** Viewer is already primary or supporting on this mission. */
   isAssigned: boolean
+  /** The visit is over or was called off; there is nothing left to join. */
+  isOver: boolean
   allowJoin: boolean
   supportingCount: number
   maxSupporting: number
@@ -134,6 +137,7 @@ export interface JoinContext {
  */
 export function resolveJoinStatus(context: JoinContext): JoinStatus {
   if (context.isAssigned) return "ASSIGNED"
+  if (context.isOver) return "OVER"
   if (context.hasConflict) return "CONFLICT"
   if (!context.allowJoin) return "CLOSED"
   if (context.supportingCount >= context.maxSupporting) return "FULL"
@@ -163,6 +167,8 @@ export interface JoinCandidate {
   allowJoin: boolean
   supportingCount: number
   viewerRole: "PRIMARY" | "SUPPORTING" | null
+  /** Mission status; COMPLETED and CANCELLED close the door. Optional for callers that only check time. */
+  status?: string
 }
 
 /**
@@ -209,6 +215,7 @@ export function annotateJoinStatus<T extends JoinCandidate>(
       ...mission,
       joinStatus: resolveJoinStatus({
         isAssigned: mission.viewerRole !== null,
+        isOver: mission.status === "COMPLETED" || mission.status === "CANCELLED",
         allowJoin: mission.allowJoin,
         supportingCount: mission.supportingCount,
         maxSupporting: settings.maxSupporting,
@@ -227,6 +234,8 @@ export function joinBlockedReason(status: JoinStatus, maxSupporting: number): st
       return `Mission ini sudah penuh (maksimal ${maxSupporting} sales pendukung).`
     case "CLOSED":
       return "Sales utama menutup mission ini dari penambahan anggota."
+    case "OVER":
+      return "Kunjungan ini sudah selesai atau dibatalkan."
     default:
       return null
   }

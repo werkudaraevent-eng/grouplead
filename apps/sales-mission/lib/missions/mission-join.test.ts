@@ -110,7 +110,7 @@ describe("detectConflict", () => {
 })
 
 describe("resolveJoinStatus", () => {
-  const base = { isAssigned: false, allowJoin: true,
+  const base = { isAssigned: false, isOver: false, allowJoin: true,
     createdBy: "creator",
     createdByName: "Pembuat",
     createdAt: "2026-09-01T01:00:00.000Z",
@@ -138,6 +138,11 @@ describe("resolveJoinStatus", () => {
     expect(resolveJoinStatus(base)).toBe("JOINABLE")
   })
 
+  it("closes a visit that is over, after assignment and before everything else", () => {
+    expect(resolveJoinStatus({ ...base, isOver: true, hasConflict: true })).toBe("OVER")
+    expect(resolveJoinStatus({ ...base, isOver: true, isAssigned: true })).toBe("ASSIGNED")
+  })
+
   it("treats a zero cap as never joinable", () => {
     expect(resolveJoinStatus({ ...base, maxSupporting: 0 })).toBe("FULL")
   })
@@ -146,7 +151,7 @@ describe("resolveJoinStatus", () => {
 describe("canJoin", () => {
   it("permits only the joinable status", () => {
     expect(canJoin("JOINABLE")).toBe(true)
-    for (const status of ["ASSIGNED", "CONFLICT", "FULL", "CLOSED"] as const) {
+    for (const status of ["ASSIGNED", "OVER", "CONFLICT", "FULL", "CLOSED"] as const) {
       expect(canJoin(status)).toBe(false)
     }
   })
@@ -182,6 +187,11 @@ describe("annotateJoinStatus", () => {
     expect(result.find((m) => m.id === "mine")?.joinStatus).toBe("ASSIGNED")
     expect(result.find((m) => m.id === "clashing")?.joinStatus).toBe("CONFLICT")
     expect(result.find((m) => m.id === "free")?.joinStatus).toBe("JOINABLE")
+  })
+
+  it("never offers a completed or cancelled visit", () => {
+    const result = annotateJoinStatus([candidate({ id: "done", status: "COMPLETED" }), candidate({ id: "off", status: "CANCELLED" }), candidate({ id: "open", status: "SCHEDULED" })])
+    expect(result.map((m) => m.joinStatus)).toEqual(["OVER", "OVER", "JOINABLE"])
   })
 
   it("leaves everything joinable when the viewer has no missions at all", () => {
