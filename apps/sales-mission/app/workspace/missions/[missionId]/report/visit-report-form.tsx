@@ -25,6 +25,7 @@ import type { VisitReportRecord } from "@/lib/missions/mission-queries"
 import type { TenantSalesOption } from "@/lib/missions/mission-queries"
 import type { ReportOptions } from "@/lib/missions/report-options"
 import { Button } from "@/components/ui/button"
+import { ChipRow, ChoiceChip } from "@/components/ui/choice-chip"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { FormActionBar } from "@/components/form-action-bar"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -175,38 +176,26 @@ function FieldShell({ field, hint, span, children }: { field: FormField; hint?: 
         </span>
       </Label>
       {children}
-      {(field.helpText ?? hint) && <p className="text-xs text-muted-foreground">{field.helpText ?? hint}</p>}
+      {(field.helpText ?? hint) && <p className="text-xs leading-relaxed text-muted-foreground">{field.helpText ?? hint}</p>}
     </div>
   )
 }
 
 /**
- * Choice chips. Material's filter chip for a one-of-few or some-of-many
- * answer: larger and faster to hit than a native select on a phone, and
- * every option visible at once so nothing is hidden behind a dropdown.
+ * Choice chips: Material's filter chip for a one-of-few or some-of-many
+ * answer, every option visible at once so nothing hides behind a dropdown.
+ * The chip itself is the shared M3 one (32dp, 8dp corners, tonal when
+ * chosen); this file only arranges them.
  */
 function Chip({ on, onClick, children }: { on: boolean; onClick: () => void; children: React.ReactNode }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={on}
-      className={cn(
-        "inline-flex min-h-11 items-center gap-1.5 rounded-full border px-4 text-sm font-medium transition-colors",
-        on ? "border-primary bg-primary text-primary-foreground" : "border-input bg-card text-foreground hover:bg-muted"
-      )}
-    >
-      {on && <Check className="h-3.5 w-3.5" />}
-      {children}
-    </button>
-  )
+  return <ChoiceChip selected={on} onClick={onClick}>{children}</ChoiceChip>
 }
 
 function ChipGroup<T extends string>({ options, value, onChange, labels }: { options: readonly T[]; value: T | null; onChange: (next: T) => void; labels: Record<T, string> }) {
   return (
-    <div className="flex flex-wrap gap-2">
+    <ChipRow>
       {options.map((option) => <Chip key={option} on={value === option} onClick={() => onChange(option)}>{labels[option]}</Chip>)}
-    </div>
+    </ChipRow>
   )
 }
 
@@ -218,10 +207,10 @@ function MultiChip({ options, value, onToggle, onAddCustom, allowCustom = true }
     if (trimmed) { onAddCustom(trimmed); setCustom("") }
   }
   return (
-    <div className="space-y-3">
-      <div className="flex flex-wrap gap-2">
+    <div className="space-y-2">
+      <ChipRow>
         {[...options, ...extras].map((option) => <Chip key={option} on={value.includes(option)} onClick={() => onToggle(option)}>{option}</Chip>)}
-      </div>
+      </ChipRow>
       {allowCustom && (
         <div className="flex gap-2">
           <Input value={custom} onChange={(event) => setCustom(event.target.value)} placeholder="Lainnya…" className="h-11 max-w-xs" onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); add() } }} />
@@ -241,10 +230,10 @@ function SingleChip({ options, value, onChange, allowCustom }: { options: string
     if (trimmed) { onChange(trimmed); setCustom("") }
   }
   return (
-    <div className="space-y-3">
-      <div className="flex flex-wrap gap-2">
+    <div className="space-y-2">
+      <ChipRow>
         {[...options, ...(extra ? [extra] : [])].map((option) => <Chip key={option} on={value === option} onClick={() => onChange(value === option ? null : option)}>{option}</Chip>)}
-      </div>
+      </ChipRow>
       {allowCustom && (
         <div className="flex gap-2">
           <Input value={custom} onChange={(event) => setCustom(event.target.value)} placeholder="Lainnya…" className="h-11 max-w-xs" onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); add() } }} />

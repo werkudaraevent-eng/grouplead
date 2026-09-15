@@ -134,7 +134,7 @@ export function MissionFilterChips({
   if (filters.length < 2) return null
 
   return (
-    <nav aria-label="Saring mission" className="mb-4 flex flex-wrap gap-2">
+    <nav aria-label="Saring mission" className="mb-4 flex flex-wrap gap-x-2 gap-y-3 py-1">
       {filters.map((filter) => {
         const isActive = filter === active
         return (
@@ -143,19 +143,19 @@ export function MissionFilterChips({
             href={filter === "all" ? "/workspace/missions" : `/workspace/missions?filter=${filter}`}
             aria-current={isActive ? "page" : undefined}
             className={cn(
-              // min-h-11 keeps every chip at the 44px tap target on a phone,
-              // where this row is thumb-operated.
-              "inline-flex min-h-11 items-center gap-2 rounded-full border px-4 text-sm font-medium transition-colors",
+              // M3 filter chip: 32dp, 8dp corners, tonal when active. The 48dp
+              // tap target on a phone comes from the pseudo-element below.
+              "relative inline-flex h-8 items-center gap-2 rounded-lg border px-3 text-sm transition-colors after:absolute after:inset-x-0 after:-inset-y-2 after:content-['']",
               isActive
-                ? "border-primary bg-primary text-primary-foreground"
-                : "border-input bg-card text-foreground hover:bg-muted"
+                ? "border-transparent bg-[var(--tonal)] font-medium text-[var(--tonal-foreground)]"
+                : "border-input bg-transparent text-foreground hover:bg-muted"
             )}
           >
             {MISSION_FILTER_LABELS[filter]}
             <span
               className={cn(
-                "rounded-full px-1.5 py-0.5 text-[11px] font-bold tabular-nums",
-                isActive ? "bg-primary-foreground/20" : "bg-muted text-muted-foreground"
+                "rounded-md px-1.5 py-0.5 text-[11px] font-semibold tabular-nums",
+                isActive ? "bg-[var(--tonal-foreground)]/10" : "bg-muted text-muted-foreground"
               )}
             >
               {counts[filter]}

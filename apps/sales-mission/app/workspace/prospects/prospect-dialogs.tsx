@@ -291,7 +291,7 @@ export function LogAttemptDialog({
             <Label className="text-foreground">Lewat</Label>
             <div role="radiogroup" className="grid grid-cols-5 overflow-hidden rounded-lg border">
               {CHANNELS.map((item) => (
-                <button key={item} type="button" role="radio" aria-checked={channel === item} onClick={() => setChannel(item)} className={cn("h-11 border-r text-xs font-medium last:border-r-0 sm:text-sm", channel === item ? "bg-primary/10 text-primary" : "bg-card text-foreground hover:bg-muted")}>
+                <button key={item} type="button" role="radio" aria-checked={channel === item} onClick={() => setChannel(item)} className={cn("h-11 border-r text-xs font-medium last:border-r-0 sm:text-sm", channel === item ? "bg-[var(--tonal)] font-semibold text-[var(--tonal-foreground)]" : "bg-card text-foreground hover:bg-muted")}>
                   {CHANNEL_LABELS[item]}
                 </button>
               ))}
