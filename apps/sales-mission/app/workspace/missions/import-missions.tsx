@@ -14,6 +14,7 @@ import type { RawRow } from "@/lib/missions/mission-io"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
+  DialogBody,
   DialogContent,
   DialogDescription,
   DialogFooter,
@@ -127,7 +128,7 @@ export function ImportMissions() {
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4">
+          <DialogBody className="space-y-4">
             <Button asChild variant="outline" className="h-12 w-full sm:w-auto">
               <a href="/workspace/missions/template">
                 <Download className="h-4 w-4" /> Unduh template .xlsx
@@ -212,7 +213,7 @@ export function ImportMissions() {
                 )}
               </div>
             )}
-          </div>
+          </DialogBody>
 
           <DialogFooter>
             <Button variant="outline" onClick={() => { setOpen(false); reset() }} disabled={pending}>

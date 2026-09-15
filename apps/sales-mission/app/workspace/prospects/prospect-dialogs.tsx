@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import {
   Dialog,
+  DialogBody,
   DialogContent,
   DialogDescription,
   DialogFooter,
@@ -183,7 +184,7 @@ export function ChangeStatusDialog({
             {target?.label ? `${target.label}. ` : ""}Status bisa diubah kembali kapan saja.
           </DialogDescription>
         </DialogHeader>
-        <div className="space-y-4">
+        <DialogBody className="space-y-4">
           <StatusChoice statuses={statuses} value={statusId} onChange={setStatusId} canCreateMission={canCreateMission} />
           {wantsWon ? (
             <div className="rounded-lg border border-dashed bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
@@ -194,7 +195,7 @@ export function ChangeStatusDialog({
           ) : (
             <KindFields kind={chosen?.kind ?? null} nextContactAt={nextContactAt} setNextContactAt={setNextContactAt} lostReason={lostReason} setLostReason={setLostReason} />
           )}
-        </div>
+        </DialogBody>
         <DialogFooter>
           <Button variant="outline" onClick={onClose} disabled={pending}>Batal</Button>
           {wantsWon && scheduleHref ? (
@@ -285,7 +286,7 @@ export function LogAttemptDialog({
           <DialogTitle>Catat kontak</DialogTitle>
           <DialogDescription>{target?.label ?? "Apa yang terjadi saat menghubungi prospek ini."}</DialogDescription>
         </DialogHeader>
-        <div className="space-y-4">
+        <DialogBody className="space-y-4">
           <div className="space-y-1.5">
             <Label className="text-foreground">Lewat</Label>
             <div role="radiogroup" className="grid grid-cols-5 overflow-hidden rounded-lg border">
@@ -326,7 +327,7 @@ export function LogAttemptDialog({
           ) : (
             <KindFields kind={chosen?.kind ?? null} nextContactAt={nextContactAt} setNextContactAt={setNextContactAt} lostReason={lostReason} setLostReason={setLostReason} />
           )}
-        </div>
+        </DialogBody>
         <DialogFooter>
           <Button variant="outline" onClick={onClose} disabled={pending}>Batal</Button>
           {wantsWon ? (
@@ -382,10 +383,10 @@ export function AssignDialog({
           <DialogTitle>{target && target.ids.length > 1 ? `Tugaskan ${target.ids.length} prospek` : "Tugaskan prospek"}</DialogTitle>
           <DialogDescription>Pemegang adalah orang yang menghubungi dan mengubah statusnya.</DialogDescription>
         </DialogHeader>
-        <div className="space-y-1.5">
+        <DialogBody className="space-y-1.5">
           <Label htmlFor="assign-owner" className="text-foreground">Pemegang</Label>
           <PersonPicker id="assign-owner" name="ownerId" people={people} value={ownerId} onChange={setOwnerId} placeholder="Pilih orang" />
-        </div>
+        </DialogBody>
         <DialogFooter>
           <Button variant="ghost" onClick={() => save(null)} disabled={pending}>Lepas pemegang</Button>
           <Button variant="outline" onClick={onClose} disabled={pending}>Batal</Button>

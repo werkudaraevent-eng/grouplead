@@ -10,7 +10,7 @@ import type { RawRow } from "@/lib/missions/mission-io"
 import { PersonPicker, type Person } from "@/app/workspace/missions/new/people-picker"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 
 /**
  * Import prospects from a spreadsheet: check first, write second, as the
@@ -86,7 +86,7 @@ export function ImportProspects({ people, canAssignOthers, viewerId }: { people:
             <DialogDescription>Unduh template lebih dulu. Baris yang teleponnya, atau nama perusahaan dan kontaknya, sudah ada di daftar akan dilewati.</DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4">
+          <DialogBody className="space-y-4">
             <Button asChild variant="outline" className="h-12 w-full sm:w-auto">
               <a href="/workspace/prospects/template"><Download className="h-4 w-4" /> Unduh template .xlsx</a>
             </Button>
@@ -147,7 +147,7 @@ export function ImportProspects({ people, canAssignOthers, viewerId }: { people:
                 {check.error && <p className="text-sm text-[var(--danger-foreground)]">{check.error}</p>}
               </div>
             )}
-          </div>
+          </DialogBody>
 
           <DialogFooter>
             <Button variant="outline" onClick={() => { setOpen(false); reset() }} disabled={pending}>Batal</Button>

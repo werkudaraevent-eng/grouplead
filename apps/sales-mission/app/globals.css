@@ -297,24 +297,30 @@
 }
 
 /* Data table slim scrollbar */
+.dialog-scroll,
 .data-table-scroll {
   scrollbar-width: thin;
   scrollbar-color: rgba(148, 163, 184, 0.25) transparent;
 }
+.dialog-scroll::-webkit-scrollbar,
 .data-table-scroll::-webkit-scrollbar {
   height: 6px;
   width: 6px;
 }
+.dialog-scroll::-webkit-scrollbar-track,
 .data-table-scroll::-webkit-scrollbar-track {
   background: transparent;
 }
+.dialog-scroll::-webkit-scrollbar-thumb,
 .data-table-scroll::-webkit-scrollbar-thumb {
   background-color: rgba(148, 163, 184, 0.25);
   border-radius: 3px;
 }
+.dialog-scroll::-webkit-scrollbar-thumb:hover,
 .data-table-scroll::-webkit-scrollbar-thumb:hover {
   background-color: rgba(148, 163, 184, 0.5);
 }
+.dialog-scroll::-webkit-scrollbar-corner,
 .data-table-scroll::-webkit-scrollbar-corner {
   background: transparent;
 }

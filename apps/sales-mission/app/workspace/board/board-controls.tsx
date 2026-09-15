@@ -11,6 +11,7 @@ import { PersonAvatar } from "@/components/person-avatar"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
+  DialogBody,
   DialogContent,
   DialogDescription,
   DialogFooter,
@@ -280,7 +281,7 @@ function ScreenLinkDialog({ options, baseUrl }: { options: BoardOptions; baseUrl
                   diperbarui tiap 30 detik. Bisa dicabut kapan saja dari Pengaturan → Papan live.
                 </DialogDescription>
               </DialogHeader>
-              <div className="space-y-4">
+              <DialogBody className="space-y-4">
                 <div className="space-y-1.5">
                   <Label htmlFor="screen-label" className="text-foreground">Nama layar</Label>
                   <Input id="screen-label" value={label} onChange={(e) => setLabel(e.target.value)} placeholder="TV ruang sales lantai 2" className="h-11" maxLength={100} />
@@ -295,7 +296,7 @@ function ScreenLinkDialog({ options, baseUrl }: { options: BoardOptions; baseUrl
                   </div>
                   <Switch id="screen-names" checked={showNames} onCheckedChange={setShowNames} />
                 </div>
-              </div>
+              </DialogBody>
               <DialogFooter>
                 <Button variant="outline" onClick={reset} disabled={pending}>Batal</Button>
                 <Button onClick={create} disabled={pending || !label.trim()}>

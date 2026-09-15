@@ -7,7 +7,7 @@ import { Loader2, MessageCircle } from "@/components/icons"
 import { requestReportClarification } from "@/app/actions/visit-report-actions"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 
 /**
  * "Minta klarifikasi": an admin sends a sent report back to its author with a
@@ -46,7 +46,7 @@ export function RequestClarificationButton({ missionId, authorName }: { missionI
               Laporan dikembalikan ke {authorName ?? "sales utama"} dengan catatan ini. Isinya tetap tersimpan; mereka memperbaiki lalu mengirim ulang, dan versi yang sekarang masuk riwayat.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-1.5">
+          <DialogBody className="space-y-1.5">
             <Label htmlFor="clarification-note" className="text-foreground">Apa yang perlu diperbaiki</Label>
             <textarea
               id="clarification-note"
@@ -58,7 +58,7 @@ export function RequestClarificationButton({ missionId, authorName }: { missionI
               placeholder="Contoh: nilai estimasi sepertinya kurang satu nol, dan kontak yang ditemui belum ada jabatannya."
               className="w-full rounded-md border border-input bg-field px-3 py-2.5 text-sm text-foreground shadow-xs outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
             />
-          </div>
+          </DialogBody>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)} disabled={pending}>Batal</Button>
             <Button onClick={send} disabled={pending || note.trim().length < 5}>

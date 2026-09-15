@@ -21,7 +21,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { cn } from "@/lib/utils"
 
 /**
@@ -146,7 +146,7 @@ export function StatusManager({ statuses, usage }: { statuses: ProspectStatus[];
               {editing?.mode === "edit" ? "Nama dan warna bisa diganti. Jenisnya tetap." : "Status baru untuk tahap yang sedang berjalan atau yang tidak berhasil."}
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
+          <DialogBody className="space-y-4">
             <div className="space-y-1.5">
               <Label htmlFor="status-label" className="text-foreground">Nama</Label>
               <Input id="status-label" value={label} onChange={(event) => setLabel(event.target.value)} maxLength={60} placeholder="Hubungi lagi" className="h-12" />
@@ -173,7 +173,7 @@ export function StatusManager({ statuses, usage }: { statuses: ProspectStatus[];
                 </div>
               )}
             </div>
-          </div>
+          </DialogBody>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditing(null)} disabled={pending}>Batal</Button>
             <Button onClick={save} disabled={pending || !label.trim()}>{pending && <Loader2 className="h-4 w-4 animate-spin" />} Simpan</Button>
