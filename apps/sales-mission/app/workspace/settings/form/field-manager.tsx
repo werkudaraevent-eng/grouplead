@@ -237,6 +237,7 @@ function FieldEditor({
             usageLoading={usageLoading}
             disabled={saving}
             error={optionsError}
+            noun={formKey === "mission" ? "mission" : formKey === "visit_report" ? "laporan" : "prospek"}
           />
         ) : (
           // Saying where the list comes from beats an empty editor the admin

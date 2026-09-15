@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest"
 import {
+  parseOptionList,
   CORE_PROSPECT_FIELDS,
   coreFieldsFor,
   CORE_MISSION_FIELDS,
@@ -121,6 +122,26 @@ describe("visibleFields", () => {
       field({ reportingKey: "gone", displayOrder: 20, isActive: false }),
     ]
     expect(visibleFields(fields).map((f) => f.reportingKey)).toEqual(["a", "c"])
+  })
+})
+
+describe("parseOptionList", () => {
+  it("reads one option per line, dropping blanks and list markers", () => {
+    expect(parseOptionList("Farmasi\n\n- Perbankan\r\n2. Asuransi \n• BUMN", [])).toEqual({
+      added: ["Farmasi", "Perbankan", "Asuransi", "BUMN"],
+      skippedDuplicates: 0,
+    })
+  })
+
+  it("splits a single line on commas or semicolons", () => {
+    expect(parseOptionList("Farmasi, Perbankan; Asuransi", []).added).toEqual(["Farmasi", "Perbankan", "Asuransi"])
+  })
+
+  it("skips what the list already has and what the paste repeats, counting them", () => {
+    expect(parseOptionList("farmasi\nAsuransi\nasuransi\nRetail", ["Farmasi"])).toEqual({
+      added: ["Asuransi", "Retail"],
+      skippedDuplicates: 2,
+    })
   })
 })
 

@@ -370,6 +370,38 @@ export function configuredOptions(
   return field && field.options.length > 0 ? field.options : [...fallback]
 }
 
+/**
+ * A pasted list turned into options.
+ *
+ * One option per line, the way Google Forms, HubSpot and Salesforce read a
+ * pasted list. A single line is also split on commas and semicolons, since
+ * that is how a list arrives from a spreadsheet cell or a chat message.
+ * Blank lines are dropped; anything already on the list, or repeated in the
+ * paste, is skipped and counted so the admin sees what happened.
+ */
+export function parseOptionList(
+  text: string,
+  existing: string[]
+): { added: string[]; skippedDuplicates: number } {
+  const lines = text.includes("\n") ? text.split(/\r?\n/) : text.split(/[,;]/)
+  const seen = new Set(existing.map((option) => option.trim().toLowerCase()))
+  const added: string[] = []
+  let skippedDuplicates = 0
+  for (const line of lines) {
+    // A leading bullet, dash or "1." is how people write lists by hand.
+    const value = line.replace(/^\s*(?:[-*•]|\d+[.)])\s+/, "").trim().slice(0, 100)
+    if (!value) continue
+    const key = value.toLowerCase()
+    if (seen.has(key)) {
+      skippedDuplicates += 1
+      continue
+    }
+    seen.add(key)
+    added.push(value)
+  }
+  return { added, skippedDuplicates }
+}
+
 /** Fields shown on a form, in order. Archived ones never render. */
 export function visibleFields(fields: FormField[]): FormField[] {
   return fields.filter((field) => field.isActive).sort((a, b) => a.displayOrder - b.displayOrder)
