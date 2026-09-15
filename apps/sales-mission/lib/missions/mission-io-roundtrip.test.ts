@@ -25,6 +25,7 @@ function field(overrides: Partial<FormField> & { reportingKey: string }): FormFi
     options: [],
     displayOrder: 10,
     ...overrides,
+    allowOther: Boolean(overrides.allowOther),
   }
 }
 

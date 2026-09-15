@@ -28,6 +28,8 @@ export interface ImportColumn {
   example: string
   /** Fixed set of accepted values, listed on the options sheet. */
   options?: string[]
+  /** The admin lets people answer off the list, so an unknown value is not an error. */
+  allowOther?: boolean
 }
 
 const CORE_EXAMPLES: Record<string, string> = {
@@ -88,6 +90,7 @@ export function buildImportColumns(fields: FormField[]): ImportColumn[] {
         ? CORE_EXAMPLES[field.reportingKey] ?? ""
         : exampleForCustomField(field),
       options: field.options.length > 0 ? field.options : undefined,
+      allowOther: field.allowOther || undefined,
     })
   }
 
@@ -236,8 +239,9 @@ export function parseRow(
     fail("Jam selesai", "Jam selesai harus setelah jam mulai.")
   }
 
-  if (missionType && !allowedMissionTypes.includes(missionType)) {
-    fail("Jenis mission", `"${missionType}" bukan pilihan yang ada. Lihat sheet "Pilihan".`)
+  const typeColumn = columns.find((column) => column.key === "mission_type")
+  if (missionType && !allowedMissionTypes.includes(missionType) && !typeColumn?.allowOther) {
+    fail(typeColumn?.header ?? "Jenis mission", `"${missionType}" bukan pilihan yang ada. Lihat sheet "Pilihan".`)
   }
 
   if (primarySalesEmail && !EMAIL_PATTERN.test(primarySalesEmail)) {
@@ -261,7 +265,7 @@ export function parseRow(
   // configured choice, so an import cannot smuggle in a value the form refuses.
   const contactSalutation = get("contact_salutation")
   const salutationColumn = columns.find((column) => column.key === "contact_salutation")
-  if (contactSalutation && salutationColumn?.options && !salutationColumn.options.includes(contactSalutation)) {
+  if (contactSalutation && salutationColumn?.options && !salutationColumn.options.includes(contactSalutation) && !salutationColumn.allowOther) {
     fail(salutationColumn.header, `"${contactSalutation}" bukan pilihan yang ada. Lihat sheet "Pilihan".`)
   }
 
@@ -284,12 +288,12 @@ export function parseRow(
     if (field.fieldType === "MULTI_SELECT") {
       const picked = splitList(value)
       const unknown = picked.filter((item) => !field.options.includes(item))
-      if (unknown.length > 0) fail(field.label, `Pilihan tidak dikenal: ${unknown.join(", ")}.`)
+      if (unknown.length > 0 && !field.allowOther) fail(field.label, `Pilihan tidak dikenal: ${unknown.join(", ")}.`)
       custom[field.reportingKey] = picked
     } else if (field.fieldType === "BOOLEAN") {
       custom[field.reportingKey] = TRUTHY.has(value.toLowerCase())
     } else if (field.fieldType === "SELECT") {
-      if (!field.options.includes(value)) fail(field.label, `"${value}" bukan pilihan yang ada.`)
+      if (!field.options.includes(value) && !field.allowOther) fail(field.label, `"${value}" bukan pilihan yang ada.`)
       custom[field.reportingKey] = value
     } else if (field.fieldType === "DATE") {
       custom[field.reportingKey] = normaliseDate(value)

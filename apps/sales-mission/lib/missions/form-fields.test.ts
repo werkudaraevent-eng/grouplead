@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest"
 import {
+  isAllowedChoice,
   parseOptionList,
   CORE_PROSPECT_FIELDS,
   coreFieldsFor,
@@ -29,7 +30,7 @@ function field(overrides: Partial<FormField> & { reportingKey: string }): FormFi
     isActive: true,
     placeholder: null,
     helpText: null,
-    options: [],
+    options: [], allowOther: false,
     displayOrder: 10,
     ...overrides,
   }
@@ -72,7 +73,7 @@ describe("fieldDefinitionSchema", () => {
     const result = fieldDefinitionSchema.safeParse({
       ...base,
       fieldType: "MULTI_SELECT",
-      options: ["A", "A"],
+      options: ["A", "A"], allowOther: false,
     })
     expect(result.success).toBe(false)
   })
@@ -310,7 +311,7 @@ describe("CORE_MISSION_FIELDS", () => {
 describe("configuredOptions", () => {
   const base = {
     id: "id", label: "x", fieldType: "SELECT" as const, isRequired: false, isCore: true,
-    isActive: true, placeholder: null, helpText: null, displayOrder: 10,
+    isActive: true, placeholder: null, helpText: null, displayOrder: 10, allowOther: false,
   }
 
   it("returns the tenant's list when one is configured", () => {
@@ -457,5 +458,25 @@ describe("prospect form", () => {
     expect(optionSource(salutation, "mission")).toBe("config")
     expect(optionSource(salutation, "prospect")).toBe("directory")
     expect(optionSource(salutation)).toBe("config")
+  })
+})
+
+describe("allow other", () => {
+  const base = { id: "f", reportingKey: "channel", label: "Kanal", fieldType: "SELECT" as const, isRequired: false, isCore: false, isActive: true, placeholder: null, helpText: null, options: ["Email", "Telepon"], allowOther: false, displayOrder: 10 }
+
+  it("accepts an off-list answer only when the field allows it", () => {
+    expect(validateFieldAnswers([{ ...base, allowOther: false }], { channel: "Faks" }).ok).toBe(false)
+    expect(validateFieldAnswers([{ ...base, allowOther: true }], { channel: "Faks" }).ok).toBe(true)
+    expect(validateFieldAnswers([{ ...base, fieldType: "MULTI_SELECT", allowOther: true }], { channel: ["Email", "Faks"] }).ok).toBe(true)
+    expect(validateFieldAnswers([{ ...base, fieldType: "MULTI_SELECT", allowOther: false }], { channel: ["Email", "Faks"] }).ok).toBe(false)
+  })
+
+  it("judges a core choice by its list, or by the switch", () => {
+    const core = { ...base, reportingKey: "mission_type", isCore: true, options: ["Meeting"], allowOther: false }
+    expect(isAllowedChoice([core], "mission_type", "Meeting", ["Visit"])).toBe(true)
+    expect(isAllowedChoice([core], "mission_type", "Survey", ["Visit"])).toBe(false)
+    expect(isAllowedChoice([{ ...core, allowOther: true }], "mission_type", "Survey", ["Visit"])).toBe(true)
+    // No stored list: the fallback stands in.
+    expect(isAllowedChoice([{ ...core, options: [] }], "mission_type", "Visit", ["Visit"])).toBe(true)
   })
 })

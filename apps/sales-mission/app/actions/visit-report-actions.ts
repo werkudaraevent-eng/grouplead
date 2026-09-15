@@ -23,7 +23,8 @@ import {
   type VisitReportDraft,
 } from "@/lib/missions/visit-report-schema"
 import { listFormFields } from "@/lib/missions/form-field-queries"
-import { validateFieldAnswers, type FieldAnswer, type FormField } from "@/lib/missions/form-fields"
+import { getReportOptions } from "@/lib/missions/report-options"
+import { isAllowedChoice, validateFieldAnswers, type FieldAnswer, type FormField } from "@/lib/missions/form-fields"
 import type { ActionResult } from "@/types/action-result"
 
 /**
@@ -289,6 +290,17 @@ export async function discardVisitReportDraft(missionId: string): Promise<Action
 }
 
 /** Final submission. Enforces the complete-report rules and stamps the author. */
+/**
+ * The report's two vocabularies against the admin's lists. Off-list answers
+ * are fine where the admin allows them (the default for these two), and
+ * refused where they switched that off.
+ */
+function vocabularyViolation(fields: FormField[], key: "client_needs" | "product_interest", values: string[], fallback: readonly string[]): string | null {
+  const field = fields.find((item) => item.reportingKey === key)
+  const bad = values.find((value) => !isAllowedChoice(fields, key, value, fallback))
+  return bad ? `"${bad}" tidak ada dalam daftar ${field?.label ?? key}.` : null
+}
+
 export async function submitVisitReport(
   missionId: string,
   input: unknown
@@ -301,6 +313,13 @@ export async function submitVisitReport(
   if (!parsed.success) {
     return { success: false, error: parsed.error.issues[0]?.message ?? "Laporan belum lengkap." }
   }
+
+  const vocabularyFields = await listFormFields(access, "visit_report")
+  const options = await getReportOptions()
+  const vocabularyError =
+    vocabularyViolation(vocabularyFields, "client_needs", parsed.data.clientNeeds, options.clientNeeds) ??
+    vocabularyViolation(vocabularyFields, "product_interest", parsed.data.productInterest, options.productInterest)
+  if (vocabularyError) return { success: false, error: vocabularyError }
 
   // The admin's form rules, on top of the code's. Checked here as well as in
   // the form, because a Server Action is a public endpoint.

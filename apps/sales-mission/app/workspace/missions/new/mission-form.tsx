@@ -15,6 +15,7 @@ import type { TenantSalesOption } from "@/lib/missions/mission-queries"
 import { Button } from "@/components/ui/button"
 import { FormActionBar } from "@/components/form-action-bar"
 import { Checkbox } from "@/components/ui/checkbox"
+import { MultiChoiceWithOther, SelectWithOther } from "@/components/ui/choice-with-other"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { NumberInput } from "@/components/ui/number-input"
@@ -228,14 +229,7 @@ function CustomField({ field, initial }: { field: FormField; initial?: unknown }
   if (field.fieldType === "MULTI_SELECT") {
     return (
       <FieldShell field={field} as="group">
-        <div className="flex flex-wrap gap-x-5 gap-y-1">
-          {field.options.map((option) => (
-            <div className="flex min-h-12 items-center gap-2.5" key={option}>
-              <Checkbox id={`${id}-${option}`} name={name} value={option} defaultChecked={initialList.includes(option)} />
-              <Label htmlFor={`${id}-${option}`} className="font-normal text-foreground">{option}</Label>
-            </div>
-          ))}
-        </div>
+        <MultiChoiceWithOther id={id} name={name} options={field.options} defaultValue={initialList} allowOther={field.allowOther} />
       </FieldShell>
     )
   }
@@ -243,10 +237,7 @@ function CustomField({ field, initial }: { field: FormField; initial?: unknown }
   if (field.fieldType === "SELECT") {
     return (
       <FieldShell field={field}>
-        <select id={id} name={name} required={field.isRequired} defaultValue={initialText} className={SELECT_CLASS}>
-          <option value="">{field.placeholder || "Pilih salah satu"}</option>
-          {field.options.map((option) => <option key={option} value={option}>{option}</option>)}
-        </select>
+        <SelectWithOther id={id} name={name} options={field.options} defaultValue={initialText} required={field.isRequired} placeholder={field.placeholder || undefined} allowOther={field.allowOther} />
       </FieldShell>
     )
   }
@@ -459,9 +450,7 @@ export function MissionForm({
       case "mission_type":
         return (
           <FieldShell field={field} key={field.id}>
-            <select id="field-mission_type" name="missionType" defaultValue={prefill?.missionType && missionTypes.includes(prefill.missionType) ? prefill.missionType : missionTypes[0]} className={SELECT_CLASS}>
-              {missionTypes.map((type) => <option key={type} value={type}>{type}</option>)}
-            </select>
+            <SelectWithOther id="field-mission_type" name="missionType" options={missionTypes} defaultValue={prefill?.missionType && (missionTypes.includes(prefill.missionType) || field.allowOther) ? prefill.missionType : missionTypes[0]} required placeholder="Pilih jenis" allowOther={field.allowOther} />
           </FieldShell>
         )
       case "address":
@@ -573,16 +562,7 @@ export function MissionForm({
       case "contact_salutation":
         return (
           <FieldShell field={field} key={field.id}>
-            <select
-              id="field-contact_salutation"
-              name="contactSalutation"
-              defaultValue={prefill?.contactSalutation ?? ""}
-              required={field.isRequired}
-              className={SELECT_CLASS}
-            >
-              <option value="">{field.placeholder || "Pilih"}</option>
-              {salutations.map((item) => <option key={item} value={item}>{item}</option>)}
-            </select>
+            <SelectWithOther id="field-contact_salutation" name="contactSalutation" options={salutations} defaultValue={prefill?.contactSalutation ?? ""} required={field.isRequired} placeholder={field.placeholder || "Pilih"} allowOther={field.allowOther} />
           </FieldShell>
         )
       case "contact_name":

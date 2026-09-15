@@ -99,6 +99,7 @@ export async function createFormField(formKeyInput: unknown, input: unknown): Pr
       placeholder: parsed.data.placeholder?.trim() || null,
       help_text: parsed.data.helpText?.trim() || null,
       options: isChoiceType(parsed.data.fieldType) ? parsed.data.options : [],
+      allow_other: isChoiceType(parsed.data.fieldType) && parsed.data.allowOther,
       display_order: nextDisplayOrder(existing),
       created_by: access.userId,
     })
@@ -179,6 +180,8 @@ export async function updateFormField(formKeyInput: unknown, fieldId: string, in
           ? parsed.data.options
           : []
         : field.options,
+      // Only a list the admin owns can be opened up; a directory list cannot.
+      allow_other: canEditOptions(target, FORM_KEY) && isChoiceType(effectiveType) ? parsed.data.allowOther : false,
       updated_at: new Date().toISOString(),
     })
     .eq("id", fieldId)
@@ -380,4 +383,24 @@ export async function moveFormField(formKeyInput: unknown, fieldId: string, dire
   for (const path of PATHS[FORM_KEY]) revalidatePath(path)
 
   return { success: true }
+}
+
+/**
+ * What people typed for this field that is not on its list, with counts,
+ * so the admin can promote a value that keeps coming up. Null when it could
+ * not be read, never an empty map that would read as "nobody did".
+ */
+export async function getOffListAnswers(
+  formKeyInput: unknown,
+  fieldId: string
+): Promise<Array<{ value: string; uses: number }> | null> {
+  const guard = await authorize()
+  if ("error" in guard) return null
+  if (!resolveFormKey(formKeyInput)) return null
+  if (!/^[0-9a-f-]{36}$/i.test(fieldId)) return null
+
+  const supabase = await createClient()
+  const { data, error } = await supabase.schema("sales_mission").rpc("fn_off_list_answers", { p_field_id: fieldId })
+  if (error) return null
+  return (data ?? []).map((row: { value: string; uses: number | string }) => ({ value: String(row.value), uses: Number(row.uses) }))
 }

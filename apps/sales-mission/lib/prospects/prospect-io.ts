@@ -57,6 +57,7 @@ export function buildProspectColumns(fields: FormField[]): ImportColumn[] {
       required: field.isRequired,
       example: field.isCore ? CORE_EXAMPLES[field.reportingKey] ?? "" : exampleForCustomField(field),
       options: field.options.length > 0 ? field.options : undefined,
+      allowOther: field.allowOther || undefined,
     })
   }
   return columns
@@ -146,7 +147,7 @@ export function parseProspectRow(
     const value = get(key)
     if (!value || !column?.options) return value
     const match = column.options.find((option) => option.toLowerCase() === value.toLowerCase())
-    if (!match) fail(column.header, `"${value}" bukan pilihan yang ada. Lihat sheet "Pilihan".`)
+    if (!match && !column.allowOther) fail(column.header, `"${value}" bukan pilihan yang ada. Lihat sheet "Pilihan".`)
     return match ?? value
   }
   const industry = listed("industry")
@@ -167,12 +168,12 @@ export function parseProspectRow(
     if (field.fieldType === "MULTI_SELECT") {
       const picked = splitList(value)
       const unknown = picked.filter((item) => !field.options.includes(item))
-      if (unknown.length > 0) fail(field.label, `Pilihan tidak dikenal: ${unknown.join(", ")}.`)
+      if (unknown.length > 0 && !field.allowOther) fail(field.label, `Pilihan tidak dikenal: ${unknown.join(", ")}.`)
       custom[field.reportingKey] = picked
     } else if (field.fieldType === "BOOLEAN") {
       custom[field.reportingKey] = TRUTHY.has(value.toLowerCase())
     } else if (field.fieldType === "SELECT") {
-      if (!field.options.includes(value)) fail(field.label, `"${value}" bukan pilihan yang ada.`)
+      if (!field.options.includes(value) && !field.allowOther) fail(field.label, `"${value}" bukan pilihan yang ada.`)
       custom[field.reportingKey] = value
     } else if (field.fieldType === "DATE") {
       custom[field.reportingKey] = normaliseDate(value)

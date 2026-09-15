@@ -28,7 +28,7 @@ export default async function EditProspectPage({ params }: { params: Promise<{ p
 
   return (
     <WorkspacePage eyebrow="Sales Mission / Prospek" title={`Ubah ${prospect.clientCompanyName}`} description="Perbaiki data perusahaan atau kontaknya. Status dan catatan kontak diubah dari halaman prospek." action={<BackLink href={`/workspace/prospects/${prospectId}`} />}>
-      <ProspectForm fields={prospectFields} salesOptions={salesOptions} salutations={configuredOptions(fields, "contact_salutation", DEFAULT_CONTACT_SALUTATIONS)} viewerId={access.userId} canAssignOthers={isAdmin} prospect={prospect} />
+      <ProspectForm fields={prospectFields} salesOptions={salesOptions} salutations={configuredOptions(fields, "contact_salutation", DEFAULT_CONTACT_SALUTATIONS)} salutationsAllowOther={fields.find((field) => field.reportingKey === "contact_salutation")?.allowOther ?? false} viewerId={access.userId} canAssignOthers={isAdmin} prospect={prospect} />
     </WorkspacePage>
   )
 }

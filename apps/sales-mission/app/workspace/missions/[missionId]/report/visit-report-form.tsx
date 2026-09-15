@@ -223,6 +223,29 @@ function MultiChip({ options, value, onToggle, onAddCustom, allowCustom = true }
   )
 }
 
+/** One choice as chips, with "Lainnya…" when the admin lets people answer off the list. */
+function SingleChip({ options, value, onChange, allowCustom }: { options: string[]; value: string | null; onChange: (next: string | null) => void; allowCustom: boolean }) {
+  const [custom, setCustom] = useState("")
+  const extra = value && !options.includes(value) ? value : null
+  const add = () => {
+    const trimmed = custom.trim()
+    if (trimmed) { onChange(trimmed); setCustom("") }
+  }
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap gap-2">
+        {[...options, ...(extra ? [extra] : [])].map((option) => <Chip key={option} on={value === option} onClick={() => onChange(value === option ? null : option)}>{option}</Chip>)}
+      </div>
+      {allowCustom && (
+        <div className="flex gap-2">
+          <Input value={custom} onChange={(event) => setCustom(event.target.value)} placeholder="Lainnya…" className="h-11 max-w-xs" onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); add() } }} />
+          <Button type="button" variant="outline" className="h-11 shrink-0" onClick={add} disabled={!custom.trim()}>Tambah</Button>
+        </div>
+      )}
+    </div>
+  )
+}
+
 /** A field the admin added, by its configured type, bound to the draft. */
 function CustomControl({ field, value, onChange }: { field: FormField; value: FieldAnswer | undefined; onChange: (next: FieldAnswer) => void }) {
   const id = `custom-${field.reportingKey}`
@@ -236,14 +259,10 @@ function CustomControl({ field, value, onChange }: { field: FormField; value: Fi
   }
   if (field.fieldType === "MULTI_SELECT") {
     const list = Array.isArray(value) ? value : []
-    return <MultiChip options={field.options} value={list} onToggle={(option) => onChange(list.includes(option) ? list.filter((item) => item !== option) : [...list, option])} onAddCustom={() => undefined} allowCustom={false} />
+    return <MultiChip options={field.options} value={list} onToggle={(option) => onChange(list.includes(option) ? list.filter((item) => item !== option) : [...list, option])} onAddCustom={(option) => { if (!list.includes(option)) onChange([...list, option]) }} allowCustom={field.allowOther} />
   }
   if (field.fieldType === "SELECT") {
-    return (
-      <div className="flex flex-wrap gap-2">
-        {field.options.map((option) => <Chip key={option} on={value === option} onClick={() => onChange(value === option ? null : option)}>{option}</Chip>)}
-      </div>
-    )
+    return <SingleChip options={field.options} value={typeof value === "string" ? value : null} onChange={(next) => onChange(next)} allowCustom={field.allowOther} />
   }
   if (field.fieldType === "LONG_TEXT") {
     return <textarea id={id} value={typeof value === "string" ? value : ""} onChange={(event) => onChange(event.target.value)} rows={4} maxLength={4000} placeholder={field.placeholder ?? ""} className={cn(FIELD_CLASS, "py-2.5")} />
@@ -459,13 +478,13 @@ export function VisitReportForm({
       case "client_needs":
         return (
           <FieldShell key={field.id} field={field}>
-            <MultiChip options={clientNeedOptions} value={draft.clientNeeds} onToggle={toggleIn("clientNeeds")} onAddCustom={addCustom("clientNeeds")} />
+            <MultiChip options={clientNeedOptions} value={draft.clientNeeds} onToggle={toggleIn("clientNeeds")} onAddCustom={addCustom("clientNeeds")} allowCustom={field.allowOther} />
           </FieldShell>
         )
       case "product_interest":
         return (
           <FieldShell key={field.id} field={field}>
-            <MultiChip options={productOptions} value={draft.productInterest} onToggle={toggleIn("productInterest")} onAddCustom={addCustom("productInterest")} />
+            <MultiChip options={productOptions} value={draft.productInterest} onToggle={toggleIn("productInterest")} onAddCustom={addCustom("productInterest")} allowCustom={field.allowOther} />
           </FieldShell>
         )
       case "interest_level":

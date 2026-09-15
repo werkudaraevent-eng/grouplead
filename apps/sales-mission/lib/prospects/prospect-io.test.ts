@@ -16,11 +16,11 @@ const fields: FormField[] = [
     isActive: true,
     placeholder: null,
     helpText: null,
-    options: field.options ?? [],
+    options: field.options ?? [], allowOther: false,
     displayOrder: field.displayOrder,
   })),
-  { id: "id-budget", reportingKey: "budget", label: "Budget", fieldType: "CURRENCY", isRequired: false, isCore: false, isActive: true, placeholder: null, helpText: null, options: [], displayOrder: 200 },
-  { id: "id-tag", reportingKey: "tag", label: "Tag", fieldType: "MULTI_SELECT", isRequired: false, isCore: false, isActive: true, placeholder: null, helpText: null, options: ["Prioritas", "Referensi"], displayOrder: 210 },
+  { id: "id-budget", reportingKey: "budget", label: "Budget", fieldType: "CURRENCY", isRequired: false, isCore: false, isActive: true, placeholder: null, helpText: null, options: [], allowOther: false, displayOrder: 200 },
+  { id: "id-tag", reportingKey: "tag", label: "Tag", fieldType: "MULTI_SELECT", isRequired: false, isCore: false, isActive: true, placeholder: null, helpText: null, options: ["Prioritas", "Referensi"], allowOther: false, displayOrder: 210 },
 ]
 const columns = buildProspectColumns(fields)
 const options = { columns, fields, salutations }

@@ -187,6 +187,7 @@ export const CORE_REPORT_FIELDS: Array<
   Pick<FormField, "reportingKey" | "label" | "fieldType" | "isRequired" | "displayOrder"> & {
     options?: string[]
     helpText?: string
+    allowOther?: boolean
   }
 > = [
   { reportingKey: "visit_outcome", label: "Hasil kunjungan", fieldType: "SELECT", isRequired: true, displayOrder: 10 },
@@ -194,11 +195,11 @@ export const CORE_REPORT_FIELDS: Array<
   { reportingKey: "meeting_summary", label: "Ringkasan pertemuan", fieldType: "LONG_TEXT", isRequired: true, displayOrder: 30, helpText: "Apa yang dibahas dan apa yang disepakati." },
   {
     reportingKey: "client_needs", label: "Kebutuhan klien", fieldType: "MULTI_SELECT", isRequired: true, displayOrder: 40,
-    helpText: "Pilih yang relevan, atau tambahkan sendiri.",
+    helpText: "Pilih yang relevan, atau tambahkan sendiri.", allowOther: true,
     options: ["Corporate gathering", "Meeting / rapat", "Outbound / team building", "Exhibition / pameran", "Product launch", "Tour / travel", "Akomodasi", "Transportasi", "Katering"],
   },
   {
-    reportingKey: "product_interest", label: "Produk yang diminati", fieldType: "MULTI_SELECT", isRequired: false, displayOrder: 50,
+    reportingKey: "product_interest", label: "Produk yang diminati", fieldType: "MULTI_SELECT", isRequired: false, displayOrder: 50, allowOther: true,
     options: ["Event organizer", "Venue", "Akomodasi", "Transportasi", "Dokumentasi", "Produksi panggung"],
   },
   { reportingKey: "interest_level", label: "Tingkat minat", fieldType: "SELECT", isRequired: true, displayOrder: 60 },
@@ -252,6 +253,24 @@ export interface FormField {
   helpText: string | null
   options: string[]
   displayOrder: number
+  /** Whether the person filling the form may answer with something off the list. */
+  allowOther: boolean
+}
+
+/** Whether this field takes answers off its list: a choice field with the switch on. */
+export function allowsOther(field: Pick<FormField, "fieldType" | "allowOther">): boolean {
+  return isChoiceType(field.fieldType) && field.allowOther
+}
+
+/**
+ * Whether a value is acceptable for a config-owned core choice: on the
+ * list, or off it when the admin allows that. The fallback list stands in
+ * when the field has no options stored, as configuredOptions does.
+ */
+export function isAllowedChoice(fields: FormField[], reportingKey: string, value: string, fallback: readonly string[]): boolean {
+  if (configuredOptions(fields, reportingKey, fallback).includes(value)) return true
+  const field = fields.find((item) => item.reportingKey === reportingKey)
+  return field ? allowsOther(field) : false
 }
 
 /**
@@ -281,6 +300,7 @@ export const fieldDefinitionSchema = z
     placeholder: z.string().trim().max(200).optional().or(z.literal("")),
     helpText: z.string().trim().max(300).optional().or(z.literal("")),
     options: z.array(z.string().trim().min(1)).default([]),
+    allowOther: z.boolean().default(false),
   })
   .superRefine((value, ctx) => {
     const unique = new Set(value.options)
@@ -477,15 +497,15 @@ export function validateFieldAnswers(
         }
         break
       case "SELECT":
-        if (typeof answer !== "string" || !field.options.includes(answer)) {
+        if (typeof answer !== "string" || (!field.options.includes(answer) && !field.allowOther)) {
           errors[field.reportingKey] = `${field.label} berisi pilihan yang tidak dikenal`
         }
         break
       case "MULTI_SELECT": {
         const values = Array.isArray(answer) ? answer : [answer]
         // An answer outside the configured list means the option was archived
-        // or the request was crafted by hand.
-        if (values.some((item) => typeof item !== "string" || !field.options.includes(item))) {
+        // or the request was crafted by hand, unless the admin allows it.
+        if (values.some((item) => typeof item !== "string" || (!field.options.includes(item) && !field.allowOther))) {
           errors[field.reportingKey] = `${field.label} berisi pilihan yang tidak dikenal`
         }
         break

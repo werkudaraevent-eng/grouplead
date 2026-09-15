@@ -12,7 +12,7 @@ function field(partial: Partial<FormField> & Pick<FormField, "reportingKey" | "d
     isActive: true,
     placeholder: null,
     helpText: null,
-    options: [],
+    options: [], allowOther: false,
     ...partial,
   }
 }

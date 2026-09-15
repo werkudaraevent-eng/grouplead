@@ -14,6 +14,7 @@ import { deriveMissionStatus, initialResponse } from "@/lib/missions/assignment-
 import {
   DEFAULT_CONTACT_SALUTATIONS,
   configuredOptions,
+  isAllowedChoice,
   validateFieldAnswers,
   type FieldAnswer,
 } from "@/lib/missions/form-fields"
@@ -121,16 +122,13 @@ export async function createMission(
       .eq("company_id", access.companyId)
       .in("user_id", assigneeIds),
   ])
-  const allowedTypes = configuredOptions(formFields, "mission_type", MISSION_TYPES)
-
-  if (!allowedTypes.includes(parsed.data.missionType)) {
+  if (!isAllowedChoice(formFields, "mission_type", parsed.data.missionType, MISSION_TYPES)) {
     return { success: false, error: "Jenis mission itu tidak ada dalam daftar." }
   }
 
   // Same rule for the salutation, for the same reason: the column is free text
-  // and the list is the admin's.
-  const allowedSalutations = configuredOptions(formFields, "contact_salutation", DEFAULT_CONTACT_SALUTATIONS)
-  if (parsed.data.contactSalutation && !allowedSalutations.includes(parsed.data.contactSalutation)) {
+  // and the list is the admin's, unless the admin opened it up.
+  if (parsed.data.contactSalutation && !isAllowedChoice(formFields, "contact_salutation", parsed.data.contactSalutation, DEFAULT_CONTACT_SALUTATIONS)) {
     return { success: false, error: "Sapaan itu tidak ada dalam daftar." }
   }
 
@@ -574,10 +572,8 @@ export async function updateMission(
     listMissionTeam(access, missionId),
   ])
 
-  const allowedTypes = configuredOptions(formFields, "mission_type", MISSION_TYPES)
-  if (!allowedTypes.includes(input.missionType)) return { success: false, error: "Jenis mission itu tidak ada dalam daftar." }
-  const allowedSalutations = configuredOptions(formFields, "contact_salutation", DEFAULT_CONTACT_SALUTATIONS)
-  if (input.contactSalutation && !allowedSalutations.includes(input.contactSalutation)) {
+  if (!isAllowedChoice(formFields, "mission_type", input.missionType, MISSION_TYPES)) return { success: false, error: "Jenis mission itu tidak ada dalam daftar." }
+  if (input.contactSalutation && !isAllowedChoice(formFields, "contact_salutation", input.contactSalutation, DEFAULT_CONTACT_SALUTATIONS)) {
     return { success: false, error: "Sapaan itu tidak ada dalam daftar." }
   }
 

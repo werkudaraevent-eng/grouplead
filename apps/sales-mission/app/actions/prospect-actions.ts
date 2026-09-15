@@ -5,7 +5,7 @@ import { redirect } from "next/navigation"
 import { createClient } from "@/utils/supabase/server"
 import { canPerform, getSalesMissionAccess, type SalesMissionAccess } from "@/lib/sales-mission-access"
 import { listFormFields } from "@/lib/missions/form-field-queries"
-import { DEFAULT_CONTACT_SALUTATIONS, DEFAULT_INDUSTRIES, configuredOptions, readCustomAnswers, validateFieldAnswers, type FieldAnswer, type FormField } from "@/lib/missions/form-fields"
+import { DEFAULT_CONTACT_SALUTATIONS, DEFAULT_INDUSTRIES, isAllowedChoice, readCustomAnswers, validateFieldAnswers, type FieldAnswer, type FormField } from "@/lib/missions/form-fields"
 import { isEmptyAnswer, missingRequiredCore } from "@/lib/prospects/prospect-form-fields"
 import { normalizePhone } from "@/lib/format/phone"
 import { listProspectStatuses } from "@/lib/prospects/prospect-status-queries"
@@ -100,7 +100,7 @@ async function checkAgainstForm(access: SalesMissionAccess, formData: FormData, 
   const fields = await listFormFields(access, "prospect")
   const missing = missingRequiredCore(fields, input)
   if (missing) return { error: `${missing} wajib diisi.` }
-  if (input.industry && input.industry !== keepStaleIndustry && !configuredOptions(fields, "industry", DEFAULT_INDUSTRIES).includes(input.industry)) {
+  if (input.industry && input.industry !== keepStaleIndustry && !isAllowedChoice(fields, "industry", input.industry, DEFAULT_INDUSTRIES)) {
     return { error: "Industri itu tidak ada dalam daftar." }
   }
   const customFields = fields.filter((field) => !field.isCore)
@@ -126,8 +126,7 @@ async function saveCustomAnswers(access: SalesMissionAccess, prospectId: string,
 async function checkSalutation(access: SalesMissionAccess, value: string | undefined): Promise<string | null> {
   if (!value) return null
   const fields = await listFormFields(access, "mission")
-  const allowed = configuredOptions(fields, "contact_salutation", DEFAULT_CONTACT_SALUTATIONS)
-  return allowed.includes(value) ? null : "Sapaan itu tidak ada dalam daftar."
+  return isAllowedChoice(fields, "contact_salutation", value, DEFAULT_CONTACT_SALUTATIONS) ? null : "Sapaan itu tidak ada dalam daftar."
 }
 
 export async function createProspect(_previous: ProspectFormState, formData: FormData): Promise<ProspectFormState> {

@@ -22,7 +22,7 @@ function field(overrides: Partial<FormField> & { reportingKey: string }): FormFi
     isActive: true,
     placeholder: null,
     helpText: null,
-    options: [],
+    options: [], allowOther: false,
     displayOrder: 10,
     ...overrides,
   }
@@ -30,7 +30,7 @@ function field(overrides: Partial<FormField> & { reportingKey: string }): FormFi
 
 const FIELDS: FormField[] = [
   field({ reportingKey: "client_company", label: "Perusahaan klien", isRequired: true, displayOrder: 10 }),
-  field({ reportingKey: "mission_type", label: "Jenis mission", fieldType: "SELECT", isRequired: true, options: ["Meeting", "Visit"], displayOrder: 20 }),
+  field({ reportingKey: "mission_type", label: "Jenis mission", fieldType: "SELECT", isRequired: true, options: ["Meeting", "Visit"], allowOther: false, displayOrder: 20 }),
   field({ reportingKey: "date", label: "Tanggal", fieldType: "DATE", isRequired: true, displayOrder: 30 }),
   field({ reportingKey: "start_time", label: "Jam mulai", fieldType: "TIME", isRequired: true, displayOrder: 40 }),
   field({ reportingKey: "end_time", label: "Jam selesai", fieldType: "TIME", displayOrder: 50 }),
@@ -180,7 +180,7 @@ describe("parseRow", () => {
     const withCustom = [
       ...FIELDS,
       field({ reportingKey: "budget", label: "Budget", isCore: false, fieldType: "CURRENCY", displayOrder: 80 }),
-      field({ reportingKey: "channel", label: "Kanal", isCore: false, fieldType: "MULTI_SELECT", options: ["Email", "Telepon"], displayOrder: 90 }),
+      field({ reportingKey: "channel", label: "Kanal", isCore: false, fieldType: "MULTI_SELECT", options: ["Email", "Telepon"], allowOther: false, displayOrder: 90 }),
       field({ reportingKey: "urgent", label: "Mendesak", isCore: false, fieldType: "BOOLEAN", displayOrder: 100 }),
     ]
     const columns = buildImportColumns(withCustom)
@@ -195,7 +195,7 @@ describe("parseRow", () => {
   it("checks the salutation against the tenant's configured list", () => {
     const withSalutation = [
       ...FIELDS,
-      field({ reportingKey: "contact_salutation", label: "Sapaan", fieldType: "SELECT", options: ["Bapak", "Ibu"], displayOrder: 65 }),
+      field({ reportingKey: "contact_salutation", label: "Sapaan", fieldType: "SELECT", options: ["Bapak", "Ibu"], allowOther: false, displayOrder: 65 }),
     ]
     const columns = buildImportColumns(withSalutation)
 
@@ -210,7 +210,7 @@ describe("parseRow", () => {
   it("refuses an unknown option on a custom multi-select", () => {
     const withCustom = [
       ...FIELDS,
-      field({ reportingKey: "channel", label: "Kanal", isCore: false, fieldType: "MULTI_SELECT", options: ["Email"], displayOrder: 90 }),
+      field({ reportingKey: "channel", label: "Kanal", isCore: false, fieldType: "MULTI_SELECT", options: ["Email"], allowOther: false, displayOrder: 90 }),
     ]
     const { issues } = parseRow(
       { ...rowFrom(), Kanal: "Email, Merpati" },

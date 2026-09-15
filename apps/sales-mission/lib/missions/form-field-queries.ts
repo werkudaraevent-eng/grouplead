@@ -5,7 +5,7 @@ import { coreFieldsFor, type FormKey, type FieldType, type FormField } from "./f
 /** Read side of the form builder. */
 
 const FIELD_COLUMNS =
-  "id, reporting_key, label, field_type, is_required, is_core, is_active, placeholder, help_text, options, display_order"
+  "id, reporting_key, label, field_type, is_required, is_core, is_active, placeholder, help_text, options, display_order, allow_other"
 
 type FieldRow = Record<string, unknown>
 
@@ -22,6 +22,7 @@ function toFormField(row: FieldRow): FormField {
     helpText: (row.help_text as string | null) ?? null,
     options: Array.isArray(row.options) ? (row.options as string[]) : [],
     displayOrder: Number(row.display_order ?? 0),
+    allowOther: Boolean(row.allow_other),
   }
 }
 
@@ -82,6 +83,7 @@ export async function listFormFields(
           // Seeded so a choice field arrives with choices. Without this the
           // mission form would open a dropdown with nothing in it.
           options: field.options ?? [],
+          allow_other: "allowOther" in field ? Boolean(field.allowOther) : false,
           display_order: field.displayOrder,
         })),
         { onConflict: "company_id,form_key,reporting_key", ignoreDuplicates: true }

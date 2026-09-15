@@ -11,6 +11,7 @@ import { PROSPECT_SECTION_HINTS, prospectBlocks } from "@/lib/prospects/prospect
 import { parseNumber } from "@/lib/format/number"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
+import { MultiChoiceWithOther, SelectWithOther } from "@/components/ui/choice-with-other"
 import { FormActionBar } from "@/components/form-action-bar"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -104,24 +105,14 @@ function CustomField({ field, initial }: { field: FormField; initial?: unknown }
   if (field.fieldType === "MULTI_SELECT") {
     return (
       <FieldShell field={field} as="group">
-        <div className="flex flex-wrap gap-x-5 gap-y-1">
-          {field.options.map((option) => (
-            <div className="flex min-h-12 items-center gap-2.5" key={option}>
-              <Checkbox id={`${id}-${option}`} name={name} value={option} defaultChecked={initialList.includes(option)} />
-              <Label htmlFor={`${id}-${option}`} className="font-normal text-foreground">{option}</Label>
-            </div>
-          ))}
-        </div>
+        <MultiChoiceWithOther id={id} name={name} options={field.options} defaultValue={initialList} allowOther={field.allowOther} />
       </FieldShell>
     )
   }
   if (field.fieldType === "SELECT") {
     return (
       <FieldShell field={field}>
-        <select id={id} name={name} required={field.isRequired} defaultValue={initialText} className={SELECT_CLASS}>
-          <option value="">{field.placeholder || "Pilih salah satu"}</option>
-          {field.options.map((option) => <option key={option} value={option}>{option}</option>)}
-        </select>
+        <SelectWithOther id={id} name={name} options={field.options} defaultValue={initialText} required={field.isRequired} placeholder={field.placeholder || undefined} allowOther={field.allowOther} />
       </FieldShell>
     )
   }
@@ -151,6 +142,7 @@ export function ProspectForm({
   fields,
   salesOptions,
   salutations,
+  salutationsAllowOther,
   viewerId,
   canAssignOthers,
   prospect,
@@ -160,6 +152,8 @@ export function ProspectForm({
   salesOptions: TenantSalesOption[]
   /** The salutation list, shared with the mission form. */
   salutations: string[]
+  /** Whether the mission form lets people type a salutation off that list. */
+  salutationsAllowOther?: boolean
   viewerId: string
   canAssignOthers: boolean
   /** Editing: the prospect to fill from, custom answers included. */
@@ -201,14 +195,18 @@ export function ProspectForm({
         // A value stored before the list changed stays selectable, marked, so
         // editing an old prospect does not silently drop what it had.
         const options = configuredOptions(fields, "industry", DEFAULT_INDUSTRIES)
-        const stale = prospect?.industry && !options.includes(prospect.industry) ? prospect.industry : null
+        const stale = prospect?.industry && !options.includes(prospect.industry) && !field.allowOther ? prospect.industry : null
         return (
           <FieldShell field={field} key={field.id}>
-            <select id="field-industry" name="industry" required={field.isRequired} defaultValue={prospect?.industry ?? ""} className={SELECT_CLASS}>
-              <option value="">{field.placeholder || "Pilih industri"}</option>
-              {stale && <option value={stale}>{stale} (tidak ada di daftar)</option>}
-              {options.map((item) => <option key={item} value={item}>{item}</option>)}
-            </select>
+            <SelectWithOther
+              id="field-industry"
+              name="industry"
+              options={stale ? [`${stale}`, ...options] : options}
+              defaultValue={prospect?.industry ?? ""}
+              required={field.isRequired}
+              placeholder={field.placeholder || "Pilih industri"}
+              allowOther={field.allowOther}
+            />
           </FieldShell>
         )
       }
@@ -225,10 +223,7 @@ export function ProspectForm({
       case "contact_salutation":
         return (
           <FieldShell field={field} key={field.id}>
-            <select id="field-contact_salutation" name="contactSalutation" required={field.isRequired} defaultValue={prospect?.contactSalutation ?? ""} className={SELECT_CLASS}>
-              <option value="">{field.placeholder || "—"}</option>
-              {salutations.map((item) => <option key={item} value={item}>{item}</option>)}
-            </select>
+            <SelectWithOther id="field-contact_salutation" name="contactSalutation" options={salutations} defaultValue={prospect?.contactSalutation ?? ""} required={field.isRequired} placeholder={field.placeholder || "—"} allowOther={salutationsAllowOther ?? false} />
           </FieldShell>
         )
       case "contact_name":

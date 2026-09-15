@@ -17,6 +17,7 @@ import {
   archiveFormField,
   createFormField,
   getFieldOptionUsage,
+  getOffListAnswers,
   moveFormField,
   restoreFormField,
   updateFormField,
@@ -59,6 +60,7 @@ interface Draft {
   placeholder: string
   helpText: string
   options: string[]
+  allowOther: boolean
 }
 
 const EMPTY_DRAFT: Draft = {
@@ -68,6 +70,7 @@ const EMPTY_DRAFT: Draft = {
   placeholder: "",
   helpText: "",
   options: [],
+  allowOther: false,
 }
 
 function toDraft(field: FormField): Draft {
@@ -78,6 +81,7 @@ function toDraft(field: FormField): Draft {
     placeholder: field.placeholder ?? "",
     helpText: field.helpText ?? "",
     options: field.options,
+    allowOther: field.allowOther,
   }
 }
 
@@ -128,6 +132,7 @@ function FieldEditor({
   saving,
   usage,
   usageLoading,
+  suggestions,
 }: {
   formKey: FormKey
   field: FormField | null
@@ -138,6 +143,8 @@ function FieldEditor({
   saving: boolean
   usage: Record<string, number> | null
   usageLoading: boolean
+  /** Values people typed off the list, for promotion. Null: not known. */
+  suggestions: Array<{ value: string; uses: number }> | null
 }) {
   const isCore = field?.isCore ?? false
   // Ids must be unique on the page: two editors are never open at once today,
@@ -250,6 +257,43 @@ function FieldEditor({
         )
       )}
 
+      {isChoiceType(draft.fieldType) && editableOptions && (
+        <div className="space-y-3">
+          <div className="flex items-start gap-2.5">
+            <Checkbox
+              id={`allow-other-${uid}`}
+              className="mt-0.5"
+              checked={draft.allowOther}
+              onCheckedChange={(checked) => setDraft({ ...draft, allowOther: checked === true })}
+            />
+            <div>
+              <Label htmlFor={`allow-other-${uid}`} className="font-normal">Pengisi boleh menambah pilihan sendiri</Label>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                Form menampilkan “Lainnya…”. Jawaban di luar daftar tersimpan apa adanya dan tidak otomatis masuk daftar; yang sering muncul tampil di bawah untuk Anda masukkan.
+              </p>
+            </div>
+          </div>
+          {suggestions && suggestions.filter((item) => !draft.options.some((option) => option.trim().toLowerCase() === item.value.toLowerCase())).length > 0 && (
+            <div className="rounded-lg border border-dashed px-4 py-3">
+              <p className="text-xs font-medium text-foreground">Diusulkan pengisi</p>
+              <ul className="mt-2 space-y-1.5">
+                {suggestions
+                  .filter((item) => !draft.options.some((option) => option.trim().toLowerCase() === item.value.toLowerCase()))
+                  .slice(0, 12)
+                  .map((item) => (
+                    <li key={item.value} className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                      <span className="min-w-0 truncate text-foreground">{item.value} <span className="text-xs text-muted-foreground">· dipakai {item.uses}×</span></span>
+                      <Button type="button" variant="ghost" size="sm" onClick={() => setDraft({ ...draft, options: [...draft.options, item.value] })}>
+                        Masukkan ke daftar
+                      </Button>
+                    </li>
+                  ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
+
       <div className="flex items-center gap-2.5">
         <Checkbox
           id={`required-${uid}`}
@@ -275,6 +319,7 @@ export function FieldManager({ fields, formKey }: { fields: FormField[]; formKey
   const [draft, setDraft] = useState<Draft>(EMPTY_DRAFT)
   const [usage, setUsage] = useState<Record<string, number> | null>(null)
   const [usageLoading, setUsageLoading] = useState(false)
+  const [suggestions, setSuggestions] = useState<Array<{ value: string; uses: number }> | null>(null)
   const [pending, start] = useTransition()
   const router = useRouter()
 
@@ -288,9 +333,11 @@ export function FieldManager({ fields, formKey }: { fields: FormField[]; formKey
     setEditingId(field.id)
     setAdding(false)
     setUsage(null)
+    setSuggestions(null)
 
     if (!isChoiceType(field.fieldType) || !canEditOptions(field, formKey)) return
 
+    getOffListAnswers(formKey, field.id).then(setSuggestions).catch(() => setSuggestions(null))
     setUsageLoading(true)
     getFieldOptionUsage(formKey, field.id)
       .then((counts) => setUsage(counts))
@@ -340,6 +387,7 @@ export function FieldManager({ fields, formKey }: { fields: FormField[]; formKey
               saving={pending}
               usage={null}
               usageLoading={false}
+              suggestions={null}
               onCancel={() => setAdding(false)}
               onSave={() => run(() => createFormField(formKey, draft), "Field ditambahkan")}
             />
@@ -358,6 +406,7 @@ export function FieldManager({ fields, formKey }: { fields: FormField[]; formKey
                   saving={pending}
                   usage={usage}
                   usageLoading={usageLoading}
+                  suggestions={suggestions}
                   onCancel={() => setEditingId(null)}
                   onSave={() => run(() => updateFormField(formKey, field.id, draft), "Field disimpan")}
                 />
