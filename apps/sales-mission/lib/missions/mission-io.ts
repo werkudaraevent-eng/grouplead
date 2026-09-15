@@ -34,6 +34,7 @@ const CORE_EXAMPLES: Record<string, string> = {
   client_company: "PT Arunika Kreasi",
   mission_type: "Meeting",
   location: "Jakarta Selatan",
+  address: "Jl. Jend. Sudirman Kav. 52-53",
   date: "2026-09-15",
   start_time: "09:30",
   end_time: "11:00",
@@ -124,6 +125,7 @@ export interface ParsedRow {
   startTime: string
   endTime: string
   location: string
+  address: string
   objective: string
   primarySalesEmail: string
   supportingSalesEmails: string[]
@@ -307,6 +309,7 @@ export function parseRow(
       startTime,
       endTime,
       location: get("location"),
+      address: get("address"),
       objective: get("objective"),
       primarySalesEmail,
       supportingSalesEmails,
@@ -365,6 +368,7 @@ export function toExportRows(
       client_company: mission.clientCompanyName,
       mission_type: mission.missionType,
       location: mission.location ?? "",
+      address: mission.address ?? "",
       date: start ? day.format(start) : "",
       start_time: start ? time.format(start) : "",
       end_time: end ? time.format(end) : "",

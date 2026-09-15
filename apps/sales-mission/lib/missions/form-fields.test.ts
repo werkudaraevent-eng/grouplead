@@ -242,8 +242,10 @@ describe("CORE_MISSION_FIELDS", () => {
     expect(CORE_MISSION_FIELDS.map((field) => field.reportingKey)).toEqual([
       "client_company",
       "mission_type",
-      "location",
       "objective",
+      "address",
+      "building",
+      "location",
       "primary_sales",
       "supporting_sales",
       "date",
@@ -255,7 +257,6 @@ describe("CORE_MISSION_FIELDS", () => {
       "contact_division",
       "contact_phone",
       "contact_email",
-      "building",
       "appointment_notes",
     ])
   })

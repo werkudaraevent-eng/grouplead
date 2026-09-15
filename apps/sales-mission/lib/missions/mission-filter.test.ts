@@ -24,6 +24,7 @@ function mission(overrides: Partial<MissionListItem> & { id: string }): MissionL
     missionType: "Meeting",
     status: "ASSIGNED" as MissionStatus,
     location: null,
+    address: null,
     objective: null,
     scheduledStart: "2026-09-01T02:30:00.000Z",
     scheduledEnd: null,

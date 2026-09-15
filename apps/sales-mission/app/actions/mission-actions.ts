@@ -52,6 +52,7 @@ function readMissionForm(formData: FormData) {
     contactPhone: formData.get("contactPhone") || undefined,
     contactEmail: formData.get("contactEmail") || undefined,
     building: formData.get("building") || undefined,
+    address: formData.get("address") || undefined,
     appointmentNotes: formData.get("appointmentNotes") || undefined,
   })
 }
@@ -158,6 +159,7 @@ export async function createMission(
     contact_phone: parsed.data.contactPhone,
     contact_email: parsed.data.contactEmail,
     building: parsed.data.building,
+    address: parsed.data.address,
     appointment_notes: parsed.data.appointmentNotes,
   }
 
@@ -218,6 +220,7 @@ export async function createMission(
       contact_phone: input.contactPhone || null,
       contact_email: input.contactEmail || null,
       building: input.building || null,
+      address: input.address || null,
       appointment_notes: input.appointmentNotes || null,
       created_by: access.userId,
     })
@@ -568,6 +571,7 @@ export async function updateMission(
     contact_phone: input.contactPhone,
     contact_email: input.contactEmail,
     building: input.building,
+    address: input.address,
     appointment_notes: input.appointmentNotes,
   }
   for (const field of formFields) {
@@ -624,6 +628,7 @@ export async function updateMission(
       contact_phone: input.contactPhone || null,
       contact_email: input.contactEmail || null,
       building: input.building || null,
+      address: input.address || null,
       appointment_notes: input.appointmentNotes || null,
       updated_at: new Date().toISOString(),
     })

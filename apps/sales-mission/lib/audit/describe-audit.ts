@@ -74,6 +74,7 @@ const COLUMN_LABELS: Record<string, string> = {
   contact_division: "divisi kontak",
   contact_salutation: "sapaan",
   building: "gedung",
+  address: "alamat",
   appointment_notes: "catatan janji temu",
   visit_outcome: "hasil kunjungan",
   interest_level: "tingkat minat",

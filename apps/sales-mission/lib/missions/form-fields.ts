@@ -132,8 +132,13 @@ export const CORE_MISSION_FIELDS: Array<
   // Seeded with the list the mission form used to hardcode, so switching it to
   // config changes nothing on day one and everything after.
   { reportingKey: "mission_type", label: "Jenis mission", fieldType: "SELECT", isRequired: true, displayOrder: 20, options: [...DEFAULT_MISSION_TYPES] },
-  { reportingKey: "location", label: "Lokasi", fieldType: "TEXT", isRequired: false, displayOrder: 30 },
-  { reportingKey: "objective", label: "Tujuan kunjungan", fieldType: "TEXT", isRequired: false, displayOrder: 40 },
+  { reportingKey: "objective", label: "Tujuan kunjungan", fieldType: "TEXT", isRequired: false, displayOrder: 25 },
+  // The address block, in the order every global address form uses: the
+  // street, then the building or unit, then the city that the map, the
+  // filters and the calendar's travel buffer key on.
+  { reportingKey: "address", label: "Alamat jalan", fieldType: "TEXT", isRequired: false, displayOrder: 30 },
+  { reportingKey: "building", label: "Gedung / lantai / unit", fieldType: "TEXT", isRequired: false, displayOrder: 32 },
+  { reportingKey: "location", label: "Kota", fieldType: "TEXT", isRequired: false, displayOrder: 34 },
   // Who goes comes before when: the schedule picker draws the calendars of
   // whoever is being sent, so it has nothing to show until they are chosen.
   { reportingKey: "primary_sales", label: "Sales utama", fieldType: "SELECT", isRequired: true, displayOrder: 50 },
@@ -150,7 +155,6 @@ export const CORE_MISSION_FIELDS: Array<
   { reportingKey: "contact_division", label: "Divisi", fieldType: "TEXT", isRequired: false, displayOrder: 120 },
   { reportingKey: "contact_phone", label: "Telepon", fieldType: "TEXT", isRequired: false, displayOrder: 130 },
   { reportingKey: "contact_email", label: "Email", fieldType: "TEXT", isRequired: false, displayOrder: 140 },
-  { reportingKey: "building", label: "Gedung / lantai", fieldType: "TEXT", isRequired: false, displayOrder: 150 },
   { reportingKey: "appointment_notes", label: "Catatan janji temu", fieldType: "LONG_TEXT", isRequired: false, displayOrder: 160 },
 ]
 

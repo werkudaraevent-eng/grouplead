@@ -89,7 +89,8 @@ const CORE_SPANS: Record<string, Span> = {
   contact_division: "half",
   contact_phone: "half",
   contact_email: "half",
-  building: "full",
+  address: "full",
+  building: "half",
   appointment_notes: "full",
 }
 
@@ -104,8 +105,10 @@ const CORE_SPANS: Record<string, Span> = {
 const CORE_SECTIONS: Record<string, string> = {
   client_company: "Kunjungan",
   mission_type: "Kunjungan",
-  location: "Kunjungan",
   objective: "Kunjungan",
+  address: "Alamat",
+  building: "Alamat",
+  location: "Alamat",
   primary_sales: "Tim yang berangkat",
   supporting_sales: "Tim yang berangkat",
   date: "Jadwal",
@@ -117,13 +120,13 @@ const CORE_SECTIONS: Record<string, string> = {
   contact_division: "Janji temu",
   contact_phone: "Janji temu",
   contact_email: "Janji temu",
-  building: "Janji temu",
   appointment_notes: "Janji temu",
 }
 
 /** One line under each section title saying what the section decides. */
 const SECTION_HINTS: Record<string, string> = {
   Kunjungan: "Ke mana dan untuk apa.",
+  Alamat: "Tempat kunjungan, dari jalan sampai lantainya. Kota dipakai untuk peta, filter, dan waktu perjalanan.",
   "Tim yang berangkat": "Siapa yang memimpin kunjungan dan siapa yang mendampingi. Kalender di bawah mengikuti jadwal mereka.",
   Jadwal: "Kunjungan tim yang dipilih tergambar di sini, jadi jam yang diambil tidak bentrok.",
   "Janji temu": "Siapa yang ditemui dan apa yang sudah disepakati saat membuat janji.",
@@ -318,6 +321,7 @@ export interface MissionPrefill {
   contactPhone: string
   contactEmail: string
   building: string
+  address: string
   appointmentNotes: string
 }
 
@@ -444,6 +448,12 @@ export function MissionForm({
             <select id="field-mission_type" name="missionType" defaultValue={prefill?.missionType && missionTypes.includes(prefill.missionType) ? prefill.missionType : missionTypes[0]} className={SELECT_CLASS}>
               {missionTypes.map((type) => <option key={type} value={type}>{type}</option>)}
             </select>
+          </FieldShell>
+        )
+      case "address":
+        return (
+          <FieldShell field={field} key={field.id}>
+            <Input id="field-address" name="address" maxLength={300} required={field.isRequired} defaultValue={prefill?.address} autoComplete="address-line1" placeholder={field.placeholder ?? "Jl. Jend. Sudirman Kav. 52-53"} className="h-12" />
           </FieldShell>
         )
       case "location":
@@ -602,7 +612,7 @@ export function MissionForm({
       case "building":
         return (
           <FieldShell field={field} key={field.id}>
-            <Input id="field-building" name="building" maxLength={300} required={field.isRequired} defaultValue={prefill?.building} placeholder={field.placeholder ?? "Menara BCA lt. 21"} className="h-12" />
+            <Input id="field-building" name="building" maxLength={300} required={field.isRequired} defaultValue={prefill?.building} autoComplete="address-line2" placeholder={field.placeholder ?? "Menara BCA lt. 21"} className="h-12" />
           </FieldShell>
         )
       case "appointment_notes":
@@ -700,9 +710,9 @@ export function MissionForm({
         <section
           key={`${block.section}-${index}`}
           aria-labelledby={`section-${index}`}
-          className="overflow-clip rounded-xl border bg-card"
+          className="rounded-xl border bg-card"
         >
-          <header className="border-b px-5 py-4 sm:px-6">
+          <header className="rounded-t-xl border-b px-5 py-4 sm:px-6">
             <h2 id={`section-${index}`} className="text-base font-semibold tracking-tight text-foreground">
               {block.section}
             </h2>

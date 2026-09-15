@@ -18,6 +18,7 @@ function mission(id: string, scheduledStart: string | null): MissionListItem {
     missionType: "Meeting",
     status: "ASSIGNED",
     location: null,
+    address: null,
     objective: null,
     scheduledStart,
     scheduledEnd: null,

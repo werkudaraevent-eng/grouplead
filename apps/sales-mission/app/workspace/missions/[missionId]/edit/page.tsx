@@ -81,6 +81,7 @@ export default async function EditMissionPage({ params }: { params: Promise<{ mi
     contactPhone: mission.appointment.phone ?? "",
     contactEmail: mission.appointment.email ?? "",
     building: mission.appointment.building ?? "",
+    address: mission.address ?? "",
     appointmentNotes: mission.appointment.notes ?? "",
   }
 

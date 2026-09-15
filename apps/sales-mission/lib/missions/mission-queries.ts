@@ -24,7 +24,7 @@ import type {
  */
 
 const MISSION_COLUMNS =
-  "id, client_company_name_snapshot, client_company_id, mission_type, status, objective, location, scheduled_start, scheduled_end, allow_join, created_by, created_at, contact_salutation, contact_id, contact_name, contact_job_title, contact_division, contact_phone, contact_email, building, appointment_notes"
+  "id, client_company_name_snapshot, client_company_id, mission_type, status, objective, location, scheduled_start, scheduled_end, allow_join, created_by, created_at, contact_salutation, contact_id, contact_name, contact_job_title, contact_division, contact_phone, contact_email, building, appointment_notes, address"
 
 /** Mission tables live in their own schema; identity tables stay in `public`. */
 async function missionSchema() {

@@ -241,7 +241,7 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
 
             <div className="grid divide-y sm:grid-cols-3 sm:divide-x sm:divide-y-0">
               <Fact icon={CalendarDays} label="Jadwal" value={formatMissionSchedule(mission.scheduledStart, new Date())} />
-              <Fact icon={MapPin} label="Lokasi" value={mission.location ?? "Belum diisi"} />
+              <Fact icon={MapPin} label="Lokasi" value={[mission.address, mission.appointment.building, mission.location].filter(Boolean).join(", ") || "Belum diisi"} />
               <Fact icon={UsersRound} label="Sales utama" value={mission.primarySalesName ?? "Belum ditugaskan"} />
             </div>
 

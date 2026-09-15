@@ -59,6 +59,7 @@ export default async function NewMissionPage({
         contactPhone: source.appointment.phone ?? "",
         contactEmail: source.appointment.email ?? "",
         building: source.appointment.building ?? "",
+        address: source.address ?? "",
         appointmentNotes: source.appointment.notes ?? "",
       }
     }

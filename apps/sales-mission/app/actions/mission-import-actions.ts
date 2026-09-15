@@ -219,6 +219,7 @@ export async function commitMissionImport(rows: RawRow[]): Promise<ImportResult>
         contact_phone: row.contactPhone || null,
         contact_email: row.contactEmail || null,
         building: row.building || null,
+        address: row.address || null,
         appointment_notes: row.appointmentNotes || null,
         created_by: access.userId,
       })
