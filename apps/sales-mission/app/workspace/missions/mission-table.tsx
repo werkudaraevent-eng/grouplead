@@ -160,7 +160,7 @@ function ActionCell({
     return (
       <span className="flex items-center justify-end gap-1.5">
         <Button asChild size="sm" variant="outline">
-          <Link href={`/workspace/missions/${mission.id}#laporan`}>
+          <Link href={`/workspace/missions/${mission.id}?fokus=laporan`}>
             <ClipboardList className="h-4 w-4" /> Lihat laporan
           </Link>
         </Button>
@@ -446,7 +446,7 @@ export function MissionTable({
                     <JoinButton missionId={mission.id} status="JOINABLE" maxSupporting={maxSupporting} size="default" />
                   ) : (
                     <Button asChild variant="outline" size="default" className="h-11">
-                      <Link href={`/workspace/missions/${mission.id}#laporan`}>
+                      <Link href={`/workspace/missions/${mission.id}?fokus=laporan`}>
                         <ClipboardList className="h-4 w-4" /> Lihat laporan
                       </Link>
                     </Button>

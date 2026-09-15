@@ -100,7 +100,7 @@ export function ReportTable({
     )
   }
 
-  const href = (report: ReportListItem) => `/workspace/missions/${report.missionId}#laporan`
+  const href = (report: ReportListItem) => `/workspace/missions/${report.missionId}?fokus=laporan`
 
   return (
     <>

@@ -61,6 +61,8 @@ import { CancelMissionButton } from "./cancel-mission"
 import { visitReachesCrm } from "@/lib/missions/crm-sync"
 import { getLastEdit } from "@/lib/audit/audit-queries"
 import { listFormFields } from "@/lib/missions/form-field-queries"
+import { Suspense } from "react"
+import { ScrollToSection } from "@/components/scroll-to-section"
 
 export const dynamic = "force-dynamic"
 
@@ -209,6 +211,8 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
       description={[mission.missionType, mission.location].filter(Boolean).join(" · ")}
       action={<BackLink />}
     >
+      {/* ?fokus=laporan from the lists: scroll the shell's panel, never the window. */}
+      <Suspense fallback={null}><ScrollToSection /></Suspense>
       <section className="grid gap-4 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
         <div className="min-w-0 space-y-4">
           {isCancelled && (
