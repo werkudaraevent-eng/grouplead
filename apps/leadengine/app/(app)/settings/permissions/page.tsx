@@ -226,7 +226,7 @@ function ScopeSegments({
               disabled={disabled}
               onClick={() => { if (!selected) onChange(option.value) }}
               className={cn(
-                "inline-flex h-8 items-center gap-1 px-3 text-[12px] font-medium transition-colors disabled:cursor-default disabled:opacity-60",
+                "inline-flex h-8 items-center gap-1 px-2.5 text-[12px] font-medium transition-colors disabled:cursor-default disabled:opacity-60",
                 index > 0 && "border-l border-border",
                 selected ? "bg-primary/12 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground"
               )}
@@ -1106,71 +1106,48 @@ export default function GlobalPermissionsPage() {
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
           </div>
         ) : (
-          // M3 list-detail: a fixed-width role list that stays put while the
-          // detail scrolls, and a detail pane that takes the rest. A
-          // twelve-column split left a quarter of the width to five role
-          // names and starved the matrix.
-          <div className="grid gap-6 lg:grid-cols-[264px_minmax(0,1fr)]">
-            {/* ─── Left: Dynamic Role Sidebar ──────────────────────────── */}
-            <div className="lg:sticky lg:top-24 lg:self-start">
-              <div className="flex items-center justify-between mb-3 px-1">
-                <h3 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-                  Hierarki role
-                </h3>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="h-6 w-6 p-0 hover:bg-muted"
-                  onClick={() => openRoleModal()}
-                  disabled={!canManagePermissions}
-                  title="Buat role baru"
-                >
-                  <Plus className="h-3.5 w-3.5" />
-                </Button>
-              </div>
-
-              <nav className="flex flex-row lg:flex-col gap-1">
-                {roles.map((role) => {
-                  const Icon = getRoleIcon(role.name)
-                  const isActive = selectedRole?.id === role.id
-                  return (
-                    <button
-                      key={role.id}
-                      onClick={() => setSelectedRole(role)}
-                      className={cn(
-                        "flex items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm transition-all w-full",
-                        isActive
-                          ? "bg-primary text-primary-foreground shadow-sm"
-                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                      )}
-                    >
-                      <Icon className="h-4 w-4 shrink-0" />
-                      <div className="hidden lg:block min-w-0">
-                        <div className={cn("font-medium truncate", isActive ? "text-primary-foreground" : "text-foreground")}>
-                          {role.name}
-                        </div>
-                        {role.parent_id ? (
-                          <div className={cn(
-                            "text-[11px] truncate flex items-center gap-0.5",
-                            isActive ? "text-primary-foreground/70" : "text-muted-foreground"
-                          )}>
-                            <ChevronRight className="h-3 w-3 shrink-0" />
-                            {getRoleName(role.parent_id)}
-                          </div>
-                        ) : role.description ? (
-                          <div className={cn("text-xs truncate", isActive ? "text-primary-foreground/70" : "text-muted-foreground")}>
-                            {role.description}
-                          </div>
-                        ) : null}
-                      </div>
-                      <span className="lg:hidden font-medium">{role.name}</span>
-                    </button>
-                  )
-                })}
-              </nav>
+          // One pane. Two panes (a role list beside the matrix) only fit on a
+          // wide screen; on a laptop at a readable zoom the list took a
+          // quarter of the width and the matrix fell below its minimum and
+          // scrolled sideways. Material's list-detail collapses to a single
+          // pane below the expanded width, with the selector on top; HubSpot's
+          // Roles and Salesforce's profiles are one role per page the same
+          // way. Roles are choice chips: one selected, all visible, wrapping.
+          <div className="space-y-5">
+            <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Pilih role">
+              <span className="mr-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Role</span>
+              {roles.map((role) => {
+                const Icon = getRoleIcon(role.name)
+                const isActive = selectedRole?.id === role.id
+                return (
+                  <button
+                    key={role.id}
+                    type="button"
+                    onClick={() => setSelectedRole(role)}
+                    aria-pressed={isActive}
+                    className={cn(
+                      "inline-flex h-9 items-center gap-2 rounded-full border px-3.5 text-sm font-medium transition-colors",
+                      isActive
+                        ? "border-transparent bg-primary/12 text-primary"
+                        : "border-border bg-card text-foreground hover:bg-muted"
+                    )}
+                  >
+                    {isActive ? <Check className="h-4 w-4" aria-hidden="true" /> : <Icon className="h-4 w-4 text-muted-foreground" aria-hidden="true" />}
+                    {role.name}
+                  </button>
+                )
+              })}
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-9 rounded-full px-3"
+                onClick={() => openRoleModal()}
+                disabled={!canManagePermissions}
+              >
+                <Plus className="h-4 w-4" /> Role baru
+              </Button>
             </div>
 
-            {/* ─── Right: Permissions Matrix ────────────────────────────── */}
             <div className="min-w-0">
               {selectedRole ? (
                 <Card>
@@ -1183,6 +1160,11 @@ export default function GlobalPermissionsPage() {
                         </CardTitle>
                         <CardDescription className="mt-1">
                           {selectedRole.description || "Tanpa deskripsi"}
+                          {selectedRole.parent_id && (
+                            <span className="mt-0.5 flex items-center gap-1 text-xs">
+                              <ChevronRight className="h-3 w-3 shrink-0" aria-hidden="true" /> Di bawah {getRoleName(selectedRole.parent_id)} dalam hierarki role
+                            </span>
+                          )}
                         </CardDescription>
                       </div>
                       {isSuperAdmin ? (
@@ -1307,15 +1289,15 @@ export default function GlobalPermissionsPage() {
                         never up and down.
                       */}
                       <div className="overflow-x-auto rounded-lg border">
-                        <table className="w-full min-w-[880px] table-fixed text-sm">
+                        <table className="w-full min-w-[760px] table-fixed text-sm">
                           <colgroup>
                             <col />
-                            <col className="w-[76px]" />
-                            <col className="w-[76px]" />
-                            <col className="w-[76px]" />
-                            <col className="w-[76px]" />
-                            <col className="w-[248px]" />
-                            <col className="w-[56px]" />
+                            <col className="w-[64px]" />
+                            <col className="w-[64px]" />
+                            <col className="w-[64px]" />
+                            <col className="w-[64px]" />
+                            <col className="w-[224px]" />
+                            <col className="w-[48px]" />
                           </colgroup>
                           <thead>
                             <tr className="border-b bg-muted">
