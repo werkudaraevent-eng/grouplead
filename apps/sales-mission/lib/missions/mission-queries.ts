@@ -1,3 +1,4 @@
+import { cache } from "react"
 import { createClient } from "@/utils/supabase/server"
 import { reportChoiceLabels } from "./report-choice-queries"
 import type { SalesMissionAccess } from "@/lib/sales-mission-access"
@@ -529,43 +530,42 @@ export interface TenantSalesOption {
   email: string | null
   /** The photo set in LeadEngine, shown wherever this person is listed. */
   avatarUrl: string | null
+  /**
+   * May lead a visit: their role holds Laporan kunjungan → Buat, so they
+   * can write the report the sales utama owes. Anyone listed may support.
+   */
+  canLead: boolean
 }
 
 /**
- * People who can be assigned a mission: active members of this tenant.
- *
- * Membership comes from `company_members`, which LeadEngine owns — Sales
- * Mission reads it and never writes it.
+ * People who can be put on a mission: every active member of any company
+ * in the group who has Sales Mission access, with whether the matrix lets
+ * them lead. Read through a definer function, because membership rows live
+ * under each unit and row security shows a unit member only their own
+ * unit's rows. Membership itself is LeadEngine's; Sales Mission never
+ * writes it. Memoised per request: a page asks for this list several times.
  */
-export async function listTenantSales(access: SalesMissionAccess): Promise<TenantSalesOption[]> {
+export const listTenantSales = cache(async (access: SalesMissionAccess): Promise<TenantSalesOption[]> => {
   const supabase = await createClient()
+  const { data, error } = await supabase.schema("sales_mission").rpc("fn_group_people")
+  if (error) console.error("[listTenantSales]", error.code, error.message)
+  const rows = (data ?? []) as Array<{ id: string; full_name: string; email: string | null; avatar_url: string | null; can_lead: boolean | null }>
+  return rows.map((row) => ({
+    id: row.id,
+    name: row.full_name,
+    email: row.email ?? null,
+    avatarUrl: row.avatar_url?.trim() || null,
+    canLead: row.can_lead !== false,
+  }))
+})
 
-  const { data: members } = await supabase
-    .from("company_members")
-    .select("user_id")
-    .eq("company_id", access.companyId)
-
-  const userIds = (members ?? []).map((row) => row.user_id as string)
-  if (userIds.length === 0) return []
-
-  const { data: profiles } = await supabase
-    .from("profiles")
-    .select("id, full_name, email, avatar_url")
-    .in("id", userIds)
-    .eq("is_active", true)
-    .order("full_name")
-
-  return (profiles ?? [])
-    .filter(
-      (row): row is { id: string; full_name: string; email: string | null; avatar_url: string | null } =>
-        Boolean(row.full_name)
-    )
-    .map((row) => ({
-      id: row.id,
-      name: row.full_name,
-      email: row.email ?? null,
-      avatarUrl: row.avatar_url?.trim() || null,
-    }))
+/** Ids of everyone who may be put on a mission, for checking a submitted team. */
+export async function listAssignableIds(access: SalesMissionAccess): Promise<{ members: Set<string>; leads: Set<string> }> {
+  const people = await listTenantSales(access)
+  return {
+    members: new Set(people.map((person) => person.id)),
+    leads: new Set(people.filter((person) => person.canLead).map((person) => person.id)),
+  }
 }
 
 /**

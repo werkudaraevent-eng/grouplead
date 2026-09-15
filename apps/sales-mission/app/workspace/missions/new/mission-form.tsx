@@ -409,11 +409,16 @@ export function MissionForm({
     errorRef.current?.focus()
   }, [state])
 
-  if (salesOptions.length === 0) {
+  // Leading a visit means writing its report, so only people whose role
+  // holds Laporan kunjungan → Buat are offered as sales utama. Anyone in
+  // the group may support.
+  const leadOptions = salesOptions.filter((option) => option.canLead)
+
+  if (leadOptions.length === 0) {
     return (
       <EmptyState
-        title="Belum ada anggota tim"
-        description="Mission butuh minimal satu sales untuk ditugaskan. Minta admin menambahkan anggota ke unit bisnis ini lebih dulu."
+        title="Belum ada yang bisa menjadi sales utama"
+        description="Sales utama menulis laporan kunjungan, jadi perannya harus punya izin Laporan kunjungan → Buat. Minta admin mengaturnya di Role & Izin, atau menambahkan anggota ke grup."
         action={
           <Button asChild variant="outline" size="sm">
             <Link href="/workspace/missions">Kembali ke daftar mission</Link>
@@ -556,7 +561,7 @@ export function MissionForm({
               id="field-primary_sales"
               name="primarySalesId"
               required
-              people={salesOptions}
+              people={leadOptions}
               value={primarySalesId}
               onChange={(id) => {
                 setPrimarySalesId(id)

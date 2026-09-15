@@ -5,6 +5,7 @@ import { redirect } from "next/navigation"
 import { createClient } from "@/utils/supabase/server"
 import { canPerform, getSalesMissionAccess, resolveScope, type SalesMissionAccess } from "@/lib/sales-mission-access"
 import { listFormFields } from "@/lib/missions/form-field-queries"
+import { listAssignableIds } from "@/lib/missions/mission-queries"
 import { DEFAULT_CONTACT_SALUTATIONS, DEFAULT_INDUSTRIES, isAllowedChoice, readCustomAnswers, validateFieldAnswers, type FieldAnswer, type FormField } from "@/lib/missions/form-fields"
 import { isEmptyAnswer, missingRequiredCore } from "@/lib/prospects/prospect-form-fields"
 import { normalizePhone } from "@/lib/format/phone"
@@ -87,9 +88,9 @@ function toRow(input: ProspectInput) {
 
 async function memberIds(access: SalesMissionAccess, ids: string[]): Promise<Set<string>> {
   if (ids.length === 0) return new Set()
-  const supabase = await createClient()
-  const { data } = await supabase.from("company_members").select("user_id").eq("company_id", access.companyId).in("user_id", ids)
-  return new Set((data ?? []).map((row) => row.user_id as string))
+  // Anyone in the group, whichever unit they sit under.
+  const { members } = await listAssignableIds(access)
+  return new Set(ids.filter((id) => members.has(id)))
 }
 
 /**

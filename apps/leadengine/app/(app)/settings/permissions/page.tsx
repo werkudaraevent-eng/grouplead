@@ -93,7 +93,7 @@ const MODULE_DISPLAY: Record<string, { name: string; description: string; detail
   sales_mission_result: {
     name: "Laporan kunjungan",
     description: "Mengisi dan mengubah laporan, mengirim lead. Pemilik: sales utama; tim mission ikut melihat.",
-    details: "Lihat: membaca laporan dan halaman Laporan. Buat: mengisi laporan dan mengirim lead untuk mission di dalam Cakupan. Ubah: mengubah laporan terkirim milik orang di dalam Cakupan kapan saja dan meminta klarifikasi; penulisnya sendiri selalu boleh mengubah dalam jendela hari yang diatur di Pengaturan mission.",
+    details: "Lihat: membaca laporan dan halaman Laporan. Buat: mengisi laporan dan mengirim lead untuk mission di dalam Cakupan; Buat juga menentukan siapa yang bisa dipilih sebagai sales utama saat menjadwalkan. Ubah: mengubah laporan terkirim milik orang di dalam Cakupan kapan saja dan meminta klarifikasi; penulisnya sendiri selalu boleh mengubah dalam jendela hari yang diatur di Pengaturan mission.",
   },
   sales_mission_contact: {
     name: "Kontak mission",

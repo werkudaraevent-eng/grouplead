@@ -70,8 +70,10 @@ async function validate(rows: RawRow[]) {
   // Email to user id, for this tenant only. An email that is not a member here
   // must not resolve, or an import could assign visits across companies.
   const byEmail = new Map<string, string>()
+  const leads = new Set<string>()
   for (const person of sales) {
     if (person.email) byEmail.set(person.email.toLowerCase(), person.id)
+    if (person.canLead) leads.add(person.id)
   }
 
   const parsed: ParsedRow[] = []
@@ -83,6 +85,13 @@ async function validate(rows: RawRow[]) {
     const result = parseRow(raw, rowNumber, columns, fields, allowedTypes)
     issues.push(...result.issues)
 
+    if (result.row.primarySalesEmail && byEmail.has(result.row.primarySalesEmail) && !leads.has(byEmail.get(result.row.primarySalesEmail) as string)) {
+      issues.push({
+        row: result.row.row,
+        column: SALES_EMAIL_COLUMN,
+        message: `"${result.row.primarySalesEmail}" tidak boleh menjadi sales utama: perannya tidak punya izin Laporan kunjungan → Buat.`,
+      })
+    }
     if (result.row.primarySalesEmail && !byEmail.has(result.row.primarySalesEmail)) {
       issues.push({
         row: rowNumber,

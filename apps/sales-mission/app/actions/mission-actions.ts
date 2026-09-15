@@ -8,7 +8,7 @@ import { resolveMissionGates } from "@/lib/missions/mission-rights"
 import { describeOutOfScope, inScope, missionOwners } from "@/lib/access/record-scope"
 import { MISSION_TIME_ZONE, MISSION_TYPES, createMissionSchema, toMissionTimestamp, type AssignmentResponse } from "@/lib/missions/mission-schema"
 import { listFormFields } from "@/lib/missions/form-field-queries"
-import { getMission, getMissionRole, getMissionSettings, listMissionTeam } from "@/lib/missions/mission-queries"
+import { getMission, getMissionRole, getMissionSettings, listAssignableIds, listMissionTeam } from "@/lib/missions/mission-queries"
 import { notify } from "@/lib/notifications/notification-queries"
 import { rescheduleMission } from "@/app/actions/assignment-actions"
 import { recordCompanyVisit } from "@/lib/leadengine/client"
@@ -115,14 +115,10 @@ export async function createMission(
   // Three reads that do not depend on each other, so they share one wait.
   const supabase = await createClient()
   const assigneeIds = [parsed.data.primarySalesId, ...parsed.data.supportingSalesIds]
-  const [formFields, settings, memberCheck] = await Promise.all([
+  const [formFields, settings, assignable] = await Promise.all([
     listFormFields(access, "mission"),
     getMissionSettings(access),
-    supabase
-      .from("company_members")
-      .select("user_id")
-      .eq("company_id", access.companyId)
-      .in("user_id", assigneeIds),
+    listAssignableIds(access),
   ])
   if (!isAllowedChoice(formFields, "mission_type", parsed.data.missionType, MISSION_TYPES)) {
     return { success: false, error: "Jenis mission itu tidak ada dalam daftar." }
@@ -205,10 +201,12 @@ export async function createMission(
   // Never trust user ids from the client. An assignee must be a member of this
   // tenant, or a crafted request could assign missions to anyone in the shared
   // database.
-  const { data: members, error: memberError } = memberCheck
-  if (memberError) return { success: false, error: "Gagal memverifikasi anggota tim." }
-
-  const validIds = new Set((members ?? []).map((row) => row.user_id as string))
+  // Everyone on the team belongs to the group, and the sales utama's role
+  // lets them write the report the visit will owe.
+  const validIds = assignable.members
+  if (!assignable.leads.has(parsed.data.primarySalesId)) {
+    return { success: false, error: "Sales utama harus punya izin Laporan kunjungan → Buat di Role & Izin." }
+  }
   const unknown = assigneeIds.filter((id) => !validIds.has(id))
   if (unknown.length > 0) {
     return { success: false, error: "Sales yang dipilih bukan anggota unit bisnis ini." }
@@ -587,9 +585,9 @@ export async function updateMission(
   const supabase = await createClient()
   const missions = supabase.schema("sales_mission")
   const assigneeIds = [input.primarySalesId, ...input.supportingSalesIds]
-  const [formFields, memberCheck, team] = await Promise.all([
+  const [formFields, assignable, team] = await Promise.all([
     listFormFields(access, "mission"),
-    supabase.from("company_members").select("user_id").eq("company_id", access.companyId).in("user_id", assigneeIds),
+    listAssignableIds(access),
     listMissionTeam(access, missionId),
   ])
 
@@ -624,11 +622,12 @@ export async function updateMission(
     if (empty) return { success: false, error: `${field.label} wajib diisi.` }
   }
 
-  const { data: members, error: memberError } = memberCheck
-  if (memberError) return { success: false, error: "Gagal memverifikasi anggota tim." }
-  const validIds = new Set((members ?? []).map((row) => row.user_id as string))
+  const validIds = assignable.members
+  if (!assignable.leads.has(input.primarySalesId)) {
+    return { success: false, error: "Sales utama harus punya izin Laporan kunjungan → Buat di Role & Izin." }
+  }
   if (assigneeIds.some((id) => !validIds.has(id))) {
-    return { success: false, error: "Sales yang dipilih bukan anggota unit bisnis ini." }
+    return { success: false, error: "Sales yang dipilih bukan anggota grup ini." }
   }
 
   // Custom answers are validated before anything is written, so a bad
