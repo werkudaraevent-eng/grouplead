@@ -1,5 +1,6 @@
 import { missionDayKey } from "@/lib/missions/mission-calendar"
 import { isDecisionMakerOutcome, isNoAction, labelOf, type ChoiceSet } from "@/lib/missions/report-choices"
+import { isOnTime, visitDurationMinutes } from "@/lib/missions/visit-time"
 import type {
   InterestLevel,
   NextActionType,
@@ -32,6 +33,10 @@ export interface ReportRecord {
   submittedAt: string | null
   contactCount: number
   pushedLeadId: string | null
+  /** The appointment and the reported start, for the on-time rate. */
+  scheduledStart?: string | null
+  actualStart?: string | null
+  actualEnd?: string | null
 }
 
 export interface KpiSummary {
@@ -46,6 +51,10 @@ export interface KpiSummary {
   leadsPushed: number
   /** Share of submitted visits that reached a decision maker, 0–100. */
   decisionMakerRate: number
+  /** Share of visits with a reported start that began within the grace period, 0–100. Null when none reported a time. */
+  onTimeRate: number | null
+  /** Average reported length of a visit in minutes. Null when none reported an end. */
+  averageVisitMinutes: number | null
 }
 
 export interface Breakdown {
@@ -150,6 +159,14 @@ export function buildKpiReport(
     leadsPushed: submitted.filter((record) => record.pushedLeadId !== null).length,
     decisionMakerRate:
       submitted.length === 0 ? 0 : Math.round((decisionMakerVisits / submitted.length) * 100),
+    onTimeRate: (() => {
+      const judged = submitted.map((record) => isOnTime(record.actualStart, record.scheduledStart)).filter((value): value is boolean => value !== null)
+      return judged.length === 0 ? null : Math.round((judged.filter(Boolean).length / judged.length) * 100)
+    })(),
+    averageVisitMinutes: (() => {
+      const lengths = submitted.map((record) => visitDurationMinutes(record.actualStart, record.actualEnd)).filter((value): value is number => value !== null)
+      return lengths.length === 0 ? null : Math.round(lengths.reduce((total, value) => total + value, 0) / lengths.length)
+    })(),
   }
 
   return {
@@ -199,6 +216,9 @@ export function toCsvRows(records: ReportRecord[]): string[][] {
     "estimated_value",
     "next_action",
     "follow_up_date",
+    "scheduled_start",
+    "actual_start",
+    "actual_end",
     "contacts_met",
     "lead_id",
     "submitted_at",
@@ -216,6 +236,9 @@ export function toCsvRows(records: ReportRecord[]): string[][] {
     record.estimatedValue === null ? "" : String(record.estimatedValue),
     record.nextActionType,
     record.followUpDate ?? "",
+    record.scheduledStart ?? "",
+    record.actualStart ?? "",
+    record.actualEnd ?? "",
     String(record.contactCount),
     record.pushedLeadId ?? "",
     record.submittedAt ?? "",

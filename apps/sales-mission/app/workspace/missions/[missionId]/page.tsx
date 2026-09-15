@@ -5,6 +5,7 @@ import { canEditSubmittedReport, describeEditWindow } from "@/lib/missions/repor
 import { listReportChoices } from "@/lib/missions/report-choice-queries"
 import { labelOf } from "@/lib/missions/report-choices"
 import { parsePhotoAnswer } from "@/lib/photos/photo-answer"
+import { describeTiming, formatVisitWindow } from "@/lib/missions/visit-time"
 import { PhotoGallery } from "@/components/photo-gallery"
 import { RequestClarificationButton } from "./report-admin-actions"
 import { canPerform, getSalesMissionAccess } from "@/lib/sales-mission-access"
@@ -531,6 +532,12 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
             )}
             <div className="grid gap-5 sm:grid-cols-2">
               <ReportField label="Hasil" value={report.visitOutcome ? labelOf(choices, "visit_outcome", report.visitOutcome) : "—"} />
+              {report.actualStart && (
+                <ReportField
+                  label="Waktu kunjungan"
+                  value={`${formatVisitWindow(report.actualStart, report.actualEnd)}${describeTiming(report.actualStart, mission.scheduledStart) ? ` · ${describeTiming(report.actualStart, mission.scheduledStart)!.text.toLowerCase()}` : ""}`}
+                />
+              )}
               <ReportField label="Tingkat minat" value={report.interestLevel ? labelOf(choices, "interest_level", report.interestLevel) : "—"} />
               <ReportField label="Next action" value={labelOf(choices, "next_action_type", report.nextActionType)} />
               <ReportField label="Follow-up" value={report.followUpDate ?? "—"} />

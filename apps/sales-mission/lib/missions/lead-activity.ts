@@ -21,7 +21,7 @@ export interface LeadActivityDraft {
 
 export function visitActivities(
   mission: Pick<MissionListItem, "clientCompanyName" | "scheduledStart" | "location" | "missionType">,
-  report: Pick<VisitReportRecord, "visitOutcome" | "meetingSummary" | "clientNeeds" | "interestLevel" | "nextActionType" | "followUpDate" | "contacts">,
+  report: Pick<VisitReportRecord, "visitOutcome" | "meetingSummary" | "clientNeeds" | "interestLevel" | "nextActionType" | "followUpDate" | "contacts"> & { actualStart?: string | null },
   pushedBy: string,
   choices: ChoiceSet | null = null
 ): LeadActivityDraft[] {
@@ -45,7 +45,7 @@ export function visitActivities(
   if (report.meetingSummary.trim()) lines.push("", report.meetingSummary.trim())
 
   return [
-    { type: "Meeting", description: lines.join("\n").slice(0, 4000), occurredAt: mission.scheduledStart ?? null },
+    { type: "Meeting", description: lines.join("\n").slice(0, 4000), occurredAt: report.actualStart ?? mission.scheduledStart ?? null },
     {
       type: "lead_created",
       description: `Lead dibuat dari laporan kunjungan Sales Mission oleh ${pushedBy}.`,

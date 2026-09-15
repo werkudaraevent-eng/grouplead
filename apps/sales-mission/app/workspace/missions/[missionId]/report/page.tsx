@@ -101,6 +101,7 @@ export default async function VisitReportPage({ params, searchParams }: { params
       <VisitReportForm
         missionId={missionId}
         clientName={mission.clientCompanyName}
+        schedule={{ start: mission.scheduledStart, end: mission.scheduledEnd }}
         report={report}
         appointmentContact={contactFromAppointment(mission.appointment)}
         editing={editing}

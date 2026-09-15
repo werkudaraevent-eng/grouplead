@@ -22,7 +22,7 @@ export async function listReportRecords(access: SalesMissionAccess): Promise<Rep
   const { data: reports } = await schema
     .from("visit_reports")
     .select(
-      "id, mission_id, status, visit_outcome, interest_level, opportunity_exists, estimated_value, next_action_type, follow_up_date, submitted_at"
+      "id, mission_id, status, visit_outcome, interest_level, opportunity_exists, estimated_value, next_action_type, follow_up_date, submitted_at, actual_start, actual_end"
     )
     .eq("company_id", access.companyId)
     .order("submitted_at", { ascending: false, nullsFirst: false })
@@ -36,7 +36,7 @@ export async function listReportRecords(access: SalesMissionAccess): Promise<Rep
     await Promise.all([
       schema
         .from("missions")
-        .select("id, mission_type, client_company_name_snapshot")
+        .select("id, mission_type, client_company_name_snapshot, scheduled_start")
         .is("deleted_at", null)
         .eq("company_id", access.companyId)
         .in("id", missionIds),
@@ -64,6 +64,7 @@ export async function listReportRecords(access: SalesMissionAccess): Promise<Rep
       {
         missionType: (row.mission_type as string) ?? "—",
         clientCompanyName: (row.client_company_name_snapshot as string) ?? "—",
+        scheduledStart: (row.scheduled_start as string | null) ?? null,
       },
     ])
   )
@@ -101,6 +102,9 @@ export async function listReportRecords(access: SalesMissionAccess): Promise<Rep
     return {
       missionId,
       missionType: mission?.missionType ?? "—",
+      scheduledStart: mission?.scheduledStart ?? null,
+      actualStart: (row.actual_start as string | null) ?? null,
+      actualEnd: (row.actual_end as string | null) ?? null,
       clientCompanyName: mission?.clientCompanyName ?? "—",
       primarySalesName: primaryId ? names.get(primaryId) ?? null : null,
       reportStatus: row.status as ReportStatus,

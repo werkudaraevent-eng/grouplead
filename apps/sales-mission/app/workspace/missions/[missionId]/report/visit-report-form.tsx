@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { toast } from "sonner"
-import { AlertCircle, CalendarDays, Check, Cloud, CloudOff, Loader2, Plus, Save, Send, Trash2 } from "@/components/icons"
+import { AlertCircle, CalendarDays, Check, Clock, Cloud, CloudOff, Loader2, Plus, Save, Send, Trash2 } from "@/components/icons"
 import { discardVisitReportDraft, saveVisitReportDraft, submitVisitReport } from "@/app/actions/visit-report-actions"
 import {
   missingConfiguredFields,
@@ -19,6 +19,7 @@ import {
 import { visibleFields, type FieldAnswer, type FormField } from "@/lib/missions/form-fields"
 import { choicesFor, isNoAction, noActionCode, type ChoiceSet } from "@/lib/missions/report-choices"
 import { parsePhotoAnswer } from "@/lib/photos/photo-answer"
+import { describeTiming, formatVisitWindow, splitMissionInstant, toVisitInstants } from "@/lib/missions/visit-time"
 import { PhotoField } from "@/components/photo-field"
 import type { VisitReportRecord } from "@/lib/missions/mission-queries"
 import type { TenantSalesOption } from "@/lib/missions/mission-queries"
@@ -66,6 +67,9 @@ type Draft = {
   nextActionType: NextActionType
   nextActionOwner: string | null
   followUpDate: string | null
+  actualDate: string | null
+  actualStartTime: string | null
+  actualEndTime: string | null
   contacts: ReportContactInput[]
   custom: Record<string, FieldAnswer>
 }
@@ -94,6 +98,7 @@ const DRAFT_TO_KEY: Record<string, string> = {
 /** Which card a core field lives in. Custom fields go to "Tambahan". */
 const CORE_SECTIONS: Record<string, string> = {
   visit_outcome: "Hasil kunjungan",
+  visit_time: "Hasil kunjungan",
   contacts_met: "Hasil kunjungan",
   visit_photos: "Hasil kunjungan",
   business_card_photos: "Hasil kunjungan",
@@ -134,7 +139,7 @@ function spanOf(field: FormField): Span {
 const FIELD_CLASS =
   "w-full rounded-md border border-input bg-field px-3 text-sm text-foreground shadow-xs outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
 
-function toDraft(report: VisitReportRecord | null, appointmentContact: ReportContactInput | null, noAction = "NONE"): Draft {
+function toDraft(report: VisitReportRecord | null, appointmentContact: ReportContactInput | null, noAction: string, schedule: { start: string | null; end: string | null }): Draft {
   return {
     visitOutcome: report?.visitOutcome ?? null,
     meetingSummary: report?.meetingSummary ?? "",
@@ -147,6 +152,11 @@ function toDraft(report: VisitReportRecord | null, appointmentContact: ReportCon
     nextActionType: report?.nextActionType ?? noAction,
     nextActionOwner: report?.nextActionOwner ?? null,
     followUpDate: report?.followUpDate ?? null,
+    // The visit's real window: what was reported, else the appointment, so
+    // a visit that went as planned costs no typing.
+    actualDate: (report ? splitMissionInstant(report.actualStart) : splitMissionInstant(schedule.start))?.date ?? null,
+    actualStartTime: (report ? splitMissionInstant(report.actualStart) : splitMissionInstant(schedule.start))?.time ?? null,
+    actualEndTime: (report ? splitMissionInstant(report.actualEnd) : splitMissionInstant(schedule.end))?.time ?? null,
     // A fresh report starts with the person the visit was arranged with. A
     // saved draft keeps whatever the rep left, including an emptied list.
     contacts: report ? report.contacts : appointmentContact ? [{ ...appointmentContact }] : [],
@@ -296,6 +306,7 @@ function CustomControl({ field, value, onChange, scope }: { field: FormField; va
 export function VisitReportForm({
   missionId,
   clientName,
+  schedule,
   report,
   appointmentContact,
   editing,
@@ -306,6 +317,8 @@ export function VisitReportForm({
 }: {
   missionId: string
   clientName: string
+  /** The appointment, so the visit window starts filled and can be compared. */
+  schedule: { start: string | null; end: string | null }
   report: VisitReportRecord | null
   /** The mission's appointment contact, offered as the first person met. */
   appointmentContact: ReportContactInput | null
@@ -322,7 +335,7 @@ export function VisitReportForm({
   fields: FormField[]
 }) {
   const router = useRouter()
-  const [draft, setDraft] = useState<Draft>(() => toDraft(report, appointmentContact, noActionCode(choices)))
+  const [draft, setDraft] = useState<Draft>(() => toDraft(report, appointmentContact, noActionCode(choices), schedule))
   const [sync, setSync] = useState<SyncState>("idle")
   const [attempt, setAttempt] = useState(0)
   const [error, setError] = useState<string | null>(null)
@@ -424,6 +437,52 @@ export function VisitReportForm({
             <ChipGroup options={outcomeChoices.map((choice) => choice.code)} value={draft.visitOutcome} onChange={(next) => update("visitOutcome", next)} labels={labelsOf(outcomeChoices)} />
           </FieldShell>
         )
+      case "visit_time": {
+        const instants = toVisitInstants(draft)
+        const timing = describeTiming(instants.start, schedule.start)
+        const planned = schedule.start ? formatVisitWindow(schedule.start, schedule.end) : null
+        const stampNow = () => {
+          const now = splitMissionInstant(new Date().toISOString())
+          if (!now) return
+          if (!draft.actualDate || !draft.actualStartTime) {
+            setDraft((previous) => ({ ...previous, actualDate: now.date, actualStartTime: now.time }))
+          } else {
+            setDraft((previous) => ({ ...previous, actualEndTime: now.time }))
+          }
+          dirty.current = true
+          setAttempt(0)
+        }
+        return (
+          <FieldShell key={field.id} field={field} hint={undefined}>
+            <div className="grid gap-3 sm:grid-cols-[minmax(0,1.3fr)_1fr_1fr_auto]">
+              <div className="space-y-1">
+                <span className="text-xs text-muted-foreground">Tanggal</span>
+                <Input type="date" aria-label="Tanggal kunjungan" className="h-12" value={draft.actualDate ?? ""} onChange={(event) => update("actualDate", event.target.value || null)} />
+              </div>
+              <div className="space-y-1">
+                <span className="text-xs text-muted-foreground">Mulai</span>
+                <Input type="time" aria-label="Jam mulai" className="h-12" value={draft.actualStartTime ?? ""} onChange={(event) => update("actualStartTime", event.target.value || null)} />
+              </div>
+              <div className="space-y-1">
+                <span className="text-xs text-muted-foreground">Selesai</span>
+                <Input type="time" aria-label="Jam selesai" className="h-12" value={draft.actualEndTime ?? ""} onChange={(event) => update("actualEndTime", event.target.value || null)} />
+              </div>
+              <div className="flex items-end">
+                {/* One tap on the phone: the first press stamps the start, the next the end. */}
+                <Button type="button" variant="outline" className="h-12 w-full sm:w-auto" onClick={stampNow}>
+                  <Clock className="h-4 w-4" /> {!draft.actualDate || !draft.actualStartTime ? "Mulai sekarang" : "Selesai sekarang"}
+                </Button>
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {planned ? `Dijadwalkan ${planned}.` : "Mission ini belum punya jadwal."}
+              {timing && (
+                <span className={cn("ml-1.5 font-medium", timing.tone === "success" ? "text-[var(--success-foreground)]" : timing.tone === "warning" ? "text-[var(--warning-foreground)]" : "text-foreground")}>{timing.text}.</span>
+              )}
+            </p>
+          </FieldShell>
+        )
+      }
       case "contacts_met":
         return (
           <FieldShell key={field.id} field={field} hint={needsContacts ? undefined : "Klien tidak ada, bagian ini opsional."}>

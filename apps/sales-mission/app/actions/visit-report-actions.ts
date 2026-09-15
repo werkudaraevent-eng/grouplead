@@ -5,6 +5,7 @@ import { createClient } from "@/utils/supabase/server"
 import { canPerform, getSalesMissionAccess, type SalesMissionAccess } from "@/lib/sales-mission-access"
 import { getMission, getMissionRole, getMissionSettings, getVisitReport, listMissionTeam } from "@/lib/missions/mission-queries"
 import { canEditSubmittedReport } from "@/lib/missions/report-edit"
+import { toVisitInstants } from "@/lib/missions/visit-time"
 import { listReportChoices } from "@/lib/missions/report-choice-queries"
 import { reportChoiceViolation } from "@/lib/missions/report-choices"
 import {
@@ -58,6 +59,8 @@ function toRow(input: VisitReportDraft): ReportRow {
     next_action_type: input.nextActionType,
     next_action_owner: input.nextActionOwner ?? null,
     follow_up_date: input.followUpDate ?? null,
+    actual_start: toVisitInstants(input).start,
+    actual_end: toVisitInstants(input).end,
     updated_at: new Date().toISOString(),
   }
 }

@@ -24,6 +24,9 @@ function record(overrides: Partial<ReportRecord> & { missionId: string }): Repor
     submittedAt: "2026-09-10T02:30:00.000Z",
     contactCount: 1,
     pushedLeadId: null,
+    scheduledStart: null,
+    actualStart: null,
+    actualEnd: null,
     ...overrides,
   }
 }

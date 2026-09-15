@@ -407,6 +407,9 @@ export interface VisitReportRecord {
   nextActionType: NextActionType
   nextActionOwner: string | null
   followUpDate: string | null
+  /** When the visit really happened, as reported. Null when not filled in. */
+  actualStart: string | null
+  actualEnd: string | null
   clarificationNote: string | null
   submittedAt: string | null
   /** When the company and contacts last reached LeadEngine. Null until they have. */
@@ -436,7 +439,7 @@ export async function getVisitReport(
   const { data: report } = await missions
     .from("visit_reports")
     .select(
-      "id, mission_id, status, visit_outcome, meeting_summary, client_needs, product_interest, interest_level, opportunity_exists, estimated_value, competitor_mentioned, next_action_type, next_action_owner, follow_up_date, clarification_note, submitted_at, crm_synced_at, crm_sync_error"
+      "id, mission_id, status, visit_outcome, meeting_summary, client_needs, product_interest, interest_level, opportunity_exists, estimated_value, competitor_mentioned, next_action_type, next_action_owner, follow_up_date, actual_start, actual_end, clarification_note, submitted_at, crm_synced_at, crm_sync_error"
     )
     .eq("company_id", access.companyId)
     .eq("mission_id", missionId)
@@ -476,6 +479,8 @@ export async function getVisitReport(
     nextActionOwner: (report.next_action_owner as string | null) ?? null,
     followUpDate: (report.follow_up_date as string | null) ?? null,
     clarificationNote: (report.clarification_note as string | null) ?? null,
+    actualStart: (report.actual_start as string | null) ?? null,
+    actualEnd: (report.actual_end as string | null) ?? null,
     submittedAt: (report.submitted_at as string | null) ?? null,
     crmSyncedAt: (report.crm_synced_at as string | null) ?? null,
     crmSyncError: (report.crm_sync_error as string | null) ?? null,

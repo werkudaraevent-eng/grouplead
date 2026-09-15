@@ -6,6 +6,7 @@ import {
   Download,
   Send,
   Sparkles,
+  Clock,
   Target,
   UserCheck,
   Users,
@@ -17,6 +18,7 @@ import { buildKpiReport, currentMonthRange, type Breakdown } from "@/lib/reporti
 import { EmptyState, WorkspacePage } from "@/app/workspace/workspace-page"
 import { getProspectFunnel } from "@/lib/prospects/prospect-page-queries"
 import { listReportChoices } from "@/lib/missions/report-choice-queries"
+import { ON_TIME_GRACE_MINUTES } from "@/lib/missions/visit-time"
 import { FunnelCard } from "./funnel-card"
 import { Button } from "@/components/ui/button"
 
@@ -170,10 +172,17 @@ export default async function ReportsPage({
             <Metric icon={Users} label="Kontak ditemukan" value={String(report.summary.contactsDiscovered)} tone="bg-secondary text-secondary-foreground" />
           </section>
 
-          <section className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          <section className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <Metric icon={UserCheck} label="Bertemu pengambil keputusan" value={`${report.summary.decisionMakerRate}%`} hint="dari laporan yang dikirim" tone="bg-primary/10 text-primary" />
             <Metric icon={Send} label="Lead dikirim ke CRM" value={String(report.summary.leadsPushed)} tone="bg-[var(--success)] text-[var(--success-foreground)]" />
             <Metric icon={AlertTriangle} label="Perlu klarifikasi" value={String(report.summary.needsClarification)} tone="bg-[var(--danger)] text-[var(--danger-foreground)]" />
+            <Metric
+              icon={Clock}
+              label="Tepat waktu"
+              value={report.summary.onTimeRate === null ? "—" : `${report.summary.onTimeRate}%`}
+              hint={report.summary.onTimeRate === null ? "Belum ada laporan yang mencatat jam kunjungan" : `toleransi ${ON_TIME_GRACE_MINUTES} menit${report.summary.averageVisitMinutes ? ` · rata-rata ${report.summary.averageVisitMinutes} menit per kunjungan` : ""}`}
+              tone="bg-secondary text-secondary-foreground"
+            />
           </section>
 
           <section className="mt-4 grid gap-4 xl:grid-cols-2">

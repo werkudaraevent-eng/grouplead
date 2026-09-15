@@ -195,6 +195,7 @@ export const CORE_REPORT_FIELDS: Array<
   }
 > = [
   { reportingKey: "visit_outcome", label: "Hasil kunjungan", fieldType: "SELECT", isRequired: true, displayOrder: 10 },
+  { reportingKey: "visit_time", label: "Waktu kunjungan", fieldType: "TIME", isRequired: false, displayOrder: 15, helpText: "Kapan kunjungan benar-benar berlangsung. Terisi dari jadwal; ubah bila bergeser." },
   { reportingKey: "contacts_met", label: "Ketemu siapa", fieldType: "CONTACTS", isRequired: true, displayOrder: 20, helpText: "Minimal satu orang, kecuali klien tidak ada. Ini yang memperkaya database kontak." },
   { reportingKey: "meeting_summary", label: "Ringkasan pertemuan", fieldType: "LONG_TEXT", isRequired: true, displayOrder: 30, helpText: "Apa yang dibahas dan apa yang disepakati." },
   {

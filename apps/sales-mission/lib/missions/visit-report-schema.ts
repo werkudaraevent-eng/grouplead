@@ -2,6 +2,7 @@ import { z } from "zod"
 import { isValidPhone, normalizePhone } from "@/lib/format/phone"
 import { visibleFields, type FormField } from "./form-fields"
 import { isNoAction, isNoInterest, outcomeRequiresContacts as choiceOutcomeRequiresContacts, type ChoiceSet } from "./report-choices"
+import { visitTimeViolation } from "./visit-time"
 
 /**
  * Visit report contract: vocabularies, validation, and the pure helpers the
@@ -131,6 +132,10 @@ const baseShape = {
   nextActionType: z.string().regex(CODE_PATTERN, "Kode tidak valid").default("NONE"),
   nextActionOwner: z.string().uuid().nullish(),
   followUpDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Tanggal tidak valid").nullish(),
+  /** When the visit really happened, in mission time. Empty is allowed unless the admin requires it. */
+  actualDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Tanggal tidak valid").nullish(),
+  actualStartTime: z.string().regex(/^\d{2}:\d{2}$/, "Jam tidak valid").nullish(),
+  actualEndTime: z.string().regex(/^\d{2}:\d{2}$/, "Jam tidak valid").nullish(),
   contacts: z.array(contactSchema).default([]),
   /** Answers to the fields the admin added, keyed by reporting key. */
   custom: z.record(z.string(), z.unknown()).default({}),
@@ -185,6 +190,9 @@ export const visitReportSubmitSchema = z
 
   // An opportunity with no interest recorded is a contradiction that would
   // otherwise reach the CRM push modal and create a junk lead.
+  const timing = visitTimeViolation(value)
+  if (timing) ctx.addIssue({ code: "custom", path: ["actualDate"], message: timing })
+
   if (value.opportunityExists && isNoInterest(value.interestLevel)) {
     ctx.addIssue({
       code: "custom",
@@ -254,6 +262,7 @@ const CORE_DRAFT_KEYS: Record<string, keyof VisitReportDraft> = {
   next_action_type: "nextActionType",
   next_action_owner: "nextActionOwner",
   follow_up_date: "followUpDate",
+  visit_time: "actualDate",
 }
 
 function isBlank(value: unknown): boolean {
@@ -281,6 +290,11 @@ export function missingConfiguredFields(draft: VisitReportDraft, fields: FormFie
       }
       const key = CORE_DRAFT_KEYS[field.reportingKey]
       if (!key) continue
+      // The visit window counts as filled once it has a date and a start.
+      if (field.reportingKey === "visit_time") {
+        if (isBlank(draft.actualDate) || isBlank(draft.actualStartTime)) missing.push(field.reportingKey)
+        continue
+      }
       // Owner and date are conditional on a next action; the schema handles them.
       if (field.reportingKey === "next_action_owner" || field.reportingKey === "follow_up_date") continue
       if (isBlank(draft[key])) missing.push(field.reportingKey)
