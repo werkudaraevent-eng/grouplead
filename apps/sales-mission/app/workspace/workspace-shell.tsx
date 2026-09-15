@@ -400,7 +400,7 @@ export function WorkspaceShell({
   // by the browser itself (a #hash link, focus(), scrollIntoView), which slid
   // the whole shell up and left a white gap under the sidebar. Clip cannot.
   return (
-    <div className="flex h-screen overflow-clip">
+    <div className="app-shell flex h-screen overflow-clip">
       <aside
         data-sidebar
         className={`relative hidden shrink-0 flex-none overflow-clip bg-sidebar transition-[width] duration-200 ease-out lg:flex lg:flex-col ${collapsed ? "lg:w-[60px]" : "lg:w-[220px]"}`}
