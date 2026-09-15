@@ -23,7 +23,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
-import { Checkbox } from "@/components/ui/checkbox"
+import { BusinessUnitPicker } from "./business-unit-picker"
 import { Loader2, Save, UserCog, Building2, X, Camera, UserCircle } from "@/components/icons"
 import { Profile } from "@/types"
 import type { Role } from "@/types/company"
@@ -422,123 +422,21 @@ export function EditUserSheet({ profile, open, onOpenChange, onSaved }: EditUser
                                         </FormItem>
                                     )} />
 
-                                    {/* Accessible Business Units (Hierarchical Multi-Select) */}
-                                    {(() => {
-                                        const holdingCompanies = companies.filter(c => c.is_holding)
-                                        const subsidiaryCompanies = companies.filter(c => !c.is_holding)
-                                        const holdingIds = holdingCompanies.map(c => c.id)
-                                        const allSubIds = subsidiaryCompanies.map(c => c.id)
-                                        const hasHoldingSelected = holdingIds.some(id => selectedCompanyIds.includes(id))
-
-                                        const handleHoldingToggle = (holdingId: string, checked: boolean) => {
-                                            if (checked) {
-                                                // Holding checked → select holding + ALL subsidiaries
-                                                const allIds = [holdingId, ...allSubIds]
-                                                setSelectedCompanyIds(allIds)
-                                            } else {
-                                                // Holding unchecked → deselect everything
-                                                setSelectedCompanyIds([])
-                                            }
-                                            form.setValue("full_name", form.getValues("full_name"), { shouldDirty: true })
-                                        }
-
-                                        const handleSubsidiaryToggle = (companyId: string, checked: boolean) => {
-                                            if (checked) {
-                                                setSelectedCompanyIds(prev => [...prev, companyId])
-                                            } else {
-                                                setSelectedCompanyIds(prev => prev.filter(id => id !== companyId))
-                                            }
-                                            form.setValue("full_name", form.getValues("full_name"), { shouldDirty: true })
-                                        }
-
-                                        return (
-                                            <div className="sm:col-span-2 space-y-1.5">
-                                                <FormFieldLabel className="flex items-center gap-1.5">
-                                                    <Building2 className="h-3.5 w-3.5" /> Accessible business units
-                                                </FormFieldLabel>
-                                                <p className="text-[11px] text-muted-foreground">
-                                                    Select the companies this user should have access to. This defines their data scope.
-                                                </p>
-                                                <div className="flex flex-col gap-3 border border-border rounded-xl p-3 bg-muted/40 max-h-72 overflow-y-auto custom-scrollbar mt-2">
-                                                    {/* Group Level (HQ) — acts as "select all" */}
-                                                    {holdingCompanies.length > 0 && (
-                                                        <div className="flex flex-col gap-2">
-                                                            <span className="text-[10px] font-semibold text-muted-foreground tracking-wide">Group level (HQ)</span>
-                                                            {holdingCompanies.map(c => {
-                                                                const isChecked = selectedCompanyIds.includes(c.id)
-                                                                return (
-                                                                    <label
-                                                                        key={c.id}
-                                                                        className={`flex items-center gap-2.5 px-3 py-2.5 rounded-md cursor-pointer transition-all text-sm ${
-                                                                            isChecked
-                                                                                ? "bg-primary/10 border border-primary/20 text-primary shadow-sm"
-                                                                                : "bg-background border border-transparent hover:bg-muted"
-                                                                        }`}
-                                                                    >
-                                                                        <Checkbox
-                                                                            checked={isChecked}
-                                                                            onCheckedChange={(checked) => handleHoldingToggle(c.id, !!checked)}
-                                                                            className="h-4 w-4 data-[state=checked]:bg-primary data-[state=checked]:border-primary"
-                                                                        />
-                                                                        <span className="font-semibold">{c.name}</span>
-                                                                        <span className="text-[10px] text-muted-foreground ml-auto">Access all units</span>
-                                                                    </label>
-                                                                )
-                                                            })}
-                                                        </div>
-                                                    )}
-                                                    {/* Divider */}
-                                                    {holdingCompanies.length > 0 && subsidiaryCompanies.length > 0 && (
-                                                        <div className="w-full h-px bg-border" />
-                                                    )}
-                                                    {/* Subsidiary Units — disabled when holding is selected */}
-                                                    {subsidiaryCompanies.length > 0 && (
-                                                        <div className="flex flex-col gap-2">
-                                                            <div className="flex items-center justify-between">
-                                                                <span className="text-[10px] font-semibold text-muted-foreground tracking-wide">Subsidiary units</span>
-                                                                {hasHoldingSelected && (
-                                                                    <span className="text-[10px] text-primary/80 font-medium">All included via group</span>
-                                                                )}
-                                                            </div>
-                                                            <div className={`grid grid-cols-1 sm:grid-cols-2 gap-2 ${hasHoldingSelected ? "opacity-50 pointer-events-none" : ""}`}>
-                                                                {subsidiaryCompanies.map(c => {
-                                                                    const isChecked = selectedCompanyIds.includes(c.id)
-                                                                    return (
-                                                                        <label
-                                                                            key={c.id}
-                                                                            className={`flex items-center gap-2.5 px-3 py-2 rounded-md transition-all text-sm ${
-                                                                                hasHoldingSelected
-                                                                                    ? "bg-primary/5 border border-primary/10 text-primary/90"
-                                                                                    : isChecked
-                                                                                        ? "bg-primary/10 border border-primary/20 text-primary shadow-sm cursor-pointer"
-                                                                                        : "bg-background border border-transparent hover:bg-muted cursor-pointer"
-                                                                            }`}
-                                                                        >
-                                                                            <Checkbox
-                                                                                checked={isChecked || hasHoldingSelected}
-                                                                                disabled={hasHoldingSelected}
-                                                                                onCheckedChange={(checked) => handleSubsidiaryToggle(c.id, !!checked)}
-                                                                                className="h-4 w-4 data-[state=checked]:bg-primary data-[state=checked]:border-primary disabled:opacity-60"
-                                                                            />
-                                                                            <span className="truncate font-medium">{c.name}</span>
-                                                                        </label>
-                                                                    )
-                                                                })}
-                                                            </div>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                                {selectedCompanyIds.length > 0 && (
-                                                    <p className="text-[11px] text-muted-foreground mt-1.5">
-                                                        {hasHoldingSelected
-                                                            ? "Full group access (all business units)"
-                                                            : `${selectedCompanyIds.length} compan${selectedCompanyIds.length === 1 ? 'y' : 'ies'} assigned`
-                                                        }
-                                                    </p>
-                                                )}
-                                            </div>
-                                        )
-                                    })()}
+                                    <div className="sm:col-span-2 space-y-2">
+                                        <FormFieldLabel className="flex items-center gap-1.5">
+                                            <Building2 className="h-4 w-4" /> Unit bisnis yang bisa diakses
+                                        </FormFieldLabel>
+                                        <p className="text-xs leading-relaxed text-muted-foreground">Menentukan data mana yang bisa dilihat orang ini.</p>
+                                        <BusinessUnitPicker
+                                            companies={companies}
+                                            value={selectedCompanyIds}
+                                            onChange={(ids) => {
+                                                setSelectedCompanyIds(ids)
+                                                // The form owns the dirty flag; a membership change counts as an edit.
+                                                form.setValue("full_name", form.getValues("full_name"), { shouldDirty: true })
+                                            }}
+                                        />
+                                    </div>
 
                                     {/* Direct Manager */}
                                     <FormField control={form.control} name="reports_to" render={({ field }) => (
