@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { toast } from "sonner"
-import { AlertCircle, Check, Cloud, CloudOff, Loader2, Plus, Send, Trash2 } from "@/components/icons"
+import { AlertCircle, CalendarDays, Check, Cloud, CloudOff, Loader2, Plus, Send, Trash2 } from "@/components/icons"
 import { discardVisitReportDraft, saveVisitReportDraft, submitVisitReport } from "@/app/actions/visit-report-actions"
 import {
   INTEREST_LEVELS,
@@ -16,6 +16,7 @@ import {
   missingConfiguredFields,
   missingSubmitFields,
   outcomeRequiresContacts,
+  isAppointmentContact,
   type InterestLevel,
   type NextActionType,
   type ReportContactInput,
@@ -134,7 +135,7 @@ function spanOf(field: FormField): Span {
 const FIELD_CLASS =
   "w-full rounded-md border border-input bg-field px-3 text-sm text-foreground shadow-xs outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
 
-function toDraft(report: VisitReportRecord | null): Draft {
+function toDraft(report: VisitReportRecord | null, appointmentContact: ReportContactInput | null): Draft {
   return {
     visitOutcome: report?.visitOutcome ?? null,
     meetingSummary: report?.meetingSummary ?? "",
@@ -147,7 +148,9 @@ function toDraft(report: VisitReportRecord | null): Draft {
     nextActionType: report?.nextActionType ?? "NONE",
     nextActionOwner: report?.nextActionOwner ?? null,
     followUpDate: report?.followUpDate ?? null,
-    contacts: report?.contacts?.length ? report.contacts : [],
+    // A fresh report starts with the person the visit was arranged with. A
+    // saved draft keeps whatever the rep left, including an emptied list.
+    contacts: report ? report.contacts : appointmentContact ? [{ ...appointmentContact }] : [],
     custom: (report?.custom as Record<string, FieldAnswer> | undefined) ?? {},
   }
 }
@@ -273,6 +276,7 @@ export function VisitReportForm({
   missionId,
   clientName,
   report,
+  appointmentContact,
   options,
   salesOptions,
   fields,
@@ -280,13 +284,15 @@ export function VisitReportForm({
   missionId: string
   clientName: string
   report: VisitReportRecord | null
+  /** The mission's appointment contact, offered as the first person met. */
+  appointmentContact: ReportContactInput | null
   /** Fallback vocabularies, used only when the configured field has no options. */
   options: ReportOptions
   salesOptions: TenantSalesOption[]
   fields: FormField[]
 }) {
   const router = useRouter()
-  const [draft, setDraft] = useState<Draft>(() => toDraft(report))
+  const [draft, setDraft] = useState<Draft>(() => toDraft(report, appointmentContact))
   const [sync, setSync] = useState<SyncState>("idle")
   const [attempt, setAttempt] = useState(0)
   const [error, setError] = useState<string | null>(null)
@@ -362,6 +368,9 @@ export function VisitReportForm({
   const byKey = new Map(ordered.map((field) => [field.reportingKey, field]))
   const labelFor = (key: string) => byKey.get(key)?.label ?? key
   const needsContacts = outcomeRequiresContacts(draft.visitOutcome)
+  // Offered back whenever the appointment contact is not in the list, so a
+  // removed or pre-feature draft is one tap from correct.
+  const appointmentMissing = Boolean(appointmentContact) && !draft.contacts.some((contact) => isAppointmentContact(contact, appointmentContact))
 
   const missing = [...new Set([
     ...missingSubmitFields(draft).map((prop) => DRAFT_TO_KEY[prop] ?? prop),
@@ -386,7 +395,12 @@ export function VisitReportForm({
               {draft.contacts.map((contact, index) => (
                 <div key={index} className="rounded-lg border bg-muted/40 p-4">
                   <div className="flex items-center justify-between">
-                    <p className="text-sm font-semibold text-foreground">Kontak {index + 1}</p>
+                    <p className="flex flex-wrap items-center gap-x-2 text-sm font-semibold text-foreground">
+                      Kontak {index + 1}
+                      {isAppointmentContact(contact, appointmentContact) && (
+                        <span className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground"><CalendarDays className="h-3.5 w-3.5" /> Dari janji temu</span>
+                      )}
+                    </p>
                     <Button type="button" variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground hover:text-destructive" onClick={() => update("contacts", draft.contacts.filter((_, i) => i !== index))} aria-label={`Hapus kontak ${index + 1}`}>
                       <Trash2 className="h-4 w-4" />
                     </Button>
@@ -415,9 +429,16 @@ export function VisitReportForm({
                   </div>
                 </div>
               ))}
-              <Button type="button" variant="outline" className="h-12 w-full sm:w-auto" onClick={() => update("contacts", [...draft.contacts, { ...EMPTY_CONTACT }])}>
-                <Plus className="h-4 w-4" /> Tambah kontak
-              </Button>
+              <div className="flex flex-col gap-2 sm:flex-row">
+                {appointmentMissing && appointmentContact && (
+                  <Button type="button" variant="outline" className="h-12 w-full sm:w-auto" onClick={() => update("contacts", [{ ...appointmentContact }, ...draft.contacts])}>
+                    <CalendarDays className="h-4 w-4" /> Tambah {appointmentContact.fullName} (janji temu)
+                  </Button>
+                )}
+                <Button type="button" variant="outline" className="h-12 w-full sm:w-auto" onClick={() => update("contacts", [...draft.contacts, { ...EMPTY_CONTACT }])}>
+                  <Plus className="h-4 w-4" /> Tambah kontak
+                </Button>
+              </div>
             </div>
           </FieldShell>
         )

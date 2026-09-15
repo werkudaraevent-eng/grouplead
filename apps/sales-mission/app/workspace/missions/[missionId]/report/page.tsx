@@ -13,6 +13,7 @@ import { awaitsConfirmation } from "@/lib/missions/assignment-workflow"
 import { listFormFields } from "@/lib/missions/form-field-queries"
 import type { AssignmentResponse } from "@/lib/missions/mission-schema"
 import { getReportOptions } from "@/lib/missions/report-options"
+import { contactFromAppointment } from "@/lib/missions/visit-report-schema"
 import { BackLink, EmptyState, WorkspacePage } from "@/app/workspace/workspace-page"
 import { VisitReportForm } from "./visit-report-form"
 
@@ -84,6 +85,7 @@ export default async function VisitReportPage({ params }: { params: Promise<{ mi
         missionId={missionId}
         clientName={mission.clientCompanyName}
         report={report}
+        appointmentContact={contactFromAppointment(mission.appointment)}
         options={options}
         salesOptions={salesOptions}
         fields={fields}

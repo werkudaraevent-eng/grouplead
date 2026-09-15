@@ -82,6 +82,35 @@ const contactSchema = z.object({
 
 export type ReportContactInput = z.infer<typeof contactSchema>
 
+/**
+ * The person the appointment was made with, as a report contact. The visit
+ * was arranged with them, so the report starts with them already listed and
+ * the rep only confirms or replaces; nothing is typed twice. Null when the
+ * mission was created without a named contact.
+ */
+export function contactFromAppointment(appointment: {
+  name: string | null
+  jobTitle: string | null
+  phone: string | null
+  email: string | null
+}): ReportContactInput | null {
+  const fullName = appointment.name?.trim() ?? ""
+  if (!fullName) return null
+  return {
+    fullName,
+    jobTitle: appointment.jobTitle?.trim() ?? "",
+    phone: appointment.phone?.trim() ?? "",
+    email: appointment.email?.trim() ?? "",
+    isDecisionMaker: false,
+  }
+}
+
+/** Whether a report contact is the appointment contact, by name. */
+export function isAppointmentContact(contact: { fullName: string }, appointment: ReportContactInput | null): boolean {
+  if (!appointment) return false
+  return contact.fullName.trim().toLowerCase() === appointment.fullName.trim().toLowerCase()
+}
+
 /** Shape shared by both variants. Everything optional; the strict rules live in the submit schema. */
 const baseShape = {
   visitOutcome: z.enum(VISIT_OUTCOMES).nullish(),

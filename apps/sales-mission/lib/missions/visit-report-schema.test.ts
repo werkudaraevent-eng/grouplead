@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest"
 import {
+  contactFromAppointment,
+  isAppointmentContact,
   canPushLead,
   hasOpenNextAction,
   missingSubmitFields,
@@ -142,5 +144,29 @@ describe("missingSubmitFields", () => {
     expect(missing).toContain("clientNeeds")
     expect(missing).toContain("contacts")
     expect(new Set(missing).size).toBe(missing.length)
+  })
+})
+
+describe("contactFromAppointment", () => {
+  it("turns the appointment into the first report contact", () => {
+    expect(contactFromAppointment({ name: " Budi Santoso ", jobTitle: "GM", phone: "+628123456789", email: null })).toEqual({
+      fullName: "Budi Santoso",
+      jobTitle: "GM",
+      phone: "+628123456789",
+      email: "",
+      isDecisionMaker: false,
+    })
+  })
+
+  it("is null when the mission has no named contact", () => {
+    expect(contactFromAppointment({ name: null, jobTitle: "GM", phone: null, email: null })).toBeNull()
+    expect(contactFromAppointment({ name: "  ", jobTitle: null, phone: null, email: null })).toBeNull()
+  })
+
+  it("recognises the appointment contact by name, case-insensitively", () => {
+    const appointment = contactFromAppointment({ name: "Budi Santoso", jobTitle: null, phone: null, email: null })
+    expect(isAppointmentContact({ fullName: "budi santoso" }, appointment)).toBe(true)
+    expect(isAppointmentContact({ fullName: "Siti" }, appointment)).toBe(false)
+    expect(isAppointmentContact({ fullName: "Budi Santoso" }, null)).toBe(false)
   })
 })
