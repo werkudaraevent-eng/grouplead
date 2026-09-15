@@ -42,23 +42,31 @@ const ROLE_ICON_MAP: Record<string, React.ElementType> = {
  * in three sentences here lives in the help panel above the table, where the
  * other rules of the matrix already are.
  */
-const MODULE_GROUPS = [
+const MODULE_GROUPS: ReadonlyArray<{ title: string; description: string; modules: readonly string[]; hub?: string; hubNote?: string }> = [
   {
     title: "Core CRM",
     description: "Ruang kerja harian sales dan data pelanggan.",
-    modules: ["dashboard", "leads", "companies", "contacts", "sales_mission"],
+    modules: ["dashboard", "leads", "companies", "contacts"],
   },
   {
+    // The app gate is the first row of its own group, not a row of Core CRM
+    // with its children filed under a different heading. A Material section
+    // is a subheader followed by its items on one leading edge; hierarchy is
+    // the grouping, never a stair-step indent.
     title: "Sales Mission",
-    description: "Kontrol rinci di dalam aplikasi Sales Mission.",
-    modules: ["sales_mission_mission", "sales_mission_result", "sales_mission_contact", "sales_mission_settings", "sales_mission_prospect"],
+    description: "Pintu masuk aplikasi Sales Mission dan kontrol rinci di dalamnya.",
+    modules: ["sales_mission", "sales_mission_mission", "sales_mission_result", "sales_mission_contact", "sales_mission_settings", "sales_mission_prospect"],
+    hub: "sales_mission",
+    hubNote: "Baris Sales Mission disalin ke lima modul di bawahnya; setelah itu tiap modul bisa diatur sendiri.",
   },
   {
     title: "Pengaturan",
     description: "Akses ke halaman Settings dan tiap bagiannya.",
     modules: ["settings", "master_options", "pipeline", "segment_settings", "goal_settings", "management_dashboard", "members", "permissions"],
+    hub: "settings",
+    hubNote: "Bagian di dalamnya baru muncul untuk pengguna setelah akses Lihat pada halaman Settings menyala.",
   },
-] as const
+]
 
 /**
  * `description` is the one supporting line under the module name, the way a
@@ -67,87 +75,72 @@ const MODULE_GROUPS = [
  * Salesforce both keep the matrix scannable and put the explanation a hover
  * away, because a paragraph in a table cell is what breaks the table.
  */
-const MODULE_DISPLAY: Record<string, { name: string; description: string; details?: string; level?: number }> = {
+const MODULE_DISPLAY: Record<string, { name: string; description: string; details?: string }> = {
   dashboard: {
     name: "Dashboard",
     description: "Dashboard performa eksekutif dan sales.",
-    level: 0,
   },
   sales_mission: {
     name: "Sales Mission",
     description: "Pintu masuk aplikasi. Baris ini disalin ke lima modul di bawahnya.",
     details: "Tanpa Lihat di sini, tidak ada yang bisa dijangkau di dalam Sales Mission. Tiap sakelar dan Cakupan di baris ini disalin ke lima modul di bawah; setelah itu tiap modul bisa diatur sendiri-sendiri.",
-    level: 0,
   },
   sales_mission_mission: {
     name: "Mission",
     description: "Menjadwalkan dan mengubah kunjungan. Pemilik: sales utama dan yang menjadwalkan.",
     details: "Lihat: semua mission unit bisnis (jadwal bersama). Buat: menjadwalkan mission baru dan mengimpor. Ubah: detail, jadwal, tim, dan pembatalan mission di dalam Cakupan. Hapus: memindahkan mission di dalam Cakupan ke sampah.",
-    level: 1,
   },
   sales_mission_result: {
     name: "Laporan kunjungan",
     description: "Mengisi dan mengubah laporan, mengirim lead. Pemilik: sales utama.",
     details: "Lihat: membaca laporan dan halaman Laporan. Buat: mengisi laporan dan mengirim lead untuk mission di dalam Cakupan. Ubah: mengubah laporan terkirim milik orang di dalam Cakupan kapan saja dan meminta klarifikasi; penulisnya sendiri selalu boleh mengubah dalam jendela hari yang diatur di Pengaturan mission.",
-    level: 1,
   },
   sales_mission_contact: {
     name: "Kontak mission",
     description: "Membaca kontak klien pada mission dan laporan.",
     details: "Tanpa Cakupan: kontak ditulis lewat laporan, jadi mengikuti izin Laporan kunjungan.",
-    level: 1,
   },
   sales_mission_settings: {
     name: "Pengaturan mission",
     description: "Ubah di sini berarti admin Sales Mission.",
     details: "Pengaturan mission, form, pilihan laporan, status prospek, papan, dan sampah. Tanpa Cakupan: ini bukan record milik seseorang.",
-    level: 1,
   },
   sales_mission_prospect: {
     name: "Prospek",
     description: "Daftar calon klien sebelum jadi mission. Pemilik: pemegangnya.",
     details: "Lihat: seluruh daftar prospek. Buat: menambah dan mengimpor. Ubah dan Hapus: prospek di dalam Cakupan; prospek tanpa pemegang boleh diambil siapa pun yang punya Ubah. Cakupan Tim atau Semua juga mengizinkan menugaskan prospek ke orang lain.",
-    level: 1,
   },
   settings: {
     name: "Halaman Settings",
     description: "Menentukan apakah pengguna bisa membuka halaman /settings.",
-    level: 0,
   },
   master_options: {
     name: "Master Options",
     description: "Field lead, opsi dropdown, tata letak form, dan konfigurasi tahap pipeline.",
-    level: 1,
   },
   pipeline: {
     name: "Tahap Pipeline",
     description: "Membuat, mengganti nama, mewarnai, mengurutkan, dan menghapus tahap pipeline di kanban maupun Settings.",
-    level: 1,
   },
   segment_settings: {
     name: "Segmen",
     description: "Definisi dan pemetaan segmen di dalam Settings.",
-    level: 1,
   },
   goal_settings: {
     name: "Pengaturan Goal",
     description: "Periode goal, aturan atribusi, dan konfigurasi pelaporan di dalam Settings.",
-    level: 1,
   },
   management_dashboard: {
     name: "Dashboard Manajemen Goal",
     description: "Dashboard pencapaian goal dan forecast di dalam Pengaturan Goal, bukan dashboard utama.",
-    level: 1,
   },
   members: {
     name: "Pengguna",
     description: "Manajemen pengguna dan penambahan anggota di dalam Settings.",
-    level: 1,
   },
   permissions: {
     name: "Role & Izin",
     description: "Pengelolaan matriks kontrol akses di dalam Settings.",
-    level: 1,
   },
 }
 
@@ -922,7 +915,6 @@ export default function GlobalPermissionsPage() {
   const renderPermissionRow = (mod: AppModule) => {
     if (!selectedRole) return null
     const display = MODULE_DISPLAY[mod.id]
-    const level = display?.level ?? 0
     const perm = findPerm(mod.id)
     // Read is off, which is now a description of the row rather than a lock on
     // it: the write switches stay live and turn Lihat on with them.
@@ -934,8 +926,7 @@ export default function GlobalPermissionsPage() {
     return (
       <tr key={mod.id} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
         <td className="px-4 py-3">
-          <div className={cn("flex items-start gap-2", level > 0 && "pl-6")}>
-            {level > 0 && <span className="mt-2.5 h-px w-3 shrink-0 bg-border" />}
+          <div className="flex items-start gap-2">
             <div className="min-w-0">
               <div className="flex items-center gap-1.5">
                 <span className="truncate font-medium text-foreground">{label}</span>
@@ -1318,14 +1309,11 @@ export default function GlobalPermissionsPage() {
 
                               if (groupModules.length === 0) return null
                               const expanded = isGroupExpanded(group.title)
-                              const isSettings = group.title === "Pengaturan"
-                              // Settings keeps its hub row visible when folded,
-                              // because that row is what unfolds the rest.
+                              // A group with a hub keeps that row visible when
+                              // folded, because that row is what unfolds the rest.
                               const visibleModules = expanded
                                 ? groupModules
-                                : isSettings
-                                  ? groupModules.filter((mod) => mod.id === "settings")
-                                  : []
+                                : groupModules.filter((mod) => mod.id === group.hub)
                               const bodyId = `group-${group.title.replace(/\s+/g, "-").toLowerCase()}`
 
                               return (
@@ -1350,11 +1338,7 @@ export default function GlobalPermissionsPage() {
                                               at the AA floor, and /80 pushed it under. */}
                                           <div className="mt-0.5 text-xs text-muted-foreground normal-case tracking-normal">
                                             {group.description}
-                                            {isSettings && (
-                                              <span className="ml-1">
-                                                Bagian di dalamnya baru muncul untuk pengguna setelah akses Lihat pada halaman Settings menyala.
-                                              </span>
-                                            )}
+                                            {group.hubNote && <span className="ml-1">{group.hubNote}</span>}
                                           </div>
                                         </div>
                                         <ChevronRight
