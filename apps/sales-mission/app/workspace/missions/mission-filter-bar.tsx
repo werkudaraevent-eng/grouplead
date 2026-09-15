@@ -58,16 +58,19 @@ export interface FilterPerson {
 }
 
 /** Date facet: presets, plus a from/to pair for "Rentang tanggal". */
-function DateFacet({
+export function DateFacet({
   value,
   from,
   to,
   onChange,
+  presets = DATE_PRESETS,
 }: {
   value: DatePreset | null
   from: string | null
   to: string | null
   onChange: (next: { date: DatePreset | null; from: string | null; to: string | null }) => void
+  /** Which presets to offer; a list of past records has no use for "Mendatang". */
+  presets?: readonly DatePreset[]
 }) {
   const [open, setOpen] = useState(false)
   return (
@@ -77,7 +80,7 @@ function DateFacet({
       </PopoverTrigger>
       <PopoverContent align="start" className="w-72 p-2">
         <div className="grid gap-0.5">
-          {DATE_PRESETS.map((preset) => (
+          {presets.map((preset) => (
             <button
               key={preset}
               type="button"

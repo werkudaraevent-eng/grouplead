@@ -154,6 +154,21 @@ function ActionCell({
     )
   }
 
+  // A reported visit: the report is the thing to read, one step from here.
+  // Outlined, because reading is secondary to the row's own link.
+  if (state === "reported") {
+    return (
+      <span className="flex items-center justify-end gap-1.5">
+        <Button asChild size="sm" variant="outline">
+          <Link href={`/workspace/missions/${mission.id}#laporan`}>
+            <ClipboardList className="h-4 w-4" /> Lihat laporan
+          </Link>
+        </Button>
+        {open}
+      </span>
+    )
+  }
+
   return <span className="flex justify-end">{open}</span>
 }
 
@@ -414,7 +429,7 @@ export function MissionTable({
                 </Link>
               </div>
 
-              {(asksMe || owesMe || mission.joinStatus === "JOINABLE") && (
+              {(asksMe || owesMe || mission.joinStatus === "JOINABLE" || visitState(mission, now) === "reported") && (
                 <div className="flex items-center justify-end gap-2 border-t px-4 py-3">
                   {owesMe ? (
                     <Button asChild size="default" className="h-11">
@@ -427,8 +442,14 @@ export function MissionTable({
                       <AssignmentOverflowMenu missionId={mission.id} />
                       <AcceptAssignmentButton missionId={mission.id} size="default" className="h-11" />
                     </>
-                  ) : (
+                  ) : mission.joinStatus === "JOINABLE" ? (
                     <JoinButton missionId={mission.id} status="JOINABLE" maxSupporting={maxSupporting} size="default" />
+                  ) : (
+                    <Button asChild variant="outline" size="default" className="h-11">
+                      <Link href={`/workspace/missions/${mission.id}#laporan`}>
+                        <ClipboardList className="h-4 w-4" /> Lihat laporan
+                      </Link>
+                    </Button>
                   )}
                 </div>
               )}

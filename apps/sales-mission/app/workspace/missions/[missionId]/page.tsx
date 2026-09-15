@@ -465,7 +465,7 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
       {/* The report is the widest thing on the page: a summary, needs, contacts,
           the CRM hand-off. It gets the full width below the two columns rather
           than the left one, where it trailed on alone under a short right column. */}
-      <article className="mt-4 overflow-hidden rounded-xl border bg-card">
+      <article id="laporan" className="mt-4 scroll-mt-24 overflow-hidden rounded-xl border bg-card">
         <div className="flex items-center justify-between gap-3 border-b px-5 py-4">
           <div>
             <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Laporan kunjungan</p>

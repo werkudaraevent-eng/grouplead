@@ -226,7 +226,7 @@ function weekBounds(day: string): [string, string] {
 }
 
 /** Inclusive [from, to] day range for a preset, or null for "no date facet". */
-export function dateRangeFor(query: MissionQuery, now: Date): [string | null, string | null] | null {
+export function dateRangeFor(query: Pick<MissionQuery, "date" | "from" | "to">, now: Date): [string | null, string | null] | null {
   if (!query.date) return null
   const today = dayKey(now.toISOString())
   switch (query.date) {
