@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { toast } from "sonner"
-import { AlertCircle, CalendarDays, Check, Cloud, CloudOff, Loader2, Plus, Send, Trash2 } from "@/components/icons"
+import { AlertCircle, CalendarDays, Check, Cloud, CloudOff, Loader2, Plus, Save, Send, Trash2 } from "@/components/icons"
 import { discardVisitReportDraft, saveVisitReportDraft, submitVisitReport } from "@/app/actions/visit-report-actions"
 import {
   INTEREST_LEVELS,
@@ -277,6 +277,7 @@ export function VisitReportForm({
   clientName,
   report,
   appointmentContact,
+  editing,
   options,
   salesOptions,
   fields,
@@ -286,6 +287,11 @@ export function VisitReportForm({
   report: VisitReportRecord | null
   /** The mission's appointment contact, offered as the first person met. */
   appointmentContact: ReportContactInput | null
+  /**
+   * Set when a sent report is being changed: autosave is off (there is no
+   * draft to keep), a reason is required, and saving files the old version.
+   */
+  editing?: { leadPushed: boolean } | null
   /** Fallback vocabularies, used only when the configured field has no options. */
   options: ReportOptions
   salesOptions: TenantSalesOption[]
@@ -296,6 +302,7 @@ export function VisitReportForm({
   const [sync, setSync] = useState<SyncState>("idle")
   const [attempt, setAttempt] = useState(0)
   const [error, setError] = useState<string | null>(null)
+  const [changeReason, setChangeReason] = useState("")
   const [submitting, startSubmit] = useTransition()
   // A draft exists once the server has one: loaded with the page, or saved
   // since. Discarding sets this back and stops the autosave from recreating it.
@@ -320,7 +327,8 @@ export function VisitReportForm({
 
   // Autosave on a trailing timer; a failed save schedules a retry with backoff.
   useEffect(() => {
-    if (!dirty.current) return
+    // A sent report has no draft: nothing is written until "Simpan perubahan".
+    if (!dirty.current || editing) return
     const delay = attempt === 0 ? AUTOSAVE_DELAY_MS : Math.min(RETRY_CEILING_MS, RETRY_BASE_MS * 2 ** (attempt - 1))
     const timer = setTimeout(async () => {
       if (discarded.current) return
@@ -338,7 +346,7 @@ export function VisitReportForm({
       }
     }, delay)
     return () => clearTimeout(timer)
-  }, [draft, missionId, attempt])
+  }, [draft, missionId, attempt, editing])
 
   const toggleIn = (key: "clientNeeds" | "productInterest") => (option: string) => {
     const current = draft[key]
@@ -354,7 +362,7 @@ export function VisitReportForm({
   const handleSubmit = () => {
     setError(null)
     startSubmit(async () => {
-      const result = await submitVisitReport(missionId, latest.current)
+      const result = await submitVisitReport(missionId, { ...latest.current, changeReason: changeReason.trim() })
       if (result.success) {
         router.push(`/workspace/missions/${missionId}`)
         router.refresh()
@@ -539,8 +547,34 @@ export function VisitReportForm({
         </div>
       )}
 
+      {editing && (
+        <div className="space-y-3 rounded-xl border border-[var(--warning-foreground)]/20 bg-[var(--warning)] px-5 py-4 text-sm text-[var(--warning-foreground)]">
+          <div className="flex items-start gap-2.5">
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+            <div>
+              <p className="font-semibold">Mengubah laporan yang sudah dikirim</p>
+              <p className="mt-1">
+                Versi yang sekarang disimpan ke riwayat bersama alasan Anda, dan angka di Laporan mengikuti versi baru.
+                {editing.leadPushed && " Lead yang sudah dikirim ke LeadEngine tidak ikut berubah."}
+              </p>
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="change-reason" className="text-[var(--warning-foreground)]">Alasan perubahan <span aria-hidden="true">*</span></Label>
+            <Input
+              id="change-reason"
+              value={changeReason}
+              maxLength={300}
+              onChange={(event) => setChangeReason(event.target.value)}
+              placeholder="Contoh: nilai estimasi salah ketik, seharusnya 150 juta"
+              className="h-12 bg-card"
+            />
+          </div>
+        </div>
+      )}
+
       <p className="text-xs text-muted-foreground">
-        Bertanda <span className="text-[var(--danger-foreground)]">*</span> wajib diisi. Draf tersimpan otomatis.
+        Bertanda <span className="text-[var(--danger-foreground)]">*</span> wajib diisi. {editing ? "Perubahan disimpan saat Anda menekan Simpan perubahan." : "Draf tersimpan otomatis."}
       </p>
 
       {blocks.map((block, index) => (
@@ -567,8 +601,10 @@ export function VisitReportForm({
       <FormActionBar>
         {missing.length > 0 ? (
           <p className="mb-2 text-xs text-muted-foreground">Belum lengkap: {missing.map((key) => labelFor(key).toLowerCase()).join(", ")}</p>
+        ) : editing && !changeReason.trim() ? (
+          <p className="mb-2 text-xs text-muted-foreground">Tulis alasan perubahan di atas.</p>
         ) : !submitting ? (
-          <p className="mb-2 flex items-center gap-1.5 text-xs text-[var(--success-foreground)]"><Check className="h-3.5 w-3.5" /> Laporan siap dikirim</p>
+          <p className="mb-2 flex items-center gap-1.5 text-xs text-[var(--success-foreground)]"><Check className="h-3.5 w-3.5" /> {editing ? "Perubahan siap disimpan" : "Laporan siap dikirim"}</p>
         ) : null}
         {error && (
           <div className="mb-2 flex items-start gap-2 text-xs text-[var(--danger-foreground)]">
@@ -583,7 +619,7 @@ export function VisitReportForm({
             {sync === "pending" && <span className="flex items-center gap-1.5 text-[var(--warning-foreground)]"><CloudOff className="h-3.5 w-3.5" /> Menunggu koneksi</span>}
             {/* The way back to "belum diisi": a text button, the quietest kind,
                 because it undoes rather than does; the dialog carries the weight. */}
-            {hasDraft && (
+            {hasDraft && !editing && (
               <button
                 type="button"
                 onClick={() => setDiscarding("ask")}
@@ -597,8 +633,8 @@ export function VisitReportForm({
           <Button asChild variant="outline" className="h-12 md:h-10">
             <Link href={`/workspace/missions/${missionId}`}>Kembali</Link>
           </Button>
-          <Button className="h-12 md:h-10" onClick={handleSubmit} disabled={submitting || missing.length > 0}>
-            {submitting ? <><Loader2 className="h-4 w-4 animate-spin" /> Mengirim…</> : <><Send className="h-4 w-4" /> Kirim laporan</>}
+          <Button className="h-12 md:h-10" onClick={handleSubmit} disabled={submitting || missing.length > 0 || (Boolean(editing) && !changeReason.trim())}>
+            {submitting ? <><Loader2 className="h-4 w-4 animate-spin" /> {editing ? "Menyimpan…" : "Mengirim…"}</> : editing ? <><Save className="h-4 w-4" /> Simpan perubahan</> : <><Send className="h-4 w-4" /> Kirim laporan</>}
           </Button>
         </div>
       </FormActionBar>

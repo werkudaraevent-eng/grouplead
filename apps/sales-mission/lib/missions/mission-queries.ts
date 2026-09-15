@@ -183,6 +183,8 @@ export interface MissionSettings {
    * they propose like everyone else and an admin decides.
    */
   primaryCanReschedule: boolean
+  /** Days after sending during which the primary may edit their own report. 0 = admin only. */
+  reportEditWindowDays: number
 }
 
 /**
@@ -199,7 +201,7 @@ export async function getMissionSettings(access: SalesMissionAccess): Promise<Mi
   const { data } = await supabase
     .schema("sales_mission")
     .from("mission_settings")
-    .select("conflict_check_enabled, default_travel_buffer_minutes, allow_same_location_back_to_back, max_supporting_per_mission, require_assignment_confirmation, primary_can_reschedule")
+    .select("conflict_check_enabled, default_travel_buffer_minutes, allow_same_location_back_to_back, max_supporting_per_mission, require_assignment_confirmation, primary_can_reschedule, report_edit_window_days")
     .eq("company_id", access.companyId)
     .maybeSingle()
 
@@ -210,6 +212,7 @@ export async function getMissionSettings(access: SalesMissionAccess): Promise<Mi
     maxSupporting: data?.max_supporting_per_mission ?? 2,
     requireAssignmentConfirmation: data?.require_assignment_confirmation ?? false,
     primaryCanReschedule: data?.primary_can_reschedule ?? true,
+    reportEditWindowDays: data?.report_edit_window_days ?? 7,
   }
 }
 
@@ -665,4 +668,30 @@ export async function getMissionSummary(access: SalesMissionAccess): Promise<Mis
     today: today.count ?? 0,
     completed: completed.count ?? 0,
   }
+}
+
+export interface ReportVersion {
+  version: number
+  reason: string | null
+  changedByName: string | null
+  createdAt: string
+}
+
+/** The versions a sent report went through, newest first. Empty until it was changed once. */
+export async function listReportVersions(access: SalesMissionAccess, reportId: string): Promise<ReportVersion[]> {
+  const { supabase, missions } = await missionSchema()
+  const { data } = await missions
+    .from("visit_report_versions")
+    .select("version, reason, changed_by, created_at")
+    .eq("company_id", access.companyId)
+    .eq("report_id", reportId)
+    .order("version", { ascending: false })
+  const rows = data ?? []
+  const names = await resolveNames(supabase, rows.map((row) => row.changed_by as string))
+  return rows.map((row) => ({
+    version: Number(row.version),
+    reason: (row.reason as string | null) ?? null,
+    changedByName: names.get(row.changed_by as string) ?? null,
+    createdAt: row.created_at as string,
+  }))
 }

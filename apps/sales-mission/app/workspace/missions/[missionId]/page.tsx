@@ -1,6 +1,8 @@
 import Link from "next/link"
 import { notFound, redirect } from "next/navigation"
-import { Ban, Building2, CalendarDays, ClipboardList, ExternalLink, Mail, MapPin, Pencil, Phone, RotateCcw, UsersRound } from "@/components/icons"
+import { AlertCircle, Ban, Building2, CalendarDays, ClipboardList, ExternalLink, History, Mail, MapPin, Pencil, Phone, RotateCcw, UsersRound } from "@/components/icons"
+import { canEditSubmittedReport, describeEditWindow } from "@/lib/missions/report-edit"
+import { RequestClarificationButton } from "./report-admin-actions"
 import { canPerform, getSalesMissionAccess } from "@/lib/sales-mission-access"
 import { requireModule } from "@/lib/missions/nav-access"
 import { PersonAvatar } from "@/components/person-avatar"
@@ -9,6 +11,7 @@ import { formatPhone, normalizePhone } from "@/lib/format/phone"
 import {
   getCancellation,
   getLeadPush,
+  listReportVersions,
   getMission,
   getMissionRole,
   getMissionSettings,
@@ -144,6 +147,15 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
   const canWriteReport = role === "PRIMARY" || access.isSuperAdmin
   const canManageTeam = role === "PRIMARY" || access.isSuperAdmin
   const reportSubmitted = report?.status === "SUBMITTED"
+  // Changing a sent report: its author inside the tenant's window, an admin
+  // whenever. The card says which, and until when.
+  const isAdmin = access.isSuperAdmin || (await canPerform(access, "sales_mission_settings", "update"))
+  const editVerdict = report && reportSubmitted
+    ? canEditSubmittedReport({ isAdmin, isPrimary: role === "PRIMARY", submittedAt: report.submittedAt, now: new Date(), windowDays: settings.reportEditWindowDays })
+    : null
+  const editHint = editVerdict && role === "PRIMARY" ? describeEditWindow(editVerdict, settings.reportEditWindowDays) : null
+  const versions = report && canReadReport ? await listReportVersions(access, report.id) : []
+  const primaryName = team.find((member) => member.role === "PRIMARY")?.name ?? null
 
   // Join eligibility is computed against the viewer's whole calendar, so it
   // needs the tenant's missions rather than this one alone.
@@ -460,11 +472,23 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
                 : report
                   ? reportSubmitted
                     ? "Sudah diisi"
-                    : "Draft tersimpan"
+                    : report.status === "NEEDS_CLARIFICATION"
+                      ? "Dikembalikan untuk klarifikasi"
+                      : "Draft tersimpan"
                   : "Belum diisi"}
             </h2>
           </div>
-          {report && <StatusBadge status={report.status} />}
+          {report && (
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              {reportSubmitted && isAdmin && !isCancelled && <RequestClarificationButton missionId={missionId} authorName={primaryName} />}
+              {reportSubmitted && editVerdict?.allowed && !isCancelled && (
+                <Button asChild variant="outline" size="sm">
+                  <Link href={`/workspace/missions/${missionId}/report?edit=1`}><Pencil className="h-4 w-4" /> Ubah laporan</Link>
+                </Button>
+              )}
+              <StatusBadge status={report.status} />
+            </div>
+          )}
         </div>
 
         {!canReadReport ? (
@@ -473,6 +497,36 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
           </p>
         ) : report ? (
           <div className="space-y-5 px-5 py-5">
+            {report.status === "NEEDS_CLARIFICATION" && report.clarificationNote && (
+              <div className="flex items-start gap-2.5 rounded-xl border border-[var(--warning-foreground)]/20 bg-[var(--warning)] px-4 py-3 text-sm text-[var(--warning-foreground)]">
+                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                <div>
+                  <p className="font-semibold">Admin meminta klarifikasi</p>
+                  <p className="mt-1 whitespace-pre-wrap">{report.clarificationNote}</p>
+                </div>
+              </div>
+            )}
+            {(editHint || versions.length > 0) && (
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                {versions.length > 0 && (
+                  <details className="min-w-0">
+                    <summary className="inline-flex cursor-pointer items-center gap-1.5 font-medium text-foreground">
+                      <History className="h-3.5 w-3.5" /> Diubah {versions.length}×
+                      {versions[0].changedByName ? ` · terakhir oleh ${versions[0].changedByName}` : ""} · {stamp(versions[0].createdAt)}
+                    </summary>
+                    <ol className="mt-2 space-y-1.5 border-l-2 pl-3">
+                      {versions.map((item) => (
+                        <li key={item.version}>
+                          <span className="text-foreground">{item.reason || "Tanpa alasan"}</span>
+                          <span className="block">{item.changedByName ?? "Seseorang"} · {stamp(item.createdAt)} · versi {item.version} disimpan</span>
+                        </li>
+                      ))}
+                    </ol>
+                  </details>
+                )}
+                {editHint && <span>{editHint}</span>}
+              </div>
+            )}
             <div className="grid gap-5 sm:grid-cols-2">
               <ReportField label="Hasil" value={report.visitOutcome ? VISIT_OUTCOME_LABELS[report.visitOutcome] : "—"} />
               <ReportField label="Tingkat minat" value={report.interestLevel ? INTEREST_LEVEL_LABELS[report.interestLevel] : "—"} />

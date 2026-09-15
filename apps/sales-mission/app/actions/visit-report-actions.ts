@@ -3,7 +3,8 @@
 import { revalidatePath } from "next/cache"
 import { createClient } from "@/utils/supabase/server"
 import { canPerform, getSalesMissionAccess, type SalesMissionAccess } from "@/lib/sales-mission-access"
-import { getMission, getMissionRole, getVisitReport, listMissionTeam } from "@/lib/missions/mission-queries"
+import { getMission, getMissionRole, getMissionSettings, getVisitReport, listMissionTeam } from "@/lib/missions/mission-queries"
+import { canEditSubmittedReport } from "@/lib/missions/report-edit"
 import {
   LeadEngineError,
   createClientCompany,
@@ -336,6 +337,35 @@ export async function submitVisitReport(
 
   let reportId = existing?.id as string | undefined
 
+  // Changing a report that was already sent. Allowed for its author inside
+  // the tenant's window and for an admin at any time, never without a
+  // reason, and the submission time stays the original so the window does
+  // not restart with every edit.
+  const isEdit = existing?.status === "SUBMITTED"
+  let keepSubmittedAt: string | null = null
+  if (isEdit && reportId) {
+    const [{ data: sent }, settings, role] = await Promise.all([
+      missions.from("visit_reports").select("submitted_at").eq("id", reportId).single(),
+      getMissionSettings(access),
+      getMissionRole(access, missionId),
+    ])
+    const isAdmin = access.isSuperAdmin || (await canPerform(access, "sales_mission_settings", "update"))
+    keepSubmittedAt = (sent?.submitted_at as string | null) ?? null
+    const verdict = canEditSubmittedReport({
+      isAdmin,
+      isPrimary: role === "PRIMARY",
+      submittedAt: keepSubmittedAt,
+      now: new Date(),
+      windowDays: settings.reportEditWindowDays,
+    })
+    if (!verdict.allowed) {
+      return { success: false, error: "Laporan ini sudah tidak bisa diubah sendiri. Minta admin membukanya." }
+    }
+    if (!parsed.data.changeReason?.trim()) {
+      return { success: false, error: "Tulis alasan perubahan singkat." }
+    }
+  }
+
   if (reportId) {
     // Keep the outgoing state before overwriting. History is append-only, so a
     // correction never erases what was previously reported.
@@ -352,11 +382,16 @@ export async function submitVisitReport(
         version: (count ?? 0) + 1,
         snapshot: previous,
         changed_by: access.userId,
-        reason: existing?.status === "NEEDS_CLARIFICATION" ? "Kirim ulang setelah klarifikasi" : "Kirim ulang",
+        reason: isEdit
+          ? parsed.data.changeReason!.trim()
+          : existing?.status === "NEEDS_CLARIFICATION" ? "Kirim ulang setelah klarifikasi" : "Kirim ulang",
       })
     }
 
-    const { error } = await missions.from("visit_reports").update(row).eq("id", reportId)
+    const { error } = await missions
+      .from("visit_reports")
+      .update(isEdit && keepSubmittedAt ? { ...row, submitted_at: keepSubmittedAt } : row)
+      .eq("id", reportId)
     if (error) return { success: false, error: "Laporan gagal dikirim." }
   } else {
     const { data, error } = await missions
@@ -376,38 +411,44 @@ export async function submitVisitReport(
   if (contactError) return { success: false, error: "Kontak gagal disimpan." }
   await replaceCustomValues(missions, reportId, access.companyId, fields, parsed.data.custom)
 
-  // The visit is done and recorded; move the mission on.
-  await missions
-    .from("missions")
-    .update({ status: "COMPLETED", updated_at: now })
-    .eq("id", missionId)
-    .eq("company_id", access.companyId)
+  // The visit is done and recorded; move the mission on. An edit changes
+  // the record, not the fact that the visit happened, so it leaves the
+  // mission, its history and the team's inbox alone.
+  if (!isEdit) {
+    await missions
+      .from("missions")
+      .update({ status: "COMPLETED", updated_at: now })
+      .eq("id", missionId)
+      .eq("company_id", access.companyId)
+  }
 
   // The visit happened whether or not the CRM hears about it, so this runs
   // after the report is safely stored and never fails the submit. The outcome
   // is written on the report for the mission page to show, and to retry.
   await syncVisitToCrm(access, missionId, reportId)
 
-  await missions.from("status_history").insert({
-    mission_id: missionId,
-    company_id: access.companyId,
-    to_status: "COMPLETED",
-    changed_by: access.userId,
-    reason: "Laporan kunjungan dikirim",
-  })
+  if (!isEdit) {
+    await missions.from("status_history").insert({
+      mission_id: missionId,
+      company_id: access.companyId,
+      to_status: "COMPLETED",
+      changed_by: access.userId,
+      reason: "Laporan kunjungan dikirim",
+    })
 
-  // The team hears that the visit is on record, so supporting sales know their
-  // notes have been read and folded in.
-  const [team, mission] = await Promise.all([
-    listMissionTeam(access, missionId),
-    getMission(access, missionId),
-  ])
-  await notify(
-    access,
-    "RESULT_SUBMITTED",
-    team.map((member) => member.userId),
-    { missionId, clientName: mission?.clientCompanyName ?? "Mission" }
-  )
+    // The team hears that the visit is on record, so supporting sales know their
+    // notes have been read and folded in.
+    const [team, mission] = await Promise.all([
+      listMissionTeam(access, missionId),
+      getMission(access, missionId),
+    ])
+    await notify(
+      access,
+      "RESULT_SUBMITTED",
+      team.map((member) => member.userId),
+      { missionId, clientName: mission?.clientCompanyName ?? "Mission" }
+    )
+  }
 
   revalidatePath("/workspace")
   revalidatePath("/workspace/missions")
@@ -580,6 +621,57 @@ export async function addSupportingNote(missionId: string, note: string): Promis
 
   if (error) return { success: false, error: "Catatan gagal disimpan." }
 
+  revalidatePath(`/workspace/missions/${missionId}`)
+  return { success: true }
+}
+
+/**
+ * An admin sends a sent report back to its author with a note. The report
+ * keeps its content and moves to NEEDS_CLARIFICATION: the author sees the
+ * note on the form, fixes it, and sends again, which files the current
+ * version in the history. Never for a draft; there is nothing to return.
+ */
+export async function requestReportClarification(missionId: string, note: string): Promise<ActionResult> {
+  const access = await getSalesMissionAccess()
+  if (!access) return { success: false, error: "Anda tidak punya akses Sales Mission." }
+  const isAdmin = access.isSuperAdmin || (await canPerform(access, "sales_mission_settings", "update"))
+  if (!isAdmin) return { success: false, error: "Hanya admin yang bisa meminta klarifikasi." }
+  if (!(await canPerform(access, "sales_mission_result", "read"))) {
+    return { success: false, error: "Anda tidak punya akses ke laporan kunjungan." }
+  }
+
+  const trimmed = note.trim()
+  if (trimmed.length < 5) return { success: false, error: "Tulis apa yang perlu diperbaiki." }
+  if (trimmed.length > 500) return { success: false, error: "Catatan maksimal 500 karakter." }
+
+  const supabase = await createClient()
+  const missions = supabase.schema("sales_mission")
+  const { data: existing } = await missions
+    .from("visit_reports")
+    .select("id, status")
+    .eq("company_id", access.companyId)
+    .eq("mission_id", missionId)
+    .maybeSingle()
+  if (!existing) return { success: false, error: "Laporan belum ada." }
+  if (existing.status !== "SUBMITTED") return { success: false, error: "Hanya laporan yang sudah dikirim yang bisa dikembalikan." }
+
+  const { error } = await missions
+    .from("visit_reports")
+    .update({ status: "NEEDS_CLARIFICATION", clarification_note: trimmed, updated_at: new Date().toISOString() })
+    .eq("id", existing.id)
+    .eq("company_id", access.companyId)
+  if (error) return { success: false, error: "Permintaan gagal disimpan." }
+
+  const [team, mission] = await Promise.all([listMissionTeam(access, missionId), getMission(access, missionId)])
+  await notify(
+    access,
+    "NEEDS_CLARIFICATION",
+    team.filter((member) => member.role === "PRIMARY").map((member) => member.userId),
+    { missionId, clientName: mission?.clientCompanyName ?? "Mission" }
+  )
+
+  revalidatePath("/workspace")
+  revalidatePath("/workspace/missions")
   revalidatePath(`/workspace/missions/${missionId}`)
   return { success: true }
 }

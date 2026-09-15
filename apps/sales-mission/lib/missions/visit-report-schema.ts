@@ -134,7 +134,13 @@ export const visitReportDraftSchema = z.object(baseShape)
 export type VisitReportDraft = z.infer<typeof visitReportDraftSchema>
 
 /** Submission. This is the record of what happened, so it must be complete. */
-export const visitReportSubmitSchema = z.object(baseShape).superRefine((value, ctx) => {
+export const visitReportSubmitSchema = z
+  .object({
+    ...baseShape,
+    /** Why a sent report is being changed. Required by the action when the report was already sent. */
+    changeReason: z.string().trim().max(300, "Alasan maksimal 300 karakter").optional().or(z.literal("")),
+  })
+  .superRefine((value, ctx) => {
   if (!value.visitOutcome) {
     ctx.addIssue({ code: "custom", path: ["visitOutcome"], message: "Pilih hasil kunjungan" })
   }
