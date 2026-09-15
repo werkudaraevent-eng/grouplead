@@ -35,6 +35,8 @@ import {
   type FormField,
 } from "@/lib/missions/form-fields"
 import { OptionsEditor } from "./options-editor"
+import { ChoiceManager } from "@/app/workspace/settings/report-form/choice-manager"
+import { CHOICE_FIELDS, type ChoiceField, type ChoiceSet } from "@/lib/missions/report-choices"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
@@ -87,6 +89,9 @@ function toDraft(field: FormField): Draft {
 
 /** Why a core field's type cannot move, stated per field rather than in general. */
 function lockedTypeReason(reportingKey: string, formKey: FormKey): string {
+  if (formKey === "visit_report" && (CHOICE_FIELDS as readonly string[]).includes(reportingKey)) {
+    return "Opsinya diatur di bawah: nama dan urutan bebas, jenis di balik tiap opsi terkunci karena KPI, CRM, dan lead membacanya."
+  }
   if (formKey === "prospect" && reportingKey === "contact_salutation") {
     return "Daftar sapaan diatur di Form mission, supaya prospek dan mission memakai daftar yang sama."
   }
@@ -133,6 +138,7 @@ function FieldEditor({
   usage,
   usageLoading,
   suggestions,
+  reportChoices,
 }: {
   formKey: FormKey
   field: FormField | null
@@ -145,6 +151,8 @@ function FieldEditor({
   usageLoading: boolean
   /** Values people typed off the list, for promotion. Null: not known. */
   suggestions: Array<{ value: string; uses: number }> | null
+  /** The report's three fixed choices, when this is the report form. */
+  reportChoices?: ChoiceSet
 }) {
   const isCore = field?.isCore ?? false
   // Ids must be unique on the page: two editors are never open at once today,
@@ -246,6 +254,8 @@ function FieldEditor({
             error={optionsError}
             noun={formKey === "mission" ? "mission" : formKey === "visit_report" ? "laporan" : "prospek"}
           />
+        ) : formKey === "visit_report" && reportChoices && field && (CHOICE_FIELDS as readonly string[]).includes(field.reportingKey) ? (
+          <ChoiceManager fieldKey={field.reportingKey as ChoiceField} choices={reportChoices[field.reportingKey as ChoiceField]} />
         ) : (
           // Saying where the list comes from beats an empty editor the admin
           // would fill in and watch do nothing.
@@ -313,7 +323,7 @@ function FieldEditor({
   )
 }
 
-export function FieldManager({ fields, formKey }: { fields: FormField[]; formKey: FormKey }) {
+export function FieldManager({ fields, formKey, reportChoices }: { fields: FormField[]; formKey: FormKey; reportChoices?: ChoiceSet }) {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [adding, setAdding] = useState(false)
   const [draft, setDraft] = useState<Draft>(EMPTY_DRAFT)
@@ -388,6 +398,7 @@ export function FieldManager({ fields, formKey }: { fields: FormField[]; formKey
               usage={null}
               usageLoading={false}
               suggestions={null}
+              reportChoices={reportChoices}
               onCancel={() => setAdding(false)}
               onSave={() => run(() => createFormField(formKey, draft), "Field ditambahkan")}
             />
@@ -407,6 +418,7 @@ export function FieldManager({ fields, formKey }: { fields: FormField[]; formKey
                   usage={usage}
                   usageLoading={usageLoading}
                   suggestions={suggestions}
+                  reportChoices={reportChoices}
                   onCancel={() => setEditingId(null)}
                   onSave={() => run(() => updateFormField(formKey, field.id, draft), "Field disimpan")}
                 />

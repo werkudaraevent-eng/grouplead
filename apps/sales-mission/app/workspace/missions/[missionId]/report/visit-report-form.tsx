@@ -7,12 +7,6 @@ import { toast } from "sonner"
 import { AlertCircle, CalendarDays, Check, Cloud, CloudOff, Loader2, Plus, Save, Send, Trash2 } from "@/components/icons"
 import { discardVisitReportDraft, saveVisitReportDraft, submitVisitReport } from "@/app/actions/visit-report-actions"
 import {
-  INTEREST_LEVELS,
-  INTEREST_LEVEL_LABELS,
-  NEXT_ACTION_LABELS,
-  NEXT_ACTION_TYPES,
-  VISIT_OUTCOMES,
-  VISIT_OUTCOME_LABELS,
   missingConfiguredFields,
   missingSubmitFields,
   outcomeRequiresContacts,
@@ -23,6 +17,7 @@ import {
   type VisitOutcome,
 } from "@/lib/missions/visit-report-schema"
 import { visibleFields, type FieldAnswer, type FormField } from "@/lib/missions/form-fields"
+import { choicesFor, isNoAction, noActionCode, type ChoiceSet } from "@/lib/missions/report-choices"
 import type { VisitReportRecord } from "@/lib/missions/mission-queries"
 import type { TenantSalesOption } from "@/lib/missions/mission-queries"
 import type { ReportOptions } from "@/lib/missions/report-options"
@@ -135,7 +130,7 @@ function spanOf(field: FormField): Span {
 const FIELD_CLASS =
   "w-full rounded-md border border-input bg-field px-3 text-sm text-foreground shadow-xs outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
 
-function toDraft(report: VisitReportRecord | null, appointmentContact: ReportContactInput | null): Draft {
+function toDraft(report: VisitReportRecord | null, appointmentContact: ReportContactInput | null, noAction = "NONE"): Draft {
   return {
     visitOutcome: report?.visitOutcome ?? null,
     meetingSummary: report?.meetingSummary ?? "",
@@ -145,7 +140,7 @@ function toDraft(report: VisitReportRecord | null, appointmentContact: ReportCon
     opportunityExists: report?.opportunityExists ?? false,
     estimatedValue: report?.estimatedValue ?? null,
     competitorMentioned: report?.competitorMentioned ?? "",
-    nextActionType: report?.nextActionType ?? "NONE",
+    nextActionType: report?.nextActionType ?? noAction,
     nextActionOwner: report?.nextActionOwner ?? null,
     followUpDate: report?.followUpDate ?? null,
     // A fresh report starts with the person the visit was arranged with. A
@@ -297,6 +292,7 @@ export function VisitReportForm({
   report,
   appointmentContact,
   editing,
+  choices,
   options,
   salesOptions,
   fields,
@@ -311,13 +307,15 @@ export function VisitReportForm({
    * draft to keep), a reason is required, and saving files the old version.
    */
   editing?: { leadPushed: boolean } | null
+  /** The tenant's options for the three fixed choices, kinds included. */
+  choices: ChoiceSet
   /** Fallback vocabularies, used only when the configured field has no options. */
   options: ReportOptions
   salesOptions: TenantSalesOption[]
   fields: FormField[]
 }) {
   const router = useRouter()
-  const [draft, setDraft] = useState<Draft>(() => toDraft(report, appointmentContact))
+  const [draft, setDraft] = useState<Draft>(() => toDraft(report, appointmentContact, noActionCode(choices)))
   const [sync, setSync] = useState<SyncState>("idle")
   const [attempt, setAttempt] = useState(0)
   const [error, setError] = useState<string | null>(null)
@@ -394,7 +392,11 @@ export function VisitReportForm({
   const ordered = visibleFields(fields)
   const byKey = new Map(ordered.map((field) => [field.reportingKey, field]))
   const labelFor = (key: string) => byKey.get(key)?.label ?? key
-  const needsContacts = outcomeRequiresContacts(draft.visitOutcome)
+  const needsContacts = outcomeRequiresContacts(draft.visitOutcome, choices)
+  const outcomeChoices = choicesFor(choices, "visit_outcome", draft.visitOutcome)
+  const interestChoices = choicesFor(choices, "interest_level", draft.interestLevel)
+  const nextActionChoices = choicesFor(choices, "next_action_type", draft.nextActionType)
+  const labelsOf = (list: typeof outcomeChoices) => Object.fromEntries(list.map((choice) => [choice.code, choice.label]))
   // Offered back whenever the appointment contact is not in the list, so a
   // removed or pre-feature draft is one tap from correct.
   const appointmentMissing = Boolean(appointmentContact) && !draft.contacts.some((contact) => isAppointmentContact(contact, appointmentContact))
@@ -412,7 +414,7 @@ export function VisitReportForm({
       case "visit_outcome":
         return (
           <FieldShell key={field.id} field={field} hint={`Kunjungan ke ${clientName}`}>
-            <ChipGroup options={VISIT_OUTCOMES} value={draft.visitOutcome} onChange={(next) => update("visitOutcome", next)} labels={VISIT_OUTCOME_LABELS} />
+            <ChipGroup options={outcomeChoices.map((choice) => choice.code)} value={draft.visitOutcome} onChange={(next) => update("visitOutcome", next)} labels={labelsOf(outcomeChoices)} />
           </FieldShell>
         )
       case "contacts_met":
@@ -490,7 +492,7 @@ export function VisitReportForm({
       case "interest_level":
         return (
           <FieldShell key={field.id} field={field}>
-            <ChipGroup options={INTEREST_LEVELS} value={draft.interestLevel} onChange={(next) => update("interestLevel", next)} labels={INTEREST_LEVEL_LABELS} />
+            <ChipGroup options={interestChoices.map((choice) => choice.code)} value={draft.interestLevel} onChange={(next) => update("interestLevel", next)} labels={labelsOf(interestChoices)} />
           </FieldShell>
         )
       case "opportunity_exists":
@@ -517,11 +519,11 @@ export function VisitReportForm({
       case "next_action_type":
         return (
           <FieldShell key={field.id} field={field}>
-            <ChipGroup options={NEXT_ACTION_TYPES} value={draft.nextActionType} onChange={(next) => update("nextActionType", next)} labels={NEXT_ACTION_LABELS} />
+            <ChipGroup options={nextActionChoices.map((choice) => choice.code)} value={draft.nextActionType} onChange={(next) => update("nextActionType", next)} labels={labelsOf(nextActionChoices)} />
           </FieldShell>
         )
       case "next_action_owner":
-        if (draft.nextActionType === "NONE") return null
+        if (isNoAction(draft.nextActionType, choices)) return null
         return (
           <FieldShell key={field.id} field={field}>
             <select id="nextActionOwner" value={draft.nextActionOwner ?? ""} onChange={(event) => update("nextActionOwner", event.target.value || null)} className={cn(FIELD_CLASS, "h-12")}>
@@ -531,7 +533,7 @@ export function VisitReportForm({
           </FieldShell>
         )
       case "follow_up_date":
-        if (draft.nextActionType === "NONE") return null
+        if (isNoAction(draft.nextActionType, choices)) return null
         return (
           <FieldShell key={field.id} field={field}>
             <Input id="followUpDate" className="h-12" type="date" value={draft.followUpDate ?? ""} onChange={(event) => update("followUpDate", event.target.value || null)} />

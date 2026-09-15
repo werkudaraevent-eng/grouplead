@@ -27,7 +27,6 @@ import { isAwaitingTeam, needsMyAnswer, type MissionFilter } from "@/lib/mission
 import type { ConfirmationPolicy } from "@/lib/missions/assignment-workflow"
 import { EmptyState, JoinStatusLine, NewMissionAction, StatusBadge } from "@/app/workspace/workspace-page"
 import { VISIT_STATE_LABELS, reportOwed, visitState } from "@/lib/missions/visit-state"
-import { VISIT_OUTCOME_LABELS, type VisitOutcome } from "@/lib/missions/visit-report-schema"
 import { statusLabel } from "@/lib/missions/status-labels"
 import { AcceptAssignmentButton, AssignmentOverflowMenu } from "./assignment-actions-menu"
 import { JoinButton } from "./join-controls"
@@ -75,7 +74,7 @@ function VisitStatus({ mission, now }: { mission: Row; now: Date }) {
         <StatusBadge status="COMPLETED" />
         {mission.visitOutcome && (
           <span className="block text-xs text-muted-foreground">
-            {VISIT_OUTCOME_LABELS[mission.visitOutcome as VisitOutcome] ?? mission.visitOutcome}
+            {mission.visitOutcomeLabel ?? mission.visitOutcome}
           </span>
         )}
       </>

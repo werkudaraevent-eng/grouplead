@@ -8,6 +8,7 @@ import { getMission, getMissionRole, getVisitReport } from "@/lib/missions/missi
 import { notify } from "@/lib/notifications/notification-queries"
 import { canPushLead } from "@/lib/missions/visit-report-schema"
 import { visitActivities } from "@/lib/missions/lead-activity"
+import { listReportChoices } from "@/lib/missions/report-choice-queries"
 import {
   LeadEngineError,
   createClientCompany,
@@ -345,7 +346,7 @@ export async function pushMissionToLeadEngine(
       remark: parsed.data.remark?.trim() || report.meetingSummary || null,
       source: "Sales Mission",
       salesMissionId: missionId,
-      activities: visitActivities(mission, report, access.displayName),
+      activities: visitActivities(mission, report, access.displayName, await listReportChoices(access)),
     })
     leadId = created.id
   } catch (error) {

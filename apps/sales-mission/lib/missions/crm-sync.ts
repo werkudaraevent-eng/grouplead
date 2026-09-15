@@ -1,5 +1,5 @@
 import type { VisitOutcome } from "./visit-report-schema"
-import { VISIT_OUTCOME_LABELS } from "./visit-report-schema"
+import { labelOf, outcomeReachesCrm, type ChoiceSet } from "./report-choices"
 
 /**
  * What a submitted visit report hands to the CRM.
@@ -21,8 +21,8 @@ export interface VisitForCrm {
  * with names from cancelled trips. Those visits stay in Sales Mission's own
  * history and reach the CRM the first time someone is actually met.
  */
-export function visitReachesCrm(outcome: VisitOutcome): boolean {
-  return outcome === "MET_DECISION_MAKER" || outcome === "MET_STAFF" || outcome === "RESCHEDULED_ON_SITE"
+export function visitReachesCrm(outcome: VisitOutcome, choices?: ChoiceSet | null): boolean {
+  return outcomeReachesCrm(outcome, choices)
 }
 
 /** Contacts worth a CRM row: a name is required, everything else is a bonus. */
@@ -43,6 +43,6 @@ export function contactsForCrm(contacts: VisitForCrm["contacts"]): VisitForCrm["
 }
 
 /** One line for the CRM timeline, in the CRM's language. */
-export function describeOutcome(outcome: VisitOutcome): string {
-  return VISIT_OUTCOME_LABELS[outcome]
+export function describeOutcome(outcome: VisitOutcome, choices?: ChoiceSet | null): string {
+  return labelOf(choices, "visit_outcome", outcome)
 }

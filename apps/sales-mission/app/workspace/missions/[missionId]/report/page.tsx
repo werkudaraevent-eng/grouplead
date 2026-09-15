@@ -1,6 +1,7 @@
 import { notFound, redirect } from "next/navigation"
 import { canPerform, getSalesMissionAccess } from "@/lib/sales-mission-access"
 import { canEditSubmittedReport } from "@/lib/missions/report-edit"
+import { listReportChoices } from "@/lib/missions/report-choice-queries"
 import { requireModule } from "@/lib/missions/nav-access"
 import {
   getLeadPush,
@@ -30,7 +31,7 @@ export default async function VisitReportPage({ params, searchParams }: { params
   const mission = await getMission(access, missionId)
   if (!mission) notFound()
 
-  const [role, report, options, salesOptions, settings, team, fields] = await Promise.all([
+  const [role, report, options, salesOptions, settings, team, fields, choices] = await Promise.all([
     getMissionRole(access, missionId),
     getVisitReport(access, missionId),
     getReportOptions(),
@@ -38,6 +39,7 @@ export default async function VisitReportPage({ params, searchParams }: { params
     getMissionSettings(access),
     listMissionTeam(access, missionId),
     listFormFields(access, "visit_report"),
+    listReportChoices(access),
   ])
 
   const canWrite = role === "PRIMARY" || access.isSuperAdmin
@@ -102,6 +104,7 @@ export default async function VisitReportPage({ params, searchParams }: { params
         report={report}
         appointmentContact={contactFromAppointment(mission.appointment)}
         editing={editing}
+        choices={choices}
         options={options}
         salesOptions={salesOptions}
         fields={fields}

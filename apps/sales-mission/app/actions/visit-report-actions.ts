@@ -5,6 +5,8 @@ import { createClient } from "@/utils/supabase/server"
 import { canPerform, getSalesMissionAccess, type SalesMissionAccess } from "@/lib/sales-mission-access"
 import { getMission, getMissionRole, getMissionSettings, getVisitReport, listMissionTeam } from "@/lib/missions/mission-queries"
 import { canEditSubmittedReport } from "@/lib/missions/report-edit"
+import { listReportChoices } from "@/lib/missions/report-choice-queries"
+import { reportChoiceViolation } from "@/lib/missions/report-choices"
 import {
   LeadEngineError,
   createClientCompany,
@@ -321,6 +323,19 @@ export async function submitVisitReport(
     vocabularyViolation(vocabularyFields, "product_interest", parsed.data.productInterest, options.productInterest)
   if (vocabularyError) return { success: false, error: vocabularyError }
 
+  // The three fixed choices, against the tenant's set: the codes must exist
+  // and the rules their kinds impose must hold.
+  const choiceError = reportChoiceViolation(await listReportChoices(access), {
+    visitOutcome: parsed.data.visitOutcome,
+    interestLevel: parsed.data.interestLevel,
+    nextActionType: parsed.data.nextActionType,
+    opportunityExists: parsed.data.opportunityExists,
+    contactCount: parsed.data.contacts.length,
+    nextActionOwner: parsed.data.nextActionOwner,
+    followUpDate: parsed.data.followUpDate,
+  })
+  if (choiceError) return { success: false, error: choiceError }
+
   // The admin's form rules, on top of the code's. Checked here as well as in
   // the form, because a Server Action is a public endpoint.
   const fields = await listFormFields(access, "visit_report")
@@ -511,7 +526,8 @@ async function syncVisitToCrm(
       getVisitReport(access, missionId),
     ])
     if (!mission || !report?.visitOutcome) return
-    if (!visitReachesCrm(report.visitOutcome as VisitOutcome)) {
+    const choices = await listReportChoices(access)
+    if (!visitReachesCrm(report.visitOutcome as VisitOutcome, choices)) {
       // Not a failure. Left null so the page can say "tidak dikirim" without
       // offering a retry that would do the same nothing.
       return
@@ -567,7 +583,7 @@ async function syncVisitToCrm(
         ? new Intl.DateTimeFormat("en-CA", { timeZone: MISSION_TIME_ZONE }).format(new Date(mission.scheduledStart))
         : new Intl.DateTimeFormat("en-CA", { timeZone: MISSION_TIME_ZONE }).format(new Date()),
       salesName: primary?.name ?? access.displayName,
-      outcome: describeOutcome(report.visitOutcome as VisitOutcome),
+      outcome: describeOutcome(report.visitOutcome as VisitOutcome, choices),
       contactNames: contactsForCrm(report.contacts).map((contact) => contact.fullName),
       city: mission.location,
     })

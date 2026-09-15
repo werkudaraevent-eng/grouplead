@@ -40,7 +40,9 @@ describe("visitReportDraftSchema", () => {
 
   it("still rejects data that could never be valid", () => {
     expect(visitReportDraftSchema.safeParse({ estimatedValue: -1 }).success).toBe(false)
-    expect(visitReportDraftSchema.safeParse({ visitOutcome: "NOT_A_REAL_OUTCOME" }).success).toBe(false)
+    // Codes are the tenant's now, so the schema checks the shape; the server checks membership.
+    expect(visitReportDraftSchema.safeParse({ visitOutcome: "not a code" }).success).toBe(false)
+    expect(visitReportDraftSchema.safeParse({ visitOutcome: "VIDEO_CALL" }).success).toBe(true)
     expect(visitReportDraftSchema.safeParse({ followUpDate: "05-09-2026" }).success).toBe(false)
   })
 

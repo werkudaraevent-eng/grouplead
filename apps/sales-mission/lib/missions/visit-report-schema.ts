@@ -1,6 +1,7 @@
 import { z } from "zod"
 import { isValidPhone, normalizePhone } from "@/lib/format/phone"
 import { visibleFields, type FormField } from "./form-fields"
+import { isNoAction, isNoInterest, outcomeRequiresContacts as choiceOutcomeRequiresContacts, type ChoiceSet } from "./report-choices"
 
 /**
  * Visit report contract: vocabularies, validation, and the pure helpers the
@@ -24,7 +25,8 @@ export const VISIT_OUTCOMES = [
   "CLIENT_ABSENT",
   "CANCELLED_ON_SITE",
 ] as const
-export type VisitOutcome = (typeof VISIT_OUTCOMES)[number]
+/** A stored code. The seed codes are listed above; the admin may add more (see report-choices). */
+export type VisitOutcome = string
 
 export const VISIT_OUTCOME_LABELS: Record<VisitOutcome, string> = {
   MET_DECISION_MAKER: "Bertemu pengambil keputusan",
@@ -35,7 +37,7 @@ export const VISIT_OUTCOME_LABELS: Record<VisitOutcome, string> = {
 }
 
 export const INTEREST_LEVELS = ["HOT", "WARM", "COLD", "NO_INTEREST"] as const
-export type InterestLevel = (typeof INTEREST_LEVELS)[number]
+export type InterestLevel = string
 
 export const INTEREST_LEVEL_LABELS: Record<InterestLevel, string> = {
   HOT: "Panas",
@@ -51,7 +53,7 @@ export const NEXT_ACTION_TYPES = [
   "WAITING_CLIENT",
   "NONE",
 ] as const
-export type NextActionType = (typeof NEXT_ACTION_TYPES)[number]
+export type NextActionType = string
 
 export const NEXT_ACTION_LABELS: Record<NextActionType, string> = {
   SEND_PROPOSAL: "Kirim proposal",
@@ -66,10 +68,12 @@ export type ReportStatus = (typeof REPORT_STATUSES)[number]
 
 /**
  * Nobody was there to meet, so demanding a list of who was met would force
- * people to invent one. Every other outcome requires at least one contact.
+ * people to invent one. Every other kind of outcome requires at least one
+ * contact. With no choice set the seed decides, which is right for every
+ * tenant that never added a choice.
  */
-export function outcomeRequiresContacts(outcome: VisitOutcome | null | undefined): boolean {
-  return outcome !== "CLIENT_ABSENT"
+export function outcomeRequiresContacts(outcome: VisitOutcome | null | undefined, choices?: ChoiceSet | null): boolean {
+  return choiceOutcomeRequiresContacts(outcome, choices)
 }
 
 const contactSchema = z.object({
@@ -111,17 +115,20 @@ export function isAppointmentContact(contact: { fullName: string }, appointment:
   return contact.fullName.trim().toLowerCase() === appointment.fullName.trim().toLowerCase()
 }
 
+const CODE_PATTERN = /^[A-Z][A-Z0-9_]{0,59}$/
+
 /** Shape shared by both variants. Everything optional; the strict rules live in the submit schema. */
 const baseShape = {
-  visitOutcome: z.enum(VISIT_OUTCOMES).nullish(),
+  // A code, shaped like the seed codes; whether the tenant has it is the server's check.
+  visitOutcome: z.string().regex(CODE_PATTERN, "Kode tidak valid").nullish(),
   meetingSummary: z.string().trim().max(5000).optional().or(z.literal("")),
   clientNeeds: z.array(z.string().trim().min(1)).default([]),
   productInterest: z.array(z.string().trim().min(1)).default([]),
-  interestLevel: z.enum(INTEREST_LEVELS).nullish(),
+  interestLevel: z.string().regex(CODE_PATTERN, "Kode tidak valid").nullish(),
   opportunityExists: z.boolean().default(false),
   estimatedValue: z.number().nonnegative("Nilai tidak boleh negatif").nullish(),
   competitorMentioned: z.string().trim().max(300).optional().or(z.literal("")),
-  nextActionType: z.enum(NEXT_ACTION_TYPES).default("NONE"),
+  nextActionType: z.string().regex(CODE_PATTERN, "Kode tidak valid").default("NONE"),
   nextActionOwner: z.string().uuid().nullish(),
   followUpDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Tanggal tidak valid").nullish(),
   contacts: z.array(contactSchema).default([]),
@@ -167,7 +174,7 @@ export const visitReportSubmitSchema = z
     }
   })
 
-  if (value.nextActionType !== "NONE") {
+  if (!isNoAction(value.nextActionType)) {
     if (!value.nextActionOwner) {
       ctx.addIssue({ code: "custom", path: ["nextActionOwner"], message: "Tentukan penanggung jawab next action" })
     }
@@ -178,7 +185,7 @@ export const visitReportSubmitSchema = z
 
   // An opportunity with no interest recorded is a contradiction that would
   // otherwise reach the CRM push modal and create a junk lead.
-  if (value.opportunityExists && value.interestLevel === "NO_INTEREST") {
+  if (value.opportunityExists && isNoInterest(value.interestLevel)) {
     ctx.addIssue({
       code: "custom",
       path: ["opportunityExists"],
@@ -218,7 +225,7 @@ export function canPushLead(report: Pick<VisitReportSummary, "status" | "opportu
 export function hasOpenNextAction(
   report: Pick<VisitReportSummary, "status" | "nextActionType">
 ): boolean {
-  return report.status !== "DRAFT" && report.nextActionType !== "NONE"
+  return report.status !== "DRAFT" && !isNoAction(report.nextActionType)
 }
 
 /** Progress hint for the mobile form, so the field rep knows what is left. */

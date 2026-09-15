@@ -2,6 +2,8 @@ import Link from "next/link"
 import { notFound, redirect } from "next/navigation"
 import { AlertCircle, Ban, Building2, CalendarDays, ClipboardList, ExternalLink, History, Mail, MapPin, Pencil, Phone, RotateCcw, UsersRound } from "@/components/icons"
 import { canEditSubmittedReport, describeEditWindow } from "@/lib/missions/report-edit"
+import { listReportChoices } from "@/lib/missions/report-choice-queries"
+import { labelOf } from "@/lib/missions/report-choices"
 import { RequestClarificationButton } from "./report-admin-actions"
 import { canPerform, getSalesMissionAccess } from "@/lib/sales-mission-access"
 import { requireModule } from "@/lib/missions/nav-access"
@@ -39,9 +41,6 @@ import {
   type AssignmentResponse,
 } from "@/lib/missions/mission-schema"
 import {
-  INTEREST_LEVEL_LABELS,
-  NEXT_ACTION_LABELS,
-  VISIT_OUTCOME_LABELS,
   canPushLead,
 } from "@/lib/missions/visit-report-schema"
 import { BackLink, JoinStatusLine, StatusBadge, WorkspacePage } from "@/app/workspace/workspace-page"
@@ -120,6 +119,7 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
     getProspectByMission(access, missionId),
   ])
   const reportFields = report ? await listFormFields(access, "visit_report") : []
+  const choices = report ? await listReportChoices(access) : null
   const customAnswers = report
     ? reportFields
         .filter((field) => !field.isCore && field.isActive)
@@ -528,9 +528,9 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
               </div>
             )}
             <div className="grid gap-5 sm:grid-cols-2">
-              <ReportField label="Hasil" value={report.visitOutcome ? VISIT_OUTCOME_LABELS[report.visitOutcome] : "—"} />
-              <ReportField label="Tingkat minat" value={report.interestLevel ? INTEREST_LEVEL_LABELS[report.interestLevel] : "—"} />
-              <ReportField label="Next action" value={NEXT_ACTION_LABELS[report.nextActionType]} />
+              <ReportField label="Hasil" value={report.visitOutcome ? labelOf(choices, "visit_outcome", report.visitOutcome) : "—"} />
+              <ReportField label="Tingkat minat" value={report.interestLevel ? labelOf(choices, "interest_level", report.interestLevel) : "—"} />
+              <ReportField label="Next action" value={labelOf(choices, "next_action_type", report.nextActionType)} />
               <ReportField label="Follow-up" value={report.followUpDate ?? "—"} />
             </div>
 

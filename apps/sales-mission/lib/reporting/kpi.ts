@@ -1,4 +1,5 @@
 import { missionDayKey } from "@/lib/missions/mission-calendar"
+import { isDecisionMakerOutcome, isNoAction, labelOf, type ChoiceSet } from "@/lib/missions/report-choices"
 import type {
   InterestLevel,
   NextActionType,
@@ -120,20 +121,22 @@ function accumulate(
 export function buildKpiReport(
   records: ReportRecord[],
   now: Date,
-  range: { from: string; to: string } | null = null
+  range: { from: string; to: string } | null = null,
+  /** The tenant's report choices, so the kinds and labels are theirs. The seed when omitted. */
+  choices: ChoiceSet | null = null
 ): KpiReport {
   const inRange = filterByRange(records, range)
   const submitted = inRange.filter((record) => record.reportStatus !== "DRAFT")
 
   const today = missionDayKey(now)
 
-  const openNextActions = submitted.filter((record) => record.nextActionType !== "NONE")
+  const openNextActions = submitted.filter((record) => !isNoAction(record.nextActionType, choices))
   const overdue = openNextActions.filter(
     (record) => record.followUpDate !== null && record.followUpDate < today
   )
 
   const decisionMakerVisits = submitted.filter(
-    (record) => record.visitOutcome === "MET_DECISION_MAKER"
+    (record) => isDecisionMakerOutcome(record.visitOutcome, choices)
   ).length
 
   const summary: KpiSummary = {
@@ -165,7 +168,7 @@ export function buildKpiReport(
     })),
     byInterest: accumulate(submitted, (record) => ({
       key: record.interestLevel ?? "UNSET",
-      label: record.interestLevel ?? "Belum diisi",
+      label: record.interestLevel ? labelOf(choices, "interest_level", record.interestLevel) : "Belum diisi",
     })),
   }
 }

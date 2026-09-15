@@ -238,6 +238,8 @@ export interface MissionListItem {
   reportStatus: "NONE" | "DRAFT" | "SUBMITTED" | "NEEDS_CLARIFICATION"
   /** The report's outcome code, for the list's "Selesai · bertemu …" line. */
   visitOutcome: string | null
+  /** The tenant's label for that code, resolved by the query layer. */
+  visitOutcomeLabel?: string | null
   /** Who the appointment is with. Empty on missions booked before this existed. */
   appointment: MissionAppointment
   supportingCount: number
@@ -262,7 +264,7 @@ export interface MissionListItem {
  * the name — and the two tables now live in different schemas. Three small
  * queries plus this mapping beat one query per mission.
  */
-export type ReportStateMap = Map<string, { status: "DRAFT" | "SUBMITTED" | "NEEDS_CLARIFICATION"; visitOutcome: string | null }>
+export type ReportStateMap = Map<string, { status: "DRAFT" | "SUBMITTED" | "NEEDS_CLARIFICATION"; visitOutcome: string | null; visitOutcomeLabel?: string | null }>
 
 export function mapMissions(
   missions: MissionRow[],
@@ -302,6 +304,7 @@ export function mapMissions(
       createdAt: mission.created_at,
       reportStatus: reports?.get(mission.id)?.status ?? "NONE",
       visitOutcome: reports?.get(mission.id)?.visitOutcome ?? null,
+      visitOutcomeLabel: reports?.get(mission.id)?.visitOutcomeLabel ?? null,
       appointment: {
         salutation: mission.contact_salutation ?? null,
         contactId: mission.contact_id ?? null,

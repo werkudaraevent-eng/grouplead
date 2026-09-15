@@ -16,6 +16,7 @@ import { listReportRecords } from "@/lib/reporting/report-queries"
 import { buildKpiReport, currentMonthRange, type Breakdown } from "@/lib/reporting/kpi"
 import { EmptyState, WorkspacePage } from "@/app/workspace/workspace-page"
 import { getProspectFunnel } from "@/lib/prospects/prospect-page-queries"
+import { listReportChoices } from "@/lib/missions/report-choice-queries"
 import { FunnelCard } from "./funnel-card"
 import { Button } from "@/components/ui/button"
 
@@ -116,11 +117,12 @@ export default async function ReportsPage({
     to: params.to && DATE_PATTERN.test(params.to) ? params.to : fallback.to,
   }
 
-  const [records, funnel] = await Promise.all([
+  const [records, funnel, choices] = await Promise.all([
     listReportRecords(access),
     (await canPerform(access, "sales_mission_prospect", "read")) ? getProspectFunnel(access, range) : Promise.resolve(null),
+    listReportChoices(access),
   ])
-  const report = buildKpiReport(records, now, range)
+  const report = buildKpiReport(records, now, range, choices)
   const currency = new Intl.NumberFormat("id-ID", { maximumFractionDigits: 0 })
 
   return (

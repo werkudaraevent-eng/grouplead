@@ -1,4 +1,5 @@
 import { createClient } from "@/utils/supabase/server"
+import { reportChoiceLabels } from "./report-choice-queries"
 import type { SalesMissionAccess } from "@/lib/sales-mission-access"
 import {
   mapMissions,
@@ -62,10 +63,13 @@ async function reportStates(
     .select("mission_id, status, visit_outcome")
     .eq("company_id", companyId)
     .in("mission_id", missionIds)
+  const labels = await reportChoiceLabels(missions, companyId)
   for (const row of data ?? []) {
+    const outcome = (row.visit_outcome as string | null) ?? null
     map.set(row.mission_id as string, {
       status: row.status as "DRAFT" | "SUBMITTED" | "NEEDS_CLARIFICATION",
-      visitOutcome: (row.visit_outcome as string | null) ?? null,
+      visitOutcome: outcome,
+      visitOutcomeLabel: outcome ? (labels.visit_outcome.get(outcome) ?? outcome) : null,
     })
   }
   return map
