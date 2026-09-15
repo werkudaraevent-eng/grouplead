@@ -97,7 +97,8 @@ export default async function BoardPage({
 
   return (
     <>
-      <meta httpEquiv="refresh" content="30" />
+      {/* A minute, not thirty seconds: a paged panel needs time to show its pages before the reload. The page position survives the reload anyway. */}
+      <meta httpEquiv="refresh" content="60" />
       <BoardView
         snapshot={snapshot}
         subtitle={[subtitle, masked ? "nama klien disamarkan" : "nama klien ditampilkan"].filter(Boolean).join(" — ")}

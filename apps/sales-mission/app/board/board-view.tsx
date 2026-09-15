@@ -4,22 +4,26 @@ import type { BoardPanel } from "@/lib/board/board-options"
 import { MISSION_TIME_ZONE } from "@/lib/missions/mission-schema"
 import { statusLabel } from "@/lib/missions/status-labels"
 import { cn } from "@/lib/utils"
+import { FitList, type FitItem } from "./fit-list"
 
 /**
  * The screen. Read from across a room: large type, high contrast, no
  * interaction, and it never scrolls. A wall display has nobody to scroll
  * it, so the layout is a fixed viewport: header, hero and counts take what
- * they need, the panels take the rest and clip, and a panel with more rows
- * than fit says "+N lagi" instead of running off the bottom.
+ * they need, the panels take the rest. A panel with more rows than fit
+ * turns pages on a timer (see FitList) instead of clipping or spilling.
  *
  * Material's rules for a dark, distant surface, taken as rules:
  *
  *   - Tonal elevation, not borders. Panels are a lighter wash of the same
- *     neutral (--board-surface-1/2); nothing is outlined.
+ *     neutral (--board-surface-1/2); nothing is outlined, nothing casts a
+ *     shadow. Large shape (24dp) on panels, full round on the small chips.
  *   - One tinted container for the one thing the room should look at. The
  *     primary container holds the next visit, or the one happening now.
  *   - A type scale with real steps: display for the clock, headline for the
- *     hero, title for section headers, body for rows.
+ *     hero, title for section headers, body for rows. The steps shrink
+ *     together on a short screen so the composition holds at 720p.
+ *   - Status is a dot and a word, never a pill; a time is a mono chip.
  *   - Empty states are centred and say what would fill them.
  *   - A week is an agenda with day subheaders, not seven narrow columns.
  */
@@ -32,10 +36,10 @@ const STATUS_DOT: Record<string, string> = {
   REJECTED: "bg-[var(--board-text-dim)]",
 }
 
-/** Rows that fit a 1080p panel beside the hero and counts. */
-const DAY_ROWS = 7
-const WEEK_ROWS = 9
-const TEAM_ROWS = 7
+/** Row heights the FitList paginates by. The rows below render at exactly these. */
+const ROW = 68
+const SUBHEADER = 40
+const TEAM_ROW = 68
 
 function minuteOfDay(date: Date): number {
   const parts = new Intl.DateTimeFormat("en-GB", { timeZone: MISSION_TIME_ZONE, hour: "2-digit", minute: "2-digit", hour12: false }).formatToParts(date)
@@ -46,15 +50,23 @@ function initials(name: string): string {
   return name.split(" ").filter(Boolean).map((part) => part[0]).join("").toUpperCase().slice(0, 2)
 }
 
-function Stat({ label, value, icon: Icon }: { label: string; value: number; icon: typeof Users }) {
+/** A stable tonal hue per person, so the same name is the same colour every day. */
+function avatarTone(name: string): string {
+  const tones = ["bg-sky-500/25 text-sky-100", "bg-emerald-500/25 text-emerald-100", "bg-amber-500/25 text-amber-100", "bg-violet-500/25 text-violet-100", "bg-rose-500/25 text-rose-100", "bg-teal-500/25 text-teal-100"]
+  let hash = 0
+  for (const char of name) hash = (hash * 31 + char.charCodeAt(0)) | 0
+  return tones[Math.abs(hash) % tones.length]
+}
+
+function Stat({ label, value, icon: Icon, tone }: { label: string; value: number; icon: typeof Users; tone: string }) {
   return (
-    <div className="flex items-center gap-4 rounded-2xl bg-[var(--board-surface-1)] px-5 py-3">
-      <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[var(--board-surface-2)] text-[var(--board-text-dim)]">
+    <div className="flex items-center gap-4 rounded-2xl bg-[var(--board-surface-1)] px-5 py-3 [@media(max-height:820px)]:py-2">
+      <span className={cn("grid h-11 w-11 shrink-0 place-items-center rounded-full [@media(max-height:820px)]:h-9 [@media(max-height:820px)]:w-9", tone)}>
         <Icon className="h-5 w-5" />
       </span>
       <span className="min-w-0">
-        <span className="block text-sm text-[var(--board-text-dim)]">{label}</span>
-        <span className="block text-3xl font-bold tabular-nums leading-tight text-[var(--board-text)]">{value}</span>
+        <span className="block truncate text-sm text-[var(--board-text-dim)]">{label}</span>
+        <span className="block text-3xl font-bold tabular-nums leading-tight text-[var(--board-text)] [@media(max-height:820px)]:text-2xl">{value}</span>
       </span>
     </div>
   )
@@ -72,45 +84,51 @@ function Empty({ icon: Icon, title, hint }: { icon: typeof Users; title: string;
   )
 }
 
-function More({ count }: { count: number }) {
-  if (count <= 0) return null
-  return <p className="px-6 py-3 text-base text-[var(--board-text-dim)]">+{count} lagi</p>
-}
-
 function Row({ mission, state }: { mission: BoardMission; state: "past" | "now" | "later" }) {
   const done = mission.status === "COMPLETED" || mission.status === "CANCELLED" || mission.status === "REJECTED"
   const now = state === "now" && !done
   return (
-    <li
+    <div
       className={cn(
-        "flex items-center gap-5 px-6 py-3",
-        now && "bg-[var(--board-primary-container)] text-[var(--board-on-primary-container)]",
-        !now && (done || state === "past") && "opacity-60"
+        "flex h-full items-center gap-5 border-b border-[var(--board-line)] px-6",
+        now && "rounded-xl border-transparent bg-[var(--board-primary-container)] text-[var(--board-on-primary-container)]",
+        !now && (done || state === "past") && "opacity-55"
       )}
     >
-      <span className="w-16 shrink-0 font-mono text-xl font-bold tabular-nums">{mission.time ?? "—"}</span>
+      <span className={cn("inline-flex h-9 w-[4.5rem] shrink-0 items-center justify-center rounded-full font-mono text-lg font-bold tabular-nums", now ? "bg-white/15" : "bg-[var(--board-surface-2)]")}>
+        {mission.time ?? "—"}
+      </span>
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-lg font-semibold">{mission.clientLabel}</span>
+        <span className="block truncate text-lg font-semibold leading-tight">{mission.clientLabel}</span>
         <span className={cn("block truncate text-sm", now ? "text-[var(--board-on-primary-container)]/80" : "text-[var(--board-text-dim)]")}>
           {[mission.primarySalesName, mission.location].filter(Boolean).join(" · ") || mission.missionType}
         </span>
       </span>
       <span className={cn("flex shrink-0 items-center gap-2 text-sm", now ? "text-[var(--board-on-primary-container)]" : "text-[var(--board-text-dim)]")}>
-        <span aria-hidden="true" className={cn("h-2.5 w-2.5 rounded-full", STATUS_DOT[mission.status] ?? "bg-[var(--board-text-dim)]")} />
+        <span aria-hidden="true" className={cn("h-2.5 w-2.5 rounded-full", now ? "bg-[var(--board-running)]" : STATUS_DOT[mission.status] ?? "bg-[var(--board-text-dim)]")} />
         {now ? "Sekarang" : statusLabel(mission.status)}
       </span>
-    </li>
+    </div>
+  )
+}
+
+function DayHeader({ label, isToday, count }: { label: string; isToday: boolean; count: number }) {
+  return (
+    <div className={cn("flex h-full items-center justify-between px-6 text-sm font-semibold", isToday ? "bg-[var(--board-surface-2)] text-[var(--board-accent)]" : "text-[var(--board-text-dim)]")}>
+      <span>{label}{isToday && " · Hari ini"}</span>
+      <span className="font-normal">{count > 0 ? `${count} kunjungan` : "Kosong"}</span>
+    </div>
   )
 }
 
 function Panel({ title, meta, children }: { title: string; meta: string; children: React.ReactNode }) {
   return (
     <div className="flex min-h-0 flex-col overflow-hidden rounded-3xl bg-[var(--board-surface-1)]">
-      <h2 className="flex shrink-0 items-center justify-between px-6 py-4 text-xl font-semibold">
+      <h2 className="flex shrink-0 items-center justify-between px-6 py-4 text-xl font-semibold [@media(max-height:820px)]:py-3">
         {title}
         <span className="text-sm font-normal text-[var(--board-text-dim)]">{meta}</span>
       </h2>
-      <div className="min-h-0 flex-1 overflow-hidden">{children}</div>
+      <div className="min-h-0 flex-1">{children}</div>
     </div>
   )
 }
@@ -134,52 +152,64 @@ export function BoardView({ snapshot, subtitle, now, panels }: { snapshot: Board
   const hero = ongoing ?? upcoming
   const todayCount = snapshot.days.find((day) => day.isToday)?.missions.length ?? 0
 
-  // Today: the list starts at the first visit that is not over yet, so the
-  // rows that fit are the ones that still matter; the past is one line.
-  const firstLive = snapshot.missions.findIndex((mission) => stateOf(mission) !== "past")
-  const dayStart = Math.max(0, firstLive === -1 ? snapshot.missions.length - DAY_ROWS : Math.min(firstLive, Math.max(0, snapshot.missions.length - DAY_ROWS)))
-  const dayRows = snapshot.missions.slice(dayStart, dayStart + DAY_ROWS)
-  const dayHidden = snapshot.missions.length - dayRows.length
+  // Today: the visits in order, the ones already over dimmed at the top.
+  const dayItems: FitItem[] = snapshot.missions.map((mission) => ({ key: mission.id, height: ROW, node: <Row mission={mission} state={stateOf(mission)} /> }))
 
-  // Week: an agenda from today onward, so the screen shows what is ahead.
-  const agenda = snapshot.days.filter((day) => day.date >= snapshot.today)
-  let budget = WEEK_ROWS
-  const weekGroups = agenda.map((day) => {
-    const rows = day.missions.slice(0, Math.max(0, budget))
-    budget -= rows.length
-    return { day, rows, hidden: day.missions.length - rows.length }
-  })
-  const weekHidden = weekGroups.reduce((sum, group) => sum + group.hidden, 0)
+  // Week: an agenda from today onward, a subheader per day.
+  const weekItems: FitItem[] = snapshot.days
+    .filter((day) => day.date >= snapshot.today)
+    .flatMap((day) => [
+      { key: `day-${day.date}`, height: SUBHEADER, node: <DayHeader label={day.label} isToday={day.isToday} count={day.missions.length} /> },
+      ...day.missions.map((mission) => ({ key: mission.id, height: ROW, node: <Row mission={mission} state={stateOf(mission)} /> })),
+    ])
 
-  const team = snapshot.team.slice(0, TEAM_ROWS)
+  const teamItems: FitItem[] = snapshot.team.map((member) => ({
+    key: member.name,
+    height: TEAM_ROW,
+    node: (
+      <div className="flex h-full items-center gap-4 border-b border-[var(--board-line)] px-6">
+        <span className={cn("grid h-11 w-11 shrink-0 place-items-center rounded-full text-sm font-bold", avatarTone(member.name))}>{initials(member.name)}</span>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-lg font-semibold leading-tight">{member.name}</span>
+          <span className="block truncate text-sm text-[var(--board-text-dim)]">
+            {member.next ? `Berikutnya ${member.next}` : "Semua kunjungan selesai"}
+          </span>
+        </span>
+        <span className="shrink-0 rounded-full bg-[var(--board-surface-2)] px-3 py-1 font-mono text-sm tabular-nums text-[var(--board-text-dim)]">{member.missionCount}</span>
+      </div>
+    ),
+  }))
 
   return (
-    <div className="grid h-screen grid-rows-[auto_auto_auto_minmax(0,1fr)] gap-5 overflow-hidden bg-[var(--board-bg)] px-10 py-7 text-[var(--board-text)]">
+    <div className="grid h-dvh grid-rows-[auto_auto_auto_minmax(0,1fr)] gap-5 overflow-hidden bg-[var(--board-bg)] px-10 py-7 text-[var(--board-text)] [@media(max-height:820px)]:gap-4 [@media(max-height:820px)]:px-8 [@media(max-height:820px)]:py-5">
       <header className="flex items-end justify-between gap-6">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-[var(--board-accent)]">Sales Mission</p>
-          <h1 className="mt-1 text-3xl font-bold tracking-tight">{week ? "Minggu ini di lapangan" : "Hari ini di lapangan"}</h1>
+          <h1 className="mt-1 text-3xl font-bold tracking-tight [@media(max-height:820px)]:text-2xl">{week ? "Minggu ini di lapangan" : "Hari ini di lapangan"}</h1>
           <p className="mt-0.5 text-base text-[var(--board-text-dim)]">{subtitle}</p>
         </div>
         <div className="text-right">
           <p className="text-lg text-[var(--board-text-dim)]">{dateLabel}</p>
-          <p className="text-5xl font-bold tabular-nums leading-none">{clock}</p>
+          <p className="text-5xl font-bold tabular-nums leading-none [@media(max-height:820px)]:text-4xl">{clock}</p>
         </div>
       </header>
 
       {/* The one tinted surface. Nothing else on the screen competes with it. */}
-      <section className="rounded-3xl bg-[var(--board-primary-container)] px-7 py-5 text-[var(--board-on-primary-container)]">
+      <section className="rounded-3xl bg-[var(--board-primary-container)] px-7 py-5 text-[var(--board-on-primary-container)] [@media(max-height:820px)]:py-4">
         {hero ? (
           <div className="flex items-center gap-8">
             <div className="shrink-0">
-              <p className="text-sm font-semibold uppercase tracking-widest opacity-80">{ongoing ? "Sedang berlangsung" : "Berikutnya"}</p>
-              <p className="mt-1 font-mono text-5xl font-bold tabular-nums leading-none">{hero.time}</p>
+              <p className="flex items-center gap-2 text-sm font-semibold uppercase tracking-widest opacity-80">
+                {ongoing && <span aria-hidden="true" className="board-pulse h-2.5 w-2.5 rounded-full bg-[var(--board-running)]" />}
+                {ongoing ? "Sedang berlangsung" : "Berikutnya"}
+              </p>
+              <p className="mt-1 font-mono text-5xl font-bold tabular-nums leading-none [@media(max-height:820px)]:text-4xl">{hero.time}</p>
               {week && hero.day !== snapshot.today && (
                 <p className="mt-1 text-base opacity-80">{snapshot.days.find((day) => day.date === hero.day)?.label}</p>
               )}
             </div>
             <div className="min-w-0 flex-1">
-              <p className="truncate text-3xl font-bold">{hero.clientLabel}</p>
+              <p className="truncate text-3xl font-bold [@media(max-height:820px)]:text-2xl">{hero.clientLabel}</p>
               <p className="mt-1.5 flex flex-wrap items-center gap-x-6 gap-y-1 text-lg opacity-90">
                 {hero.primarySalesName && (
                   <span className="inline-flex items-center gap-2">
@@ -212,10 +242,10 @@ export function BoardView({ snapshot, subtitle, now, panels }: { snapshot: Board
 
       {show("counts") ? (
         <section className="grid grid-cols-4 gap-4">
-          <Stat label={week ? "Kunjungan minggu ini" : "Kunjungan hari ini"} value={snapshot.counts.todayTotal} icon={CalendarCheck} />
-          <Stat label="Diterima" value={snapshot.counts.accepted} icon={CheckCircle2} />
-          <Stat label="Selesai" value={snapshot.counts.completed} icon={CheckCircle2} />
-          <Stat label="Mission berjalan" value={snapshot.counts.openMissions} icon={MapPin} />
+          <Stat label={week ? "Kunjungan minggu ini" : "Kunjungan hari ini"} value={snapshot.counts.todayTotal} icon={CalendarCheck} tone="bg-[var(--board-active-surface)] text-[var(--board-active)]" />
+          <Stat label="Diterima" value={snapshot.counts.accepted} icon={CheckCircle2} tone="bg-[var(--board-active-surface)] text-[var(--board-active)]" />
+          <Stat label="Selesai" value={snapshot.counts.completed} icon={CheckCircle2} tone="bg-[var(--board-done-surface)] text-[var(--board-done)]" />
+          <Stat label="Mission berjalan" value={snapshot.counts.openMissions} icon={MapPin} tone="bg-[var(--board-running-surface)] text-[var(--board-running)]" />
         </section>
       ) : (
         <div />
@@ -230,33 +260,8 @@ export function BoardView({ snapshot, subtitle, now, panels }: { snapshot: Board
                 title={week ? "Tidak ada kunjungan minggu ini" : "Tidak ada kunjungan hari ini"}
                 hint="Jadwal yang dibuat akan tampil di sini, urut jam."
               />
-            ) : !week ? (
-              <>
-                {dayStart > 0 && <p className="px-6 py-2 text-sm text-[var(--board-text-dim)]">{dayStart} kunjungan sebelumnya selesai</p>}
-                <ul className="divide-y divide-[var(--board-line)]">
-                  {dayRows.map((mission) => <Row key={mission.id} mission={mission} state={stateOf(mission)} />)}
-                </ul>
-                <More count={dayHidden - dayStart} />
-              </>
             ) : (
-              <>
-                <ul>
-                  {weekGroups.map(({ day, rows }) => (
-                    <li key={day.date} className={cn(day.isToday && "bg-[var(--board-surface-2)]")}>
-                      <h3 className={cn("flex items-center justify-between px-6 py-1.5 text-sm font-semibold", day.isToday ? "text-[var(--board-accent)]" : "text-[var(--board-text-dim)]")}>
-                        <span>{day.label}{day.isToday && " · Hari ini"}</span>
-                        <span className="font-normal">{day.missions.length > 0 ? `${day.missions.length} kunjungan` : "Kosong"}</span>
-                      </h3>
-                      {rows.length > 0 && (
-                        <ul className="divide-y divide-[var(--board-line)]">
-                          {rows.map((mission) => <Row key={mission.id} mission={mission} state={stateOf(mission)} />)}
-                        </ul>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-                <More count={weekHidden} />
-              </>
+              <FitList id={`schedule-${snapshot.range}`} items={week ? weekItems : dayItems} />
             )}
           </Panel>
         )}
@@ -264,23 +269,7 @@ export function BoardView({ snapshot, subtitle, now, panels }: { snapshot: Board
         {show("team") && (
           <Panel title="Tim di lapangan" meta={`${snapshot.team.length} orang`}>
             {snapshot.team.length > 0 ? (
-              <>
-                <ul className="divide-y divide-[var(--board-line)]">
-                  {team.map((member) => (
-                    <li key={member.name} className="flex items-center gap-4 px-6 py-3">
-                      <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[var(--board-surface-2)] text-sm font-bold">{initials(member.name)}</span>
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-lg font-semibold">{member.name}</span>
-                        <span className="block truncate text-sm text-[var(--board-text-dim)]">
-                          {member.next ? `Berikutnya ${member.next}` : "Semua kunjungan selesai"}
-                        </span>
-                      </span>
-                      <span className="shrink-0 rounded-full bg-[var(--board-surface-2)] px-3 py-1 font-mono text-sm tabular-nums text-[var(--board-text-dim)]">{member.missionCount}</span>
-                    </li>
-                  ))}
-                </ul>
-                <More count={snapshot.team.length - team.length} />
-              </>
+              <FitList id="team" items={teamItems} />
             ) : (
               <Empty icon={Users} title={week ? "Belum ada yang bertugas minggu ini" : "Belum ada yang bertugas hari ini"} hint="Setiap sales dengan kunjungan muncul di sini beserta tujuan berikutnya." />
             )}

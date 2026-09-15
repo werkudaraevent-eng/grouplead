@@ -347,3 +347,26 @@ html.sidebar-dark-mode {
   --sidebar-border: rgba(255, 255, 255, 0.08);
   --sidebar-ring: #5EC5F2;
 }
+
+/* Papan live: a page turns with a fade, its timer shows as a thin bar, and
+   the "now" dot breathes. Motion is small and slow: a wall display is read
+   from across a room, and anything that flickers there is noise. */
+@keyframes board-page-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes board-progress {
+  from { width: 0; }
+  to { width: 100%; }
+}
+@keyframes board-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+.board-page { animation: board-page-in 320ms ease-out; }
+.board-progress { animation-name: board-progress; animation-timing-function: linear; animation-fill-mode: forwards; }
+.board-pulse { animation: board-pulse 1.8s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .board-page, .board-progress, .board-pulse { animation: none; }
+  .board-progress { width: 100%; }
+}
