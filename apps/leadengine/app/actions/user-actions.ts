@@ -58,6 +58,19 @@ function toUserType(roleSlug: string): string {
  * admin can instead set one directly for face-to-face onboarding; that choice is
  * recorded in the audit log.
  */
+/** The auth user behind an address, or null. Paged, since the admin API has no lookup by email. */
+async function findAuthUserByEmail(supabase: ReturnType<typeof createServiceClient>, email: string): Promise<{ id: string } | null> {
+    const wanted = email.trim().toLowerCase()
+    for (let page = 1; page <= 20; page += 1) {
+        const { data, error } = await supabase.auth.admin.listUsers({ page, perPage: 200 })
+        if (error || !data?.users?.length) return null
+        const hit = data.users.find((user) => (user.email ?? "").toLowerCase() === wanted)
+        if (hit) return { id: hit.id }
+        if (data.users.length < 200) return null
+    }
+    return null
+}
+
 export async function provisionUserAction(
     data: ProvisionUserData
 ): Promise<ActionResult<{ userId: string }>> {
@@ -105,22 +118,66 @@ export async function provisionUserAction(
                   })
               })()
 
+        let userId: string
+        let adopted = false
+
         if (authError) {
-            if (authError.message?.includes("already been registered")) {
-                return { success: false, error: "A user with this email already exists" }
+            if (!authError.message?.includes("already been registered")) {
+                return { success: false, error: authError.message }
             }
-            return { success: false, error: authError.message }
+            // Auth knows the address. Three cases, and "already exists" was the
+            // wrong answer to two of them:
+            //   - a profile exists and is active: it is in the list; say so.
+            //   - a profile exists and is inactive: the list hides it behind the
+            //     Status filter, so it looked absent; say where it is.
+            //   - no profile at all: an earlier attempt created the auth user
+            //     and failed before the profile, or the profile was removed.
+            //     Adopt the auth user and finish the setup, which is what the
+            //     admin is asking for.
+            const { data: existingProfile } = await supabase
+                .from("profiles")
+                .select("id, is_active, full_name")
+                .ilike("email", data.email.trim())
+                .maybeSingle()
+            if (existingProfile) {
+                return {
+                    success: false,
+                    error: existingProfile.is_active === false
+                        ? `"${existingProfile.full_name || data.email}" sudah ada tetapi nonaktif. Ubah filter Status ke "Inactive" lalu aktifkan kembali.`
+                        : `"${existingProfile.full_name || data.email}" sudah ada dan aktif. Cari namanya di daftar.`,
+                }
+            }
+            const orphan = await findAuthUserByEmail(supabase, data.email)
+            if (!orphan) return { success: false, error: "A user with this email already exists" }
+            userId = orphan.id
+            adopted = true
+            // The trigger that fills profiles on sign-up did not leave a row; make one.
+            const { error: insertError } = await supabase
+                .from("profiles")
+                .upsert({ id: userId, email: data.email, full_name: data.full_name }, { onConflict: "id" })
+            if (insertError) return { success: false, error: `Could not set up the profile: ${insertError.message}` }
+            if (password) {
+                const { error: passwordError } = await supabase.auth.admin.updateUserById(userId, { password, email_confirm: true, user_metadata: { full_name: data.full_name } })
+                if (passwordError) return { success: false, error: passwordError.message }
+            } else {
+                const requestHeaders = await headers()
+                const origin = requestHeaders.get("origin") ?? (requestHeaders.get("host") ? `https://${requestHeaders.get("host")}` : null)
+                // An existing auth user cannot be invited again; the recovery
+                // mail lands on the same reset-password screen an invite does.
+                const { error: mailError } = await supabase.auth.resetPasswordForEmail(data.email, { redirectTo: origin ? `${origin}/reset-password` : undefined })
+                if (mailError) return { success: false, error: `Akun dipulihkan, tetapi email tidak terkirim: ${mailError.message}` }
+            }
+        } else {
+            if (!authData.user) {
+                return { success: false, error: "User creation returned no user object" }
+            }
+            userId = authData.user.id
         }
-
-        if (!authData.user) {
-            return { success: false, error: "User creation returned no user object" }
-        }
-
-        const userId = authData.user.id
 
         /** Undo the auth user so a half-created account never lingers. */
         const rollback = async (reason: string): Promise<ActionResult<{ userId: string }>> => {
-            await supabase.auth.admin.deleteUser(userId)
+            // An adopted account existed before this call; only one this call made is undone.
+            if (!adopted) await supabase.auth.admin.deleteUser(userId)
             return { success: false, error: reason }
         }
 
@@ -141,12 +198,13 @@ export async function provisionUserAction(
         }
 
         // 3. Business unit membership — the gate both apps read.
-        const { error: memberError } = await supabase.from("company_members").insert(
+        const { error: memberError } = await supabase.from("company_members").upsert(
             companyIds.map((companyId) => ({
                 company_id: companyId,
                 user_id: userId,
                 user_type: toUserType(data.role),
-            }))
+            })),
+            { onConflict: "company_id,user_id" }
         )
 
         if (memberError) {
