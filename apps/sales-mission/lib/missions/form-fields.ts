@@ -26,6 +26,17 @@ export const DEFAULT_MISSION_TYPES = ["Meeting", "Visit", "Survey", "Follow Up"]
  */
 export const DEFAULT_CONTACT_SALUTATIONS = ["Bapak", "Ibu", "Mr", "Mrs", "Ms"] as const
 
+/**
+ * Starting options for "Industri" on the prospect form. A seed the admin
+ * edits, not a rule: the list is what makes the field a dropdown a team can
+ * filter and report on instead of nineteen spellings of "perbankan".
+ */
+export const DEFAULT_INDUSTRIES = [
+  "Farmasi & kesehatan", "Perbankan & keuangan", "Asuransi", "Pemerintahan", "BUMN", "Telekomunikasi", "Teknologi",
+  "Manufaktur", "Otomotif", "FMCG", "Pendidikan", "Properti & konstruksi", "Energi & pertambangan",
+  "Logistik & transportasi", "Media & hiburan", "Retail", "Pariwisata & perhotelan", "Lainnya",
+] as const
+
 export const FIELD_TYPES = [
   "TEXT",
   "LONG_TEXT",
@@ -101,6 +112,7 @@ const CORE_OPTION_SOURCES: Record<string, OptionSource> = {
   // Keyed by form so the same reporting key stays editable on the mission form.
   "prospect:contact_salutation": "directory",
   "prospect:owner": "directory",
+  industry: "config",
 }
 
 export function optionSource(
@@ -210,7 +222,7 @@ export const CORE_PROSPECT_FIELDS: Array<
   }
 > = [
   { reportingKey: "client_company", label: "Perusahaan", fieldType: "TEXT", isRequired: true, displayOrder: 10 },
-  { reportingKey: "industry", label: "Industri", fieldType: "TEXT", isRequired: false, displayOrder: 20 },
+  { reportingKey: "industry", label: "Industri", fieldType: "SELECT", isRequired: false, displayOrder: 20, options: [...DEFAULT_INDUSTRIES] },
   { reportingKey: "website", label: "Website", fieldType: "TEXT", isRequired: false, displayOrder: 30 },
   { reportingKey: "address", label: "Alamat jalan", fieldType: "TEXT", isRequired: false, displayOrder: 40 },
   { reportingKey: "location", label: "Kota", fieldType: "TEXT", isRequired: false, displayOrder: 50 },

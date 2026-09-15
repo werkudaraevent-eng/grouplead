@@ -298,10 +298,12 @@ export async function getFieldOptionUsage(
     client_needs: "client_needs",
     product_interest: "product_interest",
   }
-  // The prospect form's core choice fields are directory-owned, so there is
-  // nothing to count for them; only its custom fields reach the value table.
+  // The prospect's one config-owned core choice is a column on the prospect.
+  const prospectColumn: Record<string, string> = {
+    industry: "industry",
+  }
   const column = field.isCore
-    ? FORM_KEY === "mission" ? missionColumn[field.reportingKey] : FORM_KEY === "visit_report" ? reportColumn[field.reportingKey] : undefined
+    ? FORM_KEY === "mission" ? missionColumn[field.reportingKey] : FORM_KEY === "visit_report" ? reportColumn[field.reportingKey] : prospectColumn[field.reportingKey]
     : undefined
   const valueTable = FORM_KEY === "mission" ? "mission_field_values" : FORM_KEY === "prospect" ? "prospect_field_values" : "report_field_values"
 
@@ -315,7 +317,7 @@ export async function getFieldOptionUsage(
             .contains(column, [option])
         : column
         ? schema
-            .from("missions")
+            .from(FORM_KEY === "prospect" ? "prospects" : "missions")
             .select("id", { count: "exact", head: true })
             .is("deleted_at", null)
             .eq("company_id", access.companyId)

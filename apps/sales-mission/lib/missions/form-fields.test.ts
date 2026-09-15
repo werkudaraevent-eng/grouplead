@@ -425,6 +425,10 @@ describe("prospect form", () => {
     expect(coreFieldsFor("prospect")).toBe(CORE_PROSPECT_FIELDS)
     expect(CORE_PROSPECT_FIELDS.find((field) => field.reportingKey === "client_company")?.isRequired).toBe(true)
     expect(CORE_PROSPECT_FIELDS.map((field) => field.reportingKey)).toContain("owner")
+    const industry = CORE_PROSPECT_FIELDS.find((field) => field.reportingKey === "industry")
+    expect(industry?.fieldType).toBe("SELECT")
+    expect(industry?.options?.length).toBeGreaterThan(5)
+    expect(optionSource({ isCore: true, reportingKey: "industry", fieldType: "SELECT" }, "prospect")).toBe("config")
   })
 
   it("keeps the salutation list on the mission form", () => {

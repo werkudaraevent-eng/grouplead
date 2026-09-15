@@ -139,6 +139,18 @@ export function parseProspectRow(
   let website = get("website")
   if (website && !/^https?:\/\//i.test(website)) website = `https://${website}`
 
+  // A core column with a configured list (Industri) only accepts what is on
+  // it, matched loosely on case and written back the way the list spells it.
+  const listed = (key: string): string => {
+    const column = columnOf(key)
+    const value = get(key)
+    if (!value || !column?.options) return value
+    const match = column.options.find((option) => option.toLowerCase() === value.toLowerCase())
+    if (!match) fail(column.header, `"${value}" bukan pilihan yang ada. Lihat sheet "Pilihan".`)
+    return match ?? value
+  }
+  const industry = listed("industry")
+
   // Required is whatever the admin configured. The company is reported above
   // with its own wording, so it is skipped here.
   for (const column of options.columns) {
@@ -180,7 +192,7 @@ export function parseProspectRow(
     row: {
       row: rowNumber,
       clientCompanyName,
-      industry: get("industry"),
+      industry,
       location: get("location"),
       address: get("address"),
       website,

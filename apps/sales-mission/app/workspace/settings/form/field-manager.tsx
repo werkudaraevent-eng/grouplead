@@ -86,6 +86,9 @@ function lockedTypeReason(reportingKey: string, formKey: FormKey): string {
   if (formKey === "prospect" && reportingKey === "contact_salutation") {
     return "Daftar sapaan diatur di Form mission, supaya prospek dan mission memakai daftar yang sama."
   }
+  if (formKey === "prospect" && reportingKey === "industry") {
+    return "Tersimpan sebagai satu nilai di setiap prospek. Opsinya bisa diubah di bawah."
+  }
   if (formKey === "prospect" && reportingKey === "owner") {
     return "Pilihannya daftar pengguna. Tersimpan sebagai pemegang prospek."
   }

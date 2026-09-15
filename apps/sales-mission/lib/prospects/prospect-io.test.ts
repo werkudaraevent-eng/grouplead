@@ -16,7 +16,7 @@ const fields: FormField[] = [
     isActive: true,
     placeholder: null,
     helpText: null,
-    options: [],
+    options: field.options ?? [],
     displayOrder: field.displayOrder,
   })),
   { id: "id-budget", reportingKey: "budget", label: "Budget", fieldType: "CURRENCY", isRequired: false, isCore: false, isActive: true, placeholder: null, helpText: null, options: [], displayOrder: 200 },
@@ -46,13 +46,13 @@ describe("buildProspectColumns", () => {
 describe("parseProspectRow", () => {
   it("reads every column, tolerating the required marker and case", () => {
     const { row, issues } = parseProspectRow(
-      { "Perusahaan *": " PT Arunika ", industri: "Farmasi", Kota: "Jakarta", Telepon: "0812 3456 7890", Email: "NOFRI@arunika.co.id", Sapaan: "bapak", Website: "arunika.co.id", "Email pemegang": "Yulia@werkudara.com", Budget: "15.000.000", Tag: "Prioritas; Referensi" },
+      { "Perusahaan *": " PT Arunika ", industri: "farmasi & KESEHATAN", Kota: "Jakarta", Telepon: "0812 3456 7890", Email: "NOFRI@arunika.co.id", Sapaan: "bapak", Website: "arunika.co.id", "Email pemegang": "Yulia@werkudara.com", Budget: "15.000.000", Tag: "Prioritas; Referensi" },
       2,
       options
     )
     expect(issues).toEqual([])
     expect(row.clientCompanyName).toBe("PT Arunika")
-    expect(row.industry).toBe("Farmasi")
+    expect(row.industry).toBe("Farmasi & kesehatan")
     expect(row.contactPhone).toBe("+6281234567890")
     expect(row.contactEmail).toBe("nofri@arunika.co.id")
     expect(row.contactSalutation).toBe("Bapak")
@@ -62,8 +62,8 @@ describe("parseProspectRow", () => {
   })
 
   it("collects every issue on the row", () => {
-    const { issues } = parseProspectRow({ Perusahaan: "", Telepon: "081", Email: "bukan-email", Sapaan: "Tuan", Tag: "Lain" }, 5, options)
-    expect(issues.map((issue) => issue.column)).toEqual(["Perusahaan", "Telepon", "Email", "Sapaan", "Tag"])
+    const { issues } = parseProspectRow({ Perusahaan: "", Telepon: "081", Email: "bukan-email", Sapaan: "Tuan", Industri: "Perdukunan", Tag: "Lain" }, 5, options)
+    expect(issues.map((issue) => issue.column)).toEqual(["Perusahaan", "Telepon", "Email", "Sapaan", "Industri", "Tag"])
     expect(issues.every((issue) => issue.row === 5)).toBe(true)
   })
 

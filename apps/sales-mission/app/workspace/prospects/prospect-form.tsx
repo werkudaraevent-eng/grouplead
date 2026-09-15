@@ -5,7 +5,7 @@ import Link from "next/link"
 import { AlertCircle, Loader2, Save } from "@/components/icons"
 import { createProspect, updateProspect, type ProspectFormState } from "@/app/actions/prospect-actions"
 import type { TenantSalesOption } from "@/lib/missions/mission-queries"
-import type { FormField } from "@/lib/missions/form-fields"
+import { DEFAULT_INDUSTRIES, configuredOptions, type FormField } from "@/lib/missions/form-fields"
 import type { ProspectDetail } from "@/lib/prospects/prospect-schema"
 import { PROSPECT_SECTION_HINTS, prospectBlocks } from "@/lib/prospects/prospect-form-fields"
 import { parseNumber } from "@/lib/format/number"
@@ -197,8 +197,21 @@ export function ProspectForm({
             <CompanyPicker label={field.label} required={field.isRequired} onLink={setClientCompanyId} initial={prospect ? { name: prospect.clientCompanyName, id: prospect.clientCompanyId } : undefined} />
           </FieldShell>
         )
-      case "industry":
-        return text(field, "industry", prospect?.industry, { maxLength: 120, placeholder: field.placeholder ?? "Farmasi, perbankan, pemerintahan…" })
+      case "industry": {
+        // A value stored before the list changed stays selectable, marked, so
+        // editing an old prospect does not silently drop what it had.
+        const options = configuredOptions(fields, "industry", DEFAULT_INDUSTRIES)
+        const stale = prospect?.industry && !options.includes(prospect.industry) ? prospect.industry : null
+        return (
+          <FieldShell field={field} key={field.id}>
+            <select id="field-industry" name="industry" required={field.isRequired} defaultValue={prospect?.industry ?? ""} className={SELECT_CLASS}>
+              <option value="">{field.placeholder || "Pilih industri"}</option>
+              {stale && <option value={stale}>{stale} (tidak ada di daftar)</option>}
+              {options.map((item) => <option key={item} value={item}>{item}</option>)}
+            </select>
+          </FieldShell>
+        )
+      }
       case "website":
         return text(field, "website", prospect?.website, { maxLength: 200, inputMode: "url", placeholder: field.placeholder ?? "arunika.co.id" })
       case "address":

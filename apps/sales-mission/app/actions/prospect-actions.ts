@@ -5,7 +5,7 @@ import { redirect } from "next/navigation"
 import { createClient } from "@/utils/supabase/server"
 import { canPerform, getSalesMissionAccess, type SalesMissionAccess } from "@/lib/sales-mission-access"
 import { listFormFields } from "@/lib/missions/form-field-queries"
-import { DEFAULT_CONTACT_SALUTATIONS, configuredOptions, readCustomAnswers, validateFieldAnswers, type FieldAnswer, type FormField } from "@/lib/missions/form-fields"
+import { DEFAULT_CONTACT_SALUTATIONS, DEFAULT_INDUSTRIES, configuredOptions, readCustomAnswers, validateFieldAnswers, type FieldAnswer, type FormField } from "@/lib/missions/form-fields"
 import { isEmptyAnswer, missingRequiredCore } from "@/lib/prospects/prospect-form-fields"
 import { normalizePhone } from "@/lib/format/phone"
 import { listProspectStatuses } from "@/lib/prospects/prospect-status-queries"
@@ -96,10 +96,13 @@ async function memberIds(access: SalesMissionAccess, ids: string[]): Promise<Set
  * made required must be filled, and the custom answers must fit their types.
  * Returns the custom fields and answers to store, or the first error.
  */
-async function checkAgainstForm(access: SalesMissionAccess, formData: FormData, input: ProspectInput) {
+async function checkAgainstForm(access: SalesMissionAccess, formData: FormData, input: ProspectInput, keepStaleIndustry?: string | null) {
   const fields = await listFormFields(access, "prospect")
   const missing = missingRequiredCore(fields, input)
   if (missing) return { error: `${missing} wajib diisi.` }
+  if (input.industry && input.industry !== keepStaleIndustry && !configuredOptions(fields, "industry", DEFAULT_INDUSTRIES).includes(input.industry)) {
+    return { error: "Industri itu tidak ada dalam daftar." }
+  }
   const customFields = fields.filter((field) => !field.isCore)
   const answers = readCustomAnswers(formData, customFields)
   const validation = validateFieldAnswers(customFields, answers)
@@ -172,16 +175,15 @@ export async function updateProspect(prospectId: string, _previous: ProspectForm
   if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message ?? "Data prospek tidak valid." }
   const salutationError = await checkSalutation(access, parsed.data.contactSalutation)
   if (salutationError) return { success: false, error: salutationError }
-  const form = await checkAgainstForm(access, formData, parsed.data)
-  if ("error" in form) return { success: false, error: form.error }
-
   const supabase = await createClient()
   const schema = supabase.schema("sales_mission")
-  const { data: current } = await schema.from("prospects").select("id, owner_id").eq("company_id", access.companyId).eq("id", prospectId).is("deleted_at", null).maybeSingle()
+  const { data: current } = await schema.from("prospects").select("id, owner_id, industry").eq("company_id", access.companyId).eq("id", prospectId).is("deleted_at", null).maybeSingle()
   if (!current) return { success: false, error: "Prospek tidak ditemukan." }
   if (!canEditProspect({ ownerId: (current.owner_id as string | null) ?? null }, { userId: access.userId, isAdmin })) {
     return { success: false, error: "Prospek ini dipegang orang lain." }
   }
+  const form = await checkAgainstForm(access, formData, parsed.data, (current.industry as string | null) ?? null)
+  if ("error" in form) return { success: false, error: form.error }
 
   const ownerId = parsed.data.ownerId || null
   if (ownerId && ownerId !== current.owner_id && !isAdmin && ownerId !== access.userId) {
