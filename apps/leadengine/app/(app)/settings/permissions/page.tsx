@@ -87,12 +87,12 @@ const MODULE_DISPLAY: Record<string, { name: string; description: string; detail
   },
   sales_mission_mission: {
     name: "Mission",
-    description: "Menjadwalkan dan mengubah kunjungan. Pemilik: sales utama dan yang menjadwalkan.",
+    description: "Semua orang melihat semua mission; Cakupan membatasi siapa yang boleh mengubahnya. Pemilik: sales utama dan yang menjadwalkan.",
     details: "Lihat: semua mission unit bisnis (jadwal bersama). Buat: menjadwalkan mission baru dan mengimpor. Ubah: detail, jadwal, tim, dan pembatalan mission di dalam Cakupan. Hapus: memindahkan mission di dalam Cakupan ke sampah.",
   },
   sales_mission_result: {
     name: "Laporan kunjungan",
-    description: "Mengisi dan mengubah laporan, mengirim lead. Pemilik: sales utama.",
+    description: "Laporan terbaca seluruh unit; Cakupan membatasi siapa yang mengisi dan mengubahnya. Pemilik: sales utama.",
     details: "Lihat: membaca laporan dan halaman Laporan. Buat: mengisi laporan dan mengirim lead untuk mission di dalam Cakupan. Ubah: mengubah laporan terkirim milik orang di dalam Cakupan kapan saja dan meminta klarifikasi; penulisnya sendiri selalu boleh mengubah dalam jendela hari yang diatur di Pengaturan mission.",
   },
   sales_mission_contact: {
@@ -107,7 +107,7 @@ const MODULE_DISPLAY: Record<string, { name: string; description: string; detail
   },
   sales_mission_prospect: {
     name: "Prospek",
-    description: "Daftar calon klien sebelum jadi mission. Pemilik: pemegangnya.",
+    description: "Daftar terbaca seluruh unit; Cakupan membatasi siapa yang boleh mengubah dan menugaskan. Pemilik: pemegangnya.",
     details: "Lihat: seluruh daftar prospek. Buat: menambah dan mengimpor. Ubah dan Hapus: prospek di dalam Cakupan; prospek tanpa pemegang boleh diambil siapa pun yang punya Ubah. Cakupan Tim atau Semua juga mengizinkan menugaskan prospek ke orang lain.",
   },
   settings: {
@@ -186,9 +186,9 @@ const SALES_MISSION_SUBMODULES = [
  */
 const SCOPED_MODULE_IDS: Set<string> = new Set(["sales_mission_mission", "sales_mission_result", "sales_mission_prospect"])
 const SCOPE_OPTIONS: ReadonlyArray<{ value: RecordScope; label: string; hint: string }> = [
-  { value: "own", label: "Sendiri", hint: "Hanya record miliknya: mission yang ia sales utama atau ia jadwalkan, laporan mission-nya sendiri, prospek yang ia pegang." },
-  { value: "team", label: "Tim", hint: "Miliknya, ditambah milik orang yang Atasan-nya adalah dia, berantai ke bawah. Atasan diatur di Settings → Users." },
-  { value: "all", label: "Semua", hint: "Semua record di unit bisnis." },
+  { value: "own", label: "Sendiri", hint: "Ubah, Hapus, dan tindakan pada record (isi laporan, kelola tim, batalkan, tugaskan) hanya untuk record miliknya: mission yang ia sales utama atau ia jadwalkan, laporan mission-nya sendiri, prospek yang ia pegang. Lihat tetap seluruh unit." },
+  { value: "team", label: "Tim", hint: "Ubah, Hapus, dan tindakan pada record untuk miliknya, ditambah milik orang yang Atasan-nya adalah dia, berantai ke bawah (Settings → Users). Lihat tetap seluruh unit." },
+  { value: "all", label: "Semua", hint: "Ubah, Hapus, dan tindakan pada record untuk semua record di unit bisnis." },
 ]
 
 /**
@@ -1297,7 +1297,11 @@ export default function GlobalPermissionsPage() {
                               <th className="px-2 py-3 text-center text-xs font-semibold uppercase tracking-wider text-muted-foreground">Buat</th>
                               <th className="px-2 py-3 text-center text-xs font-semibold uppercase tracking-wider text-muted-foreground">Ubah</th>
                               <th className="px-2 py-3 text-center text-xs font-semibold uppercase tracking-wider text-muted-foreground">Hapus</th>
-                              <th className="px-2 py-3 text-center text-xs font-semibold uppercase tracking-wider text-muted-foreground">Cakupan</th>
+                              <th className="px-2 py-3 text-center text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                                <Tooltip content="Record siapa yang boleh disentuh oleh Ubah, Hapus, dan tindakan pada record. Tidak membatasi Lihat: daftar, kalender, dan papan tetap menampilkan seluruh unit." position="bottom">
+                                  <span className="inline-flex items-center gap-1">Cakupan ubah <Info className="h-3.5 w-3.5" aria-hidden="true" /></span>
+                                </Tooltip>
+                              </th>
                               <th className="px-2 py-3" aria-label="Set cepat" />
                             </tr>
                           </thead>
