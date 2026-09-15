@@ -21,6 +21,8 @@ import type { ActionResult } from "@/types/action-result"
 import { CLEAR_ALL_PHRASE } from "@/lib/missions/clear-phrase"
 import { parseMissionQuery, resolveMissionFilter } from "@/lib/missions/mission-filter"
 import { listMatchingMissionIds, parsePageParams } from "@/lib/missions/mission-page-queries"
+import { convertProspect, getProspect } from "@/lib/prospects/prospect-queries"
+import { canEditProspect } from "@/lib/prospects/prospect-access"
 
 /**
  * Write side of the mission domain.
@@ -175,6 +177,20 @@ export async function createMission(
   const input = parsed.data
   const missions = supabase.schema("sales_mission")
 
+  // The prospect this visit came from, if any. Checked before anything is
+  // written: the mission must not exist if the link would be refused.
+  const prospectId = String(formData.get("prospectId") ?? "").trim()
+  if (prospectId) {
+    if (!/^[0-9a-f-]{36}$/i.test(prospectId)) return { success: false, error: "Prospek tidak valid." }
+    const prospect = await getProspect(access, prospectId)
+    if (!prospect) return { success: false, error: "Prospek tidak ditemukan." }
+    if (prospect.missionId) return { success: false, error: "Prospek ini sudah punya mission." }
+    const isAdmin = access.isSuperAdmin || (await canPerform(access, "sales_mission_settings", "update"))
+    if (!canEditProspect(prospect, { userId: access.userId, isAdmin })) {
+      return { success: false, error: `Prospek ini dipegang ${prospect.ownerName ?? "orang lain"}.` }
+    }
+  }
+
   // Under the tenant's policy the assignment either waits for the rep or is
   // accepted on the spot. The mission's status follows from the same answer.
   const now = new Date().toISOString()
@@ -265,6 +281,16 @@ export async function createMission(
     assigneeIds.filter((id) => id !== access.userId),
     { missionId: mission.id, clientName: input.clientCompanyName }
   )
+
+  // Confirmed: the prospect becomes this mission. Best effort after the fact,
+  // because the mission is the record that matters; a failure is logged and
+  // the prospect page offers the link again.
+  if (prospectId) {
+    const linked = await convertProspect(access, prospectId, mission.id as string)
+    if (!linked.ok) console.error("[createMission] prospect link failed", prospectId, linked.error)
+    revalidatePath("/workspace/prospects")
+    revalidatePath(`/workspace/prospects/${prospectId}`)
+  }
 
   // Admin-configured fields. Validation uses the tenant's current configuration
   // rather than anything hardcoded, so a field made mandatory this morning is

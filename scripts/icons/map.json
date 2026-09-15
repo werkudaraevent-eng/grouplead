@@ -189,6 +189,7 @@
     "UserMinus": "person_remove",
     "UserPlus": "person_add",
     "UserRound": "person",
+    "UserSearch": "person_search",
     "UserX": "person_off",
     "Users": "group",
     "UsersRound": "group",

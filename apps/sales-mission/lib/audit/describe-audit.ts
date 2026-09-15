@@ -49,6 +49,9 @@ const TABLE_LABELS: Record<string, string> = {
   board_tokens: "tautan papan",
   lead_pushes: "kiriman lead",
   mission_field_values: "isian field tambahan",
+  prospects: "prospek",
+  prospect_attempts: "kontak prospek",
+  prospect_statuses: "status prospek",
 }
 
 export const AUDIT_TABLE_LABELS = TABLE_LABELS
@@ -102,6 +105,20 @@ const COLUMN_LABELS: Record<string, string> = {
   revoked_at: "dicabut",
   expires_at: "kedaluwarsa",
   full_name: "nama",
+  client_company_name: "perusahaan",
+  owner_id: "pemegang",
+  status_id: "status",
+  next_contact_at: "hubungi lagi pada",
+  lost_reason: "alasan",
+  industry: "industri",
+  website: "website",
+  notes: "catatan",
+  channel: "saluran",
+  outcome: "hasil",
+  note: "catatan",
+  kind: "jenis",
+  color: "warna",
+  source: "sumber",
   job_title: "jabatan",
   is_decision_maker: "pengambil keputusan",
   body: "isi",
@@ -133,6 +150,19 @@ const HIDDEN_COLUMNS = new Set([
   "crm_synced_at",
   "crm_sync_error",
   "lead_engine_contact_id",
+  "prospect_id",
+  "import_batch_id",
+  "client_company_name_norm",
+  "contact_name_norm",
+  "contact_phone_norm",
+  "converted_at",
+  "status_id_after",
+  "attempted_at",
+  "attempt_count",
+  "last_contacted_at",
+  "deleted_at",
+  "deleted_by",
+  "code",
   "lead_engine_lead_id",
   "pipeline_id",
   "pipeline_stage_id",
@@ -223,6 +253,30 @@ export function describeAudit(row: AuditRow): AuditDescription {
       }
       return { sentence: `mengubah ${details.map((d) => d.field).join(", ") || "detail"} pada mission ke ${name}`, tone: "update", details }
 
+    case "prospects": {
+      const source = inserted?.source
+      if (row.action === "INSERT") return { sentence: source === "import" ? `mengimpor prospek ${name}` : `menambah prospek ${name}`, tone: "create", details }
+      if (row.action === "DELETE") return { sentence: `menghapus permanen prospek ${name}`, tone: "delete", details }
+      if ("deleted_at" in row.changes) {
+        return to("deleted_at")
+          ? { sentence: `memindahkan prospek ${name} ke sampah`, tone: "delete", details }
+          : { sentence: `memulihkan prospek ${name} dari sampah`, tone: "create", details }
+      }
+      if ("mission_id" in row.changes && to("mission_id")) return { sentence: `menjadwalkan kunjungan dari prospek ${name}`, tone: "create", details }
+      if (has("status_id")) return { sentence: `mengubah status prospek ${name}`, tone: "update", details }
+      if (has("owner_id")) return { sentence: to("owner_id") ? `menugaskan prospek ${name}` : `melepas pemegang prospek ${name}`, tone: "update", details }
+      return { sentence: `mengubah ${details.map((d) => d.field).join(", ") || "detail"} pada prospek ${name}`, tone: "update", details }
+    }
+
+    case "prospect_attempts":
+      if (row.action === "INSERT") return { sentence: `mencatat kontak dengan prospek ${name}`, tone: "create", details }
+      return { sentence: `mengubah catatan kontak prospek ${name}`, tone: "update", details }
+
+    case "prospect_statuses":
+      if (row.action === "INSERT") return { sentence: `menambah status prospek "${name}"`, tone: "create", details }
+      if (has("is_active")) return to("is_active") ? { sentence: `memulihkan status prospek "${name}"`, tone: "create", details } : { sentence: `mengarsipkan status prospek "${name}"`, tone: "delete", details }
+      return { sentence: `mengubah status prospek "${name}"`, tone: "update", details }
+
     case "assignments": {
       const role = (inserted?.assignment_role ?? from("assignment_role")) === "PRIMARY" ? "sales utama" : "sales pendukung"
       if (row.action === "INSERT") return { sentence: `ditugaskan sebagai ${role} pada mission ke ${name}`, tone: "create", details }
@@ -312,6 +366,9 @@ const TABLE_RANK: Record<string, number> = {
   supporting_notes: 5,
   lead_pushes: 6,
   mission_field_values: 7,
+  prospects: 8,
+  prospect_attempts: 9,
+  prospect_statuses: 10,
 }
 
 export function groupAuditEvents(rows: AuditRow[]): AuditEvent[] {

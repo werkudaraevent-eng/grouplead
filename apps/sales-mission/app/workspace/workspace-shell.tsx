@@ -18,6 +18,7 @@ import {
   Moon,
   Settings,
   Sun,
+  UserSearch,
 } from "@/components/icons"
 import dynamic from "next/dynamic"
 
@@ -71,7 +72,7 @@ type NavItem = {
    * reachable by anyone who passed the app gate — "Hari ini" is where a rep
    * lands, whatever else their role covers.
    */
-  requires?: keyof Pick<NavAccess, "missions" | "reports" | "settings">
+  requires?: keyof Pick<NavAccess, "missions" | "prospects" | "reports" | "settings">
 }
 
 /**
@@ -89,6 +90,9 @@ type NavItem = {
  */
 const mainNav: NavItem[] = [
   { href: "/workspace", label: "Hari ini", icon: LayoutDashboard },
+  // Before Mission because it comes before a mission in the work: the list of
+  // people still being called, out of which visits are made.
+  { href: "/workspace/prospects", label: "Prospek", icon: UserSearch, requires: "prospects" },
   { href: "/workspace/missions", label: "Mission", icon: ClipboardList, requires: "missions" },
   { href: "/workspace/calendar", label: "Kalender", icon: CalendarDays, requires: "missions" },
   { href: "/workspace/board", label: "Papan live", icon: MonitorPlay, requires: "missions" },

@@ -2,9 +2,9 @@
 
 import { useTransition } from "react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
-import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, Loader2 } from "@/components/icons"
+import { ChevronLeft, ChevronRight, Loader2 } from "@/components/icons"
 import { Button } from "@/components/ui/button"
-import { cn } from "@/lib/utils"
+import { SortHeader as GenericSortHeader } from "@/components/sort-header"
 import { nextSort, PAGE_SIZES, sortParts, type MissionSort, type SortColumn } from "@/lib/missions/mission-paging"
 
 /**
@@ -62,69 +62,18 @@ export function MissionPagination({ page, size, total }: { page: number; size: n
 }
 
 /** The Jadwal column header: click to cycle nearest-first, oldest-first, newest-first. */
-/**
- * A sortable column header, as Material's data table draws one: the label is
- * the control, an arrow shows the direction, and a column that is not the
- * current sort reveals its arrow only on hover. One column sorts at a time;
- * clicking cycles unsorted → ascending → descending → default.
- */
-export function SortHeader({
-  column,
-  label,
-  sort,
-  align = "left",
-}: {
-  column: SortColumn
-  label: string
-  sort: MissionSort
-  align?: "left" | "right"
-}) {
-  const router = useRouter()
-  const pathname = usePathname()
-  const searchParams = useSearchParams()
-  const [pending, startTransition] = useTransition()
-  const parts = sortParts(sort)
-  const active = parts.column === column && parts.direction !== "upcoming"
-  const isDefault = column === "schedule" && parts.direction === "upcoming"
-  const next = nextSort(column, sort)
-  const describe = (value: MissionSort) => {
-    const p = sortParts(value)
-    if (p.direction === "upcoming") return "terdekat dulu"
-    return p.direction === "asc" ? "A ke Z, terlama dulu" : "Z ke A, terbaru dulu"
-  }
-  const go = () => {
-    const params = new URLSearchParams(searchParams.toString())
-    if (next === "upcoming") params.delete("sort")
-    else params.set("sort", next)
-    params.delete("page")
-    const qs = params.toString()
-    startTransition(() => router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false }))
-  }
-  const Arrow = active && parts.direction === "desc" ? ArrowDown : ArrowUp
+/** The mission list's binding of the shared sortable header. */
+export function SortHeader({ column, label, sort, align = "left" }: { column: SortColumn; label: string; sort: MissionSort; align?: "left" | "right" }) {
   return (
-    <button
-      type="button"
-      onClick={go}
-      aria-sort={active ? (parts.direction === "asc" ? "ascending" : "descending") : isDefault ? "other" : "none"}
-      title={`Urut ${label.toLowerCase()}: ${describe(next)}`}
-      className={cn(
-        "group/sort inline-flex h-8 items-center gap-1 rounded-md px-1 -mx-1 transition-colors hover:bg-muted hover:text-foreground",
-        align === "right" && "flex-row-reverse",
-        active && "text-foreground"
-      )}
-    >
-      {label}
-      {isDefault && <span className="text-[10px] font-normal normal-case tracking-normal text-muted-foreground">terdekat dulu</span>}
-      {pending ? (
-        <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
-      ) : (
-        <Arrow
-          className={cn(
-            "h-3.5 w-3.5 transition-opacity",
-            active ? "opacity-100 text-primary" : "opacity-0 group-hover/sort:opacity-60"
-          )}
-        />
-      )}
-    </button>
+    <GenericSortHeader
+      column={column}
+      label={label}
+      sort={sort}
+      parts={sortParts}
+      next={nextSort}
+      defaultSort="upcoming"
+      defaultHint={{ column: "schedule", text: "terdekat dulu" }}
+      align={align}
+    />
   )
 }

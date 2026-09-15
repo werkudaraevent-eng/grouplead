@@ -43,15 +43,20 @@ export interface NavAccess {
   reports: boolean
   /** The Administration group. */
   settings: boolean
+  /** The prospect list, the stage before a mission. */
+  prospects: boolean
+  createProspect: boolean
 }
 
 export async function resolveNavAccess(access: SalesMissionAccess): Promise<NavAccess> {
-  const [missions, createMission, reports, settings] = await Promise.all([
+  const [missions, createMission, reports, settings, prospects, createProspect] = await Promise.all([
     canPerform(access, "sales_mission_mission", "read"),
     canPerform(access, "sales_mission_mission", "create"),
     canPerform(access, "sales_mission_result", "read"),
     canPerform(access, "sales_mission_settings", "read"),
+    canPerform(access, "sales_mission_prospect", "read"),
+    canPerform(access, "sales_mission_prospect", "create"),
   ])
 
-  return { missions, createMission, reports, settings }
+  return { missions, createMission, reports, settings, prospects, createProspect }
 }

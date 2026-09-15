@@ -49,7 +49,7 @@ const MODULE_GROUPS = [
   {
     title: "Sales Mission",
     description: "Kontrol rinci di dalam aplikasi Sales Mission.",
-    modules: ["sales_mission_mission", "sales_mission_result", "sales_mission_contact", "sales_mission_settings"],
+    modules: ["sales_mission_mission", "sales_mission_result", "sales_mission_contact", "sales_mission_settings", "sales_mission_prospect"],
   },
   {
     title: "Pengaturan",
@@ -87,6 +87,11 @@ const MODULE_DISPLAY: Record<string, { name: string; description: string; level?
   sales_mission_settings: {
     name: "Pengaturan mission",
     description: "Jeda perjalanan, aturan bentrok, dan batas sales pendukung.",
+    level: 1,
+  },
+  sales_mission_prospect: {
+    name: "Prospek",
+    description: "Daftar prospek dan catatan kontak sebelum jadi mission. Matikan Buat agar peran ini tidak bisa mengimpor; Hapus memindahkan prospek ke sampah.",
     level: 1,
   },
   settings: {
@@ -159,7 +164,7 @@ const SALES_MISSION_SUBMODULES = [
   "sales_mission_mission",
   "sales_mission_result",
   "sales_mission_contact",
-  "sales_mission_settings",
+  "sales_mission_settings",  "sales_mission_prospect",
 ] as const
 
 export default function GlobalPermissionsPage() {

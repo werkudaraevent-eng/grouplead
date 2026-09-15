@@ -332,6 +332,7 @@ export function MissionForm({
   schedules,
   conflictSettings,
   prefill,
+  prospectId,
   edit,
 }: {
   salesOptions: TenantSalesOption[]
@@ -341,6 +342,8 @@ export function MissionForm({
   schedules: PersonSchedule[]
   conflictSettings: ConflictSettings
   prefill?: MissionPrefill
+  /** The prospect this visit is being scheduled from; its save marks it Confirmed. */
+  prospectId?: string
   /**
    * Editing an existing mission. The same form, already filled in, posting to
    * updateMission. The schedule is shown but not editable here: moving it is
@@ -680,6 +683,7 @@ export function MissionForm({
     // centred form left the heading and the thing it describes on different
     // axes with a stripe of empty page between them.
     <form action={formAction} className="space-y-4">
+      {prospectId && <input type="hidden" name="prospectId" value={prospectId} />}
       {state?.error ? (
         <div
           ref={errorRef}

@@ -5,11 +5,12 @@ import { listFormFields } from "@/lib/missions/form-field-queries"
 import { MISSION_TIME_ZONE } from "@/lib/missions/mission-schema"
 import { BackLink, WorkspacePage } from "@/app/workspace/workspace-page"
 import { MissionForm, type MissionPrefill } from "./mission-form"
+import { getProspect } from "@/lib/prospects/prospect-queries"
 
 export default async function NewMissionPage({
   searchParams,
 }: {
-  searchParams: Promise<{ date?: string; from?: string }>
+  searchParams: Promise<{ date?: string; from?: string; prospect?: string }>
 }) {
   const access = await getSalesMissionAccess()
   if (!access) redirect("/login?error=access_not_provisioned")
@@ -65,18 +66,50 @@ export default async function NewMissionPage({
     }
   }
 
+  // Confirmed from the prospect list: the visit is scheduled here, with the
+  // company, contact and address already filled. Saving marks the prospect.
+  let prospectId: string | undefined
+  if (params.prospect && /^[0-9a-f-]{36}$/i.test(params.prospect) && (await canPerform(access, "sales_mission_prospect", "read"))) {
+    const prospect = await getProspect(access, params.prospect)
+    if (prospect && !prospect.missionId) {
+      prospectId = prospect.id
+      prefill = {
+        clientCompanyName: prospect.clientCompanyName,
+        clientCompanyId: prospect.clientCompanyId,
+        missionType: "",
+        location: prospect.location ?? "",
+        objective: "",
+        primarySalesId: prospect.ownerId && salesOptions.some((option) => option.id === prospect.ownerId) ? prospect.ownerId : "",
+        supportingSalesIds: [],
+        contactSalutation: prospect.contactSalutation ?? "",
+        contactId: "",
+        contactName: prospect.contactName ?? "",
+        contactJobTitle: prospect.contactJobTitle ?? "",
+        contactDivision: prospect.contactDivision ?? "",
+        contactPhone: prospect.contactPhone ?? "",
+        contactEmail: prospect.contactEmail ?? "",
+        building: "",
+        address: prospect.address ?? "",
+        appointmentNotes: prospect.notes ?? "",
+      }
+    }
+  }
+
   return (
     <WorkspacePage
       eyebrow="Sales Mission / Mission"
-      title={prefill ? "Jadwalkan lagi" : "Buat mission"}
+      title={prospectId ? "Jadwalkan kunjungan" : prefill ? "Jadwalkan lagi" : "Buat mission"}
       description={
-        prefill
+        prospectId
+          ? `Janji temu dengan ${prefill?.clientCompanyName} disepakati. Data prospek sudah terisi; tentukan jadwal dan tim yang berangkat, lalu prospek otomatis menjadi Confirmed.`
+          : prefill
           ? `Kunjungan ke ${prefill.clientCompanyName} dibuat ulang dengan data yang sama. Tentukan tanggal barunya.`
           : "Catat kunjungan yang sudah pasti, lalu tentukan sales yang berangkat."
       }
       action={<BackLink />}
     >
       <MissionForm
+        prospectId={prospectId}
         salesOptions={salesOptions}
         defaultDate={defaultDate}
         fields={fields}

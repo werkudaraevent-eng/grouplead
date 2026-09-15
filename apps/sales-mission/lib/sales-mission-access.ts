@@ -141,6 +141,7 @@ export type SalesMissionModule =
   | "sales_mission_result"
   | "sales_mission_contact"
   | "sales_mission_settings"
+  | "sales_mission_prospect"
 
 export type ModuleAction = "create" | "read" | "update" | "delete"
 
