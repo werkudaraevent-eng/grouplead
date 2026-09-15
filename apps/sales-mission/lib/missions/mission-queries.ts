@@ -583,40 +583,32 @@ export async function listTeamSchedules(
 ): Promise<Array<{ userId: string; name: string; blocks: Array<{ missionId: string; scheduledStart: string | null; scheduledEnd: string | null; location: string | null }> }>> {
   const { supabase, missions } = await missionSchema()
 
-  const { data: missionRows } = await missions
-    .from("missions")
-    .select("id, scheduled_start, scheduled_end, location, status")
-    .is("deleted_at", null)
-    .eq("company_id", access.companyId)
-    .not("status", "in", "(CANCELLED,REJECTED)")
-    .gte("scheduled_start", new Date(from.getTime() - 24 * 3600 * 1000).toISOString())
+  // Through a definer function rather than the table: row security now
+  // hides missions outside the viewer's Cakupan lihat, but a clash with a
+  // colleague's visit is a clash whoever may see that visit. The function
+  // returns times and places, never the client or the purpose.
+  const { data: rows, error } = await missions.rpc("fn_schedule_blocks", {
+    p_company_id: access.companyId,
+    p_user_ids: null,
+    p_from: new Date(from.getTime() - 24 * 3600 * 1000).toISOString(),
+    p_to: new Date(from.getTime() + 400 * 24 * 3600 * 1000).toISOString(),
+  })
+  if (error) console.error("[listTeamSchedules]", error.code, error.message)
+  const blocks = (rows ?? []) as Array<{ user_id: string; mission_id: string; scheduled_start: string | null; scheduled_end: string | null; location: string | null }>
+  if (blocks.length === 0) return []
 
-  if (!missionRows?.length) return []
-
-  const { data: assignmentRows } = await missions
-    .from("assignments")
-    .select("mission_id, user_id")
-    .eq("company_id", access.companyId)
-    .in("mission_id", missionRows.map((row) => row.id))
-    // A declined assignment is not a commitment on that person's calendar.
-    .neq("response", "REJECTED")
-
-  const byMission = new Map(missionRows.map((row) => [row.id as string, row]))
-  const names = await resolveNames(supabase, (assignmentRows ?? []).map((row) => row.user_id as string))
+  const names = await resolveNames(supabase, blocks.map((row) => row.user_id))
 
   const people = new Map<string, { userId: string; name: string; blocks: Array<{ missionId: string; scheduledStart: string | null; scheduledEnd: string | null; location: string | null }> }>()
-  for (const row of assignmentRows ?? []) {
-    const mission = byMission.get(row.mission_id as string)
-    if (!mission) continue
-    const userId = row.user_id as string
-    const person = people.get(userId) ?? { userId, name: names.get(userId) ?? "Nama tidak diketahui", blocks: [] }
+  for (const row of blocks) {
+    const person = people.get(row.user_id) ?? { userId: row.user_id, name: names.get(row.user_id) ?? "Nama tidak diketahui", blocks: [] }
     person.blocks.push({
-      missionId: mission.id as string,
-      scheduledStart: (mission.scheduled_start as string | null) ?? null,
-      scheduledEnd: (mission.scheduled_end as string | null) ?? null,
-      location: (mission.location as string | null) ?? null,
+      missionId: row.mission_id,
+      scheduledStart: row.scheduled_start ?? null,
+      scheduledEnd: row.scheduled_end ?? null,
+      location: row.location ?? null,
     })
-    people.set(userId, person)
+    people.set(row.user_id, person)
   }
 
   return [...people.values()]

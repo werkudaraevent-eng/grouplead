@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation"
-import { canPerform, getSalesMissionAccess } from "@/lib/sales-mission-access"
+import { canPerform, getReadScope, getSalesMissionAccess } from "@/lib/sales-mission-access"
+import { describeReadScope } from "@/lib/access/record-scope"
 import { requireModule } from "@/lib/missions/nav-access"
 import { getMissionSettings, listTenantSales, listViewerCalendar } from "@/lib/missions/mission-queries"
 import { annotateReportRights } from "@/lib/missions/mission-rights"
@@ -66,11 +67,12 @@ export default async function MissionsPage({
     <WorkspacePage
       eyebrow="Sales Mission / Mission"
       title="Mission"
-      description={
+      description={[
+        describeReadScope(await getReadScope(access, "sales_mission_mission"), "mission") ?? "Seluruh mission unit bisnis.",
         settings.requireAssignmentConfirmation
-          ? "Seluruh mission unit bisnis. Baris bertepi kuning menunggu jawaban Anda; jawab langsung dari kolom Aksi."
-          : "Seluruh mission unit bisnis. Mission yang bisa Anda ikuti punya tombol Join di kolom Aksi."
-      }
+          ? "Baris bertepi kuning menunggu jawaban Anda; jawab langsung dari kolom Aksi."
+          : "Mission yang bisa Anda ikuti punya tombol Join di kolom Aksi.",
+      ].join(" ")}
       action={
         <>
           {/* Exports everything the filters match, not the page on screen. */}

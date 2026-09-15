@@ -106,6 +106,21 @@ const OWNER_WORDS: Record<ScopedNoun, string> = {
 }
 
 /**
+ * One sentence for a list that is narrower than the tenant, so a short
+ * list reads as a rule, not as missing data. Null when nothing is hidden.
+ */
+export function describeReadScope(scope: RecordScope, noun: ScopedNoun): string | null {
+  switch (scope) {
+    case "own":
+      return `Anda melihat ${noun} milik sendiri saja (Cakupan lihat peran Anda: Sendiri).`
+    case "team":
+      return `Anda melihat ${noun} milik sendiri dan tim di bawah Anda (Cakupan lihat peran Anda: Tim).`
+    default:
+      return null
+  }
+}
+
+/**
  * One sentence for a refusal, in the words the matrix uses, so an admin
  * reading the message knows which control to change.
  */

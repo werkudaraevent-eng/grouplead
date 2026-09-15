@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation"
 import { Download } from "@/components/icons"
-import { getSalesMissionAccess } from "@/lib/sales-mission-access"
+import { getReadScope, getSalesMissionAccess } from "@/lib/sales-mission-access"
+import { describeReadScope } from "@/lib/access/record-scope"
 import { requireModule } from "@/lib/missions/nav-access"
 import { listTenantSales } from "@/lib/missions/mission-queries"
 import { listReportChoices } from "@/lib/missions/report-choice-queries"
@@ -55,7 +56,7 @@ export default async function ReportListPage({
     <WorkspacePage
       eyebrow="Sales Mission / Reporting"
       title="Laporan"
-      description="Setiap laporan kunjungan yang ditulis sales, terbaru dulu. Saring, urutkan, lalu buka missionnya."
+      description={[describeReadScope(await getReadScope(access, "sales_mission_result"), "laporan"), "Setiap laporan kunjungan yang ditulis sales, terbaru dulu. Saring, urutkan, lalu buka missionnya."].filter(Boolean).join(" ")}
       action={
         <Button asChild variant="outline" size="sm">
           <a href={`/workspace/reports/export?${exportParams.toString()}&format=xlsx`}>

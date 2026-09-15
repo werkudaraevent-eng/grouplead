@@ -1,6 +1,6 @@
 import { headers } from "next/headers"
 import { redirect } from "next/navigation"
-import { canPerform, getSalesMissionAccess } from "@/lib/sales-mission-access"
+import { canPerform, getReadScope, getSalesMissionAccess } from "@/lib/sales-mission-access"
 import { requireModule } from "@/lib/missions/nav-access"
 import { getBoardSnapshot } from "@/lib/board/board-queries"
 import { parseBoardOptions } from "@/lib/board/board-options"
@@ -40,6 +40,20 @@ export default async function InternalBoardPage({
         <EmptyState
           title="Papan live belum dikonfigurasi"
           description="Variabel SUPABASE_SERVICE_ROLE_KEY belum diset di deployment Sales Mission. Tambahkan di Vercel → Project → Settings → Environment Variables, lalu deploy ulang."
+        />
+      </WorkspacePage>
+    )
+  }
+
+  // The wall shows the whole unit through the service client, so it is for
+  // people whose Cakupan lihat is the whole unit. A narrower reach gets an
+  // explanation, not a wall that contradicts their own list.
+  if ((await getReadScope(access, "sales_mission_mission")) !== "all") {
+    return (
+      <WorkspacePage eyebrow="Sales Mission / Papan live" title="Papan live">
+        <EmptyState
+          title="Papan live menampilkan seluruh unit bisnis"
+          description="Cakupan lihat peran Anda pada Mission bukan Semua, jadi papan tidak ditampilkan. Minta admin melebarkannya di Role & Izin bila Anda perlu melihat papan."
         />
       </WorkspacePage>
     )

@@ -1,7 +1,8 @@
 import Link from "next/link"
 import { redirect } from "next/navigation"
 import { Plus } from "@/components/icons"
-import { canPerform, getSalesMissionAccess, resolveScope } from "@/lib/sales-mission-access"
+import { canPerform, getReadScope, getSalesMissionAccess, resolveScope } from "@/lib/sales-mission-access"
+import { describeReadScope } from "@/lib/access/record-scope"
 import { canAssignOthers, canAssignTo, toProspectViewer } from "@/lib/prospects/prospect-access"
 import { requireModule } from "@/lib/missions/nav-access"
 import { listTenantSales } from "@/lib/missions/mission-queries"
@@ -59,7 +60,7 @@ export default async function ProspectsPage({
     <WorkspacePage
       eyebrow="Sales Mission / Prospek"
       title="Prospek"
-      description="Calon klien yang belum jadi kunjungan. Catat setiap kontak; begitu janji temu disepakati, jadwalkan kunjungannya dari sini."
+      description={[describeReadScope(await getReadScope(access, "sales_mission_prospect"), "prospek"), "Calon klien yang belum jadi kunjungan. Catat setiap kontak; begitu janji temu disepakati, jadwalkan kunjungannya dari sini."].filter(Boolean).join(" ")}
       action={
         <>
           {canCreate && <ImportProspects people={assignable} canAssignOthers={canAssignOthers(viewer)} viewerId={access.userId} />}

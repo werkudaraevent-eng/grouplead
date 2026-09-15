@@ -98,7 +98,7 @@ export function RoleModal({ open, onOpenChange, existingRoles, editingRole, comp
         if (copyFromRoleId) {
             const { data: sourceRows, error: sourceError } = await supabase
                 .from("role_permissions")
-                .select("company_id, module_id, can_create, can_read, can_update, can_delete, record_scope")
+                .select("company_id, module_id, can_create, can_read, can_update, can_delete, record_scope, read_scope")
                 .eq("role_id", copyFromRoleId)
                 .in("company_id", companyIds)
 
@@ -124,6 +124,7 @@ export function RoleModal({ open, onOpenChange, existingRoles, editingRole, comp
                     can_update: (copied?.can_update as boolean) ?? false,
                     can_delete: (copied?.can_delete as boolean) ?? false,
                     record_scope: (copied?.record_scope as string) ?? "own",
+                    read_scope: (copied?.read_scope as string) ?? "all",
                 }
             })
         )

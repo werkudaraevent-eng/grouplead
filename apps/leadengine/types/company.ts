@@ -56,6 +56,12 @@ export interface RolePermission {
    * so its rows carry 'all' and the matrix draws no control for them.
    */
   record_scope: RecordScope
+  /**
+   * Whose records Lihat reaches, enforced by row security in Sales Mission
+   * (own = owner, assigned, or unowned prospect; team = own + reports_to
+   * chain; all). Never narrower than record_scope.
+   */
+  read_scope: RecordScope
 }
 
 export type RecordScope = 'own' | 'team' | 'all'

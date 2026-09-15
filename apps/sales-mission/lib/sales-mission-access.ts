@@ -155,6 +155,8 @@ interface ModulePermission {
   can_delete: boolean | null
   /** Whose records the writes reach; see lib/access/record-scope. */
   record_scope: string | null
+  /** Whose records Lihat reaches. Enforced by row security; read here only to explain. */
+  read_scope: string | null
 }
 
 /**
@@ -173,7 +175,7 @@ const loadModulePermission = cache(
     moduleId: string
   ): Promise<ModulePermission | null> => {
     const supabase = await createClient()
-    const columns = "can_create, can_read, can_update, can_delete, record_scope"
+    const columns = "can_create, can_read, can_update, can_delete, record_scope, read_scope"
 
     if (roleId) {
       const { data } = await supabase
@@ -252,6 +254,19 @@ export async function getRecordScope(access: SalesMissionAccess, moduleId: Sales
   const permission = await loadPermissionAcross(access, moduleId)
   if (!permission) return "all"
   return isRecordScope(permission.record_scope) ? permission.record_scope : "own"
+}
+
+/**
+ * Whose records this role's Lihat reaches. The database enforces it (row
+ * security on missions, visit_reports, prospects reads the same row); the
+ * app reads it only to say so on the screen, so a short list is explained
+ * rather than mistaken for missing data.
+ */
+export async function getReadScope(access: SalesMissionAccess, moduleId: SalesMissionModule): Promise<RecordScope> {
+  if (access.isSuperAdmin) return "all"
+  const permission = await loadPermissionAcross(access, moduleId)
+  if (!permission) return "all"
+  return isRecordScope(permission.read_scope) ? permission.read_scope : "all"
 }
 
 /**

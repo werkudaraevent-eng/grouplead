@@ -8,7 +8,7 @@ import { usePermissions } from "@/contexts/permissions-context"
 import { PermissionGate } from "@/features/users/components/permission-gate"
 import { RoleModal } from "@/features/roles/components/create-role-modal"
 import { Loader2, ShieldCheck, Shield, Lock, Crown, UserCog, User, Plus, ChevronRight, ChevronDown, Pencil, Trash2, Info, Check, MoreVertical } from "@/components/icons"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Tooltip } from "@/components/ui/tooltip"
 import { SettingsPageHeader } from "@/components/layout/settings-page-header"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -82,17 +82,17 @@ const MODULE_DISPLAY: Record<string, { name: string; description: string; detail
   },
   sales_mission: {
     name: "Sales Mission",
-    description: "Pintu masuk aplikasi. Baris ini disalin ke lima modul di bawahnya.",
+    description: "Pintu masuk aplikasi. Sakelar dan cakupan di baris ini disalin ke lima modul di bawahnya.",
     details: "Tanpa Lihat di sini, tidak ada yang bisa dijangkau di dalam Sales Mission. Tiap sakelar dan Cakupan di baris ini disalin ke lima modul di bawah; setelah itu tiap modul bisa diatur sendiri-sendiri.",
   },
   sales_mission_mission: {
     name: "Mission",
-    description: "Semua orang melihat semua mission; Cakupan membatasi siapa yang boleh mengubahnya. Pemilik: sales utama dan yang menjadwalkan.",
+    description: "Menjadwalkan dan mengubah kunjungan. Pemilik: sales utama dan yang menjadwalkan; yang ditugaskan ikut melihat.",
     details: "Lihat: semua mission unit bisnis (jadwal bersama). Buat: menjadwalkan mission baru dan mengimpor. Ubah: detail, jadwal, tim, dan pembatalan mission di dalam Cakupan. Hapus: memindahkan mission di dalam Cakupan ke sampah.",
   },
   sales_mission_result: {
     name: "Laporan kunjungan",
-    description: "Laporan terbaca seluruh unit; Cakupan membatasi siapa yang mengisi dan mengubahnya. Pemilik: sales utama.",
+    description: "Mengisi dan mengubah laporan, mengirim lead. Pemilik: sales utama; tim mission ikut melihat.",
     details: "Lihat: membaca laporan dan halaman Laporan. Buat: mengisi laporan dan mengirim lead untuk mission di dalam Cakupan. Ubah: mengubah laporan terkirim milik orang di dalam Cakupan kapan saja dan meminta klarifikasi; penulisnya sendiri selalu boleh mengubah dalam jendela hari yang diatur di Pengaturan mission.",
   },
   sales_mission_contact: {
@@ -107,7 +107,7 @@ const MODULE_DISPLAY: Record<string, { name: string; description: string; detail
   },
   sales_mission_prospect: {
     name: "Prospek",
-    description: "Daftar terbaca seluruh unit; Cakupan membatasi siapa yang boleh mengubah dan menugaskan. Pemilik: pemegangnya.",
+    description: "Calon klien sebelum jadi mission. Pemilik: pemegangnya; prospek tanpa pemegang terlihat semua orang.",
     details: "Lihat: seluruh daftar prospek. Buat: menambah dan mengimpor. Ubah dan Hapus: prospek di dalam Cakupan; prospek tanpa pemegang boleh diambil siapa pun yang punya Ubah. Cakupan Tim atau Semua juga mengizinkan menugaskan prospek ke orang lain.",
   },
   settings: {
@@ -177,60 +177,89 @@ const SALES_MISSION_SUBMODULES = [
 ] as const
 
 /**
- * Cakupan: whose records Ubah, Hapus, and the record-bound actions reach.
- *
- * Drawn only where Sales Mission reads it. Kontak and Pengaturan have no
- * records with an owner, and LeadEngine enforces no ownership at all; a
- * control that changes nothing is the mistake the old four-value Lihat made.
- * The parent row carries the control as a cascade, like its switches.
+ * Cakupan: whose records a grant reaches. Two per module, the way HubSpot
+ * keeps View and Edit each with Everything / Team / Owned: `read_scope`
+ * under Lihat, `record_scope` under Ubah (it also bounds Hapus and every
+ * record-bound action). Drawn only where Sales Mission reads it. Kontak and
+ * Pengaturan have no records with an owner, and LeadEngine enforces no
+ * ownership at all; a control that changes nothing is the mistake the old
+ * four-value Lihat made. The parent row carries both as a cascade.
  */
 const SCOPED_MODULE_IDS: Set<string> = new Set(["sales_mission_mission", "sales_mission_result", "sales_mission_prospect"])
-const SCOPE_OPTIONS: ReadonlyArray<{ value: RecordScope; label: string; hint: string }> = [
-  { value: "own", label: "Sendiri", hint: "Ubah, Hapus, dan tindakan pada record (isi laporan, kelola tim, batalkan, tugaskan) hanya untuk record miliknya: mission yang ia sales utama atau ia jadwalkan, laporan mission-nya sendiri, prospek yang ia pegang. Lihat tetap seluruh unit." },
-  { value: "team", label: "Tim", hint: "Ubah, Hapus, dan tindakan pada record untuk miliknya, ditambah milik orang yang Atasan-nya adalah dia, berantai ke bawah (Settings → Users). Lihat tetap seluruh unit." },
-  { value: "all", label: "Semua", hint: "Ubah, Hapus, dan tindakan pada record untuk semua record di unit bisnis." },
+const SCOPE_RANK: Record<RecordScope, number> = { own: 0, team: 1, all: 2 }
+const narrower = (a: RecordScope, b: RecordScope): RecordScope => (SCOPE_RANK[a] <= SCOPE_RANK[b] ? a : b)
+const wider = (a: RecordScope, b: RecordScope): RecordScope => (SCOPE_RANK[a] >= SCOPE_RANK[b] ? a : b)
+const SCOPE_OPTIONS: ReadonlyArray<{ value: RecordScope; label: string; readHint: string; writeHint: string }> = [
+  {
+    value: "own",
+    label: "Sendiri",
+    readHint: "Hanya record miliknya: mission yang ia sales utama, ia jadwalkan, atau ia ikuti; laporan mission itu; prospek yang ia pegang atau belum dipegang siapa pun. Record lain tidak tampil di daftar, kalender, papan, maupun laporan.",
+    writeHint: "Ubah, Hapus, dan tindakan pada record (isi laporan, kelola tim, batalkan, tugaskan) hanya untuk record miliknya: mission yang ia sales utama atau ia jadwalkan, laporan mission-nya sendiri, prospek yang ia pegang.",
+  },
+  {
+    value: "team",
+    label: "Tim",
+    readHint: "Miliknya, ditambah milik orang yang Atasan-nya adalah dia, berantai ke bawah (Settings → Users).",
+    writeHint: "Ubah, Hapus, dan tindakan pada record untuk miliknya, ditambah milik orang yang Atasan-nya adalah dia, berantai ke bawah.",
+  },
+  {
+    value: "all",
+    label: "Semua",
+    readHint: "Semua record di unit bisnis.",
+    writeHint: "Ubah, Hapus, dan tindakan pada record untuk semua record di unit bisnis.",
+  },
 ]
+const SCOPE_LABEL: Record<RecordScope, string> = { own: "Sendiri", team: "Tim", all: "Semua" }
 
 /**
- * Material segmented button: one connected group, the selected segment
- * filled and marked with a check, every segment labelled. Mixed (the parent
- * row while its children disagree) selects nothing.
+ * A menu button under a switch: the reach of that grant. Material's menu
+ * button (label + trailing arrow) with radio items that carry their own
+ * supporting text, so the choice explains itself where it is made. Mixed
+ * (the parent row while its children disagree) shows "Campur".
  */
-function ScopeSegments({
+function ScopeMenu({
   value,
-  disabled,
+  kind,
   label,
+  disabled,
   onChange,
 }: {
   value: RecordScope | null
-  disabled: boolean
+  kind: "read" | "write"
   label: string
+  disabled: boolean
   onChange: (next: RecordScope) => void
 }) {
+  const title = kind === "read" ? "Cakupan lihat" : "Cakupan ubah"
+  const current = value ? SCOPE_LABEL[value] : "Campur"
   return (
-    <div role="group" aria-label={`Cakupan ${label}`} className="inline-flex overflow-hidden rounded-full border border-border">
-      {SCOPE_OPTIONS.map((option, index) => {
-        const selected = option.value === value
-        return (
-          <Tooltip key={option.value} content={option.hint}>
-            <button
-              type="button"
-              aria-pressed={selected}
-              disabled={disabled}
-              onClick={() => { if (!selected) onChange(option.value) }}
-              className={cn(
-                "inline-flex h-8 items-center gap-1 px-2.5 text-[12px] font-medium transition-colors disabled:cursor-default disabled:opacity-60",
-                index > 0 && "border-l border-border",
-                selected ? "bg-primary/12 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground"
-              )}
-            >
-              {selected && <Check className="h-3.5 w-3.5" aria-hidden="true" />}
-              {option.label}
-            </button>
-          </Tooltip>
-        )
-      })}
-    </div>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          disabled={disabled}
+          aria-label={`${title} ${label}: ${current}`}
+          className="inline-flex h-7 items-center gap-0.5 rounded-full px-2 text-[11px] font-medium text-primary hover:bg-primary/8 disabled:cursor-default disabled:text-muted-foreground disabled:hover:bg-transparent"
+        >
+          {current}
+          <ChevronDown className="h-3.5 w-3.5" aria-hidden="true" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="center" className="w-80">
+        <DropdownMenuLabel>{title}</DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuRadioGroup value={value ?? ""} onValueChange={(next) => onChange(next as RecordScope)}>
+          {SCOPE_OPTIONS.map((option) => (
+            <DropdownMenuRadioItem key={option.value} value={option.value} className="items-start py-2">
+              <span className="flex flex-col gap-0.5">
+                <span className="text-sm font-medium text-foreground">{option.label}</span>
+                <span className="text-xs leading-snug text-muted-foreground">{kind === "read" ? option.readHint : option.writeHint}</span>
+              </span>
+            </DropdownMenuRadioItem>
+          ))}
+        </DropdownMenuRadioGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
   )
 }
 
@@ -437,6 +466,7 @@ export default function GlobalPermissionsPage() {
         can_update: field === "can_update",
         can_delete: field === "can_delete",
         record_scope: "own" as const,
+        read_scope: "all" as const,
       }
       const { data, error } = await supabase
         .from("role_permissions")
@@ -514,6 +544,7 @@ export default function GlobalPermissionsPage() {
         can_update: false,
         can_delete: false,
         record_scope: "own" as const,
+        read_scope: "all" as const,
       }
       const { data, error } = await supabase
         .from("role_permissions")
@@ -550,56 +581,77 @@ export default function GlobalPermissionsPage() {
   }
 
   /**
-   * Cakupan is one write, like a switch. A row that does not exist yet is
-   * created all-off with the scope set, which is legal under the
-   * write-requires-read rule because nothing is granted. On the parent row
-   * the value is stored and copied down, the way its switches are.
+   * Cakupan is one write, like a switch. Ubah's reach never exceeds
+   * Lihat's (the database refuses it), so narrowing Lihat pulls Ubah in
+   * with it and widening Ubah pushes Lihat out; the toast says when that
+   * happened. On the parent row the value is applied to each scoped child
+   * separately, because each child clamps against its own other scope. A
+   * row that does not exist yet is created all-off with the scopes set,
+   * legal under write-requires-read because nothing is granted.
    */
-  const handleChangeScope = async (moduleId: string, value: RecordScope) => {
+  const handleChangeScope = async (moduleId: string, field: "read_scope" | "record_scope", value: RecordScope) => {
     if (!companyId || !selectedRole || isSuperAdmin || !canManagePermissions) return
-    const key = `${moduleId}:${selectedRole.id}:record_scope`
+    const key = `${moduleId}:${selectedRole.id}:${field}`
     setToggling(key)
 
-    const perm = findPerm(moduleId)
-    const previous = permissions
-    if (perm) {
-      setPermissions((prev) => prev.map((p) => (p.id === perm.id ? { ...p, record_scope: value } : p)))
-      const { error } = await supabase.from("role_permissions").update({ record_scope: value }).eq("id", perm.id)
-      if (error) {
-        setPermissions(previous)
-        setError(error.message)
-        toast.error("Gagal memperbarui cakupan")
-        setToggling(null)
-        return
+    const targets = moduleId === SALES_MISSION_PARENT ? [SALES_MISSION_PARENT, ...SCOPED_MODULE_IDS] : [moduleId]
+    let pulled = false
+    let failed = false
+    let propagated = true
+    for (const target of targets) {
+      const perm = findPerm(target)
+      const read = (perm?.read_scope as RecordScope | undefined) ?? "all"
+      const record = (perm?.record_scope as RecordScope | undefined) ?? "own"
+      const payload: { read_scope: RecordScope; record_scope: RecordScope } =
+        field === "read_scope"
+          ? { read_scope: value, record_scope: narrower(record, value) }
+          : { record_scope: value, read_scope: wider(read, value) }
+      if (field === "read_scope" && payload.record_scope !== record) pulled = true
+      if (field === "record_scope" && payload.read_scope !== read) pulled = true
+
+      if (perm) {
+        const previous = permissions
+        setPermissions((prev) => prev.map((p) => (p.id === perm.id ? { ...p, ...payload } : p)))
+        const { error } = await supabase.from("role_permissions").update(payload).eq("id", perm.id)
+        if (error) {
+          setPermissions(previous)
+          setError(error.message)
+          failed = true
+          break
+        }
+      } else {
+        const insertPayload = {
+          company_id: companyId,
+          role_id: selectedRole.id,
+          module_id: target,
+          can_create: false,
+          can_read: "none" as const,
+          can_update: false,
+          can_delete: false,
+          ...payload,
+        }
+        const { data, error } = await supabase.from("role_permissions").insert(insertPayload).select("*").single()
+        if (error || !data) {
+          setError(error?.message ?? "Baris izin gagal dibuat")
+          failed = true
+          break
+        }
+        setPermissions((prev) => [...prev, data as RolePermission])
       }
-    } else {
-      const insertPayload = {
-        company_id: companyId,
-        role_id: selectedRole.id,
-        module_id: moduleId,
-        can_create: false,
-        can_read: "none" as const,
-        can_update: false,
-        can_delete: false,
-        record_scope: value,
+      if (isHoldingView && companies.length > 1) {
+        propagated = (await propagateToSubsidiaries(target, payload)) && propagated
       }
-      const { data, error } = await supabase.from("role_permissions").insert(insertPayload).select("*").single()
-      if (error || !data) {
-        setError(error?.message ?? "Baris izin gagal dibuat")
-        toast.error("Gagal memperbarui cakupan")
-        setToggling(null)
-        return
-      }
-      setPermissions((prev) => [...prev, data as RolePermission])
     }
 
-    const propagated = isHoldingView && companies.length > 1
-      ? await propagateToSubsidiaries(moduleId, { record_scope: value })
-      : true
-    if (moduleId === SALES_MISSION_PARENT) {
-      await cascadeSalesMissionSubmodules({ record_scope: value })
+    if (failed) toast.error("Gagal memperbarui cakupan")
+    else if (propagated) {
+      const which = field === "read_scope" ? "Cakupan lihat" : "Cakupan ubah"
+      toast.success(
+        pulled
+          ? `${which} diperbarui: ${SCOPE_LABEL[value]}. ${field === "read_scope" ? "Cakupan ubah ikut dipersempit." : "Cakupan lihat ikut dilebarkan."}`
+          : `${which} diperbarui: ${SCOPE_LABEL[value]}`
+      )
     }
-    if (propagated) toast.success(`Cakupan diperbarui: ${SCOPE_OPTIONS.find((o) => o.value === value)?.label ?? value}`)
     setToggling(null)
   }
 
@@ -666,6 +718,7 @@ export default function GlobalPermissionsPage() {
           can_update: false,
           can_delete: false,
           record_scope: "own" as const,
+          read_scope: "all" as const,
           ...effective,
         }))
     )
@@ -746,6 +799,7 @@ export default function GlobalPermissionsPage() {
         can_update: false,
         can_delete: false,
         record_scope: "own",
+        read_scope: "all",
         ...updates,
       }))
 
@@ -793,7 +847,7 @@ export default function GlobalPermissionsPage() {
       can_read: preset === "none" ? "none" : "company",
       can_update: preset === "full",
       can_delete: preset === "full",
-      ...(preset === "full" ? { record_scope: "all" as const } : {}),
+      ...(preset === "full" ? { record_scope: "all" as const, read_scope: "all" as const } : {}),
     } satisfies Partial<RolePermission>
 
     const perm = findPerm(moduleId)
@@ -922,6 +976,14 @@ export default function GlobalPermissionsPage() {
     const label = display?.name ?? mod.name
     const description = display?.description ?? mod.description
     const details = display?.details
+    const scoped = mod.id === SALES_MISSION_PARENT || SCOPED_MODULE_IDS.has(mod.id)
+    // The parent shows what its scoped children agree on, or nothing.
+    const scopeShown = (field: "read_scope" | "record_scope"): RecordScope | null => {
+      const fallback: RecordScope = field === "read_scope" ? "all" : "own"
+      if (mod.id !== SALES_MISSION_PARENT) return (perm?.[field] as RecordScope | undefined) ?? fallback
+      const values = [...SCOPED_MODULE_IDS].map((id) => (findPerm(id)?.[field] as RecordScope | undefined) ?? fallback)
+      return values.every((v) => v === values[0]) ? values[0] : null
+    }
 
     return (
       <tr key={mod.id} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
@@ -951,7 +1013,7 @@ export default function GlobalPermissionsPage() {
           column that governs it.
         */}
         <td className="text-center px-2 py-3">
-          <div className="flex justify-center">
+          <div className="flex flex-col items-center gap-1">
             <Switch
               checked={isSuperAdmin ? true : !readOff}
               disabled={!canManagePermissions || isSuperAdmin || toggling === `${mod.id}:${selectedRole.id}:can_read`}
@@ -961,6 +1023,15 @@ export default function GlobalPermissionsPage() {
               onCheckedChange={(next) => handleChangeRead(mod.id, next ? "company" : "none")}
               aria-label={`Lihat ${label}`}
             />
+            {scoped && (
+              <ScopeMenu
+                kind="read"
+                label={label}
+                value={isSuperAdmin ? "all" : scopeShown("read_scope")}
+                disabled={isSuperAdmin || !canManagePermissions || readOff || toggling === `${mod.id}:${selectedRole.id}:read_scope`}
+                onChange={(next) => handleChangeScope(mod.id, "read_scope", next)}
+              />
+            )}
           </div>
         </td>
         <td className="text-center px-2 py-3">
@@ -974,13 +1045,22 @@ export default function GlobalPermissionsPage() {
           </div>
         </td>
         <td className="text-center px-2 py-3">
-          <div className="flex justify-center">
+          <div className="flex flex-col items-center gap-1">
             <Switch
               checked={isSuperAdmin ? true : (perm?.can_update ?? false)}
               disabled={!canManagePermissions || isSuperAdmin || toggling === `${mod.id}:${selectedRole.id}:can_update`}
               onCheckedChange={() => handleToggleBool(mod.id, "can_update")}
               aria-label={`Ubah ${label}`}
             />
+            {scoped && (
+              <ScopeMenu
+                kind="write"
+                label={label}
+                value={isSuperAdmin ? "all" : scopeShown("record_scope")}
+                disabled={isSuperAdmin || !canManagePermissions || readOff || toggling === `${mod.id}:${selectedRole.id}:record_scope`}
+                onChange={(next) => handleChangeScope(mod.id, "record_scope", next)}
+              />
+            )}
           </div>
         </td>
         <td className="text-center px-2 py-3">
@@ -992,37 +1072,6 @@ export default function GlobalPermissionsPage() {
               aria-label={`Hapus ${label}`}
             />
           </div>
-        </td>
-        <td className="px-2 py-3">
-          {(() => {
-            if (mod.id !== SALES_MISSION_PARENT && !SCOPED_MODULE_IDS.has(mod.id)) {
-              return <span className="block text-center text-xs text-muted-foreground" aria-label="Tanpa cakupan">—</span>
-            }
-            if (isSuperAdmin) {
-              return (
-                <div className="flex justify-center">
-                  <ScopeSegments value="all" disabled label={label} onChange={() => undefined} />
-                </div>
-              )
-            }
-            // The parent shows what its scoped children agree on, or nothing.
-            let shown: RecordScope | null = (perm?.record_scope as RecordScope | undefined) ?? "own"
-            if (mod.id === SALES_MISSION_PARENT) {
-              const values = [...SCOPED_MODULE_IDS].map((id) => (findPerm(id)?.record_scope as RecordScope | undefined) ?? "own")
-              shown = values.every((v) => v === values[0]) ? values[0] : null
-            }
-            return (
-              <div className="flex flex-col items-center gap-1">
-                <ScopeSegments
-                  value={shown}
-                  disabled={!canManagePermissions || toggling === `${mod.id}:${selectedRole.id}:record_scope`}
-                  label={label}
-                  onChange={(next) => handleChangeScope(mod.id, next)}
-                />
-                {shown === null && <span className="text-[11px] text-muted-foreground">Campur di modul bawah</span>}
-              </div>
-            )
-          })()}
         </td>
         <td className="px-2 py-3">
           {/* Row presets live in an overflow menu: secondary actions on a
@@ -1253,8 +1302,9 @@ export default function GlobalPermissionsPage() {
                           <span>Khusus Sales Mission: Cakupan</span>
                         </div>
                         <ul className="text-[13px] text-muted-foreground space-y-1.5 ml-6 list-disc">
-                          <li><strong className="text-foreground">Lihat selalu seluruh unit bisnis.</strong> Mission adalah kalender bersama dan papan tim; Cakupan tidak mempersempit Lihat.</li>
-                          <li><strong className="text-foreground">Cakupan membatasi</strong> Ubah, Hapus, dan tindakan pada record: mengisi laporan, mengirim lead, mengelola tim mission, membatalkan, meminta klarifikasi laporan, menugaskan prospek. Buat record baru tidak dibatasi.</li>
+                          <li><strong className="text-foreground">Dua cakupan per modul,</strong> masing-masing Sendiri / Tim / Semua. <strong className="text-foreground">Cakupan lihat</strong> (di bawah Lihat) menentukan record siapa yang tampil di daftar, kalender, papan, laporan, dan ekspor; record di luarnya tidak ada bagi orang itu. <strong className="text-foreground">Cakupan ubah</strong> (di bawah Ubah) menentukan record siapa yang boleh diubah, dihapus, dan dikenai tindakan: mengisi laporan, mengirim lead, mengelola tim, membatalkan, meminta klarifikasi, menugaskan prospek. Buat record baru tidak dibatasi.</li>
+                          <li><strong className="text-foreground">Cakupan ubah tidak pernah lebih luas dari cakupan lihat.</strong> Mempersempit Lihat ikut menarik Ubah; melebarkan Ubah ikut mendorong Lihat.</li>
+                          <li><strong className="text-foreground">Ketersediaan jadwal tetap utuh.</strong> Saat menjadwalkan, jam sibuk rekan tetap terlihat agar tidak bentrok, apa pun cakupan lihatnya.</li>
                           <li><strong className="text-foreground">Pemilik record:</strong> mission = sales utama dan yang menjadwalkan; laporan kunjungan = sales utama; prospek = pemegangnya (tanpa pemegang = milik semua orang yang punya Ubah).</li>
                           <li>
                             <strong className="text-foreground">Tim</strong> = milik sendiri ditambah milik orang yang kolom <em>Atasan</em>-nya adalah dia, berantai ke bawah. Atasan diatur per orang di{" "}
@@ -1262,7 +1312,7 @@ export default function GlobalPermissionsPage() {
                           </li>
                           <li><strong className="text-foreground">Sales pendukung</strong> bukan pemilik mission, tetapi tetap boleh gabung, keluar, menjawab penugasan, mengusulkan jadwal, dan menulis catatan.</li>
                           <li><strong className="text-foreground">Yang menjadwalkan</strong> tanpa menjadi sales utama boleh mengubah mission-nya, tetapi tidak mengisi laporannya, kecuali Cakupan Laporan kunjungan Tim atau Semua.</li>
-                          <li><strong className="text-foreground">Bawaan:</strong> Super Admin, Admin, Executive = Semua; Leader = Tim; Staff dan peran lain = Sendiri.</li>
+                          <li><strong className="text-foreground">Bawaan:</strong> cakupan lihat Semua untuk setiap peran; cakupan ubah Super Admin, Admin, Executive = Semua, Leader = Tim, Staff dan peran lain = Sendiri.</li>
                         </ul>
                         </div>
                         )}
@@ -1280,28 +1330,30 @@ export default function GlobalPermissionsPage() {
                         never up and down.
                       */}
                       <div className="overflow-x-auto rounded-lg border">
-                        <table className="w-full min-w-[760px] table-fixed text-sm">
+                        <table className="w-full min-w-[720px] table-fixed text-sm">
                           <colgroup>
                             <col />
-                            <col className="w-[64px]" />
-                            <col className="w-[64px]" />
-                            <col className="w-[64px]" />
-                            <col className="w-[64px]" />
-                            <col className="w-[224px]" />
+                            <col className="w-[92px]" />
+                            <col className="w-[76px]" />
+                            <col className="w-[92px]" />
+                            <col className="w-[76px]" />
                             <col className="w-[48px]" />
                           </colgroup>
                           <thead>
                             <tr className="border-b bg-muted">
                               <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Modul</th>
-                              <th className="px-2 py-3 text-center text-xs font-semibold uppercase tracking-wider text-muted-foreground">Lihat</th>
-                              <th className="px-2 py-3 text-center text-xs font-semibold uppercase tracking-wider text-muted-foreground">Buat</th>
-                              <th className="px-2 py-3 text-center text-xs font-semibold uppercase tracking-wider text-muted-foreground">Ubah</th>
-                              <th className="px-2 py-3 text-center text-xs font-semibold uppercase tracking-wider text-muted-foreground">Hapus</th>
                               <th className="px-2 py-3 text-center text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                                <Tooltip content="Record siapa yang boleh disentuh oleh Ubah, Hapus, dan tindakan pada record. Tidak membatasi Lihat: daftar, kalender, dan papan tetap menampilkan seluruh unit." position="bottom">
-                                  <span className="inline-flex items-center gap-1">Cakupan ubah <Info className="h-3.5 w-3.5" aria-hidden="true" /></span>
+                                <Tooltip content="Modul terbuka. Di Sales Mission, menu di bawah sakelar memilih record siapa yang tampil: Sendiri, Tim, atau Semua." position="bottom">
+                                  <span className="inline-flex items-center gap-1">Lihat <Info className="h-3.5 w-3.5" aria-hidden="true" /></span>
                                 </Tooltip>
                               </th>
+                              <th className="px-2 py-3 text-center text-xs font-semibold uppercase tracking-wider text-muted-foreground">Buat</th>
+                              <th className="px-2 py-3 text-center text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                                <Tooltip content="Mengubah record. Di Sales Mission, menu di bawah sakelar memilih record siapa yang boleh diubah; cakupan yang sama berlaku untuk Hapus dan tindakan pada record (isi laporan, kelola tim, batalkan, tugaskan). Tidak pernah lebih luas dari cakupan Lihat." position="bottom">
+                                  <span className="inline-flex items-center gap-1">Ubah <Info className="h-3.5 w-3.5" aria-hidden="true" /></span>
+                                </Tooltip>
+                              </th>
+                              <th className="px-2 py-3 text-center text-xs font-semibold uppercase tracking-wider text-muted-foreground">Hapus</th>
                               <th className="px-2 py-3" aria-label="Set cepat" />
                             </tr>
                           </thead>
@@ -1323,7 +1375,7 @@ export default function GlobalPermissionsPage() {
                               return (
                                 <tbody key={group.title} id={bodyId}>
                                   <tr className="bg-muted/30 border-b">
-                                    <td colSpan={7} className="px-4 py-3">
+                                    <td colSpan={6} className="px-4 py-3">
                                       {/* Every group folds now, so this is always a
                                           real control. Two of the three used to be
                                           focusable buttons that did nothing. */}
@@ -1368,7 +1420,7 @@ export default function GlobalPermissionsPage() {
                             {ungroupedModules.length > 0 && (
                               <tbody>
                                 <tr className="bg-muted/30 border-b">
-                                  <td colSpan={7} className="px-4 py-3">
+                                  <td colSpan={6} className="px-4 py-3">
                                     <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
                                       Belum dikelompokkan
                                     </div>
