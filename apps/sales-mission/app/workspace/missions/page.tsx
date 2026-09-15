@@ -2,6 +2,7 @@ import { redirect } from "next/navigation"
 import { canPerform, getSalesMissionAccess } from "@/lib/sales-mission-access"
 import { requireModule } from "@/lib/missions/nav-access"
 import { getMissionSettings, listTenantSales, listViewerCalendar } from "@/lib/missions/mission-queries"
+import { annotateReportRights } from "@/lib/missions/mission-rights"
 import { countMissions, listMissionFacets, listMissionsPage, parsePageParams } from "@/lib/missions/mission-page-queries"
 import { annotateJoinStatus } from "@/lib/missions/mission-join"
 import { isEmptyQuery, parseMissionQuery, resolveMissionFilter, serializeMissionQuery, type MissionFilter } from "@/lib/missions/mission-filter"
@@ -93,7 +94,7 @@ export default async function MissionsPage({
         shown={pageResult.total}
       />
       <MissionTable
-        missions={visible}
+        missions={await annotateReportRights(access, visible)}
         now={now}
         canCreate={canCreate}
         canDelete={canDelete}
@@ -101,7 +102,6 @@ export default async function MissionsPage({
         filtered={!isEmptyQuery(query)}
         policy={settings}
         maxSupporting={settings.maxSupporting}
-        canWriteAnyReport={access.isSuperAdmin}
         pagination={{ page, size, total: pageResult.total, sort }}
       />
     </WorkspacePage>

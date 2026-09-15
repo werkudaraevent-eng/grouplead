@@ -1,7 +1,7 @@
 import Link from "next/link"
 import { notFound, redirect } from "next/navigation"
 import { Building2, CalendarCheck, Globe, Mail, MapPin, MessageCircle, Phone } from "@/components/icons"
-import { canPerform, getSalesMissionAccess } from "@/lib/sales-mission-access"
+import { canPerform, getSalesMissionAccess, resolveScope } from "@/lib/sales-mission-access"
 import { requireModule } from "@/lib/missions/nav-access"
 import { listTenantSales } from "@/lib/missions/mission-queries"
 import { listFormFields } from "@/lib/missions/form-field-queries"
@@ -12,7 +12,7 @@ import { MISSION_TIME_ZONE, formatMissionSchedule } from "@/lib/missions/mission
 import { statusLabel } from "@/lib/missions/status-labels"
 import { getProspect } from "@/lib/prospects/prospect-queries"
 import { listProspectStatuses } from "@/lib/prospects/prospect-status-queries"
-import { canEditProspect } from "@/lib/prospects/prospect-access"
+import { canAssignTo, canEditProspect, toProspectViewer } from "@/lib/prospects/prospect-access"
 import { CHANNEL_LABELS, OUTCOME_LABELS, describeDueDate } from "@/lib/prospects/prospect-schema"
 import { formatPhone, phoneDigits } from "@/lib/format/phone"
 import { BackLink, WorkspacePage } from "@/app/workspace/workspace-page"
@@ -38,20 +38,21 @@ export default async function ProspectDetailPage({ params }: { params: Promise<{
   await requireModule(access, "sales_mission_prospect")
 
   const { prospectId } = await params
-  const [prospect, statuses, people, canUpdate, canDelete, canCreateMission, isAdmin, fields] = await Promise.all([
+  const [prospect, statuses, allPeople, canUpdate, canDelete, canCreateMission, scope, fields] = await Promise.all([
     getProspect(access, prospectId),
     listProspectStatuses(access, { includeArchived: true }),
     listTenantSales(access),
     canPerform(access, "sales_mission_prospect", "update"),
     canPerform(access, "sales_mission_prospect", "delete"),
     canPerform(access, "sales_mission_mission", "create"),
-    access.isSuperAdmin ? Promise.resolve(true) : canPerform(access, "sales_mission_settings", "update"),
+    resolveScope(access, "sales_mission_prospect"),
     listFormFields(access, "prospect"),
   ])
   if (!prospect) notFound()
 
   const extra = customAnswers(fields, prospect.customValues)
-  const viewer = { userId: access.userId, isAdmin }
+  const viewer = toProspectViewer(scope)
+  const people = allPeople.filter((person) => canAssignTo(viewer, person.id))
   const editable = canUpdate && canEditProspect(prospect, viewer)
   const today = new Intl.DateTimeFormat("en-CA", { timeZone: MISSION_TIME_ZONE }).format(new Date())
   const stamp = (iso: string) => new Intl.DateTimeFormat("id-ID", { timeZone: MISSION_TIME_ZONE, day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }).format(new Date(iso))

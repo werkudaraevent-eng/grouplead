@@ -2,7 +2,9 @@
 
 import { revalidatePath } from "next/cache"
 import { createClient } from "@/utils/supabase/server"
-import { canPerform, getSalesMissionAccess, type SalesMissionAccess } from "@/lib/sales-mission-access"
+import { canPerform, canPerformOn, getSalesMissionAccess, resolveScope, type SalesMissionAccess } from "@/lib/sales-mission-access"
+import { resolveMissionGates } from "@/lib/missions/mission-rights"
+import { describeOutOfScope, reportOwners } from "@/lib/access/record-scope"
 import { getMission, getMissionRole, getMissionSettings, getVisitReport, listMissionTeam } from "@/lib/missions/mission-queries"
 import { canEditSubmittedReport } from "@/lib/missions/report-edit"
 import { toVisitInstants } from "@/lib/missions/visit-time"
@@ -66,38 +68,42 @@ function toRow(input: VisitReportDraft): ReportRow {
 }
 
 /**
- * Confirms the caller may write the report, returning the tenant context.
+ * Confirms the caller may write the report, returning the tenant context and
+ * the mission.
  *
- * Two independent questions, both required. The mission role answers "were you
- * the one in the room"; the `sales_mission_result` module answers "does your
- * role author reports at all". Reading a report is checked on all three of its
- * surfaces — the page, the reporting screen, the CSV export — so writing one
- * checking neither of them was the wider hole.
+ * One question with two parts, both from the matrix: does the role hold
+ * `sales_mission_result` create, and does its Cakupan reach this report. The
+ * report belongs to the mission's sales utama, who was in the room; a Cakupan
+ * of Tim or Semua reaches past them, so a supervisor can write it up on their
+ * behalf. Reading a report is checked on all three of its surfaces — the page,
+ * the reporting screen, the CSV export — so writing one checking neither of
+ * them was the wider hole.
  *
- * The action asked for is `create` in both the draft and the submit path: this
- * app has no surface for editing somebody else's report, so there is no second
- * meaning for `update` to carry, and splitting them would only invent a config
- * ("create but not update") that silently breaks autosave.
+ * The action asked for is `create` in both the draft and the submit path.
+ * `update` carries a different meaning: changing a report that was already
+ * sent, which has its own rule below.
  */
 async function authorizeReportWrite(missionId: string) {
   const access = await getSalesMissionAccess()
-  if (!access) return { error: "Anda tidak punya akses Sales Mission." as const }
+  if (!access) return { error: "Anda tidak punya akses Sales Mission." }
 
-  const role = await getMissionRole(access, missionId)
-  if (role !== "PRIMARY" && !access.isSuperAdmin) {
+  const mission = await getMission(access, missionId)
+  if (!mission) return { error: "Mission tidak ditemukan." }
+
+  if (!(await canPerform(access, "sales_mission_result", "create"))) {
+    return { error: "Anda tidak punya izin menulis laporan kunjungan." }
+  }
+  if (!(await canPerformOn(access, "sales_mission_result", "create", { ownerIds: reportOwners(mission) }))) {
+    const [role, { scope }] = await Promise.all([getMissionRole(access, missionId), resolveScope(access, "sales_mission_result")])
     return {
       error:
         role === "SUPPORTING"
           ? "Hanya sales utama yang mengisi laporan kunjungan. Gunakan catatan pendukung."
-          : ("Anda tidak ditugaskan pada mission ini." as const),
+          : describeOutOfScope(scope, "laporan"),
     }
   }
 
-  if (!(await canPerform(access, "sales_mission_result", "create"))) {
-    return { error: "Anda tidak punya izin menulis laporan kunjungan." as const }
-  }
-
-  return { access }
+  return { access, mission }
 }
 
 /**
@@ -375,9 +381,9 @@ export async function submitVisitReport(
   let reportId = existing?.id as string | undefined
 
   // Changing a report that was already sent. Allowed for its author inside
-  // the tenant's window and for an admin at any time, never without a
-  // reason, and the submission time stays the original so the window does
-  // not restart with every edit.
+  // the tenant's window and for a supervisor (result:update within Cakupan)
+  // at any time, never without a reason, and the submission time stays the
+  // original so the window does not restart with every edit.
   const isEdit = existing?.status === "SUBMITTED"
   let keepSubmittedAt: string | null = null
   if (isEdit && reportId) {
@@ -386,17 +392,17 @@ export async function submitVisitReport(
       getMissionSettings(access),
       getMissionRole(access, missionId),
     ])
-    const isAdmin = access.isSuperAdmin || (await canPerform(access, "sales_mission_settings", "update"))
+    const gates = await resolveMissionGates(access, guard.mission, role, settings)
     keepSubmittedAt = (sent?.submitted_at as string | null) ?? null
     const verdict = canEditSubmittedReport({
-      isAdmin,
-      isPrimary: role === "PRIMARY",
+      supervises: gates.supervisesReport,
+      isAuthor: gates.isAuthor,
       submittedAt: keepSubmittedAt,
       now: new Date(),
       windowDays: settings.reportEditWindowDays,
     })
     if (!verdict.allowed) {
-      return { success: false, error: "Laporan ini sudah tidak bisa diubah sendiri. Minta admin membukanya." }
+      return { success: false, error: "Laporan ini sudah tidak bisa diubah sendiri. Minta atasan yang berwenang membukanya." }
     }
     if (!parsed.data.changeReason?.trim()) {
       return { success: false, error: "Tulis alasan perubahan singkat." }
@@ -664,18 +670,25 @@ export async function addSupportingNote(missionId: string, note: string): Promis
 }
 
 /**
- * An admin sends a sent report back to its author with a note. The report
- * keeps its content and moves to NEEDS_CLARIFICATION: the author sees the
- * note on the form, fixes it, and sends again, which files the current
+ * A supervisor sends a sent report back to its author with a note. The
+ * report keeps its content and moves to NEEDS_CLARIFICATION: the author sees
+ * the note on the form, fixes it, and sends again, which files the current
  * version in the history. Never for a draft; there is nothing to return.
+ *
+ * Supervisor means Laporan kunjungan → Ubah with a Cakupan that reaches the
+ * author. The author does not send a report back to themself.
  */
 export async function requestReportClarification(missionId: string, note: string): Promise<ActionResult> {
   const access = await getSalesMissionAccess()
   if (!access) return { success: false, error: "Anda tidak punya akses Sales Mission." }
-  const isAdmin = access.isSuperAdmin || (await canPerform(access, "sales_mission_settings", "update"))
-  if (!isAdmin) return { success: false, error: "Hanya admin yang bisa meminta klarifikasi." }
   if (!(await canPerform(access, "sales_mission_result", "read"))) {
     return { success: false, error: "Anda tidak punya akses ke laporan kunjungan." }
+  }
+  const [mission, role, settings] = await Promise.all([getMission(access, missionId), getMissionRole(access, missionId), getMissionSettings(access)])
+  if (!mission) return { success: false, error: "Mission tidak ditemukan." }
+  const gates = await resolveMissionGates(access, mission, role, settings)
+  if (!gates.supervisesReport || gates.isAuthor) {
+    return { success: false, error: "Hanya atasan yang berwenang atas laporan ini yang bisa meminta klarifikasi." }
   }
 
   const trimmed = note.trim()
@@ -700,7 +713,7 @@ export async function requestReportClarification(missionId: string, note: string
     .eq("company_id", access.companyId)
   if (error) return { success: false, error: "Permintaan gagal disimpan." }
 
-  const [team, mission] = await Promise.all([listMissionTeam(access, missionId), getMission(access, missionId)])
+  const team = await listMissionTeam(access, missionId)
   await notify(
     access,
     "NEEDS_CLARIFICATION",

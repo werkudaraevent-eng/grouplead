@@ -3,7 +3,9 @@
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 import { createClient } from "@/utils/supabase/server"
-import { canPerform, getSalesMissionAccess } from "@/lib/sales-mission-access"
+import { canPerform, getSalesMissionAccess, isSettingsAdmin, resolveScope } from "@/lib/sales-mission-access"
+import { resolveMissionGates } from "@/lib/missions/mission-rights"
+import { describeOutOfScope, inScope, missionOwners } from "@/lib/access/record-scope"
 import { MISSION_TIME_ZONE, MISSION_TYPES, createMissionSchema, toMissionTimestamp, type AssignmentResponse } from "@/lib/missions/mission-schema"
 import { listFormFields } from "@/lib/missions/form-field-queries"
 import { getMission, getMissionRole, getMissionSettings, listMissionTeam } from "@/lib/missions/mission-queries"
@@ -23,7 +25,7 @@ import { CLEAR_ALL_PHRASE } from "@/lib/missions/clear-phrase"
 import { parseMissionQuery, resolveMissionFilter } from "@/lib/missions/mission-filter"
 import { listMatchingMissionIds, parsePageParams } from "@/lib/missions/mission-page-queries"
 import { convertProspect, getProspect } from "@/lib/prospects/prospect-queries"
-import { canEditProspect } from "@/lib/prospects/prospect-access"
+import { canEditProspect, toProspectViewer } from "@/lib/prospects/prospect-access"
 
 /**
  * Write side of the mission domain.
@@ -183,9 +185,9 @@ export async function createMission(
     const prospect = await getProspect(access, prospectId)
     if (!prospect) return { success: false, error: "Prospek tidak ditemukan." }
     if (prospect.missionId) return { success: false, error: "Prospek ini sudah punya mission." }
-    const isAdmin = access.isSuperAdmin || (await canPerform(access, "sales_mission_settings", "update"))
-    if (!canEditProspect(prospect, { userId: access.userId, isAdmin })) {
-      return { success: false, error: `Prospek ini dipegang ${prospect.ownerName ?? "orang lain"}.` }
+    const viewer = toProspectViewer(await resolveScope(access, "sales_mission_prospect"))
+    if (!canEditProspect(prospect, viewer)) {
+      return { success: false, error: `Prospek ini dipegang ${prospect.ownerName ?? "orang lain"}, di luar cakupan Anda.` }
     }
   }
 
@@ -369,15 +371,15 @@ export async function cancelMission(missionId: string, reason: string): Promise<
   if (!trimmed) return { success: false, error: "Tulis alasan pembatalan." }
   if (trimmed.length > 1000) return { success: false, error: "Alasan terlalu panjang." }
 
-  const [mission, role] = await Promise.all([getMission(access, missionId), getMissionRole(access, missionId)])
+  const [mission, role, settings] = await Promise.all([getMission(access, missionId), getMissionRole(access, missionId), getMissionSettings(access)])
   if (!mission) return { success: false, error: "Mission tidak ditemukan." }
 
-  const mayCancel = access.isSuperAdmin || role === "PRIMARY" || mission.createdBy === access.userId
-  if (!mayCancel) {
-    return { success: false, error: "Hanya sales utama, pembuat mission, atau admin yang bisa membatalkan." }
-  }
   if (mission.status === "COMPLETED" || mission.status === "CANCELLED") {
     return { success: false, error: "Mission ini sudah selesai atau sudah dibatalkan." }
+  }
+  const gates = await resolveMissionGates(access, mission, role, settings)
+  if (!gates.canCancel) {
+    return { success: false, error: describeOutOfScope(gates.missionCtx.scope, "mission") }
   }
 
   const supabase = await createClient()
@@ -452,7 +454,7 @@ export async function cancelMission(missionId: string, reason: string): Promise<
  * after the retention period. Held to the mission module's `delete` grant,
  * which no default role carries; an admin hands it out deliberately.
  */
-export async function deleteMissions(ids: string[]): Promise<ActionResult<{ deleted: number }>> {
+export async function deleteMissions(ids: string[]): Promise<ActionResult<{ deleted: number; skipped: number }>> {
   const access = await getSalesMissionAccess()
   if (!access) return { success: false, error: "Anda tidak punya akses Sales Mission." }
   if (!(await canPerform(access, "sales_mission_mission", "delete"))) {
@@ -464,13 +466,33 @@ export async function deleteMissions(ids: string[]): Promise<ActionResult<{ dele
   if (unique.length > 500) return { success: false, error: "Pilih paling banyak 500 mission sekaligus." }
 
   const supabase = await createClient()
+  const schema = supabase.schema("sales_mission")
+
+  // Within the Cakupan: a mission owned by someone out of reach is skipped
+  // and counted, not refused as a batch. "Semua" needs no lookup.
+  let targets = unique
+  let skipped = 0
+  const ctx = await resolveScope(access, "sales_mission_mission")
+  if (ctx.scope !== "all") {
+    const [{ data: rows }, { data: primaries }] = await Promise.all([
+      schema.from("missions").select("id, created_by").eq("company_id", access.companyId).is("deleted_at", null).in("id", unique),
+      schema.from("assignments").select("mission_id, user_id").eq("company_id", access.companyId).eq("assignment_role", "PRIMARY").in("mission_id", unique),
+    ])
+    const primaryOf = new Map((primaries ?? []).map((row) => [row.mission_id as string, row.user_id as string]))
+    const reachable = (rows ?? []).filter((row) =>
+      inScope(ctx, missionOwners({ createdBy: row.created_by as string, primarySalesId: primaryOf.get(row.id as string) ?? null }))
+    )
+    targets = reachable.map((row) => row.id as string)
+    skipped = (rows?.length ?? 0) - reachable.length
+    if (targets.length === 0) return { success: false, error: describeOutOfScope(ctx.scope, "mission") }
+  }
+
   const now = new Date().toISOString()
-  const { data, error } = await supabase
-    .schema("sales_mission")
+  const { data, error } = await schema
     .from("missions")
     .update({ deleted_at: now, deleted_by: access.userId, updated_at: now })
     .eq("company_id", access.companyId)
-    .in("id", unique)
+    .in("id", targets)
     .is("deleted_at", null)
     .select("id")
 
@@ -480,7 +502,7 @@ export async function deleteMissions(ids: string[]): Promise<ActionResult<{ dele
   revalidatePath("/workspace/missions")
   revalidatePath("/workspace/calendar")
   revalidatePath("/workspace/settings/recycle-bin")
-  return { success: true, data: { deleted: data?.length ?? 0 } }
+  return { success: true, data: { deleted: data?.length ?? 0, skipped } }
 }
 
 /**
@@ -494,7 +516,7 @@ export async function deleteMissions(ids: string[]): Promise<ActionResult<{ dele
 export async function clearAllMissions(confirmation: string): Promise<ActionResult<{ deleted: number }>> {
   const access = await getSalesMissionAccess()
   if (!access) return { success: false, error: "Anda tidak punya akses Sales Mission." }
-  if (!(await canPerform(access, "sales_mission_settings", "update"))) {
+  if (!(await isSettingsAdmin(access))) {
     return { success: false, error: "Hanya admin Sales Mission yang bisa mengosongkan data." }
   }
   if (!(await canPerform(access, "sales_mission_mission", "delete"))) {
@@ -548,13 +570,13 @@ export async function updateMission(
     return { success: false, error: "Anda tidak punya izin mengubah mission." }
   }
 
-  const [mission, role] = await Promise.all([getMission(access, missionId), getMissionRole(access, missionId)])
+  const [mission, role, settings] = await Promise.all([getMission(access, missionId), getMissionRole(access, missionId), getMissionSettings(access)])
   if (!mission) return { success: false, error: "Mission tidak ditemukan." }
-  const mayEdit = access.isSuperAdmin || role === "PRIMARY" || mission.createdBy === access.userId
-  if (!mayEdit) return { success: false, error: "Hanya sales utama, pembuat mission, atau admin yang bisa mengubah." }
   if (mission.status === "COMPLETED" || mission.status === "CANCELLED") {
     return { success: false, error: "Mission yang sudah selesai atau dibatalkan tidak bisa diubah." }
   }
+  const gates = await resolveMissionGates(access, mission, role, settings)
+  if (!gates.canEdit) return { success: false, error: describeOutOfScope(gates.missionCtx.scope, "mission") }
 
   const parsed = readMissionForm(formData)
   if (!parsed.success) {
@@ -565,9 +587,8 @@ export async function updateMission(
   const supabase = await createClient()
   const missions = supabase.schema("sales_mission")
   const assigneeIds = [input.primarySalesId, ...input.supportingSalesIds]
-  const [formFields, settings, memberCheck, team] = await Promise.all([
+  const [formFields, memberCheck, team] = await Promise.all([
     listFormFields(access, "mission"),
-    getMissionSettings(access),
     supabase.from("company_members").select("user_id").eq("company_id", access.companyId).in("user_id", assigneeIds),
     listMissionTeam(access, missionId),
   ])
@@ -628,9 +649,7 @@ export async function updateMission(
   const sameInstant = (a: string | null, b: string | null) =>
     (a ? new Date(a).getTime() : null) === (b ? new Date(b).getTime() : null)
   const scheduleChanged = !sameInstant(mission.scheduledStart, nextStart) || !sameInstant(mission.scheduledEnd, nextEnd)
-  const mayMoveSchedule =
-    access.isSuperAdmin || mission.createdBy === access.userId || (role === "PRIMARY" && settings.primaryCanReschedule)
-  if (scheduleChanged && !mayMoveSchedule) {
+  if (scheduleChanged && gates.scheduleMode !== "move") {
     return { success: false, error: "Jadwal mission ini hanya bisa diusulkan, bukan diubah langsung. Gunakan Usulkan jadwal lain." }
   }
 

@@ -56,6 +56,24 @@ What we actually adopted:
 | Labels | Sentence case. M3 dropped all-caps button and chip labels in 2021 | No uppercase, wide-tracked pills anywhere in a list. Uppercase stays on page eyebrows only |
 | Picking a time | Day first, then time; busy blocks drawn and named, never hidden; a clash warns, it does not block (Calendly's two-panel shape, Google Calendar's "find a time") | `SchedulePicker`: month on the left, the chosen day as an hour timeline on the right with each assignee's visits as named blocks, the travel buffer shaded around them, the candidate drawn on top in primary or danger |
 
+## Izin
+
+The permission matrix is the only place access is decided, and it must be
+readable without the code. Three rules keep it that way:
+
+- **Every record-bound action asks `canPerformOn`**, never a hard-coded seat.
+  The grant (Lihat/Buat/Ubah/Hapus) and the reach (Cakupan) come from the same
+  row; `lib/access/record-scope.ts` defines who owns what, and nothing else
+  does. A supporting sales keeps participation rights (join, leave, answer,
+  propose, note) because those are not ownership.
+- **A refusal uses the matrix's words.** "Peran Anda hanya boleh mengubah
+  mission miliknya sendiri" points the admin at the Cakupan control; it never
+  says "hanya sales utama" when the rule is a scope.
+- **"Admin" means one thing:** Ubah on Pengaturan mission (`isSettingsAdmin`),
+  which opens the settings screens and the bin. It is not a record scope; a
+  supervisor's reach over reports comes from Laporan kunjungan → Ubah with a
+  Cakupan of Tim or Semua.
+
 ## What is ours, not Material's
 
 - **Colour** comes from `app/globals.css` tokens only. Every pairing is held to
@@ -77,6 +95,7 @@ One word per concept: a field is a "field", not sometimes "kolom".
 | Dashboard vs screen | One configuration, two renderings: set it up where you can click, send exactly that to the display (Geckoboard, Grafana TV mode). The in-app view uses the app's tokens; only the screen inverts | Papan live: control bar (segmented range, facets, panel chips) → same options in the URL → "Tampilkan di layar" and "Buat tautan layar". Privacy (client names) is bound to the token, never to the URL |
 | Selection vs action controls | Controls that change what is shown look different from controls that do something (M3 segmented button, filter chips vs filled/outlined buttons) | Segmented Hari ini/Minggu ini, facet buttons, toggle chips on the left; one filled action and one outlined action on the right |
 | Surface layering | All surfaces from one neutral ramp tinted toward the primary, stepped a few percent apart: page < nav panel < card. Dividers are outline-variant (tinted), never black alpha. The nav's active item is the secondary-container indicator: tinted fill, primary text, no shadow (M3 tonal surfaces, navigation drawer) | `--background` #F6F8FB, `--sidebar`/`--muted` #EEF2F7, `--card` #FFFFFF, `--border` #D9E0E8, `--sidebar-primary` #D9E4F5. Same tokens in LeadEngine so switching apps does not change the material |
-| Edit vs reschedule | One door for anyone who may change a thing; a separate "request" only for those who may not (Google Calendar: Edit + "send update to guests?"; Calendly: Reschedule as a request) | Ubah carries the schedule for the scheduler, the primary (per tenant rule) and admins, and asks for an optional reason when it changed; Usulkan jadwal lain remains only for supporting sales and centrally-scheduled units. No "Pindahkan jadwal" button |
+| Edit vs reschedule | One door for anyone who may change a thing; a separate "request" only for those who may not (Google Calendar: Edit + "send update to guests?"; Calendly: Reschedule as a request) | Ubah carries the schedule for whoever the matrix lets change the mission (its owners, and anyone whose Cakupan reaches them; the primary alone per tenant rule), and asks for an optional reason when it changed; Usulkan jadwal lain remains only for supporting sales and centrally-scheduled units. No "Pindahkan jadwal" button |
+| Who may change what | Action and reach are two settings on one page: per object View/Edit/Delete, each with Everything / Team only / Owned only (HubSpot); object CRUD plus a role hierarchy over record ownership (Salesforce) | Role & Izin: modul × Lihat/Buat/Ubah/Hapus × **Cakupan** (Sendiri / Tim / Semua). Owners are fixed per record: mission = sales utama + scheduler, report = sales utama, prospect = holder. Tim follows the Atasan chain from Settings → Users. Lihat stays unit-wide; every refusal names the Cakupan |
 | Board controls | Page action beside the title (as on every page); one toolbar row with what-to-show (segmented, facets) on the left and how-it-is-shown (live status, a "Tampilan" menu) on the right; view options in a menu, never as permanently-ticked chips (M3 top app bar, segmented button, menu) | `BoardActions` in the header slot, `BoardToolbar` under it; panel toggles are `DropdownMenuCheckboxItem`s |
 | Dark distant screen | Tonal elevation (lighter washes of one neutral), no outlines; exactly one tinted container for the one thing the room should look at; a real type scale (display clock, headline hero, title sections); centred empty states (M3 dark theme, tonal surfaces) | `--board-surface-1/2` panels, `--board-primary-container` hero "Berikutnya/Sedang berlangsung", rows dimmed once past, the current one tinted |

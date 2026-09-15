@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache"
 import { createClient } from "@/utils/supabase/server"
-import { canPerform, getSalesMissionAccess, type SalesMissionAccess } from "@/lib/sales-mission-access"
+import { getSalesMissionAccess, isSettingsAdmin, type SalesMissionAccess } from "@/lib/sales-mission-access"
 import type { ActionResult } from "@/types/action-result"
 import { photoPathsForMissions, photoPathsForProspects, removePhotoFiles } from "@/lib/photos/photo-storage"
 
@@ -16,7 +16,7 @@ const PATHS = ["/workspace", "/workspace/missions", "/workspace/calendar", "/wor
 async function requireBinAdmin(): Promise<{ access: SalesMissionAccess } | { error: string }> {
   const access = await getSalesMissionAccess()
   if (!access) return { error: "Anda tidak punya akses Sales Mission." }
-  if (access.isSuperAdmin || (await canPerform(access, "sales_mission_settings", "update"))) return { access }
+  if (await isSettingsAdmin(access)) return { access }
   return { error: "Hanya admin Sales Mission yang bisa mengelola sampah." }
 }
 

@@ -11,7 +11,7 @@ import { SortHeader } from "@/components/sort-header"
 import { nextProspectSort, prospectSortParts, type ProspectSort, type ProspectSortColumn } from "@/lib/prospects/prospect-paging"
 import { COLOR_DOT, displayStatus, type ProspectStatus } from "@/lib/prospects/prospect-status"
 import { describeDueDate, type ProspectListItem } from "@/lib/prospects/prospect-schema"
-import { canEditProspect } from "@/lib/prospects/prospect-access"
+import { canAssignOthers, canEditProspect, type ProspectViewer } from "@/lib/prospects/prospect-access"
 import { formatPhone } from "@/lib/format/phone"
 import { MISSION_TIME_ZONE } from "@/lib/missions/mission-schema"
 import { EmptyState } from "@/app/workspace/workspace-page"
@@ -129,7 +129,7 @@ export function ProspectTable({
   statuses: ProspectStatus[]
   people: Person[]
   today: string
-  viewer: { userId: string; isAdmin: boolean }
+  viewer: ProspectViewer
   canCreate: boolean
   canUpdate: boolean
   canDelete: boolean
@@ -173,7 +173,7 @@ export function ProspectTable({
     start(async () => {
       const result = await deleteProspects(chosen)
       if (result.success) {
-        toast.success(`${result.data?.deleted ?? chosen.length} prospek dipindahkan ke sampah`)
+        toast.success(`${result.data?.deleted ?? chosen.length} prospek dipindahkan ke sampah${result.data?.skipped ? `, ${result.data.skipped} dilewati` : ""}`)
         clearSelection(); setConfirmDelete(false); router.refresh()
       } else toast.error(result.error ?? "Prospek gagal dipindahkan ke sampah")
     })
@@ -240,7 +240,7 @@ export function ProspectTable({
               <Link href={`/workspace/missions/new?prospect=${prospect.id}`}><CalendarCheck className="h-4 w-4" /> Jadwalkan kunjungan</Link>
             </DropdownMenuItem>
           )}
-          {viewer.isAdmin && <DropdownMenuItem onSelect={() => setAssignTarget({ ids: [prospect.id], label: label(prospect) })}>Tugaskan</DropdownMenuItem>}
+          {canAssignOthers(viewer) && <DropdownMenuItem onSelect={() => setAssignTarget({ ids: [prospect.id], label: label(prospect) })}>Tugaskan</DropdownMenuItem>}
           {editable(prospect) && <DropdownMenuItem asChild><Link href={`/workspace/prospects/${prospect.id}/edit`}>Ubah</Link></DropdownMenuItem>}
           {canDelete && (
             <>
@@ -272,7 +272,7 @@ export function ProspectTable({
           onStatus={() => setStatusTarget({ ids: chosen })}
           onAssign={() => setAssignTarget({ ids: chosen })}
           canDelete={canDelete}
-          canAssign={viewer.isAdmin}
+          canAssign={canAssignOthers(viewer)}
           allMatching={allChosen && moreMatch ? { total: pagination.total, pending: loadingAll, onSelect: selectAllMatching, selected: beyondPage.size > 0 } : undefined}
         />
       )}

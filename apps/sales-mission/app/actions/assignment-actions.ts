@@ -2,7 +2,9 @@
 
 import { revalidatePath } from "next/cache"
 import { createClient } from "@/utils/supabase/server"
-import { canPerform, getSalesMissionAccess } from "@/lib/sales-mission-access"
+import { canPerform, canPerformOn, getSalesMissionAccess, resolveScope, type SalesMissionAccess } from "@/lib/sales-mission-access"
+import { resolveMissionGates } from "@/lib/missions/mission-rights"
+import { describeOutOfScope, missionOwners } from "@/lib/access/record-scope"
 import {
   getMission,
   getMissionRole,
@@ -47,6 +49,21 @@ import type { ActionResult } from "@/types/action-result"
 const NO_MISSION_WRITE: ActionResult = {
   success: false,
   error: "Anda tidak punya izin mengubah mission.",
+}
+
+/**
+ * The mission, if the viewer's Ubah reaches it: its sales utama and creator
+ * own it, and a Cakupan of Tim or Semua reaches past them. The refusal names
+ * the Cakupan, so an admin knows which control to change.
+ */
+async function requireMissionInScope(access: SalesMissionAccess, missionId: string) {
+  const mission = await getMission(access, missionId)
+  if (!mission) return { error: "Mission tidak ditemukan." }
+  if (!(await canPerformOn(access, "sales_mission_mission", "update", { ownerIds: missionOwners(mission) }))) {
+    const { scope } = await resolveScope(access, "sales_mission_mission")
+    return { error: describeOutOfScope(scope, "mission") }
+  }
+  return { mission }
 }
 
 /**
@@ -169,19 +186,17 @@ export async function leaveMission(missionId: string): Promise<ActionResult> {
 /**
  * Remove a supporting sales from a mission.
  *
- * Only the primary or a super admin may do this. It is the counterweight to
- * self-service joining: whoever is accountable for the meeting decides who is
- * in the room.
+ * Whoever the matrix lets change this mission may do this. It is the
+ * counterweight to self-service joining: whoever is accountable for the
+ * meeting decides who is in the room.
  */
 export async function removeSupportingSales(missionId: string, userId: string): Promise<ActionResult> {
   const access = await getSalesMissionAccess()
   if (!access) return { success: false, error: "Anda tidak punya akses Sales Mission." }
   if (!(await canPerform(access, "sales_mission_mission", "update"))) return NO_MISSION_WRITE
 
-  const role = await getMissionRole(access, missionId)
-  if (role !== "PRIMARY" && !access.isSuperAdmin) {
-    return { success: false, error: "Hanya sales utama yang bisa mengeluarkan anggota." }
-  }
+  const reach = await requireMissionInScope(access, missionId)
+  if ("error" in reach) return { success: false, error: reach.error }
 
   const supabase = await createClient()
   const { error } = await supabase
@@ -428,10 +443,8 @@ export async function decideReschedule(
   if (request.status !== "PENDING") return { success: false, error: "Permintaan ini sudah diputuskan." }
 
   const missionId = request.mission_id as string
-  const role = await getMissionRole(access, missionId)
-  if (role !== "PRIMARY" && !access.isSuperAdmin) {
-    return { success: false, error: "Hanya sales utama atau admin yang bisa memutuskan permintaan ini." }
-  }
+  const reach = await requireMissionInScope(access, missionId)
+  if ("error" in reach) return { success: false, error: reach.error }
 
   const { data: assignmentRows } = await schema
     .from("assignments")
@@ -527,24 +540,21 @@ export async function rescheduleMission(missionId: string, input: unknown): Prom
   const supabase = await createClient()
   const schema = supabase.schema("sales_mission")
 
-  const [role, settings, { data: mission }] = await Promise.all([
+  const [role, settings, mission] = await Promise.all([
     getMissionRole(access, missionId),
     getMissionSettings(access),
-    schema.from("missions").select("status, scheduled_start, created_by").is("deleted_at", null).eq("id", missionId).eq("company_id", access.companyId).maybeSingle(),
+    getMission(access, missionId),
   ])
   if (!mission) return { success: false, error: "Mission tidak ditemukan." }
-  // The scheduler owns the slot as much as the primary does: the appointment
-  // team that booked it is who the client calls back.
-  const mayMove =
-    access.isSuperAdmin ||
-    mission.created_by === access.userId ||
-    (role === "PRIMARY" && settings.primaryCanReschedule)
-  if (!mayMove) {
+  // The scheduler owns the slot as much as the primary does, and a supervisor
+  // reaches both; the sales utama alone moves it only when the tenant allows.
+  const gates = await resolveMissionGates(access, mission, role, settings)
+  if (gates.scheduleMode !== "move") {
     return {
       success: false,
-      error: role === "PRIMARY"
+      error: gates.canManageTeam
         ? "Unit bisnis ini meminta jadwal ulang lewat usulan. Gunakan Minta jadwal ulang."
-        : "Hanya sales utama atau admin yang bisa memindahkan jadwal.",
+        : describeOutOfScope(gates.missionCtx.scope, "mission"),
     }
   }
 
@@ -624,16 +634,14 @@ export async function rescheduleMission(missionId: string, input: unknown): Prom
   return { success: true }
 }
 
-/** Open or close a mission to further joiners. Primary's call. */
+/** Open or close a mission to further joiners. Whoever may change the mission decides. */
 export async function setMissionAllowJoin(missionId: string, allowJoin: boolean): Promise<ActionResult> {
   const access = await getSalesMissionAccess()
   if (!access) return { success: false, error: "Anda tidak punya akses Sales Mission." }
   if (!(await canPerform(access, "sales_mission_mission", "update"))) return NO_MISSION_WRITE
 
-  const role = await getMissionRole(access, missionId)
-  if (role !== "PRIMARY" && !access.isSuperAdmin) {
-    return { success: false, error: "Hanya sales utama yang bisa mengubah pengaturan ini." }
-  }
+  const reach = await requireMissionInScope(access, missionId)
+  if ("error" in reach) return { success: false, error: reach.error }
 
   const supabase = await createClient()
   const { error } = await supabase

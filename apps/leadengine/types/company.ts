@@ -49,7 +49,16 @@ export interface RolePermission {
   can_read: 'none' | 'own' | 'company' | 'all'
   can_update: boolean
   can_delete: boolean
+  /**
+   * Whose records the writes reach. Read only by Sales Mission, where a
+   * mission belongs to its sales utama and creator, a report to the sales
+   * utama, a prospect to its holder. LeadEngine enforces no record ownership,
+   * so its rows carry 'all' and the matrix draws no control for them.
+   */
+  record_scope: RecordScope
 }
+
+export type RecordScope = 'own' | 'team' | 'all'
 
 export interface AppModule {
   id: string

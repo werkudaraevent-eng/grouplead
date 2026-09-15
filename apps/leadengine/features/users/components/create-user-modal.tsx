@@ -21,6 +21,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { BusinessUnitPicker } from "./business-unit-picker"
+import { SearchableSelect } from "@/components/shared/searchable-select"
 import { Loader2, UserPlus, Building2 } from "@/components/icons"
 
 /* ─── Schema (department OBLITERATED) ───────────────────────────────────── */
@@ -29,6 +30,7 @@ const schema = z
         email: z.string().email("Valid email required"),
         full_name: z.string().min(1, "Name is required"),
         role: z.string().min(1, "Role is required"),
+        reports_to: z.string().nullable().optional(),
         /** "invite" emails a link; "password" has the admin set one directly. */
         method: z.enum(["invite", "password"]),
         password: z.string().optional().or(z.literal("")),
@@ -56,6 +58,7 @@ const ROLE_LABEL_MAP: Record<UserType, string> = {
 }
 
 interface CompanyOption { id: string; name: string; is_holding: boolean }
+interface ManagerOption { id: string; full_name: string | null }
 
 interface CreateUserModalProps {
     open: boolean
@@ -68,11 +71,18 @@ export function CreateUserModal({ open, onOpenChange, onCreated }: CreateUserMod
     const [companies, setCompanies] = useState<CompanyOption[]>([])
     const [availableRoles, setAvailableRoles] = useState<{ id: string; slug: string; label: string }[]>([])
     const [selectedCompanyIds, setSelectedCompanyIds] = useState<string[]>([])
+    const [managers, setManagers] = useState<ManagerOption[]>([])
     const router = useRouter()
 
     useEffect(() => {
         if (!open) return
         const supabase = createClient()
+
+        // Whoever this person may report to. Asked here, at creation, because
+        // the "Tim" scope in Role & Izin follows this chain from day one.
+        supabase.from("profiles").select("id, full_name").eq("is_active", true).order("full_name").then(({ data }) => {
+            setManagers((data as ManagerOption[]) ?? [])
+        })
 
         // Fetch companies with hierarchy flag
         supabase.from("companies").select("id, name, is_holding").order("name").then(({ data }) => {
@@ -109,6 +119,7 @@ export function CreateUserModal({ open, onOpenChange, onCreated }: CreateUserMod
             email: "",
             full_name: "",
             role: "",
+            reports_to: null,
             method: "invite" as const,
             password: "",
         },
@@ -137,6 +148,7 @@ export function CreateUserModal({ open, onOpenChange, onCreated }: CreateUserMod
                     role_id: roleUuid,
                     department: null,
                     business_unit: primaryCompanyName,
+                    reports_to: values.reports_to || null,
                     companyIds: selectedCompanyIds,
                     password: values.method === "password" ? values.password : null,
                 })
@@ -233,6 +245,22 @@ export function CreateUserModal({ open, onOpenChange, onCreated }: CreateUserMod
                                         ))}
                                     </SelectContent>
                                 </Select>
+                                <FormMessage />
+                            </FormItem>
+                        )} />
+                        <FormField control={form.control} name="reports_to" render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Atasan langsung <span className="font-normal text-muted-foreground">(opsional)</span></FormLabel>
+                                <FormControl>
+                                    <SearchableSelect
+                                        value={field.value ?? null}
+                                        onChange={(v) => field.onChange(v)}
+                                        options={managers.map((m) => ({ value: m.id, label: m.full_name || "Tanpa nama" }))}
+                                        placeholder="Tidak ada (puncak)"
+                                        searchPlaceholder="Cari orang…"
+                                    />
+                                </FormControl>
+                                <p className="text-xs leading-relaxed text-muted-foreground">Menentukan siapa yang masuk cakupan Tim di Role &amp; Izin: atasan menjangkau record orang di bawahnya.</p>
                                 <FormMessage />
                             </FormItem>
                         )} />

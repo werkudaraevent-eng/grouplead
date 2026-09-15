@@ -277,7 +277,7 @@ export default function UserManagementPage() {
                             <TableHead className="w-[280px] font-semibold text-xs">User</TableHead>
                             <TableHead className="font-semibold text-xs w-[120px]">Role</TableHead>
                             <TableHead className="font-semibold text-xs">Business unit</TableHead>
-                            <TableHead className="font-semibold text-xs w-[160px]">Reports to</TableHead>
+                            <TableHead className="font-semibold text-xs w-[160px]">Atasan</TableHead>
                             <TableHead className="font-semibold text-xs w-[110px]">Status</TableHead>
                             <TableHead className="w-[52px]" />
                         </TableRow>
@@ -310,6 +310,8 @@ export default function UserManagementPage() {
                             const inactive = p.is_active === false
                             const companies = p.company_memberships?.filter(cm => cm.company?.name) || []
                             const reportsToName = p.reports_to ? profiles.find((u) => u.id === p.reports_to)?.full_name : null
+                            // Direct reports, so the chain Role & Izin calls "Tim" is visible from the list.
+                            const directReports = profiles.filter((u) => u.reports_to === p.id).length
 
                             return (
                                 <TableRow
@@ -392,12 +394,15 @@ export default function UserManagementPage() {
                                         })()}
                                     </TableCell>
 
-                                    {/* Reports To */}
+                                    {/* Atasan, and how many report to this person */}
                                     <TableCell className="py-2.5">
                                         {reportsToName ? (
-                                            <span className="text-sm text-foreground">{reportsToName}</span>
+                                            <span className="block truncate text-sm text-foreground">{reportsToName}</span>
                                         ) : (
-                                            <span className="text-sm text-muted-foreground">—</span>
+                                            <span className="block text-sm text-muted-foreground">—</span>
+                                        )}
+                                        {directReports > 0 && (
+                                            <span className="block text-xs text-muted-foreground">{directReports} bawahan langsung</span>
                                         )}
                                     </TableCell>
 

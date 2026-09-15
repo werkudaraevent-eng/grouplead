@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation"
-import { canPerform, getSalesMissionAccess } from "@/lib/sales-mission-access"
+import { canPerform, getSalesMissionAccess, resolveScope } from "@/lib/sales-mission-access"
+import { canAssignOthers, canAssignTo, toProspectViewer } from "@/lib/prospects/prospect-access"
 import { listTenantSales } from "@/lib/missions/mission-queries"
 import { listFormFields } from "@/lib/missions/form-field-queries"
 import { DEFAULT_CONTACT_SALUTATIONS, configuredOptions } from "@/lib/missions/form-fields"
@@ -13,16 +14,18 @@ export default async function NewProspectPage() {
   if (!access) redirect("/login?error=access_not_provisioned")
   if (!(await canPerform(access, "sales_mission_prospect", "create"))) redirect("/workspace/prospects")
 
-  const [salesOptions, fields, prospectFields, isAdmin] = await Promise.all([
+  const [allSales, fields, prospectFields, scope] = await Promise.all([
     listTenantSales(access),
     listFormFields(access, "mission"),
     listFormFields(access, "prospect"),
-    access.isSuperAdmin ? Promise.resolve(true) : canPerform(access, "sales_mission_settings", "update"),
+    resolveScope(access, "sales_mission_prospect"),
   ])
+  const viewer = toProspectViewer(scope)
+  const salesOptions = allSales.filter((person) => canAssignTo(viewer, person.id))
 
   return (
     <WorkspacePage eyebrow="Sales Mission / Prospek" title="Prospek baru" description="Satu perusahaan dan satu orang yang akan dihubungi." action={<BackLink href="/workspace/prospects" />}>
-      <ProspectForm fields={prospectFields} salesOptions={salesOptions} salutations={configuredOptions(fields, "contact_salutation", DEFAULT_CONTACT_SALUTATIONS)} salutationsAllowOther={fields.find((field) => field.reportingKey === "contact_salutation")?.allowOther ?? false} viewerId={access.userId} canAssignOthers={isAdmin} />
+      <ProspectForm fields={prospectFields} salesOptions={salesOptions} salutations={configuredOptions(fields, "contact_salutation", DEFAULT_CONTACT_SALUTATIONS)} salutationsAllowOther={fields.find((field) => field.reportingKey === "contact_salutation")?.allowOther ?? false} viewerId={access.userId} canAssignOthers={canAssignOthers(viewer)} />
     </WorkspacePage>
   )
 }

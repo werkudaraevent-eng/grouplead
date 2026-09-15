@@ -6,6 +6,7 @@ import { describeDueDate } from "@/lib/prospects/prospect-schema"
 import { formatPhone } from "@/lib/format/phone"
 import { canPerform, getSalesMissionAccess } from "@/lib/sales-mission-access"
 import { getMissionSettings, getMissionSummary, listMissions } from "@/lib/missions/mission-queries"
+import { annotateReportRights } from "@/lib/missions/mission-rights"
 import { needsMyAnswer } from "@/lib/missions/mission-filter"
 import { reportOwed, visitState } from "@/lib/missions/visit-state"
 import { Button } from "@/components/ui/button"
@@ -186,8 +187,8 @@ export default async function MissionHomePage() {
 
   // Visits that happened and were not written down, for whoever writes them.
   // Sorted oldest first: the one from last week is the one to chase.
-  const owedReports = missions
-    .filter((mission) => reportOwed(visitState(mission, now)) && (mission.viewerRole === "PRIMARY" || access.isSuperAdmin))
+  const owedReports = (await annotateReportRights(access, missions))
+    .filter((mission) => reportOwed(visitState(mission, now)) && mission.canReport)
     .sort((a, b) => (a.scheduledStart ?? "").localeCompare(b.scheduledStart ?? ""))
     .slice(0, 8)
 

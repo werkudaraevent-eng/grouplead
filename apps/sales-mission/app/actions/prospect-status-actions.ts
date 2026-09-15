@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache"
 import { z } from "zod"
 import { createClient } from "@/utils/supabase/server"
-import { canPerform, getSalesMissionAccess } from "@/lib/sales-mission-access"
+import { getSalesMissionAccess, isSettingsAdmin } from "@/lib/sales-mission-access"
 import { listProspectStatuses } from "@/lib/prospects/prospect-status-queries"
 import { ADDABLE_KINDS, STATUS_COLORS, STATUS_KINDS, archiveViolation, nextStatusOrder, reorderStatus, toStatusCode } from "@/lib/prospects/prospect-status"
 import type { ActionResult } from "@/types/action-result"
@@ -19,7 +19,7 @@ const PATHS = ["/workspace/settings/prospect-statuses", "/workspace/prospects", 
 async function authorize() {
   const access = await getSalesMissionAccess()
   if (!access) return { error: "Anda tidak punya akses Sales Mission." as const }
-  if (!(access.isSuperAdmin || (await canPerform(access, "sales_mission_settings", "update")))) {
+  if (!(await isSettingsAdmin(access))) {
     return { error: "Hanya admin Sales Mission yang bisa mengatur status prospek." as const }
   }
   return { access }

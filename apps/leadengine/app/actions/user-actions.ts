@@ -14,6 +14,8 @@ interface ProvisionUserData {
     role_id: string | null
     department: string | null
     business_unit: string | null
+    /** Direct manager. Sales Mission reads the chain as the "Tim" scope. */
+    reports_to?: string | null
     /** Business units the account belongs to. At least one is required. */
     companyIds: string[]
     /**
@@ -190,6 +192,7 @@ export async function provisionUserAction(
                 role_id: data.role_id,
                 department: data.department,
                 business_unit: data.business_unit,
+                reports_to: data.reports_to ?? null,
             })
             .eq("id", userId)
 

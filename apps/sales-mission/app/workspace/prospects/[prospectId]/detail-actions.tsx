@@ -10,6 +10,7 @@ import { assignProspects, deleteProspects } from "@/app/actions/prospect-actions
 import type { ProspectDetail } from "@/lib/prospects/prospect-schema"
 import type { ProspectStatus } from "@/lib/prospects/prospect-status"
 import type { Person } from "@/app/workspace/missions/new/people-picker"
+import { canAssignOthers, type ProspectViewer } from "@/lib/prospects/prospect-access"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -29,7 +30,7 @@ export function ProspectDetailActions({
   prospect: ProspectDetail
   statuses: ProspectStatus[]
   people: Person[]
-  viewer: { userId: string; isAdmin: boolean }
+  viewer: ProspectViewer
   editable: boolean
   canUpdate: boolean
   canDelete: boolean
@@ -78,7 +79,7 @@ export function ProspectDetailActions({
               {editable && !prospect.missionId && canCreateMission && prospect.statusKind !== "lost" && (
                 <DropdownMenuItem asChild><Link href={`/workspace/missions/new?prospect=${prospect.id}`}><CalendarCheck className="h-4 w-4" /> Jadwalkan kunjungan</Link></DropdownMenuItem>
               )}
-              {viewer.isAdmin && <DropdownMenuItem onSelect={() => setAssign(target)}>Tugaskan</DropdownMenuItem>}
+              {canAssignOthers(viewer) && <DropdownMenuItem onSelect={() => setAssign(target)}>Tugaskan</DropdownMenuItem>}
               {editable && <DropdownMenuItem asChild><Link href={`/workspace/prospects/${prospect.id}/edit`}>Ubah</Link></DropdownMenuItem>}
               {canDelete && (
                 <>

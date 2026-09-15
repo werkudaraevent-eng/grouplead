@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache"
 import { z } from "zod"
 import { createClient } from "@/utils/supabase/server"
-import { canPerform, getSalesMissionAccess } from "@/lib/sales-mission-access"
+import { getSalesMissionAccess, isSettingsAdmin } from "@/lib/sales-mission-access"
 import { listReportChoices } from "@/lib/missions/report-choice-queries"
 import {
   CHOICE_FIELDS,
@@ -28,7 +28,7 @@ const PATHS = ["/workspace/settings/report-form", "/workspace/missions", "/works
 async function authorize() {
   const access = await getSalesMissionAccess()
   if (!access) return { error: "Anda tidak punya akses Sales Mission." as const }
-  if (!(access.isSuperAdmin || (await canPerform(access, "sales_mission_settings", "update")))) {
+  if (!(await isSettingsAdmin(access))) {
     return { error: "Hanya admin Sales Mission yang bisa mengatur pilihan laporan." as const }
   }
   return { access }

@@ -3,8 +3,9 @@
 import { revalidatePath } from "next/cache"
 import { z } from "zod"
 import { createClient } from "@/utils/supabase/server"
-import { canPerform, getSalesMissionAccess } from "@/lib/sales-mission-access"
-import { getMission, getMissionRole, getVisitReport } from "@/lib/missions/mission-queries"
+import { canPerform, canPerformOn, getSalesMissionAccess, resolveScope } from "@/lib/sales-mission-access"
+import { describeOutOfScope, reportOwners } from "@/lib/access/record-scope"
+import { getMission, getVisitReport } from "@/lib/missions/mission-queries"
 import { notify } from "@/lib/notifications/notification-queries"
 import { canPushLead } from "@/lib/missions/visit-report-schema"
 import { visitActivities } from "@/lib/missions/lead-activity"
@@ -120,11 +121,6 @@ export async function getPushPrecheck(missionId: string): Promise<PushPrecheck> 
   const access = await getSalesMissionAccess()
   if (!access) return { ...empty, reason: "Anda tidak punya akses Sales Mission." }
 
-  const role = await getMissionRole(access, missionId)
-  if (role !== "PRIMARY" && !access.isSuperAdmin) {
-    return { ...empty, reason: "Hanya sales utama yang bisa mengirim lead dari mission ini." }
-  }
-
   if (!(await canPerform(access, "sales_mission_result", "create"))) {
     return { ...empty, reason: "Anda tidak punya izin mengirim lead." }
   }
@@ -135,6 +131,12 @@ export async function getPushPrecheck(missionId: string): Promise<PushPrecheck> 
   ])
 
   if (!mission) return { ...empty, reason: "Mission tidak ditemukan." }
+  // Pushing the lead is the report's last step, so it answers to the same
+  // grant and the same Cakupan as writing the report.
+  if (!(await canPerformOn(access, "sales_mission_result", "create", { ownerIds: reportOwners(mission) }))) {
+    const { scope } = await resolveScope(access, "sales_mission_result")
+    return { ...empty, reason: describeOutOfScope(scope, "laporan") }
+  }
 
   const supabase = await createClient()
   const { data: existing } = await supabase
@@ -278,11 +280,6 @@ export async function pushMissionToLeadEngine(
   const access = await getSalesMissionAccess()
   if (!access) return { success: false, error: "Anda tidak punya akses Sales Mission." }
 
-  const role = await getMissionRole(access, missionId)
-  if (role !== "PRIMARY" && !access.isSuperAdmin) {
-    return { success: false, error: "Hanya sales utama yang bisa mengirim lead dari mission ini." }
-  }
-
   if (!(await canPerform(access, "sales_mission_result", "create"))) {
     return { success: false, error: "Anda tidak punya izin mengirim lead." }
   }
@@ -298,6 +295,10 @@ export async function pushMissionToLeadEngine(
   ])
 
   if (!mission) return { success: false, error: "Mission tidak ditemukan." }
+  if (!(await canPerformOn(access, "sales_mission_result", "create", { ownerIds: reportOwners(mission) }))) {
+    const { scope } = await resolveScope(access, "sales_mission_result")
+    return { success: false, error: describeOutOfScope(scope, "laporan") }
+  }
   if (!report || !canPushLead(report)) {
     return { success: false, error: "Laporan belum memenuhi syarat untuk dikirim ke LeadEngine." }
   }

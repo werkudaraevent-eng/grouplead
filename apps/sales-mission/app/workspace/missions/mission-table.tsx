@@ -31,7 +31,7 @@ import { statusLabel } from "@/lib/missions/status-labels"
 import { AcceptAssignmentButton, AssignmentOverflowMenu } from "./assignment-actions-menu"
 import { JoinButton } from "./join-controls"
 
-type Row = MissionListItem & { joinStatus?: JoinStatus }
+type Row = MissionListItem & { joinStatus?: JoinStatus; canReport?: boolean }
 
 /**
  * A second line under the status about the team's answers, shown only while
@@ -100,13 +100,11 @@ function ActionCell({
   policy,
   maxSupporting,
   now,
-  canWriteAnyReport,
 }: {
   mission: Row
   policy: ConfirmationPolicy
   maxSupporting: number
   now: Date
-  canWriteAnyReport: boolean
 }) {
   const open = (
     <Link
@@ -119,10 +117,10 @@ function ActionCell({
   )
 
   // A visit that owes a report gets the report button, for whoever may write
-  // it: the primary, or an admin. Same rule as Terima: a row that needs
-  // something offers the thing, right there.
+  // it (decided per row by the server from the matrix). Same rule as Terima:
+  // a row that needs something offers the thing, right there.
   const state = visitState(mission, now)
-  if (reportOwed(state) && (mission.viewerRole === "PRIMARY" || canWriteAnyReport)) {
+  if (reportOwed(state) && mission.canReport === true) {
     return (
       <span className="flex items-center justify-end gap-1.5">
         <Button asChild size="sm">
@@ -237,15 +235,12 @@ export function MissionTable({
   filtered = false,
   policy = { requireAssignmentConfirmation: false },
   maxSupporting = 2,
-  canWriteAnyReport = false,
   pagination,
 }: {
   /** Present when the list is a page of a larger set. */
   pagination?: { page: number; size: number; total: number; sort: MissionSort }
   missions: Row[]
   now: Date
-  /** Admins may write any report; the primary may write their own. */
-  canWriteAnyReport?: boolean
   /** Whether to offer "Mission baru" from the empty state. */
   canCreate?: boolean
   /** Whether rows can be ticked and removed. */
@@ -307,7 +302,9 @@ export function MissionTable({
     start(async () => {
       const result = await deleteMissions(chosen)
       if (result.success) {
-        toast.success(`${chosen.length} mission dipindahkan ke sampah`)
+        const deleted = result.data?.deleted ?? chosen.length
+        const skipped = result.data?.skipped ?? 0
+        toast.success(`${deleted} mission dipindahkan ke sampah${skipped ? `, ${skipped} dilewati karena di luar cakupan` : ""}`)
         clearSelection()
         setConfirming(false)
         router.refresh()
@@ -380,7 +377,7 @@ export function MissionTable({
       <ul className="space-y-3 md:hidden">
         {missions.map((mission) => {
           const asksMe = needsMyAnswer(mission, policy)
-          const owesMe = reportOwed(visitState(mission, now)) && (mission.viewerRole === "PRIMARY" || canWriteAnyReport)
+          const owesMe = reportOwed(visitState(mission, now)) && mission.canReport === true
           const ticked = selected.has(mission.id)
           return (
             <li
@@ -501,7 +498,7 @@ export function MissionTable({
         <TableBody>
           {missions.map((mission) => {
             const asksMe = needsMyAnswer(mission, policy)
-            const owesMe = reportOwed(visitState(mission, now)) && (mission.viewerRole === "PRIMARY" || canWriteAnyReport)
+            const owesMe = reportOwed(visitState(mission, now)) && mission.canReport === true
             const ticked = selected.has(mission.id)
             return (
               <TableRow
@@ -537,7 +534,7 @@ export function MissionTable({
                   <TeamAnswersLine mission={mission} policy={policy} />
                 </TableCell>
                 <TableCell className="whitespace-nowrap">
-                  <ActionCell mission={mission} policy={policy} maxSupporting={maxSupporting} now={now} canWriteAnyReport={canWriteAnyReport} />
+                  <ActionCell mission={mission} policy={policy} maxSupporting={maxSupporting} now={now} />
                 </TableCell>
               </TableRow>
             )

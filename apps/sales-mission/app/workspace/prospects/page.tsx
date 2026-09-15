@@ -1,7 +1,8 @@
 import Link from "next/link"
 import { redirect } from "next/navigation"
 import { Plus } from "@/components/icons"
-import { canPerform, getSalesMissionAccess } from "@/lib/sales-mission-access"
+import { canPerform, getSalesMissionAccess, resolveScope } from "@/lib/sales-mission-access"
+import { canAssignOthers, canAssignTo, toProspectViewer } from "@/lib/prospects/prospect-access"
 import { requireModule } from "@/lib/missions/nav-access"
 import { listTenantSales } from "@/lib/missions/mission-queries"
 import { MISSION_TIME_ZONE } from "@/lib/missions/mission-schema"
@@ -33,7 +34,7 @@ export default async function ProspectsPage({
   const query = parseProspectQuery(params)
   const { page, size, sort } = parseProspectPageParams(params)
 
-  const [statuses, people, batches, canCreate, canUpdate, canDelete, canCreateMission, isAdmin] = await Promise.all([
+  const [statuses, people, batches, canCreate, canUpdate, canDelete, canCreateMission, scope] = await Promise.all([
     listProspectStatuses(access, { includeArchived: true }),
     listTenantSales(access),
     listImportBatches(access),
@@ -41,8 +42,11 @@ export default async function ProspectsPage({
     canPerform(access, "sales_mission_prospect", "update"),
     canPerform(access, "sales_mission_prospect", "delete"),
     canPerform(access, "sales_mission_mission", "create"),
-    access.isSuperAdmin ? Promise.resolve(true) : canPerform(access, "sales_mission_settings", "update"),
+    resolveScope(access, "sales_mission_prospect"),
   ])
+  // Whose prospects this viewer reaches, and whom they may hand one to.
+  const viewer = toProspectViewer(scope)
+  const assignable = people.filter((person) => canAssignTo(viewer, person.id))
 
   const base = { query, sort, today }
   const [pageResult, allCount, dueCount] = await Promise.all([
@@ -58,7 +62,7 @@ export default async function ProspectsPage({
       description="Calon klien yang belum jadi kunjungan. Catat setiap kontak; begitu janji temu disepakati, jadwalkan kunjungannya dari sini."
       action={
         <>
-          {canCreate && <ImportProspects people={people} canAssignOthers={isAdmin} viewerId={access.userId} />}
+          {canCreate && <ImportProspects people={assignable} canAssignOthers={canAssignOthers(viewer)} viewerId={access.userId} />}
           {canCreate && (
             <Button asChild size="sm">
               <Link href="/workspace/prospects/new">
@@ -81,9 +85,9 @@ export default async function ProspectsPage({
       <ProspectTable
         prospects={pageResult.items}
         statuses={statuses}
-        people={people.map((person) => ({ id: person.id, name: person.name, avatarUrl: person.avatarUrl }))}
+        people={assignable.map((person) => ({ id: person.id, name: person.name, avatarUrl: person.avatarUrl }))}
         today={today}
-        viewer={{ userId: access.userId, isAdmin }}
+        viewer={viewer}
         canCreate={canCreate}
         canUpdate={canUpdate}
         canDelete={canDelete}

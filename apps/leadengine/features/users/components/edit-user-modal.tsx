@@ -45,7 +45,7 @@ const schema = z.object({
 type FormValues = z.infer<typeof schema>
 
 interface CompanyOption { id: string; name: string; is_holding: boolean }
-interface ManagerOption { id: string; full_name: string | null }
+interface ManagerOption { id: string; full_name: string | null; reports_to?: string | null }
 
 interface EditUserSheetProps {
     profile: Profile | null
@@ -85,8 +85,18 @@ export function EditUserSheet({ profile, open, onOpenChange, onSaved }: EditUser
         supabase.from("roles").select("*").order("sort_order", { ascending: true }).then(({ data }) => {
             setRoles((data as Role[]) ?? [])
         })
-        supabase.from("profiles").select("id, full_name").order("full_name").then(({ data }) => {
-            setManagers(((data as ManagerOption[]) ?? []).filter((u) => u.id !== profile.id))
+        supabase.from("profiles").select("id, full_name, reports_to").order("full_name").then(({ data }) => {
+            // Not themself, and nobody already below them: a loop in the chain
+            // would make two people each other's team.
+            const all = (data as ManagerOption[]) ?? []
+            const below = new Set<string>()
+            let frontier = [profile.id]
+            for (let depth = 0; depth < 10 && frontier.length > 0; depth += 1) {
+                const next = all.filter((u) => u.reports_to && frontier.includes(u.reports_to) && !below.has(u.id)).map((u) => u.id)
+                next.forEach((id) => below.add(id))
+                frontier = next
+            }
+            setManagers(all.filter((u) => u.id !== profile.id && !below.has(u.id)))
         })
     }, [open, profile?.id])
 
@@ -441,14 +451,14 @@ export function EditUserSheet({ profile, open, onOpenChange, onSaved }: EditUser
                                     {/* Direct Manager */}
                                     <FormField control={form.control} name="reports_to" render={({ field }) => (
                                         <FormItem className="sm:col-span-2 space-y-1.5">
-                                            <FormFieldLabel hint="Used for approval workflows and quota rollups.">Direct manager (reports to)</FormFieldLabel>
+                                            <FormFieldLabel hint="Menentukan siapa yang masuk cakupan Tim di Role & Izin: atasan menjangkau record orang di bawahnya, berantai. Bawahan orang ini tidak ditawarkan, agar rantainya tidak melingkar.">Atasan langsung</FormFieldLabel>
                                             <FormControl>
                                                 <SearchableSelect
                                                     value={field.value ?? null}
                                                     onChange={(v) => field.onChange(v)}
                                                     options={managers.map(m => ({ value: m.id, label: m.full_name || "Unnamed user" }))}
-                                                    placeholder="None (top level)"
-                                                    searchPlaceholder="Search…"
+                                                    placeholder="Tidak ada (puncak)"
+                                                    searchPlaceholder="Cari orang…"
                                                 />
                                             </FormControl>
                                         </FormItem>

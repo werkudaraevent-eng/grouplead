@@ -1,5 +1,7 @@
 import { notFound, redirect } from "next/navigation"
-import { canPerform, getSalesMissionAccess } from "@/lib/sales-mission-access"
+import { getSalesMissionAccess } from "@/lib/sales-mission-access"
+import { resolveMissionGates } from "@/lib/missions/mission-rights"
+import { describeOutOfScope } from "@/lib/access/record-scope"
 import { requireModule } from "@/lib/missions/nav-access"
 import {
   getMission,
@@ -31,33 +33,35 @@ export default async function EditMissionPage({ params }: { params: Promise<{ mi
   if (!access) redirect("/login?error=access_not_provisioned")
   await requireModule(access, "sales_mission_mission")
 
-  const [mission, role] = await Promise.all([getMission(access, missionId), getMissionRole(access, missionId)])
+  const [mission, role, settings] = await Promise.all([getMission(access, missionId), getMissionRole(access, missionId), getMissionSettings(access)])
   if (!mission) notFound()
 
-  const allowed =
-    (await canPerform(access, "sales_mission_mission", "update")) &&
-    mission.status !== "COMPLETED" &&
-    mission.status !== "CANCELLED" &&
-    (access.isSuperAdmin || role === "PRIMARY" || mission.createdBy === access.userId)
+  const gates = await resolveMissionGates(access, mission, role, settings)
+  const closed = mission.status === "COMPLETED" || mission.status === "CANCELLED"
 
-  if (!allowed) {
+  if (!gates.canEdit) {
+    // Say which rule refused, in the matrix's own words: a closed mission is
+    // history; an open one is outside the Cakupan the role holds.
     return (
       <WorkspacePage eyebrow="Sales Mission / Mission" title="Ubah mission" action={<BackLink href={`/workspace/missions/${missionId}`} />}>
         <EmptyState
           title="Mission ini tidak bisa diubah"
-          description="Hanya sales utama, pembuat mission, atau admin yang bisa mengubah, dan hanya selama mission belum selesai atau dibatalkan."
+          description={
+            closed
+              ? "Mission yang sudah selesai atau dibatalkan adalah riwayat; tidak diubah lagi."
+              : describeOutOfScope(gates.missionCtx.scope, "mission")
+          }
         />
       </WorkspacePage>
     )
   }
 
   const now = new Date()
-  const [team, fields, salesOptions, schedules, settings, customValues] = await Promise.all([
+  const [team, fields, salesOptions, schedules, customValues] = await Promise.all([
     listMissionTeam(access, missionId),
     listFormFields(access, "mission"),
     listTenantSales(access),
     listTeamSchedules(access, now),
-    getMissionSettings(access),
     getMissionFieldValues(access, missionId),
   ])
 
@@ -110,8 +114,7 @@ export default async function EditMissionPage({ params }: { params: Promise<{ mi
           action: updateMission.bind(null, missionId),
           schedule,
           customValues,
-          canMoveSchedule:
-            access.isSuperAdmin || mission.createdBy === access.userId || (role === "PRIMARY" && settings.primaryCanReschedule),
+          canMoveSchedule: gates.scheduleMode === "move",
         }}
       />
     </WorkspacePage>

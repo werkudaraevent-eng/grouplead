@@ -3,14 +3,14 @@
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 import { createClient } from "@/utils/supabase/server"
-import { canPerform, getSalesMissionAccess, type SalesMissionAccess } from "@/lib/sales-mission-access"
+import { canPerform, getSalesMissionAccess, resolveScope, type SalesMissionAccess } from "@/lib/sales-mission-access"
 import { listFormFields } from "@/lib/missions/form-field-queries"
 import { DEFAULT_CONTACT_SALUTATIONS, DEFAULT_INDUSTRIES, isAllowedChoice, readCustomAnswers, validateFieldAnswers, type FieldAnswer, type FormField } from "@/lib/missions/form-fields"
 import { isEmptyAnswer, missingRequiredCore } from "@/lib/prospects/prospect-form-fields"
 import { normalizePhone } from "@/lib/format/phone"
 import { listProspectStatuses } from "@/lib/prospects/prospect-status-queries"
 import { entryStatus } from "@/lib/prospects/prospect-status"
-import { canEditProspect } from "@/lib/prospects/prospect-access"
+import { canAssignTo, canEditProspect, toProspectViewer, type ProspectViewer } from "@/lib/prospects/prospect-access"
 import { attemptInputSchema, prospectInputSchema, statusChangeSchema, validateStatusChange, type ProspectInput } from "@/lib/prospects/prospect-schema"
 import { parseProspectQuery } from "@/lib/prospects/prospect-filter"
 import { parseProspectPageParams } from "@/lib/prospects/prospect-paging"
@@ -37,8 +37,9 @@ async function authorize(action: "create" | "read" | "update" | "delete") {
   if (!(await canPerform(access, "sales_mission_prospect", action))) {
     return { error: "Anda tidak punya izin untuk prospek." as const }
   }
-  const isAdmin = access.isSuperAdmin || (await canPerform(access, "sales_mission_settings", "update"))
-  return { access, isAdmin }
+  // Whose prospects the grant reaches: the module's Cakupan, from the matrix.
+  const viewer = toProspectViewer(await resolveScope(access, "sales_mission_prospect"))
+  return { access, viewer }
 }
 
 function validIds(ids: string[]): string[] {
@@ -168,7 +169,7 @@ export async function createProspect(_previous: ProspectFormState, formData: For
 export async function updateProspect(prospectId: string, _previous: ProspectFormState, formData: FormData): Promise<ProspectFormState> {
   const guard = await authorize("update")
   if ("error" in guard) return { success: false, error: guard.error }
-  const { access, isAdmin } = guard
+  const { access, viewer } = guard
 
   const parsed = readProspectForm(formData)
   if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message ?? "Data prospek tidak valid." }
@@ -178,15 +179,15 @@ export async function updateProspect(prospectId: string, _previous: ProspectForm
   const schema = supabase.schema("sales_mission")
   const { data: current } = await schema.from("prospects").select("id, owner_id, industry").eq("company_id", access.companyId).eq("id", prospectId).is("deleted_at", null).maybeSingle()
   if (!current) return { success: false, error: "Prospek tidak ditemukan." }
-  if (!canEditProspect({ ownerId: (current.owner_id as string | null) ?? null }, { userId: access.userId, isAdmin })) {
-    return { success: false, error: "Prospek ini dipegang orang lain." }
+  if (!canEditProspect({ ownerId: (current.owner_id as string | null) ?? null }, viewer)) {
+    return { success: false, error: "Prospek ini dipegang orang di luar cakupan Anda." }
   }
   const form = await checkAgainstForm(access, formData, parsed.data, (current.industry as string | null) ?? null)
   if ("error" in form) return { success: false, error: form.error }
 
   const ownerId = parsed.data.ownerId || null
-  if (ownerId && ownerId !== current.owner_id && !isAdmin && ownerId !== access.userId) {
-    return { success: false, error: "Hanya admin yang bisa memindahkan pemegang." }
+  if (ownerId !== ((current.owner_id as string | null) ?? null) && !canAssignTo(viewer, ownerId)) {
+    return { success: false, error: "Pemegang hanya bisa dipindahkan ke orang di cakupan Anda." }
   }
   if (ownerId && !(await memberIds(access, [ownerId])).has(ownerId)) {
     return { success: false, error: "Pemegang yang dipilih bukan anggota unit bisnis ini." }
@@ -206,7 +207,7 @@ export async function updateProspect(prospectId: string, _previous: ProspectForm
 }
 
 /** Rows the viewer may change, out of the ones asked for. */
-async function editableRows(access: SalesMissionAccess, isAdmin: boolean, ids: string[]) {
+async function editableRows(access: SalesMissionAccess, viewer: ProspectViewer, ids: string[]) {
   const supabase = await createClient()
   const { data } = await supabase
     .schema("sales_mission")
@@ -216,7 +217,7 @@ async function editableRows(access: SalesMissionAccess, isAdmin: boolean, ids: s
     .is("deleted_at", null)
     .in("id", ids)
   const rows = data ?? []
-  const allowed = rows.filter((row) => canEditProspect({ ownerId: (row.owner_id as string | null) ?? null }, { userId: access.userId, isAdmin }))
+  const allowed = rows.filter((row) => canEditProspect({ ownerId: (row.owner_id as string | null) ?? null }, viewer))
   return { rows, allowed, skipped: rows.length - allowed.length }
 }
 
@@ -228,7 +229,7 @@ async function editableRows(access: SalesMissionAccess, isAdmin: boolean, ids: s
 export async function setProspectStatus(ids: string[], input: unknown): Promise<ActionResult<{ changed: number; skipped: number }>> {
   const guard = await authorize("update")
   if ("error" in guard) return { success: false, error: guard.error }
-  const { access, isAdmin } = guard
+  const { access, viewer } = guard
 
   const parsed = statusChangeSchema.safeParse(input)
   if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message ?? "Status tidak valid." }
@@ -241,7 +242,7 @@ export async function setProspectStatus(ids: string[], input: unknown): Promise<
   const rule = validateStatusChange(target.kind, parsed.data)
   if (rule) return { success: false, error: rule }
 
-  const { allowed, skipped } = await editableRows(access, isAdmin, unique)
+  const { allowed, skipped } = await editableRows(access, viewer, unique)
   // A converted prospect follows its mission; its status is not edited by hand.
   const targets = allowed.filter((row) => !row.mission_id)
   if (targets.length === 0) {
@@ -273,12 +274,12 @@ export async function setProspectStatus(ids: string[], input: unknown): Promise<
 export async function logProspectAttempt(prospectId: string, input: unknown): Promise<ActionResult> {
   const guard = await authorize("update")
   if ("error" in guard) return { success: false, error: guard.error }
-  const { access, isAdmin } = guard
+  const { access, viewer } = guard
 
   const parsed = attemptInputSchema.safeParse(input)
   if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message ?? "Catatan kontak tidak valid." }
 
-  const { allowed, rows } = await editableRows(access, isAdmin, [prospectId])
+  const { allowed, rows } = await editableRows(access, viewer, [prospectId])
   if (rows.length === 0) return { success: false, error: "Prospek tidak ditemukan." }
   if (allowed.length === 0) return { success: false, error: "Prospek ini dipegang orang lain." }
   const prospect = allowed[0]
@@ -330,24 +331,28 @@ export async function logProspectAttempt(prospectId: string, input: unknown): Pr
   return { success: true }
 }
 
-/** Hand prospects to someone (admin), or take unowned ones yourself. */
+/** Hand prospects to someone inside your Cakupan, or take unowned ones yourself. */
 export async function assignProspects(ids: string[], ownerId: string | null): Promise<ActionResult<{ changed: number; skipped: number }>> {
   const guard = await authorize("update")
   if ("error" in guard) return { success: false, error: guard.error }
-  const { access, isAdmin } = guard
+  const { access, viewer } = guard
   const unique = validIds(ids)
   if (unique.length === 0) return { success: false, error: "Tidak ada prospek yang dipilih." }
 
   if (ownerId && !(await memberIds(access, [ownerId])).has(ownerId)) {
     return { success: false, error: "Orang yang dipilih bukan anggota unit bisnis ini." }
   }
-  // A non-admin may only take a prospect for themself, and only one nobody holds.
-  if (!isAdmin && ownerId !== access.userId) return { success: false, error: "Hanya admin yang bisa menugaskan prospek ke orang lain." }
+  // The new holder must be inside the viewer's Cakupan, and so must each
+  // prospect's current holder; a Cakupan of "Milik sendiri" reaches only
+  // oneself and prospects nobody holds.
+  if (!canAssignTo(viewer, ownerId)) {
+    return { success: false, error: "Anda hanya bisa menugaskan prospek ke diri sendiri atau orang di cakupan Anda." }
+  }
 
   const supabase = await createClient()
   const { data: rows } = await supabase.schema("sales_mission").from("prospects").select("id, owner_id").eq("company_id", access.companyId).is("deleted_at", null).in("id", unique)
-  const targets = (rows ?? []).filter((row) => isAdmin || row.owner_id === null || row.owner_id === access.userId)
-  if (targets.length === 0) return { success: false, error: "Prospek yang dipilih sudah dipegang orang lain." }
+  const targets = (rows ?? []).filter((row) => canEditProspect({ ownerId: (row.owner_id as string | null) ?? null }, viewer))
+  if (targets.length === 0) return { success: false, error: "Prospek yang dipilih dipegang orang di luar cakupan Anda." }
 
   const { data, error } = await supabase
     .schema("sales_mission")
@@ -363,13 +368,20 @@ export async function assignProspects(ids: string[], ownerId: string | null): Pr
   return { success: true, data: { changed: data?.length ?? 0, skipped: (rows?.length ?? 0) - targets.length } }
 }
 
-/** To the bin. An admin restores or removes for good from Pengaturan → Sampah. */
-export async function deleteProspects(ids: string[]): Promise<ActionResult<{ deleted: number }>> {
+/**
+ * To the bin, within the Cakupan: rows held by someone out of reach are
+ * skipped and counted, not refused as a batch. An admin restores or removes
+ * for good from Pengaturan → Sampah.
+ */
+export async function deleteProspects(ids: string[]): Promise<ActionResult<{ deleted: number; skipped: number }>> {
   const guard = await authorize("delete")
   if ("error" in guard) return { success: false, error: guard.error }
-  const { access } = guard
+  const { access, viewer } = guard
   const unique = validIds(ids)
   if (unique.length === 0) return { success: false, error: "Tidak ada prospek yang dipilih." }
+
+  const { allowed, skipped } = await editableRows(access, viewer, unique)
+  if (allowed.length === 0) return { success: false, error: "Prospek yang dipilih dipegang orang di luar cakupan Anda." }
 
   const supabase = await createClient()
   const now = new Date().toISOString()
@@ -378,14 +390,14 @@ export async function deleteProspects(ids: string[]): Promise<ActionResult<{ del
     .from("prospects")
     .update({ deleted_at: now, deleted_by: access.userId, updated_at: now })
     .eq("company_id", access.companyId)
-    .in("id", unique)
+    .in("id", allowed.map((row) => row.id as string))
     .is("deleted_at", null)
     .select("id")
   if (error) return { success: false, error: "Prospek gagal dipindahkan ke sampah." }
 
   PATHS.forEach((path) => revalidatePath(path))
   revalidatePath("/workspace/settings/recycle-bin")
-  return { success: true, data: { deleted: data?.length ?? 0 } }
+  return { success: true, data: { deleted: data?.length ?? 0, skipped } }
 }
 
 /** Ids of everything the current filter matches, for "select all". */

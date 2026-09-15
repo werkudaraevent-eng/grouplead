@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation"
-import { canPerform, getSalesMissionAccess } from "@/lib/sales-mission-access"
+import { getSalesMissionAccess, isSettingsAdmin } from "@/lib/sales-mission-access"
 import { listProspectStatuses, countProspectsByStatus } from "@/lib/prospects/prospect-status-queries"
 import { BackLink, EmptyState, WorkspacePage } from "@/app/workspace/workspace-page"
 import { StatusManager } from "./status-manager"
@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic"
 export default async function ProspectStatusesPage() {
   const access = await getSalesMissionAccess()
   if (!access) redirect("/login?error=access_not_provisioned")
-  const canManage = access.isSuperAdmin || (await canPerform(access, "sales_mission_settings", "update"))
+  const canManage = await isSettingsAdmin(access)
   if (!canManage) {
     return (
       <WorkspacePage eyebrow="Sales Mission / Pengaturan" title="Status prospek" action={<BackLink href="/workspace/settings" />}>

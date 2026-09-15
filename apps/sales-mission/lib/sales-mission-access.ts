@@ -1,5 +1,8 @@
 import { cache } from "react"
 import { createClient } from "@/utils/supabase/server"
+import { inScope, isRecordScope, type RecordScope, type ScopeContext } from "@/lib/access/record-scope"
+
+export type { RecordScope, ScopeContext } from "@/lib/access/record-scope"
 
 export interface SalesMissionAccess {
   userId: string
@@ -150,6 +153,8 @@ interface ModulePermission {
   can_read: string | null
   can_update: boolean | null
   can_delete: boolean | null
+  /** Whose records the writes reach; see lib/access/record-scope. */
+  record_scope: string | null
 }
 
 /**
@@ -168,7 +173,7 @@ const loadModulePermission = cache(
     moduleId: string
   ): Promise<ModulePermission | null> => {
     const supabase = await createClient()
-    const columns = "can_create, can_read, can_update, can_delete"
+    const columns = "can_create, can_read, can_update, can_delete, record_scope"
 
     if (roleId) {
       const { data } = await supabase
@@ -233,4 +238,71 @@ export async function canPerform(
   }
 
   return permission[`can_${action}`] === true
+}
+
+/**
+ * Whose records this role's writes reach on a module: the Cakupan column of
+ * the matrix. Super admin reaches everything. No row follows the same rule as
+ * `canPerform`: an unconfigured module is unrestricted. Since the integrity
+ * migration every role × module has a row, so that branch is reached only by
+ * a profile with no role and no legacy grant.
+ */
+export async function getRecordScope(access: SalesMissionAccess, moduleId: SalesMissionModule): Promise<RecordScope> {
+  if (access.isSuperAdmin) return "all"
+  const permission = await loadPermissionAcross(access, moduleId)
+  if (!permission) return "all"
+  return isRecordScope(permission.record_scope) ? permission.record_scope : "own"
+}
+
+/**
+ * Everyone below this person in the reports_to chain, once per request. The
+ * function is bounded and cycle-safe on the database side, and answers only
+ * for the signed-in person.
+ */
+const loadSubordinateIds = cache(async (_userId: string): Promise<ReadonlySet<string>> => {
+  const supabase = await createClient()
+  const { data, error } = await supabase.schema("sales_mission").rpc("fn_my_subordinate_ids")
+  if (error) {
+    console.error("[loadSubordinateIds]", error.code, error.message)
+    return new Set()
+  }
+  const rows = (data ?? []) as Array<string | { fn_my_subordinate_ids?: string }>
+  return new Set(rows.map((row) => (typeof row === "string" ? row : (row.fn_my_subordinate_ids as string))).filter(Boolean))
+})
+
+/**
+ * The scope a record check needs: which reach the role has on the module, and
+ * who counts as the person's team when that reach is "team". The chain is read
+ * only when it matters.
+ */
+export async function resolveScope(access: SalesMissionAccess, moduleId: SalesMissionModule): Promise<ScopeContext> {
+  const scope = await getRecordScope(access, moduleId)
+  const subordinateIds = scope === "team" ? await loadSubordinateIds(access.userId) : new Set<string>()
+  return { scope, viewerId: access.userId, subordinateIds }
+}
+
+/**
+ * The matrix grant and the record reach, together: the one question every
+ * record-bound action asks. `ownerIds` comes from the owner helpers in
+ * lib/access/record-scope so that "whose record" is defined in one place.
+ */
+export async function canPerformOn(
+  access: SalesMissionAccess,
+  moduleId: SalesMissionModule,
+  action: ModuleAction,
+  record: { ownerIds: ReadonlyArray<string | null | undefined> }
+): Promise<boolean> {
+  if (!(await canPerform(access, moduleId, action))) return false
+  const ctx = await resolveScope(access, moduleId)
+  return inScope(ctx, record.ownerIds)
+}
+
+/**
+ * "Admin" inside Sales Mission means one thing: Ubah on Pengaturan mission.
+ * It opens the settings screens, the recycle bin, and tenant configuration.
+ * It is not a record scope; those come from each module's own Cakupan.
+ * `canPerform` already answers true for a super admin.
+ */
+export function isSettingsAdmin(access: SalesMissionAccess): Promise<boolean> {
+  return canPerform(access, "sales_mission_settings", "update")
 }

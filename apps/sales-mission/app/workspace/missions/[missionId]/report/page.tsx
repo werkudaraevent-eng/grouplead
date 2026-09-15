@@ -1,5 +1,7 @@
 import { notFound, redirect } from "next/navigation"
-import { canPerform, getSalesMissionAccess } from "@/lib/sales-mission-access"
+import { getSalesMissionAccess } from "@/lib/sales-mission-access"
+import { resolveMissionGates } from "@/lib/missions/mission-rights"
+import { describeOutOfScope } from "@/lib/access/record-scope"
 import { canEditSubmittedReport } from "@/lib/missions/report-edit"
 import { listReportChoices } from "@/lib/missions/report-choice-queries"
 import { requireModule } from "@/lib/missions/nav-access"
@@ -42,7 +44,10 @@ export default async function VisitReportPage({ params, searchParams }: { params
     listReportChoices(access),
   ])
 
-  const canWrite = role === "PRIMARY" || access.isSuperAdmin
+  // The matrix decides: result:create, within the Cakupan that reaches the
+  // report's author. The sales utama owns it; a supervisor reaches it.
+  const gates = await resolveMissionGates(access, mission, role, settings)
+  const canWrite = gates.canWriteReport
 
   // Typing the URL must not get around the answer the detail page asks for.
   // A report on a visit the rep has not agreed to make is a contradiction.
@@ -53,14 +58,13 @@ export default async function VisitReportPage({ params, searchParams }: { params
 
   // A submitted report is already rendered in full on the detail page. The
   // form opens on it only as an explicit edit (?edit=1) by someone the
-  // tenant's rule allows: its author inside the window, or an admin.
+  // tenant's rule allows: its author inside the window, or a supervisor.
   let editing: { leadPushed: boolean } | null = null
   if (report?.status === "SUBMITTED") {
     const { edit } = await searchParams
-    const isAdmin = access.isSuperAdmin || (await canPerform(access, "sales_mission_settings", "update"))
     const verdict = canEditSubmittedReport({
-      isAdmin,
-      isPrimary: role === "PRIMARY",
+      supervises: gates.supervisesReport,
+      isAuthor: gates.isAuthor,
       submittedAt: report.submittedAt,
       now: new Date(),
       windowDays: settings.reportEditWindowDays,
@@ -80,11 +84,11 @@ export default async function VisitReportPage({ params, searchParams }: { params
         action={<BackLink href={`/workspace/missions/${missionId}`} />}
       >
         <EmptyState
-          title="Laporan diisi oleh sales utama"
+          title={role === "SUPPORTING" ? "Laporan diisi oleh sales utama" : "Laporan ini di luar jangkauan Anda"}
           description={
             role === "SUPPORTING"
               ? "Anda terdaftar sebagai sales pendukung. Tambahkan catatan pendukung dari halaman detail mission."
-              : "Anda tidak ditugaskan pada mission ini."
+              : describeOutOfScope(gates.resultCtx.scope, "laporan")
           }
         />
       </WorkspacePage>

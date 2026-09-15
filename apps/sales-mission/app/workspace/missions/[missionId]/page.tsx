@@ -9,6 +9,7 @@ import { describeTiming, formatVisitWindow } from "@/lib/missions/visit-time"
 import { PhotoGallery } from "@/components/photo-gallery"
 import { RequestClarificationButton } from "./report-admin-actions"
 import { canPerform, getSalesMissionAccess } from "@/lib/sales-mission-access"
+import { resolveMissionGates } from "@/lib/missions/mission-rights"
 import { requireModule } from "@/lib/missions/nav-access"
 import { PersonAvatar } from "@/components/person-avatar"
 import { getProspectByMission } from "@/lib/prospects/prospect-queries"
@@ -137,28 +138,18 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
 
   const isAssigned = role !== null
   const isCancelled = mission.status === "CANCELLED"
-  // Calling it off before it happens: the primary, whoever scheduled it, or an
-  // admin. Not after the visit is over; that is history.
-  const canCancel =
-    !isCancelled &&
-    mission.status !== "COMPLETED" &&
-    (access.isSuperAdmin || role === "PRIMARY" || mission.createdBy === access.userId)
-  // Details can be corrected by whoever scheduled it, the primary, or an
-  // admin, while the visit is still ahead. The schedule moves elsewhere.
-  const canEdit =
-    !isCancelled &&
-    mission.status !== "COMPLETED" &&
-    (access.isSuperAdmin || role === "PRIMARY" || mission.createdBy === access.userId)
-  const canWriteReport = role === "PRIMARY" || access.isSuperAdmin
-  const canManageTeam = role === "PRIMARY" || access.isSuperAdmin
+  // What this viewer may do here comes from the matrix: the grant on the
+  // module and the Cakupan that says whose missions it reaches. Cancelling
+  // and editing stop once the visit is history; managing the team does not.
+  const gates = await resolveMissionGates(access, mission, role, settings)
+  const { canCancel, canEdit, canWriteReport, canManageTeam, supervisesReport, isAuthor } = gates
   const reportSubmitted = report?.status === "SUBMITTED"
-  // Changing a sent report: its author inside the tenant's window, an admin
-  // whenever. The card says which, and until when.
-  const isAdmin = access.isSuperAdmin || (await canPerform(access, "sales_mission_settings", "update"))
+  // Changing a sent report: its author inside the tenant's window, a
+  // supervisor whenever. The card says which, and until when.
   const editVerdict = report && reportSubmitted
-    ? canEditSubmittedReport({ isAdmin, isPrimary: role === "PRIMARY", submittedAt: report.submittedAt, now: new Date(), windowDays: settings.reportEditWindowDays })
+    ? canEditSubmittedReport({ supervises: supervisesReport, isAuthor, submittedAt: report.submittedAt, now: new Date(), windowDays: settings.reportEditWindowDays })
     : null
-  const editHint = editVerdict && role === "PRIMARY" ? describeEditWindow(editVerdict, settings.reportEditWindowDays) : null
+  const editHint = editVerdict && isAuthor ? describeEditWindow(editVerdict, settings.reportEditWindowDays) : null
   const versions = report && canReadReport ? await listReportVersions(access, report.id) : []
   const primaryName = team.find((member) => member.role === "PRIMARY")?.name ?? null
 
@@ -177,7 +168,7 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
   // Whether the Penugasan card has anything to offer once the answer is
   // given: an answer to change, a decline to take back, or a proposal to
   // make. Moving the slot is on the Ubah form, so it is not counted here.
-  const canProposeHere = !(access.isSuperAdmin || mission.createdBy === access.userId || (role === "PRIMARY" && settings.primaryCanReschedule))
+  const canProposeHere = gates.scheduleMode !== "move"
   const answerActions = selfScheduled
     ? canProposeHere
     : settings.requireAssignmentConfirmation || myResponse === "REJECTED" || canProposeHere
@@ -192,12 +183,12 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
     startTime: mission.scheduledStart ? wib(mission.scheduledStart, { hour: "2-digit", minute: "2-digit" }) : "09:30",
     endTime: mission.scheduledEnd ? wib(mission.scheduledEnd, { hour: "2-digit", minute: "2-digit" }) : "",
   }
-  // The primary moves the visit directly when the tenant allows it, as does
-  // an admin; everyone else proposes. The picker sees the whole team's
-  // calendars either way, so nobody picks a time blind.
+  // Whoever the gates say may move the visit does so directly; everyone
+  // else proposes. The picker sees the whole team's calendars either way, so
+  // nobody picks a time blind.
   const teamIds = new Set(team.map((member) => member.userId))
   const reschedule: RescheduleOptions = {
-    mode: access.isSuperAdmin || (role === "PRIMARY" && settings.primaryCanReschedule) ? "move" : "propose",
+    mode: gates.scheduleMode,
     initial: rescheduleInitial,
     people: schedules.filter((person): person is PersonSchedule => teamIds.has(person.userId)),
     settings,
@@ -378,7 +369,7 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
                   <p className="rounded-lg border border-dashed px-4 py-3 text-sm text-muted-foreground">
                     {pendingReschedule.requestedById === access.userId
                       ? "Usulan jadwal Anda menunggu keputusan admin."
-                      : `${pendingReschedule.requestedByName} mengusulkan jadwal lain. Menunggu keputusan sales utama atau admin.`}
+                      : `${pendingReschedule.requestedByName} mengusulkan jadwal lain. Menunggu keputusan pemilik mission atau atasannya.`}
                   </p>
                 )}
 
@@ -487,7 +478,7 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
           </div>
           {report && (
             <div className="flex flex-wrap items-center justify-end gap-2">
-              {reportSubmitted && isAdmin && !isCancelled && <RequestClarificationButton missionId={missionId} authorName={primaryName} />}
+              {reportSubmitted && supervisesReport && !isAuthor && !isCancelled && <RequestClarificationButton missionId={missionId} authorName={primaryName} />}
               {reportSubmitted && editVerdict?.allowed && !isCancelled && (
                 <Button asChild variant="outline" size="sm">
                   <Link href={`/workspace/missions/${missionId}/report?edit=1`}><Pencil className="h-4 w-4" /> Ubah laporan</Link>
