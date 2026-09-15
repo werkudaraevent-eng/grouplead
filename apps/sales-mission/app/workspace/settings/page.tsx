@@ -2,7 +2,7 @@ import Link from "next/link"
 import { redirect } from "next/navigation"
 import { getSalesMissionAccess } from "@/lib/sales-mission-access"
 import { requireModule } from "@/lib/missions/nav-access"
-import { ArrowUpRight, Bell, Building2, Database, History, ListChecks, MonitorPlay, ShieldCheck, Trash2 } from "@/components/icons"
+import { ArrowUpRight, Bell, Building2, Database, History, ListChecks, MonitorPlay, ShieldCheck, Trash2, UserSearch } from "@/components/icons"
 import { WorkspacePage } from "@/app/workspace/workspace-page"
 
 const SETTING_CARDS = [
@@ -42,10 +42,17 @@ const SETTING_CARDS = [
     href: "/workspace/settings/activity",
   },
   {
+    icon: UserSearch,
+    tone: "bg-primary/10 text-primary",
+    title: "Status prospek",
+    description: "Nama, warna, dan urutan status prospek. Tambah tahap sendiri; jenis di baliknya tetap.",
+    href: "/workspace/settings/prospect-statuses",
+  },
+  {
     icon: Trash2,
     tone: "bg-muted text-muted-foreground",
     title: "Sampah",
-    description: "Mission yang dihapus tinggal di sini 30 hari. Pulihkan, atau hapus permanen.",
+    description: "Mission dan prospek yang dihapus tinggal di sini 30 hari. Pulihkan, atau hapus permanen.",
     href: "/workspace/settings/recycle-bin",
   },
   {

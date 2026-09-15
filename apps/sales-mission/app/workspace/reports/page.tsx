@@ -10,11 +10,13 @@ import {
   UserCheck,
   Users,
 } from "@/components/icons"
-import { getSalesMissionAccess } from "@/lib/sales-mission-access"
+import { canPerform, getSalesMissionAccess } from "@/lib/sales-mission-access"
 import { requireModule } from "@/lib/missions/nav-access"
 import { listReportRecords } from "@/lib/reporting/report-queries"
 import { buildKpiReport, currentMonthRange, type Breakdown } from "@/lib/reporting/kpi"
 import { EmptyState, WorkspacePage } from "@/app/workspace/workspace-page"
+import { getProspectFunnel } from "@/lib/prospects/prospect-page-queries"
+import { FunnelCard } from "./funnel-card"
 import { Button } from "@/components/ui/button"
 
 export const dynamic = "force-dynamic"
@@ -114,7 +116,10 @@ export default async function ReportsPage({
     to: params.to && DATE_PATTERN.test(params.to) ? params.to : fallback.to,
   }
 
-  const records = await listReportRecords(access)
+  const [records, funnel] = await Promise.all([
+    listReportRecords(access),
+    (await canPerform(access, "sales_mission_prospect", "read")) ? getProspectFunnel(access, range) : Promise.resolve(null),
+  ])
   const report = buildKpiReport(records, now, range)
   const currency = new Intl.NumberFormat("id-ID", { maximumFractionDigits: 0 })
 
@@ -176,6 +181,12 @@ export default async function ReportsPage({
             <BreakdownCard title="Per tingkat minat" rows={report.byInterest} emptyText="Belum ada data." />
           </section>
         </>
+      )}
+
+      {funnel && (
+        <section className="mt-4 grid gap-4 xl:grid-cols-2">
+          <FunnelCard counts={funnel} />
+        </section>
       )}
     </WorkspacePage>
   )

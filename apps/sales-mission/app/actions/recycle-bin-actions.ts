@@ -71,6 +71,61 @@ export async function purgeMissions(ids: string[]): Promise<ActionResult<{ purge
   return { success: true, data: { purged: data?.length ?? 0 } }
 }
 
+/** Prospects: the same three moves. */
+export async function restoreProspects(ids: string[]): Promise<ActionResult<{ restored: number }>> {
+  const gate = await requireBinAdmin()
+  if ("error" in gate) return { success: false, error: gate.error }
+  const unique = validIds(ids)
+  if (unique.length === 0) return { success: false, error: "Tidak ada prospek yang dipilih." }
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .schema("sales_mission")
+    .from("prospects")
+    .update({ deleted_at: null, deleted_by: null, updated_at: new Date().toISOString() })
+    .eq("company_id", gate.access.companyId)
+    .in("id", unique)
+    .not("deleted_at", "is", null)
+    .select("id")
+  if (error) return { success: false, error: "Prospek gagal dipulihkan." }
+  PATHS.concat("/workspace/prospects").forEach((path) => revalidatePath(path))
+  return { success: true, data: { restored: data?.length ?? 0 } }
+}
+
+export async function purgeProspects(ids: string[]): Promise<ActionResult<{ purged: number }>> {
+  const gate = await requireBinAdmin()
+  if ("error" in gate) return { success: false, error: gate.error }
+  const unique = validIds(ids)
+  if (unique.length === 0) return { success: false, error: "Tidak ada prospek yang dipilih." }
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .schema("sales_mission")
+    .from("prospects")
+    .delete()
+    .eq("company_id", gate.access.companyId)
+    .in("id", unique)
+    .not("deleted_at", "is", null)
+    .select("id")
+  if (error) return { success: false, error: "Prospek gagal dihapus permanen." }
+  PATHS.concat("/workspace/prospects").forEach((path) => revalidatePath(path))
+  return { success: true, data: { purged: data?.length ?? 0 } }
+}
+
+export async function emptyProspectBin(): Promise<ActionResult<{ purged: number }>> {
+  const gate = await requireBinAdmin()
+  if ("error" in gate) return { success: false, error: gate.error }
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .schema("sales_mission")
+    .from("prospects")
+    .delete()
+    .eq("company_id", gate.access.companyId)
+    .not("deleted_at", "is", null)
+    .select("id")
+  if (error) return { success: false, error: "Sampah prospek gagal dikosongkan." }
+  PATHS.concat("/workspace/prospects").forEach((path) => revalidatePath(path))
+  return { success: true, data: { purged: data?.length ?? 0 } }
+}
+
 /** Empty the bin. */
 export async function emptyRecycleBin(): Promise<ActionResult<{ purged: number }>> {
   const gate = await requireBinAdmin()

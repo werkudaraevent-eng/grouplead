@@ -1,6 +1,9 @@
 import Link from "next/link"
 import { redirect } from "next/navigation"
-import { CalendarDays, CheckCircle2, ClipboardList, MapPin } from "@/components/icons"
+import { CalendarDays, CheckCircle2, ClipboardList, MapPin, Phone } from "@/components/icons"
+import { listDueProspects } from "@/lib/prospects/prospect-queries"
+import { describeDueDate } from "@/lib/prospects/prospect-schema"
+import { formatPhone } from "@/lib/format/phone"
 import { canPerform, getSalesMissionAccess } from "@/lib/sales-mission-access"
 import { getMissionSettings, getMissionSummary, listMissions } from "@/lib/missions/mission-queries"
 import { needsMyAnswer } from "@/lib/missions/mission-filter"
@@ -158,6 +161,12 @@ export default async function MissionHomePage() {
   ])
   const today = missionDayKey(now)
 
+  // The prospects the viewer said they would call again by today. Their own
+  // only: this page is a to-do list, not the team's.
+  const dueProspects = (await canPerform(access, "sales_mission_prospect", "read"))
+    ? await listDueProspects(access, { today, limit: 8 })
+    : []
+
   // Same day-bucketing the calendar uses, so "today" means the same thing in
   // both places — Jakarta wall-clock, not the server's timezone.
   const todaysMissions = missionsOnDay(missions, today)
@@ -249,6 +258,33 @@ export default async function MissionHomePage() {
                 </div>
               ))}
             </div>
+          </div>
+        </section>
+      )}
+
+      {dueProspects.length > 0 && (
+        <section className="mt-6" aria-label="Hubungi lagi hari ini">
+          <h2 className="mb-2 text-base font-semibold text-foreground">Hubungi lagi hari ini</h2>
+          <div className="overflow-hidden rounded-xl border border-l-4 border-l-[var(--warning-foreground)] bg-card">
+            <ul className="divide-y">
+              {dueProspects.map((prospect) => {
+                const due = describeDueDate(prospect.nextContactAt ?? today, today)
+                return (
+                  <li key={prospect.id} className="flex flex-wrap items-center gap-3 px-5 py-3">
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-semibold text-foreground">{prospect.clientCompanyName}</span>
+                      <span className="block truncate text-xs text-muted-foreground">
+                        {[prospect.contactName, prospect.contactPhone ? formatPhone(prospect.contactPhone) : null].filter(Boolean).join(" · ") || "Belum ada kontak"}
+                        {due.overdue && <span className="ml-2 font-medium text-[var(--warning-foreground)]">{due.text}</span>}
+                      </span>
+                    </span>
+                    <Button asChild size="sm">
+                      <Link href={`/workspace/prospects/${prospect.id}`}><Phone className="h-4 w-4" /> Catat kontak</Link>
+                    </Button>
+                  </li>
+                )
+              })}
+            </ul>
           </div>
         </section>
       )}

@@ -371,6 +371,10 @@ export function MissionForm({
   const [supportingIds, setSupportingIds] = useState<string[]>(prefill?.supportingSalesIds ?? [])
   const [schedule, setSchedule] = useState<ScheduleValue>(edit?.schedule ?? { date: defaultDate, startTime: "09:30", endTime: "" })
   const [location, setLocation] = useState(prefill?.location ?? "")
+  const [address, setAddress] = useState(prefill?.address ?? "")
+  // Remounts the location picker when a prospect fills it, since it owns its text.
+  const [locationKey, setLocationKey] = useState(0)
+  const [linkedProspectId, setLinkedProspectId] = useState(prospectId ?? "")
 
   // The calendars the picker draws: whoever is being sent. Nothing until a
   // primary is chosen, because an empty calendar looks like a free one.
@@ -435,6 +439,13 @@ export function MissionForm({
             <CompanyPicker
               label={field.label}
               required={field.isRequired}
+              onPickProspect={(prospect) => {
+                setLinkedProspectId(prospect?.id ?? "")
+                if (!prospect) return
+                setContact({ id: "", name: prospect.contactName ?? "", jobTitle: prospect.contactJobTitle ?? "", phone: prospect.contactPhone ?? "", email: prospect.contactEmail ?? "", crm: null })
+                if (prospect.address) setAddress(prospect.address)
+                if (prospect.location) { setLocation(prospect.location); setLocationKey((key) => key + 1) }
+              }}
               initial={prefill ? { name: prefill.clientCompanyName, id: prefill.clientCompanyId } : undefined}
               onLink={(id) => {
                 setClientCompanyId(id)
@@ -456,17 +467,18 @@ export function MissionForm({
       case "address":
         return (
           <FieldShell field={field} key={field.id}>
-            <Input id="field-address" name="address" maxLength={300} required={field.isRequired} defaultValue={prefill?.address} autoComplete="address-line1" placeholder={field.placeholder ?? "Jl. Jend. Sudirman Kav. 52-53"} className="h-12" />
+            <Input id="field-address" name="address" maxLength={300} required={field.isRequired} value={address} onChange={(e) => setAddress(e.target.value)} autoComplete="address-line1" placeholder={field.placeholder ?? "Jl. Jend. Sudirman Kav. 52-53"} className="h-12" />
           </FieldShell>
         )
       case "location":
         return (
           <FieldShell field={field} key={field.id}>
             <LocationPicker
+              key={locationKey}
               id="field-location"
               required={field.isRequired}
               placeholder={field.placeholder ?? "Jakarta Selatan"}
-              initial={prefill?.location}
+              initial={location || prefill?.location}
               onChange={setLocation}
             />
           </FieldShell>
@@ -683,7 +695,7 @@ export function MissionForm({
     // centred form left the heading and the thing it describes on different
     // axes with a stripe of empty page between them.
     <form action={formAction} className="space-y-4">
-      {prospectId && <input type="hidden" name="prospectId" value={prospectId} />}
+      {linkedProspectId && <input type="hidden" name="prospectId" value={linkedProspectId} />}
       {state?.error ? (
         <div
           ref={errorRef}

@@ -4,6 +4,7 @@ import { Ban, Building2, CalendarDays, ClipboardList, ExternalLink, Mail, MapPin
 import { canPerform, getSalesMissionAccess } from "@/lib/sales-mission-access"
 import { requireModule } from "@/lib/missions/nav-access"
 import { PersonAvatar } from "@/components/person-avatar"
+import { getProspectByMission } from "@/lib/prospects/prospect-queries"
 import { formatPhone, normalizePhone } from "@/lib/format/phone"
 import {
   getCancellation,
@@ -107,12 +108,13 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
     getMissionSettings(access),
     listViewerCalendar(access),
   ])
-  const [pendingReschedule, salesOptions, schedules, cancellation, lastEdit] = await Promise.all([
+  const [pendingReschedule, salesOptions, schedules, cancellation, lastEdit, sourceProspect] = await Promise.all([
     getPendingReschedule(access, missionId),
     listTenantSales(access),
     listTeamSchedules(access, new Date()),
     mission.status === "CANCELLED" ? getCancellation(access, missionId) : Promise.resolve(null),
     getLastEdit(access, missionId),
+    getProspectByMission(access, missionId),
   ])
   const reportFields = report ? await listFormFields(access, "visit_report") : []
   const customAnswers = report
@@ -259,6 +261,9 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
               <span>Dijadwalkan oleh <span className="font-medium text-foreground">{mission.createdByName ?? "Nama tidak diketahui"}</span> · {stamp(mission.createdAt)}</span>
               {lastEdit && (
                 <span>Diubah terakhir oleh <span className="font-medium text-foreground">{lastEdit.byName}</span> · {stamp(lastEdit.at)}</span>
+              )}
+              {sourceProspect && (
+                <span>Dari prospek <Link href={`/workspace/prospects/${sourceProspect.id}`} className="font-medium text-primary hover:underline">{sourceProspect.clientCompanyName}</Link></span>
               )}
             </p>
 

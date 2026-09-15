@@ -10,8 +10,26 @@ export interface CompanySuggestion {
   industry: string | null
 }
 
+export interface ProspectSuggestion {
+  id: string
+  name: string
+  statusLabel: string
+  ownerName: string | null
+  clientCompanyId: string | null
+  location: string | null
+  address: string | null
+  notes: string | null
+  contactSalutation: string | null
+  contactName: string | null
+  contactJobTitle: string | null
+  contactPhone: string | null
+  contactEmail: string | null
+}
+
 export interface CompanySearchResult {
   companies: CompanySuggestion[]
+  /** Open prospects whose company matches: picking one links the mission to it. */
+  prospects: ProspectSuggestion[]
   /**
    * Names typed on earlier missions in this unit that the CRM does not know.
    * Offered so the second rep to visit a new company reuses the first rep's
@@ -37,21 +55,22 @@ export interface CompanySearchResult {
  */
 export async function searchCompanies(query: string): Promise<CompanySearchResult> {
   const access = await getSalesMissionAccess()
-  if (!access) return { companies: [], previousNames: [], error: "Sesi tidak valid." }
+  if (!access) return { companies: [], prospects: [], previousNames: [], error: "Sesi tidak valid." }
   if (!(await canPerform(access, "sales_mission_mission", "create"))) {
-    return { companies: [], previousNames: [], error: "Anda tidak punya izin membuat mission." }
+    return { companies: [], prospects: [], previousNames: [], error: "Anda tidak punya izin membuat mission." }
   }
 
   const trimmed = query.trim()
-  if (trimmed.length < 2) return { companies: [], previousNames: [], error: null }
+  if (trimmed.length < 2) return { companies: [], prospects: [], previousNames: [], error: null }
 
   // Both lookups at once. The CRM hop is the slow one and the own-history
   // read does not depend on it; waiting for them in turn added the whole of
   // the short one to every keystroke.
-  const [previousNames, crm] = await Promise.all([
+  const [previousNames, prospects, crm] = await Promise.all([
     // Runs whether or not the CRM answers: it is this app's own data, and it
     // is most useful precisely when the CRM has no match.
     previousMissionNames(access, trimmed),
+    (await canPerform(access, "sales_mission_prospect", "read")) ? openProspects(access, trimmed) : Promise.resolve([]),
     searchClientCompanies(trimmed).then(
       (companies) => ({ ok: true as const, companies }),
       (error: unknown) => ({ ok: false as const, error })
@@ -61,6 +80,7 @@ export async function searchCompanies(query: string): Promise<CompanySearchResul
   if (!crm.ok) {
     return {
       companies: [],
+      prospects,
       previousNames,
       error:
         crm.error instanceof LeadEngineError
@@ -78,10 +98,53 @@ export async function searchCompanies(query: string): Promise<CompanySearchResul
         name: company.name,
         industry: company.industry ?? null,
       })),
+      prospects,
       previousNames: previousNames.filter((name) => !known.has(name.toLowerCase())),
       error: null,
     }
   }
+}
+
+/** Open prospects (no mission yet) whose company matches, for the picker's third group. */
+async function openProspects(
+  access: NonNullable<Awaited<ReturnType<typeof getSalesMissionAccess>>>,
+  query: string
+): Promise<ProspectSuggestion[]> {
+  const supabase = await createClient()
+  const escaped = query.replace(/[%_]/g, (match) => `\\${match}`)
+  const { data } = await supabase
+    .schema("sales_mission")
+    .from("prospects")
+    .select("id, client_company_name, client_company_id, location, address, notes, contact_salutation, contact_name, contact_job_title, contact_phone, contact_email, owner_id, status_id")
+    .eq("company_id", access.companyId)
+    .is("deleted_at", null)
+    .is("mission_id", null)
+    .ilike("client_company_name", `%${escaped}%`)
+    .order("created_at", { ascending: false })
+    .limit(8)
+  const rows = data ?? []
+  if (rows.length === 0) return []
+  const [{ data: owners }, { data: statuses }] = await Promise.all([
+    supabase.from("profiles").select("id, full_name").in("id", [...new Set(rows.map((row) => row.owner_id as string).filter(Boolean))]),
+    supabase.schema("sales_mission").from("prospect_statuses").select("id, label").in("id", [...new Set(rows.map((row) => row.status_id as string))]),
+  ])
+  const ownerName = new Map((owners ?? []).map((row) => [row.id as string, row.full_name as string]))
+  const statusLabel = new Map((statuses ?? []).map((row) => [row.id as string, row.label as string]))
+  return rows.map((row) => ({
+    id: row.id as string,
+    name: row.client_company_name as string,
+    statusLabel: statusLabel.get(row.status_id as string) ?? "",
+    ownerName: row.owner_id ? (ownerName.get(row.owner_id as string) ?? null) : null,
+    clientCompanyId: (row.client_company_id as string | null) ?? null,
+    location: (row.location as string | null) ?? null,
+    address: (row.address as string | null) ?? null,
+    notes: (row.notes as string | null) ?? null,
+    contactSalutation: (row.contact_salutation as string | null) ?? null,
+    contactName: (row.contact_name as string | null) ?? null,
+    contactJobTitle: (row.contact_job_title as string | null) ?? null,
+    contactPhone: (row.contact_phone as string | null) ?? null,
+    contactEmail: (row.contact_email as string | null) ?? null,
+  }))
 }
 
 /** Distinct typed company names on this unit's missions that are not CRM-linked. */

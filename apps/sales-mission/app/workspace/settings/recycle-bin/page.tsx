@@ -4,6 +4,8 @@ import { listDeletedMissions, purgeExpiredMissions } from "@/lib/missions/recycl
 import { RETENTION_DAYS } from "@/lib/missions/recycle-bin"
 import { BackLink, EmptyState, WorkspacePage } from "@/app/workspace/workspace-page"
 import { RecycleBinList } from "./recycle-bin-list"
+import { ProspectBinList } from "./prospect-bin-list"
+import { listDeletedProspects, purgeExpiredProspects } from "@/lib/prospects/prospect-bin-queries"
 
 export const dynamic = "force-dynamic"
 
@@ -26,17 +28,24 @@ export default async function RecycleBinPage() {
   }
 
   const now = new Date()
-  await purgeExpiredMissions(access, now)
-  const items = await listDeletedMissions(access)
+  await Promise.all([purgeExpiredMissions(access, now), purgeExpiredProspects(access, now)])
+  const [items, prospects] = await Promise.all([listDeletedMissions(access), listDeletedProspects(access)])
 
   return (
     <WorkspacePage
       eyebrow="Sales Mission / Pengaturan"
       title="Sampah"
-      description={`Mission yang dihapus disimpan ${RETENTION_DAYS} hari, lalu dihapus permanen. Laporan, penugasan, dan catatan di dalamnya ikut kembali saat dipulihkan.`}
+      description={`Mission dan prospek yang dihapus disimpan ${RETENTION_DAYS} hari, lalu dihapus permanen. Laporan, penugasan, dan catatan di dalamnya ikut kembali saat dipulihkan.`}
       action={<BackLink href="/workspace/settings" />}
     >
-      <RecycleBinList items={items} now={now.toISOString()} />
+      <section aria-label="Mission di sampah">
+        <h2 className="mb-2 text-base font-semibold text-foreground">Mission</h2>
+        <RecycleBinList items={items} now={now.toISOString()} />
+      </section>
+      <section className="mt-8" aria-label="Prospek di sampah">
+        <h2 className="mb-2 text-base font-semibold text-foreground">Prospek</h2>
+        <ProspectBinList items={prospects} now={now.toISOString()} />
+      </section>
     </WorkspacePage>
   )
 }

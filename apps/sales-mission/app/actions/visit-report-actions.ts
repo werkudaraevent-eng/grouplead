@@ -473,6 +473,14 @@ async function syncVisitToCrm(
         .update({ client_company_id: clientCompanyId })
         .eq("id", missionId)
         .eq("company_id", access.companyId)
+      // And the prospect this visit came from, if it was still unlinked, so
+      // the next visit to the same company starts from a known CRM record.
+      await missions
+        .from("prospects")
+        .update({ client_company_id: clientCompanyId })
+        .eq("mission_id", missionId)
+        .eq("company_id", access.companyId)
+        .is("client_company_id", null)
     }
 
     for (const contact of contactsForCrm(report.contacts)) {
