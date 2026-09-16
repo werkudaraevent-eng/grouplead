@@ -4,6 +4,7 @@ import { useTransition } from "react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { ChevronLeft, ChevronRight, Loader2 } from "@/components/icons"
 import { Button } from "@/components/ui/button"
+import { useCompact } from "@/hooks/use-compact"
 import { SortHeader as GenericSortHeader } from "@/components/sort-header"
 import { nextSort, PAGE_SIZES, sortParts, type MissionSort, type SortColumn } from "@/lib/missions/mission-paging"
 
@@ -32,6 +33,42 @@ export function MissionPagination({ page, size, total }: { page: number; size: n
   const first = total === 0 ? 0 : page * size + 1
   const last = Math.min(total, (page + 1) * size)
   const lastPage = Math.max(0, Math.ceil(total / size) - 1)
+  const compact = useCompact()
+
+  // A phone list grows rather than turns pages (Material's guidance for
+  // long lists on compact windows): "Muat lagi" widens the page up to the
+  // largest size, and only past that does it step to the next page.
+  if (compact) {
+    const nextSize = PAGE_SIZES.find((option) => option > size)
+    const more = total > last
+    return (
+      <div className="flex flex-col items-center gap-2 border-t bg-card px-4 py-3 text-sm text-muted-foreground">
+        <span className="tabular-nums" aria-live="polite">
+          {pending ? <Loader2 className="inline h-4 w-4 animate-spin" /> : `${first}–${last} dari ${total}`}
+        </span>
+        {(more || page > 0) && (
+          <div className="flex w-full items-center gap-2">
+            {page > 0 && (
+              <Button variant="outline" className="h-11 flex-1" disabled={pending} onClick={() => set({ page: page - 1 <= 0 ? null : String(page - 1) })}>
+                <ChevronLeft className="h-4 w-4" /> Sebelumnya
+              </Button>
+            )}
+            {more && (
+              nextSize && page === 0 ? (
+                <Button variant="outline" className="h-11 flex-1" disabled={pending} onClick={() => set({ size: String(nextSize), page: null })}>
+                  Muat lagi
+                </Button>
+              ) : (
+                <Button variant="outline" className="h-11 flex-1" disabled={pending} onClick={() => set({ page: String(page + 1) })}>
+                  Berikutnya <ChevronRight className="h-4 w-4" />
+                </Button>
+              )
+            )}
+          </div>
+        )}
+      </div>
+    )
+  }
 
   return (
     <div className="flex flex-wrap items-center justify-end gap-x-6 gap-y-2 border-t bg-card px-4 py-2 text-sm text-muted-foreground">

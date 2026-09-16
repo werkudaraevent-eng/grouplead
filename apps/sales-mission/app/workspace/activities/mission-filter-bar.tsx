@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useTransition } from "react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { Search, SlidersHorizontal, X } from "@/components/icons"
 import { ResponsivePopover } from "@/components/responsive-popover"
+import { FilterBarFrame } from "@/components/filter-bar-frame"
 import { FacetButton, FacetSelect } from "@/components/facet-select"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -125,7 +126,7 @@ export function DateFacet({
 
 function Chip({ label, onRemove }: { label: string; onRemove: () => void }) {
   return (
-    <span className="inline-flex h-8 items-center gap-1 rounded-full border bg-card pl-3 pr-1 text-xs font-medium text-foreground">
+    <span className="inline-flex h-8 shrink-0 items-center gap-1 whitespace-nowrap rounded-full border bg-card pl-3 pr-1 text-xs font-medium text-foreground">
       {label}
       <button
         type="button"
@@ -187,9 +188,10 @@ export function MissionFilterBar({
   const personName = (id: string) => people.find((person) => person.id === id)?.name ?? id
 
   return (
-    <div className="mb-4 space-y-2">
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="relative min-w-0 flex-1 basis-56">
+    <FilterBarFrame
+      activeCount={active}
+      search={
+        <div className="relative min-w-0 flex-1 md:basis-56">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             type="search"
@@ -197,10 +199,12 @@ export function MissionFilterBar({
             onChange={(event) => setText(event.target.value)}
             placeholder="Cari perusahaan, lokasi, tujuan, orang…"
             aria-label="Cari aktivitas"
-            className="h-10 pl-9 md:h-9"
+            className="h-11 pl-9 md:h-9"
           />
         </div>
-
+      }
+      facets={
+        <>
         <FacetSelect
           label="Status"
           options={STATUS_OPTIONS.map((status) => ({ value: status, label: STATUS_LABELS[status] }))}
@@ -255,15 +259,16 @@ export function MissionFilterBar({
           to={query.to}
           onChange={(next) => push({ ...query, ...next })}
         />
-
+        </>
+      }
+      summary={
         <span className="ml-auto flex items-center gap-2 text-xs text-muted-foreground" aria-live="polite">
           <SlidersHorizontal className="h-3.5 w-3.5" />
           {pending ? "Menyaring…" : active > 0 ? `${shown} dari ${total} aktivitas` : `${total} aktivitas`}
         </span>
-      </div>
-
-      {active > 0 && (
-        <div className="flex flex-wrap items-center gap-1.5">
+      }
+      chips={active > 0 ? (
+        <>
           {query.q && <Chip label={`“${query.q}”`} onRemove={() => { setText(""); push({ ...query, q: "" }) }} />}
           {query.status.map((status) => (
             <Chip key={status} label={STATUS_LABELS[status as MissionStatus] ?? status} onRemove={() => push({ ...query, status: query.status.filter((s) => s !== status) })} />
@@ -300,8 +305,8 @@ export function MissionFilterBar({
           >
             Bersihkan semua
           </button>
-        </div>
-      )}
-    </div>
+        </>
+      ) : null}
+    />
   )
 }

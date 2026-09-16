@@ -252,7 +252,7 @@ export default async function MissionHomePage() {
                       </span>
                     </span>
                   </Link>
-                  <Button asChild size="sm" className="sm:self-center">
+                  <Button asChild size="sm" className="h-11 md:h-8 sm:self-center">
                     <Link href={paths.activityReport(mission.id)}>
                       <ClipboardList className="h-4 w-4" /> {mission.reportStatus === "NONE" ? "Isi laporan" : "Lanjutkan laporan"}
                     </Link>
@@ -280,7 +280,7 @@ export default async function MissionHomePage() {
                         {due.overdue && <span className="ml-2 font-medium text-[var(--warning-foreground)]">{due.text}</span>}
                       </span>
                     </span>
-                    <Button asChild size="sm">
+                    <Button asChild size="sm" className="h-11 md:h-8">
                       <Link href={`/workspace/prospects/${prospect.id}`}><Phone className="h-4 w-4" /> Catat kontak</Link>
                     </Button>
                   </li>

@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useTransition } from "react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { CalendarClock, Search, SlidersHorizontal, X } from "@/components/icons"
+import { FilterBarFrame } from "@/components/filter-bar-frame"
 import { FacetSelect } from "@/components/facet-select"
 import { Input } from "@/components/ui/input"
 import { PersonAvatar } from "@/components/person-avatar"
@@ -35,7 +36,7 @@ export interface FilterPerson {
 
 function Chip({ label, onRemove }: { label: string; onRemove: () => void }) {
   return (
-    <span className="inline-flex h-8 items-center gap-1 rounded-full border bg-card pl-3 pr-1 text-xs font-medium text-foreground">
+    <span className="inline-flex h-8 shrink-0 items-center gap-1 whitespace-nowrap rounded-full border bg-card pl-3 pr-1 text-xs font-medium text-foreground">
       {label}
       <button type="button" onClick={onRemove} aria-label={`Hapus filter ${label}`} className="relative grid h-7 w-7 place-items-center rounded-full text-muted-foreground after:absolute after:-inset-2 after:content-[''] hover:bg-muted hover:text-foreground">
         <X className="h-3 w-3" />
@@ -106,9 +107,10 @@ export function ProspectFilterBar({
   const batchName = (id: string) => (id === MANUAL_SOURCE ? "Manual" : (batches.find((batch) => batch.id === id) ? batchLabel(batches.find((batch) => batch.id === id)!) : id))
 
   return (
-    <div className="mb-4 space-y-2">
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="relative min-w-0 flex-1 basis-56">
+    <FilterBarFrame
+      activeCount={active}
+      search={
+        <div className="relative min-w-0 flex-1 md:basis-56">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             type="search"
@@ -116,10 +118,12 @@ export function ProspectFilterBar({
             onChange={(event) => setText(event.target.value)}
             placeholder="Cari perusahaan, kontak, telepon, kota…"
             aria-label="Cari prospek"
-            className="h-10 pl-9 md:h-9"
+            className="h-11 pl-9 md:h-9"
           />
         </div>
-
+      }
+      facets={
+        <>
         <FacetSelect
           label="Status"
           options={statusOptions}
@@ -174,15 +178,16 @@ export function ProspectFilterBar({
             </span>
           )}
         </button>
-
+        </>
+      }
+      summary={
         <span className="ml-auto flex items-center gap-2 text-xs text-muted-foreground" aria-live="polite">
           <SlidersHorizontal className="h-3.5 w-3.5" />
           {pending ? "Menyaring…" : active > 0 ? `${shown} dari ${total} prospek` : `${total} prospek`}
         </span>
-      </div>
-
-      {active > 0 && (
-        <div className="flex flex-wrap items-center gap-1.5">
+      }
+      chips={active > 0 ? (
+        <>
           {query.q && <Chip label={`“${query.q}”`} onRemove={() => { setText(""); push({ ...query, q: "" }) }} />}
           {query.status.map((status) => (
             <Chip key={status} label={statusLabel(status)} onRemove={() => push({ ...query, status: query.status.filter((s) => s !== status) })} />
@@ -197,8 +202,8 @@ export function ProspectFilterBar({
           <button type="button" onClick={() => { setText(""); push(EMPTY_PROSPECT_QUERY) }} className="ml-1 text-xs font-semibold text-primary hover:underline">
             Bersihkan semua
           </button>
-        </div>
-      )}
-    </div>
+        </>
+      ) : null}
+    />
   )
 }
