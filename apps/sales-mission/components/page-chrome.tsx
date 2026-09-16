@@ -1,6 +1,6 @@
 "use client"
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react"
+import { createContext, useCallback, useContext, useEffect, useState } from "react"
 
 /**
  * What the phone's top app bar and bottom bar need to know about the page
@@ -27,12 +27,14 @@ export interface Chrome {
   menu?: ChromeMenuItem[]
 }
 
-interface ChromeStore {
-  chrome: Chrome
-  announce: (partial: Chrome) => () => void
-}
+type Announce = (partial: Chrome) => () => void
 
-const ChromeContext = createContext<ChromeStore | null>(null)
+// Two contexts on purpose. `PageChrome` subscribes only to the announcer,
+// which never changes; if it subscribed to the values it writes, every
+// announcement would re-run its own effect and the page would spin
+// forever (which is exactly what happened once).
+const ChromeContext = createContext<Chrome>({})
+const AnnounceContext = createContext<Announce | null>(null)
 
 export function PageChromeProvider({ children }: { children: React.ReactNode }) {
   const [chrome, setChrome] = useState<Chrome>({})
@@ -46,27 +48,30 @@ export function PageChromeProvider({ children }: { children: React.ReactNode }) 
       })
     }
   }, [])
-  const value = useMemo(() => ({ chrome, announce }), [chrome, announce])
-  return <ChromeContext.Provider value={value}>{children}</ChromeContext.Provider>
+  return (
+    <AnnounceContext.Provider value={announce}>
+      <ChromeContext.Provider value={chrome}>{children}</ChromeContext.Provider>
+    </AnnounceContext.Provider>
+  )
 }
 
 export function usePageChrome(): Chrome {
-  return useContext(ChromeContext)?.chrome ?? {}
+  return useContext(ChromeContext)
 }
 
 /** Announce facts about the current page to the shell. Renders nothing. */
 export function PageChrome({ title, backHref, hideNav, menu }: Chrome) {
-  const store = useContext(ChromeContext)
+  const announce = useContext(AnnounceContext)
   // Compared by content: a server page builds the array on every render.
   const menuKey = menu ? JSON.stringify(menu) : undefined
   useEffect(() => {
-    if (!store) return
+    if (!announce) return
     const partial: Chrome = {}
     if (title !== undefined) partial.title = title
     if (backHref !== undefined) partial.backHref = backHref
     if (hideNav !== undefined) partial.hideNav = hideNav
     if (menuKey !== undefined) partial.menu = JSON.parse(menuKey) as ChromeMenuItem[]
-    return store.announce(partial)
-  }, [store, title, backHref, hideNav, menuKey])
+    return announce(partial)
+  }, [announce, title, backHref, hideNav, menuKey])
   return null
 }
