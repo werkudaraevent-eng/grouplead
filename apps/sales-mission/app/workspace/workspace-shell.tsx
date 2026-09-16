@@ -118,6 +118,10 @@ const mainNav: NavItem[] = [
 // calendar, the guide, what's new) are not destinations in Material's
 // sense; they live behind the account menu at the foot of the drawer, the
 // way Slack, Notion and Linear keep help and release notes off the rail.
+/** Menu rows on the panel's own tokens: hover/focus as a tonal state layer, icons in the panel's muted ink. */
+const ACCOUNT_MENU_ITEMS =
+  "[&_[role=menuitem]]:text-sidebar-accent-foreground [&_[role=menuitem]]:focus:bg-sidebar-accent [&_[role=menuitem]]:focus:text-sidebar-accent-foreground [&_[role=menuitem]_svg:not([class*='text-'])]:text-sidebar-foreground"
+
 const adminNav: NavItem[] = [
   { href: "/workspace/settings", label: "Pengaturan", icon: Settings, requires: "settings" },
 ]
@@ -367,7 +371,7 @@ function SidebarBody({
             {!collapsed ? (
               <button
                 type="button"
-                className="flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left transition-colors hover:bg-sidebar-accent/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
+                className="flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left transition-colors hover:bg-sidebar-accent/50 focus-visible:outline-none focus-visible:bg-sidebar-accent data-[state=open]:bg-sidebar-accent"
                 aria-label="Menu akun"
               >
                 <Avatar name={displayName} url={avatarUrl} />
@@ -378,17 +382,27 @@ function SidebarBody({
                 <MoreVertical className="h-4 w-4 shrink-0 text-sidebar-foreground" aria-hidden="true" />
               </button>
             ) : (
-              <button type="button" className="mx-auto grid place-items-center rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring" title={displayName} aria-label="Menu akun">
+              <button type="button" className="mx-auto grid place-items-center rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-accent-foreground/40 data-[state=open]:ring-2 data-[state=open]:ring-sidebar-accent-foreground/40" title={displayName} aria-label="Menu akun">
                 <Avatar name={displayName} url={avatarUrl} />
               </button>
             )}
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" side="top" sideOffset={8} className="w-60">
+          {/* The menu is part of the panel: same surface tokens, so it is dark
+              when the panel is dark. Focus does not jump back to the trigger
+              on close, or a mouse user gets a focus ring for nothing (the
+              state layer on the trigger already says the menu is open). */}
+          <DropdownMenuContent
+            align="start"
+            side="top"
+            sideOffset={8}
+            onCloseAutoFocus={(event) => event.preventDefault()}
+            className={cn("w-60 border-sidebar-border bg-sidebar text-sidebar-accent-foreground shadow-lg", ACCOUNT_MENU_ITEMS)}
+          >
             <div className="px-2 py-1.5">
-              <p className="truncate text-sm font-semibold text-foreground">{displayName}</p>
-              <p className="truncate text-xs text-muted-foreground">{companyName}</p>
+              <p className="truncate text-sm font-semibold">{displayName}</p>
+              {companyName !== displayName && <p className="truncate text-xs text-sidebar-foreground">{companyName}</p>}
             </div>
-            <DropdownMenuSeparator />
+            <DropdownMenuSeparator className="bg-sidebar-border" />
             {navAccess.missions && (
               <DropdownMenuItem asChild>
                 <Link href={paths.myCalendar} onClick={onNavigate}><CalendarDays className="h-4 w-4" /> Kalender saya</Link>
@@ -400,12 +414,12 @@ function SidebarBody({
             <DropdownMenuItem asChild>
               <Link href={paths.whatsNew} onClick={onNavigate}><Sparkles className="h-4 w-4" /> Yang baru</Link>
             </DropdownMenuItem>
-            <DropdownMenuSeparator />
+            <DropdownMenuSeparator className="bg-sidebar-border" />
             <DropdownMenuItem onSelect={togglePanel}>
               {isDarkPanel ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
               {isDarkPanel ? "Ganti ke panel terang" : "Ganti ke panel gelap"}
             </DropdownMenuItem>
-            <DropdownMenuSeparator />
+            <DropdownMenuSeparator className="bg-sidebar-border" />
             <DropdownMenuItem onSelect={handleLogout} disabled={loggingOut} className="text-[var(--danger-foreground)] focus:text-[var(--danger-foreground)]">
               {loggingOut ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogOut className="h-4 w-4" />} Keluar
             </DropdownMenuItem>
