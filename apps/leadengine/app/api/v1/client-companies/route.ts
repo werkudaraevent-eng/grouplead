@@ -59,6 +59,8 @@ const createSchema = z.object({
     ownerId: z.string().uuid().nullish(),
     /** City for a company created here. Ignored when it already exists. */
     city: z.string().trim().max(200).nullish(),
+    /** Industry (the Sector list). Set on a new company; fills an empty one; never overwrites. */
+    industry: z.string().trim().max(120).nullish(),
 })
 
 /**
@@ -114,6 +116,7 @@ export async function POST(request: Request) {
             p_company_id: companyId,
             p_owner_id: parsed.data.ownerId ?? null,
             p_city: parsed.data.city ?? null,
+            p_industry: parsed.data.industry ?? null,
         })
         .maybeSingle()
 
@@ -121,14 +124,14 @@ export async function POST(request: Request) {
         return apiError(500, 'create_failed', error?.message ?? 'Could not create the client company.')
     }
 
-    const row = data as { id: string; name: string; created: boolean; needs_enrichment: boolean }
+    const row = data as { id: string; name: string; created: boolean; needs_enrichment: boolean; industry: string | null }
 
     return NextResponse.json(
         {
             company: {
                 id: row.id,
                 name: row.name,
-                industry: null,
+                industry: row.industry ?? null,
                 needsEnrichment: row.needs_enrichment === true,
             },
             created: row.created,

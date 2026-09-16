@@ -27,7 +27,7 @@ export async function GET(
 
     const { data: company } = await supabase
         .from('client_companies')
-        .select('id, name')
+        .select('id, name, industry')
         .eq('id', companyId)
         .maybeSingle()
 
@@ -80,7 +80,7 @@ export async function GET(
     const currentOwnerId = openLeads.find((lead) => lead.pic_sales_id)?.pic_sales_id as string | undefined
 
     return NextResponse.json({
-        company: { id: company.id, name: company.name },
+        company: { id: company.id, name: company.name, industry: (company.industry as string | null) ?? null },
         currentOwner: currentOwnerId
             ? { userId: currentOwnerId, name: ownerNames.get(currentOwnerId) ?? 'Tanpa nama' }
             : null,
