@@ -60,21 +60,22 @@ export default async function BoardPage({
 
   let companyId: string | null = null
   let masked = true
-  let subtitle = ""
+  let screenLabel: string | null = null
+  let preview = false
 
   if (token) {
     const resolved = await resolveBoardToken(token)
     if (resolved) {
       companyId = resolved.companyId
       masked = !resolved.showClientNames
-      subtitle = resolved.label
+      screenLabel = resolved.label
     }
   } else {
     const access = await getSalesMissionAccess()
     if (access && (await canPerform(access, "sales_mission_mission", "read"))) {
       companyId = access.companyId
       masked = params.names !== "1"
-      subtitle = "Pratinjau layar"
+      preview = true
     }
   }
 
@@ -97,13 +98,15 @@ export default async function BoardPage({
 
   return (
     <>
-      {/* A minute, not thirty seconds: a paged panel needs time to show its pages before the reload. The page position survives the reload anyway. */}
+      {/* Data is a minute old at most. The clock ticks on its own, and a long list keeps its scroll position across the reload. */}
       <meta httpEquiv="refresh" content="60" />
       <BoardView
         snapshot={snapshot}
-        subtitle={[subtitle, masked ? "nama klien disamarkan" : "nama klien ditampilkan"].filter(Boolean).join(" — ")}
         now={now}
         panels={options.panels.filter((panel) => panel !== "activity")}
+        preview={preview}
+        masked={masked}
+        screenLabel={screenLabel}
       />
     </>
   )

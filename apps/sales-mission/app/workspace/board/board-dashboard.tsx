@@ -1,5 +1,6 @@
 import Link from "next/link"
 import { CalendarCheck, CalendarDays, CheckCircle2, ClipboardList, History, MapPin, Users } from "@/components/icons"
+import { formatTeamNext } from "@/lib/board/board-snapshot"
 import type { BoardMission, BoardSnapshot } from "@/lib/board/board-snapshot"
 import type { BoardPanel } from "@/lib/board/board-options"
 import { describeAudit, groupAuditEvents, type AuditRow } from "@/lib/audit/describe-audit"
@@ -250,7 +251,7 @@ export function BoardDashboard({
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-sm font-medium text-foreground">{member.name}</span>
                       <span className="block truncate text-xs text-muted-foreground">
-                        {member.next ? `Berikutnya ${member.next}` : "Semua kunjungan selesai"}
+                        {member.next ? `Berikutnya ${formatTeamNext(member.next)}` : "Semua kunjungan selesai"}
                       </span>
                     </span>
                     <span className="shrink-0 text-sm tabular-nums text-muted-foreground">{member.missionCount}</span>

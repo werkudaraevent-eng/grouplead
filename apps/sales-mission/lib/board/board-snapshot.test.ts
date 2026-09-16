@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { buildBoardSnapshot, maskClientName } from "./board-snapshot"
+import { buildBoardSnapshot, maskClientName, formatTeamNext } from "./board-snapshot"
 import type { MissionListItem, MissionStatus } from "@/lib/missions/mission-schema"
 
 function mission(overrides: Partial<MissionListItem> & { id: string }): MissionListItem {
@@ -182,6 +182,10 @@ describe("buildBoardSnapshot ranges and filters", () => {
     // NOW is 10:00 WIB; the Tuesday visit at 09:30 has started, so it is not "next".
     const snapshot = buildBoardSnapshot(spread, NOW, { masked: true, range: "week" })
     const u2 = snapshot.team.find((m) => m.name === "Wg, Hanung")
-    expect(u2?.next).toMatch(/09\.30 · PT A•••$/)
+    expect(u2?.next?.time).toBe("09.30")
+    expect(u2?.next?.client).toMatch(/^PT A•••$/)
+    expect(u2?.next?.isToday).toBe(false)
+    expect(u2?.next?.day).toBe("Min, 6 Sep")
+    expect(formatTeamNext(u2?.next ?? null)).toMatch(/09\.30 · PT A•••$/)
   })
 })

@@ -20,7 +20,7 @@ export const BOARD_PANELS = ["counts", "schedule", "team", "activity"] as const
 export type BoardPanel = (typeof BOARD_PANELS)[number]
 
 export const BOARD_PANEL_LABELS: Record<BoardPanel, string> = {
-  counts: "Angka",
+  counts: "Ringkasan di header",
   schedule: "Jadwal",
   team: "Tim",
   activity: "Aktivitas",

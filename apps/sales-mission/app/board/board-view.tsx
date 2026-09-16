@@ -1,34 +1,30 @@
-import { CalendarCheck, CalendarDays, CheckCircle2, MapPin, Users } from "@/components/icons"
-import type { BoardMission, BoardSnapshot } from "@/lib/board/board-snapshot"
+import type { BoardMission, BoardSnapshot, BoardTeamMember } from "@/lib/board/board-snapshot"
 import type { BoardPanel } from "@/lib/board/board-options"
 import { MISSION_TIME_ZONE } from "@/lib/missions/mission-schema"
 import { statusLabel } from "@/lib/missions/status-labels"
 import { cn } from "@/lib/utils"
-import { FitList, type FitItem } from "./fit-list"
+import { AutoScroll } from "./auto-scroll"
+import { BoardClock } from "./board-clock"
 
 /**
- * The screen. Read from across a room: large type, high contrast, no
- * interaction, and it never scrolls. A wall display has nobody to scroll
- * it, so the layout is a fixed viewport: header, hero and counts take what
- * they need, the panels take the rest. A panel with more rows than fit
- * turns pages on a timer (see FitList) instead of clipping or spilling.
+ * The wall board.
  *
- * Material's rules for a dark, distant surface, taken as rules:
+ * Read from across a room by people who cannot touch it, so it is built
+ * like a departures board, not a dashboard: one dominant region (the
+ * schedule), rows tall enough to read at four metres, the time in large
+ * tabular figures at the left of every row, status as a coloured edge and
+ * a word, and nothing that competes: no KPI tiles, no separate hero, a
+ * small clock. Everything is sized in `em` from one root size that follows
+ * the screen's width, so a 4K TV and a 1080p TV show the same composition.
  *
- *   - Tonal elevation, not borders. Panels are a lighter wash of the same
- *     neutral (--board-surface-1/2); nothing is outlined, nothing casts a
- *     shadow. Large shape (24dp) on panels, full round on the small chips.
- *   - One tinted container for the one thing the room should look at. The
- *     primary container holds the next visit, or the one happening now.
- *   - A type scale with real steps: display for the clock, headline for the
- *     hero, title for section headers, body for rows. The steps shrink
- *     together on a short screen so the composition holds at 720p.
- *   - Status is a dot and a word, never a pill; a time is a mono chip.
- *   - Empty states are centred and say what would fill them.
- *   - A week is an agenda with day subheaders, not seven narrow columns.
+ * Material's rules for a dark, distant surface, kept: tonal surfaces
+ * instead of borders; one tinted container for the one thing the room
+ * should look at (the visit happening now, else the next one), in its
+ * place in the list rather than repeated above it; empty states that say
+ * what would fill them, in a quiet colour; motion small and slow.
  */
 
-const STATUS_DOT: Record<string, string> = {
+const EDGE: Record<string, string> = {
   COMPLETED: "bg-[var(--board-done)]",
   ACCEPTED: "bg-[var(--board-active)]",
   IN_PROGRESS: "bg-[var(--board-running)]",
@@ -36,10 +32,7 @@ const STATUS_DOT: Record<string, string> = {
   REJECTED: "bg-[var(--board-text-dim)]",
 }
 
-/** Row heights the FitList paginates by. The rows below render at exactly these. */
-const ROW = 68
-const SUBHEADER = 40
-const TEAM_ROW = 68
+type VisitState = "past" | "now" | "later"
 
 function minuteOfDay(date: Date): number {
   const parts = new Intl.DateTimeFormat("en-GB", { timeZone: MISSION_TIME_ZONE, hour: "2-digit", minute: "2-digit", hour12: false }).formatToParts(date)
@@ -58,210 +51,199 @@ function avatarTone(name: string): string {
   return tones[Math.abs(hash) % tones.length]
 }
 
-function Stat({ label, value, icon: Icon, tone }: { label: string; value: number; icon: typeof Users; tone: string }) {
-  return (
-    <div className="flex items-center gap-4 rounded-2xl bg-[var(--board-surface-1)] px-5 py-3 [@media(max-height:820px)]:py-2">
-      <span className={cn("grid h-11 w-11 shrink-0 place-items-center rounded-full [@media(max-height:820px)]:h-9 [@media(max-height:820px)]:w-9", tone)}>
-        <Icon className="h-5 w-5" />
-      </span>
-      <span className="min-w-0">
-        <span className="block truncate text-sm text-[var(--board-text-dim)]">{label}</span>
-        <span className="block text-3xl font-bold tabular-nums leading-tight text-[var(--board-text)] [@media(max-height:820px)]:text-2xl">{value}</span>
-      </span>
-    </div>
-  )
-}
+const isOver = (mission: BoardMission) => mission.status === "COMPLETED" || mission.status === "CANCELLED" || mission.status === "REJECTED"
 
-function Empty({ icon: Icon, title, hint }: { icon: typeof Users; title: string; hint: string }) {
+function VisitRow({ mission, state, highlight }: { mission: BoardMission; state: VisitState; highlight: "now" | "next" | null }) {
+  const now = highlight === "now"
+  const next = highlight === "next"
+  const dim = !now && !next && (isOver(mission) || state === "past")
+  const people = [
+    mission.primarySalesName,
+    mission.supportingSalesNames.length > 0 ? `+${mission.supportingSalesNames.length}` : null,
+  ].filter(Boolean).join(" ")
+  const meta = [people || null, mission.location, mission.missionType].filter(Boolean).join(" · ")
   return (
-    <div className="flex h-full flex-col items-center justify-center px-8 py-10 text-center">
-      <span className="grid h-14 w-14 place-items-center rounded-full bg-[var(--board-surface-2)] text-[var(--board-text-dim)]">
-        <Icon className="h-7 w-7" />
-      </span>
-      <p className="mt-4 text-xl font-semibold text-[var(--board-text)]">{title}</p>
-      <p className="mt-1 max-w-md text-base text-[var(--board-text-dim)]">{hint}</p>
-    </div>
-  )
-}
-
-function Row({ mission, state }: { mission: BoardMission; state: "past" | "now" | "later" }) {
-  const done = mission.status === "COMPLETED" || mission.status === "CANCELLED" || mission.status === "REJECTED"
-  const now = state === "now" && !done
-  return (
-    <div
+    <li
       className={cn(
-        "flex h-full items-center gap-5 border-b border-[var(--board-line)] px-6",
-        now && "rounded-xl border-transparent bg-[var(--board-primary-container)] text-[var(--board-on-primary-container)]",
-        !now && (done || state === "past") && "opacity-55"
+        "relative flex items-center gap-[1em] rounded-[0.8em] py-[0.7em] pl-[1.4em] pr-[1.2em]",
+        now && "bg-[var(--board-primary-container)] text-[var(--board-on-primary-container)]",
+        next && "bg-[var(--board-surface-2)]",
+        dim && "opacity-55"
       )}
     >
-      <span className={cn("inline-flex h-9 w-[4.5rem] shrink-0 items-center justify-center rounded-full font-mono text-lg font-bold tabular-nums", now ? "bg-white/15" : "bg-[var(--board-surface-2)]")}>
-        {mission.time ?? "—"}
-      </span>
+      <span aria-hidden="true" className={cn("absolute left-[0.5em] top-[0.9em] bottom-[0.9em] w-[0.3em] rounded-full", now ? "bg-[var(--board-running)]" : EDGE[mission.status] ?? "bg-[var(--board-text-dim)]")} />
+      <span className="w-[3.1em] shrink-0 font-mono text-[2.2em] font-extrabold tabular-nums leading-none">{mission.time ?? "—"}</span>
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-lg font-semibold leading-tight">{mission.clientLabel}</span>
-        <span className={cn("block truncate text-sm", now ? "text-[var(--board-on-primary-container)]/80" : "text-[var(--board-text-dim)]")}>
-          {[mission.primarySalesName, mission.location].filter(Boolean).join(" · ") || mission.missionType}
+        <span className="block truncate text-[1.5em] font-bold leading-tight">{mission.clientLabel}</span>
+        <span className={cn("mt-[0.2em] block truncate text-[1.05em]", now ? "text-[var(--board-on-primary-container)]/85" : "text-[var(--board-text-dim)]")}>{meta}</span>
+      </span>
+      <span className="shrink-0 text-right">
+        {(now || next) && (
+          <span className={cn("mb-[0.25em] flex items-center justify-end gap-[0.45em] text-[0.78em] font-bold uppercase tracking-[0.18em]", now ? "text-[var(--board-on-primary-container)]" : "text-[var(--board-accent)]")}>
+            {now && <span aria-hidden="true" className="board-pulse h-[0.6em] w-[0.6em] rounded-full bg-[var(--board-running)]" />}
+            {now ? "Sekarang" : "Berikutnya"}
+          </span>
+        )}
+        <span className={cn("flex items-center justify-end gap-[0.5em] text-[1.05em]", now ? "text-[var(--board-on-primary-container)]/85" : "text-[var(--board-text-dim)]")}>
+          <span aria-hidden="true" className={cn("h-[0.55em] w-[0.55em] rounded-full", EDGE[mission.status] ?? "bg-[var(--board-text-dim)]")} />
+          {statusLabel(mission.status)}
         </span>
       </span>
-      <span className={cn("flex shrink-0 items-center gap-2 text-sm", now ? "text-[var(--board-on-primary-container)]" : "text-[var(--board-text-dim)]")}>
-        <span aria-hidden="true" className={cn("h-2.5 w-2.5 rounded-full", now ? "bg-[var(--board-running)]" : STATUS_DOT[mission.status] ?? "bg-[var(--board-text-dim)]")} />
-        {now ? "Sekarang" : statusLabel(mission.status)}
-      </span>
-    </div>
+    </li>
   )
 }
 
-function DayHeader({ label, isToday, count }: { label: string; isToday: boolean; count: number }) {
+function DayHeading({ label, isToday, count }: { label: string; isToday: boolean; count: number }) {
   return (
-    <div className={cn("flex h-full items-center justify-between px-6 text-sm font-semibold", isToday ? "bg-[var(--board-surface-2)] text-[var(--board-accent)]" : "text-[var(--board-text-dim)]")}>
-      <span>{label}{isToday && " · Hari ini"}</span>
-      <span className="font-normal">{count > 0 ? `${count} kunjungan` : "Kosong"}</span>
-    </div>
+    <li className="flex items-baseline justify-between gap-[1em] px-[1.2em] pb-[0.35em] pt-[1em] first:pt-[0.4em]">
+      <span className={cn("text-[1.05em] font-bold uppercase tracking-[0.14em]", isToday ? "text-[var(--board-accent)]" : "text-[var(--board-text-dim)]")}>
+        {isToday ? `Hari ini · ${label}` : label}
+      </span>
+      <span className="text-[0.95em] text-[var(--board-text-dim)]">{count > 0 ? `${count} kunjungan` : "Tidak ada kunjungan"}</span>
+    </li>
+  )
+}
+
+function TeamRow({ member }: { member: BoardTeamMember }) {
+  return (
+    <li className="flex items-center gap-[0.8em] border-b border-[var(--board-line)] py-[0.65em] last:border-0">
+      <span className={cn("grid h-[2.4em] w-[2.4em] shrink-0 place-items-center rounded-full text-[0.9em] font-bold", avatarTone(member.name))}>{initials(member.name)}</span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-[1.2em] font-semibold leading-tight">{member.name}</span>
+        <span className="mt-[0.15em] block truncate text-[0.95em] text-[var(--board-text-dim)]">
+          {member.next ? (
+            <>
+              {member.next.day && `${member.next.day} `}
+              <span className="font-mono font-bold tabular-nums text-[var(--board-text)]">{member.next.time}</span>
+              {" · "}
+              {member.next.client}
+            </>
+          ) : (
+            "Tidak ada jadwal lagi"
+          )}
+        </span>
+      </span>
+      <span className="shrink-0 rounded-full bg-[var(--board-surface-2)] px-[0.6em] py-[0.15em] font-mono text-[0.85em] tabular-nums text-[var(--board-text-dim)]">{member.missionCount}</span>
+    </li>
   )
 }
 
 function Panel({ title, meta, children }: { title: string; meta: string; children: React.ReactNode }) {
   return (
-    <div className="flex min-h-0 flex-col overflow-hidden rounded-3xl bg-[var(--board-surface-1)]">
-      <h2 className="flex shrink-0 items-center justify-between px-6 py-4 text-xl font-semibold [@media(max-height:820px)]:py-3">
+    <section className="flex min-h-0 flex-col overflow-hidden rounded-[1.2em] bg-[var(--board-surface-1)]">
+      <h2 className="flex shrink-0 items-baseline justify-between gap-[1em] px-[1.2em] pb-[0.5em] pt-[0.9em] text-[1.25em] font-bold">
         {title}
-        <span className="text-sm font-normal text-[var(--board-text-dim)]">{meta}</span>
+        <span className="text-[0.75em] font-normal text-[var(--board-text-dim)]">{meta}</span>
       </h2>
       <div className="min-h-0 flex-1">{children}</div>
+    </section>
+  )
+}
+
+function Quiet({ title, hint }: { title: string; hint: string }) {
+  return (
+    <div className="flex h-full flex-col items-center justify-center px-[2em] pb-[2em] text-center">
+      <p className="text-[1.4em] font-semibold text-[var(--board-text-dim)]">{title}</p>
+      <p className="mt-[0.3em] max-w-[24em] text-[0.95em] text-[var(--board-text-dim)]/80">{hint}</p>
     </div>
   )
 }
 
-export function BoardView({ snapshot, subtitle, now, panels }: { snapshot: BoardSnapshot; subtitle: string; now: Date; panels: BoardPanel[] }) {
+export function BoardView({
+  snapshot,
+  now,
+  panels,
+  preview,
+  masked,
+  screenLabel,
+}: {
+  snapshot: BoardSnapshot
+  now: Date
+  panels: BoardPanel[]
+  /** A signed-in admin looking, not a screen on a wall: say so, and say what is masked. */
+  preview: boolean
+  masked: boolean
+  /** The screen's name as the admin labelled its link, if any. */
+  screenLabel: string | null
+}) {
   const dateLabel = new Intl.DateTimeFormat("id-ID", { timeZone: MISSION_TIME_ZONE, weekday: "long", day: "numeric", month: "long", year: "numeric" }).format(now)
   const clock = new Intl.DateTimeFormat("id-ID", { timeZone: MISSION_TIME_ZONE, hour: "2-digit", minute: "2-digit" }).format(now)
   const show = (panel: BoardPanel) => panels.includes(panel)
   const week = snapshot.range === "week"
   const nowMinute = minuteOfDay(now)
 
-  const stateOf = (mission: BoardMission): "past" | "now" | "later" => {
+  const stateOf = (mission: BoardMission): VisitState => {
     if (mission.day < snapshot.today) return "past"
     if (mission.day > snapshot.today) return "later"
     if (mission.startMinute <= nowMinute && nowMinute < mission.endMinute) return "now"
     return mission.endMinute <= nowMinute ? "past" : "later"
   }
-  const live = (mission: BoardMission) => mission.status !== "COMPLETED" && mission.status !== "CANCELLED" && mission.status !== "REJECTED"
-  const ongoing = snapshot.missions.find((mission) => stateOf(mission) === "now" && live(mission))
-  const upcoming = snapshot.missions.find((mission) => stateOf(mission) === "later" && live(mission))
-  const hero = ongoing ?? upcoming
-  const todayCount = snapshot.days.find((day) => day.isToday)?.missions.length ?? 0
+  // The one row the room should look at: the visit happening now, else the
+  // next one to start. Marked where it sits, not lifted out of the list.
+  const ongoing = snapshot.missions.find((mission) => stateOf(mission) === "now" && !isOver(mission))
+  const upcoming = ongoing ? null : snapshot.missions.find((mission) => stateOf(mission) === "later" && !isOver(mission))
+  const highlightFor = (mission: BoardMission): "now" | "next" | null =>
+    mission.id === ongoing?.id ? "now" : mission.id === upcoming?.id ? "next" : null
 
-  // Today: the visits in order, the ones already over dimmed at the top.
-  const dayItems: FitItem[] = snapshot.missions.map((mission) => ({ key: mission.id, height: ROW, node: <Row mission={mission} state={stateOf(mission)} /> }))
-
-  // Week: an agenda from today onward, a subheader per day.
-  const weekItems: FitItem[] = snapshot.days
-    .filter((day) => day.date >= snapshot.today)
-    .flatMap((day) => [
-      { key: `day-${day.date}`, height: SUBHEADER, node: <DayHeader label={day.label} isToday={day.isToday} count={day.missions.length} /> },
-      ...day.missions.map((mission) => ({ key: mission.id, height: ROW, node: <Row mission={mission} state={stateOf(mission)} /> })),
-    ])
-
-  const teamItems: FitItem[] = snapshot.team.map((member) => ({
-    key: member.name,
-    height: TEAM_ROW,
-    node: (
-      <div className="flex h-full items-center gap-4 border-b border-[var(--board-line)] px-6">
-        <span className={cn("grid h-11 w-11 shrink-0 place-items-center rounded-full text-sm font-bold", avatarTone(member.name))}>{initials(member.name)}</span>
-        <span className="min-w-0 flex-1">
-          <span className="block truncate text-lg font-semibold leading-tight">{member.name}</span>
-          <span className="block truncate text-sm text-[var(--board-text-dim)]">
-            {member.next ? `Berikutnya ${member.next}` : "Semua kunjungan selesai"}
-          </span>
-        </span>
-        <span className="shrink-0 rounded-full bg-[var(--board-surface-2)] px-3 py-1 font-mono text-sm tabular-nums text-[var(--board-text-dim)]">{member.missionCount}</span>
-      </div>
-    ),
-  }))
+  // The agenda: today onward. On the week board yesterday is history and the
+  // wall has no room for it.
+  const days = snapshot.days.filter((day) => day.date >= snapshot.today)
+  const visits = days.reduce((sum, day) => sum + day.missions.length, 0)
+  const peopleOut = snapshot.team.length
+  const summary = [
+    `${visits} kunjungan ${week ? "minggu ini" : "hari ini"}`,
+    peopleOut > 0 ? `${peopleOut} orang di lapangan` : null,
+    snapshot.counts.completed > 0 ? `${snapshot.counts.completed} selesai` : null,
+  ].filter(Boolean).join(" · ")
 
   return (
-    <div className="grid h-dvh grid-rows-[auto_auto_auto_minmax(0,1fr)] gap-5 overflow-hidden bg-[var(--board-bg)] px-10 py-7 text-[var(--board-text)] [@media(max-height:820px)]:gap-4 [@media(max-height:820px)]:px-8 [@media(max-height:820px)]:py-5">
-      <header className="flex items-end justify-between gap-6">
-        <div>
-          <p className="text-xs font-bold uppercase tracking-[0.2em] text-[var(--board-accent)]">Sales Activity</p>
-          <h1 className="mt-1 text-3xl font-bold tracking-tight [@media(max-height:820px)]:text-2xl">{week ? "Minggu ini di lapangan" : "Hari ini di lapangan"}</h1>
-          <p className="mt-0.5 text-base text-[var(--board-text-dim)]">{subtitle}</p>
+    <div
+      className="grid h-dvh grid-rows-[auto_minmax(0,1fr)] gap-[1.1em] overflow-hidden bg-[var(--board-bg)] px-[2.2em] pb-[1.6em] pt-[1.3em] text-[var(--board-text)]"
+      style={{ fontSize: "clamp(15px, 1.05vw, 44px)", colorScheme: "dark" }}
+    >
+      {/* The document behind the board is light; a minute reload must not flash white. */}
+      <style>{`html, body { background: var(--board-bg, #0d1117); }`}</style>
+
+      <header className="flex items-end justify-between gap-[1.5em]">
+        <div className="min-w-0">
+          <p className="text-[0.7em] font-bold uppercase tracking-[0.22em] text-[var(--board-accent)]">
+            Sales Activity{screenLabel ? ` · ${screenLabel}` : ""}
+          </p>
+          <h1 className="mt-[0.2em] text-[1.6em] font-extrabold leading-none tracking-tight">{week ? "Minggu ini di lapangan" : "Hari ini di lapangan"}</h1>
+          {show("counts") && <p className="mt-[0.45em] text-[0.95em] text-[var(--board-text-dim)]">{summary}</p>}
         </div>
-        <div className="text-right">
-          <p className="text-lg text-[var(--board-text-dim)]">{dateLabel}</p>
-          <p className="text-5xl font-bold tabular-nums leading-none [@media(max-height:820px)]:text-4xl">{clock}</p>
+        <div className="flex shrink-0 items-end gap-[1.2em]">
+          {preview && (
+            <span className="rounded-full border border-[var(--board-line)] px-[0.8em] py-[0.3em] text-[0.68em] font-semibold uppercase tracking-[0.16em] text-[var(--board-text-dim)]">
+              Pratinjau · nama klien {masked ? "disamarkan" : "ditampilkan"}
+            </span>
+          )}
+          <div className="text-right">
+            <p className="text-[0.95em] text-[var(--board-text-dim)]">{dateLabel}</p>
+            <BoardClock initial={clock} className="mt-[0.1em] text-[1.4em] font-bold tabular-nums leading-none" />
+          </div>
         </div>
       </header>
 
-      {/* The one tinted surface. Nothing else on the screen competes with it. */}
-      <section className="rounded-3xl bg-[var(--board-primary-container)] px-7 py-5 text-[var(--board-on-primary-container)] [@media(max-height:820px)]:py-4">
-        {hero ? (
-          <div className="flex items-center gap-8">
-            <div className="shrink-0">
-              <p className="flex items-center gap-2 text-sm font-semibold uppercase tracking-widest opacity-80">
-                {ongoing && <span aria-hidden="true" className="board-pulse h-2.5 w-2.5 rounded-full bg-[var(--board-running)]" />}
-                {ongoing ? "Sedang berlangsung" : "Berikutnya"}
-              </p>
-              <p className="mt-1 font-mono text-5xl font-bold tabular-nums leading-none [@media(max-height:820px)]:text-4xl">{hero.time}</p>
-              {week && hero.day !== snapshot.today && (
-                <p className="mt-1 text-base opacity-80">{snapshot.days.find((day) => day.date === hero.day)?.label}</p>
-              )}
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-3xl font-bold [@media(max-height:820px)]:text-2xl">{hero.clientLabel}</p>
-              <p className="mt-1.5 flex flex-wrap items-center gap-x-6 gap-y-1 text-lg opacity-90">
-                {hero.primarySalesName && (
-                  <span className="inline-flex items-center gap-2">
-                    <Users className="h-5 w-5" />
-                    {hero.primarySalesName}
-                    {hero.supportingSalesNames.length > 0 && ` +${hero.supportingSalesNames.length}`}
-                  </span>
-                )}
-                {hero.location && <span className="inline-flex items-center gap-2"><MapPin className="h-5 w-5" />{hero.location}</span>}
-                <span className="inline-flex items-center gap-2"><CalendarCheck className="h-5 w-5" />{hero.missionType}</span>
-              </p>
-            </div>
-          </div>
-        ) : (
-          <div className="flex items-center gap-5">
-            <span className="grid h-14 w-14 shrink-0 place-items-center rounded-full bg-white/10">
-              <CalendarDays className="h-7 w-7" />
-            </span>
-            <div>
-              <p className="text-2xl font-bold">
-                {todayCount > 0 ? "Semua kunjungan hari ini selesai" : week ? "Tidak ada kunjungan tersisa minggu ini" : "Tidak ada kunjungan hari ini"}
-              </p>
-              <p className="mt-0.5 text-base opacity-80">
-                {todayCount > 0 ? `${todayCount} kunjungan dijalani hari ini.` : "Kunjungan yang dijadwalkan akan tampil di sini begitu ada."}
-              </p>
-            </div>
-          </div>
-        )}
-      </section>
-
-      {show("counts") ? (
-        <section className="grid grid-cols-4 gap-4">
-          <Stat label={week ? "Kunjungan minggu ini" : "Kunjungan hari ini"} value={snapshot.counts.todayTotal} icon={CalendarCheck} tone="bg-[var(--board-active-surface)] text-[var(--board-active)]" />
-          <Stat label="Diterima" value={snapshot.counts.accepted} icon={CheckCircle2} tone="bg-[var(--board-active-surface)] text-[var(--board-active)]" />
-          <Stat label="Selesai" value={snapshot.counts.completed} icon={CheckCircle2} tone="bg-[var(--board-done-surface)] text-[var(--board-done)]" />
-          <Stat label="Aktivitas berjalan" value={snapshot.counts.openMissions} icon={MapPin} tone="bg-[var(--board-running-surface)] text-[var(--board-running)]" />
-        </section>
-      ) : (
-        <div />
-      )}
-
-      <section className={cn("grid min-h-0 gap-5", show("schedule") && show("team") ? "grid-cols-[minmax(0,2fr)_minmax(0,1fr)]" : "grid-cols-1")}>
+      <div className={cn("grid min-h-0 gap-[1.1em]", show("schedule") && show("team") ? "grid-cols-[minmax(0,1fr)_minmax(0,0.34fr)]" : "grid-cols-1")}>
         {show("schedule") && (
-          <Panel title={week ? "Jadwal minggu ini" : "Jadwal hari ini"} meta={`${snapshot.missions.length} kunjungan`}>
-            {snapshot.missions.length === 0 ? (
-              <Empty
-                icon={CalendarDays}
+          <Panel title={week ? "Jadwal minggu ini" : "Jadwal hari ini"} meta={`${visits} kunjungan`}>
+            {visits === 0 ? (
+              <Quiet
                 title={week ? "Tidak ada kunjungan minggu ini" : "Tidak ada kunjungan hari ini"}
-                hint="Jadwal yang dibuat akan tampil di sini, urut jam."
+                hint="Kunjungan yang dijadwalkan tampil di sini, urut jam."
               />
             ) : (
-              <FitList id={`schedule-${snapshot.range}`} items={week ? weekItems : dayItems} />
+              <AutoScroll id={`schedule-${snapshot.range}`}>
+                <ul className="space-y-[0.2em] px-[0.6em] pb-[0.8em]">
+                  {week
+                    ? days.flatMap((day) => [
+                        <DayHeading key={`day-${day.date}`} label={day.label} isToday={day.isToday} count={day.missions.length} />,
+                        ...day.missions.map((mission) => <VisitRow key={mission.id} mission={mission} state={stateOf(mission)} highlight={highlightFor(mission)} />),
+                      ])
+                    : snapshot.missions.map((mission) => <VisitRow key={mission.id} mission={mission} state={stateOf(mission)} highlight={highlightFor(mission)} />)}
+                </ul>
+              </AutoScroll>
             )}
           </Panel>
         )}
@@ -269,13 +251,17 @@ export function BoardView({ snapshot, subtitle, now, panels }: { snapshot: Board
         {show("team") && (
           <Panel title="Tim di lapangan" meta={`${snapshot.team.length} orang`}>
             {snapshot.team.length > 0 ? (
-              <FitList id="team" items={teamItems} />
+              <AutoScroll id="team">
+                <ul className="px-[1.2em] pb-[0.8em]">
+                  {snapshot.team.map((member) => <TeamRow key={member.name} member={member} />)}
+                </ul>
+              </AutoScroll>
             ) : (
-              <Empty icon={Users} title={week ? "Belum ada yang bertugas minggu ini" : "Belum ada yang bertugas hari ini"} hint="Setiap sales dengan kunjungan muncul di sini beserta tujuan berikutnya." />
+              <Quiet title={week ? "Belum ada yang bertugas minggu ini" : "Belum ada yang bertugas hari ini"} hint="Setiap sales dengan kunjungan tampil di sini beserta tujuan berikutnya." />
             )}
           </Panel>
         )}
-      </section>
+      </div>
     </div>
   )
 }

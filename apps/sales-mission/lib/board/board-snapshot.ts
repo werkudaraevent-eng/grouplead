@@ -41,11 +41,26 @@ export interface BoardDay {
   missions: BoardMission[]
 }
 
+/** A person's next visit at or after `now`, in parts so a wall can size them differently. */
+export interface BoardTeamNext {
+  /** The day label ("Kam 17 Sep") on a week board when it is not today; null for today. */
+  day: string | null
+  time: string
+  client: string
+  isToday: boolean
+}
+
 export interface BoardTeamMember {
   name: string
   missionCount: number
-  /** The member's next visit at or after `now`, "10.30 · PT A•••", or null once the day is done. */
-  next: string | null
+  /** The member's next visit at or after `now`, or null once their day (or week) is done. */
+  next: BoardTeamNext | null
+}
+
+/** One line for the next visit: "Kam 17 Sep 10.30 · PT A•••" or "10.30 · PT A•••". */
+export function formatTeamNext(next: BoardTeamNext | null): string | null {
+  if (!next) return null
+  return `${next.day ? `${next.day} ` : ""}${next.time} · ${next.client}`
 }
 
 export interface BoardSnapshot {
@@ -226,7 +241,7 @@ export function buildBoardSnapshot(
   // that has not started yet, so the panel reads as where everyone is headed.
   const nowMinute = minuteOfDay(now)
   const counts = new Map<string, number>()
-  const next = new Map<string, string>()
+  const next = new Map<string, BoardTeamNext>()
   for (const mission of boardMissions) {
     const people = [mission.primarySalesName, ...mission.supportingSalesNames].filter(
       (name): name is string => Boolean(name)
@@ -235,7 +250,12 @@ export function buildBoardSnapshot(
     for (const name of new Set(people)) {
       counts.set(name, (counts.get(name) ?? 0) + 1)
       if (upcoming && !next.has(name) && mission.time) {
-        next.set(name, `${range === "week" && mission.day !== today ? `${dayLabel(mission.day)} ` : ""}${mission.time} · ${mission.clientLabel}`)
+        next.set(name, {
+          day: range === "week" && mission.day !== today ? dayLabel(mission.day) : null,
+          time: mission.time,
+          client: mission.clientLabel,
+          isToday: mission.day === today,
+        })
       }
     }
   }
