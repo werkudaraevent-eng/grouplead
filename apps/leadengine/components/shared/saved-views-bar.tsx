@@ -14,7 +14,8 @@
  */
 
 import * as React from "react"
-import { MoreHorizontal, Plus, Save, Pencil, Trash2, Star } from "@/components/icons"
+import { Check, MoreHorizontal, Save, Pencil, Trash2, Star } from "@/components/icons"
+import { ToolbarIconButton } from "./list-toolbar"
 import { Button } from "@/components/ui/button"
 import {
     DropdownMenu,
@@ -73,9 +74,16 @@ export function SavedViewsBar({
 
     const activeView = views.find(v => v.id === activeViewId) ?? null
 
+    // No views, no bar: a lone "+" above a rule was the whole feature's
+    // footprint for most people. Saving the first view lives on the
+    // toolbar (SaveViewButton); the bar appears once there is something
+    // to switch between.
+    if (views.length === 0) return null
+
     return (
-        <div className={cn("flex items-center justify-between gap-3 border-b border-border", className)}>
-            <div className="flex items-center gap-1 overflow-x-auto no-scrollbar">
+        <div className={cn("flex items-center justify-between gap-3", className)}>
+            {/* M3 choice chips: one selected, all visible, scrolling sideways when long. */}
+            <div className="no-scrollbar flex items-center gap-2 overflow-x-auto" role="group" aria-label="Saved views">
                 {views.map((v) => {
                     const isActive = v.id === activeViewId
                     return (
@@ -83,27 +91,20 @@ export function SavedViewsBar({
                             key={v.id}
                             type="button"
                             onClick={() => onSelectView(v.id)}
+                            aria-pressed={isActive}
                             className={cn(
-                                "relative inline-flex items-center gap-1.5 px-3 py-2 text-[13px] font-medium transition-colors whitespace-nowrap",
+                                "inline-flex h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-3 text-xs font-medium transition-colors",
                                 isActive
-                                    ? "text-foreground border-b-2 border-primary -mb-px"
-                                    : "text-muted-foreground hover:text-foreground border-b-2 border-transparent",
+                                    ? "border-transparent bg-primary/12 text-primary"
+                                    : "border-border bg-card text-foreground hover:bg-muted",
                             )}
                         >
-                            {v.is_default && <Star className="h-3 w-3 fill-current text-amber-500" />}
+                            {isActive && <Check className="h-3.5 w-3.5" />}
+                            {v.is_default && !isActive && <Star className="h-3 w-3 fill-current text-accent" />}
                             <span>{v.name}</span>
                         </button>
                     )
                 })}
-                <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => { setSaveAsName(""); setSaveAsOpen(true) }}
-                    className="h-8 px-2 text-muted-foreground hover:text-foreground"
-                    aria-label="Create view"
-                >
-                    <Plus className="h-3.5 w-3.5" />
-                </Button>
             </div>
 
             {activeView && (
@@ -190,6 +191,37 @@ export function SavedViewsBar({
                 action="Rename"
             />
         </div>
+    )
+}
+
+/**
+ * "Save view" on the toolbar: names the current search, filters, sort and
+ * columns as a view. This is where a person's first view is made.
+ */
+export function SaveViewButton({ onSaveAs }: { onSaveAs: (name: string) => Promise<void> | void }) {
+    const [open, setOpen] = React.useState(false)
+    const [name, setName] = React.useState("")
+    return (
+        <>
+            <ToolbarIconButton label="Save this view" onClick={() => { setName(""); setOpen(true) }}>
+                <Save className="h-5 w-5" />
+            </ToolbarIconButton>
+            <SaveAsDialog
+                open={open}
+                onOpenChange={setOpen}
+                value={name}
+                onChange={setName}
+                onSubmit={async () => {
+                    const trimmed = name.trim()
+                    if (!trimmed) return
+                    await onSaveAs(trimmed)
+                    setOpen(false)
+                }}
+                title="Save view"
+                description="Give this view a name. You'll be able to switch to it later."
+                action="Save"
+            />
+        </>
     )
 }
 

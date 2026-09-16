@@ -33,7 +33,7 @@ interface PaginationProps {
  *   total=18, current=7  → [1, "…", 6, 7, 8, "…", 18]
  *   total=18, current=18 → [1, "…", 16, 17, 18]
  */
-function buildRange(current: number, total: number): (number | "ellipsis")[] {
+export function buildRange(current: number, total: number): (number | "ellipsis")[] {
     if (total <= 7) {
         return Array.from({ length: total }, (_, i) => i + 1)
     }

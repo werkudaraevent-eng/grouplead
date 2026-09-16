@@ -1,25 +1,25 @@
 export default function ContactsLoading() {
     return (
-        <div className="py-6 flex flex-col">
-            <div className="mb-6 px-4 sm:px-6 lg:px-8 space-y-1">
-                <div className="h-7 w-48 bg-muted animate-pulse rounded-md" />
-                <div className="h-4 w-64 bg-muted animate-pulse rounded-md" />
+        <div className="flex flex-col py-6">
+            <div className="mb-4 space-y-2 px-4 sm:px-6 lg:px-8">
+                <div className="h-7 w-48 animate-pulse rounded-md bg-muted" />
+                <div className="h-4 w-64 animate-pulse rounded-md bg-muted" />
             </div>
-            <div className="flex items-center justify-between px-4 sm:px-6 lg:px-8 pb-4 border-b border-border">
-                <div className="flex gap-3">
-                    <div className="h-9 w-[280px] bg-muted animate-pulse rounded-lg" />
-                    <div className="h-9 w-[220px] bg-muted animate-pulse rounded-lg" />
+            <div className="flex h-10 items-center gap-3 border-b border-border px-4 pb-4 sm:px-6 lg:px-8" style={{ height: 56 }}>
+                <div className="h-10 w-[22rem] animate-pulse rounded-full bg-muted" />
+                <div className="h-8 w-28 animate-pulse rounded-full bg-muted" />
+                <div className="h-8 w-24 animate-pulse rounded-full bg-muted" />
+                <div className="h-8 w-32 animate-pulse rounded-full bg-muted" />
+                <div className="ml-auto flex gap-1">
+                    <div className="h-10 w-10 animate-pulse rounded-full bg-muted" />
+                    <div className="h-10 w-10 animate-pulse rounded-full bg-muted" />
+                    <div className="h-10 w-10 animate-pulse rounded-full bg-muted" />
                 </div>
-                <div className="flex gap-2">
-                    <div className="h-9 w-24 bg-muted animate-pulse rounded-lg" />
-                    <div className="h-9 w-28 bg-muted animate-pulse rounded-lg" />
-                </div>
             </div>
-            <div className="space-y-0">
-                {Array.from({ length: 8 }).map((_, i) => (
-                    <div key={i} className="h-[48px] bg-card border-b border-border animate-pulse" />
-                ))}
-            </div>
+            <div className="h-11 border-b border-border bg-sidebar" />
+            {Array.from({ length: 8 }).map((_, i) => (
+                <div key={i} className="h-13 animate-pulse border-b border-border/70 bg-card" />
+            ))}
         </div>
     )
 }

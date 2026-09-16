@@ -16,7 +16,7 @@
  */
 
 import * as React from "react"
-import { ChevronDown, Plus, X, Filter } from "@/components/icons"
+import { Check, ChevronDown, Plus, X, Filter } from "@/components/icons"
 import { Button } from "@/components/ui/button"
 import {
     Popover,
@@ -49,12 +49,18 @@ interface FilterBuilderProps {
     value: FilterValue[]
     onChange: (filters: FilterValue[]) => void
     className?: string
+    /**
+     * `wrap` lets the chips take as many rows as they need. `rail` keeps
+     * them on one row that scrolls sideways when there is no room, so a
+     * toolbar stays one row tall and the table below never moves.
+     */
+    layout?: "wrap" | "rail"
 }
 
 const resolveOptions = (def: FilterDefinition): FilterOption[] =>
     typeof def.options === "function" ? def.options() : def.options ?? []
 
-export function FilterBuilder({ definitions, value, onChange, className }: FilterBuilderProps) {
+export function FilterBuilder({ definitions, value, onChange, className, layout = "wrap" }: FilterBuilderProps) {
     const filtersByField = React.useMemo(() => {
         const m = new Map<string, FilterValue>()
         for (const f of value) m.set(f.field, f)
@@ -80,7 +86,15 @@ export function FilterBuilder({ definitions, value, onChange, className }: Filte
     }
 
     return (
-        <div className={cn("flex flex-wrap items-center gap-2", className)}>
+        <div
+            className={cn(
+                "flex items-center gap-2",
+                layout === "rail"
+                    ? "no-scrollbar flex-nowrap overflow-x-auto [mask-image:linear-gradient(to_right,black_calc(100%-1.5rem),transparent)] pr-6"
+                    : "flex-wrap",
+                className
+            )}
+        >
             {/* Pinned filters — always shown */}
             {pinned.map((def) => {
                 const active = filtersByField.get(def.field)
@@ -124,7 +138,7 @@ export function FilterBuilder({ definitions, value, onChange, className }: Filte
                 <button
                     type="button"
                     onClick={() => onChange([])}
-                    className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                    className="h-8 shrink-0 whitespace-nowrap rounded-full px-2.5 text-xs font-medium text-primary transition-colors hover:bg-primary/8"
                 >
                     Clear all
                 </button>
@@ -164,14 +178,16 @@ function FilterPill({ def, active, onApply, onClear }: FilterPillProps) {
             <PopoverTrigger asChild>
                 <button
                     type="button"
+                    aria-pressed={isActive}
                     className={cn(
-                        "inline-flex items-center gap-1.5 h-8 px-2.5 rounded-full text-xs font-medium transition-all",
+                        // M3 filter chip: 32dp pill; tonal when it narrows the list, outlined when it does not.
+                        "inline-flex h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3 text-xs font-medium transition-colors",
                         isActive
-                            ? "bg-primary/10 text-primary border border-primary/30 hover:bg-primary/15"
-                            : "bg-muted/60 text-muted-foreground border border-border hover:bg-muted hover:text-foreground border-dashed",
+                            ? "border border-transparent bg-primary/12 text-primary hover:bg-primary/18"
+                            : "border border-border bg-card text-foreground hover:bg-muted",
                     )}
                 >
-                    <Filter className={cn("h-3 w-3", !isActive && "opacity-60")} />
+                    {isActive && <Check className="h-3.5 w-3.5" />}
                     <span>
                         {def.label}
                         {isActive && <span className="text-foreground/70 font-normal">: </span>}
@@ -411,9 +427,9 @@ function AddFilterPicker({ definitions, excludeFields, onPick }: AddFilterPicker
                 <Button
                     variant="ghost"
                     size="sm"
-                    className="h-8 px-2.5 gap-1.5 text-xs text-muted-foreground hover:text-foreground border border-dashed border-border rounded-full"
+                    className="h-8 shrink-0 gap-1.5 whitespace-nowrap rounded-full border border-border bg-card px-3 text-xs font-medium text-foreground hover:bg-muted"
                 >
-                    <Plus className="h-3 w-3" />
+                    <Plus className="h-3.5 w-3.5" />
                     Add filter
                 </Button>
             </PopoverTrigger>

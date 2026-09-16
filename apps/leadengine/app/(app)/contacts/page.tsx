@@ -4,10 +4,8 @@ import * as React from "react"
 import { useRouter } from "next/navigation"
 import * as XLSX from "xlsx"
 import {
-    ArrowDown, ArrowUp, ArrowUpDown, Building2, Columns, Download,
-    Eye, EyeOff, Facebook, Globe, GripVertical, Instagram, Link2,
-    Linkedin, Mail, MoreHorizontal, Pencil, Phone, Plus, RotateCcw,
-    Search, Trash2, Twitter, Upload, Users, AlertTriangle,
+    Download, Facebook, Globe, Instagram, Link2,
+    Linkedin, Pencil, Plus, Trash2, Twitter, Upload, Users,
 } from "@/components/icons"
 import { toast } from "sonner"
 
@@ -15,15 +13,7 @@ import { createClient } from "@/utils/supabase/client"
 import { deleteContactsAction } from "@/app/actions/contact-actions"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuSeparator,
-    DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { Input } from "@/components/ui/input"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { DropdownMenuSeparator } from "@/components/ui/dropdown-menu"
 import {
     Select,
     SelectContent,
@@ -62,10 +52,14 @@ import {
     type FilterValue,
 } from "@/components/shared/filter-builder-types"
 import { ListPageHeader } from "@/components/shared/list-page-header"
-import { Pagination } from "@/components/shared/pagination"
-import { SavedViewsBar } from "@/components/shared/saved-views-bar"
-import { SearchableSelect } from "@/components/shared/searchable-select"
+import { SavedViewsBar, SaveViewButton } from "@/components/shared/saved-views-bar"
 import { TableSkeleton } from "@/components/shared/table-skeleton"
+import { ListToolbar, ToolbarIconButton } from "@/components/shared/list-toolbar"
+import { ColumnsMenu } from "@/components/shared/columns-menu"
+import { ListFooter } from "@/components/shared/list-footer"
+import { InitialsAvatar } from "@/components/shared/initials-avatar"
+import { NeedsDetailsBadge } from "@/components/shared/status-badge"
+import { INDEX_COL, ListEmpty, MENU_COL, RowMenu, SELECT_COL, SortableHead, frozenCell } from "@/components/shared/list-table"
 import { useListViews } from "@/hooks/use-list-views"
 import { formatPhoneDisplay } from "@/lib/phone-normalize"
 import { cn } from "@/lib/utils"
@@ -147,25 +141,6 @@ const CONTACTS_SELECT_LEGACY = "id, salutation, full_name, email, phone, job_tit
 function isMissingContactSourceColumn(error: unknown) {
     const message = String((error as { message?: unknown })?.message ?? error ?? "").toLowerCase()
     return message.includes("contact_source") && (message.includes("column") || message.includes("schema cache"))
-}
-
-function getInitials(name: string) {
-    if (!name) return "?"
-    return name.split(/\s+/).filter(Boolean).slice(0, 2).map((n) => n[0]).join("").toUpperCase()
-}
-
-function getAvatarColor(name: string) {
-    const colors = [
-        "bg-primary/10 text-primary border-primary/15",
-        "bg-emerald-50 text-emerald-700 border-emerald-100",
-        "bg-amber-50 text-amber-700 border-amber-100",
-        "bg-violet-50 text-violet-700 border-violet-100",
-        "bg-rose-50 text-rose-700 border-rose-100",
-        "bg-cyan-50 text-cyan-700 border-cyan-100",
-    ]
-    let hash = 0
-    for (let i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) | 0
-    return colors[Math.abs(hash) % colors.length]
 }
 
 export default function ContactsPage() {
@@ -459,13 +434,7 @@ export default function ContactsPage() {
             case "owner":
                 return contact.owner?.full_name ? (
                     <div className="flex items-center gap-2 min-w-0">
-                        {contact.owner.avatar_url ? (
-                            <img src={contact.owner.avatar_url} alt={contact.owner.full_name} className="w-5 h-5 rounded-full object-cover border shrink-0" />
-                        ) : (
-                            <div className={cn("w-5 h-5 rounded-full border flex items-center justify-center text-[9px] font-bold shrink-0", getAvatarColor(contact.owner.full_name))}>
-                                {getInitials(contact.owner.full_name)}
-                            </div>
-                        )}
+                        <InitialsAvatar name={contact.owner.full_name} src={contact.owner.avatar_url} size="xs" />
                         <span className="truncate">{contact.owner.full_name}</span>
                     </div>
                 ) : <span className="text-muted-foreground/60">—</span>
@@ -473,15 +442,9 @@ export default function ContactsPage() {
                 const nameDisplay = contact.salutation ? `${contact.salutation} ${contact.full_name}` : contact.full_name
                 return (
                     <div className="flex items-center gap-3 min-w-0">
-                        <div className={cn("w-6 h-6 rounded-md border flex items-center justify-center text-[10px] font-semibold shrink-0", getAvatarColor(contact.full_name))}>
-                            {getInitials(contact.full_name)}
-                        </div>
-                        <span className="font-medium text-[13px] text-foreground group-hover:text-primary transition-colors truncate">{nameDisplay}</span>
-                        {contact.needs_enrichment && (
-                            <span title="Auto-created from a lead import. Edit and save to complete it." className="inline-flex items-center gap-0.5 rounded bg-amber-50 border border-amber-200 px-1 py-0 text-[10px] font-semibold text-amber-700 shrink-0">
-                                <AlertTriangle className="w-2.5 h-2.5" />Needs details
-                            </span>
-                        )}
+                        <InitialsAvatar name={contact.full_name} size="sm" />
+                        <span className="font-medium text-foreground group-hover:text-primary transition-colors truncate">{nameDisplay}</span>
+                        {contact.needs_enrichment && <NeedsDetailsBadge />}
                     </div>
                 )
             }
@@ -536,6 +499,8 @@ export default function ContactsPage() {
     }
 
     const selectedCount = selectedIds.size
+    // Worth saving as a view once the list is no longer the default one.
+    const customised = filters.length > 0 || sortConfig !== null || searchQuery.trim() !== ""
 
     return (
         <div className="w-full h-[calc(100vh-64px)] sm:h-full flex flex-col overflow-hidden bg-background">
@@ -553,7 +518,7 @@ export default function ContactsPage() {
                 />
             </div>
 
-            <div className="shrink-0 px-4 sm:px-6 lg:px-8">
+            <div className="shrink-0 px-4 sm:px-6 lg:px-8 empty:hidden">
                 <SavedViewsBar
                     views={listViews.views.map((v) => ({ id: v.id, name: v.name, is_default: v.is_default }))}
                     activeViewId={listViews.activeViewId}
@@ -568,109 +533,55 @@ export default function ContactsPage() {
                 />
             </div>
 
-            <div className="shrink-0 px-4 sm:px-6 lg:px-8 pb-4 border-b border-border">
-                <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-3">
-                    <div className="flex flex-col sm:flex-row gap-2 min-w-0 flex-1">
-                        <div className="relative min-w-[220px] sm:max-w-[360px] flex-1">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-                            <Input
-                                placeholder="Search by name, email, phone, or company"
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                className="pl-9 h-9 bg-card border-border text-[13px] rounded-lg"
-                            />
-                        </div>
-                        <FilterBuilder definitions={filterDefinitions} value={filters} onChange={setFilters} />
-                    </div>
-
-                    <div className="flex items-center gap-2 shrink-0 justify-end">
-                        <Popover>
-                            <PopoverTrigger asChild>
-                                <Button variant="outline" size="sm" className="h-9 px-3 gap-2 bg-card text-[13px]">
-                                    <Columns className="w-4 h-4 text-muted-foreground" /> Columns <span className="text-[11px] text-muted-foreground font-normal">{activeCols.length}/{columns.length}</span>
-                                </Button>
-                            </PopoverTrigger>
-                            <PopoverContent align="end" className="w-72 p-0">
-                                <div className="px-4 py-3 border-b border-border flex items-center justify-between">
-                                    <p className="text-[14px] font-semibold text-foreground">Columns</p>
-                                    <button onClick={resetColumns} className="text-[12px] text-primary hover:text-primary/80 flex items-center gap-1 font-medium">
-                                        <RotateCcw className="h-3 w-3" /> Reset
-                                    </button>
-                                </div>
-                                <p className="px-4 pt-2 pb-1 text-[11px] text-muted-foreground">Drag to reorder · click eye to toggle</p>
-                                <div className="max-h-[360px] overflow-y-auto px-2 pb-2 flex flex-col gap-0.5 custom-scrollbar">
-                                    {columns.map((col, idx) => (
-                                        <div
-                                            key={col.id}
-                                            className="flex items-center justify-between pl-1 pr-2 py-2 hover:bg-muted rounded-md group cursor-grab active:cursor-grabbing"
-                                            draggable
-                                            onDragStart={(e) => { e.dataTransfer.setData("colIdx", idx.toString()); e.dataTransfer.effectAllowed = "move" }}
-                                            onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = "move" }}
-                                            onDrop={(e) => {
-                                                e.preventDefault()
-                                                const fromIdx = parseInt(e.dataTransfer.getData("colIdx"))
-                                                if (fromIdx === idx) return
-                                                const next = [...columns]
-                                                const [moved] = next.splice(fromIdx, 1)
-                                                next.splice(idx, 0, moved)
-                                                setColumns(next)
-                                                localStorage.setItem("contacts_cols_order", JSON.stringify(next))
-                                            }}
-                                        >
-                                            <div className="flex items-center gap-2 min-w-0">
-                                                <GripVertical className="h-4 w-4 text-muted-foreground/50 shrink-0" />
-                                                <span className={cn("text-[13px] truncate", col.visible ? "text-foreground font-medium" : "text-muted-foreground line-through")}>{col.label}</span>
-                                            </div>
-                                            <button onClick={(e) => { e.stopPropagation(); toggleColumn(col.id, !col.visible) }} className="shrink-0 p-1 rounded hover:bg-muted transition-colors">
-                                                {col.visible ? <Eye className="h-4 w-4 text-primary" /> : <EyeOff className="h-4 w-4 text-muted-foreground/60" />}
-                                            </button>
-                                        </div>
-                                    ))}
-                                </div>
-                            </PopoverContent>
-                        </Popover>
-
-                        <Button variant="outline" size="sm" onClick={() => handleExport(false)} className="h-9 px-3 gap-2 bg-card text-[13px]">
-                            <Download className="w-4 h-4 text-muted-foreground" /> Export
-                        </Button>
-
-                        <PermissionGate resource="contacts" action="create">
-                            <Button variant="outline" size="sm" onClick={() => setImportOpen(true)} className="h-9 px-3 gap-2 bg-card text-[13px]">
-                                <Upload className="w-4 h-4 text-muted-foreground" /> Import
-                            </Button>
-                        </PermissionGate>
-                    </div>
-                </div>
+            <div className="shrink-0 border-b border-border px-4 pb-4 sm:px-6 lg:px-8">
+                <ListToolbar
+                    search={{ value: searchQuery, onChange: setSearchQuery, placeholder: "Search by name, email, phone, or company", "aria-label": "Search contacts" }}
+                    filters={{ definitions: filterDefinitions, value: filters, onChange: setFilters }}
+                    actions={
+                        <>
+                            {customised && <SaveViewButton onSaveAs={listViews.saveAs} />}
+                            <ColumnsMenu columns={columns} onChange={setColumns} onReset={resetColumns} storageKey="contacts_cols_order" />
+                            <ToolbarIconButton label="Export to Excel" onClick={() => handleExport(false)}>
+                                <Download className="h-5 w-5" />
+                            </ToolbarIconButton>
+                            <PermissionGate resource="contacts" action="create">
+                                <ToolbarIconButton label="Import from Excel" onClick={() => setImportOpen(true)}>
+                                    <Upload className="h-5 w-5" />
+                                </ToolbarIconButton>
+                            </PermissionGate>
+                        </>
+                    }
+                />
             </div>
 
-            <div className="bg-card overflow-hidden flex flex-col min-h-0 flex-1 relative z-0">
-                <div className="overflow-auto flex-1 custom-scrollbar">
+            <div className="relative z-0 flex min-h-0 flex-1 flex-col overflow-hidden bg-card">
+                <div className="custom-scrollbar flex-1 overflow-auto">
                     <Table className="w-full">
                         <TableHeader>
-                            <TableRow className="border-border hover:bg-transparent">
-                                <TableHead className="h-10 px-4 min-w-[40px] max-w-[40px] w-[40px] text-center align-middle sticky left-0 bg-card z-40 shadow-[1px_0_0_0_var(--border)]">
-                                    <Checkbox checked={paginatedData.length > 0 && selectedIds.size === paginatedData.length} onCheckedChange={toggleSelectAll} aria-label="Select all current page" />
+                            <TableRow className="hover:[&_td]:bg-transparent">
+                                <TableHead className="sticky left-0 z-10 px-3 text-center" style={{ width: SELECT_COL, minWidth: SELECT_COL, maxWidth: SELECT_COL }}>
+                                    <Checkbox checked={paginatedData.length > 0 && selectedIds.size === paginatedData.length} onCheckedChange={toggleSelectAll} aria-label="Select all on this page" />
                                 </TableHead>
-                                <TableHead className="h-10 px-2 min-w-[40px] max-w-[40px] w-[40px] text-center align-middle text-[11px] font-semibold text-muted-foreground sticky left-[40px] bg-card z-40 shadow-[1px_0_0_0_var(--border)]">No.</TableHead>
+                                <TableHead className="sticky z-10 px-2 text-center" style={{ left: SELECT_COL, width: INDEX_COL, minWidth: INDEX_COL, maxWidth: INDEX_COL }}>No.</TableHead>
                                 {activeCols.map((col, index) => {
-                                    const isSticky = index < 2
-                                    const isLastSticky = index === Math.min(1, activeCols.length - 1)
-                                    const leftPos = index === 0 ? 80 : (index === 1 ? 80 + activeCols[0].width : undefined)
-                                    const stickyShadow = isLastSticky ? "inset -1px 0 0 0 var(--border), 5px 0 10px -2px rgba(0,0,0,0.08)" : "inset -1px 0 0 0 var(--border)"
-                                    const style: React.CSSProperties = isSticky ? { left: `${leftPos}px`, minWidth: col.width, maxWidth: col.width, width: col.width, boxShadow: stickyShadow } : { minWidth: col.width, maxWidth: col.width, width: col.width }
-                                    const className = cn("h-10 px-4 align-middle text-[11px] font-semibold tracking-wide text-muted-foreground", isSticky && "sticky bg-card z-40")
+                                    const frozen = frozenCell(index, activeCols)
                                     const sortKey = col.id === "company" ? "client_company" : col.id
                                     const activeSort = sortConfig?.key === sortKey
-                                    const SortIcon = activeSort ? (sortConfig.direction === "asc" ? ArrowUp : ArrowDown) : ArrowUpDown
                                     return (
-                                        <TableHead key={col.id} className={className} style={style}>
-                                            <button onClick={() => handleSort(sortKey)} className={cn("flex items-center gap-1.5 transition-colors", activeSort ? "text-foreground" : "hover:text-foreground")}>
-                                                {col.label} <SortIcon className={cn("w-3 h-3 shrink-0", activeSort ? "opacity-100 text-primary" : "opacity-35")} />
-                                            </button>
-                                        </TableHead>
+                                        <SortableHead
+                                            key={col.id}
+                                            label={col.label}
+                                            active={activeSort}
+                                            direction={activeSort ? sortConfig?.direction : undefined}
+                                            onSort={() => handleSort(sortKey)}
+                                            className={frozen.className}
+                                            style={frozen.style}
+                                        />
                                     )
                                 })}
-                                <TableHead className="h-10 px-4 align-middle min-w-[60px] max-w-[60px] w-[60px] sticky right-0 bg-card z-40 shadow-[-1px_0_0_0_var(--border)]" />
+                                <TableHead className="sticky right-0 z-10" style={{ width: MENU_COL, minWidth: MENU_COL, maxWidth: MENU_COL }}>
+                                    <span className="sr-only">Actions</span>
+                                </TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -678,49 +589,41 @@ export default function ContactsPage() {
                                 <TableSkeleton rows={10} columns={activeCols.length + 3} />
                             ) : contacts.length === 0 ? (
                                 <TableRow>
-                                    <TableCell colSpan={activeCols.length + 3} className="text-center py-20">
-                                        <EmptyState title="No contacts yet" description="Create your first contact and link them to a client company." action={<PermissionGate resource="contacts" action="create"><Button onClick={() => setAddContactOpen(true)}><Plus className="w-4 h-4 mr-2" /> Add contact</Button></PermissionGate>} />
+                                    <TableCell colSpan={activeCols.length + 3} className="h-auto">
+                                        <ListEmpty icon={Users} title="No contacts yet" description="Create your first contact and link them to a client company." action={<PermissionGate resource="contacts" action="create"><Button onClick={() => setAddContactOpen(true)}><Plus className="mr-2 h-4 w-4" /> Add contact</Button></PermissionGate>} />
                                     </TableCell>
                                 </TableRow>
                             ) : paginatedData.length === 0 ? (
                                 <TableRow>
-                                    <TableCell colSpan={activeCols.length + 3} className="text-center py-20">
-                                        <EmptyState title="No contacts match your filters" description="Try changing your search or clearing filters." action={<Button variant="outline" onClick={() => { setSearchQuery(""); setFilters([]) }}>Clear filters</Button>} />
+                                    <TableCell colSpan={activeCols.length + 3} className="h-auto">
+                                        <ListEmpty icon={Users} title="No contacts match your filters" description="Try changing your search or clearing filters." action={<Button variant="outline" onClick={() => { setSearchQuery(""); setFilters([]) }}>Clear filters</Button>} />
                                     </TableCell>
                                 </TableRow>
                             ) : (
                                 paginatedData.map((contact, idx) => {
                                     const isSelected = selectedIds.has(contact.id)
                                     return (
-                                        <TableRow key={contact.id} onClick={() => router.push(`/contacts/${contact.id}`)} className="transition-colors cursor-pointer group border-border hover:bg-muted/40">
-                                            <TableCell className={cn("px-4 py-2 text-center align-middle sticky left-0 z-20 shadow-[1px_0_0_0_var(--border)] transition-colors", isSelected ? "bg-primary/10" : "bg-card group-hover:bg-muted/40")} onClick={(e) => e.stopPropagation()}>
+                                        <TableRow key={contact.id} data-state={isSelected ? "selected" : undefined} onClick={() => router.push(`/contacts/${contact.id}`)} className="cursor-pointer">
+                                            <TableCell className="sticky left-0 z-10 px-3 text-center" onClick={(e) => e.stopPropagation()}>
                                                 <Checkbox checked={isSelected} onCheckedChange={() => toggleSelect(contact.id)} aria-label={`Select ${contact.full_name}`} />
                                             </TableCell>
-                                            <TableCell className={cn("px-2 py-2 text-center align-middle text-[12px] text-muted-foreground font-medium sticky left-[40px] z-20 shadow-[1px_0_0_0_var(--border)] transition-colors", isSelected ? "bg-primary/10" : "bg-card group-hover:bg-muted/40")}>
+                                            <TableCell className="sticky z-10 px-2 text-center text-xs text-muted-foreground tabular-nums" style={{ left: SELECT_COL }}>
                                                 {(currentPage - 1) * itemsPerPage + idx + 1}
                                             </TableCell>
                                             {activeCols.map((col, index) => {
-                                                const isSticky = index < 2
-                                                const isLastSticky = index === Math.min(1, activeCols.length - 1)
-                                                const leftPos = index === 0 ? 80 : (index === 1 ? 80 + activeCols[0].width : undefined)
-                                                const stickyShadow = isLastSticky ? "inset -1px 0 0 0 var(--border), 5px 0 10px -2px rgba(0,0,0,0.08)" : "inset -1px 0 0 0 var(--border)"
-                                                const style: React.CSSProperties = isSticky ? { left: `${leftPos}px`, minWidth: col.width, maxWidth: col.width, width: col.width, boxShadow: stickyShadow } : { minWidth: col.width, maxWidth: col.width, width: col.width }
-                                                const cellClass = cn("px-4 py-2 align-middle text-[13px] truncate", isSticky ? "sticky z-20 transition-colors" : "text-muted-foreground", isSticky && (isSelected ? "bg-primary/10" : "bg-card group-hover:bg-muted/40"))
-                                                return <TableCell key={col.id} className={cellClass} style={style} title={["notes", "address"].includes(col.id) ? (contact as any)[col.id] || "" : ""}>{renderCellContent(col.id, contact)}</TableCell>
+                                                const frozen = frozenCell(index, activeCols)
+                                                return (
+                                                    <TableCell key={col.id} className={cn("truncate", frozen.className, index >= 2 && "text-muted-foreground")} style={frozen.style} title={col.id === "notes" ? contact.notes || "" : col.id === "address" ? contact.address || "" : ""}>
+                                                        {renderCellContent(col.id, contact)}
+                                                    </TableCell>
+                                                )
                                             })}
-                                            <TableCell className={cn("px-4 py-2 align-middle text-right sticky right-0 z-20 shadow-[-1px_0_0_0_var(--border)] transition-colors", isSelected ? "bg-primary/10" : "bg-card group-hover:bg-muted/40")} onClick={(e) => e.stopPropagation()}>
-                                                <DropdownMenu>
-                                                    <DropdownMenuTrigger asChild>
-                                                        <Button variant="ghost" className="h-7 w-7 p-0 hover:bg-muted">
-                                                            <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
-                                                        </Button>
-                                                    </DropdownMenuTrigger>
-                                                    <DropdownMenuContent align="end" className="w-40">
-                                                        <PermissionMenuItem resource="contacts" action="update" onClick={() => openEditSheet(contact)}><Pencil className="w-4 h-4 mr-2" /> Edit</PermissionMenuItem>
-                                                        <DropdownMenuSeparator />
-                                                        <PermissionMenuItem resource="contacts" action="delete" className="text-destructive focus:text-destructive" onClick={() => handleDelete(contact)}><Trash2 className="w-4 h-4 mr-2" /> Delete</PermissionMenuItem>
-                                                    </DropdownMenuContent>
-                                                </DropdownMenu>
+                                            <TableCell className="sticky right-0 z-10 px-2 text-right" onClick={(e) => e.stopPropagation()}>
+                                                <RowMenu label={`Actions for ${contact.full_name}`}>
+                                                    <PermissionMenuItem resource="contacts" action="update" onClick={() => openEditSheet(contact)}><Pencil className="mr-2 h-4 w-4" /> Edit</PermissionMenuItem>
+                                                    <DropdownMenuSeparator />
+                                                    <PermissionMenuItem resource="contacts" action="delete" className="text-destructive focus:text-destructive" onClick={() => handleDelete(contact)}><Trash2 className="mr-2 h-4 w-4" /> Delete</PermissionMenuItem>
+                                                </RowMenu>
                                             </TableCell>
                                         </TableRow>
                                     )
@@ -730,25 +633,7 @@ export default function ContactsPage() {
                     </Table>
                 </div>
 
-                <div className="flex flex-col sm:flex-row items-center justify-between px-4 py-3 border-t border-border bg-card gap-3 sm:gap-0 mt-auto">
-                    <div className="text-[13px] text-muted-foreground font-medium">
-                        <span className="text-foreground font-semibold">{filteredData.length === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1}</span>–<span className="text-foreground font-semibold">{Math.min(currentPage * itemsPerPage, filteredData.length)}</span> of <span className="text-foreground font-semibold">{filteredData.length}</span>
-                    </div>
-                    <div className="flex items-center gap-4">
-                        <div className="flex items-center gap-2">
-                            <span className="text-[13px] text-muted-foreground">Rows</span>
-                            <SearchableSelect
-                                value={itemsPerPage.toString()}
-                                onChange={(val) => val && setItemsPerPage(Number(val))}
-                                options={[10, 20, 50, 100].map((n) => ({ value: String(n), label: String(n) }))}
-                                clearable={false}
-                                contentWidth="auto"
-                                className="h-8 w-[72px]"
-                            />
-                        </div>
-                        <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} size="sm" />
-                    </div>
-                </div>
+                <ListFooter total={filteredData.length} page={currentPage} perPage={itemsPerPage} onPageChange={setCurrentPage} onPerPageChange={setItemsPerPage} noun="contacts" />
             </div>
 
             <BulkActionBar count={selectedCount} onClear={() => setSelectedIds(new Set())}>
@@ -806,27 +691,6 @@ export default function ContactsPage() {
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
-        </div>
-    )
-}
-
-function EmptyState({
-    title,
-    description,
-    action,
-}: {
-    title: string
-    description: string
-    action?: React.ReactNode
-}) {
-    return (
-        <div className="flex flex-col items-center justify-center text-center max-w-sm mx-auto">
-            <div className="w-12 h-12 bg-muted rounded-full flex items-center justify-center border border-border mb-4">
-                <Users className="h-6 w-6 text-muted-foreground" />
-            </div>
-            <h3 className="text-base font-semibold text-foreground">{title}</h3>
-            <p className="text-sm text-muted-foreground mt-1">{description}</p>
-            {action && <div className="mt-5">{action}</div>}
         </div>
     )
 }
