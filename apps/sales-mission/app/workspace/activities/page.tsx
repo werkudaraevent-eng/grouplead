@@ -7,7 +7,9 @@ import { annotateReportRights } from "@/lib/missions/mission-rights"
 import { countMissions, listMissionFacets, listMissionsPage, parsePageParams } from "@/lib/missions/mission-page-queries"
 import { annotateJoinStatus } from "@/lib/missions/mission-join"
 import { isEmptyQuery, parseMissionQuery, resolveMissionFilter, serializeMissionQuery, type MissionFilter } from "@/lib/missions/mission-filter"
-import { MissionFilterChips, WorkspacePage } from "@/app/workspace/workspace-page"
+import { QuickFilterChips, WorkspacePage } from "@/app/workspace/workspace-page"
+import { RememberView } from "@/components/remember-view"
+import { rememberedView } from "@/lib/remembered-view"
 import { MissionTable } from "./mission-table"
 import { MissionFilterBar } from "./mission-filter-bar"
 import { Button } from "@/components/ui/button"
@@ -27,6 +29,9 @@ export default async function MissionsPage({
   await requireModule(access, "sales_mission_mission")
 
   const params = await searchParams
+  // A bare open of the list reopens the view this person left it in.
+  const remembered = await rememberedView("activities", params)
+  if (remembered) redirect(paths.activities(remembered))
   const now = new Date()
   const query = parseMissionQuery(params)
   const { page, size, sort } = parsePageParams(params)
@@ -87,7 +92,8 @@ export default async function MissionsPage({
       }
       primaryAction={canCreate ? { href: paths.newActivity(), label: "Aktivitas baru", hint: { key: "fab-activity", title: "Jadwalkan kunjungan", body: "Aktivitas baru: pilih klien, jadwal, lokasi, dan sales utama. Kalender tim tampil supaya jamnya tidak bentrok.", learnHref: paths.guideSection("aktivitas") } } : undefined}
     >
-      <MissionFilterChips active={filter} counts={{ all: allCount, mine: mineCount, team: teamCount }} policy={settings} />
+      <RememberView list="activities" />
+      <QuickFilterChips view={{ query, lens: filter, sort }} counts={{ all: allCount, mine: mineCount, team: teamCount }} policy={settings} defaultSort="upcoming" />
       <MissionFilterBar
         query={query}
         people={people.map((person) => ({ id: person.id, name: person.name, avatarUrl: person.avatarUrl }))}

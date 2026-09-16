@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useTransition } from "react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { Search, SlidersHorizontal, X } from "@/components/icons"
 import { FilterBarFrame } from "@/components/filter-bar-frame"
+import { rememberView } from "@/components/remember-view"
 import { FacetSelect } from "@/components/facet-select"
 import { DateFacet, type FilterPerson } from "@/app/workspace/activities/mission-filter-bar"
 import { Input } from "@/components/ui/input"
@@ -83,6 +84,7 @@ export function ReportFilterBar({
     const size = searchParams.get("size")
     if (size) params.set("size", size)
     const qs = params.toString()
+    rememberView("reports", qs)
     startTransition(() => router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false }))
   }
 

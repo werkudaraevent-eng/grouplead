@@ -10,6 +10,9 @@ import { isEmptyReportQuery, parseReportQuery, serializeReportQuery } from "@/li
 import { parseReportPageParams } from "@/lib/reporting/report-paging"
 import { listReportsPage } from "@/lib/reporting/report-list-queries"
 import { WorkspacePage } from "@/app/workspace/workspace-page"
+import { RememberView } from "@/components/remember-view"
+import { rememberedView } from "@/lib/remembered-view"
+import { paths } from "@/lib/paths"
 import { Button } from "@/components/ui/button"
 import { ReportTabs } from "./report-tabs"
 import { ReportFilterBar } from "./report-filter-bar"
@@ -41,6 +44,8 @@ export default async function ReportListPage({
     redirect(`/workspace/reports/ringkasan?${legacy.toString()}`)
   }
 
+  const remembered = await rememberedView("reports", params)
+  if (remembered) redirect(paths.reportList(remembered))
   const now = new Date()
   const query = parseReportQuery(params)
   const { page, size, sort } = parseReportPageParams(params)
@@ -66,6 +71,7 @@ export default async function ReportListPage({
       }
     >
       <ReportTabs />
+      <RememberView list="reports" />
       <ReportFilterBar query={query} choices={choices} people={people} total={total} shown={items.length} />
       <ReportTable reports={items} pagination={{ page, size, total, sort }} filtered={!isEmptyReportQuery(query)} today={missionDayKey(now)} />
     </WorkspacePage>

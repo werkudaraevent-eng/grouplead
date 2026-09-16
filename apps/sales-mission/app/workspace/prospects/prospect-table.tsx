@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react"
 import Link from "next/link"
+import { ViewLink } from "@/components/remember-view"
 import { useRouter, useSearchParams } from "next/navigation"
 import { toast } from "sonner"
 import { ArrowUpRight, CalendarCheck, Loader2, MoreVertical, Phone, Plus, Trash2, UserPlus, X } from "@/components/icons"
@@ -195,7 +196,7 @@ export function ProspectTable({
 
   if (prospects.length === 0) {
     return filtered ? (
-      <EmptyState title="Tidak ada prospek yang cocok" description="Longgarkan filter atau hapus salah satu untuk melihat lebih banyak." action={<Button asChild variant="outline" size="sm"><Link href="/workspace/prospects">Lihat semua prospek</Link></Button>} />
+      <EmptyState title="Tidak ada prospek yang cocok" description="Longgarkan filter atau hapus salah satu untuk melihat lebih banyak." action={<Button asChild variant="outline" size="sm"><ViewLink list="prospects" href={paths.prospects}>Lihat semua prospek</ViewLink></Button>} />
     ) : (
       <EmptyState
         title={canCreate ? "Mulai dari daftar calon klien" : "Belum ada prospek"}

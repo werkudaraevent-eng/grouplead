@@ -5,6 +5,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { Search, SlidersHorizontal, X } from "@/components/icons"
 import { ResponsivePopover } from "@/components/responsive-popover"
 import { FilterBarFrame } from "@/components/filter-bar-frame"
+import { rememberView } from "@/components/remember-view"
 import { FacetButton, FacetSelect } from "@/components/facet-select"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -19,6 +20,7 @@ import {
   serializeMissionQuery,
   type DatePreset,
   type MissionQuery,
+  SALES_ME,
 } from "@/lib/missions/mission-filter"
 import { STATUS_LABELS } from "@/lib/missions/status-labels"
 import type { MissionStatus } from "@/lib/missions/mission-schema"
@@ -169,6 +171,7 @@ export function MissionFilterBar({
     const lens = searchParams.get("filter")
     if (lens) params.set("filter", lens)
     const qs = params.toString()
+    rememberView("activities", qs)
     startTransition(() => router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false }))
   }
 
@@ -185,7 +188,7 @@ export function MissionFilterBar({
   }, [text])
 
   const active = countActiveFacets(query)
-  const personName = (id: string) => people.find((person) => person.id === id)?.name ?? id
+  const personName = (id: string) => (id === SALES_ME ? "Saya" : (people.find((person) => person.id === id)?.name ?? id))
 
   return (
     <FilterBarFrame

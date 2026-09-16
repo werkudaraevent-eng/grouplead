@@ -1,10 +1,10 @@
 import Link from "next/link"
-import { ArrowLeft, ClipboardList, HelpCircle, Plus } from "@/components/icons"
+import { ArrowLeft, Check, ClipboardList, HelpCircle, Plus } from "@/components/icons"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { JOIN_STATUS_LABELS, type JoinStatus } from "@/lib/missions/mission-join"
 import {
-  MISSION_FILTER_LABELS,
+  DATE_PRESET_LABELS,
   availableMissionFilters,
   type MissionFilter,
 } from "@/lib/missions/mission-filter"
@@ -13,6 +13,9 @@ import { statusLabel } from "@/lib/missions/status-labels"
 import { paths } from "@/lib/paths"
 import { PageChrome } from "@/components/page-chrome"
 import { Fab, type FabHint } from "@/components/fab"
+import { ViewLink } from "@/components/remember-view"
+import { hasMe, isPlainView, plainView, QUICK_DATES, toggleDate, toggleLens, toggleMe, viewParams, type QuickView } from "@/lib/missions/quick-filters"
+import type { MissionSort } from "@/lib/missions/mission-paging"
 
 /**
  * Shared page furniture, matching LeadEngine's list-page language: same
@@ -189,49 +192,74 @@ export function JoinStatusLine({ status }: { status: JoinStatus }) {
   )
 }
 
-export function MissionFilterChips({
-  active,
+/** Short forms of the answer lenses, for a chip beside "Hari ini". */
+const QUICK_LENS_LABELS: Record<Exclude<MissionFilter, "all">, string> = {
+  mine: "Butuh jawaban",
+  team: "Menunggu tim",
+}
+
+/**
+ * The chips above the activity list (M3 filter chips): the narrowings a
+ * person reaches for every day, one tap each, outside the Filter sheet.
+ * Every chip keeps the rest of the query, and every tap is remembered as
+ * the list's view (`ViewLink`). One row that scrolls sideways on a phone
+ * and wraps from `sm` up.
+ */
+export function QuickFilterChips({
+  view,
   counts,
   policy,
+  defaultSort,
 }: {
-  active: MissionFilter
+  view: QuickView
   counts: Record<MissionFilter, number>
   policy: ConfirmationPolicy
+  defaultSort: MissionSort
 }) {
-  const filters = availableMissionFilters(policy)
-  // One lens is no lens. With confirmation off there is nothing to narrow to.
-  if (filters.length < 2) return null
+  const lenses = availableMissionFilters(policy).filter((lens): lens is Exclude<MissionFilter, "all"> => lens !== "all")
+  const href = (next: QuickView) => paths.activities(viewParams(next, defaultSort))
+  const chips: { key: string; label: string; active: boolean; href: string; count?: number }[] = [
+    { key: "all", label: "Semua", active: isPlainView(view), href: href(plainView(view)) },
+    ...QUICK_DATES.map((preset) => ({ key: preset, label: DATE_PRESET_LABELS[preset], active: view.query.date === preset, href: href(toggleDate(view, preset)) })),
+    { key: "me", label: "Saya", active: hasMe(view.query), href: href(toggleMe(view)) },
+    ...lenses.map((lens) => ({ key: lens, label: QUICK_LENS_LABELS[lens], active: view.lens === lens, href: href(toggleLens(view, lens)), count: counts[lens] })),
+  ]
 
   return (
-    <nav aria-label="Saring aktivitas" className="mb-4 flex flex-wrap gap-x-2 gap-y-3 py-1">
-      {filters.map((filter) => {
-        const isActive = filter === active
-        return (
-          <Link
-            key={filter}
-            href={filter === "all" ? paths.activities() : paths.activities({ filter: filter })}
-            aria-current={isActive ? "page" : undefined}
-            className={cn(
-              // M3 filter chip: 32dp, 8dp corners, tonal when active. The 48dp
-              // tap target on a phone comes from the pseudo-element below.
-              "relative inline-flex h-8 items-center gap-2 rounded-lg border px-3 text-sm transition-colors after:absolute after:inset-x-0 after:-inset-y-2 after:content-['']",
-              isActive
-                ? "border-transparent bg-[var(--tonal)] font-medium text-[var(--tonal-foreground)]"
-                : "border-input bg-transparent text-foreground hover:bg-muted"
-            )}
-          >
-            {MISSION_FILTER_LABELS[filter]}
+    <nav
+      aria-label="Saringan cepat"
+      className="-mx-4 mb-4 flex gap-2 overflow-x-auto px-4 py-1 sm:mx-0 sm:flex-wrap sm:px-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+    >
+      {chips.map((chip) => (
+        <ViewLink
+          key={chip.key}
+          list="activities"
+          href={chip.href}
+          aria-pressed={chip.active}
+          className={cn(
+            // M3 filter chip: 32dp, 8dp corners, tonal with a leading check
+            // when selected. The 48dp tap target on a phone comes from the
+            // pseudo-element.
+            "relative inline-flex h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg border px-3 text-sm transition-colors after:absolute after:inset-x-0 after:-inset-y-2 after:content-['']",
+            chip.active
+              ? "border-transparent bg-[var(--tonal)] font-medium text-[var(--tonal-foreground)]"
+              : "border-input bg-transparent text-foreground hover:bg-muted"
+          )}
+        >
+          {chip.active && <Check className="h-4 w-4" aria-hidden="true" />}
+          {chip.label}
+          {chip.count !== undefined && (
             <span
               className={cn(
                 "rounded-md px-1.5 py-0.5 text-[11px] font-semibold tabular-nums",
-                isActive ? "bg-[var(--tonal-foreground)]/10" : "bg-muted text-muted-foreground"
+                chip.active ? "bg-[var(--tonal-foreground)]/10" : "bg-muted text-muted-foreground"
               )}
             >
-              {counts[filter]}
+              {chip.count}
             </span>
-          </Link>
-        )
-      })}
+          )}
+        </ViewLink>
+      ))}
     </nav>
   )
 }

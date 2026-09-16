@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react"
 import Link from "next/link"
+import { ViewLink } from "@/components/remember-view"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { ArrowUpRight, ClipboardList, Loader2, Trash2, X } from "@/components/icons"
@@ -337,7 +338,7 @@ export function MissionTable({
           }
           action={
             <Button asChild variant="outline" size="sm">
-              <Link href={paths.activities()}>Lihat semua aktivitas</Link>
+              <ViewLink list="activities" href={paths.activities()}>Lihat semua aktivitas</ViewLink>
             </Button>
           }
         />

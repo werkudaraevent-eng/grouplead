@@ -1,7 +1,7 @@
 import { createClient } from "@/utils/supabase/server"
 import type { SalesMissionAccess } from "@/lib/sales-mission-access"
 import { listMissionsByIds } from "./mission-queries"
-import { dateRangeFor, type MissionFilter, type MissionQuery } from "./mission-filter"
+import { dateRangeFor, type MissionFilter, type MissionQuery, resolveSales } from "./mission-filter"
 import type { MissionListItem } from "./mission-schema"
 import type { MissionSort } from "./mission-paging"
 
@@ -37,7 +37,8 @@ function rpcArgs(access: SalesMissionAccess, request: Omit<MissionPageRequest, "
     p_q: q || null,
     p_status: orNull(request.query.status),
     p_type: orNull(request.query.type),
-    p_sales: orNull(request.query.sales),
+    // "Saya" is resolved here, so a shared link never carries a user id.
+    p_sales: orNull(resolveSales(request.query.sales, access.userId)),
     p_creator: orNull(request.query.creator),
     p_location: orNull(request.query.location),
     p_report: orNull(request.query.report),

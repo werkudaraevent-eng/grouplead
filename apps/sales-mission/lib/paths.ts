@@ -34,6 +34,9 @@ export const paths = {
   board: "/workspace/board",
   prospects: "/workspace/prospects",
   reports: "/workspace/reports",
+  /** The prospect and report lists with a filter/sort query. */
+  prospectList: (query?: Query) => withQuery("/workspace/prospects", query),
+  reportList: (query?: Query) => withQuery("/workspace/reports", query),
   guide: "/workspace/panduan",
   guideSection: (id: "hari-ini" | "aktivitas" | "laporan" | "prospek" | "izin" | "pasang") => `/workspace/panduan#${id}`,
   install: "/workspace/pasang",

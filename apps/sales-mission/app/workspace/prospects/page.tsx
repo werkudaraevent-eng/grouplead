@@ -11,6 +11,9 @@ import { countProspects, listProspectsPage } from "@/lib/prospects/prospect-page
 import { EMPTY_PROSPECT_QUERY, isEmptyProspectQuery, parseProspectQuery } from "@/lib/prospects/prospect-filter"
 import { parseProspectPageParams } from "@/lib/prospects/prospect-paging"
 import { WorkspacePage } from "@/app/workspace/workspace-page"
+import { RememberView } from "@/components/remember-view"
+import { rememberedView } from "@/lib/remembered-view"
+import { paths } from "@/lib/paths"
 import { ProspectFilterBar } from "./prospect-filter-bar"
 import { ProspectTable } from "./prospect-table"
 import { ImportProspects } from "./import-prospects"
@@ -27,6 +30,8 @@ export default async function ProspectsPage({
   await requireModule(access, "sales_mission_prospect")
 
   const params = await searchParams
+  const remembered = await rememberedView("prospects", params)
+  if (remembered) redirect(paths.prospectList(remembered))
   const now = new Date()
   const today = new Intl.DateTimeFormat("en-CA", { timeZone: MISSION_TIME_ZONE }).format(now)
   const query = parseProspectQuery(params)
@@ -65,6 +70,7 @@ export default async function ProspectsPage({
       }
       primaryAction={canCreate ? { href: "/workspace/prospects/new", label: "Prospek baru" } : undefined}
     >
+      <RememberView list="prospects" />
       <ProspectFilterBar
         query={query}
         statuses={statuses}

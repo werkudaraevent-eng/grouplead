@@ -109,6 +109,14 @@ export const DATE_PRESET_LABELS: Record<DatePreset, string> = {
   custom: "Rentang tanggal",
 }
 
+/** "Saya" in the sales facet: a link can say it without naming the viewer. */
+export const SALES_ME = "me"
+
+/** The viewer's own id in place of "me", once, without disturbing the rest. */
+export function resolveSales(sales: string[], viewerId: string): string[] {
+  return [...new Set(sales.map((id) => (id === SALES_ME ? viewerId : id)))]
+}
+
 export interface MissionQuery {
   /** Matches company, location, objective, mission type, and contact name. */
   q: string
@@ -257,11 +265,11 @@ function normalise(value: string | null | undefined): string {
  * the same way. Facets AND together; values inside a facet OR together, which
  * is what every filter panel means by "Status: Diterima, Selesai".
  */
-export function applyMissionQuery<T extends MissionListItem>(missions: T[], query: MissionQuery, now: Date): T[] {
+export function applyMissionQuery<T extends MissionListItem>(missions: T[], query: MissionQuery, now: Date, viewerId?: string): T[] {
   const q = normalise(query.q)
   const status = new Set(query.status)
   const type = new Set(query.type.map(normalise))
-  const sales = new Set(query.sales)
+  const sales = new Set(viewerId ? resolveSales(query.sales, viewerId) : query.sales)
   const creator = new Set(query.creator)
   const report = new Set(query.report)
   const location = new Set(query.location.map(normalise))

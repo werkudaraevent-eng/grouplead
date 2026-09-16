@@ -78,6 +78,16 @@ export default async function CalendarPage({
               <h2 className="mt-1 text-base font-semibold text-foreground">{formatMonthLabel(month)}</h2>
             </div>
             <div className="flex items-center gap-1.5">
+              {/* The jump every calendar app has: back to now, whatever month
+                  the arrows reached. Hidden while today is already in view. */}
+              {!(month === today.slice(0, 7) && selectedDay === today) && (
+                <Link
+                  href={`/workspace/calendar?month=${today.slice(0, 7)}&day=${today}`}
+                  className="mr-1 inline-flex h-11 items-center rounded-md border px-3 text-sm font-medium text-foreground transition-colors hover:bg-muted md:h-8"
+                >
+                  Hari ini
+                </Link>
+              )}
               <Link
                 href={`/workspace/calendar?month=${shiftMonth(month, -1)}`}
                 aria-label="Bulan sebelumnya"

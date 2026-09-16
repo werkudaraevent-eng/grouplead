@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import { ViewLink } from "@/components/remember-view"
 import { ArrowUpRight, ClipboardList, Send } from "@/components/icons"
 import { MissionPagination } from "@/app/workspace/activities/mission-pagination"
 import { SortHeader } from "@/components/sort-header"
@@ -90,7 +91,7 @@ export function ReportTable({
       <EmptyState
         title="Belum ada laporan pada saringan ini"
         description="Longgarkan saringan, atau bersihkan semuanya."
-        action={<Button asChild variant="outline"><Link href="/workspace/reports">Bersihkan saringan</Link></Button>}
+        action={<Button asChild variant="outline"><ViewLink list="reports" href={paths.reports}>Bersihkan saringan</ViewLink></Button>}
       />
     ) : (
       <EmptyState

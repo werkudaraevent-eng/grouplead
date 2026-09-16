@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useTransition } from "react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { CalendarClock, Search, SlidersHorizontal, X } from "@/components/icons"
 import { FilterBarFrame } from "@/components/filter-bar-frame"
+import { rememberView } from "@/components/remember-view"
 import { FacetSelect } from "@/components/facet-select"
 import { Input } from "@/components/ui/input"
 import { PersonAvatar } from "@/components/person-avatar"
@@ -79,6 +80,7 @@ export function ProspectFilterBar({
     const sort = searchParams.get("sort")
     if (sort) params.set("sort", sort)
     const qs = params.toString()
+    rememberView("prospects", qs)
     startTransition(() => router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false }))
   }
 
