@@ -15,9 +15,7 @@ import {
   LogOut,
   Menu,
   MonitorPlay,
-  Moon,
   Settings,
-  Sun,
   UserSearch,
 } from "@/components/icons"
 import { BottomSheet, SheetRow } from "@/components/ui/bottom-sheet"
@@ -71,24 +69,12 @@ export function MobileNavBar({
   const { hideNav } = usePageChrome()
   const standalone = useStandalone()
   const [moreOpen, setMoreOpen] = useState(false)
-  const [isDarkPanel, setIsDarkPanel] = useState(false)
   const [loggingOut, setLoggingOut] = useState(false)
 
-  useEffect(() => {
-    setIsDarkPanel(localStorage.getItem("sidebar-panel-theme") === "dark")
-  }, [])
   useEffect(() => {
     setMoreOpen(false)
   }, [pathname])
 
-  const togglePanel = () => {
-    setIsDarkPanel((value) => {
-      const next = !value
-      localStorage.setItem("sidebar-panel-theme", next ? "dark" : "light")
-      document.documentElement.classList.toggle("sidebar-dark-mode", next)
-      return next
-    })
-  }
   const handleLogout = async () => {
     setLoggingOut(true)
     clearActiveSessionId()
@@ -181,8 +167,9 @@ export function MobileNavBar({
           {!standalone && (
             <SheetRow icon={Download} label="Pasang di ponsel" hint="Buka seperti aplikasi, dari layar utama" onClick={() => go(paths.install)} />
           )}
+          {/* No panel toggle here: it recolours the sidebar, which a phone
+              does not have. The choice still lives in the desktop sidebar. */}
           <div className="my-2 border-t" />
-          <SheetRow icon={isDarkPanel ? Sun : Moon} label={isDarkPanel ? "Ganti ke panel terang" : "Ganti ke panel gelap"} onClick={togglePanel} />
           <div className="flex min-h-14 items-center gap-4 px-4">
             <PersonAvatar name={displayName} avatarUrl={avatarUrl} size="lg" />
             <span className="min-w-0 flex-1">
