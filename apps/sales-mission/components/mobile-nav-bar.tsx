@@ -11,6 +11,7 @@ import {
   Download,
   HelpCircle,
   LayoutDashboard,
+  Sparkles,
   Loader2,
   LogOut,
   Menu,
@@ -167,6 +168,7 @@ export function MobileNavBar({
             <SheetRow icon={CalendarDays} label="Kalender saya" hint="Sinkron ke Google Calendar atau iPhone" active={isActive(pathname, paths.myCalendar)} onClick={() => go(paths.myCalendar)} />
           )}
           <SheetRow icon={HelpCircle} label="Panduan" hint="Cara kerja Sales Activity, singkat" active={isActive(pathname, paths.guide)} onClick={() => go(paths.guide)} />
+          <SheetRow icon={Sparkles} label="Yang baru" hint="Perubahan terbaru di aplikasi" active={isActive(pathname, paths.whatsNew)} onClick={() => go(paths.whatsNew)} />
           {!standalone && (
             <SheetRow icon={Download} label="Pasang di ponsel" hint="Buka seperti aplikasi, dari layar utama" onClick={() => go(paths.install)} />
           )}

@@ -18,6 +18,7 @@ import {
   MonitorPlay,
   Moon,
   MoreVertical,
+  Sparkles,
   Settings,
   Sun,
   UserSearch,
@@ -118,6 +119,7 @@ const adminNav: NavItem[] = [
   // is read a few times, not every day.
   { href: paths.myCalendar, label: "Kalender saya", icon: CalendarDays, requires: "missions" },
   { href: paths.guide, label: "Panduan", icon: HelpCircle },
+  { href: paths.whatsNew, label: "Yang baru", icon: Sparkles },
 ]
 
 const NOTIFICATIONS_HREF = "/workspace/notifications"

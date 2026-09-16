@@ -40,6 +40,7 @@ export const paths = {
   guide: "/workspace/panduan",
   guideSection: (id: "hari-ini" | "aktivitas" | "laporan" | "prospek" | "izin" | "pasang") => `/workspace/panduan#${id}`,
   install: "/workspace/pasang",
+  whatsNew: "/workspace/yang-baru",
   myCalendar: "/workspace/kalender-saya",
   /** The public iCalendar feed for one person's token. No session; the token is the credential. */
   calendarFeed: (token: string) => `/kalender/${encodeURIComponent(token)}/aktivitas.ics`,

@@ -51,6 +51,56 @@ export const CHANGE_TYPE_META: Record<
 
 export const CHANGELOG: ChangelogEntry[] = [
     {
+        date: "2026-09-16",
+        title: "Contacts and Companies, tidied",
+        items: [
+            { type: "improvement", text: "The Contacts and Companies pages have one toolbar row: a search bar, the filter chips in a row that scrolls sideways instead of wrapping, and Columns, Export and Import as icon buttons. The table no longer moves when filters are added." },
+            { type: "fix", text: "'Add filter' now opens the filter's editor instead of applying an empty filter that emptied the table, and it only offers fields that are not already on the row." },
+            { type: "improvement", text: "Tables across the app share one look: a lighter header row, taller rows, a clear hover and selection, and the row menu as a small round button at the end of each row. Saved views appear as chips only once you have saved one; the first is saved from the toolbar." },
+        ],
+    },
+    {
+        date: "2026-09-16",
+        title: "Leads from Sales Activity arrive classified",
+        items: [
+            { type: "feature", text: "A lead sent from a Sales Activity visit report now carries a Category (HQL, Hot, Warm, Cold) and a Grade lead, chosen from this app's Master Options at the moment of sending. Leads from visits used to arrive with no category." },
+            { type: "feature", text: "A company registered from a visit carries its industry (the Sector list). An existing company with no sector is filled in; one that already has a sector is never overwritten." },
+            { type: "improvement", text: "Sales Mission is now called Sales Activity. Switching between the two apps shows a short transition screen and keeps the sidebar at the width you left it." },
+        ],
+    },
+    {
+        date: "2026-09-15",
+        title: "Who may see and change what",
+        items: [
+            { type: "feature", text: "Role & Permissions gains two reaches per module: what a role can see (View scope) and what it can change (Edit scope), each set to Own, Team, or All. Team follows the Direct manager set on each user." },
+            { type: "improvement", text: "The permissions page shows roles as chips above one full-width matrix, so nothing scrolls sideways. The Users dialogs and the business-unit picker follow the same rules." },
+        ],
+    },
+    {
+        date: "2026-09-14",
+        title: "One design system across both apps",
+        items: [
+            { type: "improvement", text: "Both apps now draw Material Symbols icons and share one tonal surface ramp for pages, navigation, and cards." },
+            { type: "feature", text: "A lead pushed from a visit shows that visit on its timeline; the lead's source is a label again and the visit link has its own column." },
+            { type: "fix", text: "Sales Activity follows the business unit chosen in this app's switcher." },
+        ],
+    },
+    {
+        date: "2026-09-13",
+        title: "Every visited company is one row",
+        items: [
+            { type: "feature", text: "Every company a rep visits is registered here automatically, matched on its normalised name so 'PT X' and 'X Tbk' are one company, and flagged 'Needs details' until someone completes it. Two companies can be merged from the Companies page." },
+        ],
+    },
+    {
+        date: "2026-09-12",
+        title: "Editable choices and a security pass",
+        items: [
+            { type: "feature", text: "Admins can edit the choices on select and multi-select fields in Settings." },
+            { type: "fix", text: "The roles matrix works for roles created in the app, not only seeded ones; a goals report counted a segment overlap once per mapping entry." },
+        ],
+    },
+    {
         date: "2026-07-06",
         title: "Interactive dashboard exploration",
         items: [

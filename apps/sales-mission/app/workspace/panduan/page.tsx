@@ -181,6 +181,9 @@ export default async function GuidePage() {
             <Link href={paths.myCalendar} className="inline-flex min-h-10 items-center text-sm font-semibold text-primary hover:underline">
               Kalender saya
             </Link>
+            <Link href={paths.whatsNew} className="inline-flex min-h-10 items-center text-sm font-semibold text-primary hover:underline">
+              Yang baru di aplikasi
+            </Link>
           </div>
         </section>
 
