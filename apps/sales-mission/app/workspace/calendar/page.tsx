@@ -81,14 +81,14 @@ export default async function CalendarPage({
               <Link
                 href={`/workspace/calendar?month=${shiftMonth(month, -1)}`}
                 aria-label="Bulan sebelumnya"
-                className="grid h-8 w-8 place-items-center rounded-md border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                className="grid h-11 w-11 place-items-center rounded-md border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground md:h-8 md:w-8"
               >
                 <ChevronLeft className="h-4 w-4" />
               </Link>
               <Link
                 href={`/workspace/calendar?month=${shiftMonth(month, 1)}`}
                 aria-label="Bulan berikutnya"
-                className="grid h-8 w-8 place-items-center rounded-md border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                className="grid h-11 w-11 place-items-center rounded-md border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground md:h-8 md:w-8"
               >
                 <ChevronRight className="h-4 w-4" />
               </Link>

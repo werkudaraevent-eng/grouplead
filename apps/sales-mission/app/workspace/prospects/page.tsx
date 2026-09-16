@@ -1,6 +1,4 @@
-import Link from "next/link"
 import { redirect } from "next/navigation"
-import { Plus } from "@/components/icons"
 import { canPerform, getReadScope, getSalesMissionAccess, resolveScope } from "@/lib/sales-mission-access"
 import { describeReadScope } from "@/lib/access/record-scope"
 import { canAssignOthers, canAssignTo, toProspectViewer } from "@/lib/prospects/prospect-access"
@@ -13,7 +11,6 @@ import { countProspects, listProspectsPage } from "@/lib/prospects/prospect-page
 import { EMPTY_PROSPECT_QUERY, isEmptyProspectQuery, parseProspectQuery } from "@/lib/prospects/prospect-filter"
 import { parseProspectPageParams } from "@/lib/prospects/prospect-paging"
 import { WorkspacePage } from "@/app/workspace/workspace-page"
-import { Button } from "@/components/ui/button"
 import { ProspectFilterBar } from "./prospect-filter-bar"
 import { ProspectTable } from "./prospect-table"
 import { ImportProspects } from "./import-prospects"
@@ -64,15 +61,9 @@ export default async function ProspectsPage({
       action={
         <>
           {canCreate && <ImportProspects people={assignable} canAssignOthers={canAssignOthers(viewer)} viewerId={access.userId} />}
-          {canCreate && (
-            <Button asChild size="sm">
-              <Link href="/workspace/prospects/new">
-                <Plus className="h-4 w-4" /> Prospek baru
-              </Link>
-            </Button>
-          )}
         </>
       }
+      primaryAction={canCreate ? { href: "/workspace/prospects/new", label: "Prospek baru" } : undefined}
     >
       <ProspectFilterBar
         query={query}

@@ -1,6 +1,9 @@
 import type { NextConfig } from "next"
 
 const nextConfig: NextConfig = {
+  // Stamped into the service worker's URL, so each deploy installs a fresh
+  // worker that discards the previous build's asset cache.
+  env: { NEXT_PUBLIC_BUILD_ID: String(Date.now()) },
   // The product's URLs say "activities"; the code and the database still say
   // "missions". Old links (bookmarks, notifications, the CRM's deep links)
   // land on the new address with their query intact.

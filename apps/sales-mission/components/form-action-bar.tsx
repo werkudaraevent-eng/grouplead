@@ -2,6 +2,7 @@
 
 import { useLayoutEffect, useRef, useState } from "react"
 import { cn } from "@/lib/utils"
+import { PageChrome } from "@/components/page-chrome"
 
 /**
  * The row of buttons that ends a long form.
@@ -33,6 +34,8 @@ export function FormActionBar({ children, className }: { children: React.ReactNo
 
   return (
     <>
+      {/* The navigation bar steps aside: a form has one job and one bar. */}
+      <PageChrome hideNav />
       <div aria-hidden="true" className="sm:hidden" style={{ height }} />
       <div
         ref={ref}

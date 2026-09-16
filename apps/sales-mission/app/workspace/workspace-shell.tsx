@@ -4,6 +4,7 @@ import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
 import {
+  ArrowLeft,
   BarChart3,
   Bell,
   CalendarDays,
@@ -13,7 +14,6 @@ import {
   Loader2,
   LogOut,
   MapPinned,
-  Menu,
   MonitorPlay,
   Moon,
   Settings,
@@ -47,7 +47,8 @@ const TopLoader = dynamic(
   { ssr: false }
 )
 import { Button } from "@/components/ui/button"
-import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@/components/ui/sheet"
+import { PageChromeProvider, usePageChrome } from "@/components/page-chrome"
+import { MobileNavBar } from "@/components/mobile-nav-bar"
 import { createClient } from "@/utils/supabase/client"
 import { clearActiveSessionId } from "@/lib/session-guard"
 import { hasPreferenceCookie, writePreferenceCookie } from "@/lib/preference-cookie"
@@ -409,7 +410,6 @@ export function WorkspaceShell({
   initialCollapsed?: boolean
 }) {
   const [collapsed, setCollapsed] = useState(initialCollapsed ?? false)
-  const [mobileOpen, setMobileOpen] = useState(false)
 
   // A person from before the cookie existed still has the choice in
   // localStorage; honour it once and move it into the cookie.
@@ -434,7 +434,8 @@ export function WorkspaceShell({
   // by the browser itself (a #hash link, focus(), scrollIntoView), which slid
   // the whole shell up and left a white gap under the sidebar. Clip cannot.
   return (
-    <div className="app-shell shell-in flex h-screen overflow-clip">
+    <PageChromeProvider>
+    <div className="app-shell shell-in flex h-dvh overflow-clip">
       <TopLoader />
       <aside
         data-sidebar
@@ -443,44 +444,46 @@ export function WorkspaceShell({
         <SidebarBody displayName={displayName} avatarUrl={avatarUrl} unreadCount={unreadCount} navAccess={navAccess} companyName={companyName} collapsed={collapsed} onToggleCollapse={toggleCollapse} />
       </aside>
 
-      <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-        <SheetContent side="left" showCloseButton={false} className="w-72 border-r-0 p-0">
-          <SheetTitle className="sr-only">Menu navigasi</SheetTitle>
-          <SheetDescription className="sr-only">Navigasi utama Sales Activity untuk layar kecil.</SheetDescription>
-          <SidebarBody displayName={displayName} avatarUrl={avatarUrl} unreadCount={unreadCount} navAccess={navAccess} companyName={companyName} collapsed={false} isSheet onNavigate={() => setMobileOpen(false)} />
-        </SheetContent>
-      </Sheet>
-
       <div className="flex min-w-0 flex-1 flex-col overflow-clip">
-        <div className="flex h-14 shrink-0 items-center border-b bg-background/95 px-4 backdrop-blur lg:hidden">
-          <Button variant="ghost" size="icon" onClick={() => setMobileOpen(true)} className="mr-3 h-9 w-9" aria-label="Buka menu navigasi">
-            <Menu className="h-5 w-5" />
-          </Button>
-          <div className="flex items-center gap-2">
-            <span className="grid h-7 w-7 place-items-center rounded-md bg-primary text-primary-foreground">
-              <MapPinned className="h-3.5 w-3.5" />
-            </span>
-            <span className="text-sm font-bold">Sales Activity</span>
-          </div>
-
-          {/*
-            On a phone the sidebar is behind the hamburger, so a bell that lived
-            only in the footer would be two taps away and invisible until then.
-            It stays on the bar where an unread count can actually be seen.
-          */}
-          <Link
-            href={NOTIFICATIONS_HREF}
-            aria-label={unreadLabel(unreadCount)}
-            className="relative ml-auto grid h-11 w-11 place-items-center rounded-md text-foreground transition-colors hover:bg-muted"
-          >
-            <Bell className="h-5 w-5" />
-            <UnreadBadge unreadCount={unreadCount} />
-          </Link>
-        </div>
+        <MobileTopBar unreadCount={unreadCount} />
         <main id="main-content" className="thin-scrollbar flex-1 overflow-y-auto overflow-x-auto bg-background">
           {children}
         </main>
       </div>
+      <MobileNavBar navAccess={navAccess} unreadCount={unreadCount} displayName={displayName} avatarUrl={avatarUrl} />
+    </div>
+    </PageChromeProvider>
+  )
+}
+
+/**
+ * Material's small top app bar, for the phone: the page's title in the
+ * middle, "back" on a sub-page where the desktop shows a Kembali button,
+ * the bell on the right. The product mark stands in for "back" at a top
+ * destination. Everything else the sidebar carries is in the bottom bar.
+ */
+function MobileTopBar({ unreadCount }: { unreadCount: number }) {
+  const { title, backHref } = usePageChrome()
+  return (
+    <div className="flex min-h-14 shrink-0 items-center gap-1 border-b bg-background/95 px-2 pt-[env(safe-area-inset-top)] backdrop-blur lg:hidden">
+      {backHref ? (
+        <Link href={backHref} aria-label="Kembali" className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-foreground transition-colors hover:bg-muted">
+          <ArrowLeft className="h-5 w-5" />
+        </Link>
+      ) : (
+        <span className="ml-2 grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-primary text-primary-foreground" aria-hidden="true">
+          <MapPinned className="h-4 w-4" />
+        </span>
+      )}
+      <h1 className="min-w-0 flex-1 truncate px-2 text-[17px] font-semibold text-foreground">{title ?? "Sales Activity"}</h1>
+      <Link
+        href={NOTIFICATIONS_HREF}
+        aria-label={unreadLabel(unreadCount)}
+        className="relative grid h-11 w-11 shrink-0 place-items-center rounded-full text-foreground transition-colors hover:bg-muted"
+      >
+        <Bell className="h-5 w-5" />
+        <UnreadBadge unreadCount={unreadCount} />
+      </Link>
     </div>
   )
 }

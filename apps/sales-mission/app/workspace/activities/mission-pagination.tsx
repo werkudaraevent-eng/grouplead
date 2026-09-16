@@ -40,7 +40,7 @@ export function MissionPagination({ page, size, total }: { page: number; size: n
         <select
           value={size}
           onChange={(event) => set({ size: event.target.value === "25" ? null : event.target.value, page: null })}
-          className="h-9 rounded-md border border-input bg-field px-2 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+          className="h-11 rounded-md border border-input bg-field px-2 text-sm md:h-9 text-foreground outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
           aria-label="Baris per halaman"
         >
           {PAGE_SIZES.map((option) => <option key={option} value={option}>{option}</option>)}
@@ -50,10 +50,10 @@ export function MissionPagination({ page, size, total }: { page: number; size: n
         {pending ? <Loader2 className="inline h-3.5 w-3.5 animate-spin" /> : `${first}–${last} dari ${total}`}
       </span>
       <span className="flex items-center gap-1">
-        <Button variant="ghost" size="icon" className="h-9 w-9" disabled={page <= 0 || pending} onClick={() => set({ page: page - 1 <= 0 ? null : String(page - 1) })} aria-label="Halaman sebelumnya">
+        <Button variant="ghost" size="icon" className="h-11 w-11 md:h-9 md:w-9" disabled={page <= 0 || pending} onClick={() => set({ page: page - 1 <= 0 ? null : String(page - 1) })} aria-label="Halaman sebelumnya">
           <ChevronLeft className="h-4 w-4" />
         </Button>
-        <Button variant="ghost" size="icon" className="h-9 w-9" disabled={page >= lastPage || pending} onClick={() => set({ page: String(page + 1) })} aria-label="Halaman berikutnya">
+        <Button variant="ghost" size="icon" className="h-11 w-11 md:h-9 md:w-9" disabled={page >= lastPage || pending} onClick={() => set({ page: String(page + 1) })} aria-label="Halaman berikutnya">
           <ChevronRight className="h-4 w-4" />
         </Button>
       </span>

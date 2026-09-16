@@ -197,6 +197,8 @@
   }
   body {
     @apply bg-background text-foreground;
+    overscroll-behavior: none;
+    -webkit-tap-highlight-color: transparent;
   }
   /* The app shell owns all scrolling: its panels scroll, the window never
      does. Anything the browser might do to the window (an anchor, a focus,

@@ -20,7 +20,7 @@ import {
   type MissionListItem,
 } from "@/lib/missions/mission-schema"
 import { missionDayKey, missionsOnDay } from "@/lib/missions/mission-calendar"
-import { EmptyState, NewMissionAction, StatusBadge, WorkspacePage } from "@/app/workspace/workspace-page"
+import { EmptyState, StatusBadge, WorkspacePage } from "@/app/workspace/workspace-page"
 import { paths } from "@/lib/paths"
 
 export const dynamic = "force-dynamic"
@@ -203,7 +203,7 @@ export default async function MissionHomePage() {
       eyebrow="Sales Activity"
       title="Hari ini"
       description={dateLabel}
-      action={canCreate ? <NewMissionAction /> : undefined}
+      primaryAction={canCreate ? { href: paths.newActivity(), label: "Aktivitas baru" } : undefined}
     >
       <section aria-label="Aktivitas hari ini">
         {todaysMissions.length > 0 ? (

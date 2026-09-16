@@ -48,7 +48,7 @@ function Chip({ label, onRemove }: { label: string; onRemove: () => void }) {
   return (
     <span className="inline-flex h-8 items-center gap-1 rounded-full border bg-card pl-3 pr-1 text-xs font-medium text-foreground">
       {label}
-      <button type="button" onClick={onRemove} aria-label={`Hapus filter ${label}`} className="grid h-6 w-6 place-items-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground">
+      <button type="button" onClick={onRemove} aria-label={`Hapus filter ${label}`} className="relative grid h-7 w-7 place-items-center rounded-full text-muted-foreground after:absolute after:-inset-2 after:content-[''] hover:bg-muted hover:text-foreground">
         <X className="h-3 w-3" />
       </button>
     </span>

@@ -4,7 +4,7 @@ import { useEffect } from "react"
 import { useSearchParams } from "next/navigation"
 
 /**
- * Scroll the shell's own panel to a section named in the URL (?fokus=id).
+ * Scroll the page's own panel (#page-scroll) to a section named in the URL (?fokus=id).
  *
  * Not a fragment (#id): a fragment jump asks the browser to scroll every
  * scrollable ancestor, the viewport included, and the viewport cannot be
@@ -13,7 +13,7 @@ import { useSearchParams } from "next/navigation"
  * left a blank strip below it. This moves the panel that owns scrolling,
  * by exactly the distance to the section, and pins the window at the top.
  */
-export function ScrollToSection({ panelId = "main-content", offset = 16 }: { panelId?: string; offset?: number }) {
+export function ScrollToSection({ panelId = "page-scroll", offset = 16 }: { panelId?: string; offset?: number }) {
   const params = useSearchParams()
   const target = params.get("fokus")
 

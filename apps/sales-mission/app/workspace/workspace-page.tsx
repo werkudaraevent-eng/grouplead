@@ -11,38 +11,65 @@ import {
 import type { ConfirmationPolicy } from "@/lib/missions/assignment-workflow"
 import { statusLabel } from "@/lib/missions/status-labels"
 import { paths } from "@/lib/paths"
+import { PageChrome } from "@/components/page-chrome"
+import { Fab } from "@/components/fab"
 
 /**
  * Shared page furniture, matching LeadEngine's list-page language: same
  * container padding, same header typography, same table and button primitives.
  */
 
+/**
+ * On a phone the title lives in the top app bar (announced through
+ * PageChrome), the one primary action is an extended FAB, and the rest of
+ * the header row wraps. From `lg` up the header is the page's own.
+ */
 export function WorkspacePage({
   eyebrow,
   title,
   description,
   action,
+  primaryAction,
   children,
 }: {
   eyebrow?: string
   title: string
   description?: string
   action?: React.ReactNode
+  /** The screen's one primary action: a FAB on a phone, a filled button on a desk. */
+  primaryAction?: { href: string; label: string }
   children: React.ReactNode
 }) {
   return (
     <div className="flex h-full w-full flex-col overflow-clip bg-background">
-      <div className="shrink-0 px-4 pb-4 pt-6 sm:px-6 lg:px-8">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            {eyebrow && <p className="mb-1 text-[11px] font-bold uppercase tracking-widest text-muted-foreground">{eyebrow}</p>}
-            <h1 className="text-xl font-semibold tracking-tight text-foreground">{title}</h1>
-            {description && <p className="mt-1 text-sm text-muted-foreground">{description}</p>}
+      <PageChrome title={title} />
+      {(eyebrow || description || action || primaryAction) && (
+        <div className="shrink-0 px-4 pb-3 pt-3 sm:px-6 lg:px-8 lg:pb-4 lg:pt-6">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+            <div className="min-w-0">
+              {eyebrow && <p className="mb-1 hidden text-[11px] font-bold uppercase tracking-widest text-muted-foreground lg:block">{eyebrow}</p>}
+              <h1 className="hidden text-xl font-semibold tracking-tight text-foreground lg:block">{title}</h1>
+              {description && <p className="text-sm text-muted-foreground lg:mt-1">{description}</p>}
+            </div>
+            {(action || primaryAction) && (
+              <div className="flex shrink-0 flex-wrap items-center gap-2">
+                {action}
+                {primaryAction && (
+                  <Button asChild size="sm" className="hidden lg:inline-flex">
+                    <Link href={primaryAction.href}>
+                      <Plus className="h-4 w-4" /> {primaryAction.label}
+                    </Link>
+                  </Button>
+                )}
+              </div>
+            )}
           </div>
-          {action && <div className="flex shrink-0 items-center gap-2">{action}</div>}
         </div>
+      )}
+      <div id="page-scroll" className="custom-scrollbar flex-1 overflow-y-auto px-4 pb-[calc(6rem+env(safe-area-inset-bottom))] sm:px-6 lg:px-8 lg:pb-8">
+        {children}
       </div>
-      <div className="custom-scrollbar flex-1 overflow-y-auto px-4 pb-8 sm:px-6 lg:px-8">{children}</div>
+      {primaryAction && <Fab href={primaryAction.href} label={primaryAction.label} />}
     </div>
   )
 }
@@ -178,13 +205,17 @@ export function NewMissionAction() {
   )
 }
 
+/** Kembali: a button on a desk; on a phone the top app bar's back arrow. */
 export function BackLink({ href = paths.activities() }: { href?: string }) {
   return (
-    <Button asChild variant="outline" size="sm">
-      <Link href={href}>
-        <ArrowLeft className="h-4 w-4" /> Kembali
-      </Link>
-    </Button>
+    <>
+      <PageChrome backHref={href} />
+      <Button asChild variant="outline" size="sm" className="hidden lg:inline-flex">
+        <Link href={href}>
+          <ArrowLeft className="h-4 w-4" /> Kembali
+        </Link>
+      </Button>
+    </>
   )
 }
 

@@ -1,14 +1,28 @@
-import type { Metadata } from "next"
+import type { Metadata, Viewport } from "next"
 import { Plus_Jakarta_Sans, Geist_Mono } from "next/font/google"
-import { Toaster } from "sonner"
+import { AppToaster } from "@/components/app-toaster"
+import { PwaRegister } from "@/components/pwa-register"
 import "./globals.css"
-import { PAGE_TITLE } from "@/lib/brand"
+import { PAGE_TITLE, PRODUCT_NAME } from "@/lib/brand"
 
 const jakartaSans = Plus_Jakarta_Sans({ variable: "--font-jakarta-sans", subsets: ["latin"], weight: ["400", "500", "600", "700", "800"] })
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] })
 
+// The phone treats this as an app: no user scaling surprises, the layout
+// reaches under the notch (safe areas are honoured where it matters), and
+// the status bar takes the page colour.
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#F6F8FB",
+}
+
 export const metadata: Metadata = {
   title: PAGE_TITLE,
+  manifest: "/manifest.webmanifest",
+  icons: { icon: "/icons/icon.svg", apple: "/icons/apple-touch-icon.png" },
+  appleWebApp: { capable: true, statusBarStyle: "default", title: PRODUCT_NAME },
   description: "Rencanakan aktivitas sales, tugaskan timnya, dan rekam hasilnya.",
 }
 
@@ -52,7 +66,8 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
           Skip to content
         </a>
         {children}
-        <Toaster richColors position="top-right" />
+        <AppToaster />
+        <PwaRegister />
       </body>
     </html>
   )

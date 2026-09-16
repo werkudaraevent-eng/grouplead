@@ -7,7 +7,7 @@ import { annotateReportRights } from "@/lib/missions/mission-rights"
 import { countMissions, listMissionFacets, listMissionsPage, parsePageParams } from "@/lib/missions/mission-page-queries"
 import { annotateJoinStatus } from "@/lib/missions/mission-join"
 import { isEmptyQuery, parseMissionQuery, resolveMissionFilter, serializeMissionQuery, type MissionFilter } from "@/lib/missions/mission-filter"
-import { MissionFilterChips, NewMissionAction, WorkspacePage } from "@/app/workspace/workspace-page"
+import { MissionFilterChips, WorkspacePage } from "@/app/workspace/workspace-page"
 import { MissionTable } from "./mission-table"
 import { MissionFilterBar } from "./mission-filter-bar"
 import { Button } from "@/components/ui/button"
@@ -71,8 +71,8 @@ export default async function MissionsPage({
       description={[
         describeReadScope(await getReadScope(access, "sales_mission_mission"), "mission") ?? "Seluruh aktivitas unit bisnis.",
         settings.requireAssignmentConfirmation
-          ? "Baris bertepi kuning menunggu jawaban Anda; jawab langsung dari kolom Aksi."
-          : "Aktivitas yang bisa Anda ikuti punya tombol Join di kolom Aksi.",
+          ? "Baris bertepi kuning menunggu jawaban Anda; jawab langsung dari tombol di barisnya."
+          : "Aktivitas yang bisa Anda ikuti punya tombol Join di barisnya.",
       ].join(" ")}
       action={
         <>
@@ -83,9 +83,9 @@ export default async function MissionsPage({
             </a>
           </Button>
           {canCreate && <ImportMissions />}
-          {canCreate && <NewMissionAction />}
         </>
       }
+      primaryAction={canCreate ? { href: paths.newActivity(), label: "Aktivitas baru" } : undefined}
     >
       <MissionFilterChips active={filter} counts={{ all: allCount, mine: mineCount, team: teamCount }} policy={settings} />
       <MissionFilterBar
