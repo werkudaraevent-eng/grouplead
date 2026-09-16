@@ -1,5 +1,6 @@
 import { LayoutDashboard, MapPinned } from "@/components/icons"
 import { cn } from "@/lib/utils"
+import ConcentricLoader from "@/components/ui/loader"
 
 /**
  * The screen shown between two Werkudara apps.
@@ -30,13 +31,9 @@ const APPS: Record<WerkudaraApp, { name: string; tagline: string; Icon: typeof L
   "sales-mission": { name: "Sales Mission", tagline: "Rencanakan kunjungan dan rekam hasilnya", Icon: MapPinned },
 }
 
-/** Circular indeterminate indicator, 40dp, 4dp stroke, primary. */
+/** The indeterminate indicator of the transit screen: the brand's two rings. */
 export function TransitLoader({ className }: { className?: string }) {
-  return (
-    <svg className={cn("app-transit-loader h-10 w-10 text-primary", className)} viewBox="0 0 48 48" aria-hidden="true">
-      <circle cx="24" cy="24" r="20" fill="none" stroke="currentColor" strokeWidth="4" />
-    </svg>
-  )
+  return <ConcentricLoader size="md" className={className} />
 }
 
 export function AppTransit({ app, phase }: { app: WerkudaraApp; phase: "leaving" | "arriving" }) {
