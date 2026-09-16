@@ -10,7 +10,7 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { ResponsivePopover } from "@/components/responsive-popover"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
@@ -60,22 +60,24 @@ export function FacetSelect({
   const flip = (item: string) => onChange(chosen.has(item) ? value.filter((v) => v !== item) : [...value, item])
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <span><FacetButton label={label} count={value.length} open={open} /></span>
-      </PopoverTrigger>
-      <PopoverContent align="start" className="w-64 p-0">
+    <ResponsivePopover
+      open={open}
+      onOpenChange={setOpen}
+      title={label}
+      className="w-64"
+      trigger={<span><FacetButton label={label} count={value.length} open={open} /></span>}
+    >
         <Command>
           {searchable && options.length > 6 && <CommandInput placeholder={`Cari ${label.toLowerCase()}…`} />}
-          <CommandList className="max-h-72">
+          <CommandList className="max-h-[55dvh] md:max-h-72">
             <CommandEmpty>Tidak ada pilihan.</CommandEmpty>
             <CommandGroup>
               {options.map((option) => (
-                <CommandItem key={option.value} value={option.label} onSelect={() => flip(option.value)} className="gap-2">
+                <CommandItem key={option.value} value={option.label} onSelect={() => flip(option.value)} className="min-h-12 gap-3 md:min-h-8 md:gap-2">
                   <span
                     aria-hidden="true"
                     className={cn(
-                      "grid h-4 w-4 place-items-center rounded-[4px] border border-input",
+                      "grid h-5 w-5 place-items-center rounded-[4px] border border-input md:h-4 md:w-4",
                       chosen.has(option.value) && "border-primary bg-primary text-primary-foreground"
                     )}
                   >
@@ -94,7 +96,6 @@ export function FacetSelect({
             </div>
           )}
         </Command>
-      </PopoverContent>
-    </Popover>
+    </ResponsivePopover>
   )
 }

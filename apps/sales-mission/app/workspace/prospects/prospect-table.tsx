@@ -18,7 +18,7 @@ import { EmptyState } from "@/app/workspace/workspace-page"
 import { PersonAvatar } from "@/components/person-avatar"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { ResponsiveMenu } from "@/components/responsive-menu"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { cn } from "@/lib/utils"
@@ -226,33 +226,22 @@ export function ProspectTable({
       </Button>
     ) : null
     const menu = canUpdate || canDelete ? (
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon" className="h-9 w-9 md:h-8 md:w-8" aria-label={`Tindakan lain untuk ${prospect.clientCompanyName}`}>
+      <ResponsiveMenu
+        title={label(prospect)}
+        trigger={
+          <Button variant="ghost" size="icon" className="h-11 w-11 md:h-8 md:w-8" aria-label={`Tindakan lain untuk ${prospect.clientCompanyName}`}>
             <MoreVertical className="h-4 w-4" />
           </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-56">
-          {editable(prospect) && !prospect.missionId && (
-            <DropdownMenuItem onSelect={() => setStatusTarget({ ids: [prospect.id], label: label(prospect), prospectId: prospect.id })}>Ubah status</DropdownMenuItem>
-          )}
-          {editable(prospect) && !prospect.missionId && canCreateMission && prospect.statusKind !== "lost" && (
-            <DropdownMenuItem asChild>
-              <Link href={paths.newActivity({ prospect: prospect.id })}><CalendarCheck className="h-4 w-4" /> Jadwalkan kunjungan</Link>
-            </DropdownMenuItem>
-          )}
-          {canAssignOthers(viewer) && <DropdownMenuItem onSelect={() => setAssignTarget({ ids: [prospect.id], label: label(prospect) })}>Tugaskan</DropdownMenuItem>}
-          {editable(prospect) && <DropdownMenuItem asChild><Link href={`/workspace/prospects/${prospect.id}/edit`}>Ubah</Link></DropdownMenuItem>}
-          {canDelete && (
-            <>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem className="text-[var(--danger-foreground)] focus:text-[var(--danger-foreground)]" onSelect={() => { setSelected(new Set([prospect.id])); setBeyondPage(new Set()); setConfirmDelete(true) }}>
-                <Trash2 className="h-4 w-4" /> Ke sampah
-              </DropdownMenuItem>
-            </>
-          )}
-        </DropdownMenuContent>
-      </DropdownMenu>
+        }
+        items={[
+          editable(prospect) && !prospect.missionId && { label: "Ubah status", onSelect: () => setStatusTarget({ ids: [prospect.id], label: label(prospect), prospectId: prospect.id }) },
+          editable(prospect) && !prospect.missionId && canCreateMission && prospect.statusKind !== "lost" && { label: "Jadwalkan kunjungan", icon: CalendarCheck, href: paths.newActivity({ prospect: prospect.id }) },
+          canAssignOthers(viewer) && { label: "Tugaskan", onSelect: () => setAssignTarget({ ids: [prospect.id], label: label(prospect) }) },
+          editable(prospect) && { label: "Ubah", href: `/workspace/prospects/${prospect.id}/edit` },
+          canDelete && { kind: "divider" as const },
+          canDelete && { label: "Ke sampah", icon: Trash2, danger: true, onSelect: () => { setSelected(new Set([prospect.id])); setBeyondPage(new Set()); setConfirmDelete(true) } },
+        ]}
+      />
     ) : null
     return (
       <span className="flex items-center justify-end gap-1.5">

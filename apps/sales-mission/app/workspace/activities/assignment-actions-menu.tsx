@@ -1,18 +1,12 @@
 "use client"
 
 import { useTransition } from "react"
-import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { CalendarClock, Check, Loader2, MoreHorizontal, X } from "@/components/icons"
 import { respondToAssignment } from "@/app/actions/assignment-actions"
 import { Button } from "@/components/ui/button"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+import { ResponsiveMenu } from "@/components/responsive-menu"
 import { paths } from "@/lib/paths"
 
 /**
@@ -77,28 +71,24 @@ export function AssignmentOverflowMenu({ missionId }: { missionId: string }) {
   }
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
+    <ResponsiveMenu
+      title="Jawaban lain"
+      className="w-52"
+      trigger={
         <Button
           variant="outline"
           size="icon"
-          className="h-9 w-9 md:h-8 md:w-8"
+          className="h-11 w-11 md:h-8 md:w-8"
           aria-label="Jawaban lain"
           disabled={pending}
         >
           {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <MoreHorizontal className="h-4 w-4" />}
         </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-52">
-        <DropdownMenuItem asChild>
-          <Link href={paths.activity(missionId, { hash: "jawaban" })}>
-            <CalendarClock className="h-4 w-4" /> Ubah atau usulkan jadwal
-          </Link>
-        </DropdownMenuItem>
-        <DropdownMenuItem onSelect={reject} className="text-[var(--danger-foreground)] focus:text-[var(--danger-foreground)]">
-          <X className="h-4 w-4" /> Tolak penugasan
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+      }
+      items={[
+        { label: "Ubah atau usulkan jadwal", icon: CalendarClock, href: paths.activity(missionId, { hash: "jawaban" }) },
+        { label: "Tolak penugasan", icon: X, danger: true, onSelect: reject },
+      ]}
+    />
   )
 }

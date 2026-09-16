@@ -166,13 +166,13 @@ export function ContactPicker({
           )}
 
           {open && matches.length > 0 && (
-            <ul className="absolute z-20 mt-1 max-h-56 w-full overflow-auto rounded-lg border bg-popover shadow-lg">
+            <ul className="absolute z-20 mt-1 max-h-[45dvh] w-full overflow-auto rounded-lg border bg-popover shadow-lg md:max-h-56">
               {matches.map((contact) => (
                 <li key={contact.id}>
                   <button
                     type="button"
                     onClick={() => pick(contact)}
-                    className="flex w-full items-center gap-2.5 px-3 py-3 text-left transition-colors hover:bg-muted"
+                    className="flex min-h-12 w-full items-center gap-2.5 px-3 py-3 text-left transition-colors hover:bg-muted"
                   >
                     <UserRound className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
                     <span className="min-w-0 flex-1">

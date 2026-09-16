@@ -10,7 +10,7 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { ResponsivePopover } from "@/components/responsive-popover"
 import { PersonAvatar } from "@/components/person-avatar"
 import { cn } from "@/lib/utils"
 
@@ -87,8 +87,12 @@ export function PersonPicker({
       */}
       <input type="hidden" name={name} value={value} />
 
-      <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger asChild>
+      <ResponsivePopover
+        open={open}
+        onOpenChange={setOpen}
+        title={placeholder}
+        className="w-[var(--radix-popover-trigger-width)]"
+        trigger={
           <button
             id={id}
             type="button"
@@ -107,9 +111,8 @@ export function PersonPicker({
             )}
             <ChevronsUpDown className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
           </button>
-        </PopoverTrigger>
-
-        <PopoverContent align="start" className="w-[var(--radix-popover-trigger-width)] p-0">
+        }
+      >
           <PeopleList
             people={people}
             isSelected={(person) => person.id === value}
@@ -118,8 +121,7 @@ export function PersonPicker({
               setOpen(false)
             }}
           />
-        </PopoverContent>
-      </Popover>
+      </ResponsivePopover>
     </>
   )
 }
@@ -165,25 +167,28 @@ export function PeopleMultiPicker({
         <input key={personId} type="hidden" name={name} value={personId} />
       ))}
 
-      <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger asChild>
+      <ResponsivePopover
+        open={open}
+        onOpenChange={setOpen}
+        title={placeholder}
+        description={selected.length > 0 ? `${selected.length} dipilih` : undefined}
+        className="w-[var(--radix-popover-trigger-width)]"
+        trigger={
           <button id={id} type="button" role="combobox" aria-expanded={open} className={TRIGGER_CLASS}>
             <span className={selected.length > 0 ? "text-foreground" : "text-muted-foreground"}>
               {selected.length > 0 ? `${selected.length} sales dipilih` : placeholder}
             </span>
             <ChevronsUpDown className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
           </button>
-        </PopoverTrigger>
-
-        <PopoverContent align="start" className="w-[var(--radix-popover-trigger-width)] p-0">
+        }
+      >
           <PeopleList
             people={people}
             isSelected={(person) => selectedSet.has(person.id)}
             onPick={toggle}
             keepOpen
           />
-        </PopoverContent>
-      </Popover>
+      </ResponsivePopover>
 
       {/* Input chips: what is chosen stays visible and removable without
           reopening the list, which is the whole reason to use chips rather
@@ -243,7 +248,7 @@ function PeopleList({
           />
         </div>
       )}
-      <CommandList className="max-h-64">
+      <CommandList className="max-h-[55dvh] md:max-h-64">
         <CommandEmpty className="px-3 py-6 text-center text-sm text-muted-foreground">
           Tidak ada nama yang cocok.
         </CommandEmpty>

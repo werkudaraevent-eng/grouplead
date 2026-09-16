@@ -145,7 +145,7 @@ export function CompanyPicker({
         </span>
 
         {open && !selected && !pickedProspect && hasDropdown && (
-          <div className="absolute z-20 mt-1 w-full overflow-hidden rounded-lg border bg-popover shadow-lg">
+          <div className="absolute z-20 mt-1 max-h-[45dvh] w-full overflow-auto rounded-lg border bg-popover shadow-lg">
             {error && <p className="px-3 py-3 text-xs text-muted-foreground">{error}</p>}
 
             {/* Open prospects first: a visit to one of them is what this
@@ -159,7 +159,7 @@ export function CompanyPicker({
                     key={prospect.id}
                     type="button"
                     onClick={() => pickProspect(prospect)}
-                    className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left transition-colors hover:bg-muted"
+                    className="flex min-h-12 w-full items-center gap-2.5 px-3 py-2.5 text-left transition-colors hover:bg-muted"
                   >
                     <UserSearch className="h-4 w-4 shrink-0 text-muted-foreground" />
                     <span className="min-w-0 flex-1">
@@ -181,7 +181,7 @@ export function CompanyPicker({
                 key={company.id}
                 type="button"
                 onClick={() => { setSelected(company); setOpen(false); onLink?.(company.id) }}
-                className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left transition-colors hover:bg-muted"
+                className="flex min-h-12 w-full items-center gap-2.5 px-3 py-2.5 text-left transition-colors hover:bg-muted"
               >
                 <Building2 className="h-4 w-4 shrink-0 text-muted-foreground" />
                 <span className="min-w-0 flex-1">
@@ -216,7 +216,7 @@ export function CompanyPicker({
                       setPreviousNames([])
                       setOpen(false)
                     }}
-                    className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left transition-colors hover:bg-muted"
+                    className="flex min-h-12 w-full items-center gap-2.5 px-3 py-2.5 text-left transition-colors hover:bg-muted"
                   >
                     <History className="h-4 w-4 shrink-0 text-muted-foreground" />
                     <span className="min-w-0 flex-1 truncate text-sm text-foreground">{name}</span>

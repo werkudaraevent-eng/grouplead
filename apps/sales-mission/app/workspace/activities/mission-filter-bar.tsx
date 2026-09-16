@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useTransition } from "react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { Search, SlidersHorizontal, X } from "@/components/icons"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { ResponsivePopover } from "@/components/responsive-popover"
 import { FacetButton, FacetSelect } from "@/components/facet-select"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -74,11 +74,13 @@ export function DateFacet({
 }) {
   const [open, setOpen] = useState(false)
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <span><FacetButton label={value ? DATE_PRESET_LABELS[value] : "Tanggal"} count={value ? 1 : 0} open={open} /></span>
-      </PopoverTrigger>
-      <PopoverContent align="start" className="w-72 p-2">
+    <ResponsivePopover
+      open={open}
+      onOpenChange={setOpen}
+      title="Tanggal"
+      className="w-72 p-2"
+      trigger={<span><FacetButton label={value ? DATE_PRESET_LABELS[value] : "Tanggal"} count={value ? 1 : 0} open={open} /></span>}
+    >
         <div className="grid gap-0.5">
           {presets.map((preset) => (
             <button
@@ -89,7 +91,7 @@ export function DateFacet({
                 if (preset !== "custom") setOpen(false)
               }}
               className={cn(
-                "flex h-9 items-center gap-2 rounded-md px-2 text-left text-sm hover:bg-muted",
+                "flex h-12 items-center gap-2 rounded-md px-2 text-left text-sm hover:bg-muted md:h-9",
                 value === preset && "bg-muted font-semibold"
               )}
             >
@@ -102,11 +104,11 @@ export function DateFacet({
           <div className="mt-2 grid grid-cols-2 gap-2 border-t pt-2">
             <div className="space-y-1">
               <Label htmlFor="filter-from" className="text-xs">Dari</Label>
-              <Input id="filter-from" type="date" className="h-9" value={from ?? ""} onChange={(e) => onChange({ date: "custom", from: e.target.value || null, to })} />
+              <Input id="filter-from" type="date" className="h-11 md:h-9" value={from ?? ""} onChange={(e) => onChange({ date: "custom", from: e.target.value || null, to })} />
             </div>
             <div className="space-y-1">
               <Label htmlFor="filter-to" className="text-xs">Sampai</Label>
-              <Input id="filter-to" type="date" className="h-9" value={to ?? ""} onChange={(e) => onChange({ date: "custom", from, to: e.target.value || null })} />
+              <Input id="filter-to" type="date" className="h-11 md:h-9" value={to ?? ""} onChange={(e) => onChange({ date: "custom", from, to: e.target.value || null })} />
             </div>
           </div>
         )}
@@ -117,8 +119,7 @@ export function DateFacet({
             </Button>
           </div>
         )}
-      </PopoverContent>
-    </Popover>
+    </ResponsivePopover>
   )
 }
 

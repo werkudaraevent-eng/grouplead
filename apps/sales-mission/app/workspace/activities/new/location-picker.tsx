@@ -90,7 +90,7 @@ export function LocationPicker({
       )}
 
       {open && (results.length > 0 || error) && (
-        <div className="absolute z-20 mt-1 w-full overflow-hidden rounded-lg border bg-popover shadow-lg">
+        <div className="absolute z-20 mt-1 max-h-[45dvh] w-full overflow-auto rounded-lg border bg-popover shadow-lg">
           {error ? (
             <p className="px-3 py-3 text-xs text-muted-foreground">{error}</p>
           ) : (
@@ -104,7 +104,7 @@ export function LocationPicker({
                   onChange?.(location.value)
                   setOpen(false)
                 }}
-                className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left transition-colors hover:bg-muted"
+                className="flex min-h-12 w-full items-center gap-2.5 px-3 py-2.5 text-left transition-colors hover:bg-muted"
               >
                 <MapPin className="h-4 w-4 shrink-0 text-muted-foreground" />
                 <span className="min-w-0 flex-1">
