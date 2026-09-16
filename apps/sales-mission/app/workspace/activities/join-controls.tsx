@@ -25,11 +25,13 @@ export function JoinButton({
   status,
   maxSupporting,
   size = "sm",
+  className,
 }: {
   missionId: string
   status: JoinStatus
   maxSupporting: number
   size?: "sm" | "default"
+  className?: string
 }) {
   const [pending, start] = useTransition()
   const router = useRouter()
@@ -57,6 +59,7 @@ export function JoinButton({
       disabled={!canJoin(status) || pending}
       onClick={handleJoin}
       title={blocked ?? undefined}
+      className={className}
     >
       {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />}
       Join

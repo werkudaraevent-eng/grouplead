@@ -16,6 +16,7 @@ import {
   MapPinned,
   MonitorPlay,
   Moon,
+  MoreVertical,
   Settings,
   Sun,
   UserSearch,
@@ -49,6 +50,7 @@ const TopLoader = dynamic(
 import { Button } from "@/components/ui/button"
 import { PageChromeProvider, usePageChrome } from "@/components/page-chrome"
 import { MobileNavBar } from "@/components/mobile-nav-bar"
+import { ResponsiveMenu } from "@/components/responsive-menu"
 import { createClient } from "@/utils/supabase/client"
 import { clearActiveSessionId } from "@/lib/session-guard"
 import { hasPreferenceCookie, writePreferenceCookie } from "@/lib/preference-cookie"
@@ -463,7 +465,7 @@ export function WorkspaceShell({
  * destination. Everything else the sidebar carries is in the bottom bar.
  */
 function MobileTopBar({ unreadCount }: { unreadCount: number }) {
-  const { title, backHref } = usePageChrome()
+  const { title, backHref, menu } = usePageChrome()
   return (
     <div className="flex min-h-14 shrink-0 items-center gap-1 border-b bg-background/95 px-2 pt-[env(safe-area-inset-top)] backdrop-blur lg:hidden">
       {backHref ? (
@@ -484,6 +486,23 @@ function MobileTopBar({ unreadCount }: { unreadCount: number }) {
         <Bell className="h-5 w-5" />
         <UnreadBadge unreadCount={unreadCount} />
       </Link>
+      {/* A page's secondary destinations: Material's top app bar keeps one
+          trailing action visible and the rest behind an overflow menu. */}
+      {menu && menu.length > 0 && (
+        <ResponsiveMenu
+          title={title ?? "Lainnya"}
+          items={menu}
+          trigger={
+            <button
+              type="button"
+              aria-label="Menu halaman"
+              className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-foreground transition-colors hover:bg-muted"
+            >
+              <MoreVertical className="h-5 w-5" />
+            </button>
+          }
+        />
+      )}
     </div>
   )
 }

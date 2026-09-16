@@ -49,6 +49,9 @@ import {
 } from "@/lib/missions/visit-report-schema"
 import { BackLink, JoinStatusLine, StatusBadge, WorkspacePage } from "@/app/workspace/workspace-page"
 import { Button } from "@/components/ui/button"
+import { FormActionBar } from "@/components/form-action-bar"
+import { PageChrome } from "@/components/page-chrome"
+import { AcceptAssignmentButton, AssignmentOverflowMenu } from "@/app/workspace/activities/assignment-actions-menu"
 import {
   AllowJoinToggle,
   JoinButton,
@@ -196,6 +199,27 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
     location: mission.location,
   }
 
+  // On a phone the page has one bar at the bottom and one thing on it: the
+  // next step for this viewer in this state. Answer first, then the report,
+  // then joining, then editing. Everything else stays in its card, and the
+  // top bar's overflow menu carries the links worth reaching without a scroll.
+  const compactAction: "answer" | "report" | "join" | "edit" | null = isCancelled
+    ? null
+    : askedToConfirm
+      ? "answer"
+      : canReadReport && canWriteReport && !reportSubmitted
+        ? "report"
+        : role === null && joinStatus === "JOINABLE"
+          ? "join"
+          : canEdit
+            ? "edit"
+            : null
+  const chromeMenu = [
+    canEdit && compactAction !== "edit" ? { label: "Ubah aktivitas", href: paths.activityEdit(missionId) } : null,
+    canReadReport ? { label: "Laporan kunjungan", href: paths.activity(missionId, { fokus: "laporan" }) } : null,
+    leadPush && leadEngineUrl ? { label: "Buka lead di LeadEngine", href: `${leadEngineUrl}/leads/${leadPush.leadId}` } : null,
+  ].filter((item): item is { label: string; href: string } => Boolean(item))
+
   return (
     <WorkspacePage
       eyebrow="Sales Activity / Detail aktivitas"
@@ -205,8 +229,13 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
     >
       {/* ?fokus=laporan from the lists: scroll the shell's panel, never the window. */}
       <Suspense fallback={null}><ScrollToSection /></Suspense>
+      {chromeMenu.length > 0 && <PageChrome menu={chromeMenu} />}
+      {/* Two columns from lg; below that one column whose order is the
+          rep's, not the layout's: facts, the answer, the report, then the
+          contact, the team and the notes (`max-lg:order-*`; the column
+          wrappers dissolve with `contents`). */}
       <section className="grid gap-4 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
-        <div className="min-w-0 space-y-4">
+        <div className="min-w-0 max-lg:contents lg:space-y-4">
           {isCancelled && (
             <section className="rounded-xl border border-[var(--danger-foreground)]/25 bg-[var(--danger)] p-5">
               <h2 className="flex items-center gap-2 text-base font-semibold text-[var(--danger-foreground)]">
@@ -239,7 +268,7 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
             />
           )}
 
-          <article className="overflow-hidden rounded-xl border bg-card">
+          <article className="overflow-hidden rounded-xl border bg-card max-lg:order-1">
             <div className="flex items-center gap-3 border-b px-5 py-4">
               <StatusBadge status={mission.status} />
               <span className="font-mono text-[11px] text-muted-foreground">ID {mission.id}</span>
@@ -292,7 +321,7 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
             rather than below the assignment controls.
           */}
           {canReadContacts && hasAppointmentDetails(mission.appointment) && (
-            <article className="overflow-hidden rounded-xl border bg-card">
+            <article className="overflow-hidden rounded-xl border bg-card max-lg:order-4">
               <div className="border-b px-5 py-4">
                 <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Janji temu</p>
                 <h2 className="mt-1 text-base font-semibold text-foreground">
@@ -351,7 +380,7 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
             deep-link here.
           */}
           {canRespond(mission.status) && (pendingReschedule || (isAssigned && !askedToConfirm && answerActions)) && (
-            <article id="jawaban" className="overflow-hidden rounded-xl border bg-card">
+            <article id="jawaban" className="scroll-mt-16 overflow-hidden rounded-xl border bg-card max-lg:order-2">
               <div className="border-b px-5 py-4">
                 <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Penugasan</p>
                 <h2 className="mt-1 text-base font-semibold text-foreground">
@@ -396,8 +425,8 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
 
         </div>
 
-        <div className="min-w-0 space-y-4">
-          <aside className="rounded-xl border bg-card">
+        <div className="min-w-0 max-lg:contents lg:space-y-4">
+          <aside className="rounded-xl border bg-card max-lg:order-5">
             <div className="flex items-center justify-between gap-3 border-b px-5 py-4">
               <div>
                 <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Tim aktivitas</p>
@@ -448,7 +477,7 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
             )}
           </aside>
 
-          <aside className="overflow-hidden rounded-xl border bg-card">
+          <aside className="overflow-hidden rounded-xl border bg-card max-lg:order-6">
             <div className="border-b px-5 py-4">
               <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Catatan pendukung</p>
               <h2 className="mt-1 text-base font-semibold text-foreground">Pengamatan tim</h2>
@@ -456,12 +485,12 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
             <SupportingNotes missionId={missionId} notes={notes} canAdd={isAssigned || access.isSuperAdmin} />
           </aside>
         </div>
-      </section>
 
       {/* The report is the widest thing on the page: a summary, needs, contacts,
           the CRM hand-off. It gets the full width below the two columns rather
-          than the left one, where it trailed on alone under a short right column. */}
-      <article id="laporan" className="mt-4 scroll-mt-24 overflow-hidden rounded-xl border bg-card">
+          than the left one, where it trailed on alone under a short right column.
+          On a phone it comes third, right after the answer. */}
+      <article id="laporan" className="scroll-mt-16 overflow-hidden rounded-xl border bg-card max-lg:order-3 lg:col-span-2 lg:scroll-mt-24">
         <div className="flex items-center justify-between gap-3 border-b px-5 py-4">
           <div>
             <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Laporan kunjungan</p>
@@ -680,6 +709,44 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
           </div>
         )}
       </article>
+      </section>
+
+      {compactAction && (
+        <FormActionBar until="lg">
+          <div className="flex items-center gap-2">
+            {compactAction === "answer" && (
+              <>
+                <AssignmentOverflowMenu missionId={missionId} />
+                <AcceptAssignmentButton missionId={missionId} size="default" className="h-12 flex-1" />
+              </>
+            )}
+            {compactAction === "report" && (
+              <Button asChild className="h-12 flex-1">
+                <Link href={paths.activityReport(missionId)}>
+                  <ClipboardList className="h-4 w-4" /> {report ? "Lanjutkan laporan" : "Isi laporan kunjungan"}
+                </Link>
+              </Button>
+            )}
+            {compactAction === "join" && (
+              <JoinButton missionId={missionId} status={joinStatus} maxSupporting={settings.maxSupporting} size="default" className="h-12 flex-1" />
+            )}
+            {compactAction === "edit" && (
+              <Button asChild variant="outline" className="h-12 flex-1">
+                <Link href={paths.activityEdit(missionId)}>
+                  <Pencil className="h-4 w-4" /> Ubah aktivitas
+                </Link>
+              </Button>
+            )}
+            {canEdit && compactAction !== "edit" && compactAction !== "answer" && (
+              <Button asChild variant="outline" size="icon" className="h-12 w-12 shrink-0">
+                <Link href={paths.activityEdit(missionId)} aria-label="Ubah aktivitas">
+                  <Pencil className="h-4 w-4" />
+                </Link>
+              </Button>
+            )}
+          </div>
+        </FormActionBar>
+      )}
     </WorkspacePage>
   )
 }

@@ -147,7 +147,7 @@ export function SchedulePicker({
               </span>
             ))}
             {Array.from({ length: grid.leadingBlanks }, (_, index) => (
-              <span key={`blank-${index}`} aria-hidden="true" className="h-9" />
+              <span key={`blank-${index}`} aria-hidden="true" className="h-11 md:h-9" />
             ))}
             {grid.days.map((day) => {
               const selected = day.date === value.date
@@ -160,7 +160,7 @@ export function SchedulePicker({
                   aria-pressed={selected}
                   aria-label={`${day.dayOfMonth}${hasVisit ? ", ada kunjungan" : ""}`}
                   className={cn(
-                    "relative grid h-9 place-items-center rounded-md text-sm transition-colors",
+                    "relative grid h-11 place-items-center rounded-md text-sm transition-colors md:h-9",
                     selected
                       ? "bg-primary font-semibold text-primary-foreground"
                       : day.isToday
@@ -228,16 +228,29 @@ export function SchedulePicker({
             </p>
           ) : (
             <>
-              <p className="mt-4 text-xs font-semibold text-muted-foreground">
-                {formatDayLabel(value.date)} · {dayBlocks.length === 0 ? "kosong" : `${dayBlocks.length} kunjungan`}
+              <p className="mt-4 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 text-xs font-semibold text-muted-foreground">
+                <span>{formatDayLabel(value.date)} · {dayBlocks.length === 0 ? "kosong" : `${dayBlocks.length} kunjungan`}</span>
+                <span className="font-normal">Ketuk jam di garis waktu untuk mengisi jam mulai</span>
               </p>
 
               {/* Timeline: hours down the left, busy blocks positioned by minute,
-                  the candidate drawn on top so the overlap is literally visible. */}
+                  the candidate drawn on top so the overlap is literally visible.
+                  On a phone the twelve hours do not fit under the calendar, so
+                  the strip scrolls inside a bounded box; a tap on the strip
+                  sets the start to that quarter hour (and an hour's end when
+                  none is set), which is quicker than a time wheel. */}
+              <div className="mt-2 max-md:max-h-[45dvh] max-md:overflow-y-auto max-md:rounded-md max-md:border">
               <div
-                className="relative mt-2 overflow-hidden rounded-md border bg-card"
+                className="relative cursor-pointer overflow-hidden rounded-md border bg-card max-md:rounded-none max-md:border-0"
                 style={{ height: ((DAY_END - DAY_START) / 60) * PX_PER_HOUR }}
                 aria-label="Jadwal hari terpilih"
+                onClick={(event) => {
+                  const rect = event.currentTarget.getBoundingClientRect()
+                  const minute = DAY_START + Math.floor(((event.clientY - rect.top) / PX_PER_HOUR) * 4) * 15
+                  if (minute < DAY_START || minute >= DAY_END) return
+                  const start = toTime(minute)
+                  onChange({ ...value, startTime: start, endTime: value.endTime || toTime(Math.min(minute + 60, DAY_END)) })
+                }}
               >
                 {Array.from({ length: (DAY_END - DAY_START) / 60 + 1 }, (_, index) => {
                   const minute = DAY_START + index * 60
@@ -314,6 +327,8 @@ export function SchedulePicker({
                 )}
               </div>
 
+              </div>
+
               {!verdict.clear && (
                 <p className="mt-3 flex items-start gap-2 rounded-md border border-[var(--danger-foreground)]/25 bg-[var(--danger)] px-3 py-2.5 text-sm text-[var(--danger-foreground)]" role="status">
                   <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
@@ -341,6 +356,10 @@ function toMinute(time: string): number {
 
 function toLabel(minute: number): string {
   return `${String(Math.floor(minute / 60)).padStart(2, "0")}:00`
+}
+
+function toTime(minute: number): string {
+  return `${String(Math.floor(minute / 60)).padStart(2, "0")}:${String(minute % 60).padStart(2, "0")}`
 }
 
 function formatDayLabel(date: string): string {

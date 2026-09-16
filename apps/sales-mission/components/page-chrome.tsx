@@ -14,10 +14,17 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
  * every page writing its header twice.
  */
 
+export interface ChromeMenuItem {
+  label: string
+  href: string
+}
+
 export interface Chrome {
   title?: string
   backHref?: string
   hideNav?: boolean
+  /** Secondary destinations for the top app bar's overflow menu. */
+  menu?: ChromeMenuItem[]
 }
 
 interface ChromeStore {
@@ -48,15 +55,18 @@ export function usePageChrome(): Chrome {
 }
 
 /** Announce facts about the current page to the shell. Renders nothing. */
-export function PageChrome({ title, backHref, hideNav }: Chrome) {
+export function PageChrome({ title, backHref, hideNav, menu }: Chrome) {
   const store = useContext(ChromeContext)
+  // Compared by content: a server page builds the array on every render.
+  const menuKey = menu ? JSON.stringify(menu) : undefined
   useEffect(() => {
     if (!store) return
     const partial: Chrome = {}
     if (title !== undefined) partial.title = title
     if (backHref !== undefined) partial.backHref = backHref
     if (hideNav !== undefined) partial.hideNav = hideNav
+    if (menuKey !== undefined) partial.menu = JSON.parse(menuKey) as ChromeMenuItem[]
     return store.announce(partial)
-  }, [store, title, backHref, hideNav])
+  }, [store, title, backHref, hideNav, menuKey])
   return null
 }

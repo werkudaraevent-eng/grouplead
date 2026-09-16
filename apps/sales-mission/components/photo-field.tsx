@@ -171,7 +171,7 @@ export function PhotoField({
                   type="button"
                   aria-label={`Hapus ${item.name}`}
                   onClick={() => remove(item.path)}
-                  className="absolute right-1 top-1 grid h-8 w-8 place-items-center rounded-full bg-background/90 text-foreground shadow-sm hover:bg-background"
+                  className="absolute right-1 top-1 grid h-10 w-10 place-items-center rounded-full bg-background/90 text-foreground shadow-sm hover:bg-background md:h-8 md:w-8"
                 >
                   <X className="h-4 w-4" />
                 </button>

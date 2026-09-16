@@ -14,6 +14,7 @@ import {
 import type { TenantSalesOption } from "@/lib/missions/mission-queries"
 import { Button } from "@/components/ui/button"
 import { FormActionBar } from "@/components/form-action-bar"
+import { SectionChips } from "@/components/section-chips"
 import { Checkbox } from "@/components/ui/checkbox"
 import { MultiChoiceWithOther, SelectWithOther } from "@/components/ui/choice-with-other"
 import { PhotoField } from "@/components/photo-field"
@@ -718,11 +719,14 @@ export function MissionForm({
         under it says what the section decides, which is what tells a rep on a
         phone whether this is the part they came to fill in.
       */}
+      <SectionChips sections={blocks.map((block, index) => ({ id: `form-block-${index}`, label: block.section }))} />
+
       {blocks.map((block, index) => (
         <section
           key={`${block.section}-${index}`}
+          id={`form-block-${index}`}
           aria-labelledby={`section-${index}`}
-          className="rounded-xl border bg-card"
+          className="scroll-mt-14 rounded-xl border bg-card"
         >
           <header className="rounded-t-xl border-b px-5 py-4 sm:px-6">
             <h2 id={`section-${index}`} className="text-base font-semibold tracking-tight text-foreground">

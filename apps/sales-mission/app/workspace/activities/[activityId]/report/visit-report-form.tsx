@@ -28,6 +28,7 @@ import { Button } from "@/components/ui/button"
 import { ChipRow, ChoiceChip } from "@/components/ui/choice-chip"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { FormActionBar } from "@/components/form-action-bar"
+import { SectionChips } from "@/components/section-chips"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -169,7 +170,7 @@ function toDraft(report: VisitReportRecord | null, appointmentContact: ReportCon
 /** Label, required marker, help text, and the control, on the shared grid. */
 function FieldShell({ field, hint, span, children }: { field: FormField; hint?: string; span?: Span; children: React.ReactNode }) {
   return (
-    <div className={cn("space-y-2", SPAN_CLASS[span ?? spanOf(field)])}>
+    <div id={`field-${field.reportingKey}`} className={cn("scroll-mt-20 space-y-2", SPAN_CLASS[span ?? spanOf(field)])}>
       <Label className="text-foreground">
         <span>
           {field.label}
@@ -415,6 +416,15 @@ export function VisitReportForm({
     ...missingSubmitFields(draft).map((prop) => DRAFT_TO_KEY[prop] ?? prop),
     ...missingConfiguredFields(draft, fields),
   ])]
+
+  // "Belum lengkap" names the fields; each name scrolls to its field, so a
+  // rep at the bottom of the form is one tap from what is missing.
+  const jumpTo = (id: string) => {
+    const element = document.getElementById(id)
+    if (!element) return
+    element.scrollIntoView({ block: "center", behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" })
+    element.querySelector<HTMLElement>("input, textarea, select")?.focus({ preventScroll: true })
+  }
 
   const clientNeedOptions = byKey.get("client_needs")?.options.length ? byKey.get("client_needs")!.options : options.clientNeeds
   const productOptions = byKey.get("product_interest")?.options.length ? byKey.get("product_interest")!.options : options.productInterest
@@ -668,8 +678,16 @@ export function VisitReportForm({
         Bertanda <span className="text-[var(--danger-foreground)]">*</span> wajib diisi. {editing ? "Perubahan disimpan saat Anda menekan Simpan perubahan." : "Draf tersimpan otomatis."}
       </p>
 
+      <SectionChips
+        sections={blocks.map((block, index) => ({
+          id: `report-block-${index}`,
+          label: block.section,
+          incomplete: block.fields.some((field) => missing.includes(field.reportingKey)),
+        }))}
+      />
+
       {blocks.map((block, index) => (
-        <section key={`${block.section}-${index}`} aria-labelledby={`report-section-${index}`} className="overflow-clip rounded-xl border bg-card">
+        <section key={`${block.section}-${index}`} id={`report-block-${index}`} aria-labelledby={`report-section-${index}`} className="scroll-mt-14 overflow-clip rounded-xl border bg-card">
           <header className="border-b px-5 py-4 sm:px-6">
             <h2 id={`report-section-${index}`} className="text-base font-semibold tracking-tight text-foreground">{block.section}</h2>
             {SECTION_HINTS[block.section] && <p className="mt-0.5 text-sm text-muted-foreground">{SECTION_HINTS[block.section]}</p>}
@@ -691,14 +709,26 @@ export function VisitReportForm({
       {/* Action row: fixed to the phone's bottom edge, the last row from sm up. */}
       <FormActionBar>
         {missing.length > 0 ? (
-          <p className="mb-2 text-xs text-muted-foreground">Belum lengkap: {missing.map((key) => labelFor(key).toLowerCase()).join(", ")}</p>
+          <p className="mb-2 text-sm text-muted-foreground">
+            Belum lengkap:{" "}
+            {missing.map((key, index) => (
+              <span key={key}>
+                {index > 0 && ", "}
+                <button type="button" onClick={() => jumpTo(`field-${key}`)} className="font-medium text-primary underline-offset-2 hover:underline">
+                  {labelFor(key).toLowerCase()}
+                </button>
+              </span>
+            ))}
+          </p>
         ) : editing && !changeReason.trim() ? (
-          <p className="mb-2 text-xs text-muted-foreground">Tulis alasan perubahan di atas.</p>
+          <p className="mb-2 text-sm text-muted-foreground">
+            <button type="button" onClick={() => jumpTo("change-reason")} className="font-medium text-primary underline-offset-2 hover:underline">Tulis alasan perubahan</button> di atas.
+          </p>
         ) : !submitting ? (
-          <p className="mb-2 flex items-center gap-1.5 text-xs text-[var(--success-foreground)]"><Check className="h-3.5 w-3.5" /> {editing ? "Perubahan siap disimpan" : "Laporan siap dikirim"}</p>
+          <p className="mb-2 flex items-center gap-1.5 text-sm text-[var(--success-foreground)]"><Check className="h-4 w-4" /> {editing ? "Perubahan siap disimpan" : "Laporan siap dikirim"}</p>
         ) : null}
         {error && (
-          <div className="mb-2 flex items-start gap-2 text-xs text-[var(--danger-foreground)]">
+          <div className="mb-2 flex items-start gap-2 text-sm text-[var(--danger-foreground)]">
             <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
             <p>{error}</p>
           </div>
@@ -715,7 +745,7 @@ export function VisitReportForm({
                 type="button"
                 onClick={() => setDiscarding("ask")}
                 disabled={submitting || discarding === "busy"}
-                className="inline-flex min-h-8 items-center gap-1 rounded-md px-1.5 font-medium text-[var(--danger-foreground)] hover:bg-[var(--danger)]"
+                className="inline-flex min-h-11 items-center gap-1 rounded-md px-2 font-medium text-[var(--danger-foreground)] hover:bg-[var(--danger)] md:min-h-8 md:px-1.5"
               >
                 <Trash2 className="h-3.5 w-3.5" /> Buang draf
               </button>
