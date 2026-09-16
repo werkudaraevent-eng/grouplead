@@ -34,7 +34,7 @@ export function ListToolbar({
   return (
     <div className={cn("flex h-10 items-center gap-3", className)}>
       <SearchField value={search.value} onChange={search.onChange} placeholder={search.placeholder} aria-label={search["aria-label"]} />
-      <FilterBuilder layout="rail" definitions={filters.definitions} value={filters.value} onChange={filters.onChange} className="min-w-0 flex-1" />
+      <FilterBuilder layout="rail" definitions={filters.definitions} value={filters.value} onChange={filters.onChange} className="min-w-0 flex-[2]" />
       {actions && <div className="ml-auto flex shrink-0 items-center gap-1">{actions}</div>}
     </div>
   )

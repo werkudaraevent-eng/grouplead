@@ -54,7 +54,7 @@ export function SearchField({
   }
 
   return (
-    <div className={cn("relative h-10 w-[22rem] max-w-full shrink-0", className)}>
+    <div className={cn("relative h-10 w-full min-w-[11rem] max-w-[24rem] shrink basis-[20rem]", className)}>
       <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
       <input
         type="search"

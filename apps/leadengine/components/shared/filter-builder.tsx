@@ -100,14 +100,30 @@ export function FilterBuilder({ definitions, value, onChange, className, layout 
         .map(field => definitions.find(d => d.field === field))
         .filter((d): d is FilterDefinition => Boolean(d) && !filtersByField.has(d!.field))
 
+    // The rail fades its right edge only while there is more to scroll to;
+    // a fade over chips that fit hid "Add filter" for no reason.
+    const railRef = React.useRef<HTMLDivElement>(null)
+    const [overflowing, setOverflowing] = React.useState(false)
+    React.useEffect(() => {
+        if (layout !== "rail") return
+        const node = railRef.current
+        if (!node) return
+        const measure = () => setOverflowing(node.scrollWidth > node.clientWidth + 2)
+        measure()
+        const observer = new ResizeObserver(measure)
+        observer.observe(node)
+        return () => observer.disconnect()
+    }, [layout, value, drafts, definitions])
+
     return (
         <div className={cn("flex min-w-0 items-center gap-2", className)}>
         <div
+            ref={railRef}
             className={cn(
                 "flex items-center gap-2",
-                layout === "rail"
-                    ? "no-scrollbar min-w-0 flex-1 flex-nowrap overflow-x-auto [mask-image:linear-gradient(to_right,black_calc(100%-1.5rem),transparent)] pr-6"
-                    : "flex-wrap",
+                layout === "rail" && "no-scrollbar min-w-0 flex-1 flex-nowrap overflow-x-auto",
+                layout === "rail" && overflowing && "[mask-image:linear-gradient(to_right,black_calc(100%-2rem),transparent)] pr-8",
+                layout !== "rail" && "flex-wrap",
             )}
         >
             {/* Pinned filters — always shown */}
