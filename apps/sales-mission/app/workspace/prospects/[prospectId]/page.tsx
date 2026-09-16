@@ -78,7 +78,7 @@ export default async function ProspectDetailPage({ params }: { params: Promise<{
             <article className="rounded-xl border border-[var(--success-foreground)]/30 bg-[var(--success)] p-5">
               <p className="flex items-center gap-2 text-base font-semibold text-[var(--success-foreground)]"><CalendarCheck className="h-4 w-4" /> Sudah jadi aktivitas</p>
               <p className="mt-1 text-sm text-[var(--success-foreground)]">
-                {formatMissionSchedule(prospect.mission.scheduledStart, new Date())} · {statusLabel(prospect.mission.status)}. Status prospek mengikuti mission ini.
+                {formatMissionSchedule(prospect.mission.scheduledStart, new Date())} · {statusLabel(prospect.mission.status)}. Status prospek mengikuti aktivitas ini.
               </p>
               <Button asChild size="sm" variant="outline" className="mt-3 bg-card"><Link href={paths.activity(prospect.mission.id)}>Buka aktivitas</Link></Button>
             </article>

@@ -172,7 +172,7 @@ export function NewMissionAction() {
   return (
     <Button asChild size="sm">
       <Link href={paths.newActivity()}>
-        <Plus className="h-4 w-4" /> Mission baru
+        <Plus className="h-4 w-4" /> Aktivitas baru
       </Link>
     </Button>
   )

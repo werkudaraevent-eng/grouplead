@@ -99,6 +99,9 @@ export const SCOPE_LABELS: Record<RecordScope, { label: string; description: str
 
 export type ScopedNoun = "mission" | "laporan" | "prospek"
 
+/** The noun as the person reads it; the code keeps calling the record a mission. */
+const NOUN_WORDS: Record<ScopedNoun, string> = { mission: "aktivitas", laporan: "laporan", prospek: "prospek" }
+
 const OWNER_WORDS: Record<ScopedNoun, string> = {
   mission: "sales utama atau yang menjadwalkannya",
   laporan: "sales utama aktivitas itu",
@@ -109,7 +112,8 @@ const OWNER_WORDS: Record<ScopedNoun, string> = {
  * One sentence for a list that is narrower than the tenant, so a short
  * list reads as a rule, not as missing data. Null when nothing is hidden.
  */
-export function describeReadScope(scope: RecordScope, noun: ScopedNoun): string | null {
+export function describeReadScope(scope: RecordScope, kind: ScopedNoun): string | null {
+  const noun = NOUN_WORDS[kind]
   switch (scope) {
     case "own":
       return `Anda melihat ${noun} milik sendiri saja (Cakupan lihat peran Anda: Sendiri).`
@@ -141,8 +145,9 @@ export function describeAssignReach(scope: RecordScope, noun: "sales utama" | "p
  * One sentence for a refusal, in the words the matrix uses, so an admin
  * reading the message knows which control to change.
  */
-export function describeOutOfScope(scope: RecordScope, noun: ScopedNoun): string {
-  const owner = OWNER_WORDS[noun]
+export function describeOutOfScope(scope: RecordScope, kind: ScopedNoun): string {
+  const owner = OWNER_WORDS[kind]
+  const noun = NOUN_WORDS[kind]
   switch (scope) {
     case "own":
       return `Peran Anda hanya boleh mengubah ${noun} miliknya sendiri (${owner}). Cakupan diatur di Role & Izin.`

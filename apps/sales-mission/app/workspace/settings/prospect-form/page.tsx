@@ -40,7 +40,7 @@ export default async function ProspectFormSettingsPage() {
       <div className="mb-4 space-y-2 rounded-xl border border-dashed bg-muted/40 px-5 py-4 text-sm text-muted-foreground">
         <p>
           Field bertanda <strong className="text-foreground">Inti</strong> menopang deteksi duplikat, impor dari
-          spreadsheet, dan pengisian otomatis form mission saat prospek dijadwalkan.
+          spreadsheet, dan pengisian otomatis form aktivitas saat prospek dijadwalkan.
         </p>
         <ul className="ml-5 list-disc space-y-1">
           <li><strong className="text-foreground">Bisa diubah:</strong> label, urutan, placeholder, dan teks bantuan.</li>

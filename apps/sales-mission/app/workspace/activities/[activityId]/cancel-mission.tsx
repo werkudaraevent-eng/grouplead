@@ -52,7 +52,7 @@ export function CancelMissionButton({ missionId, clientName }: { missionId: stri
         onClick={() => setOpen(true)}
         className="text-[var(--danger-foreground)] hover:text-[var(--danger-foreground)]"
       >
-        <Ban className="h-4 w-4" /> Batalkan mission
+        <Ban className="h-4 w-4" /> Batalkan aktivitas
       </Button>
 
       <Dialog open={open} onOpenChange={(next) => { if (!pending) setOpen(next) }}>
@@ -79,7 +79,7 @@ export function CancelMissionButton({ missionId, clientName }: { missionId: stri
               className="w-full rounded-md border border-input bg-field px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
             />
             <p className="text-xs text-muted-foreground">
-              Dicatat di riwayat mission dan di CRM, supaya tim appointment tahu apakah perlu dijadwalkan lagi.
+              Dicatat di riwayat aktivitas dan di CRM, supaya tim appointment tahu apakah perlu dijadwalkan lagi.
             </p>
           </div>
 
@@ -91,7 +91,7 @@ export function CancelMissionButton({ missionId, clientName }: { missionId: stri
               className="bg-[var(--danger-foreground)] text-white hover:bg-[var(--danger-foreground)]/90"
             >
               {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Ban className="h-4 w-4" />}
-              Batalkan mission
+              Batalkan aktivitas
             </Button>
           </DialogFooter>
         </DialogContent>

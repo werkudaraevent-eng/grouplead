@@ -506,7 +506,7 @@ export function MissionForm({
                   {schedule.endTime ? `–${schedule.endTime}` : ""}
                 </span>
                 <Link href={paths.activity(edit.missionId, { hash: "jawaban" })} className="text-xs font-semibold text-primary hover:underline">
-                  Usulkan jadwal lain di halaman mission
+                  Usulkan jadwal lain di halaman aktivitas
                 </Link>
               </p>
             </div>

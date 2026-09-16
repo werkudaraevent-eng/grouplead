@@ -199,7 +199,7 @@ function SelectionBar({
       className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-primary/30 bg-primary/5 px-4 py-2.5"
     >
       <span className="text-sm text-foreground">
-        <span className="font-semibold">{count} mission dipilih</span>
+        <span className="font-semibold">{count} aktivitas dipilih</span>
         {allMatching && !allMatching.selected && (
           <>
             {" · "}
@@ -554,9 +554,9 @@ export function MissionTable({
       <Dialog open={confirming} onOpenChange={(next) => { if (!pending) setConfirming(next) }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Pindahkan {chosen.length} mission ke sampah?</DialogTitle>
+            <DialogTitle>Pindahkan {chosen.length} aktivitas ke sampah?</DialogTitle>
             <DialogDescription>
-              Mission hilang dari daftar, kalender, dan papan, tetapi laporan, penugasan, dan catatannya tetap tersimpan.
+              Aktivitas hilang dari daftar, kalender, dan papan, tetapi laporan, penugasan, dan catatannya tetap tersimpan.
               Admin bisa memulihkannya dari Pengaturan → Sampah selama 30 hari; setelah itu terhapus permanen.
             </DialogDescription>
           </DialogHeader>

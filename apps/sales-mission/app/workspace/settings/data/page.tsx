@@ -45,7 +45,7 @@ export default async function DataSettingsPage() {
     >
       <div className="space-y-4">
         <p className="text-sm text-muted-foreground">
-          {binned ?? 0} mission sedang di sampah.{" "}
+          {binned ?? 0} aktivitas sedang di sampah.{" "}
           <Link href="/workspace/settings/recycle-bin" className="font-semibold text-primary hover:underline">Buka sampah</Link>
         </p>
         <ClearMissions count={count ?? 0} canDelete={canDelete} />

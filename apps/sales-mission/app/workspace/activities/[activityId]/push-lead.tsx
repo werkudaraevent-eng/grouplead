@@ -90,7 +90,7 @@ export function PushLeadPanel({
     return (
       <div className="flex flex-wrap items-center gap-3 px-5 py-5">
         <p className="flex-1 text-sm text-muted-foreground">
-          Mission ini sudah dikirim ke LeadEngine sebagai lead <span className="font-mono">{precheck.alreadyPushed.leadId}</span>.
+          Aktivitas ini sudah dikirim ke LeadEngine sebagai lead <span className="font-mono">{precheck.alreadyPushed.leadId}</span>.
         </p>
         {leadEngineUrl && (
           <Button asChild size="sm" variant="outline">

@@ -139,7 +139,7 @@ function Event({ event }: { event: AuditEvent }) {
               <>
                 {" · "}
                 <Link href={paths.activity(event.lead.missionId)} className="text-primary hover:underline" onClick={(e) => e.stopPropagation()}>
-                  Buka mission
+                  Buka aktivitas
                 </Link>
               </>
             )}

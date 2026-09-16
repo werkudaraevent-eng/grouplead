@@ -135,7 +135,7 @@ export function AssignmentResponsePanel({
         className="rounded-xl border border-[var(--warning-foreground)]/25 bg-[var(--warning)] p-5"
       >
         <h2 id="assignment-banner-title" className="text-base font-semibold text-[var(--warning-foreground)]">
-          Anda ditugaskan pada mission ini
+          Anda ditugaskan pada aktivitas ini
         </h2>
         <p className="mt-1 text-sm text-[var(--warning-foreground)]">
           {canPropose
@@ -164,7 +164,7 @@ export function AssignmentResponsePanel({
       <div className="space-y-4">
         <p className="text-sm text-muted-foreground">
           Anda menjadwalkan kunjungan ini sendiri. Unit bisnis ini memusatkan jadwal di admin, jadi perubahan waktu
-          diusulkan; kalau tidak jadi, batalkan mission dari kartu di atas.
+          diusulkan; kalau tidak jadi, batalkan aktivitas dari kartu di atas.
         </p>
         <div className="flex flex-wrap gap-2">{rescheduleButton}</div>
         {rescheduleForm}

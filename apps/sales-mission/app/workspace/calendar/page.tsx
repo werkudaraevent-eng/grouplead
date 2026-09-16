@@ -122,7 +122,7 @@ export default async function CalendarPage({
                   <Link
                     key={day.date}
                     href={`/workspace/calendar?month=${month}&day=${day.date}`}
-                    aria-label={`${day.dayOfMonth}, ${day.missionCount} mission`}
+                    aria-label={`${day.dayOfMonth}, ${day.missionCount} aktivitas`}
                     aria-current={selected ? "date" : undefined}
                     className={cn(
                       "relative flex h-11 min-w-0 flex-col items-center justify-center rounded-lg border border-transparent text-xs transition-colors md:h-auto md:min-h-[4.5rem] md:items-stretch md:justify-start md:p-1.5",
@@ -173,15 +173,15 @@ export default async function CalendarPage({
             {/* A silent grid reads as broken; say so in words. */}
             {monthTotal === 0 && (
               <p className="mt-4 rounded-lg border border-dashed bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
-                Tidak ada mission pada {formatMonthLabel(month)}.
+                Tidak ada aktivitas pada {formatMonthLabel(month)}.
               </p>
             )}
 
             <div className="mt-5 flex items-center gap-2 border-t pt-4 text-xs text-muted-foreground">
               <CalendarDays className="h-3.5 w-3.5" />
-              {monthTotal} mission bulan ini · {dayMissions.length} pada hari terpilih
+              {monthTotal} aktivitas bulan ini · {dayMissions.length} pada hari terpilih
               <Link href={paths.activities()} className="ml-auto font-semibold text-primary hover:underline">
-                Lihat semua mission
+                Lihat semua aktivitas
               </Link>
             </div>
           </div>
@@ -198,7 +198,7 @@ export default async function CalendarPage({
             {canCreate && (
               <Button asChild size="sm">
                 <Link href={paths.newActivity({ date: selectedDay })}>
-                  <Plus className="h-4 w-4" /> Mission
+                  <Plus className="h-4 w-4" /> Aktivitas
                 </Link>
               </Button>
             )}
@@ -224,7 +224,7 @@ export default async function CalendarPage({
           ) : (
             <div className="flex items-center gap-2 px-5 py-6 text-sm text-muted-foreground">
               <CalendarDays className="h-4 w-4" />
-              Tidak ada mission pada hari ini
+              Tidak ada aktivitas pada hari ini
             </div>
           )}
         </aside>

@@ -210,7 +210,7 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
           {isCancelled && (
             <section className="rounded-xl border border-[var(--danger-foreground)]/25 bg-[var(--danger)] p-5">
               <h2 className="flex items-center gap-2 text-base font-semibold text-[var(--danger-foreground)]">
-                <Ban className="h-4 w-4" /> Mission dibatalkan
+                <Ban className="h-4 w-4" /> Aktivitas dibatalkan
               </h2>
               {cancellation && (
                 <p className="mt-1 text-sm text-[var(--danger-foreground)]">
@@ -387,7 +387,7 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
 
                 {isAssigned && !canRespond(mission.status) && (
                   <p className="text-sm text-muted-foreground">
-                    Mission ini sudah tidak menerima perubahan jawaban.
+                    Aktivitas ini sudah tidak menerima perubahan jawaban.
                   </p>
                 )}
               </div>
@@ -433,7 +433,7 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
 
             <div className="flex flex-wrap items-center gap-2 border-t bg-muted/30 px-5 py-4">
               {isCancelled ? (
-                <p className="text-sm text-muted-foreground">Mission dibatalkan; tim tidak bisa diubah lagi.</p>
+                <p className="text-sm text-muted-foreground">Aktivitas dibatalkan; tim tidak bisa diubah lagi.</p>
               ) : (
                 <>
                   {role === "SUPPORTING" && <LeaveButton missionId={missionId} />}
@@ -492,7 +492,7 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
 
         {!canReadReport ? (
           <p className="px-5 py-6 text-sm text-muted-foreground">
-            Peran Anda tidak mencakup laporan kunjungan. Detail mission dan tim tetap terlihat.
+            Peran Anda tidak mencakup laporan kunjungan. Detail aktivitas dan tim tetap terlihat.
           </p>
         ) : report ? (
           <div className="space-y-5 px-5 py-5">

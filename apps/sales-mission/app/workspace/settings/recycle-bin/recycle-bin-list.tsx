@@ -78,7 +78,7 @@ export function RecycleBinList({ items, now }: { items: DeletedMission[]; now: s
           </>
         ) : (
           <>
-            <span className="text-sm text-muted-foreground">{items.length} mission di sampah</span>
+            <span className="text-sm text-muted-foreground">{items.length} aktivitas di sampah</span>
             <Button size="sm" variant="outline" className="ml-auto text-[var(--danger-foreground)] hover:text-[var(--danger-foreground)]" onClick={() => setConfirm("empty")} disabled={pending}>
               <Trash2 className="h-4 w-4" /> Kosongkan sampah
             </Button>

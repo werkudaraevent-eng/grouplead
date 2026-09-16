@@ -735,7 +735,7 @@ export function VisitReportForm({
           <DialogHeader>
             <DialogTitle>Buang draf laporan ini?</DialogTitle>
             <DialogDescription>
-              Semua isian yang tersimpan untuk kunjungan ke {clientName} dihapus, dan mission kembali ke keadaan belum ada laporan. Laporan yang sudah dikirim tidak terpengaruh.
+              Semua isian yang tersimpan untuk kunjungan ke {clientName} dihapus, dan aktivitas kembali ke keadaan belum ada laporan. Laporan yang sudah dikirim tidak terpengaruh.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

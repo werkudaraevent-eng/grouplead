@@ -328,7 +328,7 @@ export default async function MissionHomePage() {
               href={paths.activities()}
               className="text-sm font-semibold text-primary hover:underline"
             >
-              Semua mission
+              Semua aktivitas
             </Link>
           </div>
 

@@ -18,7 +18,7 @@ export default function NotFound() {
 
         <h1 className="mt-4 text-lg font-semibold text-foreground">Halaman tidak ditemukan</h1>
         <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-          Alamat ini tidak ada, atau mission-nya sudah dihapus. Bisa juga mission itu milik unit
+          Alamat ini tidak ada, atau aktivitasnya sudah dihapus. Bisa juga aktivitas itu milik unit
           bisnis lain.
         </p>
 
