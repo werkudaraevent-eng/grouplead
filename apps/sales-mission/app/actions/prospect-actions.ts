@@ -18,6 +18,7 @@ import { parseProspectPageParams } from "@/lib/prospects/prospect-paging"
 import { listMatchingProspectIds } from "@/lib/prospects/prospect-page-queries"
 import { MISSION_TIME_ZONE } from "@/lib/missions/mission-schema"
 import type { ActionResult } from "@/types/action-result"
+import { NO_ACCESS_MESSAGE } from "@/lib/brand"
 
 /**
  * Write side of the prospect list.
@@ -34,7 +35,7 @@ export type ProspectFormState = ActionResult<{ id: string }> | null
 
 async function authorize(action: "create" | "read" | "update" | "delete") {
   const access = await getSalesMissionAccess()
-  if (!access) return { error: "Anda tidak punya akses Sales Mission." as const }
+  if (!access) return { error: NO_ACCESS_MESSAGE }
   if (!(await canPerform(access, "sales_mission_prospect", action))) {
     return { error: "Anda tidak punya izin untuk prospek." as const }
   }
@@ -247,7 +248,7 @@ export async function setProspectStatus(ids: string[], input: unknown): Promise<
   // A converted prospect follows its mission; its status is not edited by hand.
   const targets = allowed.filter((row) => !row.mission_id)
   if (targets.length === 0) {
-    return { success: false, error: skipped > 0 ? "Semua prospek yang dipilih dipegang orang lain." : "Prospek yang sudah jadi mission mengikuti status mission-nya." }
+    return { success: false, error: skipped > 0 ? "Semua prospek yang dipilih dipegang orang lain." : "Prospek yang sudah jadi aktivitas mengikuti status aktivitas-nya." }
   }
 
   const supabase = await createClient()

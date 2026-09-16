@@ -367,7 +367,7 @@ export default function UserManagementPage() {
                                                 // something to fix rather than something optional.
                                                 return (
                                                     <span
-                                                        title="This user has no business unit, so they cannot use LeadEngine or Sales Mission. Edit the user to assign one."
+                                                        title="This user has no business unit, so they cannot use LeadEngine or Sales Activity. Edit the user to assign one."
                                                         className="inline-flex items-center gap-1.5 text-sm font-medium text-[var(--warning-foreground)]"
                                                     >
                                                         <AlertTriangle className="h-4 w-4" />

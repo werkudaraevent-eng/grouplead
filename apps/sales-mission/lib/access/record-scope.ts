@@ -85,7 +85,7 @@ export const prospectOwners = (prospect: { ownerId: string | null }): (string | 
 export const SCOPE_LABELS: Record<RecordScope, { label: string; description: string }> = {
   own: {
     label: "Milik sendiri",
-    description: "Hanya record miliknya: mission yang ia sales utama atau ia jadwalkan, laporan mission-nya sendiri, prospek yang ia pegang.",
+    description: "Hanya record miliknya: aktivitas yang ia sales utama atau ia jadwalkan, laporan aktivitas-nya sendiri, prospek yang ia pegang.",
   },
   team: {
     label: "Tim",
@@ -101,7 +101,7 @@ export type ScopedNoun = "mission" | "laporan" | "prospek"
 
 const OWNER_WORDS: Record<ScopedNoun, string> = {
   mission: "sales utama atau yang menjadwalkannya",
-  laporan: "sales utama mission itu",
+  laporan: "sales utama aktivitas itu",
   prospek: "pemegangnya",
 }
 

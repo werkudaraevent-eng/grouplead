@@ -7,6 +7,7 @@ import { getSalesMissionAccess, isSettingsAdmin } from "@/lib/sales-mission-acce
 import { listProspectStatuses } from "@/lib/prospects/prospect-status-queries"
 import { ADDABLE_KINDS, STATUS_COLORS, STATUS_KINDS, archiveViolation, nextStatusOrder, reorderStatus, toStatusCode } from "@/lib/prospects/prospect-status"
 import type { ActionResult } from "@/types/action-result"
+import { NO_ACCESS_MESSAGE } from "@/lib/brand"
 
 /**
  * The admin's side of prospect statuses: label, colour and order are theirs;
@@ -18,9 +19,9 @@ const PATHS = ["/workspace/settings/prospect-statuses", "/workspace/prospects", 
 
 async function authorize() {
   const access = await getSalesMissionAccess()
-  if (!access) return { error: "Anda tidak punya akses Sales Mission." as const }
+  if (!access) return { error: NO_ACCESS_MESSAGE }
   if (!(await isSettingsAdmin(access))) {
-    return { error: "Hanya admin Sales Mission yang bisa mengatur status prospek." as const }
+    return { error: "Hanya admin Sales Activity yang bisa mengatur status prospek." as const }
   }
   return { access }
 }

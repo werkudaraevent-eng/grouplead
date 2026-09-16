@@ -21,7 +21,7 @@ export default async function RecycleBinPage() {
   const canManage = await isSettingsAdmin(access)
   if (!canManage) {
     return (
-      <WorkspacePage eyebrow="Sales Mission / Pengaturan" title="Sampah" action={<BackLink href="/workspace/settings" />}>
+      <WorkspacePage eyebrow="Sales Activity / Pengaturan" title="Sampah" action={<BackLink href="/workspace/settings" />}>
         <EmptyState title="Tidak punya izin" description="Hanya admin dan super admin yang bisa memulihkan atau menghapus permanen." />
       </WorkspacePage>
     )
@@ -33,13 +33,13 @@ export default async function RecycleBinPage() {
 
   return (
     <WorkspacePage
-      eyebrow="Sales Mission / Pengaturan"
+      eyebrow="Sales Activity / Pengaturan"
       title="Sampah"
-      description={`Mission dan prospek yang dihapus disimpan ${RETENTION_DAYS} hari, lalu dihapus permanen. Laporan, penugasan, dan catatan di dalamnya ikut kembali saat dipulihkan.`}
+      description={`Aktivitas dan prospek yang dihapus disimpan ${RETENTION_DAYS} hari, lalu dihapus permanen. Laporan, penugasan, dan catatan di dalamnya ikut kembali saat dipulihkan.`}
       action={<BackLink href="/workspace/settings" />}
     >
-      <section aria-label="Mission di sampah">
-        <h2 className="mb-2 text-base font-semibold text-foreground">Mission</h2>
+      <section aria-label="Aktivitas di sampah">
+        <h2 className="mb-2 text-base font-semibold text-foreground">Aktivitas</h2>
         <RecycleBinList items={items} now={now.toISOString()} />
       </section>
       <section className="mt-8" aria-label="Prospek di sampah">

@@ -15,7 +15,8 @@ import { getMissionFieldValues, listFormFields } from "@/lib/missions/form-field
 import { MISSION_TIME_ZONE } from "@/lib/missions/mission-schema"
 import { updateMission } from "@/app/actions/mission-actions"
 import { BackLink, EmptyState, WorkspacePage } from "@/app/workspace/workspace-page"
-import { MissionForm, type MissionPrefill } from "@/app/workspace/missions/new/mission-form"
+import { MissionForm, type MissionPrefill } from "@/app/workspace/activities/new/mission-form"
+import { paths } from "@/lib/paths"
 
 export const dynamic = "force-dynamic"
 
@@ -27,8 +28,8 @@ export const dynamic = "force-dynamic"
  * move the schedule: that is Pindahkan jadwal on the detail page, which
  * tells the team and, under confirmation, re-asks them.
  */
-export default async function EditMissionPage({ params }: { params: Promise<{ missionId: string }> }) {
-  const { missionId } = await params
+export default async function EditMissionPage({ params }: { params: Promise<{ activityId: string }> }) {
+  const { activityId: missionId } = await params
   const access = await getSalesMissionAccess()
   if (!access) redirect("/login?error=access_not_provisioned")
   await requireModule(access, "sales_mission_mission")
@@ -43,12 +44,12 @@ export default async function EditMissionPage({ params }: { params: Promise<{ mi
     // Say which rule refused, in the matrix's own words: a closed mission is
     // history; an open one is outside the Cakupan the role holds.
     return (
-      <WorkspacePage eyebrow="Sales Mission / Mission" title="Ubah mission" action={<BackLink href={`/workspace/missions/${missionId}`} />}>
+      <WorkspacePage eyebrow="Sales Activity / Aktivitas" title="Ubah aktivitas" action={<BackLink href={paths.activity(missionId)} />}>
         <EmptyState
-          title="Mission ini tidak bisa diubah"
+          title="Aktivitas ini tidak bisa diubah"
           description={
             closed
-              ? "Mission yang sudah selesai atau dibatalkan adalah riwayat; tidak diubah lagi."
+              ? "Aktivitas yang sudah selesai atau dibatalkan adalah riwayat; tidak diubah lagi."
               : describeOutOfScope(gates.missionCtx.scope, "mission")
           }
         />
@@ -97,10 +98,10 @@ export default async function EditMissionPage({ params }: { params: Promise<{ mi
 
   return (
     <WorkspacePage
-      eyebrow="Sales Mission / Mission"
-      title="Ubah mission"
+      eyebrow="Sales Activity / Aktivitas"
+      title="Ubah aktivitas"
       description={`Perbaiki detail kunjungan ke ${mission.clientCompanyName}. Kalau jadwalnya ikut berubah, tim diberi tahu saat disimpan.`}
-      action={<BackLink href={`/workspace/missions/${missionId}`} />}
+      action={<BackLink href={paths.activity(missionId)} />}
     >
       <MissionForm
         // The current sales utama stays choosable even when out of reach, so

@@ -20,6 +20,7 @@ import { PersonAvatar } from "@/components/person-avatar"
 import { Button } from "@/components/ui/button"
 import { ProspectStatusLabel } from "../prospect-table"
 import { ProspectDetailActions } from "./detail-actions"
+import { paths } from "@/lib/paths"
 
 export const dynamic = "force-dynamic"
 
@@ -61,7 +62,7 @@ export default async function ProspectDetailPage({ params }: { params: Promise<{
 
   return (
     <WorkspacePage
-      eyebrow="Sales Mission / Prospek"
+      eyebrow="Sales Activity / Prospek"
       title={prospect.clientCompanyName}
       description={[contactName, prospect.contactJobTitle].filter(Boolean).join(" · ") || "Belum ada kontak yang dicatat"}
       action={
@@ -75,16 +76,16 @@ export default async function ProspectDetailPage({ params }: { params: Promise<{
         <div className="min-w-0 space-y-4">
           {prospect.mission ? (
             <article className="rounded-xl border border-[var(--success-foreground)]/30 bg-[var(--success)] p-5">
-              <p className="flex items-center gap-2 text-base font-semibold text-[var(--success-foreground)]"><CalendarCheck className="h-4 w-4" /> Sudah jadi mission</p>
+              <p className="flex items-center gap-2 text-base font-semibold text-[var(--success-foreground)]"><CalendarCheck className="h-4 w-4" /> Sudah jadi aktivitas</p>
               <p className="mt-1 text-sm text-[var(--success-foreground)]">
                 {formatMissionSchedule(prospect.mission.scheduledStart, new Date())} · {statusLabel(prospect.mission.status)}. Status prospek mengikuti mission ini.
               </p>
-              <Button asChild size="sm" variant="outline" className="mt-3 bg-card"><Link href={`/workspace/missions/${prospect.mission.id}`}>Buka mission</Link></Button>
+              <Button asChild size="sm" variant="outline" className="mt-3 bg-card"><Link href={paths.activity(prospect.mission.id)}>Buka aktivitas</Link></Button>
             </article>
           ) : editable && canCreateMission && prospect.statusKind !== "lost" ? (
             <article className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-dashed bg-card px-5 py-4">
               <p className="text-sm text-muted-foreground">Sudah dapat janji temu? Jadwalkan kunjungannya; data prospek ini terisi otomatis di form mission.</p>
-              <Button asChild size="sm"><Link href={`/workspace/missions/new?prospect=${prospect.id}`}><CalendarCheck className="h-4 w-4" /> Jadwalkan kunjungan</Link></Button>
+              <Button asChild size="sm"><Link href={paths.newActivity({ prospect: prospect.id })}><CalendarCheck className="h-4 w-4" /> Jadwalkan kunjungan</Link></Button>
             </article>
           ) : null}
 

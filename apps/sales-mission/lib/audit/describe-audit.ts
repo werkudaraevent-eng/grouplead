@@ -44,7 +44,7 @@ const TABLE_LABELS: Record<string, string> = {
   report_contacts: "kontak laporan",
   supporting_notes: "catatan pendukung",
   reschedule_requests: "usulan jadwal",
-  mission_settings: "aturan mission",
+  mission_settings: "aturan aktivitas",
   form_fields: "field form",
   board_tokens: "tautan papan",
   lead_pushes: "kiriman lead",
@@ -230,30 +230,30 @@ export function describeAudit(row: AuditRow): AuditDescription {
 
   switch (row.tableName) {
     case "missions":
-      if (row.action === "INSERT") return { sentence: `membuat mission ke ${name}`, tone: "create", details }
-      if (row.action === "DELETE") return { sentence: `menghapus permanen mission ke ${name}`, tone: "delete", details }
+      if (row.action === "INSERT") return { sentence: `membuat aktivitas ke ${name}`, tone: "create", details }
+      if (row.action === "DELETE") return { sentence: `menghapus permanen aktivitas ke ${name}`, tone: "delete", details }
       if (has("deleted_at")) {
         return to("deleted_at")
-          ? { sentence: `memindahkan mission ke ${name} ke sampah`, tone: "delete", details }
-          : { sentence: `memulihkan mission ke ${name} dari sampah`, tone: "create", details }
+          ? { sentence: `memindahkan aktivitas ke ${name} ke sampah`, tone: "delete", details }
+          : { sentence: `memulihkan aktivitas ke ${name} dari sampah`, tone: "create", details }
       }
       if (has("status")) {
         const next = to("status")
-        if (next === "CANCELLED") return { sentence: `membatalkan mission ke ${name}`, tone: "delete", details }
-        if (next === "COMPLETED") return { sentence: `menyelesaikan mission ke ${name}`, tone: "create", details }
+        if (next === "CANCELLED") return { sentence: `membatalkan aktivitas ke ${name}`, tone: "delete", details }
+        if (next === "COMPLETED") return { sentence: `menyelesaikan aktivitas ke ${name}`, tone: "create", details }
         return {
-          sentence: `mengubah status mission ke ${name}: ${formatValue("status", from("status"))} → ${formatValue("status", next)}`,
+          sentence: `mengubah status aktivitas ke ${name}: ${formatValue("status", from("status"))} → ${formatValue("status", next)}`,
           tone: "update",
           details,
         }
       }
       if (has("scheduled_start") || has("scheduled_end")) {
-        return { sentence: `memindahkan jadwal mission ke ${name}`, tone: "update", details }
+        return { sentence: `memindahkan jadwal aktivitas ke ${name}`, tone: "update", details }
       }
       if (has("allow_join")) {
-        return { sentence: `${to("allow_join") ? "membuka" : "menutup"} mission ke ${name} untuk join`, tone: "update", details }
+        return { sentence: `${to("allow_join") ? "membuka" : "menutup"} aktivitas ke ${name} untuk join`, tone: "update", details }
       }
-      return { sentence: `mengubah ${details.map((d) => d.field).join(", ") || "detail"} pada mission ke ${name}`, tone: "update", details }
+      return { sentence: `mengubah ${details.map((d) => d.field).join(", ") || "detail"} pada aktivitas ke ${name}`, tone: "update", details }
 
     case "prospects": {
       const source = inserted?.source
@@ -281,8 +281,8 @@ export function describeAudit(row: AuditRow): AuditDescription {
 
     case "assignments": {
       const role = (inserted?.assignment_role ?? from("assignment_role")) === "PRIMARY" ? "sales utama" : "sales pendukung"
-      if (row.action === "INSERT") return { sentence: `ditugaskan sebagai ${role} pada mission ke ${name}`, tone: "create", details }
-      if (row.action === "DELETE") return { sentence: `dikeluarkan dari mission ke ${name}`, tone: "delete", details }
+      if (row.action === "INSERT") return { sentence: `ditugaskan sebagai ${role} pada aktivitas ke ${name}`, tone: "create", details }
+      if (row.action === "DELETE") return { sentence: `dikeluarkan dari aktivitas ke ${name}`, tone: "delete", details }
       if (has("response")) {
         const next = to("response")
         const verb =
@@ -290,9 +290,9 @@ export function describeAudit(row: AuditRow): AuditDescription {
           : next === "REJECTED" ? "menolak penugasan"
           : next === "RESCHEDULE_REQUESTED" ? "mengusulkan jadwal lain untuk"
           : "menunggu jawaban ulang untuk"
-        return { sentence: `${verb} mission ke ${name}`, tone: next === "REJECTED" ? "delete" : "update", details }
+        return { sentence: `${verb} aktivitas ke ${name}`, tone: next === "REJECTED" ? "delete" : "update", details }
       }
-      return { sentence: `mengubah penugasan pada mission ke ${name}`, tone: "update", details }
+      return { sentence: `mengubah penugasan pada aktivitas ke ${name}`, tone: "update", details }
     }
 
     case "visit_reports":
@@ -303,19 +303,19 @@ export function describeAudit(row: AuditRow): AuditDescription {
       return { sentence: `mengubah laporan kunjungan ${name}`, tone: "update", details }
 
     case "reschedule_requests":
-      if (row.action === "INSERT") return { sentence: `mengusulkan jadwal lain untuk mission ke ${name}`, tone: "update", details }
+      if (row.action === "INSERT") return { sentence: `mengusulkan jadwal lain untuk aktivitas ke ${name}`, tone: "update", details }
       if (has("status")) {
         const next = to("status")
         return {
-          sentence: `${next === "APPROVED" ? "menyetujui" : "menolak"} usulan jadwal untuk mission ke ${name}`,
+          sentence: `${next === "APPROVED" ? "menyetujui" : "menolak"} usulan jadwal untuk aktivitas ke ${name}`,
           tone: next === "APPROVED" ? "create" : "delete",
           details,
         }
       }
-      return { sentence: `mengubah usulan jadwal untuk mission ke ${name}`, tone: "update", details }
+      return { sentence: `mengubah usulan jadwal untuk aktivitas ke ${name}`, tone: "update", details }
 
     case "mission_settings":
-      return { sentence: `mengubah aturan mission: ${details.map((d) => `${d.field} ${d.from} → ${d.to}`).join("; ") || "pengaturan awal"}`, tone: "update", details }
+      return { sentence: `mengubah aturan aktivitas: ${details.map((d) => `${d.field} ${d.from} → ${d.to}`).join("; ") || "pengaturan awal"}`, tone: "update", details }
 
     case "form_fields":
       if (row.action === "INSERT") return { sentence: `menambah field form “${name}”`, tone: "create", details }
@@ -329,7 +329,7 @@ export function describeAudit(row: AuditRow): AuditDescription {
       return { sentence: `mengubah tautan papan “${name}”`, tone: "update", details }
 
     case "lead_pushes":
-      return { sentence: `mengirim lead ke LeadEngine dari mission ke ${name}`, tone: "create", details }
+      return { sentence: `mengirim lead ke LeadEngine dari aktivitas ke ${name}`, tone: "create", details }
 
     case "report_contacts":
       if (row.action === "INSERT") return { sentence: `menambah kontak di laporan ${name}`, tone: "create", details }
@@ -337,9 +337,9 @@ export function describeAudit(row: AuditRow): AuditDescription {
       return { sentence: `mengubah kontak di laporan ${name}`, tone: "update", details }
 
     case "supporting_notes":
-      if (row.action === "INSERT") return { sentence: `menulis catatan pendukung pada mission ke ${name}`, tone: "create", details }
-      if (row.action === "DELETE") return { sentence: `menghapus catatan pendukung pada mission ke ${name}`, tone: "delete", details }
-      return { sentence: `mengubah catatan pendukung pada mission ke ${name}`, tone: "update", details }
+      if (row.action === "INSERT") return { sentence: `menulis catatan pendukung pada aktivitas ke ${name}`, tone: "create", details }
+      if (row.action === "DELETE") return { sentence: `menghapus catatan pendukung pada aktivitas ke ${name}`, tone: "delete", details }
+      return { sentence: `mengubah catatan pendukung pada aktivitas ke ${name}`, tone: "update", details }
 
     default: {
       const verb = row.action === "INSERT" ? "menambah" : row.action === "DELETE" ? "menghapus" : "mengubah"

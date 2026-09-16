@@ -11,7 +11,7 @@ import { needsMyAnswer } from "@/lib/missions/mission-filter"
 import { reportOwed, visitState } from "@/lib/missions/visit-state"
 import { Button } from "@/components/ui/button"
 import type { ConfirmationPolicy } from "@/lib/missions/assignment-workflow"
-import { AcceptAssignmentButton, AssignmentOverflowMenu } from "@/app/workspace/missions/assignment-actions-menu"
+import { AcceptAssignmentButton, AssignmentOverflowMenu } from "@/app/workspace/activities/assignment-actions-menu"
 import { cn } from "@/lib/utils"
 import {
   MISSION_TIME_ZONE,
@@ -21,6 +21,7 @@ import {
 } from "@/lib/missions/mission-schema"
 import { missionDayKey, missionsOnDay } from "@/lib/missions/mission-calendar"
 import { EmptyState, NewMissionAction, StatusBadge, WorkspacePage } from "@/app/workspace/workspace-page"
+import { paths } from "@/lib/paths"
 
 export const dynamic = "force-dynamic"
 
@@ -54,7 +55,7 @@ function TodayCard({ mission, policy }: { mission: MissionListItem; policy: Conf
       )}
     >
       <Link
-        href={`/workspace/missions/${mission.id}`}
+        href={paths.activity(mission.id)}
         className="flex gap-4 p-4 transition-colors hover:bg-muted/50 sm:p-5"
       >
         <span className="shrink-0 text-2xl font-bold tabular-nums text-primary sm:text-3xl">
@@ -144,9 +145,9 @@ export default async function MissionHomePage() {
   // the guard that sent them.
   if (!canRead) {
     return (
-      <WorkspacePage eyebrow="Sales Mission" title="Hari ini" description={dateLabel}>
+      <WorkspacePage eyebrow="Sales Activity" title="Hari ini" description={dateLabel}>
         <EmptyState
-          title="Mission tidak termasuk akses Anda"
+          title="Aktivitas tidak termasuk akses Anda"
           description="Peran Anda tidak mencakup jadwal kunjungan. Menu lain di samping tetap bisa dibuka."
         />
       </WorkspacePage>
@@ -199,12 +200,12 @@ export default async function MissionHomePage() {
 
   return (
     <WorkspacePage
-      eyebrow="Sales Mission"
+      eyebrow="Sales Activity"
       title="Hari ini"
       description={dateLabel}
       action={canCreate ? <NewMissionAction /> : undefined}
     >
-      <section aria-label="Mission hari ini">
+      <section aria-label="Aktivitas hari ini">
         {todaysMissions.length > 0 ? (
           <div className="grid gap-3 xl:grid-cols-2">
             {todaysMissions.map((mission) => (
@@ -240,7 +241,7 @@ export default async function MissionHomePage() {
             <div className="divide-y">
               {owedReports.map((mission) => (
                 <div key={mission.id} className="flex flex-col gap-3 px-4 py-3.5 sm:flex-row sm:items-center sm:px-5">
-                  <Link href={`/workspace/missions/${mission.id}`} className="flex min-w-0 flex-1 items-center gap-4">
+                  <Link href={paths.activity(mission.id)} className="flex min-w-0 flex-1 items-center gap-4">
                     <span className="w-24 shrink-0 text-xs font-medium tabular-nums text-muted-foreground">
                       {formatMissionSchedule(mission.scheduledStart, now)}
                     </span>
@@ -252,7 +253,7 @@ export default async function MissionHomePage() {
                     </span>
                   </Link>
                   <Button asChild size="sm" className="sm:self-center">
-                    <Link href={`/workspace/missions/${mission.id}/report`}>
+                    <Link href={paths.activityReport(mission.id)}>
                       <ClipboardList className="h-4 w-4" /> {mission.reportStatus === "NONE" ? "Isi laporan" : "Lanjutkan laporan"}
                     </Link>
                   </Button>
@@ -297,7 +298,7 @@ export default async function MissionHomePage() {
             <div className="divide-y">
               {awaiting.map((mission) => (
                 <div key={mission.id} className="flex flex-col gap-3 px-4 py-3.5 sm:flex-row sm:items-center sm:px-5">
-                  <Link href={`/workspace/missions/${mission.id}`} className="flex min-w-0 flex-1 items-center gap-4">
+                  <Link href={paths.activity(mission.id)} className="flex min-w-0 flex-1 items-center gap-4">
                     <span className="w-24 shrink-0 text-xs font-medium tabular-nums text-muted-foreground">
                       {formatMissionSchedule(mission.scheduledStart, now)}
                     </span>
@@ -320,11 +321,11 @@ export default async function MissionHomePage() {
       )}
 
       {upcoming.length > 0 && (
-        <section className="mt-6" aria-label="Mission berikutnya">
+        <section className="mt-6" aria-label="Aktivitas berikutnya">
           <div className="mb-2 flex items-end justify-between gap-3">
             <h2 className="text-base font-semibold text-foreground">Berikutnya</h2>
             <Link
-              href="/workspace/missions"
+              href={paths.activities()}
               className="text-sm font-semibold text-primary hover:underline"
             >
               Semua mission
@@ -336,7 +337,7 @@ export default async function MissionHomePage() {
               {upcoming.map((mission) => (
                 <Link
                   key={mission.id}
-                  href={`/workspace/missions/${mission.id}`}
+                  href={paths.activity(mission.id)}
                   className="flex items-center gap-4 px-4 py-3.5 transition-colors hover:bg-muted/50 sm:px-5"
                 >
                   <span className="w-24 shrink-0 text-xs font-medium tabular-nums text-muted-foreground">
@@ -359,12 +360,12 @@ export default async function MissionHomePage() {
         </section>
       )}
 
-      <section className="mt-6" aria-label="Ringkasan mission">
+      <section className="mt-6" aria-label="Ringkasan aktivitas">
         <h2 className="mb-2 text-base font-semibold text-foreground">Ringkasan</h2>
         <div className="grid gap-3 sm:grid-cols-3">
           <Metric
             icon={ClipboardList}
-            label="Mission berjalan"
+            label="Aktivitas berjalan"
             value={summary.open}
             tone="bg-primary/10 text-primary"
           />

@@ -17,12 +17,12 @@ export default async function BoardSettingsPage() {
   if (!(await canPerform(access, "sales_mission_settings", "update"))) {
     return (
       <WorkspacePage
-        eyebrow="Sales Mission / Administration"
+        eyebrow="Sales Activity / Administration"
         title="Papan live"
         description="Kelola tautan papan untuk layar kantor."
         action={<BackLink href="/workspace/settings" />}
       >
-        <EmptyState title="Tidak punya izin" description="Tautan papan hanya dapat dikelola oleh admin Sales Mission." />
+        <EmptyState title="Tidak punya izin" description="Tautan papan hanya dapat dikelola oleh admin Sales Activity." />
       </WorkspacePage>
     )
   }
@@ -54,7 +54,7 @@ export default async function BoardSettingsPage() {
 
   return (
     <WorkspacePage
-      eyebrow="Sales Mission / Administration"
+      eyebrow="Sales Activity / Administration"
       title="Papan live"
       description="Tautan layar yang pernah dibuat: cabut yang tidak dipakai. Membuat tautan baru dilakukan dari halaman Papan live."
       action={<BackLink href="/workspace/settings" />}

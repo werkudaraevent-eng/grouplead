@@ -2,13 +2,14 @@ import type { Metadata } from "next"
 import { Plus_Jakarta_Sans, Geist_Mono } from "next/font/google"
 import { Toaster } from "sonner"
 import "./globals.css"
+import { PAGE_TITLE } from "@/lib/brand"
 
 const jakartaSans = Plus_Jakarta_Sans({ variable: "--font-jakarta-sans", subsets: ["latin"], weight: ["400", "500", "600", "700", "800"] })
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "Sales Mission | Werkudara Group",
-  description: "Plan, assign, and complete sales missions.",
+  title: PAGE_TITLE,
+  description: "Rencanakan aktivitas sales, tugaskan timnya, dan rekam hasilnya.",
 }
 
 // The other app's origin, warmed up at load: DNS and TLS are done before

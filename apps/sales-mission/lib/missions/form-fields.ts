@@ -61,7 +61,7 @@ export const CUSTOM_FIELD_TYPES = FIELD_TYPES.filter((type) => type !== "CONTACT
 
 export type FormKey = "mission" | "visit_report" | "prospect"
 export const FORM_KEYS: readonly FormKey[] = ["mission", "visit_report", "prospect"]
-export const FORM_KEY_LABELS: Record<FormKey, string> = { mission: "Form mission", visit_report: "Form laporan", prospect: "Form prospek" }
+export const FORM_KEY_LABELS: Record<FormKey, string> = { mission: "Form aktivitas", visit_report: "Form laporan", prospect: "Form prospek" }
 
 export const FIELD_TYPE_LABELS: Record<FieldType, string> = {
   TEXT: "Teks singkat",
@@ -154,7 +154,7 @@ export const CORE_MISSION_FIELDS: Array<
   { reportingKey: "client_company", label: "Perusahaan klien", fieldType: "TEXT", isRequired: true, displayOrder: 10 },
   // Seeded with the list the mission form used to hardcode, so switching it to
   // config changes nothing on day one and everything after.
-  { reportingKey: "mission_type", label: "Jenis mission", fieldType: "SELECT", isRequired: true, displayOrder: 20, options: [...DEFAULT_MISSION_TYPES] },
+  { reportingKey: "mission_type", label: "Jenis aktivitas", fieldType: "SELECT", isRequired: true, displayOrder: 20, options: [...DEFAULT_MISSION_TYPES] },
   { reportingKey: "objective", label: "Tujuan kunjungan", fieldType: "TEXT", isRequired: false, displayOrder: 25 },
   // The address block, in the order every global address form uses: the
   // street, then the building or unit, then the city that the map, the
@@ -236,7 +236,7 @@ export const CORE_PROSPECT_FIELDS: Array<
   { reportingKey: "website", label: "Website", fieldType: "TEXT", isRequired: false, displayOrder: 30 },
   { reportingKey: "address", label: "Alamat jalan", fieldType: "TEXT", isRequired: false, displayOrder: 40 },
   { reportingKey: "location", label: "Kota", fieldType: "TEXT", isRequired: false, displayOrder: 50 },
-  { reportingKey: "contact_salutation", label: "Sapaan", fieldType: "SELECT", isRequired: false, displayOrder: 60, helpText: "Daftar sapaan mengikuti Form mission." },
+  { reportingKey: "contact_salutation", label: "Sapaan", fieldType: "SELECT", isRequired: false, displayOrder: 60, helpText: "Daftar sapaan mengikuti Form aktivitas." },
   { reportingKey: "contact_name", label: "Nama kontak", fieldType: "TEXT", isRequired: false, displayOrder: 70 },
   { reportingKey: "contact_job_title", label: "Jabatan", fieldType: "TEXT", isRequired: false, displayOrder: 80 },
   { reportingKey: "contact_division", label: "Divisi", fieldType: "TEXT", isRequired: false, displayOrder: 90 },

@@ -13,11 +13,11 @@ export default async function MissionSettingsPage() {
   if (!(await canPerform(access, "sales_mission_settings", "update"))) {
     return (
       <WorkspacePage
-        eyebrow="Sales Mission / Pengaturan"
-        title="Aturan mission"
+        eyebrow="Sales Activity / Pengaturan"
+        title="Aturan aktivitas"
         action={<BackLink href="/workspace/settings" />}
       >
-        <EmptyState title="Tidak punya izin" description="Aturan mission hanya dapat diubah oleh admin Sales Mission." />
+        <EmptyState title="Tidak punya izin" description="Aturan aktivitas hanya dapat diubah oleh admin Sales Activity." />
       </WorkspacePage>
     )
   }
@@ -26,8 +26,8 @@ export default async function MissionSettingsPage() {
 
   return (
     <WorkspacePage
-      eyebrow="Sales Mission / Pengaturan"
-      title="Aturan mission"
+      eyebrow="Sales Activity / Pengaturan"
+      title="Aturan aktivitas"
       description="Penugasan, batas tim, dan pemeriksaan bentrok jadwal untuk unit bisnis ini."
       action={<BackLink href="/workspace/settings" />}
     >

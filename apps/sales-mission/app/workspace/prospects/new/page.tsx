@@ -24,7 +24,7 @@ export default async function NewProspectPage() {
   const salesOptions = allSales.filter((person) => canAssignTo(viewer, person.id))
 
   return (
-    <WorkspacePage eyebrow="Sales Mission / Prospek" title="Prospek baru" description="Satu perusahaan dan satu orang yang akan dihubungi." action={<BackLink href="/workspace/prospects" />}>
+    <WorkspacePage eyebrow="Sales Activity / Prospek" title="Prospek baru" description="Satu perusahaan dan satu orang yang akan dihubungi." action={<BackLink href="/workspace/prospects" />}>
       <ProspectForm fields={prospectFields} salesOptions={salesOptions} salutations={configuredOptions(fields, "contact_salutation", DEFAULT_CONTACT_SALUTATIONS)} salutationsAllowOther={fields.find((field) => field.reportingKey === "contact_salutation")?.allowOther ?? false} viewerId={access.userId} canAssignOthers={canAssignOthers(viewer)} />
     </WorkspacePage>
   )

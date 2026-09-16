@@ -10,6 +10,7 @@ import type { NotificationRow } from "@/lib/notifications/notification-queries"
 import { MISSION_TIME_ZONE } from "@/lib/missions/mission-schema"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
+import { paths } from "@/lib/paths"
 
 function formatWhen(iso: string) {
   return new Intl.DateTimeFormat("id-ID", {
@@ -100,7 +101,7 @@ export function NotificationList({ notifications }: { notifications: Notificatio
               <li key={notification.id}>
                 {notification.missionId ? (
                   <Link
-                    href={`/workspace/missions/${notification.missionId}`}
+                    href={paths.activity(notification.missionId)}
                     onClick={() => open(notification)}
                     className="flex items-start gap-3 px-5 py-4 transition-colors hover:bg-muted/50"
                   >

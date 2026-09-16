@@ -21,6 +21,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { paths } from "@/lib/paths"
 
 /**
  * Import missions from a spreadsheet.
@@ -86,7 +87,7 @@ export function ImportMissions() {
     start(async () => {
       const result = await commitMissionImport(rows)
       if (result.success) {
-        toast.success(`${result.created} mission dibuat.`)
+        toast.success(`${result.created} aktivitas dibuat.`)
         setOpen(false)
         reset()
         router.refresh()
@@ -121,7 +122,7 @@ export function ImportMissions() {
       >
         <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Import mission</DialogTitle>
+            <DialogTitle>Import aktivitas</DialogTitle>
             <DialogDescription>
               Unduh template lebih dulu. Kolomnya mengikuti pengaturan form unit bisnis ini,
               jadi template lama bisa saja sudah tidak cocok.
@@ -130,7 +131,7 @@ export function ImportMissions() {
 
           <DialogBody className="space-y-4">
             <Button asChild variant="outline" className="h-12 w-full sm:w-auto">
-              <a href="/workspace/missions/template">
+              <a href={paths.activitiesTemplate}>
                 <Download className="h-4 w-4" /> Unduh template .xlsx
               </a>
             </Button>
@@ -140,7 +141,7 @@ export function ImportMissions() {
                 ref={inputRef}
                 type="file"
                 accept=".xlsx,.xls"
-                id="mission-import-file"
+                id="aktivitas-import-file"
                 className="sr-only"
                 onChange={(event) => {
                   const file = event.target.files?.[0]
@@ -148,7 +149,7 @@ export function ImportMissions() {
                 }}
               />
               <label
-                htmlFor="mission-import-file"
+                htmlFor="aktivitas-import-file"
                 className="flex min-h-12 cursor-pointer items-center gap-2.5 text-sm"
               >
                 <FileUp className="h-4 w-4 shrink-0 text-muted-foreground" />
@@ -222,7 +223,7 @@ export function ImportMissions() {
             <Button onClick={commit} disabled={pending || reading || !check?.validRows.length}>
               {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
               {check?.validRows.length
-                ? `Import ${check.validRows.length} mission`
+                ? `Import ${check.validRows.length} aktivitas`
                 : "Import"}
             </Button>
           </DialogFooter>

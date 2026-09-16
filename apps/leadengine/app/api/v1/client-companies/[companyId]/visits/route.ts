@@ -80,7 +80,7 @@ export async function POST(
 
     const { missionId, visitedOn, salesName, outcome, contactNames, city } = parsed.data
     const met = contactNames.length > 0 ? ` Bertemu ${contactNames.join(', ')}.` : ''
-    const description = `Kunjungan Sales Mission oleh ${salesName} pada ${visitedOn}: ${outcome}.${met}`
+    const description = `Kunjungan Sales Activity oleh ${salesName} pada ${visitedOn}: ${outcome}.${met}`
 
     // The mission id is the idempotency key, carried in field_name so the
     // existing table needs no new column and the timeline can link back.

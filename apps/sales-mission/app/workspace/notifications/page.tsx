@@ -14,7 +14,7 @@ export default async function NotificationsPage() {
 
   return (
     <WorkspacePage
-      eyebrow="Sales Mission / Notifikasi"
+      eyebrow="Sales Activity / Notifikasi"
       title="Notifikasi"
       description="Penugasan, jawaban tim, permintaan jadwal ulang, dan laporan yang masuk."
     >

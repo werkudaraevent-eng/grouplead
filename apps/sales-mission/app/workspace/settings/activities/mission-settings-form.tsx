@@ -54,7 +54,7 @@ export function MissionSettingsForm({ initial }: { initial: MissionSettings }) {
     start(async () => {
       const result = await updateMissionSettings(form)
       if (result.success) {
-        toast.success("Pengaturan mission tersimpan.")
+        toast.success("Pengaturan aktivitas tersimpan.")
         router.refresh()
       } else {
         toast.error(result.error ?? "Pengaturan gagal disimpan.")
@@ -67,7 +67,7 @@ export function MissionSettingsForm({ initial }: { initial: MissionSettings }) {
       <section className="overflow-clip rounded-xl border bg-card">
         <header className="border-b px-5 py-4">
           <h2 className="text-base font-semibold text-foreground">Penugasan</h2>
-          <p className="mt-0.5 text-sm text-muted-foreground">Apa yang terjadi saat sales ditugaskan pada mission.</p>
+          <p className="mt-0.5 text-sm text-muted-foreground">Apa yang terjadi saat sales ditugaskan pada aktivitas.</p>
         </header>
         <div className="divide-y">
           <SwitchRow
@@ -86,7 +86,7 @@ export function MissionSettingsForm({ initial }: { initial: MissionSettings }) {
           />
           <div className="grid gap-2 px-5 py-4 sm:grid-cols-[1fr_8rem] sm:items-center">
             <div>
-              <Label htmlFor="max-supporting" className="text-sm font-semibold text-foreground">Maksimal sales pendukung per mission</Label>
+              <Label htmlFor="max-supporting" className="text-sm font-semibold text-foreground">Maksimal sales pendukung per aktivitas</Label>
               <p className="mt-1 text-sm leading-relaxed text-muted-foreground">Batas orang yang bisa bergabung di luar sales utama, agar klien yang dijanjikan dua orang tidak kedatangan rombongan.</p>
             </div>
             <Input
@@ -106,20 +106,20 @@ export function MissionSettingsForm({ initial }: { initial: MissionSettings }) {
       <section className="overflow-clip rounded-xl border bg-card">
         <header className="border-b px-5 py-4">
           <h2 className="text-base font-semibold text-foreground">Bentrok jadwal</h2>
-          <p className="mt-0.5 text-sm text-muted-foreground">Kapan dua mission dianggap tidak bisa dijalani satu orang.</p>
+          <p className="mt-0.5 text-sm text-muted-foreground">Kapan dua aktivitas dianggap tidak bisa dijalani satu orang.</p>
         </header>
         <div className="divide-y">
           <SwitchRow
             id="conflict-check"
             label="Periksa bentrok jadwal"
-            hint="Mission yang tumpang tindih dengan jadwal sales ditandai, dan tombol join dimatikan."
+            hint="Aktivitas yang tumpang tindih dengan jadwal sales ditandai, dan tombol join dimatikan."
             checked={form.conflictCheckEnabled}
             onChange={(next) => setForm({ ...form, conflictCheckEnabled: next })}
           />
           <div className="grid gap-2 px-5 py-4 sm:grid-cols-[1fr_8rem] sm:items-center">
             <div>
               <Label htmlFor="travel-buffer" className="text-sm font-semibold text-foreground">Jeda perjalanan (menit)</Label>
-              <p className="mt-1 text-sm leading-relaxed text-muted-foreground">Ditambahkan sebelum dan sesudah tiap mission saat memeriksa bentrok. Dua kunjungan berjarak satu jam di sisi kota berbeda tetap bentrok.</p>
+              <p className="mt-1 text-sm leading-relaxed text-muted-foreground">Ditambahkan sebelum dan sesudah tiap aktivitas saat memeriksa bentrok. Dua kunjungan berjarak satu jam di sisi kota berbeda tetap bentrok.</p>
             </div>
             <Input
               id="travel-buffer"
@@ -135,7 +135,7 @@ export function MissionSettingsForm({ initial }: { initial: MissionSettings }) {
           <SwitchRow
             id="same-location"
             label="Tanpa jeda di lokasi yang sama"
-            hint="Dua mission di lokasi yang sama boleh berurutan tanpa jeda perjalanan."
+            hint="Dua aktivitas di lokasi yang sama boleh berurutan tanpa jeda perjalanan."
             checked={form.allowSameLocationBackToBack}
             onChange={(next) => setForm({ ...form, allowSameLocationBackToBack: next })}
           />

@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic"
 const DAY = /^\d{4}-\d{2}-\d{2}$/
 
 /**
- * Riwayat aktivitas.
+ * Riwayat perubahan.
  *
  * The audit log, read the way Salesforce's Setup Audit Trail and HubSpot's
  * activity log present theirs: newest first, one line per action in plain
@@ -32,8 +32,8 @@ export default async function ActivityPage({
 
   if (!(await canPerform(access, "sales_mission_settings", "read"))) {
     return (
-      <WorkspacePage eyebrow="Sales Mission / Pengaturan" title="Riwayat aktivitas" action={<BackLink href="/workspace/settings" />}>
-        <EmptyState title="Tidak punya izin" description="Riwayat aktivitas hanya dapat dibaca oleh admin Sales Mission." />
+      <WorkspacePage eyebrow="Sales Activity / Pengaturan" title="Riwayat perubahan" action={<BackLink href="/workspace/settings" />}>
+        <EmptyState title="Tidak punya izin" description="Riwayat perubahan hanya dapat dibaca oleh admin Sales Activity." />
       </WorkspacePage>
     )
   }
@@ -56,8 +56,8 @@ export default async function ActivityPage({
 
   return (
     <WorkspacePage
-      eyebrow="Sales Mission / Pengaturan"
-      title="Riwayat aktivitas"
+      eyebrow="Sales Activity / Pengaturan"
+      title="Riwayat perubahan"
       description="Siapa membuat, mengubah, dan menghapus apa. Dicatat otomatis oleh database untuk setiap perubahan, jadi tidak ada yang bisa lolos."
       action={<BackLink href="/workspace/settings" />}
     >

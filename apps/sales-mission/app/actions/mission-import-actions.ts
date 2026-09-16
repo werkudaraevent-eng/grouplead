@@ -20,6 +20,8 @@ import {
   type RawRow,
   type RowIssue,
 } from "@/lib/missions/mission-io"
+import { paths } from "@/lib/paths"
+import { NO_ACCESS_MESSAGE } from "@/lib/brand"
 
 /**
  * Bulk creation of missions from a spreadsheet.
@@ -46,9 +48,9 @@ export interface ImportCheck {
 
 async function authorize() {
   const access = await getSalesMissionAccess()
-  if (!access) return { error: "Anda tidak punya akses Sales Mission." as const }
+  if (!access) return { error: NO_ACCESS_MESSAGE }
   if (!(await canPerform(access, "sales_mission_mission", "create"))) {
-    return { error: "Anda tidak punya izin membuat mission." as const }
+    return { error: "Anda tidak punya izin membuat aktivitas." as const }
   }
   return { access }
 }
@@ -236,7 +238,7 @@ export async function commitMissionImport(rows: RawRow[]): Promise<ImportResult>
       .single()
 
     if (error || !mission) {
-      failed.push({ row: row.row, message: "Mission gagal disimpan." })
+      failed.push({ row: row.row, message: "Aktivitas gagal disimpan." })
       continue
     }
 
@@ -281,7 +283,7 @@ export async function commitMissionImport(rows: RawRow[]): Promise<ImportResult>
     created += 1
   }
 
-  revalidatePath("/workspace/missions")
+  revalidatePath(paths.activities())
   revalidatePath("/workspace/calendar")
   revalidatePath("/workspace")
 

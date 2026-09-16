@@ -229,11 +229,11 @@ export function annotateJoinStatus<T extends JoinCandidate>(
 export function joinBlockedReason(status: JoinStatus, maxSupporting: number): string | null {
   switch (status) {
     case "CONFLICT":
-      return "Kamu sudah punya mission pada jam itu. Minta admin mengatur ulang jadwal kalau tetap ingin ikut."
+      return "Kamu sudah punya aktivitas pada jam itu. Minta admin mengatur ulang jadwal kalau tetap ingin ikut."
     case "FULL":
-      return `Mission ini sudah penuh (maksimal ${maxSupporting} sales pendukung).`
+      return `Aktivitas ini sudah penuh (maksimal ${maxSupporting} sales pendukung).`
     case "CLOSED":
-      return "Sales utama menutup mission ini dari penambahan anggota."
+      return "Sales utama menutup aktivitas ini dari penambahan anggota."
     case "OVER":
       return "Kunjungan ini sudah selesai atau dibatalkan."
     default:

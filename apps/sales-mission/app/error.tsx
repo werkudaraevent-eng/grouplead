@@ -18,7 +18,7 @@ export default function RootError({
   reset: () => void
 }) {
   useEffect(() => {
-    console.error("Sales Mission error:", error)
+    console.error("Sales Activity error:", error)
   }, [error])
 
   return (

@@ -34,6 +34,7 @@ import { Label } from "@/components/ui/label"
 import { NumberInput } from "@/components/ui/number-input"
 import { PhoneInput } from "@/components/ui/phone-input"
 import { cn } from "@/lib/utils"
+import { paths } from "@/lib/paths"
 
 /**
  * Visit report, rendered from the tenant's configuration on the same
@@ -390,7 +391,7 @@ export function VisitReportForm({
     startSubmit(async () => {
       const result = await submitVisitReport(missionId, { ...latest.current, changeReason: changeReason.trim() })
       if (result.success) {
-        router.push(`/workspace/missions/${missionId}`)
+        router.push(paths.activity(missionId))
         router.refresh()
       } else {
         setError(result.error ?? "Laporan gagal dikirim.")
@@ -464,7 +465,7 @@ export function VisitReportForm({
               </div>
             </div>
             <p className="text-xs text-muted-foreground">
-              {planned ? `Dijadwalkan ${planned}.` : "Mission ini belum punya jadwal."}
+              {planned ? `Dijadwalkan ${planned}.` : "Aktivitas ini belum punya jadwal."}
               {timing && (
                 <span className={cn("ml-1.5 font-medium", timing.tone === "success" ? "text-[var(--success-foreground)]" : timing.tone === "warning" ? "text-[var(--warning-foreground)]" : "text-foreground")}>{timing.text}.</span>
               )}
@@ -721,7 +722,7 @@ export function VisitReportForm({
             )}
           </span>
           <Button asChild variant="outline" className="h-12 md:h-10">
-            <Link href={`/workspace/missions/${missionId}`}>Kembali</Link>
+            <Link href={paths.activity(missionId)}>Kembali</Link>
           </Button>
           <Button className="h-12 md:h-10" onClick={handleSubmit} disabled={submitting || missing.length > 0 || (Boolean(editing) && !changeReason.trim())}>
             {submitting ? <><Loader2 className="h-4 w-4 animate-spin" /> {editing ? "Menyimpan…" : "Mengirim…"}</> : editing ? <><Save className="h-4 w-4" /> Simpan perubahan</> : <><Send className="h-4 w-4" /> Kirim laporan</>}
@@ -755,7 +756,7 @@ export function VisitReportForm({
                 }
                 setHasDraft(false)
                 toast.success("Draf dibuang")
-                router.push(`/workspace/missions/${missionId}`)
+                router.push(paths.activity(missionId))
                 router.refresh()
               }}
             >

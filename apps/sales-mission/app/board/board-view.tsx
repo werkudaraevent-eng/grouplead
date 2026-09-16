@@ -184,7 +184,7 @@ export function BoardView({ snapshot, subtitle, now, panels }: { snapshot: Board
     <div className="grid h-dvh grid-rows-[auto_auto_auto_minmax(0,1fr)] gap-5 overflow-hidden bg-[var(--board-bg)] px-10 py-7 text-[var(--board-text)] [@media(max-height:820px)]:gap-4 [@media(max-height:820px)]:px-8 [@media(max-height:820px)]:py-5">
       <header className="flex items-end justify-between gap-6">
         <div>
-          <p className="text-xs font-bold uppercase tracking-[0.2em] text-[var(--board-accent)]">Sales Mission</p>
+          <p className="text-xs font-bold uppercase tracking-[0.2em] text-[var(--board-accent)]">Sales Activity</p>
           <h1 className="mt-1 text-3xl font-bold tracking-tight [@media(max-height:820px)]:text-2xl">{week ? "Minggu ini di lapangan" : "Hari ini di lapangan"}</h1>
           <p className="mt-0.5 text-base text-[var(--board-text-dim)]">{subtitle}</p>
         </div>
@@ -245,7 +245,7 @@ export function BoardView({ snapshot, subtitle, now, panels }: { snapshot: Board
           <Stat label={week ? "Kunjungan minggu ini" : "Kunjungan hari ini"} value={snapshot.counts.todayTotal} icon={CalendarCheck} tone="bg-[var(--board-active-surface)] text-[var(--board-active)]" />
           <Stat label="Diterima" value={snapshot.counts.accepted} icon={CheckCircle2} tone="bg-[var(--board-active-surface)] text-[var(--board-active)]" />
           <Stat label="Selesai" value={snapshot.counts.completed} icon={CheckCircle2} tone="bg-[var(--board-done-surface)] text-[var(--board-done)]" />
-          <Stat label="Mission berjalan" value={snapshot.counts.openMissions} icon={MapPin} tone="bg-[var(--board-running-surface)] text-[var(--board-running)]" />
+          <Stat label="Aktivitas berjalan" value={snapshot.counts.openMissions} icon={MapPin} tone="bg-[var(--board-running-surface)] text-[var(--board-running)]" />
         </section>
       ) : (
         <div />

@@ -41,7 +41,7 @@ export async function GET() {
   sheet["!cols"] = columns.map((column) => ({
     wch: Math.max(column.header.length + 2, column.example.length, 18),
   }))
-  XLSX.utils.book_append_sheet(book, sheet, "Mission")
+  XLSX.utils.book_append_sheet(book, sheet, "Aktivitas")
 
   // ── Sheet 2: the values the importer will accept ──
   // Copy-paste beats guessing, and it keeps this list honest: it is read from
@@ -62,12 +62,12 @@ export async function GET() {
   // ── Sheet 3: how the parser actually reads each cell ──
   const requiredList = columns.filter((c) => c.required).map((c) => `  - ${c.header}`)
   const guide: string[][] = [
-    ["Cara mengisi template import mission"],
+    ["Cara mengisi template import aktivitas"],
     [""],
     ["UMUM"],
     ["  Baris 1 adalah judul kolom. Jangan diubah atau dihapus."],
     ["  Baris 2 adalah contoh. Ganti dengan data asli, atau hapus barisnya."],
-    ["  Satu mission per baris. Kosongkan sel yang tidak Anda punya."],
+    ["  Satu aktivitas per baris. Kosongkan sel yang tidak Anda punya."],
     ["  Tanda * pada judul kolom berarti kolom itu wajib diisi."],
     [""],
     ["KOLOM WAJIB"],
@@ -90,7 +90,7 @@ export async function GET() {
     [""],
     ["PERUSAHAAN KLIEN"],
     ["  Cukup ketik namanya. Kalau namanya persis sama dengan perusahaan"],
-    ["  di LeadEngine, mission akan otomatis tertaut ke sana."],
+    ["  di LeadEngine, aktivitas akan otomatis tertaut ke sana."],
     ["  Import tidak pernah membuat perusahaan baru di CRM."],
     [""],
     ["PILIHAN GANDA"],
@@ -114,7 +114,7 @@ export async function GET() {
   return new NextResponse(new Uint8Array(buffer), {
     headers: {
       "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      "Content-Disposition": 'attachment; filename="template-import-mission.xlsx"',
+      "Content-Disposition": 'attachment; filename="template-import-aktivitas.xlsx"',
       "Cache-Control": "no-store",
     },
   })

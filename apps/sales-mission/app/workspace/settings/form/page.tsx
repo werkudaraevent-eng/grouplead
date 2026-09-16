@@ -13,14 +13,14 @@ export default async function MissionFormSettingsPage() {
   if (!(await canPerform(access, "sales_mission_settings", "update"))) {
     return (
       <WorkspacePage
-        eyebrow="Sales Mission / Administrasi"
-        title="Form mission"
-        description="Atur field pada form buat mission."
+        eyebrow="Sales Activity / Administrasi"
+        title="Form aktivitas"
+        description="Atur field pada form buat aktivitas."
         action={<BackLink href="/workspace/settings" />}
       >
         <EmptyState
           title="Tidak punya izin"
-          description="Pengaturan form mission hanya dapat diubah oleh admin Sales Mission."
+          description="Pengaturan form aktivitas hanya dapat diubah oleh admin Sales Activity."
         />
       </WorkspacePage>
     )
@@ -30,9 +30,9 @@ export default async function MissionFormSettingsPage() {
 
   return (
     <WorkspacePage
-      eyebrow="Sales Mission / Administrasi"
-      title="Form mission"
-      description="Tambah, ubah, urutkan, dan tentukan field mana yang wajib diisi saat membuat mission."
+      eyebrow="Sales Activity / Administrasi"
+      title="Form aktivitas"
+      description="Tambah, ubah, urutkan, dan tentukan field mana yang wajib diisi saat membuat aktivitas."
       action={<BackLink href="/workspace/settings" />}
     >
       {/*
@@ -47,7 +47,7 @@ export default async function MissionFormSettingsPage() {
           laporan KPI, dan pengiriman lead ke LeadEngine.
         </p>
         <ul className="ml-5 list-disc space-y-1">
-          <li><strong className="text-foreground">Bisa diubah:</strong> label, urutan, placeholder, teks bantuan, dan daftar pilihan seperti Jenis mission.</li>
+          <li><strong className="text-foreground">Bisa diubah:</strong> label, urutan, placeholder, teks bantuan, dan daftar pilihan seperti Jenis aktivitas.</li>
           <li><strong className="text-foreground">Bisa diperketat:</strong> field opsional dijadikan wajib.</li>
           <li><strong className="text-foreground">Terkunci:</strong> tipe field dan penghapusan, karena empat fitur di atas akan berhenti bekerja tanpa pemberitahuan.</li>
         </ul>

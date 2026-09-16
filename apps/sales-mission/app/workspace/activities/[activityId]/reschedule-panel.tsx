@@ -9,7 +9,7 @@ import type { ConflictSettings } from "@/lib/missions/mission-join"
 import type { PersonSchedule } from "@/lib/missions/schedule-availability"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
-import { SchedulePicker, type ScheduleValue } from "@/app/workspace/missions/new/schedule-picker"
+import { SchedulePicker, type ScheduleValue } from "@/app/workspace/activities/new/schedule-picker"
 
 /**
  * Move or propose a new time, with the team's calendar in view.

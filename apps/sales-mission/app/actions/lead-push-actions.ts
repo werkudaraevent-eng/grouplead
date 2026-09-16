@@ -25,6 +25,8 @@ import {
   type LeadEnginePipeline,
 } from "@/lib/leadengine/client"
 import type { ActionResult } from "@/types/action-result"
+import { paths } from "@/lib/paths"
+import { NO_ACCESS_MESSAGE } from "@/lib/brand"
 
 /**
  * Sending a mission's opportunity to LeadEngine as a lead.
@@ -119,7 +121,7 @@ export async function getPushPrecheck(missionId: string): Promise<PushPrecheck> 
   }
 
   const access = await getSalesMissionAccess()
-  if (!access) return { ...empty, reason: "Anda tidak punya akses Sales Mission." }
+  if (!access) return { ...empty, reason: NO_ACCESS_MESSAGE }
 
   if (!(await canPerform(access, "sales_mission_result", "create"))) {
     return { ...empty, reason: "Anda tidak punya izin mengirim lead." }
@@ -130,7 +132,7 @@ export async function getPushPrecheck(missionId: string): Promise<PushPrecheck> 
     getVisitReport(access, missionId),
   ])
 
-  if (!mission) return { ...empty, reason: "Mission tidak ditemukan." }
+  if (!mission) return { ...empty, reason: "Aktivitas tidak ditemukan." }
   // Pushing the lead is the report's last step, so it answers to the same
   // grant and the same Cakupan as writing the report.
   if (!(await canPerformOn(access, "sales_mission_result", "create", { ownerIds: reportOwners(mission) }))) {
@@ -278,7 +280,7 @@ export async function pushMissionToLeadEngine(
   input: unknown
 ): Promise<ActionResult<{ leadId: string }>> {
   const access = await getSalesMissionAccess()
-  if (!access) return { success: false, error: "Anda tidak punya akses Sales Mission." }
+  if (!access) return { success: false, error: NO_ACCESS_MESSAGE }
 
   if (!(await canPerform(access, "sales_mission_result", "create"))) {
     return { success: false, error: "Anda tidak punya izin mengirim lead." }
@@ -294,7 +296,7 @@ export async function pushMissionToLeadEngine(
     getVisitReport(access, missionId),
   ])
 
-  if (!mission) return { success: false, error: "Mission tidak ditemukan." }
+  if (!mission) return { success: false, error: "Aktivitas tidak ditemukan." }
   if (!(await canPerformOn(access, "sales_mission_result", "create", { ownerIds: reportOwners(mission) }))) {
     const { scope } = await resolveScope(access, "sales_mission_result")
     return { success: false, error: describeOutOfScope(scope, "laporan") }
@@ -316,7 +318,7 @@ export async function pushMissionToLeadEngine(
     .maybeSingle()
 
   if (existing) {
-    return { success: false, error: "Mission ini sudah pernah dikirim ke LeadEngine." }
+    return { success: false, error: "Aktivitas ini sudah pernah dikirim ke LeadEngine." }
   }
 
   let leadId: string
@@ -472,7 +474,7 @@ export async function pushMissionToLeadEngine(
     // rather than reporting a failure that would invite a duplicate push.
     return {
       success: false,
-      error: `Lead ${leadId} sudah dibuat di LeadEngine, tetapi pencatatannya di Sales Mission gagal. Jangan kirim ulang — laporkan ke admin.`,
+      error: `Lead ${leadId} sudah dibuat di LeadEngine, tetapi pencatatannya di Sales Activity gagal. Jangan kirim ulang — laporkan ke admin.`,
     }
   }
 
@@ -485,6 +487,6 @@ export async function pushMissionToLeadEngine(
     })
   }
 
-  revalidatePath(`/workspace/missions/${missionId}`)
+  revalidatePath(paths.activity(missionId))
   return { success: true, data: { leadId } }
 }

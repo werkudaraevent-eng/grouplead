@@ -101,8 +101,8 @@ export function AppSwitcher({ collapsed = false }: { collapsed?: boolean }) {
               <MapPinned className="h-4 w-4" />
             </span>
             <span className="min-w-0 flex-1">
-              <span className="block text-sm font-semibold">Sales Mission</span>
-              <span className="block truncate text-xs text-sidebar-foreground">Rencanakan kunjungan dan rekam hasilnya</span>
+              <span className="block text-sm font-semibold">Sales Activity</span>
+              <span className="block truncate text-xs text-sidebar-foreground">Rencanakan aktivitas sales dan rekam hasilnya</span>
             </span>
             <Check className="h-4 w-4 text-sidebar-accent-foreground" aria-label="Aplikasi saat ini" />
           </Link>

@@ -52,7 +52,7 @@ export async function GET(request: Request) {
   }))
 
   const book = XLSX.utils.book_new()
-  XLSX.utils.book_append_sheet(book, sheet, "Mission")
+  XLSX.utils.book_append_sheet(book, sheet, "Aktivitas")
   const buffer = XLSX.write(book, { type: "buffer", bookType: "xlsx" }) as Buffer
 
   const stamp = new Date().toISOString().slice(0, 10)
@@ -60,7 +60,7 @@ export async function GET(request: Request) {
   return new NextResponse(new Uint8Array(buffer), {
     headers: {
       "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      "Content-Disposition": `attachment; filename="mission-${stamp}.xlsx"`,
+      "Content-Disposition": `attachment; filename="aktivitas-${stamp}.xlsx"`,
       "Cache-Control": "no-store",
     },
   })

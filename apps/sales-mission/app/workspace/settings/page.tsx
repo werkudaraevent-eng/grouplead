@@ -4,13 +4,14 @@ import { getSalesMissionAccess } from "@/lib/sales-mission-access"
 import { requireModule } from "@/lib/missions/nav-access"
 import { ArrowUpRight, Bell, Building2, Database, History, ListChecks, MonitorPlay, ShieldCheck, Trash2, UserSearch } from "@/components/icons"
 import { WorkspacePage } from "@/app/workspace/workspace-page"
+import { paths } from "@/lib/paths"
 
 const SETTING_CARDS = [
   {
     icon: ListChecks,
     tone: "bg-primary/10 text-primary",
-    title: "Form mission",
-    description: "Tambah, ubah, urutkan, dan tentukan field wajib pada form buat mission.",
+    title: "Form aktivitas",
+    description: "Tambah, ubah, urutkan, dan tentukan field wajib pada form buat aktivitas.",
     href: "/workspace/settings/form",
   },
   {
@@ -37,16 +38,16 @@ const SETTING_CARDS = [
   {
     icon: Building2,
     tone: "bg-primary/10 text-primary",
-    title: "Aturan mission",
+    title: "Aturan aktivitas",
     description: "Apakah sales harus mengonfirmasi penugasan, batas sales pendukung, dan pemeriksaan bentrok jadwal.",
-    href: "/workspace/settings/missions",
+    href: paths.settings.activities,
   },
   {
     icon: History,
     tone: "bg-primary/10 text-primary",
-    title: "Riwayat aktivitas",
+    title: "Riwayat perubahan",
     description: "Siapa membuat, mengubah, dan menghapus apa, dengan isi perubahannya. Dicatat otomatis untuk setiap perubahan.",
-    href: "/workspace/settings/activity",
+    href: paths.settings.history,
   },
   {
     icon: UserSearch,
@@ -59,14 +60,14 @@ const SETTING_CARDS = [
     icon: Trash2,
     tone: "bg-muted text-muted-foreground",
     title: "Sampah",
-    description: "Mission dan prospek yang dihapus tinggal di sini 30 hari. Pulihkan, atau hapus permanen.",
+    description: "Aktivitas dan prospek yang dihapus tinggal di sini 30 hari. Pulihkan, atau hapus permanen.",
     href: "/workspace/settings/recycle-bin",
   },
   {
     icon: Database,
     tone: "bg-[var(--danger)] text-[var(--danger-foreground)]",
     title: "Data",
-    description: "Kosongkan seluruh mission unit bisnis ini, misalnya setelah masa uji coba.",
+    description: "Kosongkan seluruh aktivitas unit bisnis ini, misalnya setelah masa uji coba.",
     href: "/workspace/settings/data",
   },
   {
@@ -79,7 +80,7 @@ const SETTING_CARDS = [
     icon: ShieldCheck,
     tone: "bg-[var(--success)] text-[var(--success-foreground)]",
     title: "Access",
-    description: "Sales Mission access is managed through LeadEngine permissions.",
+    description: "Sales Activity access is managed through LeadEngine permissions.",
   },
 ]
 
@@ -92,9 +93,9 @@ export default async function SettingsPage() {
 
   return (
     <WorkspacePage
-      eyebrow="Sales Mission / Administration"
+      eyebrow="Sales Activity / Administration"
       title="Settings"
-      description="Configure how missions are planned, assigned, and communicated across your team."
+      description="Configure how aktivitas are planned, assigned, and communicated across your team."
     >
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {SETTING_CARDS.map((card) => {

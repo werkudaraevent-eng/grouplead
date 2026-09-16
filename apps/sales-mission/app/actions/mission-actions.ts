@@ -26,6 +26,8 @@ import { parseMissionQuery, resolveMissionFilter } from "@/lib/missions/mission-
 import { listMatchingMissionIds, parsePageParams } from "@/lib/missions/mission-page-queries"
 import { convertProspect, getProspect } from "@/lib/prospects/prospect-queries"
 import { canEditProspect, toProspectViewer } from "@/lib/prospects/prospect-access"
+import { paths } from "@/lib/paths"
+import { NO_ACCESS_MESSAGE } from "@/lib/brand"
 
 /**
  * Write side of the mission domain.
@@ -87,18 +89,18 @@ export async function createMission(
   formData: FormData
 ): Promise<ActionResult<{ id: string }>> {
   const access = await getSalesMissionAccess()
-  if (!access) return { success: false, error: "Anda tidak punya akses Sales Mission." }
+  if (!access) return { success: false, error: NO_ACCESS_MESSAGE }
 
   // Lets an admin restrict a pure field-sales role to responding to missions
   // rather than creating them. Unconfigured means unrestricted.
   if (!(await canPerform(access, "sales_mission_mission", "create"))) {
-    return { success: false, error: "Anda tidak punya izin membuat mission." }
+    return { success: false, error: "Anda tidak punya izin membuat aktivitas." }
   }
 
   const parsed = readMissionForm(formData)
 
   if (!parsed.success) {
-    return { success: false, error: parsed.error.issues[0]?.message ?? "Data mission tidak valid." }
+    return { success: false, error: parsed.error.issues[0]?.message ?? "Data aktivitas tidak valid." }
   }
 
   /*
@@ -121,7 +123,7 @@ export async function createMission(
     listAssignableIds(access),
   ])
   if (!isAllowedChoice(formFields, "mission_type", parsed.data.missionType, MISSION_TYPES)) {
-    return { success: false, error: "Jenis mission itu tidak ada dalam daftar." }
+    return { success: false, error: "Jenis aktivitas itu tidak ada dalam daftar." }
   }
 
   // Same rule for the salutation, for the same reason: the column is free text
@@ -180,7 +182,7 @@ export async function createMission(
     if (!/^[0-9a-f-]{36}$/i.test(prospectId)) return { success: false, error: "Prospek tidak valid." }
     const prospect = await getProspect(access, prospectId)
     if (!prospect) return { success: false, error: "Prospek tidak ditemukan." }
-    if (prospect.missionId) return { success: false, error: "Prospek ini sudah punya mission." }
+    if (prospect.missionId) return { success: false, error: "Prospek ini sudah punya aktivitas." }
     const viewer = toProspectViewer(await resolveScope(access, "sales_mission_prospect"))
     if (!canEditProspect(prospect, viewer)) {
       return { success: false, error: `Prospek ini dipegang ${prospect.ownerName ?? "orang lain"}, di luar cakupan Anda.` }
@@ -247,7 +249,7 @@ export async function createMission(
     .single()
 
   if (missionError || !mission) {
-    return { success: false, error: "Mission gagal disimpan." }
+    return { success: false, error: "Aktivitas gagal disimpan." }
   }
 
   const { error: assignmentError } = await missions.from("assignments").insert([
@@ -272,7 +274,7 @@ export async function createMission(
     // primary sales is a broken state, so undo rather than leave it behind.
     // Move both inserts into a Postgres function when this grows further.
     await missions.from("missions").delete().eq("id", mission.id)
-    return { success: false, error: "Penugasan sales gagal disimpan. Mission dibatalkan." }
+    return { success: false, error: "Penugasan sales gagal disimpan. Aktivitas dibatalkan." }
   }
 
   // Everyone put on the visit hears about it, except the scheduler when they
@@ -335,17 +337,17 @@ export async function createMission(
     company_id: access.companyId,
     to_status: initialStatus,
     changed_by: access.userId,
-    reason: "Mission dibuat",
+    reason: "Aktivitas dibuat",
   })
 
   revalidatePath("/workspace")
-  revalidatePath("/workspace/missions")
+  revalidatePath(paths.activities())
 
   // Redirect from the server rather than reacting to the result on the client.
   // `revalidatePath` above refreshes the tree, which remounts the form and
   // discards `useActionState` before an effect could navigate — the mission
   // saved, but the page sat there looking as though nothing had happened.
-  redirect(`/workspace/missions/${mission.id}`)
+  redirect(paths.activity(mission.id))
 }
 
 /**
@@ -365,9 +367,9 @@ export async function createMission(
  */
 export async function cancelMission(missionId: string, reason: string): Promise<ActionResult> {
   const access = await getSalesMissionAccess()
-  if (!access) return { success: false, error: "Anda tidak punya akses Sales Mission." }
+  if (!access) return { success: false, error: NO_ACCESS_MESSAGE }
   if (!(await canPerform(access, "sales_mission_mission", "update"))) {
-    return { success: false, error: "Anda tidak punya izin mengubah mission." }
+    return { success: false, error: "Anda tidak punya izin mengubah aktivitas." }
   }
 
   const trimmed = reason.trim()
@@ -375,10 +377,10 @@ export async function cancelMission(missionId: string, reason: string): Promise<
   if (trimmed.length > 1000) return { success: false, error: "Alasan terlalu panjang." }
 
   const [mission, role, settings] = await Promise.all([getMission(access, missionId), getMissionRole(access, missionId), getMissionSettings(access)])
-  if (!mission) return { success: false, error: "Mission tidak ditemukan." }
+  if (!mission) return { success: false, error: "Aktivitas tidak ditemukan." }
 
   if (mission.status === "COMPLETED" || mission.status === "CANCELLED") {
-    return { success: false, error: "Mission ini sudah selesai atau sudah dibatalkan." }
+    return { success: false, error: "Aktivitas ini sudah selesai atau sudah dibatalkan." }
   }
   const gates = await resolveMissionGates(access, mission, role, settings)
   if (!gates.canCancel) {
@@ -394,7 +396,7 @@ export async function cancelMission(missionId: string, reason: string): Promise<
     .update({ status: "CANCELLED", updated_at: now })
     .eq("id", missionId)
     .eq("company_id", access.companyId)
-  if (error) return { success: false, error: "Mission gagal dibatalkan." }
+  if (error) return { success: false, error: "Aktivitas gagal dibatalkan." }
 
   await missions.from("status_history").insert({
     mission_id: missionId,
@@ -408,7 +410,7 @@ export async function cancelMission(missionId: string, reason: string): Promise<
   // An open proposal has nothing left to decide.
   await missions
     .from("reschedule_requests")
-    .update({ status: "REJECTED", decided_by: access.userId, decided_at: now, decision_note: "Mission dibatalkan" })
+    .update({ status: "REJECTED", decided_by: access.userId, decided_at: now, decision_note: "Aktivitas dibatalkan" })
     .eq("mission_id", missionId)
     .eq("company_id", access.companyId)
     .eq("status", "PENDING")
@@ -441,9 +443,9 @@ export async function cancelMission(missionId: string, reason: string): Promise<
   }
 
   revalidatePath("/workspace")
-  revalidatePath("/workspace/missions")
+  revalidatePath(paths.activities())
   revalidatePath("/workspace/calendar")
-  revalidatePath(`/workspace/missions/${missionId}`)
+  revalidatePath(paths.activity(missionId))
 
   return { success: true }
 }
@@ -459,14 +461,14 @@ export async function cancelMission(missionId: string, reason: string): Promise<
  */
 export async function deleteMissions(ids: string[]): Promise<ActionResult<{ deleted: number; skipped: number }>> {
   const access = await getSalesMissionAccess()
-  if (!access) return { success: false, error: "Anda tidak punya akses Sales Mission." }
+  if (!access) return { success: false, error: NO_ACCESS_MESSAGE }
   if (!(await canPerform(access, "sales_mission_mission", "delete"))) {
-    return { success: false, error: "Anda tidak punya izin menghapus mission." }
+    return { success: false, error: "Anda tidak punya izin menghapus aktivitas." }
   }
 
   const unique = [...new Set(ids)].filter((id) => /^[0-9a-f-]{36}$/i.test(id))
-  if (unique.length === 0) return { success: false, error: "Tidak ada mission yang dipilih." }
-  if (unique.length > 500) return { success: false, error: "Pilih paling banyak 500 mission sekaligus." }
+  if (unique.length === 0) return { success: false, error: "Tidak ada aktivitas yang dipilih." }
+  if (unique.length > 500) return { success: false, error: "Pilih paling banyak 500 aktivitas sekaligus." }
 
   const supabase = await createClient()
   const schema = supabase.schema("sales_mission")
@@ -499,10 +501,10 @@ export async function deleteMissions(ids: string[]): Promise<ActionResult<{ dele
     .is("deleted_at", null)
     .select("id")
 
-  if (error) return { success: false, error: "Mission gagal dipindahkan ke sampah." }
+  if (error) return { success: false, error: "Aktivitas gagal dipindahkan ke sampah." }
 
   revalidatePath("/workspace")
-  revalidatePath("/workspace/missions")
+  revalidatePath(paths.activities())
   revalidatePath("/workspace/calendar")
   revalidatePath("/workspace/settings/recycle-bin")
   return { success: true, data: { deleted: data?.length ?? 0, skipped } }
@@ -518,12 +520,12 @@ export async function deleteMissions(ids: string[]): Promise<ActionResult<{ dele
  */
 export async function clearAllMissions(confirmation: string): Promise<ActionResult<{ deleted: number }>> {
   const access = await getSalesMissionAccess()
-  if (!access) return { success: false, error: "Anda tidak punya akses Sales Mission." }
+  if (!access) return { success: false, error: NO_ACCESS_MESSAGE }
   if (!(await isSettingsAdmin(access))) {
-    return { success: false, error: "Hanya admin Sales Mission yang bisa mengosongkan data." }
+    return { success: false, error: "Hanya admin Sales Activity yang bisa mengosongkan data." }
   }
   if (!(await canPerform(access, "sales_mission_mission", "delete"))) {
-    return { success: false, error: "Peran Anda tidak punya izin menghapus mission." }
+    return { success: false, error: "Peran Anda tidak punya izin menghapus aktivitas." }
   }
   if (confirmation.trim() !== CLEAR_ALL_PHRASE) {
     return { success: false, error: `Ketik persis "${CLEAR_ALL_PHRASE}" untuk melanjutkan.` }
@@ -542,7 +544,7 @@ export async function clearAllMissions(confirmation: string): Promise<ActionResu
   if (error) return { success: false, error: "Data gagal dikosongkan." }
 
   revalidatePath("/workspace")
-  revalidatePath("/workspace/missions")
+  revalidatePath(paths.activities())
   revalidatePath("/workspace/calendar")
   revalidatePath("/workspace/settings/data")
   revalidatePath("/workspace/settings/recycle-bin")
@@ -568,22 +570,22 @@ export async function updateMission(
   formData: FormData
 ): Promise<ActionResult<{ id: string }>> {
   const access = await getSalesMissionAccess()
-  if (!access) return { success: false, error: "Anda tidak punya akses Sales Mission." }
+  if (!access) return { success: false, error: NO_ACCESS_MESSAGE }
   if (!(await canPerform(access, "sales_mission_mission", "update"))) {
-    return { success: false, error: "Anda tidak punya izin mengubah mission." }
+    return { success: false, error: "Anda tidak punya izin mengubah aktivitas." }
   }
 
   const [mission, role, settings] = await Promise.all([getMission(access, missionId), getMissionRole(access, missionId), getMissionSettings(access)])
-  if (!mission) return { success: false, error: "Mission tidak ditemukan." }
+  if (!mission) return { success: false, error: "Aktivitas tidak ditemukan." }
   if (mission.status === "COMPLETED" || mission.status === "CANCELLED") {
-    return { success: false, error: "Mission yang sudah selesai atau dibatalkan tidak bisa diubah." }
+    return { success: false, error: "Aktivitas yang sudah selesai atau dibatalkan tidak bisa diubah." }
   }
   const gates = await resolveMissionGates(access, mission, role, settings)
   if (!gates.canEdit) return { success: false, error: describeOutOfScope(gates.missionCtx.scope, "mission") }
 
   const parsed = readMissionForm(formData)
   if (!parsed.success) {
-    return { success: false, error: parsed.error.issues[0]?.message ?? "Data mission tidak valid." }
+    return { success: false, error: parsed.error.issues[0]?.message ?? "Data aktivitas tidak valid." }
   }
   const input = parsed.data
 
@@ -596,7 +598,7 @@ export async function updateMission(
     listMissionTeam(access, missionId),
   ])
 
-  if (!isAllowedChoice(formFields, "mission_type", input.missionType, MISSION_TYPES)) return { success: false, error: "Jenis mission itu tidak ada dalam daftar." }
+  if (!isAllowedChoice(formFields, "mission_type", input.missionType, MISSION_TYPES)) return { success: false, error: "Jenis aktivitas itu tidak ada dalam daftar." }
   if (input.contactSalutation && !isAllowedChoice(formFields, "contact_salutation", input.contactSalutation, DEFAULT_CONTACT_SALUTATIONS)) {
     return { success: false, error: "Sapaan itu tidak ada dalam daftar." }
   }
@@ -660,7 +662,7 @@ export async function updateMission(
     (a ? new Date(a).getTime() : null) === (b ? new Date(b).getTime() : null)
   const scheduleChanged = !sameInstant(mission.scheduledStart, nextStart) || !sameInstant(mission.scheduledEnd, nextEnd)
   if (scheduleChanged && gates.scheduleMode !== "move") {
-    return { success: false, error: "Jadwal mission ini hanya bisa diusulkan, bukan diubah langsung. Gunakan Usulkan jadwal lain." }
+    return { success: false, error: "Jadwal aktivitas ini hanya bisa diusulkan, bukan diubah langsung. Gunakan Usulkan jadwal lain." }
   }
 
   const { error: updateError } = await missions
@@ -689,7 +691,7 @@ export async function updateMission(
 
   if (scheduleChanged) {
     const reasonRaw = formData.get("scheduleReason")
-    const reason = typeof reasonRaw === "string" && reasonRaw.trim() ? reasonRaw.trim() : "Jadwal diubah dari form Ubah mission"
+    const reason = typeof reasonRaw === "string" && reasonRaw.trim() ? reasonRaw.trim() : "Jadwal diubah dari form Ubah aktivitas"
     const moved = await rescheduleMission(missionId, { date: input.date, startTime: input.startTime, endTime: input.endTime ?? "", reason })
     if (!moved.success) return { success: false, error: moved.error ?? "Detail tersimpan, tetapi jadwal gagal dipindahkan." }
   }
@@ -768,10 +770,10 @@ export async function updateMission(
   if (rows.length > 0) await missions.from("mission_field_values").insert(rows)
 
   revalidatePath("/workspace")
-  revalidatePath("/workspace/missions")
+  revalidatePath(paths.activities())
   revalidatePath("/workspace/calendar")
-  revalidatePath(`/workspace/missions/${missionId}`)
-  redirect(`/workspace/missions/${missionId}`)
+  revalidatePath(paths.activity(missionId))
+  redirect(paths.activity(missionId))
 }
 
 /**
@@ -783,9 +785,9 @@ export async function matchingMissionIds(
   params: Record<string, string>
 ): Promise<ActionResult<{ ids: string[]; total: number; capped: boolean }>> {
   const access = await getSalesMissionAccess()
-  if (!access) return { success: false, error: "Anda tidak punya akses Sales Mission." }
+  if (!access) return { success: false, error: NO_ACCESS_MESSAGE }
   if (!(await canPerform(access, "sales_mission_mission", "delete"))) {
-    return { success: false, error: "Anda tidak punya izin menghapus mission." }
+    return { success: false, error: "Anda tidak punya izin menghapus aktivitas." }
   }
   const settings = await getMissionSettings(access)
   const requested = resolveMissionFilter(params.filter)

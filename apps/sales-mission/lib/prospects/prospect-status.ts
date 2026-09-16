@@ -22,7 +22,7 @@ export const KIND_LABELS: Record<StatusKind, string> = {
 export const KIND_DESCRIPTIONS: Record<StatusKind, string> = {
   open: "Status awal setiap prospek. Harus ada tepat satu yang aktif.",
   in_progress: "Sudah dihubungi, belum ada keputusan. Boleh membawa tanggal hubungi lagi.",
-  won: "Janji temu disepakati. Diberikan otomatis saat prospek dijadikan mission.",
+  won: "Janji temu disepakati. Diberikan otomatis saat prospek dijadikan aktivitas.",
   lost: "Prospek menolak atau tidak bisa dihubungi. Meminta alasan singkat.",
 }
 

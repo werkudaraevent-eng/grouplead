@@ -25,7 +25,7 @@ export default function LoginPage() {
   useEffect(() => {
     const errorCode = new URLSearchParams(window.location.search).get("error")
     if (errorCode === "access_not_provisioned") {
-      setError("Akun Anda belum mendapat akses Sales Mission. Minta admin menambahkan company membership dan permission Sales Mission.")
+      setError("Akun Anda belum mendapat akses Sales Activity. Minta admin menambahkan company membership dan permission Sales Activity.")
       setSignedInButRejected(true)
     }
   }, [])
@@ -137,7 +137,7 @@ export default function LoginPage() {
           </div>
 
           <div className="space-y-2">
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-primary">Sales Mission</p>
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-primary">Sales Activity</p>
             <h2 className="text-2xl font-semibold tracking-tight text-foreground">Selamat datang</h2>
             <p className="text-[15px] text-muted-foreground">Masuk dengan akun Werkudara Anda.</p>
           </div>

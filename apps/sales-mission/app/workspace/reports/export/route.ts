@@ -77,7 +77,7 @@ export async function GET(request: Request) {
     return new NextResponse(new Uint8Array(buffer), {
       headers: {
         "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        "Content-Disposition": `attachment; filename="sales-mission-${stamp}.xlsx"`,
+        "Content-Disposition": `attachment; filename="sales-activity-${stamp}.xlsx"`,
         "Cache-Control": "no-store",
       },
     })
@@ -91,7 +91,7 @@ export async function GET(request: Request) {
   return new NextResponse(`﻿${csv}`, {
     headers: {
       "Content-Type": "text/csv; charset=utf-8",
-      "Content-Disposition": `attachment; filename="sales-mission-${stamp}.csv"`,
+      "Content-Disposition": `attachment; filename="sales-activity-${stamp}.csv"`,
       "Cache-Control": "no-store",
     },
   })

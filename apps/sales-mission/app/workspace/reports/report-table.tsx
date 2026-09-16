@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { ArrowUpRight, ClipboardList, Send } from "@/components/icons"
-import { MissionPagination } from "@/app/workspace/missions/mission-pagination"
+import { MissionPagination } from "@/app/workspace/activities/mission-pagination"
 import { SortHeader } from "@/components/sort-header"
 import { DEFAULT_REPORT_SORT, nextReportSort, reportSortParts, type ReportSort, type ReportSortColumn } from "@/lib/reporting/report-paging"
 import { REPORT_STATUS_LABELS } from "@/lib/reporting/report-filter"
@@ -15,6 +15,7 @@ import { PersonAvatar } from "@/components/person-avatar"
 import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { cn } from "@/lib/utils"
+import { paths } from "@/lib/paths"
 
 /**
  * The report list: the mission table's shape (cards on a phone, a fixed
@@ -94,13 +95,13 @@ export function ReportTable({
     ) : (
       <EmptyState
         title="Belum ada laporan kunjungan"
-        description="Laporan muncul di sini begitu sales mengirimnya dari halaman mission."
-        action={<Button asChild variant="outline"><Link href="/workspace/missions"><ClipboardList className="h-4 w-4" /> Buka daftar mission</Link></Button>}
+        description="Laporan muncul di sini begitu sales mengirimnya dari halaman aktivitas."
+        action={<Button asChild variant="outline"><Link href={paths.activities()}><ClipboardList className="h-4 w-4" /> Buka daftar aktivitas</Link></Button>}
       />
     )
   }
 
-  const href = (report: ReportListItem) => `/workspace/missions/${report.missionId}?fokus=laporan`
+  const href = (report: ReportListItem) => paths.activity(report.missionId, { fokus: "laporan" })
 
   return (
     <>
@@ -188,7 +189,7 @@ export function ReportTable({
                       <Button asChild size="sm" variant="outline">
                         <Link href={href(report)}><ClipboardList className="h-4 w-4" /> Lihat</Link>
                       </Button>
-                      <Link href={`/workspace/missions/${report.missionId}`} aria-label={`Buka mission ${report.clientCompanyName}`} className="grid h-8 w-8 place-items-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground">
+                      <Link href={paths.activity(report.missionId)} aria-label={`Buka aktivitas ${report.clientCompanyName}`} className="grid h-8 w-8 place-items-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground">
                         <ArrowUpRight className="h-4 w-4" />
                       </Link>
                     </span>

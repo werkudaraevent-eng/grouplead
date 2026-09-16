@@ -134,7 +134,7 @@ export default async function ReportSummaryPage({
 
   return (
     <WorkspacePage
-      eyebrow="Sales Mission / Reporting"
+      eyebrow="Sales Activity / Reporting"
       title="Laporan"
       description="Ringkasan dihitung dari laporan kunjungan yang sudah dikirim. Draf tidak ikut."
       action={
@@ -195,7 +195,7 @@ export default async function ReportSummaryPage({
           <section className="mt-4 grid gap-4 xl:grid-cols-2">
             <BreakdownCard title="Per sales" rows={report.bySales} emptyText="Belum ada data." />
             <BreakdownCard title="Per klien" rows={report.byCompany} emptyText="Belum ada data." />
-            <BreakdownCard title="Per tipe mission" rows={report.byMissionType} emptyText="Belum ada data." />
+            <BreakdownCard title="Per tipe aktivitas" rows={report.byMissionType} emptyText="Belum ada data." />
             <BreakdownCard title="Per tingkat minat" rows={report.byInterest} emptyText="Belum ada data." />
           </section>
         </>

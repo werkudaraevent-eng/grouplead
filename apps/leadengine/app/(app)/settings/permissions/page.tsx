@@ -53,11 +53,11 @@ const MODULE_GROUPS: ReadonlyArray<{ title: string; description: string; modules
     // with its children filed under a different heading. A Material section
     // is a subheader followed by its items on one leading edge; hierarchy is
     // the grouping, never a stair-step indent.
-    title: "Sales Mission",
-    description: "Pintu masuk aplikasi Sales Mission dan kontrol rinci di dalamnya.",
+    title: "Sales Activity",
+    description: "Pintu masuk aplikasi Sales Activity dan kontrol rinci di dalamnya.",
     modules: ["sales_mission", "sales_mission_mission", "sales_mission_result", "sales_mission_contact", "sales_mission_settings", "sales_mission_prospect"],
     hub: "sales_mission",
-    hubNote: "Baris Sales Mission disalin ke lima modul di bawahnya; setelah itu tiap modul bisa diatur sendiri.",
+    hubNote: "Baris Sales Activity disalin ke lima modul di bawahnya; setelah itu tiap modul bisa diatur sendiri.",
   },
   {
     title: "Pengaturan",
@@ -81,33 +81,33 @@ const MODULE_DISPLAY: Record<string, { name: string; description: string; detail
     description: "Dashboard performa eksekutif dan sales.",
   },
   sales_mission: {
-    name: "Sales Mission",
+    name: "Sales Activity",
     description: "Pintu masuk aplikasi. Sakelar dan cakupan di baris ini disalin ke lima modul di bawahnya.",
-    details: "Tanpa Lihat di sini, tidak ada yang bisa dijangkau di dalam Sales Mission. Tiap sakelar dan Cakupan di baris ini disalin ke lima modul di bawah; setelah itu tiap modul bisa diatur sendiri-sendiri.",
+    details: "Tanpa Lihat di sini, tidak ada yang bisa dijangkau di dalam Sales Activity. Tiap sakelar dan Cakupan di baris ini disalin ke lima modul di bawah; setelah itu tiap modul bisa diatur sendiri-sendiri.",
   },
   sales_mission_mission: {
-    name: "Mission",
+    name: "Aktivitas",
     description: "Menjadwalkan dan mengubah kunjungan. Pemilik: sales utama dan yang menjadwalkan; yang ditugaskan ikut melihat.",
-    details: "Lihat: semua mission unit bisnis (jadwal bersama). Buat: menjadwalkan mission baru dan mengimpor. Ubah: detail, jadwal, tim, dan pembatalan mission di dalam Cakupan. Hapus: memindahkan mission di dalam Cakupan ke sampah.",
+    details: "Lihat: semua aktivitas unit bisnis (jadwal bersama). Buat: menjadwalkan aktivitas baru dan mengimpor. Ubah: detail, jadwal, tim, dan pembatalan aktivitas di dalam Cakupan. Hapus: memindahkan aktivitas di dalam Cakupan ke sampah.",
   },
   sales_mission_result: {
     name: "Laporan kunjungan",
-    description: "Mengisi dan mengubah laporan, mengirim lead. Pemilik: sales utama; tim mission ikut melihat.",
-    details: "Lihat: membaca laporan dan halaman Laporan. Buat: mengisi laporan dan mengirim lead untuk mission di dalam Cakupan; Buat juga menentukan siapa yang bisa dipilih sebagai sales utama saat menjadwalkan. Ubah: mengubah laporan terkirim milik orang di dalam Cakupan kapan saja dan meminta klarifikasi; penulisnya sendiri selalu boleh mengubah dalam jendela hari yang diatur di Pengaturan mission.",
+    description: "Mengisi dan mengubah laporan, mengirim lead. Pemilik: sales utama; tim aktivitas ikut melihat.",
+    details: "Lihat: membaca laporan dan halaman Laporan. Buat: mengisi laporan dan mengirim lead untuk aktivitas di dalam Cakupan; Buat juga menentukan siapa yang bisa dipilih sebagai sales utama saat menjadwalkan. Ubah: mengubah laporan terkirim milik orang di dalam Cakupan kapan saja dan meminta klarifikasi; penulisnya sendiri selalu boleh mengubah dalam jendela hari yang diatur di Pengaturan aktivitas.",
   },
   sales_mission_contact: {
-    name: "Kontak mission",
-    description: "Membaca kontak klien pada mission dan laporan.",
+    name: "Kontak aktivitas",
+    description: "Membaca kontak klien pada aktivitas dan laporan.",
     details: "Tanpa Cakupan: kontak ditulis lewat laporan, jadi mengikuti izin Laporan kunjungan.",
   },
   sales_mission_settings: {
-    name: "Pengaturan mission",
-    description: "Ubah di sini berarti admin Sales Mission.",
-    details: "Pengaturan mission, form, pilihan laporan, status prospek, papan, dan sampah. Tanpa Cakupan: ini bukan record milik seseorang.",
+    name: "Pengaturan aktivitas",
+    description: "Ubah di sini berarti admin Sales Activity.",
+    details: "Pengaturan aktivitas, form, pilihan laporan, status prospek, papan, dan sampah. Tanpa Cakupan: ini bukan record milik seseorang.",
   },
   sales_mission_prospect: {
     name: "Prospek",
-    description: "Calon klien sebelum jadi mission. Pemilik: pemegangnya; prospek tanpa pemegang terlihat semua orang.",
+    description: "Calon klien sebelum jadi aktivitas. Pemilik: pemegangnya; prospek tanpa pemegang terlihat semua orang.",
     details: "Lihat: seluruh daftar prospek. Buat: menambah dan mengimpor. Ubah dan Hapus: prospek di dalam Cakupan; prospek tanpa pemegang boleh diambil siapa pun yang punya Ubah. Cakupan Tim atau Semua juga mengizinkan menugaskan prospek ke orang lain.",
   },
   settings: {
@@ -193,8 +193,8 @@ const SCOPE_OPTIONS: ReadonlyArray<{ value: RecordScope; label: string; readHint
   {
     value: "own",
     label: "Sendiri",
-    readHint: "Hanya record miliknya: mission yang ia sales utama, ia jadwalkan, atau ia ikuti; laporan mission itu; prospek yang ia pegang atau belum dipegang siapa pun. Record lain tidak tampil di daftar, kalender, papan, maupun laporan.",
-    writeHint: "Ubah, Hapus, dan tindakan pada record (isi laporan, kelola tim, batalkan, tugaskan) hanya untuk record miliknya: mission yang ia sales utama atau ia jadwalkan, laporan mission-nya sendiri, prospek yang ia pegang. Saat membuat mission atau prospek, sales utama dan pemegang hanya bisa dirinya sendiri.",
+    readHint: "Hanya record miliknya: aktivitas yang ia sales utama, ia jadwalkan, atau ia ikuti; laporan aktivitas itu; prospek yang ia pegang atau belum dipegang siapa pun. Record lain tidak tampil di daftar, kalender, papan, maupun laporan.",
+    writeHint: "Ubah, Hapus, dan tindakan pada record (isi laporan, kelola tim, batalkan, tugaskan) hanya untuk record miliknya: aktivitas yang ia sales utama atau ia jadwalkan, laporan aktivitas-nya sendiri, prospek yang ia pegang. Saat membuat aktivitas atau prospek, sales utama dan pemegang hanya bisa dirinya sendiri.",
   },
   {
     value: "team",
@@ -699,7 +699,7 @@ export default function GlobalPermissionsPage() {
       .in("module_id", modules)
 
     if (lookupError) {
-      toast.error("Gagal membaca modul Sales Mission")
+      toast.error("Gagal membaca modul Sales Activity")
       return
     }
 
@@ -733,7 +733,7 @@ export default function GlobalPermissionsPage() {
     ])
 
     if (updateResult.error || insertResult.error) {
-      toast.error("Sebagian modul Sales Mission gagal diperbarui")
+      toast.error("Sebagian modul Sales Activity gagal diperbarui")
       await fetchPermissions(false)
       return
     }
@@ -1299,19 +1299,19 @@ export default function GlobalPermissionsPage() {
                         </ul>
                         <div className="mt-2 flex items-center gap-2 text-foreground font-semibold text-sm">
                           <Info className="w-4 h-4 text-primary shrink-0" />
-                          <span>Khusus Sales Mission: Cakupan</span>
+                          <span>Khusus Sales Activity: Cakupan</span>
                         </div>
                         <ul className="text-[13px] text-muted-foreground space-y-1.5 ml-6 list-disc">
                           <li><strong className="text-foreground">Dua cakupan per modul,</strong> masing-masing Sendiri / Tim / Semua. <strong className="text-foreground">Cakupan lihat</strong> (di bawah Lihat) menentukan record siapa yang tampil di daftar, kalender, papan, laporan, dan ekspor; record di luarnya tidak ada bagi orang itu. <strong className="text-foreground">Cakupan ubah</strong> (di bawah Ubah) menentukan record siapa yang boleh diubah, dihapus, dan dikenai tindakan: mengisi laporan, mengirim lead, mengelola tim, membatalkan, meminta klarifikasi, menugaskan prospek. Buat record baru tidak dibatasi.</li>
                           <li><strong className="text-foreground">Cakupan ubah tidak pernah lebih luas dari cakupan lihat.</strong> Mempersempit Lihat ikut menarik Ubah; melebarkan Ubah ikut mendorong Lihat.</li>
                           <li><strong className="text-foreground">Ketersediaan jadwal tetap utuh.</strong> Saat menjadwalkan, jam sibuk rekan tetap terlihat agar tidak bentrok, apa pun cakupan lihatnya.</li>
-                          <li><strong className="text-foreground">Pemilik record:</strong> mission = sales utama dan yang menjadwalkan; laporan kunjungan = sales utama; prospek = pemegangnya (tanpa pemegang = milik semua orang yang punya Ubah).</li>
+                          <li><strong className="text-foreground">Pemilik record:</strong> aktivitas = sales utama dan yang menjadwalkan; laporan kunjungan = sales utama; prospek = pemegangnya (tanpa pemegang = milik semua orang yang punya Ubah).</li>
                           <li>
                             <strong className="text-foreground">Tim</strong> = milik sendiri ditambah milik orang yang kolom <em>Atasan</em>-nya adalah dia, berantai ke bawah. Atasan diatur per orang di{" "}
                             <Link href="/settings/users" className="font-medium text-primary hover:underline">Settings → Users</Link>. Tanpa bawahan, Tim sama dengan Sendiri.
                           </li>
-                          <li><strong className="text-foreground">Sales pendukung</strong> bukan pemilik mission, tetapi tetap boleh gabung, keluar, menjawab penugasan, mengusulkan jadwal, dan menulis catatan.</li>
-                          <li><strong className="text-foreground">Yang menjadwalkan</strong> tanpa menjadi sales utama boleh mengubah mission-nya, tetapi tidak mengisi laporannya, kecuali Cakupan Laporan kunjungan Tim atau Semua.</li>
+                          <li><strong className="text-foreground">Sales pendukung</strong> bukan pemilik aktivitas, tetapi tetap boleh gabung, keluar, menjawab penugasan, mengusulkan jadwal, dan menulis catatan.</li>
+                          <li><strong className="text-foreground">Yang menjadwalkan</strong> tanpa menjadi sales utama boleh mengubah aktivitas-nya, tetapi tidak mengisi laporannya, kecuali Cakupan Laporan kunjungan Tim atau Semua.</li>
                           <li><strong className="text-foreground">Bawaan:</strong> cakupan lihat Semua untuk setiap peran; cakupan ubah Super Admin, Admin, Executive = Semua, Leader = Tim, Staff dan peran lain = Sendiri.</li>
                         </ul>
                         </div>
@@ -1343,13 +1343,13 @@ export default function GlobalPermissionsPage() {
                             <tr className="border-b bg-muted">
                               <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Modul</th>
                               <th className="px-2 py-3 text-center text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                                <Tooltip content="Modul terbuka. Di Sales Mission, menu di bawah sakelar memilih record siapa yang tampil: Sendiri, Tim, atau Semua." position="bottom">
+                                <Tooltip content="Modul terbuka. Di Sales Activity, menu di bawah sakelar memilih record siapa yang tampil: Sendiri, Tim, atau Semua." position="bottom">
                                   <span className="inline-flex items-center gap-1">Lihat <Info className="h-3.5 w-3.5" aria-hidden="true" /></span>
                                 </Tooltip>
                               </th>
                               <th className="px-2 py-3 text-center text-xs font-semibold uppercase tracking-wider text-muted-foreground">Buat</th>
                               <th className="px-2 py-3 text-center text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                                <Tooltip content="Mengubah record. Di Sales Mission, menu di bawah sakelar memilih record siapa yang boleh diubah; cakupan yang sama berlaku untuk Hapus dan tindakan pada record (isi laporan, kelola tim, batalkan, tugaskan). Tidak pernah lebih luas dari cakupan Lihat." position="bottom">
+                                <Tooltip content="Mengubah record. Di Sales Activity, menu di bawah sakelar memilih record siapa yang boleh diubah; cakupan yang sama berlaku untuk Hapus dan tindakan pada record (isi laporan, kelola tim, batalkan, tugaskan). Tidak pernah lebih luas dari cakupan Lihat." position="bottom">
                                   <span className="inline-flex items-center gap-1">Ubah <Info className="h-3.5 w-3.5" aria-hidden="true" /></span>
                                 </Tooltip>
                               </th>

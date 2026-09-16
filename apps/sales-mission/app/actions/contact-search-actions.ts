@@ -33,7 +33,7 @@ export async function lookupCompanyContacts(clientCompanyId: string): Promise<Co
   if (!access) return { contacts: [], error: "Sesi tidak valid." }
 
   if (!(await canPerform(access, "sales_mission_mission", "create"))) {
-    return { contacts: [], error: "Anda tidak punya izin membuat mission." }
+    return { contacts: [], error: "Anda tidak punya izin membuat aktivitas." }
   }
 
   if (!clientCompanyId) return { contacts: [], error: null }

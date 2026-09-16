@@ -31,7 +31,7 @@ export default async function EditProspectPage({ params }: { params: Promise<{ p
   const salesOptions = allSales.filter((person) => canAssignTo(viewer, person.id) || person.id === prospect.ownerId)
 
   return (
-    <WorkspacePage eyebrow="Sales Mission / Prospek" title={`Ubah ${prospect.clientCompanyName}`} description="Perbaiki data perusahaan atau kontaknya. Status dan catatan kontak diubah dari halaman prospek." action={<BackLink href={`/workspace/prospects/${prospectId}`} />}>
+    <WorkspacePage eyebrow="Sales Activity / Prospek" title={`Ubah ${prospect.clientCompanyName}`} description="Perbaiki data perusahaan atau kontaknya. Status dan catatan kontak diubah dari halaman prospek." action={<BackLink href={`/workspace/prospects/${prospectId}`} />}>
       <ProspectForm fields={prospectFields} salesOptions={salesOptions} salutations={configuredOptions(fields, "contact_salutation", DEFAULT_CONTACT_SALUTATIONS)} salutationsAllowOther={fields.find((field) => field.reportingKey === "contact_salutation")?.allowOther ?? false} viewerId={access.userId} canAssignOthers={canAssignOthers(viewer)} prospect={prospect} />
     </WorkspacePage>
   )

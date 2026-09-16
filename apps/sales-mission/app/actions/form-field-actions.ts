@@ -18,6 +18,8 @@ import {
   type FormKey,
 } from "@/lib/missions/form-fields"
 import type { ActionResult } from "@/types/action-result"
+import { paths } from "@/lib/paths"
+import { NO_ACCESS_MESSAGE } from "@/lib/brand"
 
 /**
  * Form builder writes.
@@ -32,17 +34,17 @@ function resolveFormKey(value: unknown): FormKey | null {
 }
 
 const PATHS: Record<FormKey, string[]> = {
-  mission: ["/workspace/settings/form", "/workspace/missions/new"],
-  visit_report: ["/workspace/settings/report-form", "/workspace/missions"],
+  mission: ["/workspace/settings/form", paths.newActivity()],
+  visit_report: ["/workspace/settings/report-form", paths.activities()],
   prospect: ["/workspace/settings/prospect-form", "/workspace/prospects", "/workspace/prospects/new"],
 }
 
 async function authorize() {
   const access = await getSalesMissionAccess()
-  if (!access) return { error: "Anda tidak punya akses Sales Mission." as const }
+  if (!access) return { error: NO_ACCESS_MESSAGE }
 
   if (!(await canPerform(access, "sales_mission_settings", "update"))) {
-    return { error: "Anda tidak punya izin mengubah form mission." as const }
+    return { error: "Anda tidak punya izin mengubah form aktivitas." as const }
   }
 
   return { access }

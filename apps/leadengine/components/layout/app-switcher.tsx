@@ -68,9 +68,9 @@ export function AppSwitcher({ collapsed = false }: { collapsed?: boolean }) {
                 <MapPinned className="h-4 w-4" />
             </span>
             <span className="min-w-0 flex-1">
-                <span className="block text-sm font-semibold">Sales Mission</span>
+                <span className="block text-sm font-semibold">Sales Activity</span>
                 <span className="block truncate text-xs text-sidebar-foreground/55">
-                    {loading ? "Memeriksa akses…" : salesMissionUrl ? "Plan visits and capture results" : "App URL is not configured"}
+                    {loading ? "Memeriksa akses…" : salesMissionUrl ? "Rencanakan aktivitas sales dan rekam hasilnya" : "App URL is not configured"}
                 </span>
             </span>
         </>

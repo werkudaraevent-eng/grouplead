@@ -13,6 +13,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { paths } from "@/lib/paths"
 
 /**
  * Answer an assignment from wherever the mission is listed.
@@ -90,7 +91,7 @@ export function AssignmentOverflowMenu({ missionId }: { missionId: string }) {
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-52">
         <DropdownMenuItem asChild>
-          <Link href={`/workspace/missions/${missionId}#jawaban`}>
+          <Link href={paths.activity(missionId, { hash: "jawaban" })}>
             <CalendarClock className="h-4 w-4" /> Ubah atau usulkan jadwal
           </Link>
         </DropdownMenuItem>

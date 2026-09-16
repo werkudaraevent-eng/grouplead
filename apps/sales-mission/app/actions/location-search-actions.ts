@@ -29,7 +29,7 @@ export async function searchLocations(query: string): Promise<LocationSearchResu
   const access = await getSalesMissionAccess()
   if (!access) return { locations: [], error: "Sesi tidak valid." }
   if (!(await canPerform(access, "sales_mission_mission", "create"))) {
-    return { locations: [], error: "Anda tidak punya izin membuat mission." }
+    return { locations: [], error: "Anda tidak punya izin membuat aktivitas." }
   }
 
   const trimmed = query.trim()

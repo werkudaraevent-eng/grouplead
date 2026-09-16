@@ -10,6 +10,7 @@ import {
 } from "@/lib/missions/mission-filter"
 import type { ConfirmationPolicy } from "@/lib/missions/assignment-workflow"
 import { statusLabel } from "@/lib/missions/status-labels"
+import { paths } from "@/lib/paths"
 
 /**
  * Shared page furniture, matching LeadEngine's list-page language: same
@@ -134,13 +135,13 @@ export function MissionFilterChips({
   if (filters.length < 2) return null
 
   return (
-    <nav aria-label="Saring mission" className="mb-4 flex flex-wrap gap-x-2 gap-y-3 py-1">
+    <nav aria-label="Saring aktivitas" className="mb-4 flex flex-wrap gap-x-2 gap-y-3 py-1">
       {filters.map((filter) => {
         const isActive = filter === active
         return (
           <Link
             key={filter}
-            href={filter === "all" ? "/workspace/missions" : `/workspace/missions?filter=${filter}`}
+            href={filter === "all" ? paths.activities() : paths.activities({ filter: filter })}
             aria-current={isActive ? "page" : undefined}
             className={cn(
               // M3 filter chip: 32dp, 8dp corners, tonal when active. The 48dp
@@ -170,14 +171,14 @@ export function MissionFilterChips({
 export function NewMissionAction() {
   return (
     <Button asChild size="sm">
-      <Link href="/workspace/missions/new">
+      <Link href={paths.newActivity()}>
         <Plus className="h-4 w-4" /> Mission baru
       </Link>
     </Button>
   )
 }
 
-export function BackLink({ href = "/workspace/missions" }: { href?: string }) {
+export function BackLink({ href = paths.activities() }: { href?: string }) {
   return (
     <Button asChild variant="outline" size="sm">
       <Link href={href}>

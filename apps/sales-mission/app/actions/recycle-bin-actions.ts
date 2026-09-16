@@ -5,8 +5,10 @@ import { createClient } from "@/utils/supabase/server"
 import { getSalesMissionAccess, isSettingsAdmin, type SalesMissionAccess } from "@/lib/sales-mission-access"
 import type { ActionResult } from "@/types/action-result"
 import { photoPathsForMissions, photoPathsForProspects, removePhotoFiles } from "@/lib/photos/photo-storage"
+import { paths } from "@/lib/paths"
+import { NO_ACCESS_MESSAGE } from "@/lib/brand"
 
-const PATHS = ["/workspace", "/workspace/missions", "/workspace/calendar", "/workspace/settings/recycle-bin", "/workspace/settings/data"]
+const PATHS = ["/workspace", paths.activities(), "/workspace/calendar", "/workspace/settings/recycle-bin", "/workspace/settings/data"]
 
 /**
  * Only an admin (the settings grant) or a super admin touches the bin: the
@@ -15,9 +17,9 @@ const PATHS = ["/workspace", "/workspace/missions", "/workspace/calendar", "/wor
  */
 async function requireBinAdmin(): Promise<{ access: SalesMissionAccess } | { error: string }> {
   const access = await getSalesMissionAccess()
-  if (!access) return { error: "Anda tidak punya akses Sales Mission." }
+  if (!access) return { error: NO_ACCESS_MESSAGE }
   if (await isSettingsAdmin(access)) return { access }
-  return { error: "Hanya admin Sales Mission yang bisa mengelola sampah." }
+  return { error: "Hanya admin Sales Activity yang bisa mengelola sampah." }
 }
 
 function validIds(ids: string[]): string[] {
@@ -29,7 +31,7 @@ export async function restoreMissions(ids: string[]): Promise<ActionResult<{ res
   const gate = await requireBinAdmin()
   if ("error" in gate) return { success: false, error: gate.error }
   const unique = validIds(ids)
-  if (unique.length === 0) return { success: false, error: "Tidak ada mission yang dipilih." }
+  if (unique.length === 0) return { success: false, error: "Tidak ada aktivitas yang dipilih." }
 
   const supabase = await createClient()
   const { data, error } = await supabase
@@ -40,7 +42,7 @@ export async function restoreMissions(ids: string[]): Promise<ActionResult<{ res
     .in("id", unique)
     .not("deleted_at", "is", null)
     .select("id")
-  if (error) return { success: false, error: "Mission gagal dipulihkan." }
+  if (error) return { success: false, error: "Aktivitas gagal dipulihkan." }
 
   PATHS.forEach((path) => revalidatePath(path))
   return { success: true, data: { restored: data?.length ?? 0 } }
@@ -55,7 +57,7 @@ export async function purgeMissions(ids: string[]): Promise<ActionResult<{ purge
   const gate = await requireBinAdmin()
   if ("error" in gate) return { success: false, error: gate.error }
   const unique = validIds(ids)
-  if (unique.length === 0) return { success: false, error: "Tidak ada mission yang dipilih." }
+  if (unique.length === 0) return { success: false, error: "Tidak ada aktivitas yang dipilih." }
 
   await removePhotosFor(gate.access, "missions", unique)
   const supabase = await createClient()
@@ -67,7 +69,7 @@ export async function purgeMissions(ids: string[]): Promise<ActionResult<{ purge
     .in("id", unique)
     .not("deleted_at", "is", null)
     .select("id")
-  if (error) return { success: false, error: "Mission gagal dihapus permanen." }
+  if (error) return { success: false, error: "Aktivitas gagal dihapus permanen." }
 
   PATHS.forEach((path) => revalidatePath(path))
   return { success: true, data: { purged: data?.length ?? 0 } }

@@ -13,6 +13,7 @@ import { MissionFilterBar } from "./mission-filter-bar"
 import { Button } from "@/components/ui/button"
 import { Download } from "@/components/icons"
 import { ImportMissions } from "./import-missions"
+import { paths } from "@/lib/paths"
 
 export const dynamic = "force-dynamic"
 
@@ -61,22 +62,22 @@ export default async function MissionsPage({
   const exportParams = serializeMissionQuery(query)
   if (filter !== "all") exportParams.set("filter", filter)
   if (sort !== "upcoming") exportParams.set("sort", sort)
-  const exportHref = exportParams.toString() ? `/workspace/missions/export?${exportParams}` : "/workspace/missions/export"
+  const exportHref = exportParams.toString() ? paths.activitiesExport(exportParams) : paths.activitiesExport()
 
   return (
     <WorkspacePage
-      eyebrow="Sales Mission / Mission"
-      title="Mission"
+      eyebrow="Sales Activity / Aktivitas"
+      title="Aktivitas"
       description={[
-        describeReadScope(await getReadScope(access, "sales_mission_mission"), "mission") ?? "Seluruh mission unit bisnis.",
+        describeReadScope(await getReadScope(access, "sales_mission_mission"), "mission") ?? "Seluruh aktivitas unit bisnis.",
         settings.requireAssignmentConfirmation
           ? "Baris bertepi kuning menunggu jawaban Anda; jawab langsung dari kolom Aksi."
-          : "Mission yang bisa Anda ikuti punya tombol Join di kolom Aksi.",
+          : "Aktivitas yang bisa Anda ikuti punya tombol Join di kolom Aksi.",
       ].join(" ")}
       action={
         <>
           {/* Exports everything the filters match, not the page on screen. */}
-          <Button asChild variant="outline" size="sm" title={`Export ${pageResult.total} mission yang cocok dengan filter`}>
+          <Button asChild variant="outline" size="sm" title={`Export ${pageResult.total} aktivitas yang cocok dengan filter`}>
             <a href={exportHref}>
               <Download className="h-4 w-4" /> Export{pageResult.total > 0 ? ` (${pageResult.total})` : ""}
             </a>

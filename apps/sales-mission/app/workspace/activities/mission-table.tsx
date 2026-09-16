@@ -30,6 +30,7 @@ import { VISIT_STATE_LABELS, reportOwed, visitState } from "@/lib/missions/visit
 import { statusLabel } from "@/lib/missions/status-labels"
 import { AcceptAssignmentButton, AssignmentOverflowMenu } from "./assignment-actions-menu"
 import { JoinButton } from "./join-controls"
+import { paths } from "@/lib/paths"
 
 type Row = MissionListItem & { joinStatus?: JoinStatus; canReport?: boolean }
 
@@ -108,7 +109,7 @@ function ActionCell({
 }) {
   const open = (
     <Link
-      href={`/workspace/missions/${mission.id}`}
+      href={paths.activity(mission.id)}
       aria-label={`Buka ${mission.clientCompanyName}`}
       className="grid h-9 w-9 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground md:h-8 md:w-8"
     >
@@ -124,7 +125,7 @@ function ActionCell({
     return (
       <span className="flex items-center justify-end gap-1.5">
         <Button asChild size="sm">
-          <Link href={`/workspace/missions/${mission.id}/report`}>
+          <Link href={paths.activityReport(mission.id)}>
             <ClipboardList className="h-4 w-4" /> {state === "draft" ? "Lanjutkan laporan" : "Isi laporan"}
           </Link>
         </Button>
@@ -158,7 +159,7 @@ function ActionCell({
     return (
       <span className="flex items-center justify-end gap-1.5">
         <Button asChild size="sm" variant="outline">
-          <Link href={`/workspace/missions/${mission.id}?fokus=laporan`}>
+          <Link href={paths.activity(mission.id, { fokus: "laporan" })}>
             <ClipboardList className="h-4 w-4" /> Lihat laporan
           </Link>
         </Button>
@@ -304,12 +305,12 @@ export function MissionTable({
       if (result.success) {
         const deleted = result.data?.deleted ?? chosen.length
         const skipped = result.data?.skipped ?? 0
-        toast.success(`${deleted} mission dipindahkan ke sampah${skipped ? `, ${skipped} dilewati karena di luar cakupan` : ""}`)
+        toast.success(`${deleted} aktivitas dipindahkan ke sampah${skipped ? `, ${skipped} dilewati karena di luar cakupan` : ""}`)
         clearSelection()
         setConfirming(false)
         router.refresh()
       } else {
-        toast.error(result.error ?? "Mission gagal dipindahkan ke sampah")
+        toast.error(result.error ?? "Aktivitas gagal dipindahkan ke sampah")
       }
     })
   }
@@ -325,18 +326,18 @@ export function MissionTable({
               ? "Tidak ada yang menunggu jawaban Anda"
               : filter === "team"
                 ? "Semua sudah menjawab"
-                : "Tidak ada mission yang cocok"
+                : "Tidak ada aktivitas yang cocok"
           }
           description={
             filter === "mine"
-              ? "Penugasan baru muncul di sini begitu Anda ditambahkan ke sebuah mission."
+              ? "Penugasan baru muncul di sini begitu Anda ditambahkan ke sebuah aktivitas."
               : filter === "team"
-                ? "Setiap sales pada mission yang masih berjalan sudah memberi jawaban."
+                ? "Setiap sales pada aktivitas yang masih berjalan sudah memberi jawaban."
                 : "Longgarkan filter atau hapus salah satu untuk melihat lebih banyak."
           }
           action={
             <Button asChild variant="outline" size="sm">
-              <Link href="/workspace/missions">Lihat semua mission</Link>
+              <Link href={paths.activities()}>Lihat semua aktivitas</Link>
             </Button>
           }
         />
@@ -345,13 +346,13 @@ export function MissionTable({
 
     return (
       <EmptyState
-        title="Belum ada mission"
+        title="Belum ada aktivitas"
         // A rep who cannot schedule is told who can, rather than being handed a
         // button that would only bounce them back here.
         description={
           canCreate
-            ? "Mission yang dibuat akan muncul di sini beserta jadwal dan sales yang ditugaskan."
-            : "Mission yang dijadwalkan untuk unit bisnis ini akan muncul di sini. Penjadwalan dilakukan oleh tim appointment atau admin."
+            ? "Aktivitas yang dibuat akan muncul di sini beserta jadwal dan sales yang ditugaskan."
+            : "Aktivitas yang dijadwalkan untuk unit bisnis ini akan muncul di sini. Penjadwalan dilakukan oleh tim appointment atau admin."
         }
         action={canCreate ? <NewMissionAction /> : undefined}
       />
@@ -404,7 +405,7 @@ export function MissionTable({
                 {/* The card body is the link; the buttons sit outside it so a
                     tap on Terima never also opens the page. */}
                 <Link
-                  href={`/workspace/missions/${mission.id}`}
+                  href={paths.activity(mission.id)}
                   className={cn("block min-w-0 flex-1 p-4 transition-colors hover:bg-muted/50", canDelete && "pl-2")}
                 >
                   <div className="flex items-start justify-between gap-3">
@@ -430,7 +431,7 @@ export function MissionTable({
                 <div className="flex items-center justify-end gap-2 border-t px-4 py-3">
                   {owesMe ? (
                     <Button asChild size="default" className="h-11">
-                      <Link href={`/workspace/missions/${mission.id}/report`}>
+                      <Link href={paths.activityReport(mission.id)}>
                         <ClipboardList className="h-4 w-4" /> {mission.reportStatus === "NONE" ? "Isi laporan" : "Lanjutkan laporan"}
                       </Link>
                     </Button>
@@ -443,7 +444,7 @@ export function MissionTable({
                     <JoinButton missionId={mission.id} status="JOINABLE" maxSupporting={maxSupporting} size="default" />
                   ) : (
                     <Button asChild variant="outline" size="default" className="h-11">
-                      <Link href={`/workspace/missions/${mission.id}?fokus=laporan`}>
+                      <Link href={paths.activity(mission.id, { fokus: "laporan" })}>
                         <ClipboardList className="h-4 w-4" /> Lihat laporan
                       </Link>
                     </Button>
@@ -483,11 +484,11 @@ export function MissionTable({
                 <Checkbox
                   checked={allChosen ? true : chosen.length > 0 ? "indeterminate" : false}
                   onCheckedChange={(value) => toggleAll(value === true)}
-                  aria-label="Pilih semua mission di halaman ini"
+                  aria-label="Pilih semua aktivitas di halaman ini"
                 />
               </TableHead>
             )}
-            <TableHead>{pagination ? <SortHeader column="client" label="Mission" sort={pagination.sort} /> : "Mission"}</TableHead>
+            <TableHead>{pagination ? <SortHeader column="client" label="Aktivitas" sort={pagination.sort} /> : "Aktivitas"}</TableHead>
             <TableHead>{pagination ? <SortHeader column="schedule" label="Jadwal" sort={pagination.sort} /> : "Jadwal"}</TableHead>
             <TableHead className="hidden 2xl:table-cell">{pagination ? <SortHeader column="location" label="Lokasi" sort={pagination.sort} /> : "Lokasi"}</TableHead>
             <TableHead className="hidden xl:table-cell">{pagination ? <SortHeader column="sales" label="Sales utama" sort={pagination.sort} /> : "Sales utama"}</TableHead>

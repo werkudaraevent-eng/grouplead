@@ -149,7 +149,7 @@ export default function ResetPasswordPage() {
                 </div>
                 <h2 className="text-xl font-semibold tracking-tight text-foreground">Buat kata sandi baru</h2>
                 <p className="text-sm leading-relaxed text-muted-foreground">
-                  Minimal 8 karakter. Password ini berlaku untuk LeadEngine dan Sales Mission.
+                  Minimal 8 karakter. Password ini berlaku untuk LeadEngine dan Sales Activity.
                 </p>
               </div>
 

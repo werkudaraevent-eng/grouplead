@@ -9,12 +9,13 @@ import { toast } from "sonner"
 import { assignProspects, deleteProspects } from "@/app/actions/prospect-actions"
 import type { ProspectDetail } from "@/lib/prospects/prospect-schema"
 import type { ProspectStatus } from "@/lib/prospects/prospect-status"
-import type { Person } from "@/app/workspace/missions/new/people-picker"
+import type { Person } from "@/app/workspace/activities/new/people-picker"
 import { canAssignOthers, type ProspectViewer } from "@/lib/prospects/prospect-access"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { AssignDialog, ChangeStatusDialog, LogAttemptDialog, type DialogTarget } from "../prospect-dialogs"
+import { paths } from "@/lib/paths"
 
 /** The detail page's header actions: one filled, the rest in the overflow. */
 export function ProspectDetailActions({
@@ -63,7 +64,7 @@ export function ProspectDetailActions({
     <>
       <span className="flex flex-wrap items-center gap-2">
         {prospect.missionId ? (
-          <Button asChild variant="outline" size="sm"><Link href={`/workspace/missions/${prospect.missionId}`}>Buka mission</Link></Button>
+          <Button asChild variant="outline" size="sm"><Link href={paths.activity(prospect.missionId)}>Buka aktivitas</Link></Button>
         ) : editable && workable ? (
           <Button size="sm" onClick={() => setAttempt(target)}><Phone className="h-4 w-4" /> Catat kontak</Button>
         ) : canUpdate && prospect.ownerId === null ? (
@@ -77,7 +78,7 @@ export function ProspectDetailActions({
             <DropdownMenuContent align="end" className="w-56">
               {editable && !prospect.missionId && <DropdownMenuItem onSelect={() => setStatus(target)}>Ubah status</DropdownMenuItem>}
               {editable && !prospect.missionId && canCreateMission && prospect.statusKind !== "lost" && (
-                <DropdownMenuItem asChild><Link href={`/workspace/missions/new?prospect=${prospect.id}`}><CalendarCheck className="h-4 w-4" /> Jadwalkan kunjungan</Link></DropdownMenuItem>
+                <DropdownMenuItem asChild><Link href={paths.newActivity({ prospect: prospect.id })}><CalendarCheck className="h-4 w-4" /> Jadwalkan kunjungan</Link></DropdownMenuItem>
               )}
               {canAssignOthers(viewer) && <DropdownMenuItem onSelect={() => setAssign(target)}>Tugaskan</DropdownMenuItem>}
               {editable && <DropdownMenuItem asChild><Link href={`/workspace/prospects/${prospect.id}/edit`}>Ubah</Link></DropdownMenuItem>}

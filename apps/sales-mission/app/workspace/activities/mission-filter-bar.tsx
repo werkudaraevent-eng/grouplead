@@ -195,7 +195,7 @@ export function MissionFilterBar({
             value={text}
             onChange={(event) => setText(event.target.value)}
             placeholder="Cari perusahaan, lokasi, tujuan, orang…"
-            aria-label="Cari mission"
+            aria-label="Cari aktivitas"
             className="h-10 pl-9 md:h-9"
           />
         </div>
@@ -257,7 +257,7 @@ export function MissionFilterBar({
 
         <span className="ml-auto flex items-center gap-2 text-xs text-muted-foreground" aria-live="polite">
           <SlidersHorizontal className="h-3.5 w-3.5" />
-          {pending ? "Menyaring…" : active > 0 ? `${shown} dari ${total} mission` : `${total} mission`}
+          {pending ? "Menyaring…" : active > 0 ? `${shown} dari ${total} aktivitas` : `${total} aktivitas`}
         </span>
       </div>
 

@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { toast } from "sonner"
 import { ArrowUpRight, CalendarCheck, Loader2, MoreVertical, Phone, Plus, Trash2, UserPlus, X } from "@/components/icons"
 import { deleteProspects, assignProspects, matchingProspectIds } from "@/app/actions/prospect-actions"
-import { MissionPagination } from "@/app/workspace/missions/mission-pagination"
+import { MissionPagination } from "@/app/workspace/activities/mission-pagination"
 import { SortHeader } from "@/components/sort-header"
 import { nextProspectSort, prospectSortParts, type ProspectSort, type ProspectSortColumn } from "@/lib/prospects/prospect-paging"
 import { COLOR_DOT, displayStatus, type ProspectStatus } from "@/lib/prospects/prospect-status"
@@ -23,7 +23,8 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { cn } from "@/lib/utils"
 import { AssignDialog, ChangeStatusDialog, LogAttemptDialog, type DialogTarget } from "./prospect-dialogs"
-import type { Person } from "@/app/workspace/missions/new/people-picker"
+import type { Person } from "@/app/workspace/activities/new/people-picker"
+import { paths } from "@/lib/paths"
 
 /**
  * The prospect list: the mission table's shape (selection bar, cards on a
@@ -213,7 +214,7 @@ export function ProspectTable({
     const h = size === "default" ? "h-11" : ""
     const primary = prospect.missionId ? (
       <Button asChild size={size} variant="outline" className={h}>
-        <Link href={`/workspace/missions/${prospect.missionId}`}>Buka mission</Link>
+        <Link href={paths.activity(prospect.missionId)}>Buka aktivitas</Link>
       </Button>
     ) : !editable(prospect) && canUpdate && prospect.ownerId === null ? null : editable(prospect) && workable(prospect) ? (
       <Button size={size} className={h} onClick={() => setAttemptTarget({ target: { ids: [prospect.id], label: label(prospect), prospectId: prospect.id }, statusId: prospect.statusId })}>
@@ -237,7 +238,7 @@ export function ProspectTable({
           )}
           {editable(prospect) && !prospect.missionId && canCreateMission && prospect.statusKind !== "lost" && (
             <DropdownMenuItem asChild>
-              <Link href={`/workspace/missions/new?prospect=${prospect.id}`}><CalendarCheck className="h-4 w-4" /> Jadwalkan kunjungan</Link>
+              <Link href={paths.newActivity({ prospect: prospect.id })}><CalendarCheck className="h-4 w-4" /> Jadwalkan kunjungan</Link>
             </DropdownMenuItem>
           )}
           {canAssignOthers(viewer) && <DropdownMenuItem onSelect={() => setAssignTarget({ ids: [prospect.id], label: label(prospect) })}>Tugaskan</DropdownMenuItem>}

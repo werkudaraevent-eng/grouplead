@@ -48,7 +48,7 @@ export function visitActivities(
     { type: "Meeting", description: lines.join("\n").slice(0, 4000), occurredAt: report.actualStart ?? mission.scheduledStart ?? null },
     {
       type: "lead_created",
-      description: `Lead dibuat dari laporan kunjungan Sales Mission oleh ${pushedBy}.`,
+      description: `Lead dibuat dari laporan kunjungan Sales Activity oleh ${pushedBy}.`,
       occurredAt: null,
     },
   ]

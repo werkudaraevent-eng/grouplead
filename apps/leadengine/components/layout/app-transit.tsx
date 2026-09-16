@@ -13,7 +13,7 @@ export type WerkudaraApp = "leadengine" | "sales-mission"
 
 const APPS: Record<WerkudaraApp, { name: string; tagline: string; Icon: typeof LayoutDashboard }> = {
   leadengine: { name: "LeadEngine", tagline: "CRM dan operasional pipeline", Icon: LayoutDashboard },
-  "sales-mission": { name: "Sales Mission", tagline: "Rencanakan kunjungan dan rekam hasilnya", Icon: MapPinned },
+  "sales-mission": { name: "Sales Activity", tagline: "Rencanakan aktivitas sales dan rekam hasilnya", Icon: MapPinned },
 }
 
 /** The indeterminate indicator of the transit screen: the brand's two rings. */

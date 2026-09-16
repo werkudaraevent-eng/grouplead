@@ -54,6 +54,7 @@ import { hasPreferenceCookie, writePreferenceCookie } from "@/lib/preference-coo
 import { PersonAvatar } from "@/components/person-avatar"
 import { cn } from "@/lib/utils"
 import type { NavAccess } from "@/lib/missions/nav-access"
+import { paths } from "@/lib/paths"
 
 /**
  * App shell. Structure, tokens, and interaction mirror LeadEngine's sidebar so
@@ -100,7 +101,7 @@ const mainNav: NavItem[] = [
   // Before Mission because it comes before a mission in the work: the list of
   // people still being called, out of which visits are made.
   { href: "/workspace/prospects", label: "Prospek", icon: UserSearch, requires: "prospects" },
-  { href: "/workspace/missions", label: "Mission", icon: ClipboardList, requires: "missions" },
+  { href: paths.activities(), label: "Aktivitas", icon: ClipboardList, requires: "missions" },
   { href: "/workspace/calendar", label: "Kalender", icon: CalendarDays, requires: "missions" },
   { href: "/workspace/board", label: "Papan live", icon: MonitorPlay, requires: "missions" },
   { href: "/workspace/reports", label: "Laporan", icon: BarChart3, requires: "reports" },
@@ -249,16 +250,16 @@ function SidebarBody({
       <div className={`relative min-h-14 shrink-0 border-b border-sidebar-border ${collapsed ? "flex flex-col items-center gap-2 px-2 py-2" : "flex items-center gap-2 py-2 pl-3 pr-0"}`}>
         {!collapsed ? (
           <div className="flex min-w-0 flex-1 items-center gap-2.5 overflow-hidden">
-            <Link href="/workspace" className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-primary text-primary-foreground" onClick={onNavigate} aria-label="Beranda Sales Mission">
+            <Link href="/workspace" className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-primary text-primary-foreground" onClick={onNavigate} aria-label="Beranda Sales Activity">
               <MapPinned className="h-4 w-4" />
             </Link>
             <span className="min-w-0 flex-1">
-              <Link href="/workspace" className="block truncate text-sm font-bold text-sidebar-accent-foreground" onClick={onNavigate}>Sales Mission</Link>
+              <Link href="/workspace" className="block truncate text-sm font-bold text-sidebar-accent-foreground" onClick={onNavigate}>Sales Activity</Link>
               <span className="block truncate text-[11px] text-sidebar-foreground">{companyName}</span>
             </span>
           </div>
         ) : (
-          <Link href="/workspace" className="flex items-center justify-center transition-opacity duration-150 group-hover/sidebar:opacity-0" aria-label="Beranda Sales Mission">
+          <Link href="/workspace" className="flex items-center justify-center transition-opacity duration-150 group-hover/sidebar:opacity-0" aria-label="Beranda Sales Activity">
             <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-primary text-primary-foreground">
               <MapPinned className="h-4 w-4" />
             </span>
@@ -301,7 +302,7 @@ function SidebarBody({
         )}
       </div>
 
-      <nav aria-label="Navigasi Sales Mission" className={`sidebar-scrollbar flex-1 space-y-1 overflow-y-auto py-4 ${collapsed ? "px-1.5" : "px-3"}`}>
+      <nav aria-label="Navigasi Sales Activity" className={`sidebar-scrollbar flex-1 space-y-1 overflow-y-auto py-4 ${collapsed ? "px-1.5" : "px-3"}`}>
         {!collapsed && <p className="mb-2 px-3 text-[11px] font-bold uppercase tracking-widest text-sidebar-foreground">Menu</p>}
         {renderNav(mainNav)}
         {/* The heading and its spacing go with the section. A lone "Administrasi"
@@ -367,7 +368,7 @@ function SidebarBody({
               <Avatar name={displayName} url={avatarUrl} />
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-sm font-semibold leading-tight text-sidebar-accent-foreground">{displayName}</span>
-                <span className="block truncate text-[11px] text-sidebar-foreground">Sales Mission</span>
+                <span className="block truncate text-[11px] text-sidebar-foreground">Sales Activity</span>
               </span>
             </Link>
             <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground" onClick={handleLogout} disabled={loggingOut} aria-label="Keluar">
@@ -445,7 +446,7 @@ export function WorkspaceShell({
       <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
         <SheetContent side="left" showCloseButton={false} className="w-72 border-r-0 p-0">
           <SheetTitle className="sr-only">Menu navigasi</SheetTitle>
-          <SheetDescription className="sr-only">Navigasi utama Sales Mission untuk layar kecil.</SheetDescription>
+          <SheetDescription className="sr-only">Navigasi utama Sales Activity untuk layar kecil.</SheetDescription>
           <SidebarBody displayName={displayName} avatarUrl={avatarUrl} unreadCount={unreadCount} navAccess={navAccess} companyName={companyName} collapsed={false} isSheet onNavigate={() => setMobileOpen(false)} />
         </SheetContent>
       </Sheet>
@@ -459,7 +460,7 @@ export function WorkspaceShell({
             <span className="grid h-7 w-7 place-items-center rounded-md bg-primary text-primary-foreground">
               <MapPinned className="h-3.5 w-3.5" />
             </span>
-            <span className="text-sm font-bold">Sales Mission</span>
+            <span className="text-sm font-bold">Sales Activity</span>
           </div>
 
           {/*

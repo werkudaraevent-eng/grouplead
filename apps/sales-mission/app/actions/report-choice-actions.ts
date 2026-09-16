@@ -15,6 +15,8 @@ import {
   type ChoiceField,
 } from "@/lib/missions/report-choices"
 import type { ActionResult } from "@/types/action-result"
+import { paths } from "@/lib/paths"
+import { NO_ACCESS_MESSAGE } from "@/lib/brand"
 
 /**
  * The admin's side of the report's three fixed choices: label and order are
@@ -23,13 +25,13 @@ import type { ActionResult } from "@/types/action-result"
  * stored the code keeps showing its label.
  */
 
-const PATHS = ["/workspace/settings/report-form", "/workspace/missions", "/workspace/reports", "/workspace"]
+const PATHS = ["/workspace/settings/report-form", paths.activities(), "/workspace/reports", "/workspace"]
 
 async function authorize() {
   const access = await getSalesMissionAccess()
-  if (!access) return { error: "Anda tidak punya akses Sales Mission." as const }
+  if (!access) return { error: NO_ACCESS_MESSAGE }
   if (!(await isSettingsAdmin(access))) {
-    return { error: "Hanya admin Sales Mission yang bisa mengatur pilihan laporan." as const }
+    return { error: "Hanya admin Sales Activity yang bisa mengatur pilihan laporan." as const }
   }
   return { access }
 }

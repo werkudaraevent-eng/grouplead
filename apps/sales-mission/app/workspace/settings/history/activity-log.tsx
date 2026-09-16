@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils"
 import { MISSION_TIME_ZONE } from "@/lib/missions/mission-schema"
 import type { AuditFilter } from "@/lib/audit/audit-queries"
 import { AUDIT_TABLE_LABELS, describeAudit, type AuditEvent, type AuditTone } from "@/lib/audit/describe-audit"
+import { paths } from "@/lib/paths"
 
 const SELECT_CLASS =
   "h-10 rounded-md border border-input bg-field px-3 text-sm text-foreground shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 md:h-9"
@@ -137,7 +138,7 @@ function Event({ event }: { event: AuditEvent }) {
             {event.lead.missionId && event.lead.action !== "DELETE" && (
               <>
                 {" · "}
-                <Link href={`/workspace/missions/${event.lead.missionId}`} className="text-primary hover:underline" onClick={(e) => e.stopPropagation()}>
+                <Link href={paths.activity(event.lead.missionId)} className="text-primary hover:underline" onClick={(e) => e.stopPropagation()}>
                   Buka mission
                 </Link>
               </>

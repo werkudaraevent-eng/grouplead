@@ -21,15 +21,16 @@ import { getReportOptions } from "@/lib/missions/report-options"
 import { contactFromAppointment } from "@/lib/missions/visit-report-schema"
 import { BackLink, EmptyState, WorkspacePage } from "@/app/workspace/workspace-page"
 import { VisitReportForm } from "./visit-report-form"
+import { paths } from "@/lib/paths"
 
 export const dynamic = "force-dynamic"
 
-export default async function VisitReportPage({ params, searchParams }: { params: Promise<{ missionId: string }>; searchParams: Promise<{ edit?: string }> }) {
+export default async function VisitReportPage({ params, searchParams }: { params: Promise<{ activityId: string }>; searchParams: Promise<{ edit?: string }> }) {
   const access = await getSalesMissionAccess()
   if (!access) redirect("/login?error=access_not_provisioned")
   await requireModule(access, "sales_mission_result")
 
-  const { missionId } = await params
+  const { activityId: missionId } = await params
   const mission = await getMission(access, missionId)
   if (!mission) notFound()
 
@@ -53,7 +54,7 @@ export default async function VisitReportPage({ params, searchParams }: { params
   // A report on a visit the rep has not agreed to make is a contradiction.
   const myResponse = team.find((member) => member.userId === access.userId)?.response ?? "PENDING"
   if (role === "PRIMARY" && awaitsConfirmation(myResponse as AssignmentResponse, settings) && !report) {
-    redirect(`/workspace/missions/${missionId}`)
+    redirect(paths.activity(missionId))
   }
 
   // A submitted report is already rendered in full on the detail page. The
@@ -69,7 +70,7 @@ export default async function VisitReportPage({ params, searchParams }: { params
       now: new Date(),
       windowDays: settings.reportEditWindowDays,
     })
-    if (edit !== "1" || !verdict.allowed) redirect(`/workspace/missions/${missionId}`)
+    if (edit !== "1" || !verdict.allowed) redirect(paths.activity(missionId))
     editing = { leadPushed: Boolean(await getLeadPush(access, missionId)) }
   }
 
@@ -78,16 +79,16 @@ export default async function VisitReportPage({ params, searchParams }: { params
   if (!canWrite && !report) {
     return (
       <WorkspacePage
-        eyebrow="Sales Mission / Laporan kunjungan"
+        eyebrow="Sales Activity / Laporan kunjungan"
         title={mission.clientCompanyName}
         description="Laporan kunjungan"
-        action={<BackLink href={`/workspace/missions/${missionId}`} />}
+        action={<BackLink href={paths.activity(missionId)} />}
       >
         <EmptyState
           title={role === "SUPPORTING" ? "Laporan diisi oleh sales utama" : "Laporan ini di luar jangkauan Anda"}
           description={
             role === "SUPPORTING"
-              ? "Anda terdaftar sebagai sales pendukung. Tambahkan catatan pendukung dari halaman detail mission."
+              ? "Anda terdaftar sebagai sales pendukung. Tambahkan catatan pendukung dari halaman detail aktivitas."
               : describeOutOfScope(gates.resultCtx.scope, "laporan")
           }
         />
@@ -97,10 +98,10 @@ export default async function VisitReportPage({ params, searchParams }: { params
 
   return (
     <WorkspacePage
-      eyebrow="Sales Mission / Laporan kunjungan"
+      eyebrow="Sales Activity / Laporan kunjungan"
       title={mission.clientCompanyName}
       description={[mission.missionType, mission.location].filter(Boolean).join(" · ")}
-      action={<BackLink href={`/workspace/missions/${missionId}`} />}
+      action={<BackLink href={paths.activity(missionId)} />}
     >
       <VisitReportForm
         missionId={missionId}

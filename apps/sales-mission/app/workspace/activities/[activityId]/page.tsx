@@ -54,7 +54,7 @@ import {
   JoinButton,
   LeaveButton,
   RemoveMemberButton,
-} from "@/app/workspace/missions/join-controls"
+} from "@/app/workspace/activities/join-controls"
 import { PushLeadPanel } from "./push-lead"
 import { SupportingNotes } from "./supporting-notes"
 import { CrmSyncStatus } from "./crm-sync-status"
@@ -64,6 +64,7 @@ import { getLastEdit } from "@/lib/audit/audit-queries"
 import { listFormFields } from "@/lib/missions/form-field-queries"
 import { Suspense } from "react"
 import { ScrollToSection } from "@/components/scroll-to-section"
+import { paths } from "@/lib/paths"
 
 export const dynamic = "force-dynamic"
 
@@ -88,12 +89,12 @@ function ReportField({ label, value }: { label: string; value: string }) {
   )
 }
 
-export default async function MissionDetailPage({ params }: { params: Promise<{ missionId: string }> }) {
+export default async function MissionDetailPage({ params }: { params: Promise<{ activityId: string }> }) {
   const access = await getSalesMissionAccess()
   if (!access) redirect("/login?error=access_not_provisioned")
   await requireModule(access, "sales_mission_mission")
 
-  const { missionId } = await params
+  const { activityId: missionId } = await params
   const mission = await getMission(access, missionId)
   if (!mission) notFound()
 
@@ -197,7 +198,7 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
 
   return (
     <WorkspacePage
-      eyebrow="Sales Mission / Mission detail"
+      eyebrow="Sales Activity / Detail aktivitas"
       title={mission.clientCompanyName}
       description={[mission.missionType, mission.location].filter(Boolean).join(" · ")}
       action={<BackLink />}
@@ -220,7 +221,7 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
               {canCreateMission && (
                 <div className="mt-4 flex sm:justify-end">
                   <Button asChild className="h-11">
-                    <Link href={`/workspace/missions/new?from=${missionId}`}>
+                    <Link href={paths.newActivity({ from: missionId })}>
                       <RotateCcw className="h-4 w-4" /> Jadwalkan lagi
                     </Link>
                   </Button>
@@ -244,7 +245,7 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
               <span className="font-mono text-[11px] text-muted-foreground">ID {mission.id}</span>
               {canEdit && (
                 <Button asChild variant="outline" size="sm" className="ml-auto">
-                  <Link href={`/workspace/missions/${missionId}/edit`}>
+                  <Link href={paths.activityEdit(missionId)}>
                     <Pencil className="h-4 w-4" /> Ubah
                   </Link>
                 </Button>
@@ -266,7 +267,7 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
 
             {/* Provenance lives here, not in the list: who booked it is what
                 you want once you are looking at the visit, not while scanning
-                for one. The full history is in Riwayat aktivitas. */}
+                for one. The full history is in Riwayat perubahan. */}
             <p className="flex flex-wrap gap-x-4 gap-y-1 border-t px-5 py-3 text-xs text-muted-foreground">
               <span>Dijadwalkan oleh <span className="font-medium text-foreground">{mission.createdByName ?? "Nama tidak diketahui"}</span> · {stamp(mission.createdAt)}</span>
               {lastEdit && (
@@ -369,7 +370,7 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
                   <p className="rounded-lg border border-dashed px-4 py-3 text-sm text-muted-foreground">
                     {pendingReschedule.requestedById === access.userId
                       ? "Usulan jadwal Anda menunggu keputusan admin."
-                      : `${pendingReschedule.requestedByName} mengusulkan jadwal lain. Menunggu keputusan pemilik mission atau atasannya.`}
+                      : `${pendingReschedule.requestedByName} mengusulkan jadwal lain. Menunggu keputusan pemilik aktivitas atau atasannya.`}
                   </p>
                 )}
 
@@ -399,7 +400,7 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
           <aside className="rounded-xl border bg-card">
             <div className="flex items-center justify-between gap-3 border-b px-5 py-4">
               <div>
-                <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Tim mission</p>
+                <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Tim aktivitas</p>
                 <h2 className="mt-1 text-base font-semibold text-foreground">
                   {team.length} orang
                   <span className="ml-1 font-normal text-muted-foreground">
@@ -481,7 +482,7 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
               {reportSubmitted && supervisesReport && !isAuthor && !isCancelled && <RequestClarificationButton missionId={missionId} authorName={primaryName} />}
               {reportSubmitted && editVerdict?.allowed && !isCancelled && (
                 <Button asChild variant="outline" size="sm">
-                  <Link href={`/workspace/missions/${missionId}/report?edit=1`}><Pencil className="h-4 w-4" /> Ubah laporan</Link>
+                  <Link href={paths.activityReport(missionId, { edit: true })}><Pencil className="h-4 w-4" /> Ubah laporan</Link>
                 </Button>
               )}
               <StatusBadge status={report.status} />
@@ -670,7 +671,7 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
               </p>
             ) : (
               <Button asChild className="h-11 w-full sm:w-auto">
-                <Link href={`/workspace/missions/${missionId}/report`}>
+                <Link href={paths.activityReport(missionId)}>
                   <ClipboardList className="h-4 w-4" />
                   {report ? "Lanjutkan laporan" : "Isi laporan kunjungan"}
                 </Link>

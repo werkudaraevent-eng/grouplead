@@ -570,7 +570,7 @@ export function LeadDetailPage({ lead, prevLeadId, nextLeadId, lastModifiedBy = 
                             </EditableRow>
                             {lead.sales_mission_id && salesMissionUrl && (
                                 <a
-                                    href={`${salesMissionUrl}/workspace/missions/${lead.sales_mission_id}`}
+                                    href={`${salesMissionUrl}/workspace/activities/${lead.sales_mission_id}`}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="-mt-1 mb-1 flex min-h-8 items-center justify-end gap-1.5 px-2 text-xs font-medium text-primary hover:underline"

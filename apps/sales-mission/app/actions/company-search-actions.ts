@@ -57,7 +57,7 @@ export async function searchCompanies(query: string): Promise<CompanySearchResul
   const access = await getSalesMissionAccess()
   if (!access) return { companies: [], prospects: [], previousNames: [], error: "Sesi tidak valid." }
   if (!(await canPerform(access, "sales_mission_mission", "create"))) {
-    return { companies: [], prospects: [], previousNames: [], error: "Anda tidak punya izin membuat mission." }
+    return { companies: [], prospects: [], previousNames: [], error: "Anda tidak punya izin membuat aktivitas." }
   }
 
   const trimmed = query.trim()

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache"
 import { createClient } from "@/utils/supabase/server"
 import { getSalesMissionAccess } from "@/lib/sales-mission-access"
 import type { ActionResult } from "@/types/action-result"
+import { NO_ACCESS_MESSAGE } from "@/lib/brand"
 
 /**
  * Marking notifications as read.
@@ -15,7 +16,7 @@ import type { ActionResult } from "@/types/action-result"
 
 export async function markNotificationRead(notificationId: string): Promise<ActionResult> {
   const access = await getSalesMissionAccess()
-  if (!access) return { success: false, error: "Anda tidak punya akses Sales Mission." }
+  if (!access) return { success: false, error: NO_ACCESS_MESSAGE }
 
   const supabase = await createClient()
   const { error } = await supabase
@@ -34,7 +35,7 @@ export async function markNotificationRead(notificationId: string): Promise<Acti
 
 export async function markAllNotificationsRead(): Promise<ActionResult> {
   const access = await getSalesMissionAccess()
-  if (!access) return { success: false, error: "Anda tidak punya akses Sales Mission." }
+  if (!access) return { success: false, error: NO_ACCESS_MESSAGE }
 
   const supabase = await createClient()
   const { error } = await supabase

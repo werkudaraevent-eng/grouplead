@@ -18,6 +18,7 @@ import {
 import { JoinStatusLine, WorkspacePage } from "@/app/workspace/workspace-page"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
+import { paths } from "@/lib/paths"
 
 export const dynamic = "force-dynamic"
 
@@ -65,7 +66,7 @@ export default async function CalendarPage({
 
   return (
     <WorkspacePage
-      eyebrow="Sales Mission / Kalender"
+      eyebrow="Sales Activity / Kalender"
       title="Kalender"
       description="Lihat jadwal tim dan waktu perjalanan sebelum menugaskan kunjungan baru."
     >
@@ -179,7 +180,7 @@ export default async function CalendarPage({
             <div className="mt-5 flex items-center gap-2 border-t pt-4 text-xs text-muted-foreground">
               <CalendarDays className="h-3.5 w-3.5" />
               {monthTotal} mission bulan ini · {dayMissions.length} pada hari terpilih
-              <Link href="/workspace/missions" className="ml-auto font-semibold text-primary hover:underline">
+              <Link href={paths.activities()} className="ml-auto font-semibold text-primary hover:underline">
                 Lihat semua mission
               </Link>
             </div>
@@ -196,7 +197,7 @@ export default async function CalendarPage({
                 visible, so it is where the visit that fills it should start. */}
             {canCreate && (
               <Button asChild size="sm">
-                <Link href={`/workspace/missions/new?date=${selectedDay}`}>
+                <Link href={paths.newActivity({ date: selectedDay })}>
                   <Plus className="h-4 w-4" /> Mission
                 </Link>
               </Button>
@@ -206,7 +207,7 @@ export default async function CalendarPage({
           {dayMissions.length > 0 ? (
             <div className="divide-y">
               {dayMissions.map((mission) => (
-                <Link key={mission.id} href={`/workspace/missions/${mission.id}`} className="flex gap-3 px-5 py-4 transition-colors hover:bg-muted/50">
+                <Link key={mission.id} href={paths.activity(mission.id)} className="flex gap-3 px-5 py-4 transition-colors hover:bg-muted/50">
                   <span className="w-12 shrink-0 font-mono text-xs text-muted-foreground">
                     {formatMissionSchedule(mission.scheduledStart, now).split(", ").pop()}
                   </span>

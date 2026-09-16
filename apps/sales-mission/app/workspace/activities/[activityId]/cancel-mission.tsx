@@ -35,11 +35,11 @@ export function CancelMissionButton({ missionId, clientName }: { missionId: stri
     start(async () => {
       const result = await cancelMission(missionId, reason)
       if (result.success) {
-        toast.success("Mission dibatalkan. Tim sudah diberi tahu.")
+        toast.success("Aktivitas dibatalkan. Tim sudah diberi tahu.")
         setOpen(false)
         router.refresh()
       } else {
-        toast.error(result.error ?? "Mission gagal dibatalkan.")
+        toast.error(result.error ?? "Aktivitas gagal dibatalkan.")
       }
     })
   }

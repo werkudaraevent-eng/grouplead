@@ -7,6 +7,7 @@ import { MISSION_TIME_ZONE } from "@/lib/missions/mission-schema"
 import { PersonAvatar } from "@/components/person-avatar"
 import { StatusBadge } from "@/app/workspace/workspace-page"
 import { cn } from "@/lib/utils"
+import { paths } from "@/lib/paths"
 
 /**
  * The board inside the app.
@@ -96,7 +97,7 @@ function DayTimeline({ missions, nowMinute, isToday }: { missions: BoardMission[
         return (
           <Link
             key={mission.id}
-            href={`/workspace/missions/${mission.id}`}
+            href={paths.activity(mission.id)}
             className={cn(
               "absolute overflow-hidden rounded-md border px-2 py-1 text-xs leading-tight transition-colors hover:brightness-95",
               done ? "border-border bg-muted text-muted-foreground" : "border-primary/40 bg-primary/10 text-foreground"
@@ -153,10 +154,10 @@ export function BoardDashboard({
     <div className="space-y-4">
       {show("counts") && (
         <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="Ringkasan">
-          <Metric icon={CalendarCheck} label={week ? "Mission minggu ini" : "Mission hari ini"} value={snapshot.counts.todayTotal} tone="bg-primary/10 text-primary" />
+          <Metric icon={CalendarCheck} label={week ? "Aktivitas minggu ini" : "Aktivitas hari ini"} value={snapshot.counts.todayTotal} tone="bg-primary/10 text-primary" />
           <Metric icon={CheckCircle2} label="Diterima" value={snapshot.counts.accepted} tone="bg-[var(--success)] text-[var(--success-foreground)]" />
           <Metric icon={CheckCircle2} label="Selesai" value={snapshot.counts.completed} tone="bg-[var(--success)] text-[var(--success-foreground)]" />
-          <Metric icon={MapPin} label="Mission berjalan" value={snapshot.counts.openMissions} tone="bg-[var(--warning)] text-[var(--warning-foreground)]" />
+          <Metric icon={MapPin} label="Aktivitas berjalan" value={snapshot.counts.openMissions} tone="bg-[var(--warning)] text-[var(--warning-foreground)]" />
         </section>
       )}
 
@@ -212,7 +213,7 @@ export function BoardDashboard({
                           {day.missions.map((mission) => (
                             <li key={mission.id}>
                               <Link
-                                href={`/workspace/missions/${mission.id}`}
+                                href={paths.activity(mission.id)}
                                 className="flex items-center gap-4 px-5 py-2 text-sm transition-colors hover:bg-muted/50"
                               >
                                 <span className="w-12 shrink-0 font-mono text-xs tabular-nums text-muted-foreground">{mission.time}</span>
@@ -271,7 +272,7 @@ export function BoardDashboard({
         <article className="overflow-hidden rounded-xl border bg-card">
           <header className="flex items-center justify-between border-b px-5 py-4">
             <h2 className="text-base font-semibold text-foreground">Aktivitas terbaru</h2>
-            <Link href="/workspace/settings/activity" className="text-xs font-semibold text-primary hover:underline">Lihat semua</Link>
+            <Link href={paths.settings.history} className="text-xs font-semibold text-primary hover:underline">Lihat semua</Link>
           </header>
           {events.length > 0 ? (
             <ul className="divide-y">
@@ -288,7 +289,7 @@ export function BoardDashboard({
               })}
             </ul>
           ) : (
-            <PanelEmpty icon={History} title="Belum ada aktivitas" hint="Setiap perubahan pada mission tercatat di sini secara otomatis." />
+            <PanelEmpty icon={History} title="Belum ada aktivitas" hint="Setiap perubahan pada aktivitas tercatat di sini secara otomatis." />
           )}
         </article>
       )}
@@ -299,7 +300,7 @@ export function BoardDashboard({
           <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-4 rounded-sm border border-primary/40 bg-primary/10" /> Terjadwal</span>
           <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-4 rounded-sm border bg-muted" /> Selesai atau dibatalkan</span>
           <span className="inline-flex items-center gap-1.5"><span className="h-0.5 w-4 bg-[var(--danger-foreground)]" /> Sekarang</span>
-          <span className="ml-auto inline-flex items-center gap-2"><StatusBadge status="ACCEPTED" /> dipakai di daftar mission</span>
+          <span className="ml-auto inline-flex items-center gap-2"><StatusBadge status="ACCEPTED" /> dipakai di daftar aktivitas</span>
         </p>
       )}
     </div>

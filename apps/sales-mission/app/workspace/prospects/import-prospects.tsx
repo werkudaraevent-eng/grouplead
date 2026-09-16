@@ -7,7 +7,7 @@ import { AlertCircle, CheckCircle2, Download, FileUp, Loader2, Upload } from "@/
 import * as XLSX from "xlsx"
 import { checkProspectImport, commitProspectImport, type ProspectImportCheck } from "@/app/actions/prospect-import-actions"
 import type { RawRow } from "@/lib/missions/mission-io"
-import { PersonPicker, type Person } from "@/app/workspace/missions/new/people-picker"
+import { PersonPicker, type Person } from "@/app/workspace/activities/new/people-picker"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"

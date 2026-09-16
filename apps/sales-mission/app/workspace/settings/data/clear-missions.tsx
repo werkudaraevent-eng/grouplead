@@ -26,7 +26,7 @@ export function ClearMissions({ count, canDelete }: { count: number; canDelete: 
     start(async () => {
       const result = await clearAllMissions(typed)
       if (result.success) {
-        toast.success(`${result.data?.deleted ?? 0} mission dipindahkan ke sampah. Daftar mission sekarang kosong.`)
+        toast.success(`${result.data?.deleted ?? 0} aktivitas dipindahkan ke sampah. Daftar aktivitas sekarang kosong.`)
         setTyped("")
         router.refresh()
       } else {
@@ -40,7 +40,7 @@ export function ClearMissions({ count, canDelete }: { count: number; canDelete: 
       <header className="flex items-start gap-3 border-b border-[var(--danger-foreground)]/20 bg-[var(--danger)] px-5 py-4">
         <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-[var(--danger-foreground)]" />
         <div>
-          <h2 className="text-base font-semibold text-[var(--danger-foreground)]">Kosongkan semua mission</h2>
+          <h2 className="text-base font-semibold text-[var(--danger-foreground)]">Kosongkan semua aktivitas</h2>
           <p className="mt-0.5 text-sm text-[var(--danger-foreground)]">Zona berbahaya. Semuanya masuk ke sampah dulu.</p>
         </div>
       </header>
@@ -52,7 +52,7 @@ export function ClearMissions({ count, canDelete }: { count: number; canDelete: 
           disentuh. Perusahaan dan kontak yang sudah masuk ke LeadEngine tetap ada di sana.
         </p>
         <p className="text-sm leading-relaxed text-muted-foreground">
-          Dari sampah, admin bisa memulihkan atau menghapus permanen selama 30 hari. Riwayat aktivitas mencatat
+          Dari sampah, admin bisa memulihkan atau menghapus permanen selama 30 hari. Riwayat perubahan mencatat
           setiap langkahnya.
         </p>
 

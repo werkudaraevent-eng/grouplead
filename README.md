@@ -4,13 +4,13 @@ Monorepo for Werkudara applications.
 
 ```text
 apps/leadengine       LeadEngine CRM
-apps/sales-mission    Sales Mission app
+apps/sales-mission    Sales Activity app
 packages/             Shared UI, auth helpers, and API contracts
 ```
 
-LeadEngine remains the current production app. Sales Mission will be added under `apps/sales-mission`.
+LeadEngine remains the current production app. Sales Activity will be added under `apps/sales-mission`.
 
-Both apps use one shared Supabase project. Sign-in is Supabase email + password — Microsoft sign-in was removed (ADR-003). Keep Sales Mission tables, migrations, RLS policies, and business logic domain-scoped.
+Both apps use one shared Supabase project. Sign-in is Supabase email + password — Microsoft sign-in was removed (ADR-003). Keep Sales Activity tables, migrations, RLS policies, and business logic domain-scoped.
 
 One login covers both apps: the Supabase session cookie is scoped to the parent domain via `NEXT_PUBLIC_AUTH_COOKIE_DOMAIN`. A shared session still grants nothing on its own — app access, tenant membership, and RLS are checked per request.
 

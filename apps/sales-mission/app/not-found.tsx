@@ -1,6 +1,7 @@
 import Link from "next/link"
 import { Compass } from "@/components/icons"
 import { Button } from "@/components/ui/button"
+import { paths } from "@/lib/paths"
 
 /**
  * 404. Reached most often by an old mission link that was deleted or belongs to
@@ -26,7 +27,7 @@ export default function NotFound() {
             <Link href="/workspace">Ke dashboard</Link>
           </Button>
           <Button asChild variant="outline" className="h-11">
-            <Link href="/workspace/missions">Lihat semua mission</Link>
+            <Link href={paths.activities()}>Lihat semua aktivitas</Link>
           </Button>
         </div>
       </div>

@@ -8,7 +8,7 @@ import { CalendarCheck, Loader2, Lock } from "@/components/icons"
 import { assignProspects, logProspectAttempt, setProspectStatus } from "@/app/actions/prospect-actions"
 import { COLOR_DOT, KIND_LABELS, activeStatuses, wonStatus, type ProspectStatus, type StatusKind } from "@/lib/prospects/prospect-status"
 import { CHANNELS, CHANNEL_LABELS, LOST_REASONS, OUTCOMES, OUTCOME_LABELS, suggestedStatusKind, type Channel, type Outcome } from "@/lib/prospects/prospect-schema"
-import { PersonPicker, type Person } from "@/app/workspace/missions/new/people-picker"
+import { PersonPicker, type Person } from "@/app/workspace/activities/new/people-picker"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -22,6 +22,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { cn } from "@/lib/utils"
+import { paths } from "@/lib/paths"
 
 /**
  * The three short decisions on a prospect, each a dialog: log a contact,
@@ -166,13 +167,13 @@ export function ChangeStatusDialog({
       const result = await setProspectStatus(target.ids, { statusId, nextContactAt: nextContactAt || null, lostReason: lostReason || null })
       if (!result.success) { toast.error(result.error ?? "Status gagal diubah."); return }
       const { changed, skipped } = result.data ?? { changed: 0, skipped: 0 }
-      toast.success(skipped > 0 ? `${changed} diubah, ${skipped} dilewati (bukan pemegang atau sudah jadi mission)` : `${changed} prospek diubah ke ${chosen.label}`)
+      toast.success(skipped > 0 ? `${changed} diubah, ${skipped} dilewati (bukan pemegang atau sudah jadi aktivitas)` : `${changed} prospek diubah ke ${chosen.label}`)
       onClose()
       router.refresh()
     })
   }
 
-  const scheduleHref = target?.prospectId ? `/workspace/missions/new?prospect=${target.prospectId}` : null
+  const scheduleHref = target?.prospectId ? paths.newActivity({ prospect: target.prospectId }) : null
   const wantsWon = chosen?.kind === "won"
 
   return (
@@ -190,7 +191,7 @@ export function ChangeStatusDialog({
             <div className="rounded-lg border border-dashed bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
               {target && target.ids.length > 1
                 ? "Janji temu berhasil dijadwalkan satu per satu: buka prospeknya lalu Jadwalkan kunjungan."
-                : "Janji temu berhasil diberikan saat kunjungannya dijadwalkan. Lanjutkan ke form mission; data prospek sudah terisi."}
+                : "Janji temu berhasil diberikan saat kunjungannya dijadwalkan. Lanjutkan ke form aktivitas; data prospek sudah terisi."}
             </div>
           ) : (
             <KindFields kind={chosen?.kind ?? null} nextContactAt={nextContactAt} setNextContactAt={setNextContactAt} lostReason={lostReason} setLostReason={setLostReason} />
@@ -256,7 +257,7 @@ export function LogAttemptDialog({
   }, [outcome])
 
   const wantsWon = chosen?.kind === "won"
-  const scheduleHref = target?.prospectId ? `/workspace/missions/new?prospect=${target.prospectId}` : null
+  const scheduleHref = target?.prospectId ? paths.newActivity({ prospect: target.prospectId }) : null
 
   const save = (thenSchedule: boolean) => {
     if (!target?.prospectId) return
@@ -322,7 +323,7 @@ export function LogAttemptDialog({
           {wantsWon ? (
             <div className="flex items-start gap-2 rounded-lg border border-dashed bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
               <Lock className="mt-0.5 h-4 w-4 shrink-0" />
-              <span>Janji temu berhasil diberikan saat kunjungannya dijadwalkan. Simpan catatan ini, lalu lanjut ke form mission yang sudah terisi.</span>
+              <span>Janji temu berhasil diberikan saat kunjungannya dijadwalkan. Simpan catatan ini, lalu lanjut ke form aktivitas yang sudah terisi.</span>
             </div>
           ) : (
             <KindFields kind={chosen?.kind ?? null} nextContactAt={nextContactAt} setNextContactAt={setNextContactAt} lostReason={lostReason} setLostReason={setLostReason} />

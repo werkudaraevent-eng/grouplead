@@ -7,6 +7,7 @@ import { MISSION_TIME_ZONE } from "@/lib/missions/mission-schema"
 import { BackLink, WorkspacePage } from "@/app/workspace/workspace-page"
 import { MissionForm, type MissionPrefill } from "./mission-form"
 import { getProspect } from "@/lib/prospects/prospect-queries"
+import { paths } from "@/lib/paths"
 
 export default async function NewMissionPage({
   searchParams,
@@ -19,7 +20,7 @@ export default async function NewMissionPage({
   // Typing the URL has to be refused too. Hiding the button only removes the
   // invitation; this removes the route.
   if (!(await canPerform(access, "sales_mission_mission", "create"))) {
-    redirect("/workspace/missions")
+    redirect(paths.activities())
   }
 
   const now = new Date()
@@ -103,8 +104,8 @@ export default async function NewMissionPage({
 
   return (
     <WorkspacePage
-      eyebrow="Sales Mission / Mission"
-      title={prospectId ? "Jadwalkan kunjungan" : prefill ? "Jadwalkan lagi" : "Buat mission"}
+      eyebrow="Sales Activity / Aktivitas"
+      title={prospectId ? "Jadwalkan kunjungan" : prefill ? "Jadwalkan lagi" : "Buat aktivitas"}
       description={
         prospectId
           ? `Janji temu dengan ${prefill?.clientCompanyName} disepakati. Data prospek sudah terisi; tentukan jadwal dan tim yang berangkat, lalu prospek otomatis menjadi Confirmed.`

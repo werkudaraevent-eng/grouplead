@@ -12,8 +12,8 @@ export default async function ProspectStatusesPage() {
   const canManage = await isSettingsAdmin(access)
   if (!canManage) {
     return (
-      <WorkspacePage eyebrow="Sales Mission / Pengaturan" title="Status prospek" action={<BackLink href="/workspace/settings" />}>
-        <EmptyState title="Tidak punya izin" description="Halaman ini hanya untuk admin Sales Mission." />
+      <WorkspacePage eyebrow="Sales Activity / Pengaturan" title="Status prospek" action={<BackLink href="/workspace/settings" />}>
+        <EmptyState title="Tidak punya izin" description="Halaman ini hanya untuk admin Sales Activity." />
       </WorkspacePage>
     )
   }
@@ -23,7 +23,7 @@ export default async function ProspectStatusesPage() {
 
   return (
     <WorkspacePage
-      eyebrow="Sales Mission / Pengaturan"
+      eyebrow="Sales Activity / Pengaturan"
       title="Status prospek"
       description="Nama, warna, dan urutan status milik tim. Jenis di balik tiap status terkunci, karena jenis itulah yang menentukan status awal, status janji temu berhasil, dan cara corong dihitung."
       action={<BackLink href="/workspace/settings" />}

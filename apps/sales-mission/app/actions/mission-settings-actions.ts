@@ -5,6 +5,8 @@ import { z } from "zod"
 import { createClient } from "@/utils/supabase/server"
 import { canPerform, getSalesMissionAccess } from "@/lib/sales-mission-access"
 import type { ActionResult } from "@/types/action-result"
+import { paths } from "@/lib/paths"
+import { NO_ACCESS_MESSAGE } from "@/lib/brand"
 
 const settingsSchema = z.object({
   conflictCheckEnabled: z.boolean(),
@@ -27,9 +29,9 @@ export type MissionSettingsInput = z.infer<typeof settingsSchema>
  */
 export async function updateMissionSettings(input: unknown): Promise<ActionResult> {
   const access = await getSalesMissionAccess()
-  if (!access) return { success: false, error: "Anda tidak punya akses Sales Mission." }
+  if (!access) return { success: false, error: NO_ACCESS_MESSAGE }
   if (!(await canPerform(access, "sales_mission_settings", "update"))) {
-    return { success: false, error: "Anda tidak punya izin mengubah pengaturan mission." }
+    return { success: false, error: "Anda tidak punya izin mengubah pengaturan aktivitas." }
   }
 
   const parsed = settingsSchema.safeParse(input)
@@ -60,8 +62,8 @@ export async function updateMissionSettings(input: unknown): Promise<ActionResul
   if (error) return { success: false, error: "Pengaturan gagal disimpan." }
 
   revalidatePath("/workspace")
-  revalidatePath("/workspace/missions")
+  revalidatePath(paths.activities())
   revalidatePath("/workspace/calendar")
-  revalidatePath("/workspace/settings/missions")
+  revalidatePath(paths.settings.activities)
   return { success: true }
 }

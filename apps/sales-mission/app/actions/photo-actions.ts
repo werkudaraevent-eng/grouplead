@@ -6,6 +6,7 @@ import { getSalesMissionAccess } from "@/lib/sales-mission-access"
 import { PHOTO_BUCKET, PHOTO_MAX_BYTES, isCompanyPhoto } from "@/lib/photos/photo-answer"
 import { removePhotoFiles, signPhotoUrls } from "@/lib/photos/photo-storage"
 import type { ActionResult } from "@/types/action-result"
+import { NO_ACCESS_MESSAGE } from "@/lib/brand"
 
 /**
  * The three moves a photo field needs from the server: a place to put a
@@ -17,7 +18,7 @@ const SCOPE = /^[A-Za-z0-9_-]{1,60}$/
 
 export async function preparePhotoUpload(input: { scope: string; size: number; type: string }): Promise<ActionResult<{ path: string; token: string }>> {
   const access = await getSalesMissionAccess()
-  if (!access) return { success: false, error: "Anda tidak punya akses Sales Mission." }
+  if (!access) return { success: false, error: NO_ACCESS_MESSAGE }
   if (!SCOPE.test(input.scope)) return { success: false, error: "Tujuan unggah tidak dikenal." }
   if (typeof input.size !== "number" || input.size <= 0 || input.size > PHOTO_MAX_BYTES) {
     return { success: false, error: "Foto maksimal 10 MB." }
@@ -40,7 +41,7 @@ export async function signPhotos(paths: string[]): Promise<Record<string, string
 
 export async function removePhoto(path: string): Promise<ActionResult> {
   const access = await getSalesMissionAccess()
-  if (!access) return { success: false, error: "Anda tidak punya akses Sales Mission." }
+  if (!access) return { success: false, error: NO_ACCESS_MESSAGE }
   if (!isCompanyPhoto(path, access.companyId)) return { success: false, error: "Foto tidak dikenal." }
   await removePhotoFiles(access, [path])
   return { success: true }

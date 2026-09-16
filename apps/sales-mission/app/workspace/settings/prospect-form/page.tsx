@@ -22,8 +22,8 @@ export default async function ProspectFormSettingsPage() {
 
   if (!(await canPerform(access, "sales_mission_settings", "update"))) {
     return (
-      <WorkspacePage eyebrow="Sales Mission / Administrasi" title="Form prospek" action={<BackLink href="/workspace/settings" />}>
-        <EmptyState title="Tidak punya izin" description="Pengaturan form prospek hanya dapat diubah oleh admin Sales Mission." />
+      <WorkspacePage eyebrow="Sales Activity / Administrasi" title="Form prospek" action={<BackLink href="/workspace/settings" />}>
+        <EmptyState title="Tidak punya izin" description="Pengaturan form prospek hanya dapat diubah oleh admin Sales Activity." />
       </WorkspacePage>
     )
   }
@@ -32,7 +32,7 @@ export default async function ProspectFormSettingsPage() {
 
   return (
     <WorkspacePage
-      eyebrow="Sales Mission / Administrasi"
+      eyebrow="Sales Activity / Administrasi"
       title="Form prospek"
       description="Tambah, ubah, urutkan, dan tentukan field mana yang wajib diisi saat membuat atau mengimpor prospek."
       action={<BackLink href="/workspace/settings" />}
@@ -45,7 +45,7 @@ export default async function ProspectFormSettingsPage() {
         <ul className="ml-5 list-disc space-y-1">
           <li><strong className="text-foreground">Bisa diubah:</strong> label, urutan, placeholder, dan teks bantuan.</li>
           <li><strong className="text-foreground">Bisa diperketat:</strong> field opsional dijadikan wajib. Aturan yang sama berlaku pada impor.</li>
-          <li><strong className="text-foreground">Terkunci:</strong> tipe field dan penghapusan. Daftar sapaan diatur di Form mission supaya prospek dan mission memakai daftar yang sama.</li>
+          <li><strong className="text-foreground">Terkunci:</strong> tipe field dan penghapusan. Daftar sapaan diatur di Form aktivitas supaya prospek dan aktivitas memakai daftar yang sama.</li>
         </ul>
         <p>Field yang Anda tambahkan tampil di form prospek dan menjadi kolom pada template impor; jawabannya tampil di detail prospek.</p>
       </div>

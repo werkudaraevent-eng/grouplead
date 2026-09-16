@@ -42,7 +42,7 @@ export function JoinButton({
     start(async () => {
       const result = await joinMission(missionId)
       if (result.success) {
-        toast.success("Kamu bergabung ke mission ini")
+        toast.success("Kamu bergabung ke aktivitas ini")
         router.refresh()
       } else {
         toast.error(result.error ?? "Gagal bergabung")
@@ -77,7 +77,7 @@ export function LeaveButton({ missionId }: { missionId: string }) {
         start(async () => {
           const result = await leaveMission(missionId)
           if (result.success) {
-            toast.success("Kamu keluar dari mission ini")
+            toast.success("Kamu keluar dari aktivitas ini")
             router.refresh()
           } else {
             toast.error(result.error ?? "Gagal keluar")
@@ -107,7 +107,7 @@ export function RemoveMemberButton({ missionId, userId, name }: { missionId: str
         start(async () => {
           const result = await removeSupportingSales(missionId, userId)
           if (result.success) {
-            toast.success(`${name} dikeluarkan dari mission`)
+            toast.success(`${name} dikeluarkan dari aktivitas`)
             router.refresh()
           } else {
             toast.error(result.error ?? "Gagal mengeluarkan anggota")
@@ -134,7 +134,7 @@ export function AllowJoinToggle({ missionId, allowJoin }: { missionId: string; a
         start(async () => {
           const result = await setMissionAllowJoin(missionId, !allowJoin)
           if (result.success) {
-            toast.success(allowJoin ? "Mission ditutup dari join" : "Mission dibuka untuk join")
+            toast.success(allowJoin ? "Aktivitas ditutup dari join" : "Aktivitas dibuka untuk join")
             router.refresh()
           } else {
             toast.error(result.error ?? "Gagal menyimpan pengaturan")

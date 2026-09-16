@@ -21,8 +21,8 @@ export default async function ReportFormSettingsPage() {
 
   if (!(await canPerform(access, "sales_mission_settings", "update"))) {
     return (
-      <WorkspacePage eyebrow="Sales Mission / Administrasi" title="Form laporan" action={<BackLink href="/workspace/settings" />}>
-        <EmptyState title="Tidak punya izin" description="Pengaturan form laporan hanya dapat diubah oleh admin Sales Mission." />
+      <WorkspacePage eyebrow="Sales Activity / Administrasi" title="Form laporan" action={<BackLink href="/workspace/settings" />}>
+        <EmptyState title="Tidak punya izin" description="Pengaturan form laporan hanya dapat diubah oleh admin Sales Activity." />
       </WorkspacePage>
     )
   }
@@ -34,7 +34,7 @@ export default async function ReportFormSettingsPage() {
 
   return (
     <WorkspacePage
-      eyebrow="Sales Mission / Administrasi"
+      eyebrow="Sales Activity / Administrasi"
       title="Form laporan"
       description="Tambah, ubah, urutkan, dan tentukan pertanyaan mana yang wajib dijawab pada laporan kunjungan."
       action={<BackLink href="/workspace/settings" />}
@@ -49,7 +49,7 @@ export default async function ReportFormSettingsPage() {
           <li><strong className="text-foreground">Bisa diperketat:</strong> pertanyaan opsional dijadikan wajib.</li>
           <li><strong className="text-foreground">Terkunci:</strong> tipe field dan penghapusan. Pada Hasil kunjungan, Tingkat minat, dan Next action, nama opsi bebas tetapi <em>jenis</em> di baliknya terkunci: itulah yang dibaca KPI, CRM, dan pengiriman lead.</li>
         </ul>
-        <p>Pertanyaan yang Anda tambahkan tampil di form laporan pada urutan yang Anda atur, dan jawabannya ikut tercatat di detail mission.</p>
+        <p>Pertanyaan yang Anda tambahkan tampil di form laporan pada urutan yang Anda atur, dan jawabannya ikut tercatat di detail aktivitas.</p>
       </div>
 
       <FieldManager fields={fields} formKey="visit_report" reportChoices={reportChoices} />

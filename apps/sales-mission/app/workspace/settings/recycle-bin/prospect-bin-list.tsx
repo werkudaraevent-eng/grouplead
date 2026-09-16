@@ -85,7 +85,7 @@ export function ProspectBinList({ items, now }: { items: DeletedProspect[]; now:
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>{confirm === "empty" ? `Hapus permanen ${items.length} prospek di sampah?` : `Hapus permanen ${chosen.length} prospek?`}</DialogTitle>
-            <DialogDescription>Catatan kontaknya ikut terhapus. Riwayat aktivitas tetap mencatat isinya. Tidak bisa dibatalkan.</DialogDescription>
+            <DialogDescription>Catatan kontaknya ikut terhapus. Riwayat perubahan tetap mencatat isinya. Tidak bisa dibatalkan.</DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setConfirm(null)} disabled={pending}>Kembali</Button>

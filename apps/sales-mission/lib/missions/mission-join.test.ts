@@ -217,7 +217,7 @@ describe("annotateJoinStatus", () => {
 
 describe("joinBlockedReason", () => {
   it("explains each blocking status and stays silent otherwise", () => {
-    expect(joinBlockedReason("CONFLICT", 2)).toContain("mission pada jam itu")
+    expect(joinBlockedReason("CONFLICT", 2)).toContain("aktivitas pada jam itu")
     expect(joinBlockedReason("FULL", 3)).toContain("3")
     expect(joinBlockedReason("CLOSED", 2)).toContain("menutup")
     expect(joinBlockedReason("JOINABLE", 2)).toBeNull()

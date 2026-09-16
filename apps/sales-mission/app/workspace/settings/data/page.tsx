@@ -24,8 +24,8 @@ export default async function DataSettingsPage() {
 
   if (!canManage) {
     return (
-      <WorkspacePage eyebrow="Sales Mission / Pengaturan" title="Data" action={<BackLink href="/workspace/settings" />}>
-        <EmptyState title="Tidak punya izin" description="Halaman ini hanya untuk admin Sales Mission." />
+      <WorkspacePage eyebrow="Sales Activity / Pengaturan" title="Data" action={<BackLink href="/workspace/settings" />}>
+        <EmptyState title="Tidak punya izin" description="Halaman ini hanya untuk admin Sales Activity." />
       </WorkspacePage>
     )
   }
@@ -38,9 +38,9 @@ export default async function DataSettingsPage() {
 
   return (
     <WorkspacePage
-      eyebrow="Sales Mission / Pengaturan"
+      eyebrow="Sales Activity / Pengaturan"
       title="Data"
-      description="Mengosongkan data unit bisnis ini. Setiap penghapusan tercatat di Riwayat aktivitas."
+      description="Mengosongkan data unit bisnis ini. Setiap penghapusan tercatat di Riwayat perubahan."
       action={<BackLink href="/workspace/settings" />}
     >
       <div className="space-y-4">

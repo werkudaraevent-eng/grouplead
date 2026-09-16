@@ -55,7 +55,7 @@ export function RecycleBinList({ items, now }: { items: DeletedMission[]; now: s
     })
 
   if (items.length === 0) {
-    return <EmptyState title="Sampah kosong" description="Mission yang dihapus dari daftar akan muncul di sini dulu sebelum hilang permanen." />
+    return <EmptyState title="Sampah kosong" description="Aktivitas yang dihapus dari daftar akan muncul di sini dulu sebelum hilang permanen." />
   }
 
   return (
@@ -65,7 +65,7 @@ export function RecycleBinList({ items, now }: { items: DeletedMission[]; now: s
           <>
             <span className="text-sm font-semibold text-foreground">{chosen.length} dipilih</span>
             <span className="ml-auto flex items-center gap-2">
-              <Button size="sm" onClick={() => run(() => restoreMissions(chosen), (n) => `${n} mission dipulihkan`)} disabled={pending}>
+              <Button size="sm" onClick={() => run(() => restoreMissions(chosen), (n) => `${n} aktivitas dipulihkan`)} disabled={pending}>
                 <RotateCcw className="h-4 w-4" /> Pulihkan
               </Button>
               <Button size="sm" variant="outline" className="text-[var(--danger-foreground)] hover:text-[var(--danger-foreground)]" onClick={() => setConfirm("purge")} disabled={pending}>
@@ -94,7 +94,7 @@ export function RecycleBinList({ items, now }: { items: DeletedMission[]; now: s
                 <TableHead className="w-10">
                   <Checkbox checked={allChosen ? true : chosen.length > 0 ? "indeterminate" : false} onCheckedChange={(value) => setChosen(value === true ? items.map((item) => item.id) : [])} aria-label="Pilih semua" />
                 </TableHead>
-                <TableHead>Mission</TableHead>
+                <TableHead>Aktivitas</TableHead>
                 <TableHead>Jadwal</TableHead>
                 <TableHead>Dihapus</TableHead>
                 <TableHead className="text-right">Sisa waktu</TableHead>
@@ -131,9 +131,9 @@ export function RecycleBinList({ items, now }: { items: DeletedMission[]; now: s
       <Dialog open={confirm !== null} onOpenChange={(open) => { if (!pending && !open) setConfirm(null) }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>{confirm === "empty" ? `Hapus permanen ${items.length} mission di sampah?` : `Hapus permanen ${chosen.length} mission?`}</DialogTitle>
+            <DialogTitle>{confirm === "empty" ? `Hapus permanen ${items.length} aktivitas di sampah?` : `Hapus permanen ${chosen.length} aktivitas?`}</DialogTitle>
             <DialogDescription>
-              Laporan kunjungan, penugasan, catatan, dan usulan jadwal di dalamnya ikut terhapus. Riwayat aktivitas tetap mencatat isinya dan siapa yang menghapus. Tidak bisa dibatalkan.
+              Laporan kunjungan, penugasan, catatan, dan usulan jadwal di dalamnya ikut terhapus. Riwayat perubahan tetap mencatat isinya dan siapa yang menghapus. Tidak bisa dibatalkan.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -141,8 +141,8 @@ export function RecycleBinList({ items, now }: { items: DeletedMission[]; now: s
             <Button
               onClick={() =>
                 confirm === "empty"
-                  ? run(() => emptyRecycleBin(), (n) => `${n} mission dihapus permanen`)
-                  : run(() => purgeMissions(chosen), (n) => `${n} mission dihapus permanen`)
+                  ? run(() => emptyRecycleBin(), (n) => `${n} aktivitas dihapus permanen`)
+                  : run(() => purgeMissions(chosen), (n) => `${n} aktivitas dihapus permanen`)
               }
               disabled={pending}
               className="bg-[var(--danger-foreground)] text-white hover:bg-[var(--danger-foreground)]/90"

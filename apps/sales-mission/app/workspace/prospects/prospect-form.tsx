@@ -19,9 +19,9 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { NumberInput } from "@/components/ui/number-input"
 import { PhoneInput } from "@/components/ui/phone-input"
-import { CompanyPicker } from "@/app/workspace/missions/new/company-picker"
-import { LocationPicker } from "@/app/workspace/missions/new/location-picker"
-import { PersonPicker } from "@/app/workspace/missions/new/people-picker"
+import { CompanyPicker } from "@/app/workspace/activities/new/company-picker"
+import { LocationPicker } from "@/app/workspace/activities/new/location-picker"
+import { PersonPicker } from "@/app/workspace/activities/new/people-picker"
 
 /**
  * One prospect, by hand, rendered from the tenant's prospect form.

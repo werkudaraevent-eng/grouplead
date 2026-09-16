@@ -14,7 +14,7 @@ import type { AssignmentResponse } from "@/lib/missions/mission-schema"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ReschedulePanel } from "./reschedule-panel"
-import type { ScheduleValue } from "@/app/workspace/missions/new/schedule-picker"
+import type { ScheduleValue } from "@/app/workspace/activities/new/schedule-picker"
 
 function formatProposed(iso: string) {
   return new Intl.DateTimeFormat("id-ID", {

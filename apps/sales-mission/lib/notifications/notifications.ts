@@ -46,13 +46,13 @@ export function describeEvent(event: NotificationEvent, context: NotificationCon
 
   switch (event) {
     case "MISSION_ASSIGNED":
-      return { title: "Kamu ditugaskan pada mission baru", body: `${client} — ditugaskan oleh ${context.actorName}` }
+      return { title: "Kamu ditugaskan pada aktivitas baru", body: `${client} — ditugaskan oleh ${context.actorName}` }
     case "MISSION_JOINED":
-      return { title: `${context.actorName} bergabung ke mission`, body: `${client}` }
+      return { title: `${context.actorName} bergabung ke aktivitas`, body: `${client}` }
     case "MISSION_LEFT":
-      return { title: `${context.actorName} keluar dari mission`, body: `${client}` }
+      return { title: `${context.actorName} keluar dari aktivitas`, body: `${client}` }
     case "MISSION_CANCELLED":
-      return { title: "Mission dibatalkan", body: `${client} — oleh ${context.actorName}` }
+      return { title: "Aktivitas dibatalkan", body: `${client} — oleh ${context.actorName}` }
     case "ASSIGNMENT_ACCEPTED":
       return { title: `${context.actorName} menerima penugasan`, body: `${client}` }
     case "ASSIGNMENT_REJECTED":
@@ -60,17 +60,17 @@ export function describeEvent(event: NotificationEvent, context: NotificationCon
     case "RESCHEDULE_REQUESTED":
       return { title: `${context.actorName} meminta jadwal ulang`, body: `${client} — menunggu keputusan` }
     case "RESCHEDULE_APPROVED":
-      return { title: "Jadwal mission diubah", body: `${client} — disetujui oleh ${context.actorName}` }
+      return { title: "Jadwal aktivitas diubah", body: `${client} — disetujui oleh ${context.actorName}` }
     case "RESCHEDULE_REJECTED":
       return { title: "Permintaan jadwal ulang ditolak", body: `${client} — diputuskan oleh ${context.actorName}` }
     case "MISSION_RESCHEDULED":
-      return { title: "Jadwal mission dipindahkan", body: `${client} — oleh ${context.actorName}` }
+      return { title: "Jadwal aktivitas dipindahkan", body: `${client} — oleh ${context.actorName}` }
     case "RESULT_SUBMITTED":
       return { title: `${context.actorName} mengirim laporan kunjungan`, body: `${client}` }
     case "NEEDS_CLARIFICATION":
       return { title: "Laporan perlu klarifikasi", body: `${client} — diminta oleh ${context.actorName}` }
     case "LEAD_PUSHED":
-      return { title: "Lead baru dari Sales Mission", body: `${client} — dikirim oleh ${context.actorName}` }
+      return { title: "Lead baru dari Sales Activity", body: `${client} — dikirim oleh ${context.actorName}` }
   }
 }
 

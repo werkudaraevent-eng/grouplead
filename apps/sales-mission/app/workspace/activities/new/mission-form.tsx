@@ -31,6 +31,7 @@ import { LocationPicker } from "./location-picker"
 import { SchedulePicker, type ScheduleValue } from "./schedule-picker"
 import type { ConflictSettings } from "@/lib/missions/mission-join"
 import type { PersonSchedule } from "@/lib/missions/schedule-availability"
+import { paths } from "@/lib/paths"
 
 /**
  * Mission form, rendered from the tenant's field configuration.
@@ -421,7 +422,7 @@ export function MissionForm({
         description="Sales utama menulis laporan kunjungan, jadi perannya harus punya izin Laporan kunjungan → Buat. Minta admin mengaturnya di Role & Izin, atau menambahkan anggota ke grup."
         action={
           <Button asChild variant="outline" size="sm">
-            <Link href="/workspace/missions">Kembali ke daftar mission</Link>
+            <Link href={paths.activities()}>Kembali ke daftar aktivitas</Link>
           </Button>
         }
       />
@@ -504,7 +505,7 @@ export function MissionForm({
                   <span className="font-semibold">{field.label}:</span> {schedule.date}, {schedule.startTime}
                   {schedule.endTime ? `–${schedule.endTime}` : ""}
                 </span>
-                <Link href={`/workspace/missions/${edit.missionId}#jawaban`} className="text-xs font-semibold text-primary hover:underline">
+                <Link href={paths.activity(edit.missionId, { hash: "jawaban" })} className="text-xs font-semibold text-primary hover:underline">
                   Usulkan jadwal lain di halaman mission
                 </Link>
               </p>
@@ -749,7 +750,7 @@ export function MissionForm({
       */}
       <FormActionBar className="flex flex-col gap-2 sm:flex-row sm:justify-end">
         <Button asChild variant="outline" type="button" className="h-12 md:h-10">
-          <Link href={edit ? `/workspace/missions/${edit.missionId}` : "/workspace/missions"}>Batal</Link>
+          <Link href={edit ? paths.activity(edit.missionId) : paths.activities()}>Batal</Link>
         </Button>
         <Button type="submit" disabled={pending} className="h-12 md:h-10">
           {pending ? (
@@ -757,7 +758,7 @@ export function MissionForm({
           ) : edit ? (
             <><Save className="h-4 w-4" /> Simpan perubahan</>
           ) : (
-            <><Plus className="h-4 w-4" /> Simpan mission</>
+            <><Plus className="h-4 w-4" /> Simpan aktivitas</>
           )}
         </Button>
       </FormActionBar>

@@ -243,7 +243,7 @@ export function parseRow(
 
   const typeColumn = columns.find((column) => column.key === "mission_type")
   if (missionType && !allowedMissionTypes.includes(missionType) && !typeColumn?.allowOther) {
-    fail(typeColumn?.header ?? "Jenis mission", `"${missionType}" bukan pilihan yang ada. Lihat sheet "Pilihan".`)
+    fail(typeColumn?.header ?? "Jenis aktivitas", `"${missionType}" bukan pilihan yang ada. Lihat sheet "Pilihan".`)
   }
 
   if (primarySalesEmail && !EMAIL_PATTERN.test(primarySalesEmail)) {

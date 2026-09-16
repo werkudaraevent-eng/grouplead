@@ -20,6 +20,7 @@ import {
 import { findProspectDuplicates } from "@/lib/prospects/prospect-page-queries"
 import { listProspectStatuses } from "@/lib/prospects/prospect-status-queries"
 import { entryStatus } from "@/lib/prospects/prospect-status"
+import { NO_ACCESS_MESSAGE } from "@/lib/brand"
 
 /**
  * Bulk creation of prospects from a spreadsheet: check first, write second,
@@ -47,7 +48,7 @@ export interface ProspectImportResult {
 
 async function authorize() {
   const access = await getSalesMissionAccess()
-  if (!access) return { error: "Anda tidak punya akses Sales Mission." as const }
+  if (!access) return { error: NO_ACCESS_MESSAGE }
   if (!(await canPerform(access, "sales_mission_prospect", "create"))) {
     return { error: "Anda tidak punya izin mengimpor prospek." as const }
   }

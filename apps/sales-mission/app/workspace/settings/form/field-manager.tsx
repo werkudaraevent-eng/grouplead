@@ -93,7 +93,7 @@ function lockedTypeReason(reportingKey: string, formKey: FormKey): string {
     return "Opsinya diatur di bawah: nama dan urutan bebas, jenis di balik tiap opsi terkunci karena KPI, CRM, dan lead membacanya."
   }
   if (formKey === "prospect" && reportingKey === "contact_salutation") {
-    return "Daftar sapaan diatur di Form mission, supaya prospek dan mission memakai daftar yang sama."
+    return "Daftar sapaan diatur di Form aktivitas, supaya prospek dan aktivitas memakai daftar yang sama."
   }
   if (formKey === "prospect" && reportingKey === "industry") {
     return "Tersimpan sebagai satu nilai di setiap prospek. Opsinya bisa diubah di bawah."
@@ -108,7 +108,7 @@ function lockedTypeReason(reportingKey: string, formKey: FormKey): string {
       return "Jadwal dipakai deteksi bentrok dan kalender, jadi tipenya terkunci."
     case "mission_type":
     case "contact_salutation":
-      return "Tersimpan sebagai satu nilai di setiap mission. Opsinya bisa diubah di bawah."
+      return "Tersimpan sebagai satu nilai di setiap aktivitas. Opsinya bisa diubah di bawah."
     case "primary_sales":
     case "supporting_sales":
       return "Pilihannya ditentukan sistem: daftar pengguna, atau nilai tetap yang dipakai laporan KPI."
@@ -379,7 +379,7 @@ export function FieldManager({ fields, formKey, reportChoices }: { fields: FormF
       <div className="overflow-hidden rounded-xl border bg-card">
         <div className="flex items-center justify-between gap-3 border-b px-5 py-4">
           <div>
-            <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Form buat mission</p>
+            <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Form buat aktivitas</p>
             <h2 className="mt-1 text-base font-semibold text-foreground">{active.length} field aktif</h2>
           </div>
           <Button size="sm" onClick={() => { setDraft(EMPTY_DRAFT); setAdding(true); setEditingId(null); setUsage(null) }} disabled={adding}>

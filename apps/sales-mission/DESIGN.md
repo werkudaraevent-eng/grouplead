@@ -1,4 +1,4 @@
-# Design direction, Sales Mission
+# Design direction, Sales Activity
 
 Written down because the direction was previously only in someone's head, which
 is how a form ends up with a wall of checkboxes and nobody able to say whether
@@ -73,6 +73,22 @@ readable without the code. Three rules keep it that way:
   which opens the settings screens and the bin. It is not a record scope; a
   supervisor's reach over reports comes from Laporan kunjungan → Ubah with a
   Cakupan of Tim or Semua.
+
+## Istilah
+
+The product is **Sales Activity**; the record a person schedules, joins and
+reports on is an **aktivitas**. The code, the routes' internals, the
+`sales_mission` schema and the `sales_mission_*` module ids still say
+"mission" on purpose: that layer changes in its own migration, and nothing
+a person reads depends on it.
+
+| On screen | Stays | Never |
+|---|---|---|
+| Sales Activity; aktivitas / Aktivitas ("Aktivitas baru", "Ubah aktivitas", "Buka aktivitas", "Tim aktivitas", "Jenis aktivitas"); Pengaturan aktivitas; Riwayat perubahan (the audit log, renamed so it does not collide) | kunjungan, laporan kunjungan, jadwal kunjungan (a visit is one kind of aktivitas); sales utama, sales pendukung; prospek; papan live; lead | "mission" in any sentence a person reads |
+
+The product name lives in `lib/brand.ts`; every in-app URL is built by
+`lib/paths.ts` (`/workspace/activities/…`), and `next.config.ts` redirects
+the old `/workspace/missions/…` addresses.
 
 ## What is ours, not Material's
 

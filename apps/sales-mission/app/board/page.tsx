@@ -9,7 +9,7 @@ import { BoardView } from "./board-view"
 export const dynamic = "force-dynamic"
 
 export const metadata: Metadata = {
-  title: "Papan Sales Mission",
+  title: "Papan Sales Activity",
   // A board URL carries a credential. Keeping it out of search indexes is the
   // cheapest part of not leaking it.
   robots: { index: false, follow: false },
@@ -19,7 +19,7 @@ function Refusal({ title, body }: { title: string; body: string }) {
   return (
     <main className="grid min-h-screen place-items-center bg-[var(--board-bg)] px-8 text-center text-[var(--board-text)]">
       <div>
-        <p className="text-sm font-bold uppercase tracking-[0.2em] text-[var(--board-accent)]">Sales Mission</p>
+        <p className="text-sm font-bold uppercase tracking-[0.2em] text-[var(--board-accent)]">Sales Activity</p>
         <h1 className="mt-3 text-3xl font-bold">{title}</h1>
         <p className="mt-3 max-w-md text-[var(--board-text-dim)]">{body}</p>
       </div>

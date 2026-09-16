@@ -24,7 +24,7 @@ export default function WorkspaceError({
   reset: () => void
 }) {
   useEffect(() => {
-    console.error("Sales Mission workspace error:", error)
+    console.error("Sales Activity workspace error:", error)
   }, [error])
 
   return (

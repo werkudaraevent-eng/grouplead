@@ -63,7 +63,7 @@ export const createMissionSchema = z
     clientCompanyId: z.string().uuid().nullish(),
     // Validated against the tenant's configured list in createMission, not
     // against a compile-time enum: the options are admin-editable now.
-    missionType: z.string().trim().min(1, "Pilih jenis mission").max(100),
+    missionType: z.string().trim().min(1, "Pilih jenis aktivitas").max(100),
     date: z.string().regex(DATE_PATTERN, "Tanggal tidak valid"),
     startTime: z.string().regex(TIME_PATTERN, "Jam mulai tidak valid"),
     endTime: z.string().regex(TIME_PATTERN, "Jam selesai tidak valid").optional().or(z.literal("")),

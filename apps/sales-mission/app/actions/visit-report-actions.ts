@@ -31,6 +31,8 @@ import { listFormFields } from "@/lib/missions/form-field-queries"
 import { getReportOptions } from "@/lib/missions/report-options"
 import { isAllowedChoice, validateFieldAnswers, type FieldAnswer, type FormField } from "@/lib/missions/form-fields"
 import type { ActionResult } from "@/types/action-result"
+import { paths } from "@/lib/paths"
+import { NO_ACCESS_MESSAGE } from "@/lib/brand"
 
 /**
  * Write side of the visit report.
@@ -85,10 +87,10 @@ function toRow(input: VisitReportDraft): ReportRow {
  */
 async function authorizeReportWrite(missionId: string) {
   const access = await getSalesMissionAccess()
-  if (!access) return { error: "Anda tidak punya akses Sales Mission." }
+  if (!access) return { error: NO_ACCESS_MESSAGE }
 
   const mission = await getMission(access, missionId)
-  if (!mission) return { error: "Mission tidak ditemukan." }
+  if (!mission) return { error: "Aktivitas tidak ditemukan." }
 
   if (!(await canPerform(access, "sales_mission_result", "create"))) {
     return { error: "Anda tidak punya izin menulis laporan kunjungan." }
@@ -294,9 +296,9 @@ export async function discardVisitReportDraft(missionId: string): Promise<Action
   if (error) return { success: false, error: "Draft gagal dibuang." }
 
   revalidatePath("/workspace")
-  revalidatePath("/workspace/missions")
-  revalidatePath(`/workspace/missions/${missionId}`)
-  revalidatePath(`/workspace/missions/${missionId}/report`)
+  revalidatePath(paths.activities())
+  revalidatePath(paths.activity(missionId))
+  revalidatePath(paths.activityReport(missionId))
   return { success: true }
 }
 
@@ -489,13 +491,13 @@ export async function submitVisitReport(
       access,
       "RESULT_SUBMITTED",
       team.map((member) => member.userId),
-      { missionId, clientName: mission?.clientCompanyName ?? "Mission" }
+      { missionId, clientName: mission?.clientCompanyName ?? "Aktivitas" }
     )
   }
 
   revalidatePath("/workspace")
-  revalidatePath("/workspace/missions")
-  revalidatePath(`/workspace/missions/${missionId}`)
+  revalidatePath(paths.activities())
+  revalidatePath(paths.activity(missionId))
 
   return { success: true, data: { id: reportId } }
 }
@@ -626,7 +628,7 @@ export async function retryCrmSync(missionId: string): Promise<ActionResult> {
   await syncVisitToCrm(access, missionId, report.id)
 
   const after = await getVisitReport(access, missionId)
-  revalidatePath(`/workspace/missions/${missionId}`)
+  revalidatePath(paths.activity(missionId))
   return after?.crmSyncError
     ? { success: false, error: after.crmSyncError }
     : { success: true }
@@ -641,9 +643,9 @@ export async function retryCrmSync(missionId: string): Promise<ActionResult> {
  */
 export async function addSupportingNote(missionId: string, note: string): Promise<ActionResult> {
   const access = await getSalesMissionAccess()
-  if (!access) return { success: false, error: "Anda tidak punya akses Sales Mission." }
+  if (!access) return { success: false, error: NO_ACCESS_MESSAGE }
   if (!(await canPerform(access, "sales_mission_mission", "update"))) {
-    return { success: false, error: "Anda tidak punya izin menulis catatan pada mission." }
+    return { success: false, error: "Anda tidak punya izin menulis catatan pada aktivitas." }
   }
 
   const trimmed = note.trim()
@@ -652,7 +654,7 @@ export async function addSupportingNote(missionId: string, note: string): Promis
 
   const role = await getMissionRole(access, missionId)
   if (!role && !access.isSuperAdmin) {
-    return { success: false, error: "Anda tidak ditugaskan pada mission ini." }
+    return { success: false, error: "Anda tidak ditugaskan pada aktivitas ini." }
   }
 
   const supabase = await createClient()
@@ -665,7 +667,7 @@ export async function addSupportingNote(missionId: string, note: string): Promis
 
   if (error) return { success: false, error: "Catatan gagal disimpan." }
 
-  revalidatePath(`/workspace/missions/${missionId}`)
+  revalidatePath(paths.activity(missionId))
   return { success: true }
 }
 
@@ -680,12 +682,12 @@ export async function addSupportingNote(missionId: string, note: string): Promis
  */
 export async function requestReportClarification(missionId: string, note: string): Promise<ActionResult> {
   const access = await getSalesMissionAccess()
-  if (!access) return { success: false, error: "Anda tidak punya akses Sales Mission." }
+  if (!access) return { success: false, error: NO_ACCESS_MESSAGE }
   if (!(await canPerform(access, "sales_mission_result", "read"))) {
     return { success: false, error: "Anda tidak punya akses ke laporan kunjungan." }
   }
   const [mission, role, settings] = await Promise.all([getMission(access, missionId), getMissionRole(access, missionId), getMissionSettings(access)])
-  if (!mission) return { success: false, error: "Mission tidak ditemukan." }
+  if (!mission) return { success: false, error: "Aktivitas tidak ditemukan." }
   const gates = await resolveMissionGates(access, mission, role, settings)
   if (!gates.supervisesReport || gates.isAuthor) {
     return { success: false, error: "Hanya atasan yang berwenang atas laporan ini yang bisa meminta klarifikasi." }
@@ -718,11 +720,11 @@ export async function requestReportClarification(missionId: string, note: string
     access,
     "NEEDS_CLARIFICATION",
     team.filter((member) => member.role === "PRIMARY").map((member) => member.userId),
-    { missionId, clientName: mission?.clientCompanyName ?? "Mission" }
+    { missionId, clientName: mission?.clientCompanyName ?? "Aktivitas" }
   )
 
   revalidatePath("/workspace")
-  revalidatePath("/workspace/missions")
-  revalidatePath(`/workspace/missions/${missionId}`)
+  revalidatePath(paths.activities())
+  revalidatePath(paths.activity(missionId))
   return { success: true }
 }
