@@ -49,6 +49,10 @@ import {
 } from "@/lib/missions/visit-report-schema"
 import { BackLink, JoinStatusLine, StatusBadge, WorkspacePage } from "@/app/workspace/workspace-page"
 import { Button } from "@/components/ui/button"
+import { ResponsiveMenu } from "@/components/responsive-menu"
+import { eventFromMission } from "@/lib/calendar/ics"
+import { googleCalendarLink } from "@/lib/calendar/google-link"
+import { requestOrigin } from "@/lib/request-origin"
 import { FormActionBar } from "@/components/form-action-bar"
 import { PageChrome } from "@/components/page-chrome"
 import { AcceptAssignmentButton, AssignmentOverflowMenu } from "@/app/workspace/activities/assignment-actions-menu"
@@ -214,8 +218,20 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
           : canEdit
             ? "edit"
             : null
+  // "Tambah ke kalender": Google's template link opens a pre-filled event;
+  // the .ics is for the iPhone Calendar and Outlook. Only a scheduled,
+  // uncancelled visit has anything to add.
+  const { origin, host } = await requestOrigin()
+  const calendarEvent = isCancelled ? null : eventFromMission(mission, { url: `${origin}${paths.activity(missionId)}`, host })
+  const calendarItems = calendarEvent
+    ? [
+        { label: "Google Calendar", href: googleCalendarLink(calendarEvent) },
+        { label: "Unduh .ics (iPhone, Outlook)", href: paths.activityIcs(missionId) },
+      ]
+    : []
   const chromeMenu = [
     canEdit && compactAction !== "edit" ? { label: "Ubah aktivitas", href: paths.activityEdit(missionId) } : null,
+    ...calendarItems.map((item) => ({ label: item.label === "Google Calendar" ? "Tambah ke Google Calendar" : "Tambah ke kalender (.ics)", href: item.href })),
     canReadReport ? { label: "Laporan kunjungan", href: paths.activity(missionId, { fokus: "laporan" }) } : null,
     leadPush && leadEngineUrl ? { label: "Buka lead di LeadEngine", href: `${leadEngineUrl}/leads/${leadPush.leadId}` } : null,
   ].filter((item): item is { label: string; href: string } => Boolean(item))
@@ -272,13 +288,26 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
             <div className="flex items-center gap-3 border-b px-5 py-4">
               <StatusBadge status={mission.status} />
               <span className="font-mono text-[11px] text-muted-foreground">ID {mission.id}</span>
-              {canEdit && (
-                <Button asChild variant="outline" size="sm" className="ml-auto">
-                  <Link href={paths.activityEdit(missionId)}>
-                    <Pencil className="h-4 w-4" /> Ubah
-                  </Link>
-                </Button>
-              )}
+              <span className="ml-auto flex items-center gap-2">
+                {calendarItems.length > 0 && (
+                  <ResponsiveMenu
+                    title="Tambah ke kalender"
+                    items={calendarItems}
+                    trigger={
+                      <Button variant="outline" size="sm" className="max-lg:hidden">
+                        <CalendarDays className="h-4 w-4" /> Tambah ke kalender
+                      </Button>
+                    }
+                  />
+                )}
+                {canEdit && (
+                  <Button asChild variant="outline" size="sm">
+                    <Link href={paths.activityEdit(missionId)}>
+                      <Pencil className="h-4 w-4" /> Ubah
+                    </Link>
+                  </Button>
+                )}
+              </span>
             </div>
 
             <div className="grid divide-y sm:grid-cols-3 sm:divide-x sm:divide-y-0">

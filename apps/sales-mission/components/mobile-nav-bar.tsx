@@ -163,6 +163,9 @@ export function MobileNavBar({
             trailing={unreadCount > 0 ? <span className="rounded-full bg-[var(--danger-foreground)] px-2 py-0.5 text-[11px] font-bold tabular-nums text-white">{unreadCount > 99 ? "99+" : unreadCount}</span> : undefined}
           />
           {navAccess.settings && <SheetRow icon={Settings} label="Pengaturan" active={isActive(pathname, paths.settings.index)} onClick={() => go(paths.settings.index)} />}
+          {navAccess.missions && (
+            <SheetRow icon={CalendarDays} label="Kalender saya" hint="Sinkron ke Google Calendar atau iPhone" active={isActive(pathname, paths.myCalendar)} onClick={() => go(paths.myCalendar)} />
+          )}
           <SheetRow icon={HelpCircle} label="Panduan" hint="Cara kerja Sales Activity, singkat" active={isActive(pathname, paths.guide)} onClick={() => go(paths.guide)} />
           {!standalone && (
             <SheetRow icon={Download} label="Pasang di ponsel" hint="Buka seperti aplikasi, dari layar utama" onClick={() => go(paths.install)} />

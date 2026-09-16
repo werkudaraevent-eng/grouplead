@@ -158,6 +158,8 @@ export interface MissionRow {
   allow_join: boolean
   created_by: string
   created_at: string
+  /** Optional: only the calendar feed selects it. */
+  updated_at?: string | null
   contact_salutation: string | null
   contact_id: string | null
   contact_name: string | null
@@ -234,6 +236,8 @@ export interface MissionListItem {
   createdBy: string
   createdByName: string | null
   createdAt: string
+  /** Last change, when the query selected it (the calendar feed does). */
+  updatedAt?: string | null
   /** Whether what happened was written down. NONE when no report row exists. */
   reportStatus: "NONE" | "DRAFT" | "SUBMITTED" | "NEEDS_CLARIFICATION"
   /** The report's outcome code, for the list's "Selesai · bertemu …" line. */
@@ -302,6 +306,7 @@ export function mapMissions(
       createdBy: mission.created_by,
       createdByName: namesByUserId.get(mission.created_by) ?? null,
       createdAt: mission.created_at,
+      updatedAt: mission.updated_at ?? null,
       reportStatus: reports?.get(mission.id)?.status ?? "NONE",
       visitOutcome: reports?.get(mission.id)?.visitOutcome ?? null,
       visitOutcomeLabel: reports?.get(mission.id)?.visitOutcomeLabel ?? null,

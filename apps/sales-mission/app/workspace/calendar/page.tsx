@@ -69,6 +69,13 @@ export default async function CalendarPage({
       eyebrow="Sales Activity / Kalender"
       title="Kalender"
       description="Lihat jadwal tim dan waktu perjalanan sebelum menugaskan kunjungan baru."
+      action={
+        <Button asChild variant="outline" size="sm">
+          <Link href={paths.myCalendar}>
+            <CalendarDays className="h-4 w-4" /> Sinkron ke ponsel
+          </Link>
+        </Button>
+      }
     >
       <section className="grid gap-4 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
         <article className="min-w-0 rounded-xl border bg-card">

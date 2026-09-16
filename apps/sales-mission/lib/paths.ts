@@ -40,6 +40,9 @@ export const paths = {
   guide: "/workspace/panduan",
   guideSection: (id: "hari-ini" | "aktivitas" | "laporan" | "prospek" | "izin" | "pasang") => `/workspace/panduan#${id}`,
   install: "/workspace/pasang",
+  myCalendar: "/workspace/kalender-saya",
+  /** The public iCalendar feed for one person's token. No session; the token is the credential. */
+  calendarFeed: (token: string) => `/kalender/${encodeURIComponent(token)}/aktivitas.ics`,
 
   /** The activity list, optionally with its filter/sort/page query. */
   activities: (query?: Query) => withQuery(ACTIVITIES, query),
@@ -51,6 +54,8 @@ export const paths = {
   newActivity: (options?: { date?: string; from?: string; prospect?: string }) => withQuery(`${ACTIVITIES}/new`, options),
   activitiesExport: (query?: Query) => withQuery(`${ACTIVITIES}/export`, query),
   activitiesTemplate: `${ACTIVITIES}/template`,
+  /** One activity as a downloadable .ics. */
+  activityIcs: (id: string) => `${ACTIVITIES}/${id}/aktivitas.ics`,
 
   settings: {
     index: "/workspace/settings",

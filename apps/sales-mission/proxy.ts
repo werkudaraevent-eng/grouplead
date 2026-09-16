@@ -26,7 +26,9 @@ export async function proxy(request: NextRequest) {
   // normal session exists, and the page establishes one from the token itself.
   // `/board` likewise: a TV in the office has no session, and the page
   // authorises itself from its own token.
-  const publicPaths = ["/login", "/forgot-password", "/reset-password", "/board"]
+  // `/kalender` is the iCalendar feed: fetched by a calendar server with no
+  // session; the token in its path is the credential.
+  const publicPaths = ["/login", "/forgot-password", "/reset-password", "/board", "/kalender"]
   const isPublic = publicPaths.some((path) => pathname.startsWith(path))
 
   // The root has nothing to say to anyone. Sales Mission is an internal tool

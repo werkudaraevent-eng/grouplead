@@ -116,6 +116,7 @@ const adminNav: NavItem[] = [
   { href: "/workspace/settings", label: "Pengaturan", icon: Settings, requires: "settings" },
   // The guide sits with the settings, not among the six destinations: it
   // is read a few times, not every day.
+  { href: paths.myCalendar, label: "Kalender saya", icon: CalendarDays, requires: "missions" },
   { href: paths.guide, label: "Panduan", icon: HelpCircle },
 ]
 
