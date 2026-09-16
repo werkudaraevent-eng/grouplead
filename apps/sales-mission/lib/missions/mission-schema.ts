@@ -69,6 +69,8 @@ export const createMissionSchema = z
     endTime: z.string().regex(TIME_PATTERN, "Jam selesai tidak valid").optional().or(z.literal("")),
     location: z.string().trim().max(300).optional().or(z.literal("")),
     address: z.string().trim().max(300).optional().or(z.literal("")),
+    // Validated against the prospect form's list in createMission, like mission_type.
+    industry: z.string().trim().max(120).optional().or(z.literal("")),
     objective: z.string().trim().max(1000).optional().or(z.literal("")),
     primarySalesId: z.string().uuid("Pilih sales utama"),
     supportingSalesIds: z.array(z.string().uuid()).default([]),
@@ -170,6 +172,7 @@ export interface MissionRow {
   building: string | null
   appointment_notes: string | null
   address: string | null
+  industry?: string | null
 }
 
 /** Who the appointment is with, and what was already agreed with them. */
@@ -222,6 +225,8 @@ export interface MissionListItem {
   status: MissionStatus
   location: string | null
   address: string | null
+  /** What kind of business the client is; the prospect form's list. */
+  industry?: string | null
   objective: string | null
   scheduledStart: string | null
   scheduledEnd: string | null
@@ -298,6 +303,7 @@ export function mapMissions(
       status: mission.status as MissionStatus,
       location: mission.location,
       address: mission.address ?? null,
+      industry: mission.industry ?? null,
       objective: mission.objective,
       scheduledStart: mission.scheduled_start,
       scheduledEnd: mission.scheduled_end,

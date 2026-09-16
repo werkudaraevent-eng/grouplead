@@ -264,6 +264,8 @@ export interface CreateClientCompanyPayload {
   ownerId?: string | null
   /** City when the company is new. Ignored when it already exists. */
   city?: string | null
+  /** Industry (the CRM's Sector list). Set on a new company; fills an empty one; never overwrites. */
+  industry?: string | null
 }
 
 /**
@@ -309,7 +311,7 @@ export async function recordCompanyVisit(payload: RecordVisitPayload): Promise<v
 }
 
 const contextSchema = z.object({
-  company: z.object({ id: z.string(), name: z.string() }),
+  company: z.object({ id: z.string(), name: z.string(), industry: z.string().nullable().optional() }),
   currentOwner: z.object({ userId: z.string(), name: z.string() }).nullable(),
   openLeads: z.array(
     z.object({

@@ -2,7 +2,7 @@ import { redirect } from "next/navigation"
 import { canPerform, getSalesMissionAccess, resolveScope } from "@/lib/sales-mission-access"
 import { personInScope } from "@/lib/access/record-scope"
 import { getMission, getMissionSettings, listMissionTeam, listTeamSchedules, listTenantSales } from "@/lib/missions/mission-queries"
-import { listFormFields } from "@/lib/missions/form-field-queries"
+import { listMissionFormFields } from "@/lib/missions/form-field-queries"
 import { MISSION_TIME_ZONE } from "@/lib/missions/mission-schema"
 import { BackLink, WorkspacePage } from "@/app/workspace/workspace-page"
 import { MissionForm, type MissionPrefill } from "./mission-form"
@@ -26,7 +26,7 @@ export default async function NewMissionPage({
   const now = new Date()
   const [people, fields, schedules, settings, missionCtx] = await Promise.all([
     listTenantSales(access),
-    listFormFields(access, "mission"),
+    listMissionFormFields(access),
     listTeamSchedules(access, now),
     getMissionSettings(access),
     resolveScope(access, "sales_mission_mission"),
@@ -54,6 +54,7 @@ export default async function NewMissionPage({
       prefill = {
         clientCompanyName: source.clientCompanyName,
         clientCompanyId: source.clientCompanyId,
+        industry: source.industry ?? "",
         missionType: source.missionType,
         location: source.location ?? "",
         objective: source.objective ?? "",
@@ -83,6 +84,7 @@ export default async function NewMissionPage({
       prefill = {
         clientCompanyName: prospect.clientCompanyName,
         clientCompanyId: prospect.clientCompanyId,
+        industry: prospect.industry ?? "",
         missionType: "",
         location: prospect.location ?? "",
         objective: "",

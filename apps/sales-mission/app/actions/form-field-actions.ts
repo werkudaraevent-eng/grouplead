@@ -297,6 +297,7 @@ export async function getFieldOptionUsage(
   const missionColumn: Record<string, string> = {
     mission_type: "mission_type",
     contact_salutation: "contact_salutation",
+    industry: "industry",
   }
   // The report's vocabularies are text[] columns on the report itself.
   const reportColumn: Record<string, string> = {

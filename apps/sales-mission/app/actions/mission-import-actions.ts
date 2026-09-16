@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache"
 import { createClient } from "@/utils/supabase/server"
 import { canPerform, getSalesMissionAccess } from "@/lib/sales-mission-access"
-import { listFormFields } from "@/lib/missions/form-field-queries"
+import { listMissionFormFields } from "@/lib/missions/form-field-queries"
 import { getMissionSettings, listTenantSales } from "@/lib/missions/mission-queries"
 import { initialResponse } from "@/lib/missions/assignment-workflow"
 import { notify } from "@/lib/notifications/notification-queries"
@@ -62,7 +62,7 @@ async function validate(rows: RawRow[]) {
   const { access } = guard
 
   const [fields, sales] = await Promise.all([
-    listFormFields(access, "mission"),
+    listMissionFormFields(access),
     listTenantSales(access),
   ])
 
@@ -231,6 +231,7 @@ export async function commitMissionImport(rows: RawRow[]): Promise<ImportResult>
         contact_email: row.contactEmail || null,
         building: row.building || null,
         address: row.address || null,
+        industry: row.industry || null,
         appointment_notes: row.appointmentNotes || null,
         created_by: access.userId,
       })
@@ -266,7 +267,7 @@ export async function commitMissionImport(rows: RawRow[]): Promise<ImportResult>
 
     const customEntries = Object.entries(row.custom)
     if (customEntries.length > 0) {
-      const fields = await listFormFields(access, "mission")
+      const fields = await listMissionFormFields(access)
       const byKey = new Map(fields.map((field) => [field.reportingKey, field.id]))
       const values = customEntries
         .filter(([key]) => byKey.has(key))

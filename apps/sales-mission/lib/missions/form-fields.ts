@@ -117,6 +117,10 @@ const CORE_OPTION_SOURCES: Record<string, OptionSource> = {
   "prospect:contact_salutation": "directory",
   "prospect:owner": "directory",
   industry: "config",
+  // The activity's industry list is the prospect form's, the same way the
+  // prospect's salutation list is the activity form's: one list, one place
+  // to edit it, matched by the admin to the CRM's Sector options.
+  "mission:industry": "directory",
 }
 
 export function optionSource(
@@ -152,6 +156,10 @@ export const CORE_MISSION_FIELDS: Array<
   }
 > = [
   { reportingKey: "client_company", label: "Perusahaan klien", fieldType: "TEXT", isRequired: true, displayOrder: 10 },
+  // Beside the company: what kind of business it is. The options shown are
+  // the prospect form's list (see withSharedIndustry); this seed only makes
+  // the field exist for a tenant that has never opened the prospect form.
+  { reportingKey: "industry", label: "Industri", fieldType: "SELECT", isRequired: false, displayOrder: 15, options: [...DEFAULT_INDUSTRIES] },
   // Seeded with the list the mission form used to hardcode, so switching it to
   // config changes nothing on day one and everything after.
   { reportingKey: "mission_type", label: "Jenis aktivitas", fieldType: "SELECT", isRequired: true, displayOrder: 20, options: [...DEFAULT_MISSION_TYPES] },
@@ -391,6 +399,21 @@ export function describeCoreFieldViolation(
  * The form renders through the same function, which keeps what is offered and
  * what is accepted identical.
  */
+/**
+ * The activity form's fields with the industry list taken from the prospect
+ * form, so both forms offer the same choices and the value a prospect carries
+ * into an activity is always on the activity's list.
+ */
+export function withSharedIndustry(missionFields: FormField[], prospectFields: FormField[]): FormField[] {
+  const source = prospectFields.find((field) => field.reportingKey === "industry")
+  if (!source) return missionFields
+  return missionFields.map((field) =>
+    field.reportingKey === "industry" && field.isCore
+      ? { ...field, options: source.options.length > 0 ? source.options : [...DEFAULT_INDUSTRIES], allowOther: source.allowOther }
+      : field
+  )
+}
+
 export function configuredOptions(
   fields: FormField[],
   reportingKey: string,

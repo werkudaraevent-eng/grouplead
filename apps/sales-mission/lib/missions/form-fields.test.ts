@@ -265,6 +265,7 @@ describe("CORE_MISSION_FIELDS", () => {
     // completely empty.
     expect(CORE_MISSION_FIELDS.map((field) => field.reportingKey)).toEqual([
       "client_company",
+      "industry",
       "mission_type",
       "objective",
       "address",

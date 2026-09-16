@@ -10,6 +10,7 @@ import {
   configuredOptions,
   visibleFields,
   type FormField,
+  DEFAULT_INDUSTRIES,
 } from "@/lib/missions/form-fields"
 import type { TenantSalesOption } from "@/lib/missions/mission-queries"
 import { Button } from "@/components/ui/button"
@@ -77,7 +78,9 @@ const SPAN_CLASS: Record<Span, string> = {
 }
 
 const CORE_SPANS: Record<string, Span> = {
-  client_company: "full",
+  // The company and what kind of business it is, side by side.
+  client_company: "half",
+  industry: "half",
   mission_type: "half",
   location: "half",
   date: "full",
@@ -109,6 +112,7 @@ const CORE_SPANS: Record<string, Span> = {
  */
 const CORE_SECTIONS: Record<string, string> = {
   client_company: "Kunjungan",
+  industry: "Kunjungan",
   mission_type: "Kunjungan",
   objective: "Kunjungan",
   address: "Alamat",
@@ -311,6 +315,7 @@ function NumberField({ id, name, initial, currency, required, placeholder }: { i
 export interface MissionPrefill {
   clientCompanyName: string
   clientCompanyId: string | null
+  industry: string
   missionType: string
   location: string
   objective: string
@@ -375,6 +380,16 @@ export function MissionForm({
   const [schedule, setSchedule] = useState<ScheduleValue>(edit?.schedule ?? { date: defaultDate, startTime: "09:30", endTime: "" })
   const [location, setLocation] = useState(prefill?.location ?? "")
   const [address, setAddress] = useState(prefill?.address ?? "")
+  // The industry as it stands in the form. Filled from a prospect or a CRM
+  // company only while empty, so nothing a person chose is overwritten; the
+  // select remounts to show the fill.
+  const [industry, setIndustry] = useState(prefill?.industry ?? "")
+  const [industryKey, setIndustryKey] = useState(0)
+  const fillIndustry = (value: string | null | undefined) => {
+    if (!value || industry) return
+    setIndustry(value)
+    setIndustryKey((key) => key + 1)
+  }
   // Remounts the location picker when a prospect fills it, since it owns its text.
   const [locationKey, setLocationKey] = useState(0)
   const [linkedProspectId, setLinkedProspectId] = useState(prospectId ?? "")
@@ -436,6 +451,8 @@ export function MissionForm({
   // server validates against.
   const missionTypes = configuredOptions(fields, "mission_type", MISSION_TYPES)
   const salutations = configuredOptions(fields, "contact_salutation", DEFAULT_CONTACT_SALUTATIONS)
+  // Merged from the prospect form by listMissionFormFields; the seed is the fallback.
+  const industries = configuredOptions(fields, "industry", DEFAULT_INDUSTRIES)
 
   // Core fields keep dedicated inputs; the config only decides their label,
   // order, and whether they are mandatory.
@@ -453,8 +470,10 @@ export function MissionForm({
                 setContact({ id: "", name: prospect.contactName ?? "", jobTitle: prospect.contactJobTitle ?? "", phone: prospect.contactPhone ?? "", email: prospect.contactEmail ?? "", crm: null })
                 if (prospect.address) setAddress(prospect.address)
                 if (prospect.location) { setLocation(prospect.location); setLocationKey((key) => key + 1) }
+                fillIndustry(prospect.industry)
               }}
-              initial={prefill ? { name: prefill.clientCompanyName, id: prefill.clientCompanyId } : undefined}
+              onPickCompany={(company) => fillIndustry(company?.industry)}
+              initial={prefill ? { name: prefill.clientCompanyName, id: prefill.clientCompanyId, industry: prefill.industry || null } : undefined}
               onLink={(id) => {
                 setClientCompanyId(id)
                 // A different company means a different set of people, so a
@@ -464,6 +483,26 @@ export function MissionForm({
             />
           </FieldShell>
         )
+      case "industry": {
+        // A value stored before the list changed stays selectable, so editing
+        // an old activity does not silently drop what it had.
+        const stale = industry && !industries.includes(industry) && !field.allowOther ? industry : null
+        return (
+          <FieldShell field={field} key={field.id}>
+            <SelectWithOther
+              key={industryKey}
+              id="field-industry"
+              name="industry"
+              options={stale ? [stale, ...industries] : industries}
+              defaultValue={industry}
+              required={field.isRequired}
+              placeholder={field.placeholder || "Pilih industri"}
+              allowOther={field.allowOther}
+              onChange={setIndustry}
+            />
+          </FieldShell>
+        )
+      }
       case "mission_type":
         return (
           <FieldShell field={field} key={field.id}>

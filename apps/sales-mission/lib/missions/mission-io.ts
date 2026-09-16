@@ -34,6 +34,7 @@ export interface ImportColumn {
 
 const CORE_EXAMPLES: Record<string, string> = {
   client_company: "PT Arunika Kreasi",
+  industry: "Teknologi",
   mission_type: "Meeting",
   location: "Jakarta Selatan",
   address: "Jl. Jend. Sudirman Kav. 52-53",
@@ -131,6 +132,7 @@ export interface ParsedRow {
   endTime: string
   location: string
   address: string
+  industry: string
   objective: string
   primarySalesEmail: string
   supportingSalesEmails: string[]
@@ -271,6 +273,16 @@ export function parseRow(
     fail(salutationColumn.header, `"${contactSalutation}" bukan pilihan yang ada. Lihat sheet "Pilihan".`)
   }
 
+  // The industry list is the prospect form's, carried on the column like the
+  // salutation; the list's own spelling wins over the sheet's casing.
+  const industryColumn = columns.find((column) => column.key === "industry")
+  let industry = get("industry")
+  if (industry && industryColumn?.options) {
+    const match = industryColumn.options.find((option) => option.toLowerCase() === industry.toLowerCase())
+    if (!match && !industryColumn.allowOther) fail(industryColumn.header, `"${industry}" bukan pilihan yang ada. Lihat sheet "Pilihan".`)
+    industry = match ?? industry
+  }
+
   // Required is whatever the admin configured, so a tenant that made Lokasi
   // mandatory gets it enforced here too.
   for (const column of columns) {
@@ -316,6 +328,7 @@ export function parseRow(
       endTime,
       location: get("location"),
       address: get("address"),
+      industry,
       objective: get("objective"),
       primarySalesEmail,
       supportingSalesEmails,
@@ -375,6 +388,7 @@ export function toExportRows(
       mission_type: mission.missionType,
       location: mission.location ?? "",
       address: mission.address ?? "",
+      industry: mission.industry ?? "",
       date: start ? day.format(start) : "",
       start_time: start ? time.format(start) : "",
       end_time: end ? time.format(end) : "",

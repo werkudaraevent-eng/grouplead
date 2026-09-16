@@ -31,6 +31,7 @@ export function SelectWithOther({
   placeholder,
   allowOther,
   className,
+  onChange,
 }: {
   id: string
   name: string
@@ -40,6 +41,8 @@ export function SelectWithOther({
   placeholder?: string
   allowOther: boolean
   className?: string
+  /** The value as it will be submitted, whenever it changes. */
+  onChange?: (value: string) => void
 }) {
   const initial = defaultValue ?? ""
   const startsOff = allowOther && initial !== "" && !options.includes(initial)
@@ -48,7 +51,7 @@ export function SelectWithOther({
 
   if (!allowOther) {
     return (
-      <select id={id} name={name} required={required} defaultValue={initial} className={cn(SELECT_CLASS, className)}>
+      <select id={id} name={name} required={required} defaultValue={initial} onChange={(event) => onChange?.(event.target.value)} className={cn(SELECT_CLASS, className)}>
         <option value="">{placeholder ?? "Pilih salah satu"}</option>
         {options.map((option) => <option key={option} value={option}>{option}</option>)}
       </select>
@@ -64,7 +67,10 @@ export function SelectWithOther({
         name={choice === OTHER ? undefined : name}
         required={required && choice !== OTHER}
         value={choice}
-        onChange={(event) => setChoice(event.target.value)}
+        onChange={(event) => {
+          setChoice(event.target.value)
+          onChange?.(event.target.value === OTHER ? other.trim() : event.target.value)
+        }}
         className={cn(SELECT_CLASS, className)}
       >
         <option value="">{placeholder ?? "Pilih salah satu"}</option>
@@ -79,7 +85,10 @@ export function SelectWithOther({
             required={required}
             maxLength={100}
             autoFocus={!startsOff}
-            onChange={(event) => setOther(event.target.value)}
+            onChange={(event) => {
+              setOther(event.target.value)
+              onChange?.(event.target.value.trim())
+            }}
             placeholder="Tulis pilihan lain"
             className="h-12"
           />

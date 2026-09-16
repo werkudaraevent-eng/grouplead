@@ -7,7 +7,7 @@ import { canPerform, getSalesMissionAccess, isSettingsAdmin, resolveScope } from
 import { resolveMissionGates } from "@/lib/missions/mission-rights"
 import { describeAssignReach, describeOutOfScope, inScope, missionOwners, personInScope } from "@/lib/access/record-scope"
 import { MISSION_TIME_ZONE, MISSION_TYPES, createMissionSchema, toMissionTimestamp, type AssignmentResponse } from "@/lib/missions/mission-schema"
-import { listFormFields } from "@/lib/missions/form-field-queries"
+import { listFormFields, listMissionFormFields } from "@/lib/missions/form-field-queries"
 import { getMission, getMissionRole, getMissionSettings, listAssignableIds, listMissionTeam } from "@/lib/missions/mission-queries"
 import { notify } from "@/lib/notifications/notification-queries"
 import { rescheduleMission } from "@/app/actions/assignment-actions"
@@ -19,6 +19,7 @@ import {
   isAllowedChoice,
   validateFieldAnswers,
   type FieldAnswer,
+  DEFAULT_INDUSTRIES,
 } from "@/lib/missions/form-fields"
 import type { ActionResult } from "@/types/action-result"
 import { CLEAR_ALL_PHRASE } from "@/lib/missions/clear-phrase"
@@ -60,6 +61,7 @@ function readMissionForm(formData: FormData) {
     contactEmail: formData.get("contactEmail") || undefined,
     building: formData.get("building") || undefined,
     address: formData.get("address") || undefined,
+    industry: formData.get("industry") || undefined,
     appointmentNotes: formData.get("appointmentNotes") || undefined,
   })
 }
@@ -118,7 +120,7 @@ export async function createMission(
   const supabase = await createClient()
   const assigneeIds = [parsed.data.primarySalesId, ...parsed.data.supportingSalesIds]
   const [formFields, settings, assignable] = await Promise.all([
-    listFormFields(access, "mission"),
+    listMissionFormFields(access),
     getMissionSettings(access),
     listAssignableIds(access),
   ])
@@ -130,6 +132,10 @@ export async function createMission(
   // and the list is the admin's, unless the admin opened it up.
   if (parsed.data.contactSalutation && !isAllowedChoice(formFields, "contact_salutation", parsed.data.contactSalutation, DEFAULT_CONTACT_SALUTATIONS)) {
     return { success: false, error: "Sapaan itu tidak ada dalam daftar." }
+  }
+  // The industry list is the prospect form's (merged in by listMissionFormFields).
+  if (parsed.data.industry && !isAllowedChoice(formFields, "industry", parsed.data.industry, DEFAULT_INDUSTRIES)) {
+    return { success: false, error: "Industri itu tidak ada dalam daftar." }
   }
 
   /*
@@ -144,6 +150,7 @@ export async function createMission(
   */
   const coreValues: Record<string, unknown> = {
     client_company: parsed.data.clientCompanyName,
+    industry: parsed.data.industry,
     mission_type: parsed.data.missionType,
     location: parsed.data.location,
     date: parsed.data.date,
@@ -242,6 +249,7 @@ export async function createMission(
       contact_email: input.contactEmail || null,
       building: input.building || null,
       address: input.address || null,
+      industry: input.industry || null,
       appointment_notes: input.appointmentNotes || null,
       created_by: access.userId,
     })
@@ -593,12 +601,16 @@ export async function updateMission(
   const missions = supabase.schema("sales_mission")
   const assigneeIds = [input.primarySalesId, ...input.supportingSalesIds]
   const [formFields, assignable, team] = await Promise.all([
-    listFormFields(access, "mission"),
+    listMissionFormFields(access),
     listAssignableIds(access),
     listMissionTeam(access, missionId),
   ])
 
   if (!isAllowedChoice(formFields, "mission_type", input.missionType, MISSION_TYPES)) return { success: false, error: "Jenis aktivitas itu tidak ada dalam daftar." }
+  // A value stored before the list changed may stay; a new one must be listed.
+  if (input.industry && input.industry !== (mission.industry ?? null) && !isAllowedChoice(formFields, "industry", input.industry, DEFAULT_INDUSTRIES)) {
+    return { success: false, error: "Industri itu tidak ada dalam daftar." }
+  }
   if (input.contactSalutation && !isAllowedChoice(formFields, "contact_salutation", input.contactSalutation, DEFAULT_CONTACT_SALUTATIONS)) {
     return { success: false, error: "Sapaan itu tidak ada dalam daftar." }
   }
@@ -607,6 +619,7 @@ export async function updateMission(
   // schedule is not on this form, so its fields are not asked for here.
   const coreValues: Record<string, unknown> = {
     client_company: input.clientCompanyName,
+    industry: input.industry,
     mission_type: input.missionType,
     location: input.location,
     objective: input.objective,
@@ -682,6 +695,7 @@ export async function updateMission(
       contact_email: input.contactEmail || null,
       building: input.building || null,
       address: input.address || null,
+      industry: input.industry || null,
       appointment_notes: input.appointmentNotes || null,
       updated_at: new Date().toISOString(),
     })

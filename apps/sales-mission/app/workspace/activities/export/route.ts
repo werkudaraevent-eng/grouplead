@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import * as XLSX from "xlsx"
 import { canPerform, getSalesMissionAccess } from "@/lib/sales-mission-access"
-import { listFormFields } from "@/lib/missions/form-field-queries"
+import { listMissionFormFields } from "@/lib/missions/form-field-queries"
 import { listMissionsByIds, } from "@/lib/missions/mission-queries"
 import { getMissionSettings } from "@/lib/missions/mission-queries"
 import { parseMissionQuery, resolveMissionFilter } from "@/lib/missions/mission-filter"
@@ -29,7 +29,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 })
   }
 
-  const [fields, settings] = await Promise.all([listFormFields(access, "mission"), getMissionSettings(access)])
+  const [fields, settings] = await Promise.all([listMissionFormFields(access), getMissionSettings(access)])
 
   // The same lens the list is showing, so "export" means "export what I see"
   // rather than silently handing back everything.

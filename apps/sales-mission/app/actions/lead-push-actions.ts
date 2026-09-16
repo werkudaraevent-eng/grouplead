@@ -381,6 +381,7 @@ export async function pushMissionToLeadEngine(
         name: mission.clientCompanyName,
         ownerId: parsed.data.ownerUserId,
         city: mission.location,
+        industry: mission.industry ?? null,
       })
       clientCompanyId = company.id
     }

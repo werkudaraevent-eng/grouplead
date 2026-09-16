@@ -36,12 +36,15 @@ const currency = new Intl.NumberFormat("id-ID")
 export function PushLeadPanel({
   missionId,
   clientName,
+  industry,
   salesOptions,
   defaultProjectName,
   leadEngineUrl,
 }: {
   missionId: string
   clientName: string
+  /** The activity's industry; sent with a company the CRM has never seen. */
+  industry: string | null
   salesOptions: TenantSalesOption[]
   defaultProjectName: string
   leadEngineUrl: string | null
@@ -499,6 +502,12 @@ export function PushLeadPanel({
                 {linkedCompany?.name ?? precheck.companyContext?.company.name ?? clientName}
                 {precheck.unlinkedCompanyName && !form.linkedCompanyId && (
                   <span className="block text-xs text-muted-foreground">Didaftarkan sebagai perusahaan baru</span>
+                )}
+              </Row>
+              <Row label="Industri">
+                {precheck.companyContext?.company.industry ?? industry ?? "—"}
+                {!precheck.companyContext?.company.industry && industry && precheck.unlinkedCompanyName && !form.linkedCompanyId && (
+                  <span className="block text-xs text-muted-foreground">Ikut tercatat pada perusahaan baru di CRM</span>
                 )}
               </Row>
               <Row label="Proyek">{form.projectName.trim()}</Row>

@@ -16,6 +16,7 @@ export interface ProspectSuggestion {
   statusLabel: string
   ownerName: string | null
   clientCompanyId: string | null
+  industry: string | null
   location: string | null
   address: string | null
   notes: string | null
@@ -115,7 +116,7 @@ async function openProspects(
   const { data } = await supabase
     .schema("sales_mission")
     .from("prospects")
-    .select("id, client_company_name, client_company_id, location, address, notes, contact_salutation, contact_name, contact_job_title, contact_phone, contact_email, owner_id, status_id")
+    .select("id, client_company_name, client_company_id, industry, location, address, notes, contact_salutation, contact_name, contact_job_title, contact_phone, contact_email, owner_id, status_id")
     .eq("company_id", access.companyId)
     .is("deleted_at", null)
     .is("mission_id", null)
@@ -136,6 +137,7 @@ async function openProspects(
     statusLabel: statusLabel.get(row.status_id as string) ?? "",
     ownerName: row.owner_id ? (ownerName.get(row.owner_id as string) ?? null) : null,
     clientCompanyId: (row.client_company_id as string | null) ?? null,
+    industry: (row.industry as string | null) ?? null,
     location: (row.location as string | null) ?? null,
     address: (row.address as string | null) ?? null,
     notes: (row.notes as string | null) ?? null,

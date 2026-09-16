@@ -49,6 +49,7 @@ import {
 } from "@/lib/missions/visit-report-schema"
 import { BackLink, JoinStatusLine, StatusBadge, WorkspacePage } from "@/app/workspace/workspace-page"
 import { Button } from "@/components/ui/button"
+import { cn } from "@/lib/utils"
 import { ResponsiveMenu } from "@/components/responsive-menu"
 import { eventFromMission } from "@/lib/calendar/ics"
 import { googleCalendarLink } from "@/lib/calendar/google-link"
@@ -240,7 +241,7 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
     <WorkspacePage
       eyebrow="Sales Activity / Detail aktivitas"
       title={mission.clientCompanyName}
-      description={[mission.missionType, mission.location].filter(Boolean).join(" · ")}
+      description={[mission.missionType, mission.industry, mission.location].filter(Boolean).join(" · ")}
       action={<BackLink />}
     >
       {/* ?fokus=laporan from the lists: scroll the shell's panel, never the window. */}
@@ -310,10 +311,11 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
               </span>
             </div>
 
-            <div className="grid divide-y sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+            <div className={cn("grid divide-y sm:divide-x sm:divide-y-0", mission.industry ? "sm:grid-cols-2 lg:grid-cols-4" : "sm:grid-cols-3")}>
               <Fact icon={CalendarDays} label="Jadwal" value={formatMissionSchedule(mission.scheduledStart, new Date())} />
               <Fact icon={MapPin} label="Lokasi" value={[mission.address, mission.appointment.building, mission.location].filter(Boolean).join(", ") || "Belum diisi"} />
               <Fact icon={UsersRound} label="Sales utama" value={mission.primarySalesName ?? "Belum ditugaskan"} />
+              {mission.industry && <Fact icon={Building2} label="Industri" value={mission.industry} />}
             </div>
 
             <div className="border-t px-5 py-5">
@@ -711,6 +713,7 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
             <PushLeadPanel
               missionId={missionId}
               clientName={mission.clientCompanyName}
+              industry={mission.industry ?? null}
               salesOptions={salesOptions}
               defaultProjectName={mission.objective?.slice(0, 120) || `${mission.missionType} — ${mission.clientCompanyName}`}
               leadEngineUrl={leadEngineUrl}

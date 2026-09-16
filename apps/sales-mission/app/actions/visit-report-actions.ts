@@ -552,6 +552,7 @@ async function syncVisitToCrm(
         name: mission.clientCompanyName,
         ownerId: primary?.userId ?? access.userId,
         city: mission.location,
+        industry: mission.industry ?? null,
       })
       clientCompanyId = company.id
       // Link the mission so the next screen (and the push modal) finds it.

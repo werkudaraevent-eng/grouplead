@@ -172,6 +172,9 @@ export function ProspectForm({
   const action = prospect ? updateProspect.bind(null, prospect.id) : createProspect
   const [state, formAction, pending] = useActionState<ProspectFormState, FormData>(action, null)
   const [clientCompanyId, setClientCompanyId] = useState<string | null>(prospect?.clientCompanyId ?? null)
+  // Industry as it stands; a CRM company fills it only while it is empty.
+  const [industry, setIndustry] = useState(prospect?.industry ?? "")
+  const [industryKey, setIndustryKey] = useState(0)
   const [phone, setPhone] = useState(prospect?.contactPhone ?? "")
   const [ownerId, setOwnerId] = useState(prospect?.ownerId ?? viewerId)
   const errorRef = useRef<HTMLDivElement>(null)
@@ -198,21 +201,33 @@ export function ProspectForm({
       case "client_company":
         return (
           <FieldShell field={field} key={field.id}>
-            <CompanyPicker label={field.label} required={field.isRequired} onLink={setClientCompanyId} initial={prospect ? { name: prospect.clientCompanyName, id: prospect.clientCompanyId } : undefined} />
+            <CompanyPicker
+              label={field.label}
+              required={field.isRequired}
+              onLink={setClientCompanyId}
+              onPickCompany={(company) => {
+                if (!company?.industry || industry) return
+                setIndustry(company.industry)
+                setIndustryKey((key) => key + 1)
+              }}
+              initial={prospect ? { name: prospect.clientCompanyName, id: prospect.clientCompanyId, industry: prospect.industry } : undefined}
+            />
           </FieldShell>
         )
       case "industry": {
         // A value stored before the list changed stays selectable, marked, so
         // editing an old prospect does not silently drop what it had.
         const options = configuredOptions(fields, "industry", DEFAULT_INDUSTRIES)
-        const stale = prospect?.industry && !options.includes(prospect.industry) && !field.allowOther ? prospect.industry : null
+        const stale = industry && !options.includes(industry) && !field.allowOther ? industry : null
         return (
           <FieldShell field={field} key={field.id}>
             <SelectWithOther
+              key={industryKey}
               id="field-industry"
               name="industry"
               options={stale ? [`${stale}`, ...options] : options}
-              defaultValue={prospect?.industry ?? ""}
+              defaultValue={industry}
+              onChange={setIndustry}
               required={field.isRequired}
               placeholder={field.placeholder || "Pilih industri"}
               allowOther={field.allowOther}

@@ -21,6 +21,7 @@ export function CompanyPicker({
   required = true,
   onLink,
   onPickProspect,
+  onPickCompany,
   initial,
 }: {
   /** Only used for the clear button's accessible name; the visible label and
@@ -31,12 +32,14 @@ export function CompanyPicker({
   onLink?: (clientCompanyId: string | null) => void
   /** A prospect was chosen: the form fills its contact and address and links the mission to it. */
   onPickProspect?: (prospect: ProspectSuggestion | null) => void
+  /** A CRM company was chosen (or cleared): the form may take its industry. */
+  onPickCompany?: (company: CompanySuggestion | null) => void
   /** A company carried over from another mission. With an id it starts linked. */
-  initial?: { name: string; id: string | null }
+  initial?: { name: string; id: string | null; industry?: string | null }
 }) {
   const [query, setQuery] = useState(initial?.id ? "" : (initial?.name ?? ""))
   const [selected, setSelected] = useState<CompanySuggestion | null>(
-    initial?.id ? { id: initial.id, name: initial.name, industry: null } : null
+    initial?.id ? { id: initial.id, name: initial.name, industry: initial.industry ?? null } : null
   )
   const [results, setResults] = useState<CompanySuggestion[]>([])
   const [previousNames, setPreviousNames] = useState<string[]>([])
@@ -93,6 +96,7 @@ export function CompanyPicker({
     setProspects([])
     onLink?.(null)
     onPickProspect?.(null)
+    onPickCompany?.(null)
   }
 
   const pickProspect = (prospect: ProspectSuggestion) => {
@@ -180,7 +184,7 @@ export function CompanyPicker({
               <button
                 key={company.id}
                 type="button"
-                onClick={() => { setSelected(company); setOpen(false); onLink?.(company.id) }}
+                onClick={() => { setSelected(company); setOpen(false); onLink?.(company.id); onPickCompany?.(company) }}
                 className="flex min-h-12 w-full items-center gap-2.5 px-3 py-2.5 text-left transition-colors hover:bg-muted"
               >
                 <Building2 className="h-4 w-4 shrink-0 text-muted-foreground" />

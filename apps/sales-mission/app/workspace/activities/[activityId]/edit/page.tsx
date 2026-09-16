@@ -11,7 +11,7 @@ import {
   listTeamSchedules,
   listTenantSales,
 } from "@/lib/missions/mission-queries"
-import { getMissionFieldValues, listFormFields } from "@/lib/missions/form-field-queries"
+import { getMissionFieldValues, listMissionFormFields} from "@/lib/missions/form-field-queries"
 import { MISSION_TIME_ZONE } from "@/lib/missions/mission-schema"
 import { updateMission } from "@/app/actions/mission-actions"
 import { BackLink, EmptyState, WorkspacePage } from "@/app/workspace/workspace-page"
@@ -60,7 +60,7 @@ export default async function EditMissionPage({ params }: { params: Promise<{ ac
   const now = new Date()
   const [team, fields, salesOptions, schedules, customValues] = await Promise.all([
     listMissionTeam(access, missionId),
-    listFormFields(access, "mission"),
+    listMissionFormFields(access),
     listTenantSales(access),
     listTeamSchedules(access, now),
     getMissionFieldValues(access, missionId),
@@ -73,6 +73,7 @@ export default async function EditMissionPage({ params }: { params: Promise<{ ac
   const prefill: MissionPrefill = {
     clientCompanyName: mission.clientCompanyName,
     clientCompanyId: mission.clientCompanyId,
+    industry: mission.industry ?? "",
     missionType: mission.missionType,
     location: mission.location ?? "",
     objective: mission.objective ?? "",

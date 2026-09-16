@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import * as XLSX from "xlsx"
 import { canPerform, getSalesMissionAccess } from "@/lib/sales-mission-access"
-import { listFormFields } from "@/lib/missions/form-field-queries"
+import { listMissionFormFields } from "@/lib/missions/form-field-queries"
 import { listTenantSales } from "@/lib/missions/mission-queries"
 import { buildImportColumns, SALES_EMAIL_COLUMN, SUPPORTING_EMAILS_COLUMN } from "@/lib/missions/mission-io"
 
@@ -26,7 +26,7 @@ export async function GET() {
   }
 
   const [fields, sales] = await Promise.all([
-    listFormFields(access, "mission"),
+    listMissionFormFields(access),
     listTenantSales(access),
   ])
 

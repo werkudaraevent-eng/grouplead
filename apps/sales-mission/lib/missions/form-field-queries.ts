@@ -1,6 +1,6 @@
 import { createClient } from "@/utils/supabase/server"
 import type { SalesMissionAccess } from "@/lib/sales-mission-access"
-import { coreFieldsFor, type FormKey, type FieldType, type FormField } from "./form-fields"
+import { coreFieldsFor, withSharedIndustry, type FormKey, type FieldType, type FormField } from "./form-fields"
 
 /** Read side of the form builder. */
 
@@ -33,6 +33,12 @@ function toFormField(row: FieldRow): FormField {
  * shared database will never open Sales Mission, and rows they never use are
  * rows someone eventually has to explain.
  */
+/** The activity form's fields, with the industry list shared from the prospect form. */
+export async function listMissionFormFields(access: SalesMissionAccess, options: { includeArchived?: boolean } = {}): Promise<FormField[]> {
+  const [mission, prospect] = await Promise.all([listFormFields(access, "mission", options), listFormFields(access, "prospect")])
+  return withSharedIndustry(mission, prospect)
+}
+
 export async function listFormFields(
   access: SalesMissionAccess,
   formKey: FormKey = "mission",
