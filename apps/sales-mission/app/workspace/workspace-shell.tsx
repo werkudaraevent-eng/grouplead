@@ -268,6 +268,18 @@ function SidebarBody({
         <div className={`flex shrink-0 items-center justify-center ${collapsed ? "flex-col gap-2" : ""}`}>
           <AppSwitcher collapsed={collapsed} />
         </div>
+        {/* The sheet's own close button is off (it sat on top of the app
+            switcher); this one is in the header row, where LeadEngine has it. */}
+        {isSheet && onNavigate && (
+          <button
+            type="button"
+            onClick={onNavigate}
+            className="mr-1 grid h-8 w-8 shrink-0 place-items-center rounded-lg text-sidebar-foreground transition-colors duration-150 hover:bg-sidebar-accent hover:text-sidebar-foreground"
+            aria-label="Tutup menu"
+          >
+            <ChevronsLeft className="h-[18px] w-[18px]" />
+          </button>
+        )}
 
         {onToggleCollapse && !isSheet && collapsed && (
           <button
@@ -431,7 +443,7 @@ export function WorkspaceShell({
       </aside>
 
       <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-        <SheetContent side="left" className="w-72 border-r-0 p-0">
+        <SheetContent side="left" showCloseButton={false} className="w-72 border-r-0 p-0">
           <SheetTitle className="sr-only">Menu navigasi</SheetTitle>
           <SheetDescription className="sr-only">Navigasi utama Sales Mission untuk layar kecil.</SheetDescription>
           <SidebarBody displayName={displayName} avatarUrl={avatarUrl} unreadCount={unreadCount} navAccess={navAccess} companyName={companyName} collapsed={false} isSheet onNavigate={() => setMobileOpen(false)} />
