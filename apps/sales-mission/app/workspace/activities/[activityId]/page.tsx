@@ -691,6 +691,7 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
             <div className="flex flex-wrap items-center gap-3 px-5 py-4">
               <p className="min-w-0 flex-1 text-sm text-muted-foreground">
                 Lead <span className="font-mono text-foreground">#{leadPush.leadId}</span> dibuat {stamp(leadPush.pushedAt)} oleh {leadPush.pushedByName}. Pemilik lead: {leadPush.ownerName}.
+                {leadPush.category && <> Kategori: <span className="font-medium text-foreground">{leadPush.category}</span>{leadPush.gradeLead ? <>, grade {leadPush.gradeLead}</> : null}.</>}
               </p>
               {leadEngineUrl && (
                 <Button asChild variant="outline" className="h-10">

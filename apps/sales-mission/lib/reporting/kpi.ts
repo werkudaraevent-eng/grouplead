@@ -33,6 +33,8 @@ export interface ReportRecord {
   submittedAt: string | null
   contactCount: number
   pushedLeadId: string | null
+  /** The CRM category chosen when the lead was pushed; null before that existed. */
+  pushedCategory?: string | null
   /** The appointment and the reported start, for the on-time rate. */
   scheduledStart?: string | null
   actualStart?: string | null
@@ -71,6 +73,8 @@ export interface KpiReport {
   byCompany: Breakdown[]
   byMissionType: Breakdown[]
   byInterest: Breakdown[]
+  /** Leads sent to the CRM, by the category they were sent as. */
+  byPushedCategory: Breakdown[]
 }
 
 export const UNASSIGNED_LABEL = "Belum ditugaskan"
@@ -187,6 +191,13 @@ export function buildKpiReport(
       key: record.interestLevel ?? "UNSET",
       label: record.interestLevel ? labelOf(choices, "interest_level", record.interestLevel) : "Belum diisi",
     })),
+    byPushedCategory: accumulate(
+      submitted.filter((record) => record.pushedLeadId !== null),
+      (record) => ({
+        key: record.pushedCategory ?? "UNSET",
+        label: record.pushedCategory ?? "Tanpa kategori",
+      })
+    ),
   }
 }
 

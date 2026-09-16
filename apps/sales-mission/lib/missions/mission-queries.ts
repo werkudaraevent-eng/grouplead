@@ -226,6 +226,9 @@ export interface LeadPushRecord {
   pushedAt: string
   pushedByName: string
   ownerName: string
+  /** Master option values chosen at the push; null on pushes before they existed. */
+  category: string | null
+  gradeLead: string | null
 }
 
 /** The one push a mission can have; the page shows it instead of the form. */
@@ -233,7 +236,7 @@ export async function getLeadPush(access: SalesMissionAccess, missionId: string)
   const { supabase, missions } = await missionSchema()
   const { data } = await missions
     .from("lead_pushes")
-    .select("lead_engine_lead_id, pushed_at, pushed_by, owner_user_id")
+    .select("lead_engine_lead_id, pushed_at, pushed_by, owner_user_id, category, grade_lead")
     .eq("company_id", access.companyId)
     .eq("mission_id", missionId)
     .maybeSingle()
@@ -244,6 +247,8 @@ export async function getLeadPush(access: SalesMissionAccess, missionId: string)
     pushedAt: data.pushed_at as string,
     pushedByName: names.get(data.pushed_by as string) ?? "—",
     ownerName: names.get(data.owner_user_id as string) ?? "—",
+    category: (data.category as string | null) ?? null,
+    gradeLead: (data.grade_lead as string | null) ?? null,
   }
 }
 

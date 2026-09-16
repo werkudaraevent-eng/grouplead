@@ -53,7 +53,7 @@ export async function listReportRecords(access: SalesMissionAccess): Promise<Rep
         .in("report_id", reportIds),
       schema
         .from("lead_pushes")
-        .select("mission_id, lead_engine_lead_id")
+        .select("mission_id, lead_engine_lead_id, category")
         .eq("company_id", access.companyId)
         .in("mission_id", missionIds),
     ])
@@ -93,6 +93,9 @@ export async function listReportRecords(access: SalesMissionAccess): Promise<Rep
   const pushByMission = new Map(
     (pushes ?? []).map((row) => [row.mission_id as string, row.lead_engine_lead_id as string])
   )
+  const categoryByMission = new Map(
+    (pushes ?? []).map((row) => [row.mission_id as string, (row.category as string | null) ?? null])
+  )
 
   // A report on a mission in the bin goes with the mission: the missions
   // read above already skips deleted rows, so a report with no mission here
@@ -120,6 +123,7 @@ export async function listReportRecords(access: SalesMissionAccess): Promise<Rep
       submittedAt: (row.submitted_at as string | null) ?? null,
       contactCount: contactCounts.get(row.id as string) ?? 0,
       pushedLeadId: pushByMission.get(missionId) ?? null,
+      pushedCategory: categoryByMission.get(missionId) ?? null,
     }
   })
 }

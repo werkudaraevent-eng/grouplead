@@ -197,6 +197,7 @@ export default async function ReportSummaryPage({
             <BreakdownCard title="Per klien" rows={report.byCompany} emptyText="Belum ada data." />
             <BreakdownCard title="Per tipe aktivitas" rows={report.byMissionType} emptyText="Belum ada data." />
             <BreakdownCard title="Per tingkat minat" rows={report.byInterest} emptyText="Belum ada data." />
+            <BreakdownCard title="Lead ke CRM per kategori" rows={report.byPushedCategory} emptyText="Belum ada lead yang dikirim pada rentang ini." />
           </section>
         </>
       )}

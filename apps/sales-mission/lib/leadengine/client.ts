@@ -98,6 +98,18 @@ export async function fetchPipelines(): Promise<LeadEnginePipeline[]> {
   return data.pipelines
 }
 
+const masterOptionsSchema = z.object({
+  options: z.array(z.object({ optionType: z.string(), label: z.string(), value: z.string(), sortOrder: z.number().nullable().optional() })),
+})
+
+export type LeadEngineOption = z.infer<typeof masterOptionsSchema>["options"][number]
+
+/** The CRM's own pick lists (category, grade lead), so nothing is copied here. */
+export async function fetchMasterOptions(types: Array<"category" | "grade_lead" | "lead_source">): Promise<LeadEngineOption[]> {
+  const data = await request(`/api/v1/master-options?types=${encodeURIComponent(types.join(","))}`, masterOptionsSchema)
+  return data.options
+}
+
 const companiesSchema = z.object({
   companies: z.array(
     z.object({
@@ -332,6 +344,9 @@ export interface CreateLeadPayload {
   remark: string | null
   source: string
   salesMissionId: string | null
+  /** Master option values (not labels); the CRM verifies them against Master Options. */
+  category: string | null
+  gradeLead: string | null
   /** Timeline entries to write on the new lead: the visit, and the hand-off. */
   activities: Array<{ type: string; description: string; occurredAt: string | null }>
 }

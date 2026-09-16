@@ -10,7 +10,10 @@ import { notify } from "@/lib/notifications/notification-queries"
 import { canPushLead } from "@/lib/missions/visit-report-schema"
 import { visitActivities } from "@/lib/missions/lead-activity"
 import { listReportChoices } from "@/lib/missions/report-choice-queries"
+import { kindOf, labelOf } from "@/lib/missions/report-choices"
+import { suggestCategory } from "@/lib/missions/lead-category"
 import {
+  fetchMasterOptions,
   LeadEngineError,
   createClientCompany,
   createContact,
@@ -50,6 +53,9 @@ const pushLeadSchema = z.object({
   estimatedValue: z.number().nonnegative().nullish(),
   remark: z.string().trim().max(4000).optional().or(z.literal("")),
   clientCompanyId: z.string().uuid().nullish(),
+  /** LeadEngine master option values. The category is what the evaluation groups by, so it is required. */
+  category: z.string().trim().min(1, "Pilih kategori lead").max(100),
+  gradeLead: z.string().trim().max(100).nullish(),
 })
 
 export interface PushPrecheck {
@@ -89,6 +95,19 @@ export interface PushPrecheck {
    * refuses to overwrite one even if asked.
    */
   contactEnrichments: Array<{ contactId: string; fullName: string; fills: string[] }>
+  /**
+   * The CRM's classification lists, read from its Master Options so HQL and
+   * whatever an admin adds next are offered here without being copied.
+   * Empty with `optionsError` set when the lookup failed; the panel then
+   * cannot send, because a category is required.
+   */
+  categoryOptions: Array<{ label: string; value: string }>
+  gradeLeadOptions: Array<{ label: string; value: string }>
+  optionsError: string | null
+  /** The category the report's interest level points at, or null. */
+  suggestedCategory: string | null
+  /** The report's interest label, for the "disarankan dari" note. */
+  interestLabel: string | null
 }
 
 /**
@@ -118,6 +137,11 @@ export async function getPushPrecheck(missionId: string): Promise<PushPrecheck> 
     companySuggestions: [],
     unlinkedContacts: [],
     contactEnrichments: [],
+    categoryOptions: [],
+    gradeLeadOptions: [],
+    optionsError: null,
+    suggestedCategory: null,
+    interestLabel: null,
   }
 
   const access = await getSalesMissionAccess()
@@ -170,6 +194,24 @@ export async function getPushPrecheck(missionId: string): Promise<PushPrecheck> 
       ? await fetchCompanyContext(mission.clientCompanyId)
       : null
 
+    // The classification lists. A failure here is reported on the field
+    // rather than closing the whole panel: the rest of the form still
+    // reads, and the message says what to do.
+    let categoryOptions: Array<{ label: string; value: string }> = []
+    let gradeLeadOptions: Array<{ label: string; value: string }> = []
+    let optionsError: string | null = null
+    try {
+      const options = await fetchMasterOptions(["category", "grade_lead"])
+      categoryOptions = options.filter((option) => option.optionType === "category").map(({ label, value }) => ({ label, value }))
+      gradeLeadOptions = options.filter((option) => option.optionType === "grade_lead").map(({ label, value }) => ({ label, value }))
+      if (categoryOptions.length === 0) optionsError = "LeadEngine belum punya kategori lead di Master Options."
+    } catch (error) {
+      optionsError = error instanceof LeadEngineError ? error.message : "Daftar kategori LeadEngine tidak terbaca."
+    }
+    const choices = await listReportChoices(access)
+    const suggestedCategory = suggestCategory(categoryOptions, kindOf(choices, "interest_level", report.interestLevel))
+    const interestLabel = report.interestLevel ? labelOf(choices, "interest_level", report.interestLevel) : null
+
     let companySuggestions: LeadEngineCompany[] = []
     if (!mission.clientCompanyId) {
       // A failed lookup here must not block the push — the rep can still send
@@ -205,6 +247,11 @@ export async function getPushPrecheck(missionId: string): Promise<PushPrecheck> 
             }))
         : [],
       contactEnrichments: await buildEnrichments(mission, report),
+      categoryOptions,
+      gradeLeadOptions,
+      optionsError,
+      suggestedCategory,
+      interestLabel,
     }
   } catch (error) {
     const message = error instanceof LeadEngineError ? error.message : "LeadEngine tidak dapat dihubungi."
@@ -349,6 +396,8 @@ export async function pushMissionToLeadEngine(
       remark: parsed.data.remark?.trim() || report.meetingSummary || null,
       source: "Sales Mission",
       salesMissionId: missionId,
+      category: parsed.data.category,
+      gradeLead: parsed.data.gradeLead?.trim() || null,
       activities: visitActivities(mission, report, access.displayName, await listReportChoices(access)),
     })
     leadId = created.id
@@ -467,6 +516,8 @@ export async function pushMissionToLeadEngine(
     owner_user_id: parsed.data.ownerUserId,
     pushed_by: access.userId,
     idempotency_key: missionId,
+    category: parsed.data.category,
+    grade_lead: parsed.data.gradeLead?.trim() || null,
   })
 
   if (recordError) {
