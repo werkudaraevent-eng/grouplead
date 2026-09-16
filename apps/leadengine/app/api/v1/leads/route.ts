@@ -29,6 +29,9 @@ const createLeadSchema = z.object({
     source: z.string().trim().max(200).nullish(),
     /** The Sales Mission visit this lead came from, kept apart from the label. */
     salesMissionId: z.string().uuid().nullish(),
+    /** Master option values (not labels), as the lead form stores them; verified below. */
+    category: z.string().trim().min(1).max(100).nullish(),
+    gradeLead: z.string().trim().min(1).max(100).nullish(),
     /** Timeline entries to write on the new lead, oldest first. */
     activities: z
         .array(
@@ -105,6 +108,25 @@ export async function POST(request: Request) {
         stageId = (firstStage?.id as string | undefined) ?? null
     }
 
+    // A classification is only accepted if it is one the admin defined: the
+    // dashboards group by these values, and a free-text one would make a
+    // bucket nobody can see in Master Options.
+    for (const [field, type, code] of [
+        [input.category, 'category', 'invalid_category'],
+        [input.gradeLead, 'grade_lead', 'invalid_grade_lead'],
+    ] as const) {
+        if (!field) continue
+        const { data: option } = await supabase
+            .from('master_options')
+            .select('id')
+            .eq('option_type', type)
+            .eq('value', field)
+            .eq('is_active', true)
+            .limit(1)
+            .maybeSingle()
+        if (!option) return apiError(422, code, `${type} "${field}" is not an active master option.`)
+    }
+
     // Newly created leads should sit on top of their stage rather than wherever
     // the column default lands them.
     let kanbanSortOrder: number | null = null
@@ -132,6 +154,8 @@ export async function POST(request: Request) {
             remark: input.remark ?? null,
             lead_source: input.source ?? 'Sales Mission',
             sales_mission_id: input.salesMissionId ?? null,
+            category: input.category ?? null,
+            grade_lead: input.gradeLead ?? null,
             kanban_sort_order: kanbanSortOrder,
         })
         .select('id')
