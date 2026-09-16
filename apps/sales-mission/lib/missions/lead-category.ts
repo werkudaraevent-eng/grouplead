@@ -14,6 +14,7 @@ export interface LeadOption {
 }
 
 const WORDS: Record<string, string[]> = {
+  hql: ["hql"],
   hot: ["hot", "panas"],
   warm: ["warm", "hangat"],
   cold: ["cold", "dingin"],
@@ -21,7 +22,7 @@ const WORDS: Record<string, string[]> = {
 
 const normalise = (text: string) => text.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim()
 
-/** The option value that matches the interest kind, or null when none does. */
+/** The option value that matches the interest kind, or null when none does. HQL matches only an HQL option. */
 export function suggestCategory(options: LeadOption[], kind: string | null | undefined): string | null {
   const words = kind ? WORDS[kind] : undefined
   if (!words) return null

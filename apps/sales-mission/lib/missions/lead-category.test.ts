@@ -15,9 +15,10 @@ describe("suggestCategory", () => {
     expect(suggestCategory(options, "cold")).toBe("COLD LEAD")
   })
 
-  it("reads Indonesian labels too, and never suggests HQL on its own", () => {
+  it("reads Indonesian labels too, and suggests HQL only for an HQL interest", () => {
     expect(suggestCategory([{ label: "Lead Panas", value: "P" }, { label: "HQL", value: "HQL" }], "hot")).toBe("P")
     expect(suggestCategory([{ label: "HQL", value: "HQL" }], "hot")).toBeNull()
+    expect(suggestCategory(options, "hql")).toBe("HQL")
   })
 
   it("returns null for no interest, an unknown kind, or no options", () => {

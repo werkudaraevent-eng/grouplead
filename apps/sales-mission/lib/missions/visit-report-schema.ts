@@ -37,10 +37,11 @@ export const VISIT_OUTCOME_LABELS: Record<VisitOutcome, string> = {
   CANCELLED_ON_SITE: "Dibatalkan di tempat",
 }
 
-export const INTEREST_LEVELS = ["HOT", "WARM", "COLD", "NO_INTEREST"] as const
+export const INTEREST_LEVELS = ["HQL", "HOT", "WARM", "COLD", "NO_INTEREST"] as const
 export type InterestLevel = string
 
 export const INTEREST_LEVEL_LABELS: Record<InterestLevel, string> = {
+  HQL: "HQL",
   HOT: "Panas",
   WARM: "Hangat",
   COLD: "Dingin",

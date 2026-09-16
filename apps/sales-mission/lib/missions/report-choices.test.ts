@@ -93,6 +93,6 @@ describe("admin moves", () => {
   it("reorders within the active list and renumbers in tens", () => {
     const set = defaultChoiceSet()
     const moved = reorderChoice(set.interest_level, set.interest_level[1].id, "up")
-    expect(moved.filter((choice) => choice.isActive).sort((a, b) => a.displayOrder - b.displayOrder).map((choice) => choice.code)).toEqual(["WARM", "HOT", "COLD", "NO_INTEREST"])
+    expect(moved.filter((choice) => choice.isActive).sort((a, b) => a.displayOrder - b.displayOrder).map((choice) => choice.code)).toEqual(["HQL", "WARM", "HOT", "COLD", "NO_INTEREST"])
   })
 })

@@ -14,7 +14,7 @@ export const CHOICE_FIELDS = ["visit_outcome", "interest_level", "next_action_ty
 export type ChoiceField = (typeof CHOICE_FIELDS)[number]
 
 export const OUTCOME_KINDS = ["met_decision_maker", "met_staff", "rescheduled", "absent", "cancelled"] as const
-export const INTEREST_KINDS = ["hot", "warm", "cold", "none"] as const
+export const INTEREST_KINDS = ["hql", "hot", "warm", "cold", "none"] as const
 export const NEXT_ACTION_KINDS = ["action", "none"] as const
 
 export const KINDS_BY_FIELD: Record<ChoiceField, readonly string[]> = {
@@ -38,7 +38,7 @@ export const KIND_LABELS: Record<ChoiceField, Record<string, string>> = {
     absent: "Tidak bertemu siapa pun",
     cancelled: "Dibatalkan",
   },
-  interest_level: { hot: "Panas", warm: "Hangat", cold: "Dingin", none: "Tidak berminat" },
+  interest_level: { hql: "HQL (lead berkualitas tinggi)", hot: "Panas", warm: "Hangat", cold: "Dingin", none: "Tidak berminat" },
   next_action_type: { action: "Ada tindak lanjut", none: "Tidak ada tindak lanjut" },
 }
 
@@ -51,6 +51,7 @@ export const KIND_HINTS: Record<ChoiceField, Record<string, string>> = {
     cancelled: "Kontak wajib bila ada yang ditemui. Tidak ada yang dikirim ke CRM.",
   },
   interest_level: {
+    hql: "Peluang boleh ditandai. Saat dikirim ke LeadEngine, kategori HQL disarankan.",
     hot: "Peluang boleh ditandai.",
     warm: "Peluang boleh ditandai.",
     cold: "Peluang boleh ditandai.",
@@ -85,6 +86,8 @@ export const DEFAULT_REPORT_CHOICES: ReadonlyArray<Pick<ReportChoice, "fieldKey"
   { fieldKey: "interest_level", code: "WARM", label: "Hangat", kind: "warm", displayOrder: 20 },
   { fieldKey: "interest_level", code: "COLD", label: "Dingin", kind: "cold", displayOrder: 30 },
   { fieldKey: "interest_level", code: "NO_INTEREST", label: "Tidak berminat", kind: "none", displayOrder: 40 },
+  // Added after the first four; first in the list, as LeadEngine orders it.
+  { fieldKey: "interest_level", code: "HQL", label: "HQL", kind: "hql", displayOrder: 5 },
   { fieldKey: "next_action_type", code: "SEND_PROPOSAL", label: "Kirim proposal", kind: "action", displayOrder: 10 },
   { fieldKey: "next_action_type", code: "SITE_VISIT", label: "Survei lokasi", kind: "action", displayOrder: 20 },
   { fieldKey: "next_action_type", code: "FOLLOW_UP_CALL", label: "Telepon lanjutan", kind: "action", displayOrder: 30 },
