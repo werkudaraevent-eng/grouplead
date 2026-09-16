@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { ArrowLeft, ClipboardList, Plus } from "@/components/icons"
+import { ArrowLeft, ClipboardList, HelpCircle, Plus } from "@/components/icons"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { JOIN_STATUS_LABELS, type JoinStatus } from "@/lib/missions/mission-join"
@@ -12,7 +12,7 @@ import type { ConfirmationPolicy } from "@/lib/missions/assignment-workflow"
 import { statusLabel } from "@/lib/missions/status-labels"
 import { paths } from "@/lib/paths"
 import { PageChrome } from "@/components/page-chrome"
-import { Fab } from "@/components/fab"
+import { Fab, type FabHint } from "@/components/fab"
 
 /**
  * Shared page furniture, matching LeadEngine's list-page language: same
@@ -37,7 +37,7 @@ export function WorkspacePage({
   description?: string
   action?: React.ReactNode
   /** The screen's one primary action: a FAB on a phone, a filled button on a desk. */
-  primaryAction?: { href: string; label: string }
+  primaryAction?: { href: string; label: string; hint?: FabHint }
   children: React.ReactNode
 }) {
   return (
@@ -69,20 +69,61 @@ export function WorkspacePage({
       <div id="page-scroll" className="custom-scrollbar flex-1 overflow-y-auto px-4 pb-[calc(6rem+env(safe-area-inset-bottom))] sm:px-6 lg:px-8 lg:pb-8">
         {children}
       </div>
-      {primaryAction && <Fab href={primaryAction.href} label={primaryAction.label} />}
+      {primaryAction && <Fab href={primaryAction.href} label={primaryAction.label} hint={primaryAction.hint} />}
     </div>
   )
 }
 
-export function EmptyState({ title, description, action }: { title: string; description: string; action?: React.ReactNode }) {
+/**
+ * An empty state that teaches: what this list is, in one sentence, then
+ * one to three steps that fill it, then the first step as a button and
+ * "Pelajari" into the guide. This is where a first-time user learns the
+ * product (Notion, Linear, Figma), not from a tour.
+ */
+export function EmptyState({
+  title,
+  description,
+  action,
+  icon: Icon = ClipboardList,
+  steps,
+  learnHref,
+}: {
+  title: string
+  description: string
+  action?: React.ReactNode
+  icon?: typeof ClipboardList
+  /** One to three short steps, numbered. */
+  steps?: string[]
+  /** The guide section that explains this part of the product. */
+  learnHref?: string
+}) {
   return (
-    <div className="grid place-items-center rounded-xl border border-dashed bg-card/50 px-6 py-16 text-center" role="status">
+    <div className="grid place-items-center rounded-xl border border-dashed bg-card/50 px-6 py-12 text-center sm:py-16" role="status">
       <span className="grid h-11 w-11 place-items-center rounded-xl bg-muted text-muted-foreground">
-        <ClipboardList className="h-5 w-5" />
+        <Icon className="h-5 w-5" />
       </span>
       <h2 className="mt-4 text-base font-semibold text-foreground">{title}</h2>
       <p className="mt-1 max-w-sm text-sm leading-relaxed text-muted-foreground">{description}</p>
-      {action && <div className="mt-5">{action}</div>}
+      {steps && steps.length > 0 && (
+        <ol className="mt-5 w-full max-w-sm space-y-2.5 text-left">
+          {steps.map((step, index) => (
+            <li key={index} className="flex items-start gap-3 text-sm leading-relaxed text-foreground">
+              <span className="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full bg-primary/10 text-xs font-bold text-primary">{index + 1}</span>
+              <span>{step}</span>
+            </li>
+          ))}
+        </ol>
+      )}
+      {(action || learnHref) && (
+        <div className="mt-5 flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
+          {action}
+          {learnHref && (
+            <Link href={learnHref} className="inline-flex min-h-10 items-center gap-1.5 text-sm font-semibold text-primary hover:underline">
+              <HelpCircle className="h-4 w-4" aria-hidden="true" /> Pelajari
+            </Link>
+          )}
+        </div>
+      )}
     </div>
   )
 }

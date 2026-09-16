@@ -198,9 +198,19 @@ export function ProspectTable({
       <EmptyState title="Tidak ada prospek yang cocok" description="Longgarkan filter atau hapus salah satu untuk melihat lebih banyak." action={<Button asChild variant="outline" size="sm"><Link href="/workspace/prospects">Lihat semua prospek</Link></Button>} />
     ) : (
       <EmptyState
-        title="Belum ada prospek"
-        description={canCreate ? "Impor daftar calon klien dari Excel, atau tambahkan satu per satu. Setiap kontak yang dicatat dan janji temu yang berhasil akan terlihat di sini." : "Daftar calon klien yang sedang dihubungi akan muncul di sini."}
+        title={canCreate ? "Mulai dari daftar calon klien" : "Belum ada prospek"}
+        description={canCreate ? "Prospek adalah calon klien yang sedang dihubungi, sebelum ada janji temu." : "Daftar calon klien yang sedang dihubungi akan muncul di sini."}
+        steps={
+          canCreate
+            ? [
+                "Impor dari Excel, atau tambah satu per satu",
+                "Catat setiap kontak; tanggal hubungi lagi muncul di Hari ini",
+                "Janji temu yang jadi: jadwalkan aktivitas langsung dari prospeknya",
+              ]
+            : undefined
+        }
         action={canCreate ? <Button asChild size="sm"><Link href="/workspace/prospects/new"><Plus className="h-4 w-4" /> Prospek baru</Link></Button> : undefined}
+        learnHref={paths.guideSection("prospek")}
       />
     )
   }

@@ -29,6 +29,7 @@ import { ChipRow, ChoiceChip } from "@/components/ui/choice-chip"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { FormActionBar } from "@/components/form-action-bar"
 import { SectionChips } from "@/components/section-chips"
+import { CoachMark } from "@/components/coach-mark"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -754,9 +755,18 @@ export function VisitReportForm({
           <Button asChild variant="outline" className="h-12 md:h-10">
             <Link href={paths.activity(missionId)}>Kembali</Link>
           </Button>
-          <Button className="h-12 md:h-10" onClick={handleSubmit} disabled={submitting || missing.length > 0 || (Boolean(editing) && !changeReason.trim())}>
-            {submitting ? <><Loader2 className="h-4 w-4 animate-spin" /> {editing ? "Menyimpan…" : "Mengirim…"}</> : editing ? <><Save className="h-4 w-4" /> Simpan perubahan</> : <><Send className="h-4 w-4" /> Kirim laporan</>}
-          </Button>
+          <CoachMark
+            hintKey="report-send"
+            enabled={!editing}
+            title="Kirim, atau biarkan tersimpan"
+            body="Draf tersimpan otomatis setiap perubahan; tutup kapan saja. Kirim laporan saat sudah lengkap. Setelah dikirim, atasan bisa membacanya."
+            learnHref={paths.guideSection("laporan")}
+            align="end"
+          >
+            <Button className="h-12 md:h-10" onClick={handleSubmit} disabled={submitting || missing.length > 0 || (Boolean(editing) && !changeReason.trim())}>
+              {submitting ? <><Loader2 className="h-4 w-4 animate-spin" /> {editing ? "Menyimpan…" : "Mengirim…"}</> : editing ? <><Save className="h-4 w-4" /> Simpan perubahan</> : <><Send className="h-4 w-4" /> Kirim laporan</>}
+            </Button>
+          </CoachMark>
         </div>
       </FormActionBar>
 

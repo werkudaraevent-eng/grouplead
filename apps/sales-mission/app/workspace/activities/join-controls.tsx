@@ -4,6 +4,8 @@ import { useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { DoorOpen, Loader2, Lock, LockOpen, UserMinus, UserPlus } from "@/components/icons"
+import { CoachMark } from "@/components/coach-mark"
+import { paths } from "@/lib/paths"
 import {
   joinMission,
   leaveMission,
@@ -53,17 +55,25 @@ export function JoinButton({
   }
 
   return (
-    <Button
-      size={size}
-      variant={canJoin(status) ? "default" : "outline"}
-      disabled={!canJoin(status) || pending}
-      onClick={handleJoin}
-      title={blocked ?? undefined}
-      className={className}
+    <CoachMark
+      hintKey="join"
+      enabled={canJoin(status)}
+      title="Ikut kunjungan ini"
+      body="Join menambahkan Anda sebagai sales pendukung. Sales utama tetap yang menulis laporan; Anda bisa menambah catatan."
+      learnHref={paths.guideSection("aktivitas")}
     >
-      {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />}
-      Join
-    </Button>
+      <Button
+        size={size}
+        variant={canJoin(status) ? "default" : "outline"}
+        disabled={!canJoin(status) || pending}
+        onClick={handleJoin}
+        title={blocked ?? undefined}
+        className={className}
+      >
+        {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />}
+        Join
+      </Button>
+    </CoachMark>
   )
 }
 

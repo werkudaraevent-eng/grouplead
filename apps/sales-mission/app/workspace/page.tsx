@@ -225,6 +225,11 @@ export default async function MissionHomePage() {
                   ? "Belum ada jadwal yang akan datang. Rencanakan kunjungan berikutnya."
                   : "Belum ada jadwal yang akan datang untukmu."}
             </p>
+            {upcoming.length === 0 && (
+              <Link href={paths.guideSection("hari-ini")} className="mt-3 inline-flex min-h-10 items-center text-sm font-semibold text-primary hover:underline">
+                Apa yang tampil di Hari ini
+              </Link>
+            )}
           </div>
         )}
       </section>

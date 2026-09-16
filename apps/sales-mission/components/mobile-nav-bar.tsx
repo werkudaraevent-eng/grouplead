@@ -9,6 +9,7 @@ import {
   CalendarDays,
   ClipboardList,
   Download,
+  HelpCircle,
   LayoutDashboard,
   Loader2,
   LogOut,
@@ -22,6 +23,7 @@ import {
 import { BottomSheet, SheetRow } from "@/components/ui/bottom-sheet"
 import { PersonAvatar } from "@/components/person-avatar"
 import { usePageChrome } from "@/components/page-chrome"
+import { CoachMark, useHintSeen } from "@/components/coach-mark"
 import { useStandalone } from "@/hooks/use-compact"
 import { createClient } from "@/utils/supabase/client"
 import { clearActiveSessionId } from "@/lib/session-guard"
@@ -99,6 +101,7 @@ export function MobileNavBar({
 
   const destinations = DESTINATIONS.filter((item) => !item.requires || navAccess[item.requires])
   const moreActive = !destinations.some((item) => isActive(pathname, item.href))
+  const menuHintSeen = useHintSeen("nav-lainnya")
   const go = (href: string) => {
     setMoreOpen(false)
     router.push(href)
@@ -129,6 +132,18 @@ export function MobileNavBar({
             )
           })}
           <li>
+            {/* Two marks share this anchor and show one after the other:
+                what is behind Lainnya, then, on a phone that has not
+                installed the app, that it can be. */}
+            <CoachMark
+              hintKey={menuHintSeen ? "install" : "nav-lainnya"}
+              enabled={menuHintSeen ? !standalone : true}
+              title={menuHintSeen ? "Pasang ke layar utama" : "Menu lainnya"}
+              body={menuHintSeen ? "Sales Activity bisa dibuka seperti aplikasi, tanpa bilah alamat. Caranya ada di Lainnya → Pasang di ponsel." : "Kalender, Papan live, Notifikasi, Pengaturan, dan Panduan ada di sini."}
+              learnHref={menuHintSeen ? paths.install : paths.guide}
+              side="top"
+              align="end"
+            >
             <button
               type="button"
               onClick={() => setMoreOpen(true)}
@@ -145,6 +160,7 @@ export function MobileNavBar({
               </span>
               <span className={cn(moreActive && "text-foreground")}>Lainnya</span>
             </button>
+            </CoachMark>
           </li>
         </ul>
       </nav>
@@ -161,8 +177,9 @@ export function MobileNavBar({
             trailing={unreadCount > 0 ? <span className="rounded-full bg-[var(--danger-foreground)] px-2 py-0.5 text-[11px] font-bold tabular-nums text-white">{unreadCount > 99 ? "99+" : unreadCount}</span> : undefined}
           />
           {navAccess.settings && <SheetRow icon={Settings} label="Pengaturan" active={isActive(pathname, paths.settings.index)} onClick={() => go(paths.settings.index)} />}
+          <SheetRow icon={HelpCircle} label="Panduan" hint="Cara kerja Sales Activity, singkat" active={isActive(pathname, paths.guide)} onClick={() => go(paths.guide)} />
           {!standalone && (
-            <SheetRow icon={Download} label="Pasang di ponsel" hint="Buka seperti aplikasi, dari layar utama" onClick={() => go("/workspace/pasang")} />
+            <SheetRow icon={Download} label="Pasang di ponsel" hint="Buka seperti aplikasi, dari layar utama" onClick={() => go(paths.install)} />
           )}
           <div className="my-2 border-t" />
           <SheetRow icon={isDarkPanel ? Sun : Moon} label={isDarkPanel ? "Ganti ke panel terang" : "Ganti ke panel gelap"} onClick={togglePanel} />

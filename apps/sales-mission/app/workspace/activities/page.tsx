@@ -85,7 +85,7 @@ export default async function MissionsPage({
           {canCreate && <ImportMissions />}
         </>
       }
-      primaryAction={canCreate ? { href: paths.newActivity(), label: "Aktivitas baru" } : undefined}
+      primaryAction={canCreate ? { href: paths.newActivity(), label: "Aktivitas baru", hint: { key: "fab-activity", title: "Jadwalkan kunjungan", body: "Aktivitas baru: pilih klien, jadwal, lokasi, dan sales utama. Kalender tim tampil supaya jamnya tidak bentrok.", learnHref: paths.guideSection("aktivitas") } } : undefined}
     >
       <MissionFilterChips active={filter} counts={{ all: allCount, mine: mineCount, team: teamCount }} policy={settings} />
       <MissionFilterBar

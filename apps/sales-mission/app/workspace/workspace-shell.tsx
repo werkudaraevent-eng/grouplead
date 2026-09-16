@@ -10,6 +10,7 @@ import {
   CalendarDays,
   ChevronsLeft,
   ClipboardList,
+  HelpCircle,
   LayoutDashboard,
   Loader2,
   LogOut,
@@ -49,6 +50,7 @@ const TopLoader = dynamic(
 )
 import { Button } from "@/components/ui/button"
 import { PageChromeProvider, usePageChrome } from "@/components/page-chrome"
+import { HintsProvider } from "@/components/coach-mark"
 import { MobileNavBar } from "@/components/mobile-nav-bar"
 import { ResponsiveMenu } from "@/components/responsive-menu"
 import { createClient } from "@/utils/supabase/client"
@@ -112,6 +114,9 @@ const mainNav: NavItem[] = [
 
 const adminNav: NavItem[] = [
   { href: "/workspace/settings", label: "Pengaturan", icon: Settings, requires: "settings" },
+  // The guide sits with the settings, not among the six destinations: it
+  // is read a few times, not every day.
+  { href: paths.guide, label: "Panduan", icon: HelpCircle },
 ]
 
 const NOTIFICATIONS_HREF = "/workspace/notifications"
@@ -401,6 +406,7 @@ export function WorkspaceShell({
   navAccess,
   companyName,
   initialCollapsed = false,
+  seenHints = [],
 }: {
   children: React.ReactNode
   displayName: string
@@ -410,6 +416,8 @@ export function WorkspaceShell({
   companyName: string
   /** From the parent-domain cookie, so the first HTML is already at this width. */
   initialCollapsed?: boolean
+  /** Coach marks this person has already dismissed, on any device. */
+  seenHints?: string[]
 }) {
   const [collapsed, setCollapsed] = useState(initialCollapsed ?? false)
 
@@ -437,6 +445,7 @@ export function WorkspaceShell({
   // the whole shell up and left a white gap under the sidebar. Clip cannot.
   return (
     <PageChromeProvider>
+    <HintsProvider seen={seenHints}>
     <div className="app-shell shell-in flex h-dvh overflow-clip">
       <TopLoader />
       <aside
@@ -454,6 +463,7 @@ export function WorkspaceShell({
       </div>
       <MobileNavBar navAccess={navAccess} unreadCount={unreadCount} displayName={displayName} avatarUrl={avatarUrl} />
     </div>
+    </HintsProvider>
     </PageChromeProvider>
   )
 }

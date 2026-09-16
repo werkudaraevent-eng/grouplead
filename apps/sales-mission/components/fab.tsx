@@ -1,6 +1,14 @@
 import Link from "next/link"
 import { Plus } from "@/components/icons"
 import { cn } from "@/lib/utils"
+import { CoachMark } from "@/components/coach-mark"
+
+export interface FabHint {
+  key: string
+  title: string
+  body: string
+  learnHref?: string
+}
 
 /**
  * Material's extended FAB: the one primary action of a screen, on a phone.
@@ -10,8 +18,8 @@ import { cn } from "@/lib/utils"
  * primary container. Hidden from `lg` up, where the same action is a filled
  * button in the page header.
  */
-export function Fab({ href, label, className }: { href: string; label: string; className?: string }) {
-  return (
+export function Fab({ href, label, className, hint }: { href: string; label: string; className?: string; hint?: FabHint }) {
+  const link = (
     <Link
       href={href}
       className={cn(
@@ -23,5 +31,11 @@ export function Fab({ href, label, className }: { href: string; label: string; c
       <Plus className="h-6 w-6" aria-hidden="true" />
       {label}
     </Link>
+  )
+  if (!hint) return link
+  return (
+    <CoachMark hintKey={hint.key} title={hint.title} body={hint.body} learnHref={hint.learnHref} side="top" align="end">
+      {link}
+    </CoachMark>
   )
 }

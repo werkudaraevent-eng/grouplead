@@ -346,15 +346,25 @@ export function MissionTable({
 
     return (
       <EmptyState
-        title="Belum ada aktivitas"
+        title={canCreate ? "Jadwalkan kunjungan pertama" : "Belum ada aktivitas"}
         // A rep who cannot schedule is told who can, rather than being handed a
         // button that would only bounce them back here.
         description={
           canCreate
-            ? "Aktivitas yang dibuat akan muncul di sini beserta jadwal dan sales yang ditugaskan."
+            ? "Satu aktivitas adalah satu kunjungan ke satu klien: siapa yang pergi, kapan, ke mana, dan untuk apa."
             : "Aktivitas yang dijadwalkan untuk unit bisnis ini akan muncul di sini. Penjadwalan dilakukan oleh tim appointment atau admin."
         }
+        steps={
+          canCreate
+            ? [
+                "Ketuk Aktivitas baru, pilih klien dan jadwalnya",
+                "Tugaskan sales utama; pendukung boleh Join sendiri",
+                "Setelah kunjungan, sales utama mengisi laporannya",
+              ]
+            : undefined
+        }
         action={canCreate ? <NewMissionAction /> : undefined}
+        learnHref={paths.guideSection("aktivitas")}
       />
     )
   }

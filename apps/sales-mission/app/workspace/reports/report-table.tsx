@@ -94,9 +94,15 @@ export function ReportTable({
       />
     ) : (
       <EmptyState
-        title="Belum ada laporan kunjungan"
-        description="Laporan muncul di sini begitu sales mengirimnya dari halaman aktivitas."
+        title="Laporan muncul begitu sales mengirimnya"
+        description="Setiap kunjungan yang selesai menghasilkan satu laporan: hasil, minat, kebutuhan, kontak, dan tindak lanjut."
+        steps={[
+          "Sales utama membuka aktivitasnya setelah kunjungan",
+          "Mengisi laporan; draf tersimpan otomatis",
+          "Kirim; laporan tampil di sini dan bisa didorong ke LeadEngine",
+        ]}
         action={<Button asChild variant="outline"><Link href={paths.activities()}><ClipboardList className="h-4 w-4" /> Buka daftar aktivitas</Link></Button>}
+        learnHref={paths.guideSection("laporan")}
       />
     )
   }
