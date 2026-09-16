@@ -42,6 +42,9 @@ import {
     DEFAULT_OPERATOR,
     ALLOWED_OPERATORS,
     OPERATOR_LABELS,
+    isEmptyFilterValue,
+    isEffectiveFilter,
+    operatorNeedsValue,
 } from "./filter-builder-types"
 
 interface FilterBuilderProps {
@@ -68,7 +71,14 @@ export function FilterBuilder({ definitions, value, onChange, className, layout 
     }, [value])
 
     const pinned = definitions.filter(d => d.pinned)
-    const hasActive = value.length > 0
+    const hasActive = value.some(isEffectiveFilter)
+
+    // A non-pinned filter picked from "Add filter" is a draft until it has
+    // a value: its chip appears with the editor open, and goes away again
+    // if the editor is closed without applying. Applying an empty filter
+    // used to blank the whole list.
+    const [drafts, setDrafts] = React.useState<string[]>([])
+    const dropDraft = (field: string) => setDrafts(prev => prev.filter(f => f !== field))
 
     // Pinned defs that are NOT yet active become "ghost" pills (placeholder
     // value, opens picker on click).
@@ -79,20 +89,25 @@ export function FilterBuilder({ definitions, value, onChange, className, layout 
     const upsertFilter = (next: FilterValue) => {
         const without = value.filter(v => v.field !== next.field)
         onChange([...without, next])
+        dropDraft(next.field)
     }
 
     const removeFilter = (field: string) => {
         onChange(value.filter(v => v.field !== field))
     }
 
+    const draftDefs = drafts
+        .map(field => definitions.find(d => d.field === field))
+        .filter((d): d is FilterDefinition => Boolean(d) && !filtersByField.has(d!.field))
+
     return (
+        <div className={cn("flex min-w-0 items-center gap-2", className)}>
         <div
             className={cn(
                 "flex items-center gap-2",
                 layout === "rail"
-                    ? "no-scrollbar flex-nowrap overflow-x-auto [mask-image:linear-gradient(to_right,black_calc(100%-1.5rem),transparent)] pr-6"
+                    ? "no-scrollbar min-w-0 flex-1 flex-nowrap overflow-x-auto [mask-image:linear-gradient(to_right,black_calc(100%-1.5rem),transparent)] pr-6"
                     : "flex-wrap",
-                className
             )}
         >
             {/* Pinned filters — always shown */}
@@ -124,20 +139,35 @@ export function FilterBuilder({ definitions, value, onChange, className, layout 
                 )
             })}
 
-            {/* Add filter button */}
+            {/* Drafts: picked from "Add filter", editor open, not yet applied */}
+            {draftDefs.map((def) => (
+                <FilterPill
+                    key={`draft-${def.field}`}
+                    def={def}
+                    initialOpen
+                    onApply={upsertFilter}
+                    onClear={() => dropDraft(def.field)}
+                    onDismiss={() => dropDraft(def.field)}
+                />
+            ))}
+
+            {/* Add filter: only the fields not already on the row */}
             <AddFilterPicker
                 definitions={definitions}
-                excludeFields={new Set(value.map(v => v.field))}
+                excludeFields={new Set([...value.map(v => v.field), ...pinned.map(d => d.field), ...drafts])}
                 onPick={(def) => {
                     const op = def.defaultOperator ?? DEFAULT_OPERATOR[def.type]
-                    upsertFilter({ field: def.field, operator: op, value: defaultValueFor(def.type) })
+                    // "Has phone" needs no value: apply at once. Anything else opens its editor first.
+                    if (!operatorNeedsValue(op)) upsertFilter({ field: def.field, operator: op, value: null })
+                    else setDrafts(prev => (prev.includes(def.field) ? prev : [...prev, def.field]))
                 }}
             />
+        </div>
 
             {hasActive && (
                 <button
                     type="button"
-                    onClick={() => onChange([])}
+                    onClick={() => { onChange([]); setDrafts([]) }}
                     className="h-8 shrink-0 whitespace-nowrap rounded-full px-2.5 text-xs font-medium text-primary transition-colors hover:bg-primary/8"
                 >
                     Clear all
@@ -165,16 +195,29 @@ interface FilterPillProps {
     active?: FilterValue
     onApply: (next: FilterValue) => void
     onClear: () => void
+    /** Open the editor on mount (a chip just added from "Add filter"). */
+    initialOpen?: boolean
+    /** The editor closed without applying anything. */
+    onDismiss?: () => void
 }
 
-function FilterPill({ def, active, onApply, onClear }: FilterPillProps) {
-    const [open, setOpen] = React.useState(false)
+function FilterPill({ def, active, onApply, onClear, initialOpen = false, onDismiss }: FilterPillProps) {
+    const [open, setOpen] = React.useState(initialOpen)
+    const applied = React.useRef(false)
 
-    const isActive = active != null && !isEmptyValue(active.value)
+    const isActive = active != null && isEffectiveFilter(active)
     const labelValue = isActive ? renderActiveLabel(def, active!) : null
 
     return (
-        <Popover open={open} onOpenChange={setOpen} modal={false}>
+        <Popover
+            open={open}
+            onOpenChange={(next) => {
+                setOpen(next)
+                if (!next && !applied.current && !isActive) onDismiss?.()
+                applied.current = false
+            }}
+            modal={false}
+        >
             <PopoverTrigger asChild>
                 <button
                     type="button"
@@ -211,20 +254,12 @@ function FilterPill({ def, active, onApply, onClear }: FilterPillProps) {
                 <FilterEditor
                     def={def}
                     current={active}
-                    onApply={(next) => { onApply(next); setOpen(false) }}
-                    onClear={() => { onClear(); setOpen(false) }}
+                    onApply={(next) => { applied.current = true; onApply(next); setOpen(false) }}
+                    onClear={() => { applied.current = true; onClear(); setOpen(false) }}
                 />
             </PopoverContent>
         </Popover>
     )
-}
-
-function isEmptyValue(v: FilterValue["value"]): boolean {
-    if (v == null) return true
-    if (typeof v === "string") return v === ""
-    if (Array.isArray(v)) return v.length === 0 || v.every(x => x == null || x === "")
-    if (typeof v === "boolean") return false // boolean is always meaningful
-    return false
 }
 
 function renderActiveLabel(def: FilterDefinition, f: FilterValue): string {
@@ -267,7 +302,8 @@ function FilterEditor({ def, current, onApply, onClear }: FilterEditorProps) {
     const [val, setVal] = React.useState<FilterValue["value"]>(current?.value ?? defaultValueFor(def.type))
     const operators = ALLOWED_OPERATORS[def.type]
 
-    const requiresValue = !["is_empty", "is_not_empty", "is_true", "is_false"].includes(op)
+    const requiresValue = operatorNeedsValue(op)
+    const canApply = !requiresValue || !isEmptyFilterValue(val)
 
     return (
         <div className="space-y-3">
@@ -328,6 +364,7 @@ function FilterEditor({ def, current, onApply, onClear }: FilterEditorProps) {
                 <Button
                     type="button"
                     size="sm"
+                    disabled={!canApply}
                     onClick={() => onApply({ field: def.field, operator: op, value: requiresValue ? val : null })}
                     className="ml-auto h-7 text-xs"
                 >

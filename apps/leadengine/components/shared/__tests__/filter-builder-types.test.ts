@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { applyFilters, type FilterDefinition } from "../filter-builder-types"
+import { applyFilters, isEffectiveFilter, type FilterDefinition } from "../filter-builder-types"
 
 const rows = [
   { id: 1, name: "Alpha", email: "a@x.id", tags: ["vip"], owner: { full_name: "Ana" }, created_at: "2026-09-01" },
@@ -39,6 +39,14 @@ describe("applyFilters", () => {
       { field: "name", operator: "contains", value: "amm" },
     ], defs)
     expect(out.map((r) => r.id)).toEqual([3])
+  })
+
+  it("never lets an empty value blank the list", () => {
+    expect(applyFilters(rows, [{ field: "owner.full_name", operator: "eq", value: "" }], defs)).toHaveLength(3)
+    expect(applyFilters(rows, [{ field: "tags", operator: "in", value: [] }], defs)).toHaveLength(3)
+    expect(applyFilters(rows, [{ field: "created_at", operator: "between", value: [null, null] }], defs)).toHaveLength(3)
+    expect(isEffectiveFilter({ field: "email", operator: "is_not_empty", value: null })).toBe(true)
+    expect(isEffectiveFilter({ field: "name", operator: "contains", value: "" })).toBe(false)
   })
 
   it("ignores a filter whose definition is unknown", () => {

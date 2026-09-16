@@ -88,11 +88,32 @@ const cmp = (a: unknown, b: unknown) => {
     return { sa, sb }
 }
 
+/** Operators that compare against a value; the rest ask only whether one exists. */
+export const OPERATORS_WITHOUT_VALUE: readonly FilterOperator[] = ["is_empty", "is_not_empty", "is_true", "is_false"]
+
+export function operatorNeedsValue(op: FilterOperator): boolean {
+    return !OPERATORS_WITHOUT_VALUE.includes(op)
+}
+
+/** "" / [] / [null, null] / null: nothing to compare against. Booleans are always a value. */
+export function isEmptyFilterValue(v: FilterValue["value"]): boolean {
+    if (v == null) return true
+    if (typeof v === "string") return v === ""
+    if (Array.isArray(v)) return v.length === 0 || v.every(x => x == null || x === "")
+    return false
+}
+
+/** A filter that would compare against nothing is not a filter yet; it must not blank the list. */
+export function isEffectiveFilter(f: FilterValue): boolean {
+    return !operatorNeedsValue(f.operator) || !isEmptyFilterValue(f.value)
+}
+
 export function applyFilters<T>(rows: T[], filters: FilterValue[], defs: FilterDefinition[]): T[] {
-    if (filters.length === 0) return rows
+    const effective = filters.filter(isEffectiveFilter)
+    if (effective.length === 0) return rows
     const defByField = new Map(defs.map(d => [d.field, d]))
     return rows.filter((row) => {
-        for (const f of filters) {
+        for (const f of effective) {
             const def = defByField.get(f.field)
             if (!def) continue
             const v = getValue(row, def)
