@@ -1,33 +1,16 @@
-export default function DashboardLoading() {
-    return (
-        <div className="px-4 sm:px-6 lg:px-8 py-6 space-y-6">
-            {/* Header skeleton */}
-            <div className="flex items-center justify-between">
-                <div className="space-y-1">
-                    <div className="h-7 w-40 bg-muted animate-pulse rounded-md" />
-                    <div className="h-4 w-64 bg-muted animate-pulse rounded-md" />
-                </div>
-                <div className="flex gap-2">
-                    <div className="h-9 w-32 bg-muted animate-pulse rounded-lg" />
-                    <div className="h-9 w-24 bg-muted animate-pulse rounded-lg" />
-                </div>
-            </div>
-            {/* KPI cards skeleton */}
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
-                {Array.from({ length: 6 }).map((_, i) => (
-                    <div key={i} className="h-24 bg-card border border-border rounded-xl animate-pulse" />
-                ))}
-            </div>
-            {/* Chart skeletons */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                <div className="h-72 bg-card border border-border rounded-xl animate-pulse" />
-                <div className="h-72 bg-card border border-border rounded-xl animate-pulse" />
-            </div>
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                <div className="h-64 bg-card border border-border rounded-xl animate-pulse" />
-                <div className="h-64 bg-card border border-border rounded-xl animate-pulse" />
-                <div className="h-64 bg-card border border-border rounded-xl animate-pulse" />
-            </div>
-        </div>
-    )
+import { AppTransit } from "@/components/layout/app-transit"
+
+/**
+ * The root loading state: what the browser shows from the first HTML until
+ * the app layout has resolved the session, the company and the profile.
+ *
+ * It used to be a dashboard skeleton drawn without the sidebar, so the
+ * moment the shell resolved the whole page shifted sideways to make room.
+ * A centred transit screen has nothing to shift, and it is the same screen
+ * Sales Mission drew when the switch was clicked, so a change of origin
+ * does not read as a change of screen. Per-route skeletons under (app)/
+ * still cover each page inside the shell.
+ */
+export default function RootLoading() {
+  return <AppTransit app="leadengine" phase="arriving" />
 }

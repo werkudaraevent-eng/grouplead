@@ -40,10 +40,17 @@ const AppSwitcher = dynamic(
   () => import("@/app/workspace/app-switcher").then((m) => m.AppSwitcher),
   { ssr: false }
 )
+// Same reason: the bar reads useSearchParams, which bails out of SSR and
+// would shift the popover's ids. It has nothing to draw before hydration.
+const TopLoader = dynamic(
+  () => import("@/components/top-loader").then((m) => m.TopLoader),
+  { ssr: false }
+)
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@/components/ui/sheet"
 import { createClient } from "@/utils/supabase/client"
 import { clearActiveSessionId } from "@/lib/session-guard"
+import { hasPreferenceCookie, writePreferenceCookie } from "@/lib/preference-cookie"
 import { PersonAvatar } from "@/components/person-avatar"
 import { cn } from "@/lib/utils"
 import type { NavAccess } from "@/lib/missions/nav-access"
@@ -377,6 +384,7 @@ export function WorkspaceShell({
   unreadCount = 0,
   navAccess,
   companyName,
+  initialCollapsed = false,
 }: {
   children: React.ReactNode
   displayName: string
@@ -384,18 +392,27 @@ export function WorkspaceShell({
   unreadCount?: number
   navAccess: NavAccess
   companyName: string
+  /** From the parent-domain cookie, so the first HTML is already at this width. */
+  initialCollapsed?: boolean
 }) {
-  const [collapsed, setCollapsed] = useState(false)
+  const [collapsed, setCollapsed] = useState(initialCollapsed ?? false)
   const [mobileOpen, setMobileOpen] = useState(false)
 
+  // A person from before the cookie existed still has the choice in
+  // localStorage; honour it once and move it into the cookie.
   useEffect(() => {
-    setCollapsed(localStorage.getItem("sidebar-collapsed") === "true")
+    if (hasPreferenceCookie("sidebar-collapsed")) return
+    const stored = localStorage.getItem("sidebar-collapsed")
+    if (stored === null) return
+    setCollapsed(stored === "true")
+    writePreferenceCookie("sidebar-collapsed", stored)
   }, [])
 
   const toggleCollapse = () => {
     setCollapsed((value) => {
       const next = !value
       localStorage.setItem("sidebar-collapsed", String(next))
+      writePreferenceCookie("sidebar-collapsed", String(next))
       return next
     })
   }
@@ -404,7 +421,8 @@ export function WorkspaceShell({
   // by the browser itself (a #hash link, focus(), scrollIntoView), which slid
   // the whole shell up and left a white gap under the sidebar. Clip cannot.
   return (
-    <div className="app-shell flex h-screen overflow-clip">
+    <div className="app-shell shell-in flex h-screen overflow-clip">
+      <TopLoader />
       <aside
         data-sidebar
         className={`relative hidden shrink-0 flex-none overflow-clip bg-sidebar transition-[width] duration-200 ease-out lg:flex lg:flex-col ${collapsed ? "lg:w-[60px]" : "lg:w-[220px]"}`}

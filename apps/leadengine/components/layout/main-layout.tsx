@@ -35,6 +35,7 @@ import { PermissionsProvider } from "@/contexts/permissions-context"
 import { SidebarThemeProvider } from "@/contexts/sidebar-theme-context"
 import { CurrencyProvider } from "@/contexts/currency-context"
 import { useResizablePanel } from "@/hooks/use-resizable-panel"
+import { hasPreferenceCookie, writePreferenceCookie } from "@/lib/preference-cookie"
 import type { CompanyContext } from "@/types/company"
 import type { CurrencySettings } from "@/types/currency"
 import { DEFAULT_CURRENCY_SETTINGS } from "@/types/currency"
@@ -51,9 +52,12 @@ interface MainLayoutProps {
     companies: CompanyContext[]
     currencySettings?: CurrencySettings
     userProfile?: UserProfile | null
+    /** From the parent-domain cookies, so the first HTML is already at this size. */
+    initialCollapsed?: boolean
+    initialWidth?: number
 }
 
-export function MainLayout({ children, initialCompany, companies, currencySettings = DEFAULT_CURRENCY_SETTINGS, userProfile = null }: MainLayoutProps) {
+export function MainLayout({ children, initialCompany, companies, currencySettings = DEFAULT_CURRENCY_SETTINGS, userProfile = null, initialCollapsed = false, initialWidth }: MainLayoutProps) {
     const [mobileOpen, setMobileOpen] = useState(false)
 
     return (
@@ -65,7 +69,7 @@ export function MainLayout({ children, initialCompany, companies, currencySettin
                         <SessionGuard />
                         <MaintenanceWatcher />
                         <TopLoader />
-                        <MainLayoutInner mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} userProfile={userProfile}>
+                        <MainLayoutInner initialCollapsed={initialCollapsed} initialWidth={initialWidth} mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} userProfile={userProfile}>
                             {children}
                         </MainLayoutInner>
                     </SidebarThemeProvider>
@@ -84,39 +88,51 @@ function MainLayoutInner({
     mobileOpen,
     setMobileOpen,
     userProfile,
+    initialCollapsed = false,
+    initialWidth,
 }: {
     children: React.ReactNode
     mobileOpen: boolean
     setMobileOpen: (v: boolean) => void
     userProfile?: UserProfile | null
+    initialCollapsed?: boolean
+    initialWidth?: number
 }) {
     const { isDarkPanel } = useSidebarTheme()
     const { isSwitching } = useCompany()
     const darkClass = isDarkPanel ? "sidebar-dark" : ""
-    const [collapsed, setCollapsed] = useState(false)
+    const [collapsed, setCollapsed] = useState(initialCollapsed)
 
     const { width: sidebarWidth, isResizing: isSidebarResizing, handleMouseDown: handleSidebarResize } = useResizablePanel({
         storageKey: "sidebar-width",
         defaultWidth: 220,
+        initialWidth,
         minWidth: 180,
         maxWidth: 320,
+        syncCookie: true,
     })
 
+    // A person from before the cookie existed still has the choice in
+    // localStorage; honour it once and move it into the cookie.
     useEffect(() => {
+        if (hasPreferenceCookie("sidebar-collapsed")) return
         const stored = localStorage.getItem("sidebar-collapsed")
-        if (stored === "true") setCollapsed(true)
+        if (stored === null) return
+        setCollapsed(stored === "true")
+        writePreferenceCookie("sidebar-collapsed", stored)
     }, [])
 
     const toggleCollapse = () => {
         setCollapsed(prev => {
             const next = !prev
             localStorage.setItem("sidebar-collapsed", String(next))
+            writePreferenceCookie("sidebar-collapsed", String(next))
             return next
         })
     }
 
     return (
-        <div className="flex h-screen overflow-hidden">
+        <div className="shell-in flex h-screen overflow-hidden">
             <aside
                 data-sidebar
                 className={`hidden lg:flex lg:flex-col shrink-0 flex-none overflow-hidden bg-sidebar relative ${darkClass} ${isSidebarResizing ? "" : "transition-[width] duration-200 ease-out"} ${collapsed ? "lg:w-[60px]" : ""}`}

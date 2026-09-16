@@ -15,12 +15,22 @@ export function CompanySwitchLoader({ color = "#02378D" }: { color?: string }) {
     const { isSwitching } = useCompany()
     const [progress, setProgress] = useState(0)
     const [visible, setVisible] = useState(false)
+    const [reduceMotion, setReduceMotion] = useState(false)
     const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+    useEffect(() => {
+        const query = window.matchMedia("(prefers-reduced-motion: reduce)")
+        setReduceMotion(query.matches)
+        const onChange = () => setReduceMotion(query.matches)
+        query.addEventListener("change", onChange)
+        return () => query.removeEventListener("change", onChange)
+    }, [])
 
     useEffect(() => {
         if (isSwitching) {
             setVisible(true)
-            setProgress(0)
+            setProgress(reduceMotion ? 60 : 0)
+            if (reduceMotion) return
             let p = 0
             timerRef.current = setInterval(() => {
                 p += p < 30 ? 8 : p < 60 ? 3 : p < 80 ? 1 : 0.5
@@ -47,7 +57,7 @@ export function CompanySwitchLoader({ color = "#02378D" }: { color?: string }) {
                 timerRef.current = null
             }
         }
-    }, [isSwitching])
+    }, [isSwitching, reduceMotion])
 
     if (!visible && progress === 0) return null
 
@@ -67,7 +77,7 @@ export function CompanySwitchLoader({ color = "#02378D" }: { color?: string }) {
                 zIndex: 9999,
                 pointerEvents: "none",
                 opacity: visible ? 1 : 0,
-                transition: "opacity 300ms ease-out",
+                transition: reduceMotion ? "none" : "opacity 300ms ease-out",
             }}
         >
             <div
@@ -75,7 +85,7 @@ export function CompanySwitchLoader({ color = "#02378D" }: { color?: string }) {
                     height: "100%",
                     width: `${progress}%`,
                     background: color,
-                    transition: progress === 0
+                    transition: reduceMotion || progress === 0
                         ? "none"
                         : progress === 100
                             ? "width 200ms ease-out"

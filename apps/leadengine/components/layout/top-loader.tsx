@@ -7,34 +7,57 @@ import { usePathname, useSearchParams } from "next/navigation"
  * NProgress-style top loading bar.
  * Pure CSS animation — no external dependencies.
  * Shows during Next.js page transitions (route changes).
+ *
+ * Material's linear indicator for page loads: it waits 120ms before showing,
+ * so a navigation that is already done never flashes a bar, and under
+ * reduced motion it appears and disappears without the trickle. Cross-origin
+ * links are left alone on purpose: the app transit screen covers those.
  */
 export function TopLoader({ color = "#02378D" }: { color?: string }) {
     const pathname = usePathname()
     const searchParams = useSearchParams()
     const [progress, setProgress] = useState(0)
     const [visible, setVisible] = useState(false)
+    const [reduceMotion, setReduceMotion] = useState(false)
     const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+    const delayRef = useRef<ReturnType<typeof setTimeout> | null>(null)
     const prevUrl = useRef("")
 
-    const start = useCallback(() => {
-        setVisible(true)
-        setProgress(0)
-
-        // Rapid initial progress, then slow trickle
-        let p = 0
-        timerRef.current = setInterval(() => {
-            p += p < 30 ? 8 : p < 60 ? 3 : p < 80 ? 1 : 0.5
-            if (p > 90) p = 90 // Never reach 100 until done
-            setProgress(p)
-        }, 100)
+    useEffect(() => {
+        const query = window.matchMedia("(prefers-reduced-motion: reduce)")
+        setReduceMotion(query.matches)
+        const onChange = () => setReduceMotion(query.matches)
+        query.addEventListener("change", onChange)
+        return () => query.removeEventListener("change", onChange)
     }, [])
 
+    const start = useCallback(() => {
+        if (delayRef.current) clearTimeout(delayRef.current)
+        delayRef.current = setTimeout(() => {
+            setVisible(true)
+            setProgress(reduceMotion ? 60 : 0)
+            if (reduceMotion) return
+
+            // Rapid initial progress, then slow trickle
+            let p = 0
+            timerRef.current = setInterval(() => {
+                p += p < 30 ? 8 : p < 60 ? 3 : p < 80 ? 1 : 0.5
+                if (p > 90) p = 90 // Never reach 100 until done
+                setProgress(p)
+            }, 100)
+        }, 120)
+    }, [reduceMotion])
+
     const done = useCallback(() => {
+        if (delayRef.current) {
+            clearTimeout(delayRef.current)
+            delayRef.current = null
+        }
         if (timerRef.current) {
             clearInterval(timerRef.current)
             timerRef.current = null
         }
-        setProgress(100)
+        setProgress((prev) => (prev > 0 ? 100 : 0))
         // Fade out after reaching 100%
         setTimeout(() => {
             setVisible(false)
@@ -88,7 +111,7 @@ export function TopLoader({ color = "#02378D" }: { color?: string }) {
                 zIndex: 9999,
                 pointerEvents: "none",
                 opacity: visible ? 1 : 0,
-                transition: "opacity 300ms ease-out",
+                transition: reduceMotion ? "none" : "opacity 300ms ease-out",
             }}
         >
             <div
@@ -96,7 +119,7 @@ export function TopLoader({ color = "#02378D" }: { color?: string }) {
                     height: "100%",
                     width: `${progress}%`,
                     background: color,
-                    transition: progress === 0
+                    transition: reduceMotion || progress === 0
                         ? "none"
                         : progress === 100
                             ? "width 200ms ease-out"

@@ -23,14 +23,34 @@ export const metadata: Metadata = {
   },
 };
 
+// The other app's origin, warmed up at load: DNS and TLS are done before
+// the switcher is ever clicked, so the navigation starts from a hot socket.
+const salesMissionOrigin = (() => {
+  try {
+    const url = process.env.NEXT_PUBLIC_SALES_MISSION_URL?.trim();
+    return url ? new URL(url).origin : null;
+  } catch {
+    return null;
+  }
+})();
+
 export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    // The page colour is on the element itself, not only in the stylesheet:
+    // the first paint must already be the background, or a switch between
+    // apps flashes white before the CSS arrives.
+    <html lang="en" suppressHydrationWarning className="bg-background" style={{ backgroundColor: "#F6F8FB", colorScheme: "light" }}>
       <head>
+        {salesMissionOrigin && (
+          <>
+            <link rel="dns-prefetch" href={salesMissionOrigin} />
+            <link rel="preconnect" href={salesMissionOrigin} />
+          </>
+        )}
         <script dangerouslySetInnerHTML={{ __html: `
           try {
             if (localStorage.getItem('sidebar-panel-theme') === 'dark') {
@@ -55,7 +75,7 @@ export default async function RootLayout({
           }
         ` }} />
       </head>
-      <body className={`${jakartaSans.variable} ${geistMono.variable} antialiased`} suppressHydrationWarning>
+      <body className={`${jakartaSans.variable} ${geistMono.variable} bg-background antialiased`} suppressHydrationWarning>
         <a href="#main-content" className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[100] focus:px-4 focus:py-2 focus:bg-primary focus:text-primary-foreground focus:rounded-lg focus:text-sm focus:font-semibold focus:shadow-lg">
           Skip to content
         </a>

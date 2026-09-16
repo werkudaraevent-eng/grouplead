@@ -370,3 +370,29 @@ html.sidebar-dark-mode {
   .board-page, .board-progress, .board-pulse { animation: none; }
   .board-progress { width: 100%; }
 }
+
+/* Between apps and between pages. The transit screen and the shell arrive
+   with Material's fade-through (210ms in); the circular indicator is
+   indeterminate. Reduced motion: nothing moves, the sentence carries the
+   state and the ring shows a fixed arc. */
+@keyframes transit-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes transit-rotate {
+  to { transform: rotate(360deg); }
+}
+@keyframes transit-arc {
+  0% { stroke-dasharray: 1 150; stroke-dashoffset: 0; }
+  50% { stroke-dasharray: 90 150; stroke-dashoffset: -35; }
+  100% { stroke-dasharray: 90 150; stroke-dashoffset: -124; }
+}
+.app-transit { animation: transit-in 210ms ease-out; }
+.shell-in { animation: transit-in 210ms ease-out; }
+.app-transit-loader { animation: transit-rotate 1.4s linear infinite; }
+.app-transit-loader circle { stroke-linecap: round; animation: transit-arc 1.4s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .app-transit, .shell-in, .app-transit-loader, .app-transit-loader circle { animation: none; }
+  .app-transit-loader circle { stroke-dasharray: 90 150; }
+}
+

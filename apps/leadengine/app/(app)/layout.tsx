@@ -1,3 +1,4 @@
+import { cookies } from "next/headers";
 import { MainLayout } from "@/components/layout/main-layout";
 import { getActiveCompany, getUserCompanies } from "@/utils/company";
 import { createClient } from "@/utils/supabase/server";
@@ -53,8 +54,23 @@ export default async function AppLayout({
     console.warn("[AppLayout] Failed to load company context:", err);
   }
 
+  // The sidebar's fold and width are cookies on the parent domain, so the
+  // first HTML is already at the size the person left it, here and in
+  // Sales Mission.
+  const cookieStore = await cookies();
+  const initialCollapsed = cookieStore.get("sidebar-collapsed")?.value === "true";
+  const storedWidth = Number.parseInt(cookieStore.get("sidebar-width")?.value ?? "", 10);
+  const initialWidth = Number.isFinite(storedWidth) && storedWidth >= 180 && storedWidth <= 320 ? storedWidth : undefined;
+
   return (
-    <MainLayout initialCompany={initialCompany} companies={companies} currencySettings={currencySettings} userProfile={userProfile}>
+    <MainLayout
+      initialCompany={initialCompany}
+      companies={companies}
+      currencySettings={currencySettings}
+      userProfile={userProfile}
+      initialCollapsed={initialCollapsed}
+      initialWidth={initialWidth}
+    >
       {children}
     </MainLayout>
   );
