@@ -54,6 +54,7 @@ import { PageChromeProvider, usePageChrome } from "@/components/page-chrome"
 import { HintsProvider } from "@/components/coach-mark"
 import { MobileNavBar } from "@/components/mobile-nav-bar"
 import { ResponsiveMenu } from "@/components/responsive-menu"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { createClient } from "@/utils/supabase/client"
 import { clearActiveSessionId } from "@/lib/session-guard"
 import { hasPreferenceCookie, writePreferenceCookie } from "@/lib/preference-cookie"
@@ -113,13 +114,12 @@ const mainNav: NavItem[] = [
   { href: "/workspace/reports", label: "Laporan", icon: BarChart3, requires: "reports" },
 ]
 
+// Administration is administration. Personal and supporting pages (my
+// calendar, the guide, what's new) are not destinations in Material's
+// sense; they live behind the account menu at the foot of the drawer, the
+// way Slack, Notion and Linear keep help and release notes off the rail.
 const adminNav: NavItem[] = [
   { href: "/workspace/settings", label: "Pengaturan", icon: Settings, requires: "settings" },
-  // The guide sits with the settings, not among the six destinations: it
-  // is read a few times, not every day.
-  { href: paths.myCalendar, label: "Kalender saya", icon: CalendarDays, requires: "missions" },
-  { href: paths.guide, label: "Panduan", icon: HelpCircle },
-  { href: paths.whatsNew, label: "Yang baru", icon: Sparkles },
 ]
 
 const NOTIFICATIONS_HREF = "/workspace/notifications"
@@ -360,42 +360,57 @@ function SidebarBody({
           )}
         </Link>
 
-        <button
-          onClick={togglePanel}
-          className={
-            collapsed
-              ? "flex w-full items-center justify-center rounded-lg p-2.5 text-sidebar-foreground transition-all duration-150 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-              : "flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-[12px] font-medium text-sidebar-foreground transition-all duration-150 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-          }
-          title={isDarkPanel ? "Panel terang" : "Panel gelap"}
-        >
-          {isDarkPanel ? <Sun className={collapsed ? "h-4 w-4" : "h-3.5 w-3.5"} /> : <Moon className={collapsed ? "h-4 w-4" : "h-3.5 w-3.5"} />}
-          {!collapsed && <span>{isDarkPanel ? "Ganti ke panel terang" : "Ganti ke panel gelap"}</span>}
-        </button>
-
-        {!collapsed ? (
-          <div className="flex items-center gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-sidebar-accent/50">
-            <Link href="/workspace/settings" onClick={onNavigate} className="flex min-w-0 flex-1 items-center gap-3">
-              <Avatar name={displayName} url={avatarUrl} />
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm font-semibold leading-tight text-sidebar-accent-foreground">{displayName}</span>
-                <span className="block truncate text-[11px] text-sidebar-foreground">Sales Activity</span>
-              </span>
-            </Link>
-            <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground" onClick={handleLogout} disabled={loggingOut} aria-label="Keluar">
-              {loggingOut ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogOut className="h-4 w-4" />}
-            </Button>
-          </div>
-        ) : (
-          <div className="flex flex-col items-center gap-2">
-            <Link href="/workspace/settings" className="rounded-full" title={displayName}>
-              <Avatar name={displayName} url={avatarUrl} />
-            </Link>
-            <Button variant="ghost" size="icon" className="h-8 w-8 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground" onClick={handleLogout} disabled={loggingOut} aria-label="Keluar">
-              {loggingOut ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogOut className="h-4 w-4" />}
-            </Button>
-          </div>
-        )}
+        {/* The account menu: who you are, your own pages, the panel, and the
+            way out. One trigger, one M3 menu, nothing more on the rail. */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            {!collapsed ? (
+              <button
+                type="button"
+                className="flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left transition-colors hover:bg-sidebar-accent/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
+                aria-label="Menu akun"
+              >
+                <Avatar name={displayName} url={avatarUrl} />
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-semibold leading-tight text-sidebar-accent-foreground">{displayName}</span>
+                  <span className="block truncate text-[11px] text-sidebar-foreground">Sales Activity</span>
+                </span>
+                <MoreVertical className="h-4 w-4 shrink-0 text-sidebar-foreground" aria-hidden="true" />
+              </button>
+            ) : (
+              <button type="button" className="mx-auto grid place-items-center rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring" title={displayName} aria-label="Menu akun">
+                <Avatar name={displayName} url={avatarUrl} />
+              </button>
+            )}
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" side="top" sideOffset={8} className="w-60">
+            <div className="px-2 py-1.5">
+              <p className="truncate text-sm font-semibold text-foreground">{displayName}</p>
+              <p className="truncate text-xs text-muted-foreground">{companyName}</p>
+            </div>
+            <DropdownMenuSeparator />
+            {navAccess.missions && (
+              <DropdownMenuItem asChild>
+                <Link href={paths.myCalendar} onClick={onNavigate}><CalendarDays className="h-4 w-4" /> Kalender saya</Link>
+              </DropdownMenuItem>
+            )}
+            <DropdownMenuItem asChild>
+              <Link href={paths.guide} onClick={onNavigate}><HelpCircle className="h-4 w-4" /> Panduan</Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link href={paths.whatsNew} onClick={onNavigate}><Sparkles className="h-4 w-4" /> Yang baru</Link>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onSelect={togglePanel}>
+              {isDarkPanel ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+              {isDarkPanel ? "Ganti ke panel terang" : "Ganti ke panel gelap"}
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onSelect={handleLogout} disabled={loggingOut} className="text-[var(--danger-foreground)] focus:text-[var(--danger-foreground)]">
+              {loggingOut ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogOut className="h-4 w-4" />} Keluar
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </div>
   )
