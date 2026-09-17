@@ -143,32 +143,30 @@
   --danger: #fdeee6;
   --danger-foreground: #93400a;
 
-  /* ── Live board (TV + internal) ──
-     The board is read across a room on a dark screen, so it cannot reuse the
-     light-surface tokens above. It gets its own declared ramp rather than
-     colours scattered through the component: the palette stays one system even
-     though this surface is inverted. Every pair below clears 4.5:1 on
-     --board-bg. */
-  --board-bg: #0d1117;
-  --board-panel: rgba(255, 255, 255, 0.04);
-  --board-panel-raised: rgba(255, 255, 255, 0.06);
-  --board-line: rgba(255, 255, 255, 0.10);
-  --board-text: #ffffff;
-  --board-text-dim: #9ea6b0;
-  --board-accent: #F9BB46;
-  --board-done: #6ee7b7;
-  --board-done-surface: rgba(16, 185, 129, 0.15);
-  --board-active: #7dd3fc;
-  --board-active-surface: rgba(14, 165, 233, 0.15);
-  --board-running: #fcd34d;
-  --board-running-surface: rgba(245, 158, 11, 0.15);
-  /* M3 tonal elevation on a dark surface: each level is a lighter wash of
-     the same neutral, not a border. The primary container is the one tinted
-     surface, reserved for the single thing the room should look at. */
-  --board-surface-1: #161b22;
-  --board-surface-2: #1c222b;
-  --board-primary-container: #1E3A6E;
-  --board-on-primary-container: #D6E3FF;
+  /* ── Live board (TV) ──
+     A wall screen read from four metres, so it cannot reuse the light tokens
+     above. This is an M3 dark scheme derived from the brand blue at low
+     chroma: four surface tones instead of borders, one primary container for
+     the single thing the room should look at, and the amber used exactly
+     once. Status is a colour role, never a hue trio. Every text pair below
+     clears 4.5:1 on its own surface; the header rule clears 3:1. */
+  --board-surface: #0F1319;
+  --board-surface-container-low: #171B22;
+  --board-surface-container: #1B2028;
+  --board-surface-container-high: #252A33;
+  --board-on-surface: #E0E3EA;
+  --board-on-surface-variant: #C0C7D4;
+  /* Past and finished rows step down in tone, not in opacity: an accent word
+     inside a dimmed row must keep its own contrast. */
+  --board-on-surface-dim: #8A909B;
+  --board-outline: #5C626D;
+  --board-outline-variant: #2C323C;
+  --board-primary: #B1C5FF;
+  --board-primary-container: #1F3F86;
+  --board-on-primary-container: #DCE4FF;
+  /* The only accent on the board: the visit happening now. */
+  --board-tertiary: #F9BB46;
+  --board-error: #FFB4AB;
 }
 
 /* ── Dark Sidebar Panel (Bigin-style) ── */
@@ -365,9 +363,18 @@ html.sidebar-dark-mode {
   50% { opacity: 0.35; }
 }
 .board-pulse { animation: board-pulse 1.8s ease-in-out infinite; }
-.board-fade-bottom { background: linear-gradient(to bottom, transparent, var(--board-surface-1)); }
+.board-fade-bottom { background: linear-gradient(to bottom, transparent, var(--board-surface)); }
 @media (prefers-reduced-motion: reduce) {
   .board-pulse { animation: none; }
+}
+
+/* One root size for the whole board; every size on it is an `em` of this, so
+   1080p and 4K show the same composition rather than the same pixel sizes.
+   A portrait panel is half as wide, and 1.05vw of it floors at 15px — too
+   small to read from four metres — so portrait gets its own slope. */
+.board-root { font-size: clamp(15px, 1.05vw, 44px); }
+@media (orientation: portrait) {
+  .board-root { font-size: clamp(15px, 1.9vw, 44px); }
 }
 
 /* Between apps and between pages. The transit screen and the shell arrive

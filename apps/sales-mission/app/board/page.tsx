@@ -17,11 +17,11 @@ export const metadata: Metadata = {
 
 function Refusal({ title, body }: { title: string; body: string }) {
   return (
-    <main className="grid min-h-screen place-items-center bg-[var(--board-bg)] px-8 text-center text-[var(--board-text)]">
+    <main className="grid min-h-dvh place-items-center bg-[var(--board-surface)] px-8 text-center text-[var(--board-on-surface)]">
       <div>
-        <p className="text-sm font-bold uppercase tracking-[0.2em] text-[var(--board-accent)]">Sales Activity</p>
-        <h1 className="mt-3 text-3xl font-bold">{title}</h1>
-        <p className="mt-3 max-w-md text-[var(--board-text-dim)]">{body}</p>
+        <p className="text-base text-[var(--board-on-surface-variant)]">Sales Activity</p>
+        <h1 className="mt-3 text-3xl font-medium">{title}</h1>
+        <p className="mt-3 max-w-md text-[var(--board-on-surface-variant)]">{body}</p>
       </div>
     </main>
   )

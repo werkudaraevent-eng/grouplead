@@ -28,6 +28,15 @@ export const CHANGE_KIND_LABELS: Record<ChangeKind, string> = {
 export const CHANGELOG: ChangeEntry[] = [
   {
     date: "2026-09-18",
+    title: "Papan live dibaca seperti papan keberangkatan",
+    items: [
+      { kind: "baru", text: "Papan live di TV kini satu tabel penuh layar dengan judul kolom Jam, Klien, Lokasi, Sales, dan Status: jam ditulis dengan angka selebar sama sehingga sejajar dari atas ke bawah, garis tipis antar baris menggantikan kotak-kotak, dan kunjungan yang sedang berlangsung ditandai satu baris biru dengan garis kuning di tepinya. Kunjungan yang sudah lewat meredup, jadi baris terang pertama adalah kunjungan berikutnya." },
+      { kind: "lebih-baik", text: "Warna papan disederhanakan menjadi satu keluarga biru merek dengan satu aksen kuning; titik dan inisial berwarna-warni dihapus karena tidak menambah informasi dari jarak empat meter. Hurufnya diganti dengan huruf rujukan Material yang punya angka selebar sama." },
+      { kind: "lebih-baik", text: "TV yang dipasang berdiri (potret) kini didukung: kolom Lokasi pindah ke bawah nama klien dan panel tim turun ke bawah jadwal, dengan ukuran huruf yang menyesuaikan." },
+    ],
+  },
+  {
+    date: "2026-09-18",
     title: "Ringkasan yang bisa disusun sendiri",
     items: [
       { kind: "baru", text: "Admin bisa menjadikan susunan Ringkasan di akunnya sebagai bawaan semua akun, lewat menu ⋯ di mode Atur widget. Orang yang sudah menyusun sendiri tetap dengan susunannya sampai memilih Kembali ke susunan awal." },

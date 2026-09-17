@@ -9,112 +9,144 @@ import { BoardClock } from "./board-clock"
 /**
  * The wall board.
  *
- * Read from across a room by people who cannot touch it, so it is built
- * like a departures board, not a dashboard: one dominant region (the
- * schedule), rows tall enough to read at four metres, the time in large
- * tabular figures at the left of every row, status as a coloured edge and
- * a word, and nothing that competes: no KPI tiles, no separate hero, a
- * small clock. Everything is sized in `em` from one root size that follows
- * the screen's width, so a 4K TV and a 1080p TV show the same composition.
+ * Built like a departures board, not a dashboard. One table fills the screen:
+ * a slim bar carries the unit, the summary sentence, the date and the clock,
+ * and everything below it is the schedule under its column headings — Jam,
+ * Klien, Lokasi, Sales, Status — on a single surface, rows separated by
+ * hairlines rather than floated as cards. The time sits first in every row in
+ * large tabular figures, the status is a word, and the only accent on the
+ * screen marks the visit happening now, tinted in its place in the list.
  *
- * Material's rules for a dark, distant surface, kept: tonal surfaces
- * instead of borders; one tinted container for the one thing the room
- * should look at (the visit happening now, else the next one), in its
- * place in the list rather than repeated above it; empty states that say
- * what would fill them, in a quiet colour; motion small and slow.
+ * Rows that are done or past step down in tone, not opacity, so the first
+ * full-contrast row is the next visit — how a departures board says "next"
+ * without a label. Everything is an `em` of one root size that follows the
+ * screen (`.board-root` in globals.css), so 1080p, 4K and a portrait panel
+ * show the same composition.
  */
 
-const EDGE: Record<string, string> = {
-  COMPLETED: "bg-[var(--board-done)]",
-  ACCEPTED: "bg-[var(--board-active)]",
-  IN_PROGRESS: "bg-[var(--board-running)]",
-  CANCELLED: "bg-[var(--board-text-dim)]",
-  REJECTED: "bg-[var(--board-text-dim)]",
-}
+/** Header and rows share this so the columns line up; portrait drops Lokasi. */
+const COLUMNS =
+  "grid grid-cols-[6.5em_minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1fr)_10em] portrait:grid-cols-[5.5em_minmax(0,1.4fr)_minmax(0,1fr)_8em] items-center gap-x-[1.2em] px-[1.4em]"
 
 type VisitState = "past" | "now" | "later"
+type RowTone = "normal" | "past" | "now"
+
+/**
+ * Colour is a role, not a hue per status. Everything routine takes the row's
+ * own ink; only an exception is coloured, the way a FIDS colours a delay.
+ */
+const STATUS_ROLE: Record<string, "muted" | "strong" | "primary" | "error"> = {
+  SCHEDULED: "muted",
+  ASSIGNED: "muted",
+  ACCEPTED: "strong",
+  IN_PROGRESS: "primary",
+  COMPLETED: "muted",
+  CANCELLED: "error",
+  REJECTED: "error",
+  RESCHEDULE_REQUESTED: "muted",
+}
+
+const ROW_INK: Record<RowTone, { fg: string; muted: string }> = {
+  normal: { fg: "var(--board-on-surface)", muted: "var(--board-on-surface-variant)" },
+  past: { fg: "var(--board-on-surface-dim)", muted: "var(--board-on-surface-dim)" },
+  now: { fg: "var(--board-on-primary-container)", muted: "var(--board-primary)" },
+}
 
 function minuteOfDay(date: Date): number {
   const parts = new Intl.DateTimeFormat("en-GB", { timeZone: MISSION_TIME_ZONE, hour: "2-digit", minute: "2-digit", hour12: false }).formatToParts(date)
   return (Number(parts.find((p) => p.type === "hour")?.value ?? 0) % 24) * 60 + Number(parts.find((p) => p.type === "minute")?.value ?? 0)
 }
 
-function initials(name: string): string {
-  return name.split(" ").filter(Boolean).map((part) => part[0]).join("").toUpperCase().slice(0, 2)
-}
-
-/** A stable tonal hue per person, so the same name is the same colour every day. */
-function avatarTone(name: string): string {
-  const tones = ["bg-sky-500/25 text-sky-100", "bg-emerald-500/25 text-emerald-100", "bg-amber-500/25 text-amber-100", "bg-violet-500/25 text-violet-100", "bg-rose-500/25 text-rose-100", "bg-teal-500/25 text-teal-100"]
-  let hash = 0
-  for (const char of name) hash = (hash * 31 + char.charCodeAt(0)) | 0
-  return tones[Math.abs(hash) % tones.length]
-}
-
 const isOver = (mission: BoardMission) => mission.status === "COMPLETED" || mission.status === "CANCELLED" || mission.status === "REJECTED"
 
-function VisitRow({ mission, state, highlight }: { mission: BoardMission; state: VisitState; highlight: "now" | "next" | null }) {
-  const now = highlight === "now"
-  const next = highlight === "next"
-  const dim = !now && !next && (isOver(mission) || state === "past")
+function ColumnHeader() {
+  const label = "text-[0.85em] font-medium tracking-[0.04em] text-[var(--board-on-surface-variant)]"
+  return (
+    <div className={cn(COLUMNS, "shrink-0 border-b border-[var(--board-outline)] pb-[0.5em] pt-[0.2em]")}>
+      <span className={label}>Jam</span>
+      <span className={label}>Klien</span>
+      <span className={cn(label, "portrait:hidden")}>Lokasi</span>
+      <span className={label}>Sales</span>
+      <span className={label}>Status</span>
+    </div>
+  )
+}
+
+function StatusCell({ status, tone }: { status: string; tone: RowTone }) {
+  const role = STATUS_ROLE[status] ?? "muted"
+  const colour =
+    tone === "now"
+      ? "text-[var(--board-on-primary-container)]"
+      : role === "error"
+        ? "text-[var(--board-error)]"
+        : role === "primary"
+          ? "text-[var(--board-primary)]"
+          : role === "strong"
+            ? "text-[var(--row-fg)]"
+            : "text-[var(--row-muted)]"
+  return (
+    <span className="min-w-0">
+      {tone === "now" && (
+        <span className="flex items-center gap-[0.45em] text-[0.85em] font-semibold tracking-[0.06em] text-[var(--board-tertiary)]">
+          <span aria-hidden="true" className="board-pulse h-[0.6em] w-[0.6em] rounded-full bg-[var(--board-tertiary)]" />
+          Sekarang
+        </span>
+      )}
+      <span className={cn("block truncate text-[1.25em] font-medium leading-tight", colour)}>{statusLabel(status)}</span>
+    </span>
+  )
+}
+
+function VisitRow({ mission, tone }: { mission: BoardMission; tone: RowTone }) {
+  const ink = ROW_INK[tone]
   const people = [
     mission.primarySalesName,
     mission.supportingSalesNames.length > 0 ? `+${mission.supportingSalesNames.length}` : null,
   ].filter(Boolean).join(" ")
-  const meta = [people || null, mission.location, mission.missionType].filter(Boolean).join(" · ")
   return (
     <li
+      style={{ "--row-fg": ink.fg, "--row-muted": ink.muted } as React.CSSProperties}
       className={cn(
-        "relative flex items-center gap-[1em] rounded-[0.8em] py-[0.7em] pl-[1.4em] pr-[1.2em]",
-        now && "bg-[var(--board-primary-container)] text-[var(--board-on-primary-container)]",
-        next && "bg-[var(--board-surface-2)]",
-        dim && "opacity-55"
+        COLUMNS,
+        "relative min-h-[3.8em] border-b border-[var(--board-outline-variant)] py-[0.55em] text-[var(--row-fg)]",
+        tone === "now" && "bg-[var(--board-primary-container)]"
       )}
     >
-      <span aria-hidden="true" className={cn("absolute left-[0.5em] top-[0.9em] bottom-[0.9em] w-[0.3em] rounded-full", now ? "bg-[var(--board-running)]" : EDGE[mission.status] ?? "bg-[var(--board-text-dim)]")} />
-      <span className="w-[3.1em] shrink-0 font-mono text-[2.2em] font-extrabold tabular-nums leading-none">{mission.time ?? "—"}</span>
-      <span className="min-w-0 flex-1">
-        <span className="block truncate text-[1.5em] font-bold leading-tight">{mission.clientLabel}</span>
-        <span className={cn("mt-[0.2em] block truncate text-[1.05em]", now ? "text-[var(--board-on-primary-container)]/85" : "text-[var(--board-text-dim)]")}>{meta}</span>
+      {tone === "now" && <span aria-hidden="true" className="absolute inset-y-0 left-0 w-[0.35em] bg-[var(--board-tertiary)]" />}
+      <span className="text-[2.3em] font-semibold tabular-nums leading-none tracking-[-0.01em]">{mission.time ?? "—"}</span>
+      <span className="min-w-0">
+        <span className="block truncate text-[1.8em] font-medium leading-[1.15]">{mission.clientLabel}</span>
+        {/* Portrait has no room for a Lokasi column, so the location moves under the name. */}
+        {mission.location && <span className="hidden truncate text-[1.1em] text-[var(--row-muted)] portrait:block">{mission.location}</span>}
       </span>
-      <span className="shrink-0 text-right">
-        {(now || next) && (
-          <span className={cn("mb-[0.25em] flex items-center justify-end gap-[0.45em] text-[0.78em] font-bold uppercase tracking-[0.18em]", now ? "text-[var(--board-on-primary-container)]" : "text-[var(--board-accent)]")}>
-            {now && <span aria-hidden="true" className="board-pulse h-[0.6em] w-[0.6em] rounded-full bg-[var(--board-running)]" />}
-            {now ? "Sekarang" : "Berikutnya"}
-          </span>
-        )}
-        <span className={cn("flex items-center justify-end gap-[0.5em] text-[1.05em]", now ? "text-[var(--board-on-primary-container)]/85" : "text-[var(--board-text-dim)]")}>
-          <span aria-hidden="true" className={cn("h-[0.55em] w-[0.55em] rounded-full", EDGE[mission.status] ?? "bg-[var(--board-text-dim)]")} />
-          {statusLabel(mission.status)}
-        </span>
-      </span>
+      <span className="truncate text-[1.25em] text-[var(--row-muted)] portrait:hidden">{mission.location || mission.missionType}</span>
+      <span className="truncate text-[1.25em] text-[var(--row-muted)]">{people || "—"}</span>
+      <StatusCell status={mission.status} tone={tone} />
     </li>
   )
 }
 
 function DayHeading({ label, isToday, count }: { label: string; isToday: boolean; count: number }) {
   return (
-    <li className="flex items-baseline justify-between gap-[1em] px-[1.2em] pb-[0.35em] pt-[1em] first:pt-[0.4em]">
-      <span className={cn("text-[1.05em] font-bold uppercase tracking-[0.14em]", isToday ? "text-[var(--board-accent)]" : "text-[var(--board-text-dim)]")}>
+    <li className="flex items-baseline justify-between gap-[1em] bg-[var(--board-surface-container-low)] px-[1.4em] py-[0.5em]">
+      <span className={cn("text-[1.1em] font-medium", isToday ? "text-[var(--board-primary)]" : "text-[var(--board-on-surface)]")}>
         {isToday ? `Hari ini · ${label}` : label}
       </span>
-      <span className="text-[0.95em] text-[var(--board-text-dim)]">{count > 0 ? `${count} kunjungan` : "Tidak ada kunjungan"}</span>
+      <span className="text-[1em] text-[var(--board-on-surface-variant)]">{count > 0 ? `${count} kunjungan` : "Tidak ada kunjungan"}</span>
     </li>
   )
 }
 
 function TeamRow({ member }: { member: BoardTeamMember }) {
   return (
-    <li className="flex items-center gap-[0.8em] border-b border-[var(--board-line)] py-[0.65em] last:border-0">
-      <span className={cn("grid h-[2.4em] w-[2.4em] shrink-0 place-items-center rounded-full text-[0.9em] font-bold", avatarTone(member.name))}>{initials(member.name)}</span>
+    <li className="flex items-center gap-[0.8em] border-b border-[var(--board-outline-variant)] px-[1.4em] py-[0.7em] last:border-0">
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-[1.2em] font-semibold leading-tight">{member.name}</span>
-        <span className="mt-[0.15em] block truncate text-[0.95em] text-[var(--board-text-dim)]">
+        <span className="block truncate text-[1.25em] font-medium leading-tight">{member.name}</span>
+        <span className="mt-[0.15em] block truncate text-[1em] text-[var(--board-on-surface-variant)]">
           {member.next ? (
             <>
               {member.next.day && `${member.next.day} `}
-              <span className="font-mono font-bold tabular-nums text-[var(--board-text)]">{member.next.time}</span>
+              <span className="font-medium tabular-nums text-[var(--board-on-surface)]">{member.next.time}</span>
               {" · "}
               {member.next.client}
             </>
@@ -123,29 +155,52 @@ function TeamRow({ member }: { member: BoardTeamMember }) {
           )}
         </span>
       </span>
-      <span className="shrink-0 rounded-full bg-[var(--board-surface-2)] px-[0.6em] py-[0.15em] font-mono text-[0.85em] tabular-nums text-[var(--board-text-dim)]">{member.missionCount}</span>
+      <span className="shrink-0 text-[1em] font-medium tabular-nums text-[var(--board-on-surface-variant)]">{member.missionCount}</span>
     </li>
   )
 }
 
-function Panel({ title, meta, children }: { title: string; meta: string; children: React.ReactNode }) {
+function EmptyRows({ title, hint }: { title: string; hint?: string }) {
   return (
-    <section className="flex min-h-0 flex-col overflow-hidden rounded-[1.2em] bg-[var(--board-surface-1)]">
-      <h2 className="flex shrink-0 items-baseline justify-between gap-[1em] px-[1.2em] pb-[0.5em] pt-[0.9em] text-[1.25em] font-bold">
-        {title}
-        <span className="text-[0.75em] font-normal text-[var(--board-text-dim)]">{meta}</span>
-      </h2>
-      <div className="min-h-0 flex-1">{children}</div>
-    </section>
+    <div className="flex h-full flex-col items-center justify-center px-[2em] text-center">
+      <p className="text-[1.5em] text-[var(--board-on-surface-variant)]">{title}</p>
+      {hint && <p className="mt-[0.4em] max-w-[24em] text-[1em] text-[var(--board-on-surface-dim)]">{hint}</p>}
+    </div>
   )
 }
 
-function Quiet({ title, hint }: { title: string; hint: string }) {
+function TopBar({
+  screenLabel,
+  summary,
+  dateLabel,
+  clock,
+  preview,
+  masked,
+}: {
+  screenLabel: string | null
+  summary: string | null
+  dateLabel: string
+  clock: string
+  preview: boolean
+  masked: boolean
+}) {
   return (
-    <div className="flex h-full flex-col items-center justify-center px-[2em] pb-[2em] text-center">
-      <p className="text-[1.4em] font-semibold text-[var(--board-text-dim)]">{title}</p>
-      <p className="mt-[0.3em] max-w-[24em] text-[0.95em] text-[var(--board-text-dim)]/80">{hint}</p>
-    </div>
+    <header className="flex flex-wrap items-center gap-x-[1.6em] gap-y-[0.3em] bg-[var(--board-surface-container)] px-[2.4em] py-[1em]">
+      <p className="text-[1.1em] font-medium">
+        Sales Activity
+        {screenLabel && <span className="text-[var(--board-on-surface-variant)]"> · {screenLabel}</span>}
+      </p>
+      {summary && <p className="min-w-0 flex-1 truncate text-[1em] text-[var(--board-on-surface-variant)]">{summary}</p>}
+      <div className="ml-auto flex items-center gap-[1.2em]">
+        {preview && (
+          <span className="rounded-full bg-[var(--board-surface-container-high)] px-[0.9em] py-[0.3em] text-[0.8em] font-medium text-[var(--board-on-surface-variant)]">
+            Pratinjau · nama klien {masked ? "disamarkan" : "ditampilkan"}
+          </span>
+        )}
+        <p className="text-[1em] text-[var(--board-on-surface-variant)]">{dateLabel}</p>
+        <BoardClock initial={clock} className="text-[2em] font-medium tabular-nums leading-none tracking-[-0.01em]" />
+      </div>
+    </header>
   )
 }
 
@@ -178,12 +233,14 @@ export function BoardView({
     if (mission.startMinute <= nowMinute && nowMinute < mission.endMinute) return "now"
     return mission.endMinute <= nowMinute ? "past" : "later"
   }
-  // The one row the room should look at: the visit happening now, else the
-  // next one to start. Marked where it sits, not lifted out of the list.
+  // The one row the room should look at: the visit happening now. Marked where
+  // it sits, not lifted out of the list. There is no "next" treatment: past
+  // rows are dimmed, so the first full-contrast row already is the next one.
   const ongoing = snapshot.missions.find((mission) => stateOf(mission) === "now" && !isOver(mission))
-  const upcoming = ongoing ? null : snapshot.missions.find((mission) => stateOf(mission) === "later" && !isOver(mission))
-  const highlightFor = (mission: BoardMission): "now" | "next" | null =>
-    mission.id === ongoing?.id ? "now" : mission.id === upcoming?.id ? "next" : null
+  const toneOf = (mission: BoardMission): RowTone => {
+    if (mission.id === ongoing?.id) return "now"
+    return isOver(mission) || stateOf(mission) === "past" ? "past" : "normal"
+  }
 
   // The agenda: today onward. On the week board yesterday is history and the
   // wall has no room for it.
@@ -197,69 +254,68 @@ export function BoardView({
   ].filter(Boolean).join(" · ")
 
   return (
-    <div
-      className="grid h-dvh grid-rows-[auto_minmax(0,1fr)] gap-[1.1em] overflow-hidden bg-[var(--board-bg)] px-[2.2em] pb-[1.6em] pt-[1.3em] text-[var(--board-text)]"
-      style={{ fontSize: "clamp(15px, 1.05vw, 44px)", colorScheme: "dark" }}
-    >
-      {/* The document behind the board is light; a minute reload must not flash white. */}
-      <style>{`html, body { background: var(--board-bg, #0d1117); }`}</style>
+    <div className="grid h-dvh grid-rows-[auto_minmax(0,1fr)] overflow-hidden bg-[var(--board-surface)] text-[var(--board-on-surface)]">
+      <TopBar
+        screenLabel={screenLabel}
+        summary={show("counts") ? summary : null}
+        dateLabel={dateLabel}
+        clock={clock}
+        preview={preview}
+        masked={masked}
+      />
 
-      <header className="flex items-end justify-between gap-[1.5em]">
-        <div className="min-w-0">
-          <p className="text-[0.7em] font-bold uppercase tracking-[0.22em] text-[var(--board-accent)]">
-            Sales Activity{screenLabel ? ` · ${screenLabel}` : ""}
-          </p>
-          <h1 className="mt-[0.2em] text-[1.6em] font-extrabold leading-none tracking-tight">{week ? "Minggu ini di lapangan" : "Hari ini di lapangan"}</h1>
-          {show("counts") && <p className="mt-[0.45em] text-[0.95em] text-[var(--board-text-dim)]">{summary}</p>}
-        </div>
-        <div className="flex shrink-0 items-end gap-[1.2em]">
-          {preview && (
-            <span className="rounded-full border border-[var(--board-line)] px-[0.8em] py-[0.3em] text-[0.68em] font-semibold uppercase tracking-[0.16em] text-[var(--board-text-dim)]">
-              Pratinjau · nama klien {masked ? "disamarkan" : "ditampilkan"}
-            </span>
-          )}
-          <div className="text-right">
-            <p className="text-[0.95em] text-[var(--board-text-dim)]">{dateLabel}</p>
-            <BoardClock initial={clock} className="mt-[0.1em] text-[1.4em] font-bold tabular-nums leading-none" />
-          </div>
-        </div>
-      </header>
-
-      <div className={cn("grid min-h-0 gap-[1.1em]", show("schedule") && show("team") ? "grid-cols-[minmax(0,1fr)_minmax(0,0.34fr)]" : "grid-cols-1")}>
+      <div
+        className={cn(
+          "grid min-h-0",
+          show("schedule") && show("team")
+            ? "grid-cols-[minmax(0,1fr)_22em] portrait:grid-cols-1 portrait:grid-rows-[minmax(0,1fr)_18em]"
+            : "grid-cols-1"
+        )}
+      >
         {show("schedule") && (
-          <Panel title={week ? "Jadwal minggu ini" : "Jadwal hari ini"} meta={`${visits} kunjungan`}>
+          <section className="flex min-h-0 min-w-0 flex-col pt-[0.8em]">
+            <ColumnHeader />
             {visits === 0 ? (
-              <Quiet
-                title={week ? "Tidak ada kunjungan minggu ini" : "Tidak ada kunjungan hari ini"}
+              <EmptyRows
+                title={week ? "Tidak ada kunjungan minggu ini." : "Tidak ada kunjungan hari ini."}
                 hint="Kunjungan yang dijadwalkan tampil di sini, urut jam."
               />
             ) : (
               <AutoScroll id={`schedule-${snapshot.range}`}>
-                <ul className="space-y-[0.2em] px-[0.6em] pb-[0.8em]">
+                <ul>
                   {week
                     ? days.flatMap((day) => [
                         <DayHeading key={`day-${day.date}`} label={day.label} isToday={day.isToday} count={day.missions.length} />,
-                        ...day.missions.map((mission) => <VisitRow key={mission.id} mission={mission} state={stateOf(mission)} highlight={highlightFor(mission)} />),
+                        ...day.missions.map((mission) => <VisitRow key={mission.id} mission={mission} tone={toneOf(mission)} />),
                       ])
-                    : snapshot.missions.map((mission) => <VisitRow key={mission.id} mission={mission} state={stateOf(mission)} highlight={highlightFor(mission)} />)}
+                    : snapshot.missions.map((mission) => <VisitRow key={mission.id} mission={mission} tone={toneOf(mission)} />)}
                 </ul>
               </AutoScroll>
             )}
-          </Panel>
+          </section>
         )}
 
         {show("team") && (
-          <Panel title="Tim di lapangan" meta={`${snapshot.team.length} orang`}>
+          <section
+            className={cn(
+              "flex min-h-0 min-w-0 flex-col pt-[0.8em]",
+              show("schedule") && "border-l border-[var(--board-outline-variant)] portrait:border-l-0 portrait:border-t"
+            )}
+          >
+            <div className="flex shrink-0 items-baseline justify-between gap-[1em] border-b border-[var(--board-outline)] px-[1.4em] pb-[0.5em] pt-[0.2em]">
+              <span className="text-[0.85em] font-medium tracking-[0.04em] text-[var(--board-on-surface-variant)]">Tim di lapangan</span>
+              <span className="text-[0.85em] tracking-[0.04em] text-[var(--board-on-surface-variant)]">{snapshot.team.length} orang</span>
+            </div>
             {snapshot.team.length > 0 ? (
               <AutoScroll id="team">
-                <ul className="px-[1.2em] pb-[0.8em]">
+                <ul>
                   {snapshot.team.map((member) => <TeamRow key={member.name} member={member} />)}
                 </ul>
               </AutoScroll>
             ) : (
-              <Quiet title={week ? "Belum ada yang bertugas minggu ini" : "Belum ada yang bertugas hari ini"} hint="Setiap sales dengan kunjungan tampil di sini beserta tujuan berikutnya." />
+              <EmptyRows title={week ? "Belum ada yang bertugas minggu ini." : "Belum ada yang bertugas hari ini."} />
             )}
-          </Panel>
+          </section>
         )}
       </div>
     </div>

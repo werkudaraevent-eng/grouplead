@@ -69,7 +69,7 @@ export function AutoScroll({
       <div ref={ref} className={cn("h-full overflow-hidden", className)}>
         {children}
       </div>
-      {overflowing && <div aria-hidden="true" className="board-fade-bottom pointer-events-none absolute inset-x-0 bottom-0 h-[3em]" />}
+      {overflowing && <div aria-hidden="true" className="board-fade-bottom pointer-events-none absolute inset-x-0 bottom-0 h-[3.5em]" />}
     </div>
   )
 }
