@@ -75,6 +75,7 @@ const PARTS: Part[] = [
       "Impor dari Excel atau tambah satu per satu; setiap prospek punya pemegang, status, dan tanggal hubungi lagi.",
       "Catat setiap kontak (telepon, WhatsApp, email). Tanggal hubungi lagi yang jatuh tempo muncul di Hari ini.",
       "Begitu janji temu jadi, jadwalkan aktivitas langsung dari prospeknya; data klien dan kontak ikut terisi.",
+      "Setelah punya aktivitas, status prospek mengikuti nasib aktivitasnya: Rescheduled bila jadwalnya pernah dipindah, Completed bila kunjungannya selesai, Cancelled bila dibatalkan; selain itu tetap Confirmed. Prospek yang aktivitasnya ditunda lalu dijadwalkan lagi ikut pindah ke aktivitas barunya.",
     ],
     link: { href: paths.prospects, label: "Buka Prospek" },
   },
