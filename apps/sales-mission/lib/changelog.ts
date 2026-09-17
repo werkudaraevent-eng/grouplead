@@ -32,6 +32,7 @@ export const CHANGELOG: ChangeEntry[] = [
     items: [
       { kind: "baru", text: "Tarik kembali laporan yang sudah dikirim: laporan kembali menjadi draf, aktivitas tidak lagi Selesai, versi terkirim tersimpan bersama alasannya. Haknya sama dengan Ubah laporan; lead yang sudah ke LeadEngine tetap di sana." },
       { kind: "baru", text: "Laporan kunjungan baru bisa diisi pada hari kunjungannya, dan waktu kunjungan tidak boleh di masa depan; sebelum itu halaman aktivitas menyebut tanggal laporannya terbuka. Admin bisa mematikan aturan ini di Pengaturan → Aktivitas → Laporan hanya setelah kunjungan." },
+      { kind: "lebih-baik", text: "Halaman aktivitas: jadwal, lokasi, sales utama, industri, dan tujuan tampil sebagai baris properti, bukan empat kolom yang ikut memanjang saat alamatnya panjang. Nilainya memakai huruf biasa, bukan tebal." },
       { kind: "lebih-baik", text: "Kalender: panel jadwal hari terpilih menggulir sendiri di samping kalender bulan, tidak lagi memanjangkan kartu kalender saat harinya padat." },
       { kind: "diperbaiki", text: "Pengaturan → Aktivitas bisa disimpan lagi. Sejak Riwayat perubahan ditambahkan, setiap simpan gagal karena pencatatan riwayat mengharapkan kolom id yang tidak dimiliki tabel pengaturan." },
       { kind: "diperbaiki", text: "Field telepon: kursor tidak lagi melompat ke belakang saat mengubah angka di tengah nomor, dan Backspace di atas tanda pisah menghapus angka di depannya." },

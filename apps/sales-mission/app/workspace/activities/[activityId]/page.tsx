@@ -52,7 +52,6 @@ import {
 } from "@/lib/missions/visit-report-schema"
 import { BackLink, JoinStatusLine, StatusBadge, WorkspacePage } from "@/app/workspace/workspace-page"
 import { Button } from "@/components/ui/button"
-import { cn } from "@/lib/utils"
 import { ResponsiveMenu } from "@/components/responsive-menu"
 import { eventFromMission } from "@/lib/calendar/ics"
 import { googleCalendarLink } from "@/lib/calendar/google-link"
@@ -79,14 +78,22 @@ import { paths } from "@/lib/paths"
 
 export const dynamic = "force-dynamic"
 
+/**
+ * One fact as a property row (Linear and Notion properties, HubSpot's
+ * "About" panel): a leading icon, the label in the muted ink, the value
+ * in the regular body weight, each row as tall as its own value. Rows,
+ * not columns: an address that runs to five lines then lengthens one
+ * row, not the whole strip. Weight marks hierarchy only once per card
+ * (the title), so the values are regular, and the label is sentence case
+ * label-medium, not the tracked capitals Material 3 retired with
+ * "overline".
+ */
 function Fact({ icon: Icon, label, value }: { icon: typeof CalendarDays; label: string; value: string }) {
   return (
-    <div className="flex items-start gap-3 p-5">
-      <Icon className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-      <div className="min-w-0">
-        <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">{label}</p>
-        <p className="mt-1 text-sm font-semibold text-foreground">{value}</p>
-      </div>
+    <div className="grid grid-cols-[1rem_minmax(0,1fr)] items-baseline gap-x-3 gap-y-0.5 px-5 py-3 sm:grid-cols-[1rem_7rem_minmax(0,1fr)]">
+      <Icon className="h-4 w-4 self-center text-muted-foreground" aria-hidden="true" />
+      <dt className="text-sm text-muted-foreground">{label}</dt>
+      <dd className="col-start-2 text-sm leading-relaxed text-foreground sm:col-start-3">{value}</dd>
     </div>
   )
 }
@@ -330,19 +337,13 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
               </span>
             </div>
 
-            <div className={cn("grid divide-y sm:divide-x sm:divide-y-0", mission.industry ? "sm:grid-cols-2 lg:grid-cols-4" : "sm:grid-cols-3")}>
+            <dl className="divide-y py-1">
               <Fact icon={CalendarDays} label="Jadwal" value={formatMissionSchedule(mission.scheduledStart, new Date())} />
               <Fact icon={MapPin} label="Lokasi" value={[mission.address, mission.appointment.building, mission.location].filter(Boolean).join(", ") || "Belum diisi"} />
               <Fact icon={UsersRound} label="Sales utama" value={mission.primarySalesName ?? "Belum ditugaskan"} />
               {mission.industry && <Fact icon={Building2} label="Industri" value={mission.industry} />}
-            </div>
-
-            <div className="border-t px-5 py-5">
-              <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Tujuan kunjungan</p>
-              <h2 className="mt-2 text-base font-semibold leading-relaxed text-foreground">
-                {mission.objective ?? "Objective belum diisi."}
-              </h2>
-            </div>
+              <Fact icon={ClipboardList} label="Tujuan" value={mission.objective ?? "Objective belum diisi."} />
+            </dl>
 
             {/* Provenance lives here, not in the list: who booked it is what
                 you want once you are looking at the visit, not while scanning
