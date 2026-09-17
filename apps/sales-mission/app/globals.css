@@ -389,12 +389,15 @@ html.sidebar-dark-mode {
 @media (min-width: 64rem) {
   .cal-cell { container-type: size; }
 }
-@container (max-height: 5.75rem) {
+/* Measured on the cell's content box (padding excluded): the day number
+   with its margin is 22px, a chip 16px, a gap 2px. Two chips and a count
+   need 74px; one chip and a count 56px; one chip alone 38px. */
+@container (max-height: 4.6rem) {
   .cal-cell .cal-chip-2 { display: none; }
   .cal-cell .cal-more-tall { display: none; }
   .cal-cell .cal-more-short { display: block; }
 }
-@container (max-height: 3.5rem) {
+@container (max-height: 3.4rem) {
   .cal-cell .cal-chips { display: none; }
   .cal-cell .cal-badge { display: grid; }
 }
