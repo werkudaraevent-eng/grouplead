@@ -46,6 +46,8 @@ export default async function CalendarPage({
   // viewer stands relative to it.
   const missions = annotateJoinStatus(rawMissions, settings)
   const grid = buildMonthGrid(month, missions, now)
+  // How many week rows the month needs, so the grid can share the height.
+  const weekRows = Math.ceil((grid.leadingBlanks + grid.days.length) / 7)
   const monthTotal = grid.days.reduce((sum, day) => sum + day.missionCount, 0)
   const timeOf = (iso: string | null) =>
     iso ? new Intl.DateTimeFormat("en-GB", { timeZone: MISSION_TIME_ZONE, hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(iso)) : ""
@@ -77,13 +79,14 @@ export default async function CalendarPage({
         </Button>
       }
     >
-      {/* Two panes that do not share a height. The month card is as tall
-          as a month; the day pane sticks beside it, bounded by the viewport,
-          and scrolls its own list (Google Calendar's schedule pane, Outlook's
-          agenda). Without `items-start` a long day would stretch the month
-          card to match and leave a page of blank card under the grid. */}
-      <section className="grid gap-4 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] lg:items-start">
-        <article className="min-w-0 rounded-xl border bg-card">
+      {/* One screen, no page scroll (Google Calendar's month view, Outlook's
+          calendar): from lg the two panes fill the height under the page
+          header, top edges level. The month grid shares its rows over that
+          height; the day pane keeps its header and scrolls its own list. On
+          a short screen the cells keep a floor height and the page scrolls
+          rather than crushing the days. */}
+      <section className="grid gap-4 lg:h-full lg:min-h-0 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] lg:grid-rows-[minmax(0,1fr)]">
+        <article className="flex min-w-0 flex-col rounded-xl border bg-card lg:min-h-0">
           <div className="flex items-center justify-between border-b px-5 py-4">
             <div>
               <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Tampilan bulan</p>
@@ -117,7 +120,7 @@ export default async function CalendarPage({
             </div>
           </div>
 
-          <div className="p-5">
+          <div className="flex min-h-0 flex-1 flex-col p-5 lg:overflow-y-auto">
             {/*
               Material has no "calendar with events" component; its date picker
               marks only today and the selection. Its badge does apply: a small
@@ -127,7 +130,7 @@ export default async function CalendarPage({
               day gets the numbered badge; from `md` up the cell is tall enough
               to list the first two visits as chips and count the rest.
             */}
-            <div className="grid grid-cols-7 gap-1 md:gap-1.5">
+            <div className="grid min-h-0 grid-cols-7 gap-1 md:gap-1.5 lg:flex-1" style={{ gridTemplateRows: `auto repeat(${weekRows}, minmax(0, 1fr))` }}>
               {WEEKDAYS.map((day, index) => (
                 <span key={`weekday-${index}`} className="grid h-7 place-items-center text-[10px] font-bold uppercase text-muted-foreground">
                   {day}
@@ -147,7 +150,7 @@ export default async function CalendarPage({
                     aria-label={`${day.dayOfMonth}, ${day.missionCount} aktivitas`}
                     aria-current={selected ? "date" : undefined}
                     className={cn(
-                      "relative flex h-11 min-w-0 flex-col items-center justify-center rounded-lg border border-transparent text-xs transition-colors md:h-auto md:min-h-[4.5rem] md:items-stretch md:justify-start md:p-1.5",
+                      "relative flex h-11 min-w-0 flex-col items-center justify-center overflow-hidden rounded-lg border border-transparent text-xs transition-colors md:h-auto md:min-h-[4.5rem] md:items-stretch md:justify-start md:p-1.5",
                       selected
                         ? "bg-primary font-bold text-primary-foreground"
                         : day.isToday
@@ -199,7 +202,7 @@ export default async function CalendarPage({
               </p>
             )}
 
-            <div className="mt-5 flex items-center gap-2 border-t pt-4 text-xs text-muted-foreground">
+            <div className="mt-5 flex shrink-0 items-center gap-2 border-t pt-4 text-xs text-muted-foreground">
               <CalendarDays className="h-3.5 w-3.5" />
               {monthTotal} aktivitas bulan ini · {dayMissions.length} pada hari terpilih
               <Link href={paths.activities()} className="ml-auto font-semibold text-primary hover:underline">
@@ -209,7 +212,7 @@ export default async function CalendarPage({
           </div>
         </article>
 
-        <aside className="flex min-w-0 flex-col overflow-hidden rounded-xl border bg-card lg:sticky lg:top-4 lg:max-h-[calc(100dvh-2rem)]">
+        <aside className="flex min-w-0 flex-col overflow-hidden rounded-xl border bg-card lg:min-h-0">
           <div className="flex shrink-0 items-center justify-between gap-3 border-b px-5 py-4">
             <div>
               <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">{dayLabel}</p>
@@ -227,7 +230,7 @@ export default async function CalendarPage({
           </div>
 
           {dayMissions.length > 0 ? (
-            <div className="min-h-0 divide-y overflow-y-auto overscroll-contain">
+            <div className="min-h-0 flex-1 divide-y overflow-y-auto overscroll-contain">
               {dayMissions.map((mission) => (
                 <Link key={mission.id} href={paths.activity(mission.id)} className="flex gap-3 px-5 py-4 transition-colors hover:bg-muted/50">
                   <span className="w-12 shrink-0 font-mono text-xs text-muted-foreground">
