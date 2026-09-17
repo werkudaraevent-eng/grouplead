@@ -6,7 +6,7 @@ import { requestOrigin } from "@/lib/request-origin"
 import { BackLink, WorkspacePage } from "@/app/workspace/workspace-page"
 import { PRODUCT_NAME } from "@/lib/brand"
 import { paths } from "@/lib/paths"
-import { FeedSetup } from "./feed-setup"
+import { FeedSetup, SubscribeSteps } from "./feed-setup"
 
 export const dynamic = "force-dynamic"
 
@@ -31,25 +31,38 @@ export default async function MyCalendarPage() {
       description="Jadwal kunjungan ikut ke Google Calendar, Kalender iPhone, atau Outlook lewat tautan langganan; tempel sebagai kalender dari URL, bukan impor berkas, supaya perubahan jadwal ikut. Pengingat dan tampilan mengikuti kalender ponsel."
       action={<BackLink href={paths.calendar} />}
     >
-      <div className="max-w-3xl space-y-8">
-        <section aria-labelledby="feed-own">
-          <h2 id="feed-own" className="text-base font-semibold text-foreground">Kunjungan saya</h2>
-          <p className="mb-3 mt-0.5 text-sm text-muted-foreground">
-            Aktivitas yang Anda ikuti sebagai sales utama atau pendukung. Bila Anda tidak ditugaskan ke aktivitas mana pun, kalender ini kosong.
-          </p>
-          <FeedSetup scope="own" existing={existing.own} origin={origin} />
-        </section>
-        {teamAllowed && (
-          <section aria-labelledby="feed-team">
-            <h2 id="feed-team" className="text-base font-semibold text-foreground">Kalender tim</h2>
-            <p className="mb-3 mt-0.5 text-sm text-muted-foreground">
-              {readScope === "all"
-                ? "Semua aktivitas unit bisnis, dengan nama sales utama di depan judul acara. Tautan terpisah dari kalender pribadi dan bisa dicabut sendiri."
-                : "Aktivitas Anda dan tim di bawah Anda, dengan nama sales utama di depan judul acara. Tautan terpisah dari kalender pribadi dan bisa dicabut sendiri."}
-            </p>
-            <FeedSetup scope="team" existing={existing.team} origin={origin} />
-          </section>
-        )}
+      {/* Two links as two cards side by side on a wide window (M3 canonical
+          layout: use the width, and peers are seen together, not behind a
+          tab); the steps for each calendar app once, under both. */}
+      <div className="space-y-6">
+        <div className="grid gap-4 lg:grid-cols-2">
+          <FeedSetup
+            scope="own"
+            title="Kunjungan saya"
+            description="Aktivitas yang Anda ikuti sebagai sales utama atau pendukung. Bila Anda tidak ditugaskan ke aktivitas mana pun, kalender ini kosong."
+            existing={existing.own}
+            origin={origin}
+          />
+          {teamAllowed ? (
+            <FeedSetup
+              scope="team"
+              title="Kalender tim"
+              description={
+                readScope === "all"
+                  ? "Semua aktivitas unit bisnis, dengan nama sales utama di depan judul acara. Tautan terpisah dari kalender pribadi dan bisa dicabut sendiri."
+                  : "Aktivitas Anda dan tim di bawah Anda, dengan nama sales utama di depan judul acara. Tautan terpisah dari kalender pribadi dan bisa dicabut sendiri."
+              }
+              existing={existing.team}
+              origin={origin}
+            />
+          ) : (
+            <section className="rounded-xl border border-dashed bg-card/50 p-5 text-sm text-muted-foreground" aria-label="Kalender tim">
+              <p className="font-semibold text-foreground">Kalender tim</p>
+              <p className="mt-1">Tersedia untuk peran dengan cakupan lihat Tim atau Semua, berisi semua aktivitas yang boleh dilihat. Cakupan peran Anda hanya aktivitas sendiri.</p>
+            </section>
+          )}
+        </div>
+        <SubscribeSteps />
       </div>
     </WorkspacePage>
   )

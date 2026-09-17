@@ -12,14 +12,25 @@ import type { CalendarTokenStatus } from "@/lib/calendar/calendar-token-queries"
 import type { FeedScope } from "@/lib/calendar/calendar-feed-queries"
 
 /**
- * Making and using the personal feed link.
- *
- * Three states. No link yet: one button. A link just made: the URL, once,
- * with Salin, a one-tap iPhone subscribe (webcal:), and the steps for
- * Google Calendar and Outlook. A link that exists (as a hash): when it
- * was made and last fetched, and the way to replace or stop it.
+ * One feed link as a card, in three states. No link yet: one button. A
+ * link just made: the URL, once, with Salin and a one-tap iPhone
+ * subscribe (webcal:). A link that exists (as a hash): when it was made
+ * and last fetched, and the way to replace or stop it. The steps for
+ * each calendar app live once, under the cards (`SubscribeSteps`).
  */
-export function FeedSetup({ scope, existing, origin }: { scope: FeedScope; existing: CalendarTokenStatus | null; origin: string }) {
+export function FeedSetup({
+  scope,
+  title,
+  description,
+  existing,
+  origin,
+}: {
+  scope: FeedScope
+  title: string
+  description: string
+  existing: CalendarTokenStatus | null
+  origin: string
+}) {
   const router = useRouter()
   const [pending, start] = useTransition()
   const [issued, setIssued] = useState<string | null>(null)
@@ -66,35 +77,38 @@ export function FeedSetup({ scope, existing, origin }: { scope: FeedScope; exist
   const stamp = (iso: string) =>
     new Intl.DateTimeFormat("id-ID", { timeZone: MISSION_TIME_ZONE, day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }).format(new Date(iso))
 
-  if (feedUrl) {
-    return (
-      <div className="space-y-4">
-        <div className="rounded-xl border border-[var(--success-foreground)]/25 bg-[var(--success)] p-5">
-          <p className="flex items-center gap-2 text-base font-semibold text-[var(--success-foreground)]">
-            <Check className="h-5 w-5" aria-hidden="true" /> Tautan dibuat
-          </p>
-          <p className="mt-1 text-sm text-[var(--success-foreground)]">
-            Tautan ini tampil sekali. Salin sekarang; bila hilang, buat tautan baru dari halaman ini.
-          </p>
-          <div className="mt-3 flex flex-col gap-2 sm:flex-row">
-            <code className="min-w-0 flex-1 select-all break-all rounded-lg border bg-card px-3 py-2.5 font-mono text-xs text-foreground">{feedUrl}</code>
-            <Button type="button" variant="outline" onClick={copy} className="h-11 shrink-0 sm:h-10">
-              {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />} {copied ? "Tersalin" : "Salin"}
+  return (
+    <section className="flex h-full flex-col rounded-xl border bg-card" aria-labelledby={`feed-${scope}`}>
+      <div className="border-b px-5 py-4">
+        <h2 id={`feed-${scope}`} className="text-base font-semibold text-foreground">{title}</h2>
+        <p className="mt-1 text-sm text-muted-foreground">{description}</p>
+      </div>
+
+      {feedUrl ? (
+        <div className="flex-1 space-y-3 p-5">
+          <div className="rounded-lg border border-[var(--success-foreground)]/25 bg-[var(--success)] p-4">
+            <p className="flex items-center gap-2 text-sm font-semibold text-[var(--success-foreground)]">
+              <Check className="h-4 w-4" aria-hidden="true" /> Tautan dibuat
+            </p>
+            <p className="mt-1 text-sm text-[var(--success-foreground)]">Tampil sekali. Salin sekarang; bila hilang, buat tautan baru dari sini.</p>
+            <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+              <code className="min-w-0 flex-1 select-all break-all rounded-lg border bg-card px-3 py-2.5 font-mono text-xs text-foreground">{feedUrl}</code>
+              <Button type="button" variant="outline" onClick={copy} className="h-11 shrink-0 sm:h-10">
+                {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />} {copied ? "Tersalin" : "Salin"}
+              </Button>
+            </div>
+          </div>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <Button asChild variant="outline" className="h-11 sm:h-10">
+              <a href={webcalUrl!}>Langganan di Kalender iPhone</a>
             </Button>
+            <span className="text-xs text-muted-foreground">Ketuk dari Safari di iPhone. Untuk Google dan Outlook, ikuti langkah di bawah.</span>
           </div>
         </div>
-
-        <Steps webcalUrl={webcalUrl!} compact={scope === "team"} />
-      </div>
-    )
-  }
-
-  if (existing) {
-    return (
-      <div className="space-y-4">
-        <div className="rounded-xl border bg-card p-5">
-          <p className="flex items-center gap-2 text-base font-semibold text-foreground">
-            <Link2 className="h-5 w-5 text-muted-foreground" aria-hidden="true" /> Tautan aktif
+      ) : existing ? (
+        <div className="flex-1 p-5">
+          <p className="flex items-center gap-2 text-sm font-semibold text-foreground">
+            <Link2 className="h-4 w-4 text-muted-foreground" aria-hidden="true" /> Tautan aktif
           </p>
           <p className="mt-1 text-sm text-muted-foreground">
             Dibuat {stamp(existing.createdAt)}.{" "}
@@ -112,82 +126,60 @@ export function FeedSetup({ scope, existing, origin }: { scope: FeedScope; exist
             </Button>
           </div>
         </div>
-        {scope === "own" && <Steps webcalUrl={null} />}
-      </div>
-    )
-  }
-
-  return (
-    <div className="space-y-4">
-      <div className="rounded-xl border bg-card p-5">
-        <p className="text-base font-semibold text-foreground">Belum ada tautan</p>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {scope === "team"
-            ? "Satu tautan rahasia untuk kalender tim. Siapa pun yang memegangnya bisa membaca jadwal seluruh tim yang Anda lihat, jadi jangan dibagikan."
-            : "Satu tautan rahasia untuk kalender Anda. Siapa pun yang memegangnya bisa membaca jadwal kunjungan Anda, jadi jangan dibagikan."}
-        </p>
-        <Button type="button" onClick={create} disabled={pending} className="mt-4 h-11 sm:h-10">
-          {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Link2 className="h-4 w-4" />} Buat tautan
-        </Button>
-      </div>
-      {scope === "own" && <Steps webcalUrl={null} />}
-    </div>
+      ) : (
+        <div className="flex-1 p-5">
+          <p className="text-sm font-semibold text-foreground">Belum ada tautan</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {scope === "team"
+              ? "Satu tautan rahasia untuk kalender tim. Siapa pun yang memegangnya bisa membaca jadwal seluruh tim yang Anda lihat, jadi jangan dibagikan."
+              : "Satu tautan rahasia untuk kalender Anda. Siapa pun yang memegangnya bisa membaca jadwal kunjungan Anda, jadi jangan dibagikan."}
+          </p>
+          <Button type="button" onClick={create} disabled={pending} className="mt-4 h-11 sm:h-10">
+            {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Link2 className="h-4 w-4" />} Buat tautan
+          </Button>
+        </div>
+      )}
+    </section>
   )
 }
 
-function Steps({ webcalUrl, compact = false }: { webcalUrl: string | null; compact?: boolean }) {
+/** How each calendar app subscribes to a link: once, under the cards. */
+export function SubscribeSteps() {
   const Item = ({ n, children }: { n: number; children: React.ReactNode }) => (
     <li className="flex gap-3">
       <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-[var(--tonal)] text-xs font-bold text-[var(--tonal-foreground)]">{n}</span>
       <span>{children}</span>
     </li>
   )
-  if (compact) {
-    return (
-      <div className="rounded-xl border bg-card p-5 text-sm text-foreground">
-        <p>
-          Sama seperti kalender pribadi: <strong>Langganan</strong> di iPhone{webcalUrl ? " (" : ""}
-          {webcalUrl && <a href={webcalUrl} className="font-medium text-primary hover:underline">ketuk di sini dari Safari</a>}
-          {webcalUrl ? ")" : ""}, <strong>Kalender lain → + → Dari URL</strong> di Google Calendar, <strong>Berlangganan dari web</strong> di Outlook.
-        </p>
-      </div>
-    )
-  }
   return (
-    <div className="grid gap-4 md:grid-cols-2">
-      <div className="rounded-xl border bg-card p-5">
-        <p className="text-base font-semibold text-foreground">iPhone</p>
-        {webcalUrl ? (
-          <>
-            <Button asChild variant="outline" className="mt-3 h-11 w-full sm:h-10 sm:w-auto">
-              <a href={webcalUrl}>Langganan di Kalender iPhone</a>
-            </Button>
-            <p className="mt-2 text-xs text-muted-foreground">Ketuk dari Safari di iPhone; Kalender menawarkan langganan.</p>
-          </>
-        ) : (
+    <section aria-labelledby="subscribe-steps">
+      <h2 id="subscribe-steps" className="mb-3 text-base font-semibold text-foreground">Cara berlangganan</h2>
+      <div className="grid gap-4 md:grid-cols-3">
+        <div className="rounded-xl border bg-card p-5">
+          <p className="text-sm font-semibold text-foreground">iPhone</p>
           <ol className="mt-3 space-y-3 text-sm text-foreground">
-            <Item n={1}>Buka <strong>Pengaturan → Kalender → Akun → Tambah Akun → Lainnya</strong>.</Item>
-            <Item n={2}>Pilih <strong>Tambah Kalender Langganan</strong>, tempel tautannya.</Item>
+            <Item n={1}>Ketuk <strong>Langganan di Kalender iPhone</strong> pada tautan yang baru dibuat, dari Safari.</Item>
+            <Item n={2}>Atau: <strong>Pengaturan → Kalender → Akun → Tambah Akun → Lainnya → Tambah Kalender Langganan</strong>, tempel tautannya.</Item>
           </ol>
-        )}
+        </div>
+        <div className="rounded-xl border bg-card p-5">
+          <p className="text-sm font-semibold text-foreground">Google Calendar (Android dan web)</p>
+          <ol className="mt-3 space-y-3 text-sm text-foreground">
+            <Item n={1}>Buka <strong>calendar.google.com</strong> di komputer (aplikasi ponsel belum bisa menambah dari URL).</Item>
+            <Item n={2}>Di <strong>Kalender lain</strong>, ketuk <strong>+ → Dari URL</strong>, tempel tautannya. Bukan <strong>Impor</strong>: impor menyalin sekali dan tidak pernah diperbarui.</Item>
+            <Item n={3}>Kalender itu lalu tampil di aplikasi Google Calendar di ponsel.</Item>
+          </ol>
+        </div>
+        <div className="rounded-xl border bg-card p-5">
+          <p className="text-sm font-semibold text-foreground">Outlook</p>
+          <ol className="mt-3 space-y-3 text-sm text-foreground">
+            <Item n={1}><strong>Tambahkan kalender → Berlangganan dari web</strong>, tempel tautannya.</Item>
+          </ol>
+          <p className="mt-4 text-xs text-muted-foreground">
+            Satu arah: perubahan di Sales Activity muncul di kalender, bukan sebaliknya. Google menyegarkan setiap beberapa jam; iPhone dan Outlook bisa diatur lebih sering.
+          </p>
+        </div>
       </div>
-      <div className="rounded-xl border bg-card p-5">
-        <p className="text-base font-semibold text-foreground">Google Calendar (Android dan web)</p>
-        <ol className="mt-3 space-y-3 text-sm text-foreground">
-          <Item n={1}>Buka <strong>calendar.google.com</strong> di komputer (aplikasi ponsel belum bisa menambah dari URL).</Item>
-          <Item n={2}>Di <strong>Kalender lain</strong>, ketuk <strong>+ → Dari URL</strong>, tempel tautannya. Bukan <strong>Impor</strong>: impor menyalin sekali dan tidak pernah diperbarui.</Item>
-          <Item n={3}>Kalender itu lalu tampil di aplikasi Google Calendar di ponsel.</Item>
-        </ol>
-      </div>
-      <div className="rounded-xl border bg-card p-5 md:col-span-2">
-        <p className="text-base font-semibold text-foreground">Outlook</p>
-        <p className="mt-2 text-sm text-foreground">
-          <strong>Tambahkan kalender → Berlangganan dari web</strong>, tempel tautannya.
-        </p>
-        <p className="mt-3 text-xs text-muted-foreground">
-          Satu arah: perubahan di Sales Activity muncul di kalender, bukan sebaliknya. Google menyegarkan setiap beberapa jam; iPhone dan Outlook bisa diatur lebih sering.
-        </p>
-      </div>
-    </div>
+    </section>
   )
 }
