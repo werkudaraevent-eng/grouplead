@@ -7,7 +7,7 @@ import { labelOf } from "@/lib/missions/report-choices"
 import { parsePhotoAnswer } from "@/lib/photos/photo-answer"
 import { describeTiming, formatVisitWindow } from "@/lib/missions/visit-time"
 import { PhotoGallery } from "@/components/photo-gallery"
-import { RequestClarificationButton } from "./report-admin-actions"
+import { RequestClarificationButton, WithdrawReportButton } from "./report-admin-actions"
 import { canPerform, getSalesMissionAccess } from "@/lib/sales-mission-access"
 import { resolveMissionGates } from "@/lib/missions/mission-rights"
 import { requireModule } from "@/lib/missions/nav-access"
@@ -560,9 +560,12 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
             <div className="flex flex-wrap items-center justify-end gap-2">
               {reportSubmitted && supervisesReport && !isAuthor && !isCancelled && <RequestClarificationButton missionId={missionId} authorName={primaryName} />}
               {reportSubmitted && editVerdict?.allowed && !isCancelled && (
-                <Button asChild variant="outline" size="sm">
-                  <Link href={paths.activityReport(missionId, { edit: true })}><Pencil className="h-4 w-4" /> Ubah laporan</Link>
-                </Button>
+                <>
+                  <WithdrawReportButton missionId={missionId} leadPushed={Boolean(leadPush)} />
+                  <Button asChild variant="outline" size="sm">
+                    <Link href={paths.activityReport(missionId, { edit: true })}><Pencil className="h-4 w-4" /> Ubah laporan</Link>
+                  </Button>
+                </>
               )}
               <StatusBadge status={report.status} />
             </div>

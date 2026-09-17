@@ -3,8 +3,8 @@
 import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
-import { Loader2, MessageCircle } from "@/components/icons"
-import { requestReportClarification } from "@/app/actions/visit-report-actions"
+import { Loader2, MessageCircle, Undo2 } from "@/components/icons"
+import { requestReportClarification, withdrawVisitReport } from "@/app/actions/visit-report-actions"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -63,6 +63,71 @@ export function RequestClarificationButton({ missionId, authorName }: { missionI
             <Button variant="outline" onClick={() => setOpen(false)} disabled={pending}>Batal</Button>
             <Button onClick={send} disabled={pending || note.trim().length < 5}>
               {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <MessageCircle className="h-4 w-4" />} Kembalikan laporan
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  )
+}
+
+/**
+ * "Tarik kembali": undo a send. The report becomes a draft again (its
+ * content kept), the mission is no longer Selesai, the sent version is
+ * archived with the reason. A dialog, because it is a decision with one
+ * required input; the copy says what does and does not come back.
+ */
+export function WithdrawReportButton({ missionId, leadPushed }: { missionId: string; leadPushed: boolean }) {
+  const [open, setOpen] = useState(false)
+  const [reason, setReason] = useState("")
+  const [pending, start] = useTransition()
+  const router = useRouter()
+
+  const withdraw = () =>
+    start(async () => {
+      const result = await withdrawVisitReport(missionId, reason)
+      if (!result.success) {
+        toast.error(result.error ?? "Laporan gagal ditarik kembali.")
+        return
+      }
+      toast.success("Laporan ditarik kembali. Aktivitas tidak lagi Selesai; drafnya tetap ada.")
+      setOpen(false)
+      setReason("")
+      router.refresh()
+    })
+
+  return (
+    <>
+      <Button type="button" variant="ghost" size="sm" onClick={() => setOpen(true)}>
+        <Undo2 className="h-4 w-4" /> Tarik kembali
+      </Button>
+      <Dialog open={open} onOpenChange={(next) => { if (!pending) setOpen(next) }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Tarik kembali laporan ini?</DialogTitle>
+            <DialogDescription>
+              Laporan kembali menjadi draf dengan isi yang sama, dan aktivitas tidak lagi Selesai. Versi yang terkirim tersimpan di riwayat bersama alasannya, dan tim diberi tahu.
+              {leadPushed && " Lead yang sudah dikirim ke LeadEngine tetap ada di sana; urus di CRM bila perlu."}
+              {" "}Kalau laporannya memang tidak diinginkan, buang drafnya setelah ini.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogBody className="space-y-1.5">
+            <Label htmlFor="withdraw-reason" className="text-foreground">Alasan</Label>
+            <textarea
+              id="withdraw-reason"
+              value={reason}
+              onChange={(event) => setReason(event.target.value)}
+              rows={3}
+              maxLength={500}
+              autoFocus
+              placeholder="Contoh: laporan uji coba, atau terkirim untuk kunjungan yang salah."
+              className="w-full rounded-md border border-input bg-field px-3 py-2.5 text-sm text-foreground shadow-xs outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+            />
+          </DialogBody>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpen(false)} disabled={pending}>Batal</Button>
+            <Button onClick={withdraw} disabled={pending || reason.trim().length < 5}>
+              {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Undo2 className="h-4 w-4" />} Tarik kembali
             </Button>
           </DialogFooter>
         </DialogContent>

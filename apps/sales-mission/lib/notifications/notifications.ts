@@ -19,6 +19,7 @@ export const NOTIFICATION_EVENTS = [
   "RESCHEDULE_REJECTED",
   "MISSION_RESCHEDULED",
   "RESULT_SUBMITTED",
+  "RESULT_WITHDRAWN",
   "NEEDS_CLARIFICATION",
   "LEAD_PUSHED",
 ] as const
@@ -67,6 +68,8 @@ export function describeEvent(event: NotificationEvent, context: NotificationCon
       return { title: "Jadwal aktivitas dipindahkan", body: `${client} — oleh ${context.actorName}` }
     case "RESULT_SUBMITTED":
       return { title: `${context.actorName} mengirim laporan kunjungan`, body: `${client}` }
+    case "RESULT_WITHDRAWN":
+      return { title: `${context.actorName} menarik kembali laporan kunjungan`, body: `${client} — aktivitas kembali belum selesai` }
     case "NEEDS_CLARIFICATION":
       return { title: "Laporan perlu klarifikasi", body: `${client} — diminta oleh ${context.actorName}` }
     case "LEAD_PUSHED":

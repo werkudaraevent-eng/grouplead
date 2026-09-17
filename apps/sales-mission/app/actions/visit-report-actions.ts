@@ -9,6 +9,7 @@ import { getMission, getMissionRole, getMissionSettings, getVisitReport, listMis
 import { canEditSubmittedReport } from "@/lib/missions/report-edit"
 import { FUTURE_VISIT_MESSAGE, toVisitInstants, visitTimeInFuture } from "@/lib/missions/visit-time"
 import { describeReportOpens, reportLocked } from "@/lib/missions/report-window"
+import { statusBeforeCompletion } from "@/lib/missions/report-withdraw"
 import { listReportChoices } from "@/lib/missions/report-choice-queries"
 import { reportChoiceViolation } from "@/lib/missions/report-choices"
 import {
@@ -706,6 +707,107 @@ export async function addSupportingNote(missionId: string, note: string): Promis
  * Supervisor means Laporan kunjungan → Ubah with a Cakupan that reaches the
  * author. The author does not send a report back to themself.
  */
+/**
+ * "Tarik kembali laporan": a sent report goes back to draft, with its
+ * content, and the mission back to the status it had before Selesai.
+ *
+ * For a report sent by mistake (a test, the wrong visit) or one that
+ * needs more than an edit. The right to do it is the right to edit a sent
+ * report: the author inside the tenant's window, a supervisor at any
+ * time. Never silent: the sent version is archived with the reason, the
+ * status history records the move back, and the team is told. A lead
+ * already pushed to the CRM stays there; the CRM has its own owner.
+ */
+export async function withdrawVisitReport(missionId: string, reason: string): Promise<ActionResult> {
+  const guard = await authorizeReportWrite(missionId)
+  if ("error" in guard) return { success: false, error: guard.error }
+  const { access, mission } = guard
+
+  const trimmed = reason.trim()
+  if (trimmed.length < 5) return { success: false, error: "Tulis alasan penarikan singkat." }
+  if (trimmed.length > 500) return { success: false, error: "Alasan maksimal 500 karakter." }
+
+  const supabase = await createClient()
+  const missions = supabase.schema("sales_mission")
+  const { data: existing } = await missions
+    .from("visit_reports")
+    .select("*")
+    .eq("company_id", access.companyId)
+    .eq("mission_id", missionId)
+    .maybeSingle()
+  if (!existing) return { success: false, error: "Laporan belum ada." }
+  if (existing.status !== "SUBMITTED") return { success: false, error: "Hanya laporan yang sudah dikirim yang bisa ditarik kembali." }
+
+  const [settings, role] = await Promise.all([getMissionSettings(access), getMissionRole(access, missionId)])
+  const gates = await resolveMissionGates(access, mission, role, settings)
+  const verdict = canEditSubmittedReport({
+    supervises: gates.supervisesReport,
+    isAuthor: gates.isAuthor,
+    submittedAt: (existing.submitted_at as string | null) ?? null,
+    now: new Date(),
+    windowDays: settings.reportEditWindowDays,
+  })
+  if (!verdict.allowed) {
+    return { success: false, error: "Laporan ini sudah tidak bisa ditarik sendiri. Minta atasan yang berwenang." }
+  }
+
+  const reportId = existing.id as string
+  const now = new Date().toISOString()
+
+  // The sent version is kept before anything moves, as every edit keeps it.
+  const { count } = await missions.from("visit_report_versions").select("id", { count: "exact", head: true }).eq("report_id", reportId)
+  await missions.from("visit_report_versions").insert({
+    report_id: reportId,
+    company_id: access.companyId,
+    version: (count ?? 0) + 1,
+    snapshot: existing,
+    changed_by: access.userId,
+    reason: `Ditarik kembali: ${trimmed}`,
+  })
+
+  const { error } = await missions
+    .from("visit_reports")
+    .update({ status: "DRAFT", submitted_at: null, submitted_by: null, clarification_note: null, updated_at: now })
+    .eq("id", reportId)
+    .eq("company_id", access.companyId)
+  if (error) return { success: false, error: "Laporan gagal ditarik kembali." }
+
+  // The mission goes back to where the send took it from.
+  const { data: history } = await missions
+    .from("status_history")
+    .select("from_status, to_status, created_at")
+    .eq("company_id", access.companyId)
+    .eq("mission_id", missionId)
+  const previous = statusBeforeCompletion(
+    (history ?? []).map((row) => ({ fromStatus: (row.from_status as string | null) ?? null, toStatus: row.to_status as string, createdAt: row.created_at as string }))
+  )
+  if (mission.status === "COMPLETED") {
+    await missions.from("missions").update({ status: previous, updated_at: now }).eq("id", missionId).eq("company_id", access.companyId)
+    await missions.from("status_history").insert({
+      mission_id: missionId,
+      company_id: access.companyId,
+      from_status: "COMPLETED",
+      to_status: previous,
+      changed_by: access.userId,
+      reason: `Laporan ditarik kembali: ${trimmed}`,
+    })
+  }
+
+  const team = await listMissionTeam(access, missionId)
+  await notify(
+    access,
+    "RESULT_WITHDRAWN",
+    [...team.map((member) => member.userId), mission.createdBy],
+    { missionId, clientName: mission.clientCompanyName }
+  )
+
+  revalidatePath("/workspace")
+  revalidatePath(paths.activities())
+  revalidatePath(paths.activity(missionId))
+  revalidatePath(paths.reports)
+  return { success: true }
+}
+
 export async function requestReportClarification(missionId: string, note: string): Promise<ActionResult> {
   const access = await getSalesMissionAccess()
   if (!access) return { success: false, error: NO_ACCESS_MESSAGE }

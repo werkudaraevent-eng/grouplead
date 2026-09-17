@@ -62,6 +62,7 @@ const PARTS: Part[] = [
       "Laporan baru bisa diisi pada hari kunjungannya (mulai 00.00), dan waktu kunjungan yang diisi tidak boleh di masa depan. Kunjungan yang dimajukan: pindahkan jadwalnya dulu. Admin bisa mematikan aturan ini di Pengaturan → Aktivitas.",
       "Draf tersimpan otomatis setiap perubahan; tutup dan lanjutkan kapan saja dari halaman aktivitas.",
       "Kirim laporan ketika sudah lengkap. Setelah dikirim, atasan bisa membacanya, dan perubahan tercatat sebagai versi.",
+      "Salah kirim? Tarik kembali: laporan kembali menjadi draf dengan isi yang sama, aktivitas tidak lagi Selesai, versi terkirim dan alasannya tersimpan, tim diberi tahu. Boleh dilakukan penulisnya selama jendela ubah laporan, dan atasan yang berwenang kapan saja. Lead yang sudah dikirim ke LeadEngine tetap ada di sana. Laporan uji coba: tarik kembali lalu buang drafnya.",
       "Laporan yang menandai peluang bisa dikirim ke LeadEngine sebagai lead, satu kali per aktivitas. Saat mengirim, pilih kategori lead (HQL, Hot, Warm, Cold, sesuai Master Options LeadEngine); tingkat minat di laporan menyarankan salah satunya, dan ringkasan tampil dulu sebelum dikirim.",
       "Halaman Laporan mengumpulkan semua laporan yang boleh kamu lihat; Ringkasan menghitungnya.",
     ],
