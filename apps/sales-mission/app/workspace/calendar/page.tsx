@@ -261,16 +261,15 @@ export default async function CalendarPage({
               })}
             </div>
 
-            {/* A silent grid reads as broken; say so in words. */}
-            {monthTotal === 0 && (
-              <p className="mt-4 rounded-lg border border-dashed bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
-                Tidak ada aktivitas pada {formatMonthLabel(month)}.
-              </p>
-            )}
-
+            {/* A silent grid reads as broken; the footer says so in words.
+                Nothing else may sit between the grid and the footer: the
+                grid shares the card's height, and a box here would take
+                its share from the days. */}
             <div className="mt-5 flex shrink-0 items-center gap-2 border-t pt-4 text-xs text-muted-foreground">
               <CalendarDays className="h-3.5 w-3.5" />
-              {monthTotal} aktivitas bulan ini · {dayMissions.length} pada hari terpilih
+              {monthTotal === 0
+                ? `Tidak ada aktivitas pada ${formatMonthLabel(month)}${sales.length ? " untuk saringan ini" : ""}`
+                : `${monthTotal} aktivitas bulan ini · ${dayMissions.length} pada hari terpilih`}
               <Link href={paths.activities()} className="ml-auto font-semibold text-primary hover:underline">
                 Lihat semua aktivitas
               </Link>
