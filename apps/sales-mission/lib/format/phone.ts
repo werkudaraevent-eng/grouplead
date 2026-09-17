@@ -66,3 +66,27 @@ export function formatPhoneWhileTyping(raw: string): string {
   const count = digits.replace(/\D/g, "").length
   return count >= 6 ? formatPhone(digits) : digits
 }
+
+/** How many digits a string holds; separators and the + do not count. */
+export function countDigits(text: string): number {
+  return text.replace(/\D/g, "").length
+}
+
+/**
+ * Where the caret goes in a freshly formatted number so that the same
+ * digits stay to its right. Counted from the end because the format
+ * rewrites the head ("0812" becomes "+62 812"), so a count from the start
+ * would drift by the digits it added or dropped. Zero digits after means
+ * the end of the string.
+ */
+export function caretKeepingDigitsAfter(formatted: string, digitsAfter: number): number {
+  if (digitsAfter <= 0) return formatted.length
+  let seen = 0
+  for (let index = formatted.length - 1; index >= 0; index -= 1) {
+    if (/\d/.test(formatted[index])) {
+      seen += 1
+      if (seen === digitsAfter) return index
+    }
+  }
+  return 0
+}

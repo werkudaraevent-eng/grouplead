@@ -30,6 +30,7 @@ export const CHANGELOG: ChangeEntry[] = [
     date: "2026-09-17",
     title: "Ditunda, jadwal menyusul",
     items: [
+      { kind: "diperbaiki", text: "Field telepon: kursor tidak lagi melompat ke belakang saat mengubah angka di tengah nomor, dan Backspace di atas tanda pisah menghapus angka di depannya." },
       { kind: "baru", text: "Saat membatalkan aktivitas, pilih \"Ditunda, jadwal menyusul\" dan tanggal untuk menghubungi klien lagi. Aktivitas itu muncul di Hari ini pada bagian Perlu dijadwalkan ulang sampai Anda menekan Jadwalkan lagi." },
       { kind: "lebih-baik", text: "Aktivitas yang dijadwalkan ulang mencatat tautan ke aktivitas barunya, jadi riwayatnya tidak putus." },
     ],
