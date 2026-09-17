@@ -77,7 +77,12 @@ export default async function CalendarPage({
         </Button>
       }
     >
-      <section className="grid gap-4 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
+      {/* Two panes that do not share a height. The month card is as tall
+          as a month; the day pane sticks beside it, bounded by the viewport,
+          and scrolls its own list (Google Calendar's schedule pane, Outlook's
+          agenda). Without `items-start` a long day would stretch the month
+          card to match and leave a page of blank card under the grid. */}
+      <section className="grid gap-4 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] lg:items-start">
         <article className="min-w-0 rounded-xl border bg-card">
           <div className="flex items-center justify-between border-b px-5 py-4">
             <div>
@@ -204,8 +209,8 @@ export default async function CalendarPage({
           </div>
         </article>
 
-        <aside className="min-w-0 rounded-xl border bg-card">
-          <div className="flex items-center justify-between gap-3 border-b px-5 py-4">
+        <aside className="flex min-w-0 flex-col overflow-hidden rounded-xl border bg-card lg:sticky lg:top-4 lg:max-h-[calc(100dvh-2rem)]">
+          <div className="flex shrink-0 items-center justify-between gap-3 border-b px-5 py-4">
             <div>
               <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">{dayLabel}</p>
               <h2 className="mt-1 text-base font-semibold text-foreground">{selectedDay === today ? "Hari ini" : "Jadwal"}</h2>
@@ -222,7 +227,7 @@ export default async function CalendarPage({
           </div>
 
           {dayMissions.length > 0 ? (
-            <div className="divide-y">
+            <div className="min-h-0 divide-y overflow-y-auto overscroll-contain">
               {dayMissions.map((mission) => (
                 <Link key={mission.id} href={paths.activity(mission.id)} className="flex gap-3 px-5 py-4 transition-colors hover:bg-muted/50">
                   <span className="w-12 shrink-0 font-mono text-xs text-muted-foreground">
