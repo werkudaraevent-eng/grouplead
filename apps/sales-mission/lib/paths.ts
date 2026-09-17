@@ -45,6 +45,8 @@ export const paths = {
   myCalendar: "/workspace/kalender-saya",
   /** The public iCalendar feed for one person's token. No session; the token is the credential. */
   calendarFeed: (token: string) => `/kalender/${encodeURIComponent(token)}/aktivitas.ics`,
+  /** The read-only month calendar management opens without signing in. */
+  publicSchedule: (token: string, query?: Query) => withQuery(`/jadwal/${encodeURIComponent(token)}`, query),
 
   /** The activity list, optionally with its filter/sort/page query. */
   activities: (query?: Query) => withQuery(ACTIVITIES, query),
@@ -62,6 +64,7 @@ export const paths = {
   settings: {
     index: "/workspace/settings",
     activities: "/workspace/settings/activities",
+    board: "/workspace/settings/board",
     history: "/workspace/settings/history",
   },
 } as const

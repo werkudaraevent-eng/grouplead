@@ -3,7 +3,8 @@
 import { revalidatePath } from "next/cache"
 import { createClient } from "@/utils/supabase/server"
 import { canPerform, getSalesMissionAccess } from "@/lib/sales-mission-access"
-import { generateBoardToken } from "@/lib/board/board-access"
+import { generateBoardToken, type BoardTokenKind } from "@/lib/board/board-access"
+import { paths } from "@/lib/paths"
 import type { ActionResult } from "@/types/action-result"
 import { NO_ACCESS_MESSAGE } from "@/lib/brand"
 
@@ -23,7 +24,8 @@ async function authorize() {
 export async function createBoardToken(
   label: string,
   expiresInDays?: number,
-  showClientNames = false
+  showClientNames = false,
+  kind: BoardTokenKind = "screen"
 ): Promise<ActionResult<{ token: string }>> {
   const guard = await authorize()
   if ("error" in guard) return { success: false, error: guard.error }
@@ -50,12 +52,16 @@ export async function createBoardToken(
     // Decided here, once, by the admin. A screen in an open office keeps it
     // false; a screen in the sales room may not need to.
     show_client_names: showClientNames,
+    // Bound to the row, so a screen link cannot be typed into the calendar
+    // route or the other way round.
+    kind,
   })
 
   if (error) return { success: false, error: "Tautan gagal dibuat." }
 
-  revalidatePath("/workspace/settings/board")
-  revalidatePath("/workspace/board")
+  revalidatePath(paths.settings.board)
+  revalidatePath(paths.board)
+  revalidatePath(paths.calendar)
 
   // The only time the plaintext exists outside the browser that asked for it.
   // Nothing stores it, so a lost link means creating a new one.
@@ -76,6 +82,6 @@ export async function revokeBoardToken(tokenId: string): Promise<ActionResult> {
 
   if (error) return { success: false, error: "Tautan gagal dicabut." }
 
-  revalidatePath("/workspace/settings/board")
+  revalidatePath(paths.settings.board)
   return { success: true }
 }

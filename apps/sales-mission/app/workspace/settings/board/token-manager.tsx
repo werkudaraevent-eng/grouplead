@@ -3,8 +3,11 @@
 import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
-import { Copy, Loader2, Plus, ShieldOff, TriangleAlert } from "@/components/icons"
+import { Loader2, Plus, ShieldOff, TriangleAlert } from "@/components/icons"
 import { createBoardToken, revokeBoardToken } from "@/app/actions/board-token-actions"
+import { BOARD_TOKEN_KINDS, BOARD_TOKEN_KIND_LABELS, boardTokenUrl, type BoardTokenKind } from "@/lib/board/board-access"
+import { IssuedLink } from "@/components/issued-link"
+import { Segmented } from "@/components/segmented"
 import { MISSION_TIME_ZONE } from "@/lib/missions/mission-schema"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -14,6 +17,7 @@ import { Switch } from "@/components/ui/switch"
 export interface BoardTokenRow {
   id: string
   label: string
+  kind: BoardTokenKind
   showClientNames: boolean
   createdAt: string
   expiresAt: string | null
@@ -35,20 +39,21 @@ function formatWhen(iso: string | null) {
 
 export function BoardTokenManager({ tokens, boardBaseUrl }: { tokens: BoardTokenRow[]; boardBaseUrl: string }) {
   const [label, setLabel] = useState("")
+  const [kind, setKind] = useState<BoardTokenKind>("screen")
   const [expiresInDays, setExpiresInDays] = useState("")
   const [showNames, setShowNames] = useState(false)
-  const [issued, setIssued] = useState<string | null>(null)
+  const [issued, setIssued] = useState<{ token: string; kind: BoardTokenKind } | null>(null)
   const [pending, start] = useTransition()
   const router = useRouter()
 
-  const issuedUrl = issued ? `${boardBaseUrl}/board?token=${issued}` : null
+  const issuedUrl = issued ? boardTokenUrl(boardBaseUrl, issued.kind, issued.token) : null
 
   const create = () => {
     start(async () => {
       const days = expiresInDays ? Number(expiresInDays) : undefined
-      const result = await createBoardToken(label, Number.isFinite(days) ? days : undefined, showNames)
+      const result = await createBoardToken(label, Number.isFinite(days) ? days : undefined, showNames, kind)
       if (result.success && result.data) {
-        setIssued(result.data.token)
+        setIssued({ token: result.data.token, kind })
         setLabel("")
         setExpiresInDays("")
         setShowNames(false)
@@ -81,19 +86,8 @@ export function BoardTokenManager({ tokens, boardBaseUrl }: { tokens: BoardToken
           <p className="mt-1 text-sm text-[var(--warning-foreground)]">
             Hanya hash-nya yang kami simpan, jadi tautan ini tidak bisa dilihat ulang. Kalau hilang, cabut lalu buat baru.
           </p>
-          <div className="mt-3 flex gap-2">
-            <Input readOnly value={issuedUrl} className="h-11 bg-card font-mono text-xs" onFocus={(e) => e.currentTarget.select()} />
-            <Button
-              type="button"
-              variant="outline"
-              className="h-11 shrink-0 bg-card"
-              onClick={async () => {
-                await navigator.clipboard.writeText(issuedUrl)
-                toast.success("Tautan disalin")
-              }}
-            >
-              <Copy className="h-4 w-4" /> Salin
-            </Button>
+          <div className="mt-3">
+            <IssuedLink url={issuedUrl} manageLink={false} />
           </div>
           <Button variant="ghost" size="sm" className="mt-2" onClick={() => setIssued(null)}>Tutup</Button>
         </div>
@@ -106,9 +100,22 @@ export function BoardTokenManager({ tokens, boardBaseUrl }: { tokens: BoardToken
         </div>
 
         <div className="grid gap-4 px-5 py-5 sm:grid-cols-[2fr_1fr] sm:items-end">
+          <div className="space-y-1.5 sm:col-span-2">
+            <Segmented
+              label="Jenis tautan"
+              value={kind}
+              options={BOARD_TOKEN_KINDS.map((item) => ({ value: item, label: BOARD_TOKEN_KIND_LABELS[item] }))}
+              onChange={setKind}
+            />
+            <p className="text-xs text-muted-foreground">
+              {kind === "screen"
+                ? "Papan jadwal untuk TV kantor, menyegarkan sendiri. Tanpa pengaturan rentang dan panel; buat dari Papan live kalau perlu itu."
+                : "Kalender bulan baca-saja yang dibuka manajemen di browser, tanpa login."}
+            </p>
+          </div>
           <div className="space-y-1.5">
-            <Label htmlFor="token-label">Nama layar</Label>
-            <Input id="token-label" className="h-11" value={label} maxLength={100} onChange={(e) => setLabel(e.target.value)} placeholder="TV lobi lantai 3" />
+            <Label htmlFor="token-label">Nama tautan</Label>
+            <Input id="token-label" className="h-11" value={label} maxLength={100} onChange={(e) => setLabel(e.target.value)} placeholder={kind === "screen" ? "TV lobi lantai 3" : "Direksi"} />
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="token-expiry">Berlaku (hari)</Label>
@@ -118,7 +125,7 @@ export function BoardTokenManager({ tokens, boardBaseUrl }: { tokens: BoardToken
             <div>
               <Label htmlFor="token-names" className="text-sm font-semibold text-foreground">Tampilkan nama klien</Label>
               <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                Mati: “PT A•••”. Nyalakan hanya untuk layar yang tidak dilewati tamu. Terikat ke tautan; tidak bisa diubah dari URL.
+                Mati: “PT A•••”. Untuk layar TV, nyalakan hanya kalau ruangannya tidak dilewati tamu. Terikat ke tautan; tidak bisa diubah dari URL.
               </p>
             </div>
             <Switch id="token-names" checked={showNames} onCheckedChange={setShowNames} />
@@ -144,8 +151,11 @@ export function BoardTokenManager({ tokens, boardBaseUrl }: { tokens: BoardToken
               return (
                 <li key={token.id} className="flex flex-wrap items-center gap-3 px-5 py-4">
                   <div className="min-w-0 flex-1">
-                    <p className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                    <p className="flex flex-wrap items-center gap-2 text-sm font-semibold text-foreground">
                       {token.label}
+                      <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-bold uppercase text-muted-foreground">
+                        {BOARD_TOKEN_KIND_LABELS[token.kind]}
+                      </span>
                       {token.revokedAt && (
                         <span className="rounded-full bg-[var(--danger)] px-2 py-0.5 text-[10px] font-bold uppercase text-[var(--danger-foreground)]">Dicabut</span>
                       )}

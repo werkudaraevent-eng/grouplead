@@ -28,7 +28,9 @@ export async function proxy(request: NextRequest) {
   // authorises itself from its own token.
   // `/kalender` is the iCalendar feed: fetched by a calendar server with no
   // session; the token in its path is the credential.
-  const publicPaths = ["/login", "/forgot-password", "/reset-password", "/board", "/kalender"]
+  // `/jadwal` is the read-only calendar management opens without an account;
+  // same rule, the token in its path is the credential.
+  const publicPaths = ["/login", "/forgot-password", "/reset-password", "/board", "/kalender", "/jadwal"]
   const isPublic = publicPaths.some((path) => pathname.startsWith(path))
 
   // The root has nothing to say to anyone. Sales Mission is an internal tool

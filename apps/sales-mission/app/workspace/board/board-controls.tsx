@@ -4,9 +4,11 @@ import { useEffect, useState, useTransition } from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { toast } from "sonner"
-import { Check, Copy, Link2, Loader2, MonitorPlay, Pause, Play, Settings2, SlidersHorizontal } from "@/components/icons"
+import { Link2, Loader2, MonitorPlay, Pause, Play, Settings2, SlidersHorizontal } from "@/components/icons"
 import { Segmented } from "@/components/segmented"
 import { createBoardToken } from "@/app/actions/board-token-actions"
+import { IssuedLink } from "@/components/issued-link"
+import { paths } from "@/lib/paths"
 import { FacetSelect } from "@/components/facet-select"
 import { PersonAvatar } from "@/components/person-avatar"
 import { Button } from "@/components/ui/button"
@@ -215,7 +217,6 @@ function ScreenLinkDialog({ options, baseUrl }: { options: BoardOptions; baseUrl
   const [label, setLabel] = useState("")
   const [showNames, setShowNames] = useState(false)
   const [issued, setIssued] = useState<string | null>(null)
-  const [copied, setCopied] = useState(false)
   const [pending, start] = useTransition()
 
   const url = issued
@@ -228,17 +229,6 @@ function ScreenLinkDialog({ options, baseUrl }: { options: BoardOptions; baseUrl
       if (result.success && result.data) setIssued(result.data.token)
       else toast.error(result.error ?? "Tautan gagal dibuat")
     })
-  }
-
-  const copy = async () => {
-    if (!url) return
-    try {
-      await navigator.clipboard.writeText(url)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
-    } catch {
-      toast.error("Tidak bisa menyalin otomatis. Blok tautannya lalu salin manual.")
-    }
   }
 
   const reset = () => {
@@ -293,15 +283,12 @@ function ScreenLinkDialog({ options, baseUrl }: { options: BoardOptions; baseUrl
                 <DialogTitle>Tautan layar siap</DialogTitle>
                 <DialogDescription>Salin sekarang. Demi keamanan, tautan ini tidak ditampilkan lagi setelah dialog ditutup.</DialogDescription>
               </DialogHeader>
-              <div className="flex items-center gap-2">
-                <Input readOnly value={url ?? ""} className="h-11 font-mono text-xs" onFocus={(e) => e.currentTarget.select()} />
-                <Button onClick={copy} className="h-11 shrink-0">
-                  {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />} {copied ? "Tersalin" : "Salin"}
-                </Button>
-              </div>
+              <DialogBody>
+                <IssuedLink url={url ?? ""} />
+              </DialogBody>
               <DialogFooter className="sm:justify-between">
                 <Button asChild variant="ghost" size="sm">
-                  <Link href="/workspace/settings/board"><Settings2 className="h-4 w-4" /> Kelola tautan</Link>
+                  <Link href={paths.settings.board}><Settings2 className="h-4 w-4" /> Kelola tautan</Link>
                 </Button>
                 <Button onClick={reset}>Selesai</Button>
               </DialogFooter>

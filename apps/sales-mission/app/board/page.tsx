@@ -64,7 +64,7 @@ export default async function BoardPage({
   let preview = false
 
   if (token) {
-    const resolved = await resolveBoardToken(token)
+    const resolved = await resolveBoardToken(token, "screen")
     if (resolved) {
       companyId = resolved.companyId
       masked = !resolved.showClientNames

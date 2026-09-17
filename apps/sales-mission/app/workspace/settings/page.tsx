@@ -31,8 +31,8 @@ const SETTING_CARDS = [
   {
     icon: MonitorPlay,
     tone: "bg-[var(--success)] text-[var(--success-foreground)]",
-    title: "Papan live",
-    description: "Tautan papan untuk layar kantor, dan tampilan internal untuk tim.",
+    title: "Tautan publik",
+    description: "Tautan layar TV dan kalender manajemen: lihat yang aktif, cabut yang tidak dipakai.",
     href: "/workspace/settings/board",
   },
   {

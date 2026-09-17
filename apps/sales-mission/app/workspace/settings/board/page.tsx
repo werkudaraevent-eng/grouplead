@@ -1,12 +1,14 @@
 import Link from "next/link"
 import { headers } from "next/headers"
 import { redirect } from "next/navigation"
-import { MonitorPlay } from "@/components/icons"
+import { CalendarDays, MonitorPlay } from "@/components/icons"
 import { canPerform, getSalesMissionAccess } from "@/lib/sales-mission-access"
 import { createClient } from "@/utils/supabase/server"
 import { BackLink, EmptyState, WorkspacePage } from "@/app/workspace/workspace-page"
 import { Button } from "@/components/ui/button"
 import { BoardTokenManager, type BoardTokenRow } from "./token-manager"
+import type { BoardTokenKind } from "@/lib/board/board-access"
+import { paths } from "@/lib/paths"
 
 export const dynamic = "force-dynamic"
 
@@ -18,11 +20,11 @@ export default async function BoardSettingsPage() {
     return (
       <WorkspacePage
         eyebrow="Sales Activity / Administration"
-        title="Papan live"
-        description="Kelola tautan papan untuk layar kantor."
+        title="Tautan publik"
+        description="Kelola tautan layar TV dan kalender manajemen."
         action={<BackLink href="/workspace/settings" />}
       >
-        <EmptyState title="Tidak punya izin" description="Tautan papan hanya dapat dikelola oleh admin Sales Activity." />
+        <EmptyState title="Tidak punya izin" description="Tautan publik hanya dapat dikelola oleh admin Sales Activity." />
       </WorkspacePage>
     )
   }
@@ -31,13 +33,14 @@ export default async function BoardSettingsPage() {
   const { data } = await supabase
     .schema("sales_mission")
     .from("board_tokens")
-    .select("id, label, created_at, expires_at, revoked_at, last_used_at, show_client_names")
+    .select("id, label, kind, created_at, expires_at, revoked_at, last_used_at, show_client_names")
     .eq("company_id", access.companyId)
     .order("created_at", { ascending: false })
 
   const tokens: BoardTokenRow[] = (data ?? []).map((row) => ({
     id: row.id as string,
     label: row.label as string,
+    kind: ((row.kind as string | null) ?? "screen") as BoardTokenKind,
     showClientNames: row.show_client_names === true,
     createdAt: row.created_at as string,
     expiresAt: (row.expires_at as string | null) ?? null,
@@ -55,18 +58,24 @@ export default async function BoardSettingsPage() {
   return (
     <WorkspacePage
       eyebrow="Sales Activity / Administration"
-      title="Papan live"
-      description="Tautan layar yang pernah dibuat: cabut yang tidak dipakai. Membuat tautan baru dilakukan dari halaman Papan live."
+      title="Tautan publik"
+      description="Setiap tautan yang pernah dibuat, dari dua jenis: layar TV dan kalender manajemen. Cabut yang tidak dipakai."
       action={<BackLink href="/workspace/settings" />}
     >
       <div className="mb-4 rounded-xl border border-dashed bg-muted/40 px-5 py-4 text-sm text-muted-foreground">
-        Tautan layar dibuat dari <strong className="text-foreground">Papan live</strong>: atur rentang, sales, lokasi, dan
-        panel di sana, lalu “Buat tautan layar” membawa pengaturan itu ke TV. Nama klien disamarkan kecuali dinyalakan
-        saat tautan dibuat; layar di ruang terbuka terbaca tamu, dan foto layar berjalan lebih jauh dari yang siapa pun kira.
-        <div className="mt-3">
+        Tautan dibuat di tempat yang ditampilkannya: <strong className="text-foreground">Papan live</strong> untuk layar TV
+        (rentang, sales, lokasi, dan panel ikut ke tautannya), <strong className="text-foreground">Kalender</strong> untuk
+        tautan jadwal yang dibuka manajemen tanpa login. Keduanya dicabut di sini. Nama klien mengikuti pilihan saat tautan
+        dibuat; layar di ruang terbuka terbaca tamu, dan foto layar berjalan lebih jauh dari yang siapa pun kira.
+        <div className="mt-3 flex flex-wrap gap-2">
           <Button asChild size="sm" variant="outline">
-            <Link href="/workspace/board">
+            <Link href={paths.board}>
               <MonitorPlay className="h-4 w-4" /> Buka Papan live
+            </Link>
+          </Button>
+          <Button asChild size="sm" variant="outline">
+            <Link href={paths.calendar}>
+              <CalendarDays className="h-4 w-4" /> Buka Kalender
             </Link>
           </Button>
         </div>

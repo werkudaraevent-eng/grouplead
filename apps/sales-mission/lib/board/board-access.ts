@@ -35,10 +35,33 @@ export function hashesMatch(a: string, b: string): boolean {
   return timingSafeEqual(left, right)
 }
 
+/**
+ * What a link opens. A screen link is for the TV; a calendar link is the
+ * read-only month calendar management opens in a browser. Two links, because
+ * one of them belongs on a wall and the other in an inbox, and because a link
+ * handed out for one purpose should not quietly work for the other.
+ */
+export type BoardTokenKind = "screen" | "calendar"
+
+export const BOARD_TOKEN_KINDS: readonly BoardTokenKind[] = ["screen", "calendar"] as const
+
+export const BOARD_TOKEN_KIND_LABELS: Record<BoardTokenKind, string> = {
+  screen: "Layar TV",
+  calendar: "Kalender manajemen",
+}
+
+/** The public URL a link of each kind is opened at. */
+export function boardTokenUrl(baseUrl: string, kind: BoardTokenKind, token: string): string {
+  return kind === "calendar"
+    ? `${baseUrl}/jadwal/${encodeURIComponent(token)}`
+    : `${baseUrl}/board?token=${encodeURIComponent(token)}`
+}
+
 export interface BoardTokenResolution {
   companyId: string
   tokenId: string
   label: string
+  kind: BoardTokenKind
   /** Bound to the link when it was made; the URL cannot change it. */
   showClientNames: boolean
 }
@@ -46,11 +69,11 @@ export interface BoardTokenResolution {
 /**
  * Resolve a raw token to the tenant it may display.
  *
- * Returns null for anything not currently usable — unknown, revoked, or
- * expired — without distinguishing between them. Telling a caller which of
- * those it was would confirm that a token once existed.
+ * Returns null for anything not currently usable — unknown, revoked, expired,
+ * or of the wrong kind — without distinguishing between them. Telling a caller
+ * which of those it was would confirm that a token once existed.
  */
-export async function resolveBoardToken(token: string): Promise<BoardTokenResolution | null> {
+export async function resolveBoardToken(token: string, kind: BoardTokenKind): Promise<BoardTokenResolution | null> {
   const trimmed = token.trim()
   if (!trimmed) return null
 
@@ -60,13 +83,15 @@ export async function resolveBoardToken(token: string): Promise<BoardTokenResolu
   const { data } = await supabase
     .schema("sales_mission")
     .from("board_tokens")
-    .select("id, company_id, label, token_hash, expires_at, revoked_at, show_client_names")
+    .select("id, company_id, label, kind, token_hash, expires_at, revoked_at, show_client_names")
     .eq("token_hash", hash)
     .maybeSingle()
 
   if (!data) return null
   if (!hashesMatch(data.token_hash as string, hash)) return null
   if (data.revoked_at) return null
+  // Rows written before the column existed are screen links.
+  if (((data.kind as string | null) ?? "screen") !== kind) return null
 
   const expiresAt = data.expires_at as string | null
   if (expiresAt && new Date(expiresAt).getTime() <= Date.now()) return null
@@ -83,6 +108,7 @@ export async function resolveBoardToken(token: string): Promise<BoardTokenResolu
     companyId: data.company_id as string,
     tokenId: data.id as string,
     label: data.label as string,
+    kind,
     showClientNames: data.show_client_names === true,
   }
 }
