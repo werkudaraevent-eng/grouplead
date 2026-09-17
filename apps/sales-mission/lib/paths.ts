@@ -37,6 +37,7 @@ export const paths = {
   /** The prospect and report lists with a filter/sort query. */
   prospectList: (query?: Query) => withQuery("/workspace/prospects", query),
   reportList: (query?: Query) => withQuery("/workspace/reports", query),
+  reportSummary: (query?: Query) => withQuery("/workspace/reports/ringkasan", query),
   guide: "/workspace/panduan",
   guideSection: (id: "hari-ini" | "aktivitas" | "laporan" | "prospek" | "izin" | "pasang") => `/workspace/panduan#${id}`,
   install: "/workspace/pasang",

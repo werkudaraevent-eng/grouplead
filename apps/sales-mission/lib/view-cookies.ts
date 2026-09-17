@@ -5,6 +5,7 @@ import { parseProspectPageParams } from "@/lib/prospects/prospect-paging"
 import { parseReportQuery, serializeReportQuery } from "@/lib/reporting/report-filter"
 import { parseReportPageParams } from "@/lib/reporting/report-paging"
 import { parseCalendarSales } from "@/lib/missions/calendar-filter"
+import { parseRingkasanQuery, serializeRingkasanQuery } from "@/lib/reporting/ringkasan-filter"
 
 /**
  * A list remembers how you last looked at it.
@@ -20,13 +21,14 @@ import { parseCalendarSales } from "@/lib/missions/calendar-filter"
  * it can never carry anything the URL could not.
  */
 
-export type ListKey = "activities" | "prospects" | "reports" | "calendar"
+export type ListKey = "activities" | "prospects" | "reports" | "calendar" | "ringkasan"
 
 export const VIEW_COOKIES: Record<ListKey, string> = {
   activities: "sa-view-activities",
   prospects: "sa-view-prospects",
   reports: "sa-view-reports",
   calendar: "sa-view-calendar",
+  ringkasan: "sa-view-ringkasan",
 }
 
 type Params = Record<string, string | string[] | undefined>
@@ -62,6 +64,9 @@ export function sanitizeView(list: ListKey, params: Params): string {
       if (sales.length) out.set("sales", sales.join(","))
       return out.toString()
     }
+    case "ringkasan":
+      // The period and whose visits; the daily card's day is a place.
+      return serializeRingkasanQuery({ ...parseRingkasanQuery(params), day: null }).toString()
   }
 }
 
