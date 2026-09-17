@@ -61,7 +61,12 @@ export async function updateMissionSettings(input: unknown): Promise<ActionResul
       { onConflict: "company_id" }
     )
 
-  if (error) return { success: false, error: "Pengaturan gagal disimpan." }
+  if (error) {
+    // The admin is the one person who can act on the real reason (a stale
+    // API schema, a constraint), so it is said in the toast, not only logged.
+    console.error("[updateMissionSettings]", error.code, error.message, error.details ?? "")
+    return { success: false, error: `Pengaturan gagal disimpan: ${error.message}` }
+  }
 
   revalidatePath("/workspace")
   revalidatePath(paths.activities())
