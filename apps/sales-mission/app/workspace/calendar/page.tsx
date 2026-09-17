@@ -55,14 +55,16 @@ export default async function CalendarPage({
   const grid = buildMonthGrid(month, missions, now)
   // How many week rows the month needs, so the grid can share the height
   // from lg. Literal classes, one per possible count, so Tailwind emits
-  // them; below lg the rows size to their content. The 4.5rem floor is
-  // the cell's own: a row may never be shorter than what it holds, or the
-  // days overlap; when the floors do not fit, the card scrolls inside.
+  // them; below lg the rows size to their content. From lg each cell is a
+  // size container (`.cal-cell` in globals.css): its content never sizes
+  // the row, and the cell shows as many visits as its height allows, then
+  // "+N lagi" (Google Calendar's month rule). No floors, so nothing can
+  // overflow the card, whatever the screen height.
   const weekRows = Math.ceil((grid.leadingBlanks + grid.days.length) / 7)
   const WEEK_ROWS: Record<number, string> = {
-    4: "lg:grid-rows-[auto_repeat(4,minmax(4.5rem,1fr))]",
-    5: "lg:grid-rows-[auto_repeat(5,minmax(4.5rem,1fr))]",
-    6: "lg:grid-rows-[auto_repeat(6,minmax(4.5rem,1fr))]",
+    4: "lg:grid-rows-[auto_repeat(4,minmax(0,1fr))]",
+    5: "lg:grid-rows-[auto_repeat(5,minmax(0,1fr))]",
+    6: "lg:grid-rows-[auto_repeat(6,minmax(0,1fr))]",
   }
   const monthTotal = grid.days.reduce((sum, day) => sum + day.missionCount, 0)
   const timeOf = (iso: string | null) =>
@@ -136,7 +138,7 @@ export default async function CalendarPage({
             </div>
           </div>
 
-          <div className="flex min-h-0 flex-1 flex-col p-5 lg:overflow-y-auto">
+          <div className="flex min-h-0 flex-1 flex-col p-5">
             {/*
               Material has no "calendar with events" component; its date picker
               marks only today and the selection. Its badge does apply: a small
@@ -166,7 +168,7 @@ export default async function CalendarPage({
                     aria-label={`${day.dayOfMonth}, ${day.missionCount} aktivitas`}
                     aria-current={selected ? "date" : undefined}
                     className={cn(
-                      "relative flex h-11 min-w-0 flex-col items-center justify-center overflow-hidden rounded-lg border border-transparent text-xs transition-colors md:h-auto md:min-h-[4.5rem] md:items-stretch md:justify-start md:p-1.5",
+                      "cal-cell relative flex h-11 min-w-0 flex-col items-center justify-center overflow-hidden rounded-lg border border-transparent text-xs transition-colors md:h-auto md:min-h-[4.5rem] md:items-stretch md:justify-start md:p-1.5 lg:min-h-0",
                       selected
                         ? "bg-primary font-bold text-primary-foreground"
                         : day.isToday
@@ -178,7 +180,7 @@ export default async function CalendarPage({
                     {day.missionCount > 0 && (
                       <span
                         className={cn(
-                          "absolute right-1 top-1 grid h-4 min-w-4 place-items-center rounded-full px-1 text-[10px] font-bold leading-none md:hidden",
+                          "cal-badge absolute right-1 top-1 grid h-4 min-w-4 place-items-center rounded-full px-1 text-[10px] font-bold leading-none md:hidden",
                           selected ? "bg-primary-foreground text-primary" : "bg-accent text-accent-foreground"
                         )}
                       >
@@ -186,12 +188,13 @@ export default async function CalendarPage({
                       </span>
                     )}
                     {shown.length > 0 && (
-                      <span className="mt-1 hidden min-w-0 flex-col gap-0.5 md:flex">
-                        {shown.map((mission) => (
+                      <span className="cal-chips mt-1 hidden min-w-0 flex-col gap-0.5 md:flex">
+                        {shown.map((mission, index) => (
                           <span
                             key={mission.id}
                             className={cn(
                               "block truncate rounded px-1 text-[10px] font-medium leading-4",
+                              index === 1 && "cal-chip-2",
                               selected ? "bg-primary-foreground/15 text-primary-foreground" : "bg-primary/10 text-primary"
                             )}
                             title={`${timeOf(mission.scheduledStart)} ${mission.clientCompanyName}`}
@@ -199,9 +202,16 @@ export default async function CalendarPage({
                             <span className="tabular-nums">{timeOf(mission.scheduledStart)}</span> {mission.clientCompanyName}
                           </span>
                         ))}
+                        {/* Two counts, one shown: the tall cell hides the second
+                            chip's worth, the short cell (container query) counts it. */}
                         {more > 0 && (
-                          <span className={cn("px-1 text-[10px] font-medium leading-4", selected ? "text-primary-foreground/80" : "text-muted-foreground")}>
+                          <span className={cn("cal-more-tall px-1 text-[10px] font-medium leading-4", selected ? "text-primary-foreground/80" : "text-muted-foreground")}>
                             +{more} lagi
+                          </span>
+                        )}
+                        {shown.length > 1 && (
+                          <span className={cn("cal-more-short hidden px-1 text-[10px] font-medium leading-4", selected ? "text-primary-foreground/80" : "text-muted-foreground")}>
+                            +{more + 1} lagi
                           </span>
                         )}
                       </span>

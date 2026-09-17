@@ -378,3 +378,23 @@ html.sidebar-dark-mode {
   .app-transit, .shell-in { animation: none; }
 }
 
+/*
+  Kalender, month view from lg: a day cell is a size container, so its
+  content never sizes the week row (the rows share the card's height), and
+  what it shows follows its height: the first two visits and "+N lagi"
+  when tall, one visit and the rest counted when short, a numbered badge
+  alone when there is no room for a chip at all (Google Calendar's rule:
+  as many as fit, then "+N more").
+*/
+@media (min-width: 64rem) {
+  .cal-cell { container-type: size; }
+}
+@container (max-height: 5.75rem) {
+  .cal-cell .cal-chip-2 { display: none; }
+  .cal-cell .cal-more-tall { display: none; }
+  .cal-cell .cal-more-short { display: block; }
+}
+@container (max-height: 3.5rem) {
+  .cal-cell .cal-chips { display: none; }
+  .cal-cell .cal-badge { display: grid; }
+}
