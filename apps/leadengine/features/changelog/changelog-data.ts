@@ -51,6 +51,14 @@ export const CHANGE_TYPE_META: Record<
 
 export const CHANGELOG: ChangelogEntry[] = [
     {
+        date: "2026-09-17",
+        title: "The drawer keeps destinations",
+        items: [
+            { type: "improvement", text: "Administration in the sidebar is Settings only. Your profile, the changelog, the light or dark panel and Sign out live behind your name at the foot of the drawer, the same pattern as Sales Activity." },
+            { type: "fix", text: "That account menu now takes the panel's own colours: dark when the panel is dark, and closing it leaves no focus ring on your name." },
+        ],
+    },
+    {
         date: "2026-09-16",
         title: "Contacts and Companies, tidied",
         items: [

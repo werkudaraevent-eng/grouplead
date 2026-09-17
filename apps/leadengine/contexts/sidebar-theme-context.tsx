@@ -25,14 +25,17 @@ export function SidebarThemeProvider({ children }: { children: ReactNode }) {
         const stored = localStorage.getItem("sidebar-panel-theme")
         if (stored === "dark") setIsDarkPanel(true)
         setMounted(true)
-        // Clean up the pre-hydration CSS class — React now controls the theme
-        document.documentElement.classList.remove("sidebar-dark-mode")
+        // Keep the root class in step with the state rather than removing it:
+        // surfaces rendered in a portal (the account menu) read the panel
+        // tokens from <html>, not from the sidebar element.
+        document.documentElement.classList.toggle("sidebar-dark-mode", stored === "dark")
     }, [])
 
     const togglePanel = useCallback(() => {
         setIsDarkPanel(prev => {
             const next = !prev
             localStorage.setItem("sidebar-panel-theme", next ? "dark" : "light")
+            document.documentElement.classList.toggle("sidebar-dark-mode", next)
 
             // Persist to Supabase in background (fire-and-forget)
             const supabase = createClient()
