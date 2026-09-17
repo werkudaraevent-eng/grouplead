@@ -16,7 +16,7 @@ export default function ContactsLoading() {
                     <div className="h-10 w-10 animate-pulse rounded-full bg-muted" />
                 </div>
             </div>
-            <div className="h-11 border-b border-border bg-sidebar" />
+            <div className="h-11 border-b border-border bg-muted" />
             {Array.from({ length: 8 }).map((_, i) => (
                 <div key={i} className="h-13 animate-pulse border-b border-border/70 bg-card" />
             ))}

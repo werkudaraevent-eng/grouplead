@@ -56,6 +56,7 @@ export const CHANGELOG: ChangelogEntry[] = [
         items: [
             { type: "improvement", text: "Administration in the sidebar is Settings only. Your profile, the changelog, the light or dark panel and Sign out live behind your name at the foot of the drawer, the same pattern as Sales Activity." },
             { type: "fix", text: "That account menu now takes the panel's own colours: dark when the panel is dark, and closing it leaves no focus ring on your name." },
+            { type: "fix", text: "Table headers no longer turn dark with the sidebar panel; they sit on the content's own light surface." },
         ],
     },
     {
