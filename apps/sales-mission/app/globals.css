@@ -17,6 +17,7 @@
   --color-sidebar-primary: var(--sidebar-primary);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar: var(--sidebar);
+  --color-chart-6: var(--chart-6);
   --color-chart-5: var(--chart-5);
   --color-chart-4: var(--chart-4);
   --color-chart-3: var(--chart-3);
@@ -108,11 +109,16 @@
      navigation indicator already uses. */
   --tonal: #D9E4F5;
   --tonal-foreground: #02378D;
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
+  /* Chart series, from the brand and its semantic inks. Each clears 3:1
+     on --card (WCAG 1.4.11 for graphical objects): navy 12.9:1, green
+     4.6:1, amber 3.2:1, slate blue 4.4:1, rust 6.3:1, grey 4.9:1. The
+     accent #F9BB46 itself is 1.6:1 and is never a bar. */
+  --chart-1: #02378D;
+  --chart-2: #3D7A5C;
+  --chart-3: #B77A0F;
+  --chart-4: #5B7BB4;
+  --chart-5: #93400A;
+  --chart-6: #5F6B76;
   /* Navigation panel = surface-container-low. The active item is the M3
      secondary-container indicator: a tinted fill with the primary as its text,
      no shadow, because an indicator is a state, not a raised object. Inactive

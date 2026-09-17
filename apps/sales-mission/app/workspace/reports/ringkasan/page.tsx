@@ -1,212 +1,102 @@
-import Link from "next/link"
 import { redirect } from "next/navigation"
-import {
-  AlertTriangle,
-  CheckCircle2,
-  Download,
-  Send,
-  Sparkles,
-  Clock,
-  Target,
-  UserCheck,
-  Users,
-} from "@/components/icons"
-import { canPerform, getSalesMissionAccess } from "@/lib/sales-mission-access"
+import { Download } from "@/components/icons"
+import { canPerform, getReadScope, getSalesMissionAccess } from "@/lib/sales-mission-access"
 import { requireModule } from "@/lib/missions/nav-access"
-import { listReportRecords } from "@/lib/reporting/report-queries"
-import { buildKpiReport, currentMonthRange, type Breakdown } from "@/lib/reporting/kpi"
-import { EmptyState, WorkspacePage } from "@/app/workspace/workspace-page"
-import { getProspectFunnel } from "@/lib/prospects/prospect-page-queries"
+import { listTenantSales } from "@/lib/missions/mission-queries"
 import { listReportChoices } from "@/lib/missions/report-choice-queries"
-import { ON_TIME_GRACE_MINUTES } from "@/lib/missions/visit-time"
-import { FunnelCard } from "../funnel-card"
-import { ReportTabs } from "../report-tabs"
+import { resolveSales } from "@/lib/missions/mission-filter"
+import { describeReadScope } from "@/lib/access/record-scope"
+import { mergeLayout, modeOf, resolveWidgets } from "@/lib/reporting/dashboard-layout"
+import { readDashboardLayout } from "@/lib/reporting/dashboard-layout-queries"
+import { labelContext, loadWidgetData, salesIdsSeen } from "@/lib/reporting/dashboard-queries"
+import { parseRingkasanQuery, resolveReportDay, resolveRingkasanRange } from "@/lib/reporting/ringkasan-filter"
+import { presentWidget, type WidgetView } from "@/lib/reporting/widget-view"
+import { rememberedView } from "@/lib/remembered-view"
+import { RememberView } from "@/components/remember-view"
+import { WorkspacePage } from "@/app/workspace/workspace-page"
 import { Button } from "@/components/ui/button"
+import { paths } from "@/lib/paths"
+import { ReportTabs } from "../report-tabs"
+import { DashboardEditor, type CardData } from "./dashboard-editor"
+import type { WidgetMode } from "@/lib/reporting/cube"
 
 export const dynamic = "force-dynamic"
 
-const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/
-
-function Metric({
-  icon: Icon,
-  label,
-  value,
-  hint,
-  tone,
-}: {
-  icon: typeof Target
-  label: string
-  value: string
-  hint?: string
-  tone: string
-}) {
-  return (
-    <article className="rounded-xl border bg-card p-5">
-      <div className="flex items-center gap-3">
-        <span className={`grid h-9 w-9 place-items-center rounded-lg ${tone}`}>
-          <Icon className="h-[17px] w-[17px]" />
-        </span>
-        <p className="text-sm font-medium text-muted-foreground">{label}</p>
-      </div>
-      <p className="mt-4 text-3xl font-semibold tracking-tight text-foreground">{value}</p>
-      {hint && <p className="mt-1 text-xs text-muted-foreground">{hint}</p>}
-    </article>
-  )
-}
-
-function BreakdownCard({
-  title,
-  rows,
-  emptyText,
-}: {
-  title: string
-  rows: Breakdown[]
-  emptyText: string
-}) {
-  const max = rows.reduce((highest, row) => Math.max(highest, row.submitted), 0)
-
-  return (
-    <article className="overflow-hidden rounded-xl border bg-card">
-      <div className="border-b px-5 py-4">
-        <h2 className="text-base font-semibold text-foreground">{title}</h2>
-      </div>
-
-      {rows.length > 0 ? (
-        <ul className="divide-y">
-          {rows.slice(0, 8).map((row) => (
-            <li key={row.key} className="px-5 py-3.5">
-              <div className="flex items-baseline justify-between gap-3">
-                <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">{row.label}</span>
-                <span className="shrink-0 font-mono text-sm tabular-nums text-foreground">{row.submitted}</span>
-              </div>
-              {/* Bar makes the distribution readable at a glance; the number
-                  stays for anyone who needs the exact figure. */}
-              <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted">
-                <div
-                  className="h-full rounded-full bg-primary"
-                  style={{ width: `${max === 0 ? 0 : (row.submitted / max) * 100}%` }}
-                />
-              </div>
-              {row.opportunities > 0 && (
-                <p className="mt-1.5 text-xs text-muted-foreground">{row.opportunities} peluang</p>
-              )}
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p className="px-5 py-6 text-sm text-muted-foreground">{emptyText}</p>
-      )}
-    </article>
-  )
-}
-
 /**
- * Ringkasan: the KPIs over the visit reports, for a date range. The list
- * of the reports themselves is the other tab.
+ * Ringkasan: the summary as a board of cards over one period and one set
+ * of people. Each card is one question of the cube (or one of the three
+ * special loaders), answered here on the server and handed to the board
+ * as plain data; the board arranges, resizes and switches modes without
+ * asking again.
  */
-export default async function ReportSummaryPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ from?: string; to?: string }>
-}) {
+export default async function ReportSummaryPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const access = await getSalesMissionAccess()
   if (!access) redirect("/login?error=access_not_provisioned")
   await requireModule(access, "sales_mission_result")
 
-  const now = new Date()
   const params = await searchParams
-  const fallback = currentMonthRange(now)
+  const remembered = await rememberedView("ringkasan", params)
+  if (remembered) redirect(paths.reportSummary(remembered))
 
-  // An unparseable range falls back to this month rather than showing an empty
-  // report that looks like "no activity".
-  const range = {
-    from: params.from && DATE_PATTERN.test(params.from) ? params.from : fallback.from,
-    to: params.to && DATE_PATTERN.test(params.to) ? params.to : fallback.to,
-  }
+  const now = new Date()
+  const query = parseRingkasanQuery(params)
+  const range = resolveRingkasanRange(query, now)
+  const sales = resolveSales(query.sales, access.userId)
+  const day = resolveReportDay(query, range, now)
 
-  const [records, funnel, choices] = await Promise.all([
-    listReportRecords(access),
-    (await canPerform(access, "sales_mission_prospect", "read")) ? getProspectFunnel(access, range) : Promise.resolve(null),
+  const [people, choices, saved, canSeeProspects, readScope] = await Promise.all([
+    listTenantSales(access),
     listReportChoices(access),
+    readDashboardLayout(access),
+    canPerform(access, "sales_mission_prospect", "read"),
+    getReadScope(access, "sales_mission_result"),
   ])
-  const report = buildKpiReport(records, now, range, choices)
-  const currency = new Intl.NumberFormat("id-ID", { maximumFractionDigits: 0 })
+  const layout = mergeLayout(saved, { canSeeProspects })
+  const { visible, hidden } = resolveWidgets(layout)
+
+  const data = await Promise.all(visible.map((widget) => loadWidgetData(access, widget, { range, sales, day, choices, now })))
+  const ctx = await labelContext(access, salesIdsSeen(data))
+
+  const cards: CardData[] = visible.map((widget, index) => {
+    const modes: readonly WidgetMode[] = widget.source === "cube" && widget.modes?.length ? widget.modes : ["umum"]
+    const views: Partial<Record<WidgetMode, WidgetView>> = {}
+    for (const mode of modes) views[mode] = presentWidget(widget, data[index], mode, ctx, range)
+    if (!views.umum) views.umum = presentWidget(widget, data[index], modeOf(layout, widget), ctx, range)
+    return { id: widget.id, config: widget, views, truncated: data[index].source === "cube" && data[index].truncated }
+  })
+
+  const exportQuery = new URLSearchParams({ from: range.from, to: range.to })
 
   return (
     <WorkspacePage
       eyebrow="Sales Activity / Reporting"
       title="Laporan"
-      description="Ringkasan dihitung dari laporan kunjungan yang sudah dikirim. Draf tidak ikut."
+      description={[describeReadScope(readScope, "laporan"), "Ringkasan dihitung dari laporan yang sudah dikirim; draf tidak ikut. Saring periode dan sales di atas; semua kartu mengikuti."].filter(Boolean).join(" ")}
       action={
         <>
           <Button asChild size="sm">
-            <a href={`/workspace/reports/export?from=${range.from}&to=${range.to}&format=xlsx`}>
+            <a href={`/workspace/reports/export?${exportQuery.toString()}&format=xlsx`}>
               <Download className="h-4 w-4" /> Ekspor Excel
             </a>
           </Button>
           <Button asChild variant="outline" size="sm">
-            <a href={`/workspace/reports/export?from=${range.from}&to=${range.to}`}>CSV</a>
+            <a href={`/workspace/reports/export?${exportQuery.toString()}`}>CSV</a>
           </Button>
         </>
       }
     >
       <ReportTabs />
-
-      <form className="mb-4 flex flex-wrap items-end gap-3 rounded-xl border bg-card px-5 py-4" action="/workspace/reports/ringkasan">
-        <div className="space-y-1.5">
-          <label className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground" htmlFor="from">Dari</label>
-          <input id="from" name="from" type="date" defaultValue={range.from} className="h-10 w-full rounded-md border border-input bg-field px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50" />
-        </div>
-        <div className="space-y-1.5">
-          <label className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground" htmlFor="to">Sampai</label>
-          <input id="to" name="to" type="date" defaultValue={range.to} className="h-10 w-full rounded-md border border-input bg-field px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50" />
-        </div>
-        <Button type="submit" size="sm" className="h-10">Terapkan</Button>
-        <Link href="/workspace/reports/ringkasan" className="text-sm font-medium text-primary hover:underline">Bulan ini</Link>
-      </form>
-
-      {report.summary.resultsSubmitted === 0 ? (
-        <EmptyState
-          title="Belum ada laporan pada rentang ini"
-          description="Angka di sini muncul begitu sales mengirim laporan kunjungan. Coba lebarkan rentang tanggalnya."
-        />
-      ) : (
-        <>
-          <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            <Metric icon={CheckCircle2} label="Laporan dikirim" value={String(report.summary.resultsSubmitted)} tone="bg-primary/10 text-primary" />
-            <Metric icon={Sparkles} label="Peluang" value={String(report.summary.opportunities)} hint={`Rp ${currency.format(report.summary.estimatedValueTotal)} estimasi`} tone="bg-[var(--success)] text-[var(--success-foreground)]" />
-            <Metric icon={Target} label="Next action terbuka" value={String(report.summary.openNextActions)} hint={report.summary.overdueNextActions > 0 ? `${report.summary.overdueNextActions} lewat tanggal` : "Semua masih dalam tenggat"} tone="bg-[var(--warning)] text-[var(--warning-foreground)]" />
-            <Metric icon={Users} label="Kontak ditemukan" value={String(report.summary.contactsDiscovered)} tone="bg-secondary text-secondary-foreground" />
-          </section>
-
-          <section className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            <Metric icon={UserCheck} label="Bertemu pengambil keputusan" value={`${report.summary.decisionMakerRate}%`} hint="dari laporan yang dikirim" tone="bg-primary/10 text-primary" />
-            <Metric icon={Send} label="Lead dikirim ke CRM" value={String(report.summary.leadsPushed)} tone="bg-[var(--success)] text-[var(--success-foreground)]" />
-            <Metric icon={AlertTriangle} label="Perlu klarifikasi" value={String(report.summary.needsClarification)} tone="bg-[var(--danger)] text-[var(--danger-foreground)]" />
-            <Metric
-              icon={Clock}
-              label="Tepat waktu"
-              value={report.summary.onTimeRate === null ? "—" : `${report.summary.onTimeRate}%`}
-              hint={report.summary.onTimeRate === null ? "Belum ada laporan yang mencatat jam kunjungan" : `toleransi ${ON_TIME_GRACE_MINUTES} menit${report.summary.averageVisitMinutes ? ` · rata-rata ${report.summary.averageVisitMinutes} menit per kunjungan` : ""}`}
-              tone="bg-secondary text-secondary-foreground"
-            />
-          </section>
-
-          <section className="mt-4 grid gap-4 xl:grid-cols-2">
-            <BreakdownCard title="Per sales" rows={report.bySales} emptyText="Belum ada data." />
-            <BreakdownCard title="Per klien" rows={report.byCompany} emptyText="Belum ada data." />
-            <BreakdownCard title="Per tipe aktivitas" rows={report.byMissionType} emptyText="Belum ada data." />
-            <BreakdownCard title="Per tingkat minat" rows={report.byInterest} emptyText="Belum ada data." />
-            <BreakdownCard title="Lead ke CRM per kategori" rows={report.byPushedCategory} emptyText="Belum ada lead yang dikirim pada rentang ini." />
-          </section>
-        </>
-      )}
-
-      {funnel && (
-        <section className="mt-4 grid gap-4 xl:grid-cols-2">
-          <FunnelCard counts={funnel} />
-        </section>
-      )}
+      <RememberView list="ringkasan" />
+      <DashboardEditor
+        query={query}
+        range={range}
+        sales={sales}
+        people={people.map((person) => ({ id: person.id, name: person.name, avatarUrl: person.avatarUrl }))}
+        initialLayout={layout}
+        cards={cards}
+        hidden={hidden}
+        canSeeProspects={canSeeProspects}
+      />
     </WorkspacePage>
   )
 }

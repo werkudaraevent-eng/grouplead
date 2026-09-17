@@ -27,6 +27,16 @@ export const CHANGE_KIND_LABELS: Record<ChangeKind, string> = {
 
 export const CHANGELOG: ChangeEntry[] = [
   {
+    date: "2026-09-18",
+    title: "Ringkasan yang bisa disusun sendiri",
+    items: [
+      { kind: "baru", text: "Ringkasan laporan kini berupa kartu: kunjungan per hari, kunjungan vs appointment, appointment vs planning, tingkat minat, kunjungan per industri, dan daftar laporan per hari. Saring periode dan sales di atas; semua kartu mengikuti, dan kartu yang punya Umum / Per sales bisa diganti di tempat." },
+      { kind: "baru", text: "Atur widget: geser urutan (tekan dan tahan di ponsel, Alt + panah dengan keyboard), ubah ukuran, sembunyikan, tampilkan lagi. Susunan diingat per orang di semua perangkat." },
+      { kind: "baru", text: "Widget baru: susun kartu sendiri dari ukuran (kunjungan, appointment, planning, lead ke CRM, peluang, nilai estimasi), pengelompokan, pemecahan, dan bentuk grafik. Sampai 12 kartu per orang." },
+      { kind: "lebih-baik", text: "Ringkasan dihitung di database untuk periode yang dipilih, bukan memuat semua laporan lalu menyaring. Angka utama, per klien, per jenis aktivitas, lead per kategori, dan corong prospek tetap ada sebagai widget yang bisa ditampilkan." },
+    ],
+  },
+  {
     date: "2026-09-17",
     title: "Ditunda, jadwal menyusul",
     items: [

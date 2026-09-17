@@ -5,6 +5,7 @@ import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { Check, Copy, Link2, Loader2, MonitorPlay, Pause, Play, Settings2, SlidersHorizontal } from "@/components/icons"
+import { Segmented } from "@/components/segmented"
 import { createBoardToken } from "@/app/actions/board-token-actions"
 import { FacetSelect } from "@/components/facet-select"
 import { PersonAvatar } from "@/components/person-avatar"
@@ -69,29 +70,6 @@ function useBoardUrl(options: BoardOptions) {
   return { push, pending, router }
 }
 
-function Segmented({ value, onChange }: { value: BoardOptions["range"]; onChange: (next: BoardOptions["range"]) => void }) {
-  return (
-    <div role="radiogroup" aria-label="Rentang" className="inline-flex h-10 rounded-full border bg-card p-0.5 md:h-9">
-      {BOARD_RANGES.map((range) => (
-        <button
-          key={range}
-          type="button"
-          role="radio"
-          aria-checked={value === range}
-          onClick={() => onChange(range)}
-          className={cn(
-            "inline-flex items-center gap-1.5 rounded-full px-3.5 text-sm font-medium transition-colors",
-            value === range ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-muted"
-          )}
-        >
-          {value === range && <Check className="h-3.5 w-3.5" />}
-          {BOARD_RANGE_LABELS[range]}
-        </button>
-      ))}
-    </div>
-  )
-}
-
 export function BoardToolbar({
   options,
   people,
@@ -123,7 +101,12 @@ export function BoardToolbar({
 
   return (
     <div className="mb-4 flex flex-wrap items-center gap-2">
-      <Segmented value={options.range} onChange={(range) => push({ ...options, range })} />
+      <Segmented
+        label="Rentang"
+        value={options.range}
+        options={BOARD_RANGES.map((range) => ({ value: range, label: BOARD_RANGE_LABELS[range] }))}
+        onChange={(range) => push({ ...options, range })}
+      />
       <FacetSelect
         label="Sales"
         options={people.map((person) => ({ value: person.id, label: person.name }))}
