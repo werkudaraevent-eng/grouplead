@@ -5,9 +5,10 @@ import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import {
     LayoutDashboard, KanbanSquare, Building2, Users,
-    LogOut, ChevronLeft, ChevronsLeft, Settings, Loader2, Moon, Sun, History, ScrollText,
+    LogOut, ChevronLeft, ChevronsLeft, Settings, Loader2, Moon, Sun, History, ScrollText, MoreVertical, UserCircle,
 } from "@/components/icons"
 import { Button } from "@/components/ui/button"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { CompanySwitcherHeader } from "@/components/layout/company-switcher"
 import dynamic from "next/dynamic"
 
@@ -46,10 +47,18 @@ const mainNav = [
     { href: "/history", label: "History", icon: History, module: null },
 ]
 
+// Administration is administration. Supporting pages (the changelog, the
+// profile), the panel toggle and sign-out live behind the account menu at
+// the foot of the drawer, the same pattern as Sales Activity: Material's
+// drawer holds destinations, and Slack, Notion and Linear keep help and
+// release notes off the rail.
 const adminNav = [
     { href: "/settings", label: "Settings", icon: Settings },
-    { href: "/changelog", label: "Changelog", icon: ScrollText },
 ]
+
+/** Menu rows on the panel's own tokens: hover/focus as a tonal state layer, icons in the panel's muted ink. */
+const ACCOUNT_MENU_ITEMS =
+    "[&_[role=menuitem]]:text-sidebar-accent-foreground [&_[role=menuitem]]:focus:bg-sidebar-accent [&_[role=menuitem]]:focus:text-sidebar-accent-foreground [&_[role=menuitem]_svg:not([class*='text-'])]:text-sidebar-foreground"
 
 interface UserProfile {
     full_name: string | null
@@ -237,57 +246,77 @@ export function Sidebar({ onCollapse, isSheet = false, collapsed = false, onTogg
             </nav>
 
             <div className={`border-t py-3 shrink-0 space-y-2 border-sidebar-border ${collapsed ? "px-1.5" : "px-3"}`}>
-                {!collapsed && (
-                    <button
-                        onClick={togglePanel}
-                        className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[12px] font-medium transition-all duration-150 text-sidebar-foreground hover:text-sidebar-accent-foreground hover:bg-sidebar-accent"
-                    >
-                        {isDarkPanel ? <Sun className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}
-                        <span>{isDarkPanel ? "Switch to Light Panel" : "Switch to Dark Panel"}</span>
-                    </button>
-                )}
-                {collapsed && (
-                    <button
-                        onClick={togglePanel}
-                        className="w-full flex items-center justify-center p-2.5 rounded-lg text-sidebar-foreground hover:text-sidebar-accent-foreground hover:bg-sidebar-accent"
-                        title={isDarkPanel ? "Light mode" : "Dark mode"}
-                    >
-                        {isDarkPanel ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-                    </button>
-                )}
-
-                {!collapsed && (
-                    <div className="flex items-center gap-3 px-2 py-2 rounded-lg transition-colors hover:bg-sidebar-accent/50">
-                        <Link href="/settings/profile" onClick={isSheet ? onCollapse : undefined} className="flex items-center gap-3 flex-1 min-w-0">
-                            <div className="w-9 h-9 rounded-full bg-sidebar-accent text-sidebar-accent-foreground flex items-center justify-center text-sm font-bold shrink-0 overflow-hidden">
+                {/* The account menu: who you are, your profile, the changelog, the
+                    panel, and the way out. One trigger, one menu on the panel's own
+                    tokens; focus does not jump back on close, so a mouse user never
+                    gets a focus ring for nothing. */}
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        {!collapsed ? (
+                            <button
+                                type="button"
+                                aria-label="Account menu"
+                                className="flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left transition-colors hover:bg-sidebar-accent/50 focus-visible:outline-none focus-visible:bg-sidebar-accent data-[state=open]:bg-sidebar-accent"
+                            >
+                                <span className="w-9 h-9 rounded-full bg-sidebar-accent text-sidebar-accent-foreground flex items-center justify-center text-sm font-bold shrink-0 overflow-hidden">
                                 {profile?.avatar_url ? (
                                     // eslint-disable-next-line @next/next/no-img-element
                                     <img src={profile.avatar_url} alt={profile.full_name ?? "Avatar"} className="w-full h-full object-cover" />
                                 ) : getInitials(profile?.full_name ?? null)}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                                <p className="text-sm font-semibold truncate leading-tight text-sidebar-accent-foreground">{profile?.full_name || "Loading..."}</p>
-                                <p className="text-[11px] truncate text-sidebar-foreground/50">{getRoleLabel(profile?.role ?? null)}</p>
-                            </div>
-                        </Link>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-sidebar-foreground/30 hover:text-sidebar-foreground hover:bg-sidebar-accent" onClick={handleLogout} disabled={loggingOut} aria-label="Sign out">
-                            {loggingOut ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogOut className="h-4 w-4" />}
-                        </Button>
-                    </div>
-                )}
-                {collapsed && (
-                    <div className="flex flex-col items-center gap-2">
-                        <Link href="/settings/profile" className="w-9 h-9 rounded-full bg-sidebar-accent text-sidebar-accent-foreground flex items-center justify-center text-sm font-bold overflow-hidden" title={profile?.full_name || "Profile"}>
-                            {profile?.avatar_url ? (
-                                // eslint-disable-next-line @next/next/no-img-element
-                                <img src={profile.avatar_url} alt={profile.full_name ?? "Avatar"} className="w-full h-full object-cover" />
-                            ) : getInitials(profile?.full_name ?? null)}
-                        </Link>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-sidebar-foreground/30 hover:text-sidebar-foreground hover:bg-sidebar-accent" onClick={handleLogout} disabled={loggingOut} aria-label="Sign out">
-                            {loggingOut ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogOut className="h-4 w-4" />}
-                        </Button>
-                    </div>
-                )}
+                            </span>
+                                <span className="flex-1 min-w-0">
+                                    <span className="block text-sm font-semibold truncate leading-tight text-sidebar-accent-foreground">{profile?.full_name || "Loading..."}</span>
+                                    <span className="block text-[11px] truncate text-sidebar-foreground/60">{getRoleLabel(profile?.role ?? null)}</span>
+                                </span>
+                                <MoreVertical className="h-4 w-4 shrink-0 text-sidebar-foreground" aria-hidden="true" />
+                            </button>
+                        ) : (
+                            <button
+                                type="button"
+                                aria-label="Account menu"
+                                title={profile?.full_name || "Account"}
+                                className="mx-auto grid place-items-center rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-accent-foreground/40 data-[state=open]:ring-2 data-[state=open]:ring-sidebar-accent-foreground/40"
+                            >
+                                <span className="w-9 h-9 rounded-full bg-sidebar-accent text-sidebar-accent-foreground flex items-center justify-center text-sm font-bold shrink-0 overflow-hidden">
+                                {profile?.avatar_url ? (
+                                    // eslint-disable-next-line @next/next/no-img-element
+                                    <img src={profile.avatar_url} alt={profile.full_name ?? "Avatar"} className="w-full h-full object-cover" />
+                                ) : getInitials(profile?.full_name ?? null)}
+                            </span>
+                            </button>
+                        )}
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent
+                        align="start"
+                        side="top"
+                        sideOffset={8}
+                        onCloseAutoFocus={(event) => event.preventDefault()}
+                        className={`w-60 border-sidebar-border bg-sidebar text-sidebar-accent-foreground shadow-lg ${ACCOUNT_MENU_ITEMS}`}
+                    >
+                        <div className="px-2 py-1.5">
+                            <p className="truncate text-sm font-semibold">{profile?.full_name || "Account"}</p>
+                            <p className="truncate text-xs text-sidebar-foreground">{getRoleLabel(profile?.role ?? null)}</p>
+                        </div>
+                        <DropdownMenuSeparator className="bg-sidebar-border" />
+                        <DropdownMenuItem asChild>
+                            <Link href="/settings/profile" onClick={isSheet ? onCollapse : undefined}><UserCircle className="h-4 w-4" /> My profile</Link>
+                        </DropdownMenuItem>
+                        {showAdminNav && (
+                            <DropdownMenuItem asChild>
+                                <Link href="/changelog" onClick={isSheet ? onCollapse : undefined}><ScrollText className="h-4 w-4" /> Changelog</Link>
+                            </DropdownMenuItem>
+                        )}
+                        <DropdownMenuSeparator className="bg-sidebar-border" />
+                        <DropdownMenuItem onSelect={togglePanel}>
+                            {isDarkPanel ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+                            {isDarkPanel ? "Switch to light panel" : "Switch to dark panel"}
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator className="bg-sidebar-border" />
+                        <DropdownMenuItem onSelect={handleLogout} disabled={loggingOut} className="text-destructive focus:text-destructive">
+                            {loggingOut ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogOut className="h-4 w-4" />} Sign out
+                        </DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
 
             </div>
 
