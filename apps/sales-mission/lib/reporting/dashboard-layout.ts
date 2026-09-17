@@ -7,11 +7,13 @@ import {
   PROSPECT_MEASURES,
   WIDGET_MODES,
   WIDGET_SIZES,
-  SIZE_CELLS,
+  GRID_COLS,
+  SIZE_BOX,
   builtinWidget,
-  minSizeFor,
-  sizeFromCells,
+  clampBox,
+  minBoxFor,
   validateWidget,
+  type Box,
   type CubeWidget,
   type WidgetConfig,
   type WidgetMode,
@@ -31,12 +33,18 @@ export const MAX_CUSTOM_WIDGETS = 12
 export const CUSTOM_ID = /^c_[a-z0-9]{6,16}$/
 const UUID = /^[0-9a-f-]{36}$/i
 
+/** Where a card sits and how big it is, in grid units (twelve columns, rows of 40px). */
+export interface Position extends Box {
+  x: number
+  y: number
+}
+
 export interface DashboardLayout {
   version: typeof LAYOUT_VERSION
-  /** Visible ids, in order. */
+  /** Visible ids, in order; the place a card without a position is appended. */
   order: string[]
   hidden: string[]
-  sizes: Record<string, WidgetSize>
+  positions: Record<string, Position>
   modes: Record<string, WidgetMode>
   custom: CubeWidget[]
 }
@@ -62,12 +70,18 @@ export const customWidgetSchema = z
   })
 
 const idList = z.array(z.string().max(40)).max(60)
+const positionSchema = z.object({
+  x: z.number().int().min(0).max(GRID_COLS - 1),
+  y: z.number().int().min(0).max(10000),
+  w: z.number().int().min(1).max(GRID_COLS),
+  h: z.number().int().min(1).max(200),
+})
 
 export const layoutSchema = z.object({
   version: z.literal(LAYOUT_VERSION).optional(),
   order: idList.optional(),
   hidden: idList.optional(),
-  sizes: z.record(z.string(), z.enum(WIDGET_SIZES)).optional(),
+  positions: z.record(z.string(), positionSchema).optional(),
   modes: z.record(z.string(), z.enum(WIDGET_MODES)).optional(),
   custom: z.array(customWidgetSchema).max(MAX_CUSTOM_WIDGETS).optional(),
 })
@@ -77,7 +91,7 @@ export function defaultLayout(): DashboardLayout {
     version: LAYOUT_VERSION,
     order: BUILTIN_WIDGETS.filter((widget) => !widget.defaultHidden).map((widget) => widget.id),
     hidden: BUILTIN_WIDGETS.filter((widget) => widget.defaultHidden).map((widget) => widget.id),
-    sizes: {},
+    positions: {},
     modes: {},
     custom: [],
   }
@@ -123,26 +137,35 @@ export function mergeLayout(saved: unknown, options: { canSeeProspects: boolean 
     if (!order.includes(widget.id) && !hidden.includes(widget.id)) order.push(widget.id)
   }
 
-  const sizes: Record<string, WidgetSize> = {}
-  for (const [id, size] of Object.entries(input.sizes ?? {})) if (known.has(id)) sizes[id] = size
+  const positions: Record<string, Position> = {}
+  for (const [id, position] of Object.entries(input.positions ?? {})) {
+    const widget = known.get(id)
+    if (!widget) continue
+    const box = clampBox(position, minBoxFor(widget))
+    positions[id] = { ...box, x: Math.min(position.x, GRID_COLS - box.w), y: position.y }
+  }
   const modes: Record<string, WidgetMode> = {}
   for (const [id, mode] of Object.entries(input.modes ?? {})) {
     const widget = known.get(id)
     if (widget && widget.source === "cube" && widget.modes?.includes(mode)) modes[id] = mode
   }
 
-  return { version: LAYOUT_VERSION, order, hidden, sizes, modes, custom: uniqueCustom }
+  return { version: LAYOUT_VERSION, order, hidden, positions, modes, custom: uniqueCustom }
 }
 
 function configOf(layout: DashboardLayout, id: string): WidgetConfig | undefined {
   return layout.custom.find((widget) => widget.id === id) ?? builtinWidget(id)
 }
 
-/** The chosen size, lifted in either direction to the card's minimum. */
-export function sizeOf(layout: DashboardLayout, widget: WidgetConfig): WidgetSize {
-  const chosen = layout.sizes[widget.id] ?? widget.size
-  const min = minSizeFor(widget)
-  return sizeFromCells(Math.max(SIZE_CELLS[chosen][0], SIZE_CELLS[min][0]), Math.max(SIZE_CELLS[chosen][1], SIZE_CELLS[min][1]))
+/** The card's box: its saved one, else its preset, never below its minimum. */
+export function boxOf(layout: DashboardLayout, widget: WidgetConfig): Box {
+  const saved = layout.positions[widget.id]
+  return clampBox(saved ? { w: saved.w, h: saved.h } : SIZE_BOX[widget.size], minBoxFor(widget))
+}
+
+/** The preset whose box this is, if any (for the size menu's current mark). */
+export function presetOf(box: Box): WidgetSize | null {
+  return (Object.keys(SIZE_BOX) as WidgetSize[]).find((size) => SIZE_BOX[size].w === box.w && SIZE_BOX[size].h === box.h) ?? null
 }
 
 export function modeOf(layout: DashboardLayout, widget: WidgetConfig): WidgetMode {
@@ -150,11 +173,10 @@ export function modeOf(layout: DashboardLayout, widget: WidgetConfig): WidgetMod
   return layout.modes[widget.id] ?? widget.modes[0]
 }
 
-/** The cards to draw and the cards on offer, with the person's size applied. */
+/** The cards to draw and the cards on offer. */
 export function resolveWidgets(layout: DashboardLayout): { visible: WidgetConfig[]; hidden: WidgetConfig[] } {
-  const withSize = (widget: WidgetConfig): WidgetConfig => ({ ...widget, size: sizeOf(layout, widget) })
-  const visible = layout.order.map((id) => configOf(layout, id)).filter((widget): widget is WidgetConfig => Boolean(widget)).map(withSize)
-  const hidden = layout.hidden.map((id) => configOf(layout, id)).filter((widget): widget is WidgetConfig => Boolean(widget)).map(withSize)
+  const visible = layout.order.map((id) => configOf(layout, id)).filter((widget): widget is WidgetConfig => Boolean(widget))
+  const hidden = layout.hidden.map((id) => configOf(layout, id)).filter((widget): widget is WidgetConfig => Boolean(widget))
   return { visible, hidden }
 }
 
@@ -185,8 +207,32 @@ export function showWidget(layout: DashboardLayout, id: string, position?: numbe
   return { ...layout, order, hidden: layout.hidden.filter((item) => item !== id) }
 }
 
-export function setSize(layout: DashboardLayout, id: string, size: WidgetSize): DashboardLayout {
-  return { ...layout, sizes: { ...layout.sizes, [id]: size } }
+/** Every card's place after a drag or a resize, as the grid reports it. Unknown ids are ignored. */
+export function setPositions(layout: DashboardLayout, next: ReadonlyArray<Position & { i: string }>): DashboardLayout {
+  const positions = { ...layout.positions }
+  for (const item of next) {
+    if (!layout.order.includes(item.i)) continue
+    positions[item.i] = { x: item.x, y: item.y, w: item.w, h: item.h }
+  }
+  return { ...layout, positions }
+}
+
+/** One of the four presets, keeping the card where it is. */
+export function applyPreset(layout: DashboardLayout, id: string, size: WidgetSize): DashboardLayout {
+  const current = layout.positions[id]
+  const box = SIZE_BOX[size]
+  return { ...layout, positions: { ...layout.positions, [id]: { x: Math.min(current?.x ?? 0, GRID_COLS - box.w), y: current?.y ?? 0, ...box } } }
+}
+
+/** Whether two arrangements place every card the same. */
+export function samePositions(a: Record<string, Position>, b: Record<string, Position>): boolean {
+  const keys = new Set([...Object.keys(a), ...Object.keys(b)])
+  for (const key of keys) {
+    const p = a[key]
+    const q = b[key]
+    if (!p || !q || p.x !== q.x || p.y !== q.y || p.w !== q.w || p.h !== q.h) return false
+  }
+  return true
 }
 
 export function setMode(layout: DashboardLayout, id: string, mode: WidgetMode): DashboardLayout {
@@ -202,14 +248,14 @@ export function upsertCustom(layout: DashboardLayout, widget: CubeWidget): Dashb
 }
 
 export function removeCustom(layout: DashboardLayout, id: string): DashboardLayout {
-  const { [id]: _size, ...sizes } = layout.sizes
+  const { [id]: _position, ...positions } = layout.positions
   const { [id]: _mode, ...modes } = layout.modes
   return {
     ...layout,
     custom: layout.custom.filter((item) => item.id !== id),
     order: layout.order.filter((item) => item !== id),
     hidden: layout.hidden.filter((item) => item !== id),
-    sizes,
+    positions,
     modes,
   }
 }

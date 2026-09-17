@@ -110,8 +110,24 @@ export const WIDGET_SIZES = ["sm", "wide", "tall", "lg"] as const
 export type WidgetSize = (typeof WIDGET_SIZES)[number]
 export const SIZE_LABELS: Record<WidgetSize, string> = { sm: "Kecil", wide: "Lebar", tall: "Tinggi", lg: "Besar" }
 
-/** Cells a size spans: [columns, rows]. */
+/** Cells a size spans: [columns, rows], on the coarse 2×2 scale the presets are named in. */
 export const SIZE_CELLS: Record<WidgetSize, [number, number]> = { sm: [1, 1], wide: [2, 1], tall: [1, 2], lg: [2, 2] }
+
+/** The board: twelve columns, rows of 40px, 16px between cards. */
+export const GRID_COLS = 12
+export const GRID_ROW_HEIGHT = 40
+export const GRID_MARGIN = 16
+
+export interface Box {
+  w: number
+  h: number
+}
+
+/** A preset as a box in grid units: a quarter of the width by ~320px, and so on. */
+export const SIZE_BOX: Record<WidgetSize, Box> = { sm: { w: 3, h: 7 }, wide: { w: 6, h: 7 }, tall: { w: 3, h: 14 }, lg: { w: 6, h: 14 } }
+
+/** The smallest box for a minimum size: a chart or a table needs width to read; a number or a list does not. */
+export const MIN_BOX: Record<WidgetSize, Box> = { sm: { w: 2, h: 4 }, wide: { w: 4, h: 5 }, tall: { w: 2, h: 8 }, lg: { w: 4, h: 8 } }
 
 export function sizeFromCells(columns: number, rows: number): WidgetSize {
   if (columns >= 2 && rows >= 2) return "lg"
@@ -304,6 +320,15 @@ export function minSizeFor(config: WidgetConfig): WidgetSize {
   if (config.chart === "donut") return "sm"
   if (config.chart === "bars" && !isTimeDimension(config.group) && !(config.series && config.series !== "none")) return "sm"
   return "wide"
+}
+
+export function minBoxFor(config: WidgetConfig): Box {
+  return MIN_BOX[minSizeFor(config)]
+}
+
+/** A box no smaller than the card's minimum in either direction, and never wider than the board. */
+export function clampBox(box: Box, min: Box): Box {
+  return { w: Math.min(GRID_COLS, Math.max(min.w, Math.round(box.w))), h: Math.max(min.h, Math.round(box.h)) }
 }
 
 export function builtinWidget(id: string): BuiltinWidget | undefined {

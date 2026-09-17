@@ -7,9 +7,14 @@ import {
   layoutSchema,
   mergeLayout,
   modeOf,
+  applyPreset,
+  boxOf,
+  presetOf,
   removeCustom,
   reorder,
   resolveWidgets,
+  samePositions,
+  setPositions,
   showWidget,
   upsertCustom,
   type DashboardLayout,
@@ -60,9 +65,14 @@ describe("mergeLayout", () => {
     expect(layout.custom.map((widget) => widget.id)).toEqual(["c_visits0001"])
   })
 
-  it("keeps sizes and modes only for known cards that offer them", () => {
-    const layout = mergeLayout({ sizes: { interest_mix: "lg", ghost: "sm" }, modes: { visits_per_day: "sales", interest_mix: "sales" } }, all)
-    expect(layout.sizes).toEqual({ interest_mix: "lg" })
+  it("keeps positions and modes only for known cards, clamped to the board and the minimum", () => {
+    const layout = mergeLayout(
+      { positions: { interest_mix: { x: 11, y: 2, w: 3, h: 7 }, visits_per_day: { x: 0, y: 0, w: 1, h: 1 }, ghost: { x: 0, y: 0, w: 3, h: 3 } }, modes: { visits_per_day: "sales", interest_mix: "sales" } },
+      all
+    )
+    expect(layout.positions.interest_mix).toEqual({ x: 9, y: 2, w: 3, h: 7 })
+    expect(layout.positions.visits_per_day).toEqual({ x: 0, y: 0, w: 4, h: 5 })
+    expect(layout.positions.ghost).toBeUndefined()
     expect(layout.modes).toEqual({ visits_per_day: "sales" })
   })
 
@@ -102,26 +112,37 @@ describe("edits", () => {
     const edited = upsertCustom(added, { ...custom("c_mine000001"), title: "Diubah" })
     expect(edited.custom.find((widget) => widget.id === "c_mine000001")?.title).toBe("Diubah")
     expect(edited.order.filter((id) => id === "c_mine000001").length).toBe(1)
-    const removed = removeCustom({ ...edited, sizes: { c_mine000001: "lg" } }, "c_mine000001")
+    const removed = removeCustom({ ...edited, positions: { c_mine000001: { x: 0, y: 0, w: 3, h: 7 } } }, "c_mine000001")
     expect(removed.custom).toEqual([])
     expect(removed.order).not.toContain("c_mine000001")
-    expect(removed.sizes).toEqual({})
+    expect(removed.positions).toEqual({})
   })
 
-  it("never lets a chart shrink below its minimum", () => {
-    const layout = { ...base, sizes: { visits_per_day: "sm" as const, interest_mix: "sm" as const, daily_reports: "tall" as const } }
-    const { visible } = resolveWidgets(layout)
-    expect(visible.find((widget) => widget.id === "visits_per_day")?.size).toBe("wide")
-    expect(visible.find((widget) => widget.id === "interest_mix")?.size).toBe("sm")
-    expect(visible.find((widget) => widget.id === "daily_reports")?.size).toBe("lg")
+  it("boxes a card from its position or its preset, never below its minimum", () => {
+    const { visible } = resolveWidgets(base)
+    const chart = visible.find((widget) => widget.id === "visits_per_day")!
+    const donut = visible.find((widget) => widget.id === "interest_mix")!
+    expect(boxOf(base, chart)).toEqual({ w: 6, h: 7 })
+    expect(boxOf({ ...base, positions: { visits_per_day: { x: 0, y: 0, w: 2, h: 2 } } }, chart)).toEqual({ w: 4, h: 5 })
+    expect(boxOf({ ...base, positions: { interest_mix: { x: 0, y: 0, w: 2, h: 4 } } }, donut)).toEqual({ w: 2, h: 4 })
+    expect(presetOf({ w: 6, h: 14 })).toBe("lg")
+    expect(presetOf({ w: 5, h: 9 })).toBeNull()
   })
 
-  it("resolves configs with the person's size and a default mode", () => {
-    const layout = { ...base, sizes: { interest_mix: "lg" as const } }
-    const { visible, hidden } = resolveWidgets(layout)
-    expect(visible.find((widget) => widget.id === "interest_mix")?.size).toBe("lg")
+  it("takes the grid's report of places and applies a preset in place", () => {
+    const moved = setPositions(base, [{ i: "interest_mix", x: 9, y: 7, w: 3, h: 7 }, { i: "ghost", x: 0, y: 0, w: 1, h: 1 }])
+    expect(moved.positions.interest_mix).toEqual({ x: 9, y: 7, w: 3, h: 7 })
+    expect(moved.positions.ghost).toBeUndefined()
+    const preset = applyPreset(moved, "interest_mix", "lg")
+    expect(preset.positions.interest_mix).toEqual({ x: 6, y: 7, w: 6, h: 14 })
+    expect(samePositions(moved.positions, preset.positions)).toBe(false)
+    expect(samePositions(moved.positions, { ...moved.positions })).toBe(true)
+  })
+
+  it("resolves configs and a default mode", () => {
+    const { visible, hidden } = resolveWidgets(base)
     expect(visible.length + hidden.length).toBe(BUILTIN_WIDGETS.length)
-    expect(modeOf(layout, visible.find((widget) => widget.id === "visits_per_day")!)).toBe("umum")
-    expect(modeOf({ ...layout, modes: { visits_per_day: "sales" } }, visible.find((widget) => widget.id === "visits_per_day")!)).toBe("sales")
+    expect(modeOf(base, visible.find((widget) => widget.id === "visits_per_day")!)).toBe("umum")
+    expect(modeOf({ ...base, modes: { visits_per_day: "sales" } }, visible.find((widget) => widget.id === "visits_per_day")!)).toBe("sales")
   })
 })

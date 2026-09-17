@@ -177,10 +177,10 @@ describe("sizes", () => {
     expect(minSizeFor(builtinWidget("daily_reports")!)).toBe("wide")
   })
 
-  it("fills a four-column rectangle by default", () => {
-    const cells = { sm: 1, wide: 2, tall: 2, lg: 4 }
-    const area = BUILTIN_WIDGETS.filter((widget) => !widget.defaultHidden).reduce((sum, widget) => sum + cells[widget.size], 0)
-    expect(area % 4).toBe(0)
+  it("fills whole rows of the twelve-column board by default", async () => {
+    const { SIZE_BOX, GRID_COLS } = await import("./cube")
+    const area = BUILTIN_WIDGETS.filter((widget) => !widget.defaultHidden).reduce((sum, widget) => sum + SIZE_BOX[widget.size].w * SIZE_BOX[widget.size].h, 0)
+    expect(area % GRID_COLS).toBe(0)
   })
 })
 

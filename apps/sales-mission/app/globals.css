@@ -407,3 +407,34 @@ html.sidebar-dark-mode {
   .cal-cell .cal-chips { display: none; }
   .cal-cell .cal-badge { display: grid; }
 }
+
+/*
+  Ringkasan's board (react-grid-layout). The placeholder is the tonal
+  container, the corner handle is ours, a card in the air gets the lift
+  shadow, and nothing moves for people who asked for less motion.
+*/
+.dashboard-grid .react-grid-item.react-grid-placeholder {
+  background: var(--tonal);
+  opacity: 0.7;
+  border-radius: 0.75rem;
+}
+.dashboard-grid .react-grid-item.react-draggable-dragging {
+  z-index: 20;
+  box-shadow: 0 24px 48px -16px rgba(0, 0, 0, 0.35);
+}
+.dashboard-grid .react-grid-item > .react-resizable-handle {
+  width: 28px;
+  height: 28px;
+  cursor: nwse-resize;
+}
+.dashboard-grid .react-grid-item > .react-resizable-handle::after {
+  right: 7px;
+  bottom: 7px;
+  width: 9px;
+  height: 9px;
+  border-right: 2px solid var(--muted-foreground);
+  border-bottom: 2px solid var(--muted-foreground);
+}
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-grid .react-grid-item { transition: none; }
+}
