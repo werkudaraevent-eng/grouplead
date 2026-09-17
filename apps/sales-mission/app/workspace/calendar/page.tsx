@@ -42,18 +42,27 @@ export default async function CalendarPage({
     getMissionSettings(access),
     canPerform(access, "sales_mission_mission", "create"),
   ])
-  // The day panel doubles as the join surface, so each entry carries where the
-  // viewer stands relative to it.
-  const missions = annotateJoinStatus(rawMissions, settings)
+  // A calendar shows what will happen. A cancelled or refused visit is not
+  // on it (Google Calendar hides declined events; the phone feed marks them
+  // CANCELLED so subscribers see the removal); the Aktivitas list, with its
+  // Status filter, is where they are found. The day panel doubles as the
+  // join surface, so each entry carries where the viewer stands relative
+  // to it.
+  const missions = annotateJoinStatus(
+    rawMissions.filter((mission) => mission.status !== "CANCELLED" && mission.status !== "REJECTED"),
+    settings
+  )
   const grid = buildMonthGrid(month, missions, now)
   // How many week rows the month needs, so the grid can share the height
   // from lg. Literal classes, one per possible count, so Tailwind emits
-  // them; below lg the rows size to their content.
+  // them; below lg the rows size to their content. The 4.5rem floor is
+  // the cell's own: a row may never be shorter than what it holds, or the
+  // days overlap; when the floors do not fit, the card scrolls inside.
   const weekRows = Math.ceil((grid.leadingBlanks + grid.days.length) / 7)
   const WEEK_ROWS: Record<number, string> = {
-    4: "lg:grid-rows-[auto_repeat(4,minmax(0,1fr))]",
-    5: "lg:grid-rows-[auto_repeat(5,minmax(0,1fr))]",
-    6: "lg:grid-rows-[auto_repeat(6,minmax(0,1fr))]",
+    4: "lg:grid-rows-[auto_repeat(4,minmax(4.5rem,1fr))]",
+    5: "lg:grid-rows-[auto_repeat(5,minmax(4.5rem,1fr))]",
+    6: "lg:grid-rows-[auto_repeat(6,minmax(4.5rem,1fr))]",
   }
   const monthTotal = grid.days.reduce((sum, day) => sum + day.missionCount, 0)
   const timeOf = (iso: string | null) =>
