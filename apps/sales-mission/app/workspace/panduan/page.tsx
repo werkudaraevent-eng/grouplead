@@ -59,6 +59,7 @@ const PARTS: Part[] = [
     title: "Laporan kunjungan",
     lead: "Setelah kunjungan, sales utama mengisi apa yang terjadi: hasil, tingkat minat, kebutuhan klien, kontak yang ditemui, foto, dan tindak lanjut.",
     points: [
+      "Laporan baru bisa diisi pada hari kunjungannya (mulai 00.00), dan waktu kunjungan yang diisi tidak boleh di masa depan. Kunjungan yang dimajukan: pindahkan jadwalnya dulu. Admin bisa mematikan aturan ini di Pengaturan → Aktivitas.",
       "Draf tersimpan otomatis setiap perubahan; tutup dan lanjutkan kapan saja dari halaman aktivitas.",
       "Kirim laporan ketika sudah lengkap. Setelah dikirim, atasan bisa membacanya, dan perubahan tercatat sebagai versi.",
       "Laporan yang menandai peluang bisa dikirim ke LeadEngine sebagai lead, satu kali per aktivitas. Saat mengirim, pilih kategori lead (HQL, Hot, Warm, Cold, sesuai Master Options LeadEngine); tingkat minat di laporan menyarankan salah satunya, dan ringkasan tampil dulu sebelum dikirim.",

@@ -1,5 +1,18 @@
 import { describe, expect, it } from "vitest"
-import { describeTiming, formatVisitWindow, isOnTime, splitMissionInstant, startDelayMinutes, toVisitInstants, visitDurationMinutes, visitTimeViolation } from "./visit-time"
+import { describeTiming, formatVisitWindow, isOnTime, splitMissionInstant, startDelayMinutes, toVisitInstants, visitDurationMinutes, visitTimeInFuture, visitTimeViolation } from "./visit-time"
+
+describe("visitTimeInFuture", () => {
+  const now = new Date("2026-09-17T10:00:00+07:00")
+  it("flags a start after now, in mission time", () => {
+    expect(visitTimeInFuture({ actualDate: "2026-09-21", actualStartTime: "09:00" }, now)).toBe(true)
+    expect(visitTimeInFuture({ actualDate: "2026-09-17", actualStartTime: "10:30" }, now)).toBe(true)
+    expect(visitTimeInFuture({ actualDate: "2026-09-17", actualStartTime: "09:30" }, now)).toBe(false)
+  })
+  it("is not a verdict on an empty or broken window", () => {
+    expect(visitTimeInFuture({}, now)).toBe(false)
+    expect(visitTimeInFuture({ actualDate: "2026-09-21" }, now)).toBe(false)
+  })
+})
 
 describe("splitMissionInstant / toVisitInstants", () => {
   it("round-trips a mission-time date and clock", () => {

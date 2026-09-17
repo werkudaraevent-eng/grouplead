@@ -7,7 +7,8 @@ import { resolveMissionGates } from "@/lib/missions/mission-rights"
 import { describeOutOfScope, reportOwners } from "@/lib/access/record-scope"
 import { getMission, getMissionRole, getMissionSettings, getVisitReport, listMissionTeam } from "@/lib/missions/mission-queries"
 import { canEditSubmittedReport } from "@/lib/missions/report-edit"
-import { toVisitInstants } from "@/lib/missions/visit-time"
+import { FUTURE_VISIT_MESSAGE, toVisitInstants, visitTimeInFuture } from "@/lib/missions/visit-time"
+import { describeReportOpens, reportLocked } from "@/lib/missions/report-window"
 import { listReportChoices } from "@/lib/missions/report-choice-queries"
 import { reportChoiceViolation } from "@/lib/missions/report-choices"
 import {
@@ -106,6 +107,19 @@ async function authorizeReportWrite(missionId: string) {
   }
 
   return { access, mission }
+}
+
+/**
+ * The tenant's "not before the visit" rule, for a report that does not
+ * exist yet. A draft that already exists (the schedule moved after it was
+ * started) may go on; what it says about the time is checked at send.
+ */
+async function reportNotYetOpen(access: SalesMissionAccess, mission: { scheduledStart: string | null }, hasReport: boolean): Promise<string | null> {
+  if (hasReport) return null
+  const settings = await getMissionSettings(access)
+  if (!settings.reportAfterVisitOnly) return null
+  const lock = reportLocked(mission.scheduledStart, new Date())
+  return lock ? `${describeReportOpens(lock.until)}.` : null
 }
 
 /**
@@ -231,6 +245,8 @@ export async function saveVisitReportDraft(
   if (existing?.status === "SUBMITTED") {
     return { success: false, error: "Laporan sudah dikirim. Gunakan kirim ulang untuk mengubahnya." }
   }
+  const notYet = await reportNotYetOpen(access, guard.mission, Boolean(existing))
+  if (notYet) return { success: false, error: notYet }
 
   let reportId = existing?.id as string | undefined
 
@@ -325,6 +341,15 @@ export async function submitVisitReport(
   const parsed = visitReportSubmitSchema.safeParse(input)
   if (!parsed.success) {
     return { success: false, error: parsed.error.issues[0]?.message ?? "Laporan belum lengkap." }
+  }
+
+  // A report on a visit that has not happened: refused whether the form
+  // was reached early or the date was typed ahead.
+  const rules = await getMissionSettings(access)
+  if (rules.reportAfterVisitOnly) {
+    const lock = reportLocked(guard.mission.scheduledStart, new Date())
+    if (lock) return { success: false, error: `${describeReportOpens(lock.until)}.` }
+    if (visitTimeInFuture(parsed.data, new Date())) return { success: false, error: FUTURE_VISIT_MESSAGE }
   }
 
   const vocabularyFields = await listFormFields(access, "visit_report")

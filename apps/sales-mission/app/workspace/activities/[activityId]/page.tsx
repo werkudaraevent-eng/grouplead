@@ -13,6 +13,7 @@ import { resolveMissionGates } from "@/lib/missions/mission-rights"
 import { requireModule } from "@/lib/missions/nav-access"
 import { PersonAvatar } from "@/components/person-avatar"
 import { getProspectByMission } from "@/lib/prospects/prospect-queries"
+import { describeReportOpens, reportLocked } from "@/lib/missions/report-window"
 import { describeDueDate } from "@/lib/prospects/prospect-schema"
 import { missionDayKey } from "@/lib/missions/mission-calendar"
 import { formatPhone, normalizePhone } from "@/lib/format/phone"
@@ -210,11 +211,14 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
   // next step for this viewer in this state. Answer first, then the report,
   // then joining, then editing. Everything else stays in its card, and the
   // top bar's overflow menu carries the links worth reaching without a scroll.
+  // Not before the visit: under the tenant's rule the report opens at the
+  // start of the scheduled day, and until then the button is a date.
+  const reportLock = settings.reportAfterVisitOnly && !report ? reportLocked(mission.scheduledStart, new Date()) : null
   const compactAction: "answer" | "report" | "join" | "edit" | null = isCancelled
     ? null
     : askedToConfirm
       ? "answer"
-      : canReadReport && canWriteReport && !reportSubmitted
+      : canReadReport && canWriteReport && !reportSubmitted && !reportLock
         ? "report"
         : role === null && joinStatus === "JOINABLE"
           ? "join"
@@ -686,7 +690,9 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
         ) : (
           <p className="px-5 py-6 text-sm text-muted-foreground">
             {canWriteReport
-              ? "Isi laporan setelah kunjungan selesai."
+              ? reportLock
+                ? `${describeReportOpens(reportLock.until)}.`
+                : "Isi laporan setelah kunjungan selesai."
               : "Laporan diisi oleh sales utama."}
           </p>
         )}
@@ -745,6 +751,10 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
               // a contradiction; the button waits for the answer above.
               <p className="text-sm text-muted-foreground">
                 Terima penugasan di atas dulu, lalu laporan bisa diisi setelah kunjungan.
+              </p>
+            ) : reportLock ? (
+              <p className="text-sm text-muted-foreground">
+                {describeReportOpens(reportLock.until)}, pada hari kunjungannya. Kunjungan dimajukan? Pindahkan jadwalnya dulu.
               </p>
             ) : (
               <Button asChild className="h-11 w-full sm:w-auto">

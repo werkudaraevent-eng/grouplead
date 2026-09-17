@@ -19,7 +19,7 @@ import {
 import { visibleFields, type FieldAnswer, type FormField } from "@/lib/missions/form-fields"
 import { choicesFor, isNoAction, noActionCode, type ChoiceSet } from "@/lib/missions/report-choices"
 import { parsePhotoAnswer } from "@/lib/photos/photo-answer"
-import { describeTiming, formatVisitWindow, splitMissionInstant, toVisitInstants } from "@/lib/missions/visit-time"
+import { FUTURE_VISIT_MESSAGE, describeTiming, formatVisitWindow, splitMissionInstant, toVisitInstants, visitTimeInFuture } from "@/lib/missions/visit-time"
 import { PhotoField } from "@/components/photo-field"
 import type { VisitReportRecord } from "@/lib/missions/mission-queries"
 import type { TenantSalesOption } from "@/lib/missions/mission-queries"
@@ -37,6 +37,7 @@ import { NumberInput } from "@/components/ui/number-input"
 import { PhoneInput } from "@/components/ui/phone-input"
 import { cn } from "@/lib/utils"
 import { paths } from "@/lib/paths"
+import { missionDayKey } from "@/lib/missions/mission-calendar"
 
 /**
  * Visit report, rendered from the tenant's configuration on the same
@@ -299,6 +300,7 @@ export function VisitReportForm({
   missionId,
   clientName,
   schedule,
+  afterVisitOnly,
   report,
   appointmentContact,
   editing,
@@ -311,6 +313,8 @@ export function VisitReportForm({
   clientName: string
   /** The appointment, so the visit window starts filled and can be compared. */
   schedule: { start: string | null; end: string | null }
+  /** The tenant rule: the actual visit time may not be in the future. */
+  afterVisitOnly: boolean
   report: VisitReportRecord | null
   /** The mission's appointment contact, offered as the first person met. */
   appointmentContact: ReportContactInput | null
@@ -417,6 +421,10 @@ export function VisitReportForm({
     ...missingSubmitFields(draft).map((prop) => DRAFT_TO_KEY[prop] ?? prop),
     ...missingConfiguredFields(draft, fields),
   ])]
+  // Under the tenant's rule a visit cannot be reported before it happens:
+  // the date field stops at today and the send button waits.
+  const todayKey = missionDayKey(new Date())
+  const futureVisit = afterVisitOnly && visitTimeInFuture(draft, new Date())
 
   // "Belum lengkap" names the fields; each name scrolls to its field, so a
   // rep at the bottom of the form is one tap from what is missing.
@@ -458,7 +466,7 @@ export function VisitReportForm({
             <div className="grid gap-3 sm:grid-cols-[minmax(0,1.3fr)_1fr_1fr_auto]">
               <div className="space-y-1">
                 <span className="text-xs text-muted-foreground">Tanggal</span>
-                <Input type="date" aria-label="Tanggal kunjungan" className="h-12" value={draft.actualDate ?? ""} onChange={(event) => update("actualDate", event.target.value || null)} />
+                <Input type="date" aria-label="Tanggal kunjungan" className="h-12" max={afterVisitOnly ? todayKey : undefined} value={draft.actualDate ?? ""} onChange={(event) => update("actualDate", event.target.value || null)} />
               </div>
               <div className="space-y-1">
                 <span className="text-xs text-muted-foreground">Mulai</span>
@@ -477,7 +485,9 @@ export function VisitReportForm({
             </div>
             <p className="text-xs text-muted-foreground">
               {planned ? `Dijadwalkan ${planned}.` : "Aktivitas ini belum punya jadwal."}
-              {timing && (
+              {futureVisit ? (
+                <span className="ml-1.5 font-medium text-[var(--danger-foreground)]">{FUTURE_VISIT_MESSAGE}</span>
+              ) : timing && (
                 <span className={cn("ml-1.5 font-medium", timing.tone === "success" ? "text-[var(--success-foreground)]" : timing.tone === "warning" ? "text-[var(--warning-foreground)]" : "text-foreground")}>{timing.text}.</span>
               )}
             </p>
@@ -763,7 +773,7 @@ export function VisitReportForm({
             learnHref={paths.guideSection("laporan")}
             align="end"
           >
-            <Button className="h-12 md:h-10" onClick={handleSubmit} disabled={submitting || missing.length > 0 || (Boolean(editing) && !changeReason.trim())}>
+            <Button className="h-12 md:h-10" onClick={handleSubmit} disabled={submitting || missing.length > 0 || futureVisit || (Boolean(editing) && !changeReason.trim())}>
               {submitting ? <><Loader2 className="h-4 w-4 animate-spin" /> {editing ? "Menyimpan…" : "Mengirim…"}</> : editing ? <><Save className="h-4 w-4" /> Simpan perubahan</> : <><Send className="h-4 w-4" /> Kirim laporan</>}
             </Button>
           </CoachMark>

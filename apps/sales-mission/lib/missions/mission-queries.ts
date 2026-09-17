@@ -190,6 +190,11 @@ export interface MissionSettings {
   primaryCanReschedule: boolean
   /** Days after sending during which the primary may edit their own report. 0 = admin only. */
   reportEditWindowDays: number
+  /**
+   * Whether a report waits for its visit: the form opens at the start of
+   * the scheduled day and the actual time may not be in the future.
+   */
+  reportAfterVisitOnly: boolean
 }
 
 /**
@@ -206,7 +211,7 @@ export async function getMissionSettings(access: SalesMissionAccess): Promise<Mi
   const { data } = await supabase
     .schema("sales_mission")
     .from("mission_settings")
-    .select("conflict_check_enabled, default_travel_buffer_minutes, allow_same_location_back_to_back, max_supporting_per_mission, require_assignment_confirmation, primary_can_reschedule, report_edit_window_days")
+    .select("conflict_check_enabled, default_travel_buffer_minutes, allow_same_location_back_to_back, max_supporting_per_mission, require_assignment_confirmation, primary_can_reschedule, report_edit_window_days, report_after_visit_only")
     .eq("company_id", access.companyId)
     .maybeSingle()
 
@@ -218,6 +223,7 @@ export async function getMissionSettings(access: SalesMissionAccess): Promise<Mi
     requireAssignmentConfirmation: data?.require_assignment_confirmation ?? false,
     primaryCanReschedule: data?.primary_can_reschedule ?? true,
     reportEditWindowDays: data?.report_edit_window_days ?? 7,
+    reportAfterVisitOnly: data?.report_after_visit_only ?? true,
   }
 }
 

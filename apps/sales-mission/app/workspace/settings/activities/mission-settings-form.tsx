@@ -145,8 +145,16 @@ export function MissionSettingsForm({ initial }: { initial: MissionSettings }) {
       <section className="overflow-clip rounded-xl border bg-card">
         <header className="border-b px-5 py-4">
           <h2 className="text-base font-semibold text-foreground">Laporan kunjungan</h2>
-          <p className="mt-0.5 text-sm text-muted-foreground">Apa yang masih boleh diubah setelah laporan dikirim.</p>
+          <p className="mt-0.5 text-sm text-muted-foreground">Kapan laporan boleh diisi, dan apa yang masih boleh diubah setelah dikirim.</p>
         </header>
+        <div className="divide-y">
+        <SwitchRow
+          id="report-after-visit"
+          label="Laporan hanya setelah kunjungan"
+          hint="Nyala: form laporan baru terbuka pada hari kunjungan (mulai 00.00), dan waktu kunjungan yang diisi tidak boleh di masa depan. Kunjungan yang dimajukan: pindahkan jadwalnya dulu. Mati: laporan bisa diisi kapan saja."
+          checked={form.reportAfterVisitOnly}
+          onChange={(next) => setForm({ ...form, reportAfterVisitOnly: next })}
+        />
         <div className="grid gap-2 px-5 py-4 sm:grid-cols-[1fr_8rem] sm:items-center">
           <div>
             <Label htmlFor="report-edit-window" className="text-sm font-semibold text-foreground">Jendela ubah laporan (hari)</Label>
@@ -165,6 +173,7 @@ export function MissionSettingsForm({ initial }: { initial: MissionSettings }) {
             value={form.reportEditWindowDays}
             onChange={(event) => setForm({ ...form, reportEditWindowDays: Number(event.target.value) })}
           />
+        </div>
         </div>
       </section>
 

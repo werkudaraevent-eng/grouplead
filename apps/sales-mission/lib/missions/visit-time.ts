@@ -47,6 +47,14 @@ export function visitTimeViolation(input: VisitTimeInput): string | null {
   return null
 }
 
+/** Whether the visit's actual start lies after `now`: a report on something that has not happened. */
+export function visitTimeInFuture(input: VisitTimeInput, now: Date): boolean {
+  const { start } = toVisitInstants(input)
+  return start !== null && new Date(start).getTime() > now.getTime()
+}
+
+export const FUTURE_VISIT_MESSAGE = "Waktu kunjungan belum terjadi. Isi laporan setelah kunjungannya."
+
 /** The two instants to store. Null when the inputs are empty or broken. */
 export function toVisitInstants(input: VisitTimeInput): { start: string | null; end: string | null } {
   if (visitTimeViolation(input) || !input.actualDate || !input.actualStartTime) return { start: null, end: null }

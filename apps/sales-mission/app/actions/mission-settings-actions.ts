@@ -16,6 +16,7 @@ const settingsSchema = z.object({
   requireAssignmentConfirmation: z.boolean(),
   primaryCanReschedule: z.boolean(),
   reportEditWindowDays: z.number().int().min(0, "Minimal 0 hari").max(365, "Maksimal 365 hari"),
+  reportAfterVisitOnly: z.boolean(),
 })
 
 export type MissionSettingsInput = z.infer<typeof settingsSchema>
@@ -53,6 +54,7 @@ export async function updateMissionSettings(input: unknown): Promise<ActionResul
         require_assignment_confirmation: parsed.data.requireAssignmentConfirmation,
         primary_can_reschedule: parsed.data.primaryCanReschedule,
         report_edit_window_days: parsed.data.reportEditWindowDays,
+        report_after_visit_only: parsed.data.reportAfterVisitOnly,
         updated_by: access.userId,
         updated_at: new Date().toISOString(),
       },

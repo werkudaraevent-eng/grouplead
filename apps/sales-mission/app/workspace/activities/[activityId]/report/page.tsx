@@ -22,6 +22,8 @@ import { contactFromAppointment } from "@/lib/missions/visit-report-schema"
 import { BackLink, EmptyState, WorkspacePage } from "@/app/workspace/workspace-page"
 import { VisitReportForm } from "./visit-report-form"
 import { paths } from "@/lib/paths"
+import { describeReportOpens, reportLocked } from "@/lib/missions/report-window"
+import { formatMissionSchedule } from "@/lib/missions/mission-schema"
 
 export const dynamic = "force-dynamic"
 
@@ -96,6 +98,25 @@ export default async function VisitReportPage({ params, searchParams }: { params
     )
   }
 
+  // Not before the visit: the form opens at the start of the scheduled day.
+  // Typing the URL early gets the same answer the detail page gives.
+  const lock = settings.reportAfterVisitOnly && !report ? reportLocked(mission.scheduledStart, new Date()) : null
+  if (lock) {
+    return (
+      <WorkspacePage
+        eyebrow="Sales Activity / Laporan kunjungan"
+        title={mission.clientCompanyName}
+        description="Laporan kunjungan"
+        action={<BackLink href={paths.activity(missionId)} />}
+      >
+        <EmptyState
+          title={describeReportOpens(lock.until)}
+          description={`Kunjungan ini dijadwalkan ${formatMissionSchedule(mission.scheduledStart, new Date())}. Kalau kunjungannya dimajukan, pindahkan jadwalnya dulu dari halaman aktivitas supaya tim tahu.`}
+        />
+      </WorkspacePage>
+    )
+  }
+
   return (
     <WorkspacePage
       eyebrow="Sales Activity / Laporan kunjungan"
@@ -107,6 +128,7 @@ export default async function VisitReportPage({ params, searchParams }: { params
         missionId={missionId}
         clientName={mission.clientCompanyName}
         schedule={{ start: mission.scheduledStart, end: mission.scheduledEnd }}
+        afterVisitOnly={settings.reportAfterVisitOnly}
         report={report}
         appointmentContact={contactFromAppointment(mission.appointment)}
         editing={editing}
