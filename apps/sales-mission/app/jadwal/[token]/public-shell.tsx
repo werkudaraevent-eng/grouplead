@@ -10,7 +10,12 @@ import { PRODUCT_NAME } from "@/lib/brand"
  */
 export function PublicShell({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="flex min-h-dvh flex-col bg-background">
+    // The same height chain as the workspace (`h-dvh` → a scrolling flex child
+    // → `lg:h-full` inside): the calendar shares the screen's height between
+    // its week rows, and a percentage height only resolves against a definite
+    // one. `min-h-dvh` here left the rows sharing nothing, so the cells
+    // collapsed and the page ended in dead space.
+    <div className="flex h-dvh w-full flex-col overflow-clip bg-background">
       <header className="shrink-0 border-b bg-card px-4 py-3 sm:px-6">
         <div className="mx-auto flex max-w-screen-2xl items-baseline gap-2">
           <p className="text-sm font-semibold text-foreground">{PRODUCT_NAME}</p>
@@ -19,7 +24,9 @@ export function PublicShell({ label, children }: { label: string; children: Reac
           <p className="ml-auto truncate text-xs text-muted-foreground">{label}</p>
         </div>
       </header>
-      <main className="mx-auto flex w-full max-w-screen-2xl flex-1 flex-col p-4 sm:p-6 lg:min-h-0">{children}</main>
+      <main className="custom-scrollbar flex-1 overflow-y-auto px-4 pb-6 pt-4 sm:px-6 lg:pb-8">
+        <div className="mx-auto w-full max-w-screen-2xl lg:h-full">{children}</div>
+      </main>
     </div>
   )
 }
