@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { DraggableWidgetGrid, type WidgetItem } from "@/components/ui/draggable-widget-grid"
 import { resetDashboardLayout, saveDashboardLayout } from "@/app/actions/dashboard-actions"
-import { BUILTIN_WIDGETS, type CubeWidget, type WidgetConfig, type WidgetMode, type WidgetSize } from "@/lib/reporting/cube"
+import { BUILTIN_WIDGETS, minSizeFor, type CubeWidget, type WidgetConfig, type WidgetMode, type WidgetSize } from "@/lib/reporting/cube"
 import {
   hideWidget,
   modeOf,
@@ -134,6 +134,7 @@ export function DashboardEditor({
         title={config.title}
         editing={editing}
         size={item.size}
+        minSize={minSizeFor(config)}
         modes={config.source === "cube" ? config.modes : undefined}
         mode={mode}
         onMode={(next) => change(setMode(layout, item.id, next))}

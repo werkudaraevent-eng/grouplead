@@ -162,6 +162,28 @@ describe("labels", () => {
   })
 })
 
+describe("sizes", () => {
+  it("snaps cells to a size and knows a minimum", async () => {
+    const { sizeFromCells, sizeFits, minSizeFor, builtinWidget } = await import("./cube")
+    expect(sizeFromCells(1, 1)).toBe("sm")
+    expect(sizeFromCells(2, 1)).toBe("wide")
+    expect(sizeFromCells(1, 2)).toBe("tall")
+    expect(sizeFromCells(2, 2)).toBe("lg")
+    expect(sizeFits("tall", "wide")).toBe(false)
+    expect(sizeFits("lg", "wide")).toBe(true)
+    expect(minSizeFor(builtinWidget("visits_per_day")!)).toBe("wide")
+    expect(minSizeFor(builtinWidget("interest_mix")!)).toBe("sm")
+    expect(minSizeFor(builtinWidget("visits_by_industry")!)).toBe("sm")
+    expect(minSizeFor(builtinWidget("daily_reports")!)).toBe("wide")
+  })
+
+  it("fills a four-column rectangle by default", () => {
+    const cells = { sm: 1, wide: 2, tall: 2, lg: 4 }
+    const area = BUILTIN_WIDGETS.filter((widget) => !widget.defaultHidden).reduce((sum, widget) => sum + cells[widget.size], 0)
+    expect(area % 4).toBe(0)
+  })
+})
+
 describe("built-ins", () => {
   it("show six cards by default and hide the rest", () => {
     expect(DEFAULT_ORDER).toEqual(["visits_per_day", "visits_vs_appointments", "appointments_vs_planning", "interest_mix", "visits_by_industry", "daily_reports"])

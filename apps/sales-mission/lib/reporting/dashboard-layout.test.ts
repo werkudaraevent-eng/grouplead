@@ -108,6 +108,14 @@ describe("edits", () => {
     expect(removed.sizes).toEqual({})
   })
 
+  it("never lets a chart shrink below its minimum", () => {
+    const layout = { ...base, sizes: { visits_per_day: "sm" as const, interest_mix: "sm" as const, daily_reports: "tall" as const } }
+    const { visible } = resolveWidgets(layout)
+    expect(visible.find((widget) => widget.id === "visits_per_day")?.size).toBe("wide")
+    expect(visible.find((widget) => widget.id === "interest_mix")?.size).toBe("sm")
+    expect(visible.find((widget) => widget.id === "daily_reports")?.size).toBe("lg")
+  })
+
   it("resolves configs with the person's size and a default mode", () => {
     const layout = { ...base, sizes: { interest_mix: "lg" as const } }
     const { visible, hidden } = resolveWidgets(layout)

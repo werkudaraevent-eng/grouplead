@@ -110,6 +110,21 @@ export const WIDGET_SIZES = ["sm", "wide", "tall", "lg"] as const
 export type WidgetSize = (typeof WIDGET_SIZES)[number]
 export const SIZE_LABELS: Record<WidgetSize, string> = { sm: "Kecil", wide: "Lebar", tall: "Tinggi", lg: "Besar" }
 
+/** Cells a size spans: [columns, rows]. */
+export const SIZE_CELLS: Record<WidgetSize, [number, number]> = { sm: [1, 1], wide: [2, 1], tall: [1, 2], lg: [2, 2] }
+
+export function sizeFromCells(columns: number, rows: number): WidgetSize {
+  if (columns >= 2 && rows >= 2) return "lg"
+  if (columns >= 2) return "wide"
+  if (rows >= 2) return "tall"
+  return "sm"
+}
+
+/** Whether a size is at least the minimum in both directions. */
+export function sizeFits(size: WidgetSize, min: WidgetSize): boolean {
+  return SIZE_CELLS[size][0] >= SIZE_CELLS[min][0] && SIZE_CELLS[size][1] >= SIZE_CELLS[min][1]
+}
+
 export const WIDGET_MODES = ["umum", "sales"] as const
 export type WidgetMode = (typeof WIDGET_MODES)[number]
 export const MODE_LABELS: Record<WidgetMode, string> = { umum: "Umum", sales: "Per sales" }
@@ -232,7 +247,7 @@ export const BUILTIN_WIDGETS: readonly BuiltinWidget[] = [
     defaultHidden: false,
     description: "HQL, panas, hangat, dingin, dan tidak berminat dari laporan kunjungan.",
   }),
-  cube("visits_by_industry", "Kunjungan per industri", ["visits"], "industry", "bars", "tall", {
+  cube("visits_by_industry", "Kunjungan per industri", ["visits"], "industry", "bars", "sm", {
     defaultHidden: false,
     description: "Industri klien mana yang paling sering dikunjungi.",
   }),
@@ -275,6 +290,21 @@ export const BUILTIN_WIDGETS: readonly BuiltinWidget[] = [
 
 export const DEFAULT_ORDER: readonly string[] = BUILTIN_WIDGETS.filter((widget) => !widget.defaultHidden).map((widget) => widget.id)
 export const DEFAULT_HIDDEN: readonly string[] = BUILTIN_WIDGETS.filter((widget) => widget.defaultHidden).map((widget) => widget.id)
+
+/**
+ * The smallest cell a card still reads in (Android home-screen widgets
+ * declare the same): an axis chart or a table needs two columns; a
+ * number, a donut, a list or the funnel manage in one.
+ */
+export function minSizeFor(config: WidgetConfig): WidgetSize {
+  if (config.source === "daily_reports" || config.source === "kpi_strip") return "wide"
+  if (config.source === "funnel") return "sm"
+  if (config.source !== "cube") return "wide"
+  if (config.group === "none") return "sm"
+  if (config.chart === "donut") return "sm"
+  if (config.chart === "bars" && !isTimeDimension(config.group) && !(config.series && config.series !== "none")) return "sm"
+  return "wide"
+}
 
 export function builtinWidget(id: string): BuiltinWidget | undefined {
   return BUILTIN_WIDGETS.find((widget) => widget.id === id)

@@ -7,7 +7,10 @@ import {
   PROSPECT_MEASURES,
   WIDGET_MODES,
   WIDGET_SIZES,
+  SIZE_CELLS,
   builtinWidget,
+  minSizeFor,
+  sizeFromCells,
   validateWidget,
   type CubeWidget,
   type WidgetConfig,
@@ -135,8 +138,11 @@ function configOf(layout: DashboardLayout, id: string): WidgetConfig | undefined
   return layout.custom.find((widget) => widget.id === id) ?? builtinWidget(id)
 }
 
+/** The chosen size, lifted in either direction to the card's minimum. */
 export function sizeOf(layout: DashboardLayout, widget: WidgetConfig): WidgetSize {
-  return layout.sizes[widget.id] ?? widget.size
+  const chosen = layout.sizes[widget.id] ?? widget.size
+  const min = minSizeFor(widget)
+  return sizeFromCells(Math.max(SIZE_CELLS[chosen][0], SIZE_CELLS[min][0]), Math.max(SIZE_CELLS[chosen][1], SIZE_CELLS[min][1]))
 }
 
 export function modeOf(layout: DashboardLayout, widget: WidgetConfig): WidgetMode {
