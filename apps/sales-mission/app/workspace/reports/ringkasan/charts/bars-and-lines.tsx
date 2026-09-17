@@ -19,6 +19,27 @@ interface AxisChartProps {
   values: number[][]
   unit: Unit
   stacked?: boolean
+  /**
+   * Names on the category axis lie the bars down: the label then has the
+   * row's width to itself instead of a slot between its neighbours, which
+   * is Material's data-visualisation rule (never rotate a label; turn the
+   * chart) and Datawrapper's.
+   */
+  horizontal?: boolean
+}
+
+const LABEL_CHARS = 16
+const truncate = (text: string) => (text.length > LABEL_CHARS ? `${text.slice(0, LABEL_CHARS - 1)}…` : text)
+
+/** A category tick with an ellipsis; the full name is in the tooltip. */
+function NameTick({ x, y, payload }: { x?: number; y?: number; payload?: { value?: string } }) {
+  const text = String(payload?.value ?? "")
+  return (
+    <text x={x} y={y} dy={3} textAnchor="end" fontSize={10} fill="var(--muted-foreground)">
+      <title>{text}</title>
+      {truncate(text)}
+    </text>
+  )
 }
 
 function toRows({ categories, series, values }: AxisChartProps) {
@@ -75,6 +96,29 @@ export function DayBars(props: AxisChartProps) {
   const { width, containerRef } = useContainerWidth()
   const plot = Math.max(0, width - 56)
   const barSize = Math.max(4, Math.min(28, Math.floor(((plot / Math.max(1, props.categories.length)) * 0.72) / Math.max(1, props.series.length))))
+  if (props.horizontal) {
+    // Rows: one per name, the label on the left, the bar to its right.
+    const rowSize = Math.max(4, Math.min(22, Math.floor(22 / Math.max(1, props.stacked ? 1 : props.series.length))))
+    return (
+      <div className="flex h-full min-h-0 flex-col">
+        <div ref={containerRef} className="min-h-0 flex-1">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={rows} layout="vertical" margin={{ top: 2, right: 8, bottom: 0, left: 0 }} barGap={2} barCategoryGap="22%" accessibilityLayer>
+              <CartesianGrid horizontal={false} stroke="var(--border)" strokeDasharray="3 3" />
+              <XAxis type="number" tick={axisStyle} tickLine={false} axisLine={false} allowDecimals={false} tickFormatter={(value: number) => formatCompact(value, props.unit)} />
+              <YAxis type="category" dataKey="name" width={96} tickLine={false} axisLine={false} interval={0} tick={<NameTick />} />
+              <Tooltip cursor={{ fill: "var(--muted)" }} content={<ChartTooltip series={props.series} unit={props.unit} />} />
+              {props.series.map((item) => (
+                <Bar key={item.key} dataKey={item.key} fill={item.color} stackId={props.stacked ? "all" : undefined} radius={props.stacked ? 0 : [0, 3, 3, 0]} isAnimationActive={false} barSize={rowSize} />
+              ))}
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+        <Legend series={props.series} />
+      </div>
+    )
+  }
+
   return (
     <div className="flex h-full min-h-0 flex-col">
       <div ref={containerRef} className="min-h-0 flex-1">

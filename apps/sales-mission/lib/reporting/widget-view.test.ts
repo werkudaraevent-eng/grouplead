@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { builtinWidget } from "./cube"
+import { builtinWidget, type CubeWidget } from "./cube"
 import { formatCompact, formatValue, presentWidget } from "./widget-view"
 import type { WidgetData } from "./dashboard-queries"
 
@@ -45,6 +45,12 @@ describe("presentWidget", () => {
     if (umum.type !== "day_bars") throw new Error(umum.type)
     expect(umum.series.map((item) => item.key)).toEqual(["appointments", "visits"])
     expect(umum.values[0]).toEqual([2, 1])
+    expect(umum.horizontal).toBe(false)
+
+    const bySalesConfig: CubeWidget = { id: "c_test000001", kind: "custom", source: "cube", title: "Uji", measures: ["visits", "appointments"], group: "sales", chart: "bars", size: "wide" }
+    const bySales = presentWidget(bySalesConfig, data, "umum", ctx, range)
+    if (bySales.type !== "day_bars") throw new Error(bySales.type)
+    expect(bySales.horizontal).toBe(true)
 
     const sales = presentWidget(config, data, "sales", ctx, range)
     if (sales.type !== "table") throw new Error(sales.type)

@@ -44,7 +44,7 @@ export interface Category {
 }
 
 export type WidgetView =
-  | { type: "day_bars"; categories: Category[]; series: Series[]; values: number[][]; stacked: boolean; unit: Unit }
+  | { type: "day_bars"; categories: Category[]; series: Series[]; values: number[][]; stacked: boolean; unit: Unit; horizontal: boolean }
   | { type: "lines"; categories: Category[]; series: Series[]; values: number[][]; unit: Unit }
   | { type: "list_bars"; rows: Array<{ key: string; label: string; value: number; share: number }>; unit: Unit }
   | { type: "donut"; slices: Array<{ key: string; label: string; value: number; share: number; color: string }>; total: number; unit: Unit }
@@ -196,7 +196,7 @@ function presentCube(
       )
     }
     if (config.chart === "lines") return { type: "lines", categories, series, values, unit }
-    return { type: "day_bars", categories, series, values, stacked: false, unit }
+    return { type: "day_bars", categories, series, values, stacked: false, unit, horizontal: !isTimeDimension(group) }
   }
 
   // One measure, grouped, optionally split (by the configured series or by sales in Per sales mode).
@@ -225,7 +225,7 @@ function presentCube(
     if (isTimeDimension(group)) {
       const series: Series[] = [{ key: measure, label: MEASURE_LABELS[measure], color: seriesColor("measure", measure, 0) }]
       const values = keys.map((key) => [grid.totals.get(key) ?? 0])
-      return config.chart === "lines" ? { type: "lines", categories, series, values, unit } : { type: "day_bars", categories, series, values, stacked: false, unit }
+      return config.chart === "lines" ? { type: "lines", categories, series, values, unit } : { type: "day_bars", categories, series, values, stacked: false, unit, horizontal: false }
     }
     const values = keys.map((key) => grid.totals.get(key) ?? 0)
     const pct = shares(values)
@@ -241,7 +241,7 @@ function presentCube(
     )
   }
   if (config.chart === "lines") return { type: "lines", categories, series, values, unit }
-  return { type: "day_bars", categories, series, values, stacked: true, unit }
+  return { type: "day_bars", categories, series, values, stacked: true, unit, horizontal: !isTimeDimension(group) }
 }
 
 function table(columns: Array<{ key: string; label: string; unit: Unit | "percent" }>, rows: Array<{ label: string; cells: Array<number | null> }>): WidgetView {

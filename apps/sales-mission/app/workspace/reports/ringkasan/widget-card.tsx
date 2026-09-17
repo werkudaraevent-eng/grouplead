@@ -9,7 +9,7 @@ import { DailyReportList, DataTable, FunnelBody, KpiStrip, ListBars, NumberTile 
 export function WidgetCard({ view, range, sales, editing }: { view: WidgetView; range: { from: string; to: string }; sales: string[]; editing: boolean }) {
   switch (view.type) {
     case "day_bars":
-      return <DayBars categories={view.categories} series={view.series} values={view.values} unit={view.unit} stacked={view.stacked} />
+      return <DayBars categories={view.categories} series={view.series} values={view.values} unit={view.unit} stacked={view.stacked} horizontal={view.horizontal} />
     case "lines":
       return <Lines categories={view.categories} series={view.series} values={view.values} unit={view.unit} />
     case "donut":
