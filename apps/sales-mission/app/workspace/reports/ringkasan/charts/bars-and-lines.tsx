@@ -1,5 +1,6 @@
 "use client"
 
+import { useContainerWidth } from "react-grid-layout"
 import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts"
 import type { Category, Series } from "@/lib/reporting/widget-view"
 import { formatCompact, formatValue } from "@/lib/reporting/widget-view"
@@ -69,17 +70,22 @@ const axisStyle = { fontSize: 10, fill: "var(--muted-foreground)" }
 export function DayBars(props: AxisChartProps) {
   const rows = toRows(props)
   const dense = props.categories.length > 14
+  // The bar width is set by hand from the measured plot: recharts' own
+  // share of the category band came out as hairlines on a month of days.
+  const { width, containerRef } = useContainerWidth()
+  const plot = Math.max(0, width - 56)
+  const barSize = Math.max(4, Math.min(28, Math.floor(((plot / Math.max(1, props.categories.length)) * 0.72) / Math.max(1, props.series.length))))
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="min-h-0 flex-1">
+      <div ref={containerRef} className="min-h-0 flex-1">
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={rows} margin={{ top: 4, right: 4, bottom: 0, left: -18 }} barCategoryGap={dense ? "20%" : "30%"} accessibilityLayer>
+          <BarChart data={rows} margin={{ top: 4, right: 4, bottom: 0, left: -18 }} barGap={2} barCategoryGap={dense ? "12%" : "24%"} accessibilityLayer>
             <CartesianGrid vertical={false} stroke="var(--border)" strokeDasharray="3 3" />
             <XAxis dataKey="name" tick={axisStyle} tickLine={false} axisLine={false} interval={dense ? "preserveStartEnd" : 0} minTickGap={12} />
             <YAxis tick={axisStyle} tickLine={false} axisLine={false} allowDecimals={false} tickFormatter={(value: number) => formatCompact(value, props.unit)} width={46} />
             <Tooltip cursor={{ fill: "var(--muted)" }} content={<ChartTooltip series={props.series} unit={props.unit} />} />
             {props.series.map((item) => (
-              <Bar key={item.key} dataKey={item.key} fill={item.color} stackId={props.stacked ? "all" : undefined} radius={props.stacked ? 0 : [3, 3, 0, 0]} isAnimationActive={false} maxBarSize={28} />
+              <Bar key={item.key} dataKey={item.key} fill={item.color} stackId={props.stacked ? "all" : undefined} radius={props.stacked ? 0 : [3, 3, 0, 0]} isAnimationActive={false} barSize={props.stacked ? Math.min(28, barSize * props.series.length) : barSize} />
             ))}
           </BarChart>
         </ResponsiveContainer>
