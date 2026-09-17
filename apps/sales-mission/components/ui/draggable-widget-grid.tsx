@@ -613,6 +613,22 @@ export function DraggableWidgetGrid({
 }: DraggableWidgetGridProps) {
   const [items, setItems] = useState(() => initialItems ?? DEFAULT_ITEMS)
   const grid = useRef(null as HTMLDivElement | null)
+
+  // Our addition: a later `items` prop is applied in place (a size changed,
+  // a widget shown or hidden) instead of remounting the grid, which
+  // replayed every widget's entrance and read as a blink. The current
+  // order wins for widgets that stay; new ones are appended.
+  useEffect(() => {
+    if (!initialItems) return
+    setItems((current) => {
+      const incoming = new Map(initialItems.map((item) => [item.id, item]))
+      const kept = current.filter((item) => incoming.has(item.id)).map((item) => ({ ...item, ...incoming.get(item.id)! }))
+      const added = initialItems.filter((item) => !current.some((existing) => existing.id === item.id))
+      const next = [...kept, ...added]
+      const signature = (list: WidgetItem[]) => list.map((item) => `${item.id}:${item.size}:${item.label ?? ""}`).join("|")
+      return signature(next) === signature(current) ? current : next
+    })
+  }, [initialItems])
   const hintId = useId()
   const minColumns = Math.min(2, Math.max(1, maxColumns))
 

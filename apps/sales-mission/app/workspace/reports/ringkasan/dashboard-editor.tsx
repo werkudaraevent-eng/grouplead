@@ -111,10 +111,6 @@ export function DashboardEditor({
   const items: WidgetItem[] = layout.order
     .filter((id) => cardById.has(id))
     .map((id) => ({ id, size: sizeOf(layout, cardById.get(id)!.config), label: cardById.get(id)!.config.title }))
-  // The grid keeps its own order after mount; it is remounted only when
-  // the set of cards or a size changes from outside it.
-  const gridKey = [...items].sort((a, b) => a.id.localeCompare(b.id)).map((item) => `${item.id}:${item.size}`).join("|")
-
   const descriptions = Object.fromEntries(BUILTIN_WIDGETS.map((widget) => [widget.id, widget.description]))
   const hiddenNow = hidden.filter((widget) => layout.hidden.includes(widget.id))
 
@@ -178,7 +174,6 @@ export function DashboardEditor({
         </p>
       ) : (
         <DraggableWidgetGrid
-          key={gridKey}
           items={items}
           editable={editing}
           maxColumns={4}

@@ -80,15 +80,17 @@ function ResizeHandle({
         onPointerMove={(event) => {
           const state = drag.current
           if (!state || state.pointerId !== event.pointerId) return
-          setPreview(targetFor(event.clientX - state.x, event.clientY - state.y))
+          const target = targetFor(event.clientX - state.x, event.clientY - state.y)
+          setPreview(target)
+          // Applied as the pointer crosses a cell, so the board reflows
+          // under the hand (Android's widget resize), not on release.
+          if (target !== size) onSize(target)
         }}
         onPointerUp={(event) => {
           const state = drag.current
           if (!state || state.pointerId !== event.pointerId) return
-          const target = targetFor(event.clientX - state.x, event.clientY - state.y)
           drag.current = null
           setPreview(null)
-          if (target !== size) onSize(target)
         }}
         onPointerCancel={() => {
           drag.current = null
