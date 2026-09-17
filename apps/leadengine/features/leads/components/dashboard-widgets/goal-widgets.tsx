@@ -118,7 +118,7 @@ export function GoalAttainmentWidget() {
                 endAngle={-270}
               >
                 <PolarAngleAxis type="number" domain={[0, 100]} angleAxisId={0} tick={false} />
-                <RadialBar
+                <RadialBar isAnimationActive={false}
                   background={{ fill: "#f1f5f9" }}
                   dataKey="value"
                   angleAxisId={0}
@@ -185,7 +185,7 @@ export function GoalForecastWidget() {
                 <XAxis dataKey="name" tick={{ fontSize: 9, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fontSize: 10, fill: "#64748b" }} axisLine={false} tickLine={false} tickFormatter={fmtAxis} width={60} />
                 <Tooltip content={<GoalTooltip fmt={fmt} />} cursor={{ fill: "rgba(0,0,0,.04)" }} />
-                <Bar dataKey="value" radius={[4, 4, 0, 0]} name="Amount">
+                <Bar isAnimationActive={false} dataKey="value" radius={[4, 4, 0, 0]} name="Amount">
                   {chartData.map((entry, i) => (
                     <Cell key={i} fill={entry.fill} />
                   ))}
@@ -256,7 +256,7 @@ export function GoalVarianceWidget() {
                 <YAxis tick={{ fontSize: 10, fill: "#64748b" }} axisLine={false} tickLine={false} tickFormatter={fmtAxis} width={60} />
                 <Tooltip content={<GoalTooltip fmt={fmt} />} cursor={{ fill: "rgba(0,0,0,.04)" }} />
                 <ReferenceLine y={0} stroke="#94a3b8" strokeDasharray="3 3" />
-                <Bar dataKey="value" radius={[4, 4, 0, 0]} name="Gap">
+                <Bar isAnimationActive={false} dataKey="value" radius={[4, 4, 0, 0]} name="Gap">
                   {chartData.map((entry, i) => (
                     <Cell key={i} fill={entry.fill} />
                   ))}
@@ -371,7 +371,7 @@ export function GoalCompanyBreakdownWidget() {
                   <XAxis type="number" hide domain={xDomain} />
                   <YAxis type="category" dataKey="name" tick={{ fontSize: 10, fill: "#64748b", fontWeight: 500 }} axisLine={false} tickLine={false} width={80} />
                   <Tooltip content={<GoalTooltip fmt={fmt} />} cursor={{ fill: "rgba(0,0,0,.04)" }} />
-                  <Bar dataKey="wonRevenue" name="Revenue" radius={[0, 4, 4, 0]}>
+                  <Bar isAnimationActive={false} dataKey="wonRevenue" name="Revenue" radius={[0, 4, 4, 0]}>
                     {rows.map((_, i) => (
                       <Cell key={i} fill={COLORS[i % COLORS.length]} />
                     ))}
@@ -505,7 +505,7 @@ export function GoalSegmentBreakdownWidget() {
           <div style={{ flex: 1, minHeight: 80, width: "100%" }}>
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
-                <Pie
+                <Pie isAnimationActive={false}
                   data={pieData}
                   dataKey="value"
                   nameKey="name"
@@ -622,8 +622,8 @@ export function GoalTrendWidget() {
               <XAxis dataKey="label" tick={{ fontSize: 9, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fontSize: 10, fill: "#64748b" }} axisLine={false} tickLine={false} tickFormatter={fmtAxis} width={55} />
               <Tooltip content={<GoalTooltip fmt={fmt} />} cursor={{ fill: "rgba(0,0,0,.04)" }} />
-              <Bar dataKey="attainment" name="Attainment" fill="#10b981" radius={[3, 3, 0, 0]} />
-              <Bar dataKey="target" name="Target" fill="#cbd5e1" radius={[3, 3, 0, 0]} />
+              <Bar isAnimationActive={false} dataKey="attainment" name="Attainment" fill="#10b981" radius={[3, 3, 0, 0]} />
+              <Bar isAnimationActive={false} dataKey="target" name="Target" fill="#cbd5e1" radius={[3, 3, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>

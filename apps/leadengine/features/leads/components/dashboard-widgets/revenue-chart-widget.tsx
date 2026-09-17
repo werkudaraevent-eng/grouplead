@@ -166,7 +166,7 @@ export function RevenueChartWidget({ data, currentYear, compareYear, setCompareY
                                 imply continuous values between discrete monthly
                                 targets. Small subtle dots help the eye lock onto
                                 each month's target; exact value stays in tooltip. */}
-                            <Line
+                            <Line isAnimationActive={false}
                                 yAxisId="left"
                                 type="linear"
                                 dataKey="target"
@@ -185,7 +185,7 @@ export function RevenueChartWidget({ data, currentYear, compareYear, setCompareY
                                 Solid `fill` drives the legend swatch (gradients
                                 don't resolve in Recharts' separate legend SVG);
                                 per-Cell gradient fills drive the actual bars. */}
-                            <Bar yAxisId="left" dataKey="actual" name={`Actual ${currentYear}`} fill="#02378D" radius={[6, 6, 0, 0]} maxBarSize={34} onClick={(e: unknown) => handleMonthClick(getChartPayload(e))} style={{ cursor: onMonthFilterToggle ? "pointer" : "default" }}>
+                            <Bar isAnimationActive={false} yAxisId="left" dataKey="actual" name={`Actual ${currentYear}`} fill="#02378D" radius={[6, 6, 0, 0]} maxBarSize={34} onClick={(e: unknown) => handleMonthClick(getChartPayload(e))} style={{ cursor: onMonthFilterToggle ? "pointer" : "default" }}>
                                 {data.map((entry, i) => {
                                     const aboveTarget = entry.actual >= entry.target && entry.target > 0
                                     const hasData = entry.actual > 0
@@ -205,7 +205,7 @@ export function RevenueChartWidget({ data, currentYear, compareYear, setCompareY
                                 widen to fill, keeping the default view clean.
                                 Solid `fill` for the legend; gradient via Cells. */}
                             {hasComparison && (
-                                <Bar yAxisId="left" dataKey="prevYear" name={`${compareYear}`} fill="#5EC5F2" radius={[6, 6, 0, 0]} maxBarSize={34} opacity={0.7}>
+                                <Bar isAnimationActive={false} yAxisId="left" dataKey="prevYear" name={`${compareYear}`} fill="#5EC5F2" radius={[6, 6, 0, 0]} maxBarSize={34} opacity={0.7}>
                                     {data.map((entry, i) => (
                                         <Cell key={i} fill="url(#revPrevGrad)" />
                                     ))}

@@ -51,6 +51,13 @@ export const CHANGE_TYPE_META: Record<
 
 export const CHANGELOG: ChangelogEntry[] = [
     {
+        date: "2026-09-18",
+        title: "Arranging the dashboard is smooth again",
+        items: [
+            { type: "fix", text: "Dragging or resizing a dashboard widget no longer stutters. The board took the layout into state on every frame of a drag and re-rendered everything each time; it now takes it when you let go. Chart entrance animations are off, so a re-render never replays one." },
+        ],
+    },
+    {
         date: "2026-09-17",
         title: "The drawer keeps destinations",
         items: [

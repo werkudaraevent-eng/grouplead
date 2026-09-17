@@ -326,7 +326,7 @@ function BarRenderer({ widget, data, filterNode }: CustomWidgetRendererProps & {
                       content={<BarTooltip chartRef={chartRef} metricField={widget.metric_field} aggregation={widget.aggregation} fmt={fmt} />}
                       cursor={{ fill: "rgba(0,0,0,.03)" }}
                     />
-                    <Bar dataKey="value" radius={[0, 4, 4, 0]} barSize={14}>
+                    <Bar isAnimationActive={false} dataKey="value" radius={[0, 4, 4, 0]} barSize={14}>
                       {chartData.map((d, i) => (
                         <Cell key={i} fill={d.fill} />
                       ))}
@@ -396,7 +396,7 @@ function PieRenderer({ widget, data, filterNode }: CustomWidgetRendererProps & {
           {hasMounted ? (
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
-                <Pie
+                <Pie isAnimationActive={false}
                   data={chartData}
                   dataKey="value"
                   nameKey="label"
@@ -533,7 +533,7 @@ function ListRenderer({ widget, data, filterNode }: CustomWidgetRendererProps & 
                       content={<ListTooltip chartRef={chartRef} metricField={widget.metric_field} aggregation={widget.aggregation} fmt={fmt} />}
                       cursor={{ fill: "rgba(0,0,0,.03)" }}
                     />
-                    <Bar dataKey="value" radius={[0, 4, 4, 0]} barSize={14}>
+                    <Bar isAnimationActive={false} dataKey="value" radius={[0, 4, 4, 0]} barSize={14}>
                       {chartData.map((d, i) => (
                         <Cell key={i} fill={d.fill} />
                       ))}

@@ -265,17 +265,39 @@ export function DashboardGrid({
     // entry in that view's saved `layout_data`. The parent coordinates adoption
     // via `addWidgetToLayoutRef` below.
 
+    // react-grid-layout reports the layout on every frame of a drag or a
+    // resize. Taking it into state each time re-rendered this whole
+    // component, its nineteen wrappers and the grid's own children for
+    // every pixel moved, which is what made arranging feel slow. The grid
+    // owns the pointer; the layout is taken into state when the pointer
+    // is released (or when the grid compacts on its own, outside a drag).
+    const interactingRef = useRef(false)
+    const applyLayout = useCallback((currentLayout: Layout) => {
+        // RGL only reports items currently rendered in the grid.
+        // Hidden widgets are filtered out of activeLayout, so they won't
+        // appear in currentLayout. We must merge the visible layout changes
+        // with the existing hidden widget entries to preserve all 19 items.
+        const visibleIds = new Set(currentLayout.map(item => item.i))
+        setLayout(prev => {
+            const hiddenEntries = prev.filter(item => !visibleIds.has(item.i))
+            const next = [...currentLayout, ...hiddenEntries]
+            const same = next.length === prev.length && next.every(item => {
+                const was = prev.find(p => p.i === item.i)
+                return was && was.x === item.x && was.y === item.y && was.w === item.w && was.h === item.h
+            })
+            return same ? prev : next
+        })
+    }, [])
     const handleLayoutChange = useCallback((currentLayout: Layout) => {
-        if (isEditing) {
-            // RGL only reports items currently rendered in the grid.
-            // Hidden widgets are filtered out of activeLayout, so they won't
-            // appear in currentLayout. We must merge the visible layout changes
-            // with the existing hidden widget entries to preserve all 19 items.
-            const visibleIds = new Set(currentLayout.map(item => item.i))
-            const hiddenEntries = layout.filter(item => !visibleIds.has(item.i))
-            setLayout([...currentLayout, ...hiddenEntries])
-        }
-    }, [isEditing, layout])
+        if (isEditing && !interactingRef.current) applyLayout(currentLayout)
+    }, [isEditing, applyLayout])
+    const handleInteractionStart = useCallback(() => {
+        interactingRef.current = true
+    }, [])
+    const handleInteractionStop = useCallback((currentLayout: Layout) => {
+        interactingRef.current = false
+        if (isEditing) applyLayout(currentLayout)
+    }, [isEditing, applyLayout])
 
     const handleStartEdit = useCallback(() => {
         preEditLayoutRef.current = JSON.parse(JSON.stringify(layout))
@@ -670,6 +692,10 @@ export function DashboardGrid({
                             handles: [...ALL_RESIZE_HANDLES],
                         }}
                         onLayoutChange={handleLayoutChange}
+                        onDragStart={handleInteractionStart}
+                        onDragStop={handleInteractionStop}
+                        onResizeStart={handleInteractionStart}
+                        onResizeStop={handleInteractionStop}
                     >
                         {(() => {
                             // React treats expressions like {list.map(...)} as a
