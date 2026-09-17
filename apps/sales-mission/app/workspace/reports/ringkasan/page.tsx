@@ -7,7 +7,7 @@ import { listReportChoices } from "@/lib/missions/report-choice-queries"
 import { resolveSales } from "@/lib/missions/mission-filter"
 import { describeReadScope } from "@/lib/access/record-scope"
 import { mergeLayout, modeOf, resolveWidgets } from "@/lib/reporting/dashboard-layout"
-import { readDashboardLayout } from "@/lib/reporting/dashboard-layout-queries"
+import { readCompanyDashboard, readDashboardLayout } from "@/lib/reporting/dashboard-layout-queries"
 import { labelContext, loadWidgetData, salesIdsSeen } from "@/lib/reporting/dashboard-queries"
 import { parseRingkasanQuery, resolveReportDay, resolveRingkasanRange } from "@/lib/reporting/ringkasan-filter"
 import { presentWidget, type WidgetView } from "@/lib/reporting/widget-view"
@@ -44,14 +44,17 @@ export default async function ReportSummaryPage({ searchParams }: { searchParams
   const sales = resolveSales(query.sales, access.userId)
   const day = resolveReportDay(query, range, now)
 
-  const [people, choices, saved, canSeeProspects, readScope] = await Promise.all([
+  const [people, choices, saved, companyDefault, canSeeProspects, canPublish, readScope] = await Promise.all([
     listTenantSales(access),
     listReportChoices(access),
     readDashboardLayout(access),
+    readCompanyDashboard(access),
     canPerform(access, "sales_mission_prospect", "read"),
+    canPerform(access, "sales_mission_settings", "update"),
     getReadScope(access, "sales_mission_result"),
   ])
-  const layout = mergeLayout(saved, { canSeeProspects })
+  // Your own board if you arranged one; else the unit's default; else the built-ins.
+  const layout = mergeLayout(saved ?? companyDefault, { canSeeProspects })
   const { visible, hidden } = resolveWidgets(layout)
 
   const data = await Promise.all(visible.map((widget) => loadWidgetData(access, widget, { range, sales, day, choices, now })))
@@ -96,6 +99,8 @@ export default async function ReportSummaryPage({ searchParams }: { searchParams
         cards={cards}
         hidden={hidden}
         canSeeProspects={canSeeProspects}
+        canPublish={canPublish}
+        hasCompanyDefault={companyDefault !== null}
       />
     </WorkspacePage>
   )

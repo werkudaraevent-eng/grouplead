@@ -11,3 +11,14 @@ export async function readDashboardLayout(access: SalesMissionAccess): Promise<u
   }
   return data?.layout ?? null
 }
+
+/** The unit's default layout as raw JSON, published by an admin, or null when none was set. */
+export async function readCompanyDashboard(access: SalesMissionAccess): Promise<unknown | null> {
+  const supabase = await createClient()
+  const { data, error } = await supabase.schema("sales_mission").from("company_dashboards").select("layout").eq("company_id", access.companyId).maybeSingle()
+  if (error) {
+    console.error("[readCompanyDashboard]", error.code, error.message)
+    return null
+  }
+  return data?.layout ?? null
+}

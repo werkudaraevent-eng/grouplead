@@ -30,6 +30,7 @@ export const CHANGELOG: ChangeEntry[] = [
     date: "2026-09-18",
     title: "Ringkasan yang bisa disusun sendiri",
     items: [
+      { kind: "baru", text: "Admin bisa menjadikan susunan Ringkasan di akunnya sebagai bawaan semua akun, lewat menu ⋯ di mode Atur widget. Orang yang sudah menyusun sendiri tetap dengan susunannya sampai memilih Kembali ke susunan awal." },
       { kind: "baru", text: "Kalender tim: atasan dan admin mendapat tautan langganan kedua di Kalender saya, berisi semua aktivitas yang boleh mereka lihat, dengan nama sales utama di depan judul acara. Kalender pribadi tetap hanya aktivitas yang Anda ikuti, dan halamannya kini mengatakan itu, serta mengingatkan untuk menempel sebagai kalender dari URL, bukan impor berkas." },
       { kind: "baru", text: "Ringkasan laporan kini berupa kartu: laporan per hari, laporan vs aktivitas, aktivitas vs prospek, tingkat minat, laporan per industri, dan daftar laporan per hari. Kata-katanya sama dengan menu: prospek adalah rencana, aktivitas adalah janji temu, laporan adalah kunjungan yang terjadi. Saring periode dan sales di atas; semua kartu mengikuti, dan kartu yang punya Umum / Per sales bisa diganti di tempat." },
       { kind: "baru", text: "Atur widget: geser kartu dari judulnya, tarik sudut kanan bawah untuk mengubah ukuran bebas pada grid 12 kolom (tiap kartu punya ukuran minimum), sembunyikan, tampilkan lagi. Susunan diingat per orang di semua perangkat." },

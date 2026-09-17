@@ -29,6 +29,8 @@ export function RingkasanToolbar({
   onEditingChange,
   onAddWidget,
   onReset,
+  resetLabel = "Kembali ke susunan awal",
+  onPublish,
 }: {
   query: RingkasanQuery
   range: { from: string; to: string }
@@ -38,6 +40,9 @@ export function RingkasanToolbar({
   onEditingChange: (editing: boolean) => void
   onAddWidget: () => void
   onReset: () => void
+  resetLabel?: string
+  /** Admin only: make this board the unit's default. */
+  onPublish?: () => void
 }) {
   const router = useRouter()
   const [pending, startTransition] = useTransition()
@@ -123,8 +128,9 @@ export function RingkasanToolbar({
                   <MoreVertical className="h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onSelect={onReset}>Kembali ke susunan awal</DropdownMenuItem>
+              <DropdownMenuContent align="end" className="w-64">
+                {onPublish && <DropdownMenuItem onSelect={onPublish}>Jadikan susunan awal semua akun</DropdownMenuItem>}
+                <DropdownMenuItem onSelect={onReset}>{resetLabel}</DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </>

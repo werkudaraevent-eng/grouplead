@@ -64,7 +64,7 @@ const PARTS: Part[] = [
       "Kirim laporan ketika sudah lengkap. Setelah dikirim, atasan bisa membacanya, dan perubahan tercatat sebagai versi.",
       "Salah kirim? Tarik kembali: laporan kembali menjadi draf dengan isi yang sama, aktivitas tidak lagi Selesai, versi terkirim dan alasannya tersimpan, tim diberi tahu. Boleh dilakukan penulisnya selama jendela ubah laporan, dan atasan yang berwenang kapan saja. Lead yang sudah dikirim ke LeadEngine tetap ada di sana. Laporan uji coba: tarik kembali lalu buang drafnya.",
       "Laporan yang menandai peluang bisa dikirim ke LeadEngine sebagai lead, satu kali per aktivitas. Saat mengirim, pilih kategori lead (HQL, Hot, Warm, Cold, sesuai Master Options LeadEngine); tingkat minat di laporan menyarankan salah satunya, dan ringkasan tampil dulu sebelum dikirim.",
-      "Halaman Laporan mengumpulkan semua laporan yang boleh kamu lihat; Ringkasan menghitungnya sebagai kartu yang bisa disusun: Atur widget untuk menggeser, mengubah ukuran, menyembunyikan, atau membuat kartu sendiri dari ukuran, pengelompokan, dan bentuk grafik. Saringan periode dan sales di atas berlaku untuk semua kartu.",
+      "Halaman Laporan mengumpulkan semua laporan yang boleh kamu lihat; Ringkasan menghitungnya sebagai kartu yang bisa disusun: Atur widget untuk menggeser, mengubah ukuran, menyembunyikan, atau membuat kartu sendiri dari ukuran, pengelompokan, dan bentuk grafik. Admin bisa menjadikan susunannya bawaan semua akun lewat menu ⋯. Saringan periode dan sales di atas berlaku untuk semua kartu.",
     ],
     link: { href: paths.reports, label: "Buka Laporan" },
   },

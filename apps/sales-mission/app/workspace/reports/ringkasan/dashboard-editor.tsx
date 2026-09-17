@@ -4,7 +4,9 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState, useTransition 
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import type { Layout, LayoutItem } from "react-grid-layout"
-import { resetDashboardLayout, saveDashboardLayout } from "@/app/actions/dashboard-actions"
+import { publishDashboardDefault, resetDashboardLayout, saveDashboardLayout } from "@/app/actions/dashboard-actions"
+import { Button } from "@/components/ui/button"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { useCompact } from "@/hooks/use-compact"
 import { BUILTIN_WIDGETS, GRID_COLS, minBoxFor, minSizeFor, type CubeWidget, type WidgetConfig, type WidgetMode, type WidgetSize } from "@/lib/reporting/cube"
 import {
@@ -114,6 +116,8 @@ export function DashboardEditor({
   cards,
   hidden,
   canSeeProspects,
+  canPublish,
+  hasCompanyDefault,
 }: {
   query: RingkasanQuery
   range: { from: string; to: string }
@@ -123,6 +127,9 @@ export function DashboardEditor({
   cards: CardData[]
   hidden: WidgetConfig[]
   canSeeProspects: boolean
+  /** Pengaturan → ubah: may make this board the unit's default. */
+  canPublish: boolean
+  hasCompanyDefault: boolean
 }) {
   const router = useRouter()
   const compact = useCompact()
@@ -130,6 +137,7 @@ export function DashboardEditor({
   const [editing, setEditing] = useState(false)
   const [sheetOpen, setSheetOpen] = useState(false)
   const [configuring, setConfiguring] = useState<{ open: boolean; widget: CubeWidget | null }>({ open: false, widget: null })
+  const [publishing, setPublishing] = useState(false)
   const [saving, startSaving] = useTransition()
 
   // The latest layout for handlers that must stay stable across renders.
@@ -263,6 +271,7 @@ export function DashboardEditor({
         saving={saving}
         onEditingChange={setEditing}
         onAddWidget={() => setSheetOpen(true)}
+        resetLabel={hasCompanyDefault ? "Kembali ke susunan awal unit bisnis" : "Kembali ke susunan awal"}
         onReset={() => {
           startSaving(async () => {
             const result = await resetDashboardLayout()
@@ -273,7 +282,46 @@ export function DashboardEditor({
             }
           })
         }}
+        onPublish={canPublish ? () => setPublishing(true) : undefined}
       />
+
+      <Dialog open={publishing} onOpenChange={(open) => { if (!saving) setPublishing(open) }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Jadikan susunan ini bawaan semua akun?</DialogTitle>
+            <DialogDescription>
+              Susunan, ukuran, dan widget buatan Anda di papan ini menjadi tampilan awal Ringkasan untuk setiap akun di unit bisnis ini. Orang yang sudah menyusun sendiri tetap dengan susunannya sampai memilih Kembali ke susunan awal. Kartu yang tidak boleh dilihat suatu peran tidak ikut tampil untuk peran itu.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setPublishing(false)} disabled={saving}>Batal</Button>
+            <Button
+              type="button"
+              disabled={saving}
+              onClick={() => {
+                if (timer.current) window.clearTimeout(timer.current)
+                startSaving(async () => {
+                  // Whatever is on screen is what gets published: save it first.
+                  const own = await saveDashboardLayout(layoutRef.current)
+                  if (!own.success) {
+                    toast.error(own.error ?? "Susunan widget tidak bisa disimpan.")
+                    return
+                  }
+                  const result = await publishDashboardDefault()
+                  if (!result.success) toast.error(result.error ?? "Susunan bawaan tidak bisa disimpan.")
+                  else {
+                    toast.success("Susunan ini kini bawaan untuk semua akun.")
+                    setPublishing(false)
+                    router.refresh()
+                  }
+                })
+              }}
+            >
+              Jadikan bawaan
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {visibleIds.length === 0 ? (
         <p className="rounded-xl border border-dashed bg-card/50 px-6 py-10 text-center text-sm text-muted-foreground">

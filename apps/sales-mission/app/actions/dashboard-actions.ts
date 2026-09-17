@@ -36,7 +36,38 @@ export async function saveDashboardLayout(input: unknown): Promise<ActionResult>
   return { success: true }
 }
 
-/** Back to the default arrangement: the row goes, the built-ins return in their own order. */
+/**
+ * The caller's own arrangement becomes the unit's default: everyone who
+ * has not arranged their own board sees it from now on, and "Kembali ke
+ * susunan awal" returns to it. Pengaturan → ubah, because it reaches
+ * every account.
+ */
+export async function publishDashboardDefault(): Promise<ActionResult> {
+  const access = await getSalesMissionAccess()
+  if (!access) return { success: false, error: NO_ACCESS_MESSAGE }
+  if (!(await canPerform(access, "sales_mission_settings", "update"))) {
+    return { success: false, error: "Hanya admin yang bisa menjadikan susunan ini bawaan semua akun." }
+  }
+  const supabase = await createClient()
+  const schema = supabase.schema("sales_mission")
+  const { data: own, error: readError } = await schema.from("user_dashboards").select("layout").eq("user_id", access.userId).maybeSingle()
+  if (readError) return { success: false, error: "Susunan Anda tidak bisa dibaca." }
+  if (!own?.layout) return { success: false, error: "Susun dulu widget di akun Anda; belum ada susunan yang tersimpan." }
+
+  const canSeeProspects = await canPerform(access, "sales_mission_prospect", "read")
+  const layout = mergeLayout(own.layout, { canSeeProspects })
+  const { error } = await schema
+    .from("company_dashboards")
+    .upsert({ company_id: access.companyId, layout, set_by: access.userId, updated_at: new Date().toISOString() }, { onConflict: "company_id" })
+  if (error) {
+    console.error("[publishDashboardDefault]", error.code, error.message)
+    return { success: false, error: "Susunan bawaan tidak bisa disimpan." }
+  }
+  revalidatePath(paths.reportSummary())
+  return { success: true }
+}
+
+/** Back to the default arrangement: the person's row goes; the unit's default, or the built-ins, return. */
 export async function resetDashboardLayout(): Promise<ActionResult> {
   const access = await getSalesMissionAccess()
   if (!access) return { success: false, error: NO_ACCESS_MESSAGE }
