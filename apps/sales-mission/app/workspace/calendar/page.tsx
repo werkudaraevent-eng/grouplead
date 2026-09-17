@@ -1,9 +1,14 @@
 import Link from "next/link"
 import { redirect } from "next/navigation"
+import { cookies } from "next/headers"
 import { CalendarDays, ChevronLeft, ChevronRight, Plus } from "@/components/icons"
 import { canPerform, getSalesMissionAccess } from "@/lib/sales-mission-access"
 import { requireModule } from "@/lib/missions/nav-access"
-import { getMissionSettings, listMissions } from "@/lib/missions/mission-queries"
+import { getMissionSettings, listMissions, listTenantSales } from "@/lib/missions/mission-queries"
+import { calendarHref, parseCalendarSales, resolveSales } from "@/lib/missions/calendar-filter"
+import { sanitizeViewString, VIEW_COOKIES } from "@/lib/view-cookies"
+import { RememberView } from "@/components/remember-view"
+import { CalendarFilter } from "./calendar-filter"
 import { annotateJoinStatus } from "@/lib/missions/mission-join"
 import { formatMissionSchedule, MISSION_TIME_ZONE } from "@/lib/missions/mission-schema"
 import {
@@ -27,7 +32,7 @@ const WEEKDAYS = ["S", "S", "R", "K", "J", "S", "M"]
 export default async function CalendarPage({
   searchParams,
 }: {
-  searchParams: Promise<{ month?: string; day?: string }>
+  searchParams: Promise<{ month?: string; day?: string; sales?: string }>
 }) {
   const access = await getSalesMissionAccess()
   if (!access) redirect("/login?error=access_not_provisioned")
@@ -36,11 +41,33 @@ export default async function CalendarPage({
   const params = await searchParams
   const now = new Date()
   const month = resolveMonth(params.month, now)
+
+  // The remembered filter. A request that says nothing about `sales` (a
+  // bare open, or a month link from elsewhere) gets the person's last
+  // choice; one that carries `sales=` (even empty, from "Semua") is honest
+  // as it is.
+  if (params.sales === undefined) {
+    const raw = (await cookies()).get(VIEW_COOKIES.calendar)?.value
+    if (raw) {
+      let decoded = raw
+      try {
+        decoded = decodeURIComponent(raw)
+      } catch {
+        // Left as is; the parser drops what it cannot read.
+      }
+      const remembered = new URLSearchParams(sanitizeViewString("calendar", decoded)).get("sales")
+      if (remembered) redirect(calendarHref({ month, day: params.day, sales: parseCalendarSales(remembered) }))
+    }
+  }
+  const sales = parseCalendarSales(params.sales)
+  const chosen = new Set(resolveSales(sales, access.userId))
+
   const { since, until } = monthWindow(month)
-  const [rawMissions, settings, canCreate] = await Promise.all([
+  const [rawMissions, settings, canCreate, people] = await Promise.all([
     listMissions(access, { since, until }),
     getMissionSettings(access),
     canPerform(access, "sales_mission_mission", "create"),
+    listTenantSales(access),
   ])
   // A calendar shows what will happen. A cancelled or refused visit is not
   // on it (Google Calendar hides declined events; the phone feed marks them
@@ -49,7 +76,12 @@ export default async function CalendarPage({
   // join surface, so each entry carries where the viewer stands relative
   // to it.
   const missions = annotateJoinStatus(
-    rawMissions.filter((mission) => mission.status !== "CANCELLED" && mission.status !== "REJECTED"),
+    rawMissions.filter(
+      (mission) =>
+        mission.status !== "CANCELLED" &&
+        mission.status !== "REJECTED" &&
+        (chosen.size === 0 || mission.assigneeIds.some((id) => chosen.has(id)))
+    ),
     settings
   )
   const grid = buildMonthGrid(month, missions, now)
@@ -97,13 +129,21 @@ export default async function CalendarPage({
         </Button>
       }
     >
+      <RememberView list="calendar" />
+      <div className="flex flex-col gap-4 lg:h-full lg:min-h-0">
+      <CalendarFilter
+        month={month}
+        day={selectedDay}
+        sales={sales}
+        people={people.map((person) => ({ id: person.id, name: person.name, avatarUrl: person.avatarUrl }))}
+      />
       {/* One screen, no page scroll (Google Calendar's month view, Outlook's
-          calendar): from lg the two panes fill the height under the page
-          header, top edges level. The month grid shares its rows over that
+          calendar): from lg the two panes fill the height under the chips,
+          top edges level. The month grid shares its rows over that
           height; the day pane keeps its header and scrolls its own list. On
           a short screen the cells keep a floor height and the page scrolls
           rather than crushing the days. */}
-      <section className="grid gap-4 lg:h-full lg:min-h-0 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] lg:grid-rows-[minmax(0,1fr)]">
+      <section className="grid gap-4 lg:min-h-0 lg:flex-1 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] lg:grid-rows-[minmax(0,1fr)]">
         <article className="flex min-w-0 flex-col rounded-xl border bg-card lg:min-h-0">
           <div className="flex items-center justify-between border-b px-5 py-4">
             <div>
@@ -115,21 +155,21 @@ export default async function CalendarPage({
                   the arrows reached. Hidden while today is already in view. */}
               {!(month === today.slice(0, 7) && selectedDay === today) && (
                 <Link
-                  href={`/workspace/calendar?month=${today.slice(0, 7)}&day=${today}`}
+                  href={calendarHref({ month: today.slice(0, 7), day: today, sales })}
                   className="mr-1 inline-flex h-11 items-center rounded-md border px-3 text-sm font-medium text-foreground transition-colors hover:bg-muted md:h-8"
                 >
                   Hari ini
                 </Link>
               )}
               <Link
-                href={`/workspace/calendar?month=${shiftMonth(month, -1)}`}
+                href={calendarHref({ month: shiftMonth(month, -1), sales })}
                 aria-label="Bulan sebelumnya"
                 className="grid h-11 w-11 place-items-center rounded-md border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground md:h-8 md:w-8"
               >
                 <ChevronLeft className="h-4 w-4" />
               </Link>
               <Link
-                href={`/workspace/calendar?month=${shiftMonth(month, 1)}`}
+                href={calendarHref({ month: shiftMonth(month, 1), sales })}
                 aria-label="Bulan berikutnya"
                 className="grid h-11 w-11 place-items-center rounded-md border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground md:h-8 md:w-8"
               >
@@ -164,7 +204,7 @@ export default async function CalendarPage({
                 return (
                   <Link
                     key={day.date}
-                    href={`/workspace/calendar?month=${month}&day=${day.date}`}
+                    href={calendarHref({ month, day: day.date, sales })}
                     aria-label={`${day.dayOfMonth}, ${day.missionCount} aktivitas`}
                     aria-current={selected ? "date" : undefined}
                     className={cn(
@@ -280,6 +320,7 @@ export default async function CalendarPage({
           )}
         </aside>
       </section>
+      </div>
     </WorkspacePage>
   )
 }

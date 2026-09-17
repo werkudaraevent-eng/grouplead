@@ -49,7 +49,7 @@ const PARTS: Part[] = [
       "Membatalkan: pilih Batal bila tidak ada lanjutan, atau Ditunda, jadwal menyusul bila klien minta hari lain dan tanggalnya belum ada. Yang ditunda muncul di Hari ini pada Perlu dijadwalkan ulang sampai Anda menekan Jadwalkan lagi.",
       "Sales utama adalah yang menulis laporan. Sales pendukung boleh Join sendiri selama kuota pendukung belum penuh dan pemilik mengizinkan.",
       "Bila konfirmasi penugasan diaktifkan, orang yang ditugaskan menjawab Terima atau Tolak, atau mengusulkan jadwal lain.",
-      "Kalender dan Papan live memperlihatkan hal yang sama dari sudut waktu dan dari sudut tim.",
+      "Kalender dan Papan live memperlihatkan hal yang sama dari sudut waktu dan dari sudut tim. Di Kalender, chip Semua dan Saya serta pilihan Sales menyaring siapa yang digambar; pilihan terakhir diingat per orang.",
     ],
     link: { href: paths.activities(), label: "Buka daftar aktivitas" },
   },

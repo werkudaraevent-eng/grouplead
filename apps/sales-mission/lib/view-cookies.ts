@@ -4,6 +4,7 @@ import { parseProspectQuery, serializeProspectQuery } from "@/lib/prospects/pros
 import { parseProspectPageParams } from "@/lib/prospects/prospect-paging"
 import { parseReportQuery, serializeReportQuery } from "@/lib/reporting/report-filter"
 import { parseReportPageParams } from "@/lib/reporting/report-paging"
+import { parseCalendarSales } from "@/lib/missions/calendar-filter"
 
 /**
  * A list remembers how you last looked at it.
@@ -19,12 +20,13 @@ import { parseReportPageParams } from "@/lib/reporting/report-paging"
  * it can never carry anything the URL could not.
  */
 
-export type ListKey = "activities" | "prospects" | "reports"
+export type ListKey = "activities" | "prospects" | "reports" | "calendar"
 
 export const VIEW_COOKIES: Record<ListKey, string> = {
   activities: "sa-view-activities",
   prospects: "sa-view-prospects",
   reports: "sa-view-reports",
+  calendar: "sa-view-calendar",
 }
 
 type Params = Record<string, string | string[] | undefined>
@@ -50,6 +52,14 @@ export function sanitizeView(list: ListKey, params: Params): string {
       const out = serializeReportQuery(parseReportQuery(params))
       const { sort } = parseReportPageParams(params)
       if (sort !== parseReportPageParams({}).sort) out.set("sort", sort)
+      return out.toString()
+    }
+    case "calendar": {
+      // Only whose visits are drawn; the month and the day are a place,
+      // not a view, and are never restored.
+      const sales = parseCalendarSales(params.sales)
+      const out = new URLSearchParams()
+      if (sales.length) out.set("sales", sales.join(","))
       return out.toString()
     }
   }
