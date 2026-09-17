@@ -46,8 +46,15 @@ export default async function CalendarPage({
   // viewer stands relative to it.
   const missions = annotateJoinStatus(rawMissions, settings)
   const grid = buildMonthGrid(month, missions, now)
-  // How many week rows the month needs, so the grid can share the height.
+  // How many week rows the month needs, so the grid can share the height
+  // from lg. Literal classes, one per possible count, so Tailwind emits
+  // them; below lg the rows size to their content.
   const weekRows = Math.ceil((grid.leadingBlanks + grid.days.length) / 7)
+  const WEEK_ROWS: Record<number, string> = {
+    4: "lg:grid-rows-[auto_repeat(4,minmax(0,1fr))]",
+    5: "lg:grid-rows-[auto_repeat(5,minmax(0,1fr))]",
+    6: "lg:grid-rows-[auto_repeat(6,minmax(0,1fr))]",
+  }
   const monthTotal = grid.days.reduce((sum, day) => sum + day.missionCount, 0)
   const timeOf = (iso: string | null) =>
     iso ? new Intl.DateTimeFormat("en-GB", { timeZone: MISSION_TIME_ZONE, hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(iso)) : ""
@@ -130,7 +137,7 @@ export default async function CalendarPage({
               day gets the numbered badge; from `md` up the cell is tall enough
               to list the first two visits as chips and count the rest.
             */}
-            <div className="grid min-h-0 grid-cols-7 gap-1 md:gap-1.5 lg:flex-1" style={{ gridTemplateRows: `auto repeat(${weekRows}, minmax(0, 1fr))` }}>
+            <div className={cn("grid min-h-0 grid-cols-7 gap-1 md:gap-1.5 lg:flex-1", WEEK_ROWS[weekRows] ?? WEEK_ROWS[6])}>
               {WEEKDAYS.map((day, index) => (
                 <span key={`weekday-${index}`} className="grid h-7 place-items-center text-[10px] font-bold uppercase text-muted-foreground">
                   {day}
@@ -175,16 +182,16 @@ export default async function CalendarPage({
                           <span
                             key={mission.id}
                             className={cn(
-                              "block truncate rounded px-1 py-0.5 text-[11px] font-medium leading-tight",
+                              "block truncate rounded px-1 text-[10px] font-medium leading-4",
                               selected ? "bg-primary-foreground/15 text-primary-foreground" : "bg-primary/10 text-primary"
                             )}
                             title={`${timeOf(mission.scheduledStart)} ${mission.clientCompanyName}`}
                           >
-                            <span className="font-mono">{timeOf(mission.scheduledStart)}</span> {mission.clientCompanyName}
+                            <span className="tabular-nums">{timeOf(mission.scheduledStart)}</span> {mission.clientCompanyName}
                           </span>
                         ))}
                         {more > 0 && (
-                          <span className={cn("px-1 text-[11px] font-medium", selected ? "text-primary-foreground/80" : "text-muted-foreground")}>
+                          <span className={cn("px-1 text-[10px] font-medium leading-4", selected ? "text-primary-foreground/80" : "text-muted-foreground")}>
                             +{more} lagi
                           </span>
                         )}
