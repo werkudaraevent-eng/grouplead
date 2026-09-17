@@ -47,9 +47,11 @@ export default async function NewMissionPage({
   // over. The rep only reads it if it belongs to their tenant, which getMission
   // already enforces.
   let prefill: MissionPrefill | undefined
+  let rescheduleOf: string | undefined
   if (params.from && /^[0-9a-f-]{36}$/i.test(params.from)) {
     const source = await getMission(access, params.from)
     if (source) {
+      rescheduleOf = source.id
       const team = await listMissionTeam(access, params.from)
       prefill = {
         clientCompanyName: source.clientCompanyName,
@@ -125,6 +127,7 @@ export default async function NewMissionPage({
         schedules={schedules}
         conflictSettings={settings}
         prefill={prefill}
+        rescheduleOf={rescheduleOf}
       />
     </WorkspacePage>
   )

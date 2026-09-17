@@ -173,6 +173,10 @@ export interface MissionRow {
   appointment_notes: string | null
   address: string | null
   industry?: string | null
+  /** Postponed: by when the rep will call the client for a new date. */
+  reschedule_due?: string | null
+  /** The mission that replaced this one once a new date was made. */
+  rescheduled_to_id?: string | null
 }
 
 /** Who the appointment is with, and what was already agreed with them. */
@@ -228,6 +232,10 @@ export interface MissionListItem {
   /** What kind of business the client is; the prospect form's list. */
   industry?: string | null
   objective: string | null
+  /** Cancelled with "jadwal menyusul": the day (YYYY-MM-DD) by which the rep calls the client for a new date. */
+  rescheduleDue?: string | null
+  /** The mission that replaced it once scheduled; Hari ini drops it from the queue then. */
+  rescheduledToId?: string | null
   scheduledStart: string | null
   scheduledEnd: string | null
   primarySalesName: string | null
@@ -305,6 +313,8 @@ export function mapMissions(
       address: mission.address ?? null,
       industry: mission.industry ?? null,
       objective: mission.objective,
+      rescheduleDue: mission.reschedule_due ?? null,
+      rescheduledToId: mission.rescheduled_to_id ?? null,
       scheduledStart: mission.scheduled_start,
       scheduledEnd: mission.scheduled_end,
       // Missions created before the column existed default to open.

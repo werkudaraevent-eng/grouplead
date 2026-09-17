@@ -13,6 +13,8 @@ import { resolveMissionGates } from "@/lib/missions/mission-rights"
 import { requireModule } from "@/lib/missions/nav-access"
 import { PersonAvatar } from "@/components/person-avatar"
 import { getProspectByMission } from "@/lib/prospects/prospect-queries"
+import { describeDueDate } from "@/lib/prospects/prospect-schema"
+import { missionDayKey } from "@/lib/missions/mission-calendar"
 import { formatPhone, normalizePhone } from "@/lib/format/phone"
 import {
   getCancellation,
@@ -264,7 +266,20 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
                   {cancellation.reason ? `: “${cancellation.reason}”` : "."}
                 </p>
               )}
-              {canCreateMission && (
+              {/* Postponed rather than off: the promise, then the replacement once it exists. */}
+              {mission.rescheduledToId ? (
+                <p className="mt-2 text-sm text-[var(--danger-foreground)]">
+                  Sudah dijadwalkan ulang.{" "}
+                  <Link href={paths.activity(mission.rescheduledToId)} className="font-semibold underline underline-offset-2">
+                    Buka aktivitas barunya
+                  </Link>
+                </p>
+              ) : mission.rescheduleDue ? (
+                <p className="mt-2 text-sm font-medium text-[var(--danger-foreground)]">
+                  Ditunda, jadwal menyusul: hubungi klien lagi {describeDueDate(mission.rescheduleDue, missionDayKey(new Date())).text}.
+                </p>
+              ) : null}
+              {canCreateMission && !mission.rescheduledToId && (
                 <div className="mt-4 flex sm:justify-end">
                   <Button asChild className="h-11">
                     <Link href={paths.newActivity({ from: missionId })}>

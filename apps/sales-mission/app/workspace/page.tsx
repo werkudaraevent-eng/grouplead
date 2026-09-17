@@ -1,6 +1,6 @@
 import Link from "next/link"
 import { redirect } from "next/navigation"
-import { CalendarDays, CheckCircle2, ClipboardList, MapPin, Phone } from "@/components/icons"
+import { CalendarDays, CheckCircle2, ClipboardList, MapPin, Phone, RotateCcw } from "@/components/icons"
 import { listDueProspects } from "@/lib/prospects/prospect-queries"
 import { describeDueDate } from "@/lib/prospects/prospect-schema"
 import { formatPhone } from "@/lib/format/phone"
@@ -198,6 +198,23 @@ export default async function MissionHomePage() {
     (mission) => needsMyAnswer(mission, settings) && !todaysMissions.some((item) => item.id === mission.id)
   )
 
+  // Visits called off with "jadwal menyusul", waiting for a new date. The
+  // person who promised to call the client back (the sales utama, or
+  // whoever scheduled it) sees them until a new visit is made from them;
+  // the soonest promise first, the overdue ones marked.
+  const toReschedule = canCreate
+    ? missions
+        .filter(
+          (mission) =>
+            mission.status === "CANCELLED" &&
+            Boolean(mission.rescheduleDue) &&
+            !mission.rescheduledToId &&
+            (mission.viewerRole === "PRIMARY" || mission.createdBy === access.userId)
+        )
+        .sort((a, b) => (a.rescheduleDue ?? "").localeCompare(b.rescheduleDue ?? ""))
+        .slice(0, 8)
+    : []
+
   return (
     <WorkspacePage
       eyebrow="Sales Activity"
@@ -264,6 +281,49 @@ export default async function MissionHomePage() {
                   </Button>
                 </div>
               ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/*
+        Called off with a promise to call back. Cancelled visits leave every
+        other list on purpose; this is the one place they stay until a new
+        date exists, so the promise does not live in someone's memory.
+      */}
+      {toReschedule.length > 0 && (
+        <section className="mt-6" aria-label="Perlu dijadwalkan ulang">
+          <h2 className="mb-2 text-base font-semibold text-foreground">Perlu dijadwalkan ulang</h2>
+          <div className="overflow-hidden rounded-xl border border-l-4 border-l-[var(--warning-foreground)] bg-card">
+            <div className="divide-y">
+              {toReschedule.map((mission) => {
+                const due = describeDueDate(mission.rescheduleDue as string, today)
+                return (
+                  <div key={mission.id} className="flex flex-col gap-3 px-4 py-3.5 sm:flex-row sm:items-center sm:px-5">
+                    <Link href={paths.activity(mission.id)} className="flex min-w-0 flex-1 items-center gap-4">
+                      <span
+                        className={cn(
+                          "w-24 shrink-0 text-xs font-medium tabular-nums",
+                          due.overdue ? "text-[var(--danger-foreground)]" : due.due ? "text-[var(--warning-foreground)]" : "text-muted-foreground"
+                        )}
+                      >
+                        {due.text.charAt(0).toUpperCase() + due.text.slice(1)}
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-semibold text-foreground">{mission.clientCompanyName}</span>
+                        <span className="block truncate text-xs text-muted-foreground">
+                          {["Hubungi klien untuk jadwal baru", mission.location, mission.primarySalesName].filter(Boolean).join(" · ")}
+                        </span>
+                      </span>
+                    </Link>
+                    <Button asChild size="sm" className="h-11 md:h-8 sm:self-center">
+                      <Link href={paths.newActivity({ from: mission.id })}>
+                        <RotateCcw className="h-4 w-4" /> Jadwalkan lagi
+                      </Link>
+                    </Button>
+                  </div>
+                )
+              })}
             </div>
           </div>
         </section>

@@ -341,6 +341,7 @@ export function MissionForm({
   conflictSettings,
   prefill,
   prospectId,
+  rescheduleOf,
   edit,
 }: {
   salesOptions: TenantSalesOption[]
@@ -352,6 +353,8 @@ export function MissionForm({
   prefill?: MissionPrefill
   /** The prospect this visit is being scheduled from; its save marks it Confirmed. */
   prospectId?: string
+  /** The postponed mission this visit replaces; its save marks that one rescheduled. */
+  rescheduleOf?: string
   /**
    * Editing an existing mission. The same form, already filled in, posting to
    * updateMission. The schedule is shown but not editable here: moving it is
@@ -732,6 +735,7 @@ export function MissionForm({
     // axes with a stripe of empty page between them.
     <form action={formAction} className="space-y-4">
       {linkedProspectId && <input type="hidden" name="prospectId" value={linkedProspectId} />}
+      {rescheduleOf && <input type="hidden" name="rescheduleOf" value={rescheduleOf} />}
       {state?.error ? (
         <div
           ref={errorRef}

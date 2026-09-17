@@ -196,6 +196,10 @@ export async function createMission(
     }
   }
 
+  // "Jadwalkan lagi" from a postponed mission: the new one replaces it.
+  const rescheduleOf = String(formData.get("rescheduleOf") ?? "").trim()
+  if (rescheduleOf && !/^[0-9a-f-]{36}$/i.test(rescheduleOf)) return { success: false, error: "Aktivitas asal tidak valid." }
+
   // Under the tenant's policy the assignment either waits for the rep or is
   // accepted on the spot. The mission's status follows from the same answer.
   const now = new Date().toISOString()
@@ -305,6 +309,20 @@ export async function createMission(
     revalidatePath(`/workspace/prospects/${prospectId}`)
   }
 
+  // The postponed mission this one replaces leaves the "perlu dijadwalkan
+  // ulang" queue and points here. Best effort, like the prospect link: the
+  // new mission is the record that matters.
+  if (rescheduleOf) {
+    const { error: linkError } = await missions
+      .from("missions")
+      .update({ rescheduled_to_id: mission.id as string, updated_at: new Date().toISOString() })
+      .eq("id", rescheduleOf)
+      .eq("company_id", access.companyId)
+      .eq("status", "CANCELLED")
+    if (linkError) console.error("[createMission] reschedule link failed", rescheduleOf, linkError.message)
+    revalidatePath(`/workspace/activities/${rescheduleOf}`)
+  }
+
   // Admin-configured fields. Validation uses the tenant's current configuration
   // rather than anything hardcoded, so a field made mandatory this morning is
   // mandatory this afternoon. Reuses the list already read for the type check.
@@ -373,7 +391,18 @@ export async function createMission(
  * again, and the account's history stays honest about a visit that did not
  * happen.
  */
-export async function cancelMission(missionId: string, reason: string): Promise<ActionResult> {
+/**
+ * `followUpOn` turns a cancellation into a postponement. The status is
+ * still CANCELLED, so nothing hangs on the calendar or the board, but the
+ * mission carries the day by which the rep promised to call the client
+ * for a new date, and Hari ini lists it until a new mission is scheduled
+ * from it. Without it the visit is simply off.
+ */
+export interface CancelOptions {
+  followUpOn?: string | null
+}
+
+export async function cancelMission(missionId: string, reason: string, options: CancelOptions = {}): Promise<ActionResult> {
   const access = await getSalesMissionAccess()
   if (!access) return { success: false, error: NO_ACCESS_MESSAGE }
   if (!(await canPerform(access, "sales_mission_mission", "update"))) {
@@ -383,6 +412,8 @@ export async function cancelMission(missionId: string, reason: string): Promise<
   const trimmed = reason.trim()
   if (!trimmed) return { success: false, error: "Tulis alasan pembatalan." }
   if (trimmed.length > 1000) return { success: false, error: "Alasan terlalu panjang." }
+  const followUpOn = options.followUpOn?.trim() || null
+  if (followUpOn && !/^\d{4}-\d{2}-\d{2}$/.test(followUpOn)) return { success: false, error: "Tanggal hubungi lagi tidak valid." }
 
   const [mission, role, settings] = await Promise.all([getMission(access, missionId), getMissionRole(access, missionId), getMissionSettings(access)])
   if (!mission) return { success: false, error: "Aktivitas tidak ditemukan." }
@@ -401,7 +432,7 @@ export async function cancelMission(missionId: string, reason: string): Promise<
 
   const { error } = await missions
     .from("missions")
-    .update({ status: "CANCELLED", updated_at: now })
+    .update({ status: "CANCELLED", reschedule_due: followUpOn, updated_at: now })
     .eq("id", missionId)
     .eq("company_id", access.companyId)
   if (error) return { success: false, error: "Aktivitas gagal dibatalkan." }

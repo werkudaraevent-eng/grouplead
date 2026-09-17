@@ -46,6 +46,7 @@ const PARTS: Part[] = [
     lead: "Satu aktivitas adalah satu kunjungan ke satu klien: siapa yang pergi, kapan, ke mana, dan untuk apa.",
     points: [
       "Aktivitas baru: pilih klien (dari prospek atau CRM), industri, jenis, jadwal, lokasi, dan sales utama. Industri terisi sendiri dari prospek atau perusahaan CRM yang dipilih, dan ikut tercatat di LeadEngine saat perusahaan baru didaftarkan. Pemilih jadwal memperlihatkan kalender tim supaya jam yang dipilih tidak bentrok.",
+      "Membatalkan: pilih Batal bila tidak ada lanjutan, atau Ditunda, jadwal menyusul bila klien minta hari lain dan tanggalnya belum ada. Yang ditunda muncul di Hari ini pada Perlu dijadwalkan ulang sampai Anda menekan Jadwalkan lagi.",
       "Sales utama adalah yang menulis laporan. Sales pendukung boleh Join sendiri selama kuota pendukung belum penuh dan pemilik mengizinkan.",
       "Bila konfirmasi penugasan diaktifkan, orang yang ditugaskan menjawab Terima atau Tolak, atau mengusulkan jadwal lain.",
       "Kalender dan Papan live memperlihatkan hal yang sama dari sudut waktu dan dari sudut tim.",
