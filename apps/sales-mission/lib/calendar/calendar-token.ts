@@ -17,6 +17,8 @@ export interface CalendarTokenResolution {
   tokenId: string
   userId: string
   companyId: string
+  /** Whose visits the link serves: the person's own, or the team's their role may see. */
+  scope: "own" | "team"
 }
 
 /**
@@ -33,7 +35,7 @@ export async function resolveCalendarToken(token: string): Promise<CalendarToken
   const { data } = await supabase
     .schema("sales_mission")
     .from("calendar_tokens")
-    .select("id, user_id, company_id, token_hash, revoked_at")
+    .select("id, user_id, company_id, token_hash, revoked_at, scope")
     .eq("token_hash", hash)
     .maybeSingle()
 
@@ -53,5 +55,6 @@ export async function resolveCalendarToken(token: string): Promise<CalendarToken
     tokenId: data.id as string,
     userId: data.user_id as string,
     companyId: data.company_id as string,
+    scope: data.scope === "team" ? "team" : "own",
   }
 }

@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button"
 import { MISSION_TIME_ZONE } from "@/lib/missions/mission-schema"
 import { paths } from "@/lib/paths"
 import type { CalendarTokenStatus } from "@/lib/calendar/calendar-token-queries"
+import type { FeedScope } from "@/lib/calendar/calendar-feed-queries"
 
 /**
  * Making and using the personal feed link.
@@ -18,7 +19,7 @@ import type { CalendarTokenStatus } from "@/lib/calendar/calendar-token-queries"
  * Google Calendar and Outlook. A link that exists (as a hash): when it
  * was made and last fetched, and the way to replace or stop it.
  */
-export function FeedSetup({ existing, origin }: { existing: CalendarTokenStatus | null; origin: string }) {
+export function FeedSetup({ scope, existing, origin }: { scope: FeedScope; existing: CalendarTokenStatus | null; origin: string }) {
   const router = useRouter()
   const [pending, start] = useTransition()
   const [issued, setIssued] = useState<string | null>(null)
@@ -29,7 +30,7 @@ export function FeedSetup({ existing, origin }: { existing: CalendarTokenStatus 
 
   const create = () =>
     start(async () => {
-      const result = await createCalendarToken()
+      const result = await createCalendarToken(scope)
       if (!result.success || !result.data) {
         toast.error(result.error ?? "Tautan gagal dibuat")
         return
@@ -41,7 +42,7 @@ export function FeedSetup({ existing, origin }: { existing: CalendarTokenStatus 
 
   const revoke = () =>
     start(async () => {
-      const result = await revokeCalendarToken()
+      const result = await revokeCalendarToken(scope)
       if (!result.success) {
         toast.error(result.error ?? "Tautan gagal dicabut")
         return
@@ -83,7 +84,7 @@ export function FeedSetup({ existing, origin }: { existing: CalendarTokenStatus 
           </div>
         </div>
 
-        <Steps webcalUrl={webcalUrl!} />
+        <Steps webcalUrl={webcalUrl!} compact={scope === "team"} />
       </div>
     )
   }
@@ -111,7 +112,7 @@ export function FeedSetup({ existing, origin }: { existing: CalendarTokenStatus 
             </Button>
           </div>
         </div>
-        <Steps webcalUrl={null} />
+        {scope === "own" && <Steps webcalUrl={null} />}
       </div>
     )
   }
@@ -121,24 +122,37 @@ export function FeedSetup({ existing, origin }: { existing: CalendarTokenStatus 
       <div className="rounded-xl border bg-card p-5">
         <p className="text-base font-semibold text-foreground">Belum ada tautan</p>
         <p className="mt-1 text-sm text-muted-foreground">
-          Satu tautan rahasia untuk kalender Anda. Siapa pun yang memegangnya bisa membaca jadwal kunjungan Anda, jadi jangan dibagikan.
+          {scope === "team"
+            ? "Satu tautan rahasia untuk kalender tim. Siapa pun yang memegangnya bisa membaca jadwal seluruh tim yang Anda lihat, jadi jangan dibagikan."
+            : "Satu tautan rahasia untuk kalender Anda. Siapa pun yang memegangnya bisa membaca jadwal kunjungan Anda, jadi jangan dibagikan."}
         </p>
         <Button type="button" onClick={create} disabled={pending} className="mt-4 h-11 sm:h-10">
           {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Link2 className="h-4 w-4" />} Buat tautan
         </Button>
       </div>
-      <Steps webcalUrl={null} />
+      {scope === "own" && <Steps webcalUrl={null} />}
     </div>
   )
 }
 
-function Steps({ webcalUrl }: { webcalUrl: string | null }) {
+function Steps({ webcalUrl, compact = false }: { webcalUrl: string | null; compact?: boolean }) {
   const Item = ({ n, children }: { n: number; children: React.ReactNode }) => (
     <li className="flex gap-3">
       <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-[var(--tonal)] text-xs font-bold text-[var(--tonal-foreground)]">{n}</span>
       <span>{children}</span>
     </li>
   )
+  if (compact) {
+    return (
+      <div className="rounded-xl border bg-card p-5 text-sm text-foreground">
+        <p>
+          Sama seperti kalender pribadi: <strong>Langganan</strong> di iPhone{webcalUrl ? " (" : ""}
+          {webcalUrl && <a href={webcalUrl} className="font-medium text-primary hover:underline">ketuk di sini dari Safari</a>}
+          {webcalUrl ? ")" : ""}, <strong>Kalender lain → + → Dari URL</strong> di Google Calendar, <strong>Berlangganan dari web</strong> di Outlook.
+        </p>
+      </div>
+    )
+  }
   return (
     <div className="grid gap-4 md:grid-cols-2">
       <div className="rounded-xl border bg-card p-5">
@@ -161,7 +175,7 @@ function Steps({ webcalUrl }: { webcalUrl: string | null }) {
         <p className="text-base font-semibold text-foreground">Google Calendar (Android dan web)</p>
         <ol className="mt-3 space-y-3 text-sm text-foreground">
           <Item n={1}>Buka <strong>calendar.google.com</strong> di komputer (aplikasi ponsel belum bisa menambah dari URL).</Item>
-          <Item n={2}>Di <strong>Kalender lain</strong>, ketuk <strong>+ → Dari URL</strong>, tempel tautannya.</Item>
+          <Item n={2}>Di <strong>Kalender lain</strong>, ketuk <strong>+ → Dari URL</strong>, tempel tautannya. Bukan <strong>Impor</strong>: impor menyalin sekali dan tidak pernah diperbarui.</Item>
           <Item n={3}>Kalender itu lalu tampil di aplikasi Google Calendar di ponsel.</Item>
         </ol>
       </div>

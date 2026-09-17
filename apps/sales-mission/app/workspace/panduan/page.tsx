@@ -171,7 +171,7 @@ export default async function GuidePage() {
           <ul className="space-y-3 px-5 py-4 sm:px-6">
             <li className="flex items-start gap-3 text-sm leading-relaxed text-foreground">
               <span className="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full bg-muted text-xs font-bold text-muted-foreground">1</span>
-              <span>Jadwal kunjungan Anda bisa ikut ke Google Calendar, Kalender iPhone, atau Outlook lewat satu tautan langganan dari <strong>Kalender saya</strong>; pengingat mengikuti kalender ponsel. Satu arah: ubah jadwal di Sales Activity, bukan di kalender.</span>
+              <span>Jadwal kunjungan Anda bisa ikut ke Google Calendar, Kalender iPhone, atau Outlook lewat satu tautan langganan dari <strong>Kalender saya</strong> (tempel sebagai kalender dari URL, bukan impor berkas). Kalender pribadi berisi aktivitas yang Anda ikuti; atasan dan admin juga mendapat tautan <strong>Kalender tim</strong> berisi semua aktivitas yang boleh mereka lihat; pengingat mengikuti kalender ponsel. Satu arah: ubah jadwal di Sales Activity, bukan di kalender.</span>
             </li>
             <li className="flex items-start gap-3 text-sm leading-relaxed text-foreground">
               <span className="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full bg-muted text-xs font-bold text-muted-foreground">2</span>

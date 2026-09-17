@@ -130,7 +130,7 @@ const HOUR = 60 * 60 * 1000
  * A visit as a calendar event, or null when it has no start yet.
  * The end defaults to an hour, the same convention as the team calendar.
  */
-export function eventFromMission(mission: MissionListItem, options: { url: string; host: string }): CalendarEvent | null {
+export function eventFromMission(mission: MissionListItem, options: { url: string; host: string; team?: boolean }): CalendarEvent | null {
   if (!mission.scheduledStart) return null
   const start = new Date(mission.scheduledStart)
   const end = mission.scheduledEnd ? new Date(mission.scheduledEnd) : new Date(start.getTime() + HOUR)
@@ -145,7 +145,8 @@ export function eventFromMission(mission: MissionListItem, options: { url: strin
     uid: `${mission.id}@${options.host}`,
     start,
     end: end > start ? end : new Date(start.getTime() + HOUR),
-    summary: `${mission.clientCompanyName} · ${mission.missionType}`,
+    // On the team's calendar the person comes first: that is what a manager scans for.
+    summary: options.team ? `${mission.primarySalesName ?? "Belum ditugaskan"} · ${mission.clientCompanyName}` : `${mission.clientCompanyName} · ${mission.missionType}`,
     description,
     location: location || undefined,
     url: options.url,

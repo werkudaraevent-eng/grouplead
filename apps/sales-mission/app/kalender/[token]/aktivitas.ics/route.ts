@@ -12,8 +12,8 @@ export const dynamic = "force-dynamic"
 const DAY = 24 * 60 * 60 * 1000
 
 /**
- * The calendar feed a person subscribes to: their visits, sixty days back
- * and a year ahead, as iCalendar. No session; the token in the path is the
+ * The calendar feed a person subscribes to: their visits, or their team's
+ * when the link says so, sixty days back and a year ahead, as iCalendar. No session; the token in the path is the
  * credential (see lib/calendar/calendar-token.ts). Unknown or retired
  * tokens get a plain 404, and nothing here is indexable.
  */
@@ -25,17 +25,20 @@ export async function GET(_request: Request, context: { params: Promise<{ token:
   if (!resolved) return new NextResponse("Not found", { status: 404, headers: { "X-Robots-Tag": "noindex" } })
 
   const now = new Date()
-  const { missions, displayName } = await listMissionsForFeed(resolved.companyId, resolved.userId, {
-    since: new Date(now.getTime() - 60 * DAY),
-    until: new Date(now.getTime() + 365 * DAY),
-  })
+  const team = resolved.scope === "team"
+  const { missions, displayName } = await listMissionsForFeed(
+    resolved.companyId,
+    resolved.userId,
+    { since: new Date(now.getTime() - 60 * DAY), until: new Date(now.getTime() + 365 * DAY) },
+    resolved.scope
+  )
   const { origin, host } = await requestOrigin()
   const events = missions
-    .map((mission) => eventFromMission(mission, { url: `${origin}${paths.activity(mission.id)}`, host }))
+    .map((mission) => eventFromMission(mission, { url: `${origin}${paths.activity(mission.id)}`, host, team }))
     .filter((event): event is CalendarEvent => event !== null)
 
   const body = buildCalendar({
-    name: displayName ? `${PRODUCT_NAME} · ${displayName}` : PRODUCT_NAME,
+    name: team ? `${PRODUCT_NAME} · Tim${displayName ? ` (${displayName})` : ""}` : displayName ? `${PRODUCT_NAME} · ${displayName}` : PRODUCT_NAME,
     events,
     now,
   })
