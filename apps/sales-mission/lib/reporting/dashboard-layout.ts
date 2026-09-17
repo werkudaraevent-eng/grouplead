@@ -9,12 +9,14 @@ import {
   WIDGET_SIZES,
   GRID_COLS,
   SIZE_BOX,
+  TIME_DIMENSIONS,
   builtinWidget,
   clampBox,
   minBoxFor,
   validateWidget,
   type Box,
   type CubeWidget,
+  type TimeDimension,
   type WidgetConfig,
   type WidgetMode,
   type WidgetSize,
@@ -112,7 +114,15 @@ export function mergeLayout(saved: unknown, options: { canSeeProspects: boolean 
   const parsed = layoutSchema.safeParse(saved ?? {})
   const input = parsed.success ? parsed.data : {}
 
-  const custom = (input.custom ?? []).filter((widget) => options.canSeeProspects || !usesProspects(widget))
+  const custom = (input.custom ?? [])
+    .filter((widget) => options.canSeeProspects || !usesProspects(widget))
+    // Cards saved before the shapes were named: a categorical "bars" card
+    // drew as a horizontal list, which is now its own shape.
+    .map((widget) =>
+      widget.chart === "bars" && !TIME_DIMENSIONS.includes(widget.group as TimeDimension) && widget.group !== "none" && !(widget.series && widget.series !== "none")
+        ? { ...widget, chart: "hbars" as const }
+        : widget
+    )
   const seenCustom = new Set<string>()
   const uniqueCustom = custom.filter((widget) => (seenCustom.has(widget.id) ? false : (seenCustom.add(widget.id), true)))
 

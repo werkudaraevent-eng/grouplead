@@ -16,19 +16,20 @@ import { UNASSIGNED_LABEL } from "@/lib/reporting/kpi"
 export const MEASURES = ["visits", "appointments", "planning", "leads_pushed", "opportunities", "estimated_value"] as const
 export type Measure = (typeof MEASURES)[number]
 
+/** The platform's own words: a prospect, an activity, a report. */
 export const MEASURE_LABELS: Record<Measure, string> = {
-  visits: "Kunjungan",
-  appointments: "Appointment",
-  planning: "Planning",
+  visits: "Laporan",
+  appointments: "Aktivitas",
+  planning: "Prospek",
   leads_pushed: "Lead ke CRM",
   opportunities: "Peluang",
   estimated_value: "Nilai estimasi",
 }
 
 export const MEASURE_HINTS: Record<Measure, string> = {
-  visits: "Laporan kunjungan yang sudah dikirim, menurut hari kunjungannya.",
-  appointments: "Aktivitas terjadwal yang tidak dibatalkan atau ditolak, menurut jadwalnya.",
-  planning: "Prospek baru yang masuk, menurut tanggal dibuat.",
+  visits: "Laporan kunjungan yang sudah dikirim, menurut hari kunjungannya: kunjungan yang benar-benar terjadi.",
+  appointments: "Aktivitas terjadwal yang tidak dibatalkan atau ditolak, menurut jadwalnya: janji temu yang disepakati.",
+  planning: "Prospek baru yang masuk, menurut tanggal dibuat: rencana yang akan dihubungi.",
   leads_pushed: "Lead yang dikirim ke LeadEngine, menurut tanggal kirim.",
   opportunities: "Laporan terkirim yang menandai adanya peluang.",
   estimated_value: "Jumlah nilai estimasi dari laporan yang menandai peluang, dalam rupiah.",
@@ -94,15 +95,19 @@ export const APPLICABILITY: Record<Measure, readonly Dimension[]> = {
 /** Dimensions too wide to split by: a series per client, or per day, is noise. */
 export const SERIES_FORBIDDEN: readonly Dimension[] = ["client", "day", "week", "month"]
 
-export const CHARTS = ["bars", "stacked", "lines", "donut", "table", "number"] as const
+export const CHARTS = ["bars", "hbars", "stacked", "lines", "area", "donut", "pie", "table", "number", "trend"] as const
 export type ChartKind = (typeof CHARTS)[number]
 export const CHART_LABELS: Record<ChartKind, string> = {
-  bars: "Batang",
+  bars: "Batang tegak",
+  hbars: "Batang mendatar",
   stacked: "Batang bertumpuk",
   lines: "Garis",
+  area: "Area",
   donut: "Donat",
+  pie: "Pai",
   table: "Tabel",
   number: "Angka",
+  trend: "Angka + tren",
 }
 
 /** The grid's four shapes: 1×1, 2×1, 1×2, 2×2 cells. */
@@ -188,13 +193,17 @@ export function seriesFor(measures: readonly Measure[], group: Dimension): Dimen
   return groupsFor(measures).filter((dimension) => dimension !== "none" && dimension !== group && !SERIES_FORBIDDEN.includes(dimension))
 }
 
-/** Charts that fit a grouping. */
+/**
+ * Charts that fit a grouping, the preferred one first (Material data
+ * visualisation: comparison → bars, change over time → lines, part of a
+ * whole → pie or donut with one measure, a single value → a number).
+ */
 export function chartsFor(group: Dimension, series: Dimension | undefined, measureCount: 1 | 2): ChartKind[] {
   const split = series !== undefined && series !== "none"
-  if (group === "none") return measureCount === 1 ? ["number", "table"] : ["table"]
-  if (isTimeDimension(group)) return split ? ["stacked", "lines", "table"] : ["bars", "lines", "table"]
+  if (group === "none") return measureCount === 1 ? ["number", "trend", "table"] : ["table"]
+  if (isTimeDimension(group)) return split ? ["stacked", "lines", "area", "table"] : ["bars", "lines", "area", "table"]
   if (split) return ["stacked", "table"]
-  return measureCount === 1 ? ["bars", "donut", "table"] : ["bars", "table"]
+  return measureCount === 1 ? ["hbars", "bars", "donut", "pie", "table"] : ["hbars", "bars", "table"]
 }
 
 /** Why a card is not sound, in a sentence, or null. Shared by the form and the saved-layout validation. */
@@ -243,27 +252,27 @@ const cube = (
 ): BuiltinWidget => ({ id, kind: "builtin", source: "cube", title, measures, group, chart, size, ...extra })
 
 export const BUILTIN_WIDGETS: readonly BuiltinWidget[] = [
-  cube("visits_per_day", "Kunjungan per hari", ["visits"], "day", "bars", "wide", {
+  cube("visits_per_day", "Laporan per hari", ["visits"], "day", "bars", "wide", {
     modes: ["umum", "sales"],
     defaultHidden: false,
-    description: "Berapa kunjungan terjadi tiap hari; Per sales menumpuk per orang.",
+    description: "Berapa laporan kunjungan tiap hari; Per sales menumpuk per orang.",
   }),
-  cube("visits_vs_appointments", "Kunjungan vs appointment", ["visits", "appointments"], "day", "bars", "wide", {
+  cube("visits_vs_appointments", "Laporan vs aktivitas", ["visits", "appointments"], "day", "bars", "wide", {
     modes: ["umum", "sales"],
     defaultHidden: false,
-    description: "Appointment yang dijadwalkan dibanding kunjungan yang benar-benar dilaporkan.",
+    description: "Aktivitas yang dijadwalkan dibanding laporan kunjungan yang benar-benar dikirim.",
   }),
-  cube("appointments_vs_planning", "Appointment vs planning", ["appointments", "planning"], "day", "bars", "wide", {
+  cube("appointments_vs_planning", "Aktivitas vs prospek", ["appointments", "planning"], "day", "bars", "wide", {
     modes: ["umum", "sales"],
     defaultHidden: false,
     needsProspects: true,
-    description: "Prospek baru yang masuk dibanding appointment yang jadi.",
+    description: "Prospek baru yang masuk dibanding aktivitas yang jadi dijadwalkan.",
   }),
   cube("interest_mix", "Tingkat minat", ["visits"], "interest", "donut", "sm", {
     defaultHidden: false,
     description: "HQL, panas, hangat, dingin, dan tidak berminat dari laporan kunjungan.",
   }),
-  cube("visits_by_industry", "Kunjungan per industri", ["visits"], "industry", "bars", "sm", {
+  cube("visits_by_industry", "Laporan per industri", ["visits"], "industry", "hbars", "sm", {
     defaultHidden: false,
     description: "Industri klien mana yang paling sering dikunjungi.",
   }),
@@ -276,7 +285,7 @@ export const BUILTIN_WIDGETS: readonly BuiltinWidget[] = [
     defaultHidden: false,
     description: "Daftar laporan kunjungan pada satu hari, dengan tautan ke aktivitasnya.",
   },
-  cube("number_visits", "Kunjungan", ["visits"], "none", "number", "sm", { defaultHidden: true, description: "Satu angka: kunjungan pada periode ini." }),
+  cube("number_visits", "Laporan", ["visits"], "none", "trend", "sm", { defaultHidden: true, description: "Satu angka dengan tren harian: laporan pada periode ini." }),
   cube("number_opportunities", "Peluang", ["opportunities"], "none", "number", "sm", { defaultHidden: true, description: "Satu angka: laporan yang menandai peluang." }),
   cube("number_estimated_value", "Nilai estimasi", ["estimated_value"], "none", "number", "sm", { defaultHidden: true, description: "Satu angka: jumlah nilai estimasi peluang." }),
   cube("number_leads_pushed", "Lead ke CRM", ["leads_pushed"], "none", "number", "sm", { defaultHidden: true, description: "Satu angka: lead yang dikirim ke LeadEngine." }),
@@ -289,9 +298,9 @@ export const BUILTIN_WIDGETS: readonly BuiltinWidget[] = [
     defaultHidden: true,
     description: "Next action terbuka, kontak ditemukan, tepat waktu, dan laporan yang perlu klarifikasi.",
   },
-  cube("by_client", "Kunjungan per klien", ["visits"], "client", "bars", "tall", { defaultHidden: true, description: "Klien yang paling sering dikunjungi." }),
-  cube("by_mission_type", "Kunjungan per jenis aktivitas", ["visits"], "mission_type", "bars", "tall", { defaultHidden: true, description: "Sales mission, follow-up, dan jenis lainnya." }),
-  cube("leads_by_category", "Lead ke CRM per kategori", ["leads_pushed"], "lead_category", "bars", "tall", { defaultHidden: true, description: "HQL, Hot, Warm, Cold seperti yang dikirim ke LeadEngine." }),
+  cube("by_client", "Laporan per klien", ["visits"], "client", "hbars", "tall", { defaultHidden: true, description: "Klien yang paling sering dikunjungi." }),
+  cube("by_mission_type", "Laporan per jenis aktivitas", ["visits"], "mission_type", "hbars", "tall", { defaultHidden: true, description: "Sales mission, follow-up, dan jenis lainnya." }),
+  cube("leads_by_category", "Lead ke CRM per kategori", ["leads_pushed"], "lead_category", "hbars", "tall", { defaultHidden: true, description: "HQL, Hot, Warm, Cold seperti yang dikirim ke LeadEngine." }),
   {
     id: "funnel",
     kind: "builtin",
@@ -317,8 +326,8 @@ export function minSizeFor(config: WidgetConfig): WidgetSize {
   if (config.source === "funnel") return "sm"
   if (config.source !== "cube") return "wide"
   if (config.group === "none") return "sm"
-  if (config.chart === "donut") return "sm"
-  if (config.chart === "bars" && !isTimeDimension(config.group) && !(config.series && config.series !== "none")) return "sm"
+  if (config.chart === "donut" || config.chart === "pie") return "sm"
+  if (config.chart === "hbars" && !(config.series && config.series !== "none")) return "sm"
   return "wide"
 }
 

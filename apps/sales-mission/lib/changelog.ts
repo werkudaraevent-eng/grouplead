@@ -30,9 +30,9 @@ export const CHANGELOG: ChangeEntry[] = [
     date: "2026-09-18",
     title: "Ringkasan yang bisa disusun sendiri",
     items: [
-      { kind: "baru", text: "Ringkasan laporan kini berupa kartu: kunjungan per hari, kunjungan vs appointment, appointment vs planning, tingkat minat, kunjungan per industri, dan daftar laporan per hari. Saring periode dan sales di atas; semua kartu mengikuti, dan kartu yang punya Umum / Per sales bisa diganti di tempat." },
+      { kind: "baru", text: "Ringkasan laporan kini berupa kartu: laporan per hari, laporan vs aktivitas, aktivitas vs prospek, tingkat minat, laporan per industri, dan daftar laporan per hari. Kata-katanya sama dengan menu: prospek adalah rencana, aktivitas adalah janji temu, laporan adalah kunjungan yang terjadi. Saring periode dan sales di atas; semua kartu mengikuti, dan kartu yang punya Umum / Per sales bisa diganti di tempat." },
       { kind: "baru", text: "Atur widget: geser kartu dari judulnya, tarik sudut kanan bawah untuk mengubah ukuran bebas pada grid 12 kolom (tiap kartu punya ukuran minimum), sembunyikan, tampilkan lagi. Susunan diingat per orang di semua perangkat." },
-      { kind: "baru", text: "Widget baru: susun kartu sendiri dari ukuran (kunjungan, appointment, planning, lead ke CRM, peluang, nilai estimasi), pengelompokan, pemecahan, dan bentuk grafik. Sampai 12 kartu per orang." },
+      { kind: "baru", text: "Widget baru: susun kartu sendiri dari ukuran (laporan, aktivitas, prospek, lead ke CRM, peluang, nilai estimasi), pengelompokan, pemecahan, dan bentuk grafik: batang tegak atau mendatar, bertumpuk, garis, area, donat, pai, tabel, angka, atau angka dengan tren. Bentuk yang tidak cocok dengan pengelompokannya tidak ditawarkan. Sampai 12 kartu per orang." },
       { kind: "lebih-baik", text: "Ringkasan dihitung di database untuk periode yang dipilih, bukan memuat semua laporan lalu menyaring. Angka utama, per klien, per jenis aktivitas, lead per kategori, dan corong prospek tetap ada sebagai widget yang bisa ditampilkan." },
     ],
   },

@@ -66,7 +66,7 @@ export interface LoadContext {
 }
 
 export type WidgetData =
-  | { source: "cube"; byMeasure: Record<string, { umum: CubeRow[]; sales?: CubeRow[] }>; truncated: boolean }
+  | { source: "cube"; byMeasure: Record<string, { umum: CubeRow[]; sales?: CubeRow[]; trend?: CubeRow[] }>; truncated: boolean }
   | { source: "daily_reports"; day: string; items: ReportListItem[]; total: number }
   | { source: "funnel"; counts: ProspectFunnel }
   | { source: "kpi_strip"; summary: KpiSummary }
@@ -78,17 +78,20 @@ export async function loadWidgetData(access: SalesMissionAccess, config: WidgetC
       const sales = config.filters?.sales?.length ? config.filters.sales : ctx.sales
       const series = config.series && config.series !== "none" ? config.series : "none"
       const wantsSales = Boolean(config.modes?.includes("sales")) && config.group !== "sales" && series === "none"
-      const byMeasure: Record<string, { umum: CubeRow[]; sales?: CubeRow[] }> = {}
+      // "Angka + tren" draws the period day by day under the number.
+      const wantsTrend = config.chart === "trend" && config.group === "none"
+      const byMeasure: Record<string, { umum: CubeRow[]; sales?: CubeRow[]; trend?: CubeRow[] }> = {}
       let truncated = false
       await Promise.all(
         config.measures.map(async (measure) => {
           const base = { measure, group: config.group, from: ctx.range.from, to: ctx.range.to, sales }
-          const [umum, split] = await Promise.all([
+          const [umum, split, trend] = await Promise.all([
             queryCube(access, { ...base, series }),
             wantsSales ? queryCube(access, { ...base, series: "sales" }) : Promise.resolve(undefined),
+            wantsTrend ? queryCube(access, { ...base, group: "day", series: "none" }) : Promise.resolve(undefined),
           ])
           if (umum.length >= CUBE_ROW_CAP || (split && split.length >= CUBE_ROW_CAP)) truncated = true
-          byMeasure[measure] = { umum, sales: split }
+          byMeasure[measure] = { umum, sales: split, trend }
         })
       )
       return { source: "cube", byMeasure, truncated }

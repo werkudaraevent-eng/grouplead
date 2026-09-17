@@ -1,7 +1,7 @@
 "use client"
 
 import { useContainerWidth } from "react-grid-layout"
-import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts"
+import { Area, AreaChart, Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts"
 import type { Category, Series } from "@/lib/reporting/widget-view"
 import { formatCompact, formatValue } from "@/lib/reporting/widget-view"
 import type { Unit } from "@/lib/reporting/cube"
@@ -26,6 +26,8 @@ interface AxisChartProps {
    * chart) and Datawrapper's.
    */
   horizontal?: boolean
+  /** Lines with the space under them washed in the series colour. */
+  area?: boolean
 }
 
 const LABEL_CHARS = 16
@@ -142,19 +144,33 @@ export function DayBars(props: AxisChartProps) {
 export function Lines(props: AxisChartProps) {
   const rows = toRows(props)
   const dense = props.categories.length > 14
+  const axes = (
+    <>
+      <CartesianGrid vertical={false} stroke="var(--border)" strokeDasharray="3 3" />
+      <XAxis dataKey="name" tick={axisStyle} tickLine={false} axisLine={false} interval={dense ? "preserveStartEnd" : 0} minTickGap={12} />
+      <YAxis tick={axisStyle} tickLine={false} axisLine={false} allowDecimals={false} tickFormatter={(value: number) => formatCompact(value, props.unit)} width={46} />
+      <Tooltip cursor={{ stroke: "var(--border)" }} content={<ChartTooltip series={props.series} unit={props.unit} />} />
+    </>
+  )
   return (
     <div className="flex h-full min-h-0 flex-col">
       <div className="min-h-0 flex-1">
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={rows} margin={{ top: 6, right: 6, bottom: 0, left: -18 }} accessibilityLayer>
-            <CartesianGrid vertical={false} stroke="var(--border)" strokeDasharray="3 3" />
-            <XAxis dataKey="name" tick={axisStyle} tickLine={false} axisLine={false} interval={dense ? "preserveStartEnd" : 0} minTickGap={12} />
-            <YAxis tick={axisStyle} tickLine={false} axisLine={false} allowDecimals={false} tickFormatter={(value: number) => formatCompact(value, props.unit)} width={46} />
-            <Tooltip cursor={{ stroke: "var(--border)" }} content={<ChartTooltip series={props.series} unit={props.unit} />} />
-            {props.series.map((item) => (
-              <Line key={item.key} type="monotone" dataKey={item.key} stroke={item.color} strokeWidth={2} dot={rows.length <= 14} activeDot={{ r: 4 }} isAnimationActive={false} />
-            ))}
-          </LineChart>
+          {props.area ? (
+            <AreaChart data={rows} margin={{ top: 6, right: 6, bottom: 0, left: -18 }} accessibilityLayer>
+              {axes}
+              {props.series.map((item) => (
+                <Area key={item.key} type="monotone" dataKey={item.key} stroke={item.color} fill={item.color} fillOpacity={0.14} strokeWidth={2} dot={false} activeDot={{ r: 4 }} isAnimationActive={false} />
+              ))}
+            </AreaChart>
+          ) : (
+            <LineChart data={rows} margin={{ top: 6, right: 6, bottom: 0, left: -18 }} accessibilityLayer>
+              {axes}
+              {props.series.map((item) => (
+                <Line key={item.key} type="monotone" dataKey={item.key} stroke={item.color} strokeWidth={2} dot={rows.length <= 14} activeDot={{ r: 4 }} isAnimationActive={false} />
+              ))}
+            </LineChart>
+          )}
         </ResponsiveContainer>
       </div>
       <Legend series={props.series} />

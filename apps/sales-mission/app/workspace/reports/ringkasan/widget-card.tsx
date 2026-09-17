@@ -11,13 +11,13 @@ export function WidgetCard({ view, range, sales, editing }: { view: WidgetView; 
     case "day_bars":
       return <DayBars categories={view.categories} series={view.series} values={view.values} unit={view.unit} stacked={view.stacked} horizontal={view.horizontal} />
     case "lines":
-      return <Lines categories={view.categories} series={view.series} values={view.values} unit={view.unit} />
+      return <Lines categories={view.categories} series={view.series} values={view.values} unit={view.unit} area={view.area} />
     case "donut":
-      return <Donut slices={view.slices} total={view.total} unit={view.unit} />
+      return <Donut slices={view.slices} total={view.total} unit={view.unit} ring={view.ring} />
     case "list_bars":
       return <ListBars rows={view.rows} unit={view.unit} />
     case "number":
-      return <NumberTile value={view.value} unit={view.unit} hint={view.hint} />
+      return <NumberTile value={view.value} unit={view.unit} hint={view.hint} spark={view.spark} />
     case "table":
       return <DataTable columns={view.columns} rows={view.rows} />
     case "daily":

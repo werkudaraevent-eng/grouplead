@@ -42,12 +42,29 @@ export function ListBars({ rows, unit }: { rows: Array<{ key: string; label: str
   )
 }
 
-export function NumberTile({ value, unit, hint }: { value: number; unit: "count" | "currency"; hint?: string }) {
+export function NumberTile({ value, unit, hint, spark }: { value: number; unit: "count" | "currency"; hint?: string; spark?: number[] }) {
   return (
     <div className="flex h-full flex-col justify-end">
       <p className="text-3xl font-semibold tracking-tight text-foreground tabular-nums @[200px]:text-4xl">{formatValue(value, unit)}</p>
       {hint && <p className="mt-1 text-xs text-muted-foreground">{hint}</p>}
+      {spark && spark.length > 1 && <Sparkline values={spark} />}
     </div>
+  )
+}
+
+/** The period day by day, as one quiet line: the shape of the number, not a second chart. */
+function Sparkline({ values }: { values: number[] }) {
+  const width = 100
+  const height = 28
+  const max = Math.max(1, ...values)
+  const step = width / (values.length - 1)
+  const points = values.map((value, index) => `${(index * step).toFixed(1)},${(height - (value / max) * (height - 2) - 1).toFixed(1)}`)
+  const area = `M0,${height} L${points.join(" L")} L${width},${height} Z`
+  return (
+    <svg viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" className="mt-3 h-7 w-full" aria-label={`Tren harian, tertinggi ${max}`} role="img">
+      <path d={area} fill="var(--chart-1)" fillOpacity="0.12" />
+      <polyline points={points.join(" ")} fill="none" stroke="var(--chart-1)" strokeWidth="1.5" vectorEffect="non-scaling-stroke" strokeLinejoin="round" />
+    </svg>
   )
 }
 

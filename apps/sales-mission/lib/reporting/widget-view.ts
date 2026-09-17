@@ -45,10 +45,10 @@ export interface Category {
 
 export type WidgetView =
   | { type: "day_bars"; categories: Category[]; series: Series[]; values: number[][]; stacked: boolean; unit: Unit; horizontal: boolean }
-  | { type: "lines"; categories: Category[]; series: Series[]; values: number[][]; unit: Unit }
+  | { type: "lines"; categories: Category[]; series: Series[]; values: number[][]; unit: Unit; area: boolean }
   | { type: "list_bars"; rows: Array<{ key: string; label: string; value: number; share: number }>; unit: Unit }
-  | { type: "donut"; slices: Array<{ key: string; label: string; value: number; share: number; color: string }>; total: number; unit: Unit }
-  | { type: "number"; value: number; unit: Unit; hint?: string }
+  | { type: "donut"; slices: Array<{ key: string; label: string; value: number; share: number; color: string }>; total: number; unit: Unit; ring: boolean }
+  | { type: "number"; value: number; unit: Unit; hint?: string; spark?: number[] }
   | { type: "table"; columns: Array<{ key: string; label: string; unit: Unit | "percent" }>; rows: Array<{ label: string; cells: Array<number | null> }> }
   | { type: "daily"; day: string; items: DailyReportRow[]; total: number }
   | { type: "funnel"; counts: ProspectFunnel }
@@ -149,6 +149,12 @@ function presentCube(
     const rows = data.byMeasure[config.measures[0]]?.umum ?? []
     const value = rows.reduce((sum, row) => sum + row.value, 0)
     if (config.chart === "table") return table([{ key: "value", label: MEASURE_LABELS[config.measures[0]], unit }], [{ label: MEASURE_LABELS[config.measures[0]], cells: [value] }])
+    const trendRows = data.byMeasure[config.measures[0]]?.trend
+    if (config.chart === "trend" && trendRows) {
+      const days = timeBuckets("day", range.from, range.to)
+      const daily = pivot(trendRows, { buckets: days })
+      return { type: "number", value, unit, spark: days.map((day) => daily.totals.get(day) ?? 0), hint: `${days.length} hari` }
+    }
     return { type: "number", value, unit }
   }
 
@@ -195,8 +201,8 @@ function presentCube(
         categories.map((item, index) => ({ label: item.label, cells: [values[index][0], values[index][1], ratio(values[index][1], values[index][0])] }))
       )
     }
-    if (config.chart === "lines") return { type: "lines", categories, series, values, unit }
-    return { type: "day_bars", categories, series, values, stacked: false, unit, horizontal: !isTimeDimension(group) }
+    if (config.chart === "lines" || config.chart === "area") return { type: "lines", categories, series, values, unit, area: config.chart === "area" }
+    return { type: "day_bars", categories, series, values, stacked: false, unit, horizontal: config.chart === "hbars" }
   }
 
   // One measure, grouped, optionally split (by the configured series or by sales in Per sales mode).
@@ -204,10 +210,10 @@ function presentCube(
   const seriesDimension: Dimension | undefined = perSales ? "sales" : split
   const rows = perSales ? (data.byMeasure[measure]?.sales ?? data.byMeasure[measure]?.umum ?? []) : (data.byMeasure[measure]?.umum ?? [])
   const grid = pivot(rows, { buckets, topSeries: seriesDimension ? TOP_SERIES : undefined })
-  const keys = buckets ?? grid.buckets.slice(0, config.chart === "donut" ? 8 : TOP_ROWS)
+  const keys = buckets ?? grid.buckets.slice(0, config.chart === "donut" || config.chart === "pie" ? 8 : TOP_ROWS)
   const categories = keys.map((key) => category(group, key, ctx))
 
-  if (config.chart === "donut" && !seriesDimension) {
+  if ((config.chart === "donut" || config.chart === "pie") && !seriesDimension) {
     const values = keys.map((key) => grid.totals.get(key) ?? 0)
     const pct = shares(values)
     const slices = keys.map((key, index) => ({
@@ -217,15 +223,17 @@ function presentCube(
       share: pct[index],
       color: seriesColor(group, key, index),
     }))
-    return { type: "donut", slices, total: grid.total, unit }
+    return { type: "donut", slices, total: grid.total, unit, ring: config.chart === "donut" }
   }
 
   if (!seriesDimension) {
     if (config.chart === "table") return table([{ key: measure, label: MEASURE_LABELS[measure], unit }], categories.map((item) => ({ label: item.label, cells: [grid.totals.get(item.key) ?? 0] })))
-    if (isTimeDimension(group)) {
+    if (isTimeDimension(group) || config.chart === "bars") {
+      // Standing bars: dates always; names only when asked for.
       const series: Series[] = [{ key: measure, label: MEASURE_LABELS[measure], color: seriesColor("measure", measure, 0) }]
       const values = keys.map((key) => [grid.totals.get(key) ?? 0])
-      return config.chart === "lines" ? { type: "lines", categories, series, values, unit } : { type: "day_bars", categories, series, values, stacked: false, unit, horizontal: false }
+      if (config.chart === "lines" || config.chart === "area") return { type: "lines", categories, series, values, unit, area: config.chart === "area" }
+      return { type: "day_bars", categories, series, values, stacked: false, unit, horizontal: false }
     }
     const values = keys.map((key) => grid.totals.get(key) ?? 0)
     const pct = shares(values)
@@ -240,7 +248,7 @@ function presentCube(
       categories.map((item, index) => ({ label: item.label, cells: values[index] }))
     )
   }
-  if (config.chart === "lines") return { type: "lines", categories, series, values, unit }
+  if (config.chart === "lines" || config.chart === "area") return { type: "lines", categories, series, values, unit, area: config.chart === "area" }
   return { type: "day_bars", categories, series, values, stacked: true, unit, horizontal: !isTimeDimension(group) }
 }
 

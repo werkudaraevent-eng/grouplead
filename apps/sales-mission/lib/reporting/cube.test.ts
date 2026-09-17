@@ -106,9 +106,11 @@ describe("applicability", () => {
   })
 
   it("offers charts that fit the grouping", () => {
-    expect(chartsFor("none", undefined, 1)).toEqual(["number", "table"])
-    expect(chartsFor("day", undefined, 1)).toEqual(["bars", "lines", "table"])
-    expect(chartsFor("day", "sales", 1)).toEqual(["stacked", "lines", "table"])
+    expect(chartsFor("none", undefined, 1)).toEqual(["number", "trend", "table"])
+    expect(chartsFor("day", undefined, 1)).toEqual(["bars", "lines", "area", "table"])
+    expect(chartsFor("day", "sales", 1)).toEqual(["stacked", "lines", "area", "table"])
+    expect(chartsFor("industry", undefined, 1)).toContain("pie")
+    expect(chartsFor("industry", undefined, 1)[0]).toBe("hbars")
     expect(chartsFor("industry", undefined, 1)).toContain("donut")
     expect(chartsFor("industry", undefined, 2)).not.toContain("donut")
   })
@@ -156,8 +158,8 @@ describe("labels", () => {
   })
 
   it("titles a card from its parts", () => {
-    expect(defaultTitle({ measures: ["visits"], group: "industry" })).toBe("Kunjungan per industri")
-    expect(defaultTitle({ measures: ["visits", "appointments"], group: "day" })).toBe("Kunjungan vs Appointment per hari")
+    expect(defaultTitle({ measures: ["visits"], group: "industry" })).toBe("Laporan per industri")
+    expect(defaultTitle({ measures: ["visits", "appointments"], group: "day" })).toBe("Laporan vs Aktivitas per hari")
     expect(defaultTitle({ measures: ["opportunities"], group: "sales", series: "interest" })).toBe("Peluang per sales · tingkat minat")
   })
 })
