@@ -320,6 +320,16 @@ export async function createMission(
       .eq("company_id", access.companyId)
       .eq("status", "CANCELLED")
     if (linkError) console.error("[createMission] reschedule link failed", rescheduleOf, linkError.message)
+    // The prospect that became the old visit follows it to the new one, or
+    // it would read "Cancelled" for good while the visit is back on the calendar.
+    if (!linkError) {
+      await missions
+        .from("prospects")
+        .update({ mission_id: mission.id as string, updated_at: new Date().toISOString() })
+        .eq("company_id", access.companyId)
+        .eq("mission_id", rescheduleOf)
+      revalidatePath("/workspace/prospects")
+    }
     revalidatePath(`/workspace/activities/${rescheduleOf}`)
   }
 
