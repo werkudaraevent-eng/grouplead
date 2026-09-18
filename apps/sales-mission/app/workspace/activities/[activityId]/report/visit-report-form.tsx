@@ -483,7 +483,7 @@ export function VisitReportForm({
         }
         return (
           <FieldShell key={field.id} field={field} hint={undefined}>
-            <div className="grid gap-3 sm:grid-cols-[minmax(0,1.3fr)_1fr_1fr_auto]">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1.3fr)_1fr_1fr_auto]">
               <div className="space-y-1">
                 <span className="text-xs text-muted-foreground">Tanggal</span>
                 <Input type="date" aria-label="Tanggal kunjungan" className="h-12" max={afterVisitOnly ? todayKey : undefined} value={draft.actualDate ?? ""} onChange={(event) => update("actualDate", event.target.value || null)} />
@@ -723,7 +723,7 @@ export function VisitReportForm({
             <h2 id={`report-section-${index}`} className="text-base font-semibold tracking-tight text-foreground">{block.section}</h2>
             {SECTION_HINTS[block.section] && <p className="mt-0.5 text-sm text-muted-foreground">{SECTION_HINTS[block.section]}</p>}
           </header>
-          <div className="grid gap-x-4 gap-y-5 px-5 py-5 sm:grid-cols-6 sm:px-6">
+          <div className="grid grid-cols-1 gap-x-4 gap-y-5 px-5 py-5 sm:grid-cols-6 sm:px-6">
             {block.fields.map((field) =>
               field.isCore ? (
                 renderCore(field)

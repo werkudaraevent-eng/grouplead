@@ -154,7 +154,7 @@ export function BoardDashboard({
   return (
     <div className="space-y-4">
       {show("counts") && (
-        <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="Ringkasan">
+        <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="Ringkasan">
           <Metric icon={CalendarCheck} label={week ? "Aktivitas minggu ini" : "Aktivitas hari ini"} value={snapshot.counts.todayTotal} tone="bg-primary/10 text-primary" />
           <Metric icon={CheckCircle2} label="Diterima" value={snapshot.counts.accepted} tone="bg-[var(--success)] text-[var(--success-foreground)]" />
           <Metric icon={CheckCircle2} label="Selesai" value={snapshot.counts.completed} tone="bg-[var(--success)] text-[var(--success-foreground)]" />

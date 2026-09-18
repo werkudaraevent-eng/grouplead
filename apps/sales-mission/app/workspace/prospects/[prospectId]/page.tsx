@@ -72,7 +72,7 @@ export default async function ProspectDetailPage({ params }: { params: Promise<{
         </>
       }
     >
-      <section className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_380px]">
+      <section className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_380px]">
         <div className="min-w-0 space-y-4">
           {prospect.mission ? (
             <article className="rounded-xl border border-[var(--success-foreground)]/30 bg-[var(--success)] p-5">

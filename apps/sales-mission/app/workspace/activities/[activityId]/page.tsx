@@ -264,7 +264,7 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
           rep's, not the layout's: facts, the answer, the report, then the
           contact, the team and the notes (`max-lg:order-*`; the column
           wrappers dissolve with `contents`). */}
-      <section className="grid gap-4 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
+      <section className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
         <div className="min-w-0 max-lg:contents lg:space-y-4">
           {isCancelled && (
             <section className="rounded-xl border border-[var(--danger-foreground)]/25 bg-[var(--danger)] p-5">
@@ -517,7 +517,7 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
               ) : (
                 <>
                   {role === "SUPPORTING" && <LeaveButton missionId={missionId} />}
-                  {role === null && <JoinButton missionId={missionId} status={joinStatus} maxSupporting={settings.maxSupporting} />}
+                  {role === null && <JoinButton missionId={missionId} status={joinStatus} maxSupporting={settings.maxSupporting} clientName={mission.clientCompanyName} emphasis="filled" />}
                   {canManageTeam && <AllowJoinToggle missionId={missionId} allowJoin={mission.allowJoin} />}
                 </>
               )}
@@ -609,7 +609,7 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
                 {editHint && <span>{editHint}</span>}
               </div>
             )}
-            <div className="grid gap-5 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
               <ReportField label="Hasil" value={report.visitOutcome ? labelOf(choices, "visit_outcome", report.visitOutcome) : "—"} />
               {report.actualStart && (
                 <ReportField
@@ -641,7 +641,7 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
             )}
 
             {customAnswers.some(({ field }) => field.fieldType !== "PHOTO") && (
-              <div className="grid gap-5 sm:grid-cols-2">
+              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
                 {customAnswers.filter(({ field }) => field.fieldType !== "PHOTO").map(({ field, value }) => (
                   <ReportField
                     key={field.id}
@@ -790,7 +790,7 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
               </Button>
             )}
             {compactAction === "join" && (
-              <JoinButton missionId={missionId} status={joinStatus} maxSupporting={settings.maxSupporting} size="default" className="h-12 flex-1" />
+              <JoinButton missionId={missionId} status={joinStatus} maxSupporting={settings.maxSupporting} clientName={mission.clientCompanyName} emphasis="filled" size="default" className="h-12 flex-1" />
             )}
             {compactAction === "edit" && (
               <Button asChild variant="outline" className="h-12 flex-1">

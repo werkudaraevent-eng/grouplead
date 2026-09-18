@@ -147,6 +147,30 @@ export async function joinMission(missionId: string): Promise<ActionResult> {
   return { success: true }
 }
 
+/**
+ * Take back a join made moments ago, as if it never happened.
+ *
+ * A join is one tap and lands under a scrolling thumb, so the snackbar offers
+ * "Batalkan". Leaving would announce a join and a departure to the sales
+ * utama; within the window, fn_undo_join removes the assignment, the unread
+ * notifications and the history line instead. Past the window (or if the
+ * function finds nothing) this falls back to an ordinary leave.
+ */
+export async function undoJoinMission(missionId: string): Promise<ActionResult> {
+  const access = await getSalesMissionAccess()
+  if (!access) return { success: false, error: NO_ACCESS_MESSAGE }
+  if (!(await canPerform(access, "sales_mission_mission", "update"))) return NO_MISSION_WRITE
+
+  const supabase = await createClient()
+  const { data, error } = await supabase.schema("sales_mission").rpc("fn_undo_join", { p_mission_id: missionId })
+  if (error || data !== true) return leaveMission(missionId)
+
+  revalidatePath(paths.activities())
+  revalidatePath("/workspace/calendar")
+  revalidatePath(paths.activity(missionId))
+  return { success: true }
+}
+
 /** Leave a mission you joined. The primary cannot leave their own mission. */
 export async function leaveMission(missionId: string): Promise<ActionResult> {
   const access = await getSalesMissionAccess()

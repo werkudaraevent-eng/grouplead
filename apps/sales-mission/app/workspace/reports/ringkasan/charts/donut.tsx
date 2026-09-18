@@ -13,7 +13,7 @@ import type { Unit } from "@/lib/reporting/cube"
 export function Donut({ slices, total, unit, ring = true }: { slices: Array<{ key: string; label: string; value: number; share: number; color: string }>; total: number; unit: Unit; ring?: boolean }) {
   if (total === 0) return <p className="text-sm text-muted-foreground">Belum ada data pada periode ini.</p>
   return (
-    <div className="grid h-full min-h-0 grid-rows-[minmax(0,1fr)_auto] gap-2 @[380px]:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] @[380px]:grid-rows-1">
+    <div className="grid grid-cols-1 h-full min-h-0 grid-rows-[minmax(0,1fr)_auto] gap-2 @[380px]:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] @[380px]:grid-rows-1">
       <div className="relative min-h-0">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart accessibilityLayer>

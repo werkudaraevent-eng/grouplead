@@ -312,7 +312,7 @@ export function ProspectForm({
             <h2 id={`prospect-section-${index}`} className="text-base font-semibold tracking-tight text-foreground">{block.section}</h2>
             {PROSPECT_SECTION_HINTS[block.section] && <p className="mt-0.5 text-sm text-muted-foreground">{PROSPECT_SECTION_HINTS[block.section]}</p>}
           </header>
-          <div className="grid gap-x-4 gap-y-5 px-5 py-5 sm:grid-cols-6 sm:px-6">
+          <div className="grid grid-cols-1 gap-x-4 gap-y-5 px-5 py-5 sm:grid-cols-6 sm:px-6">
             {block.fields.map((field) => (field.isCore ? coreField(field) : <CustomField key={field.id} field={field} initial={customValues[field.reportingKey]} />))}
           </div>
         </section>

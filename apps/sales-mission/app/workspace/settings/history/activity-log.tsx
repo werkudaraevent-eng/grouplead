@@ -151,7 +151,7 @@ function Event({ event }: { event: AuditEvent }) {
       {open && (
         <div className="space-y-3 border-t bg-muted/30 px-4 py-3 pl-14">
           {described.details.length > 0 && (
-            <dl className="grid gap-1 text-xs sm:grid-cols-[10rem_1fr]">
+            <dl className="grid grid-cols-1 gap-1 text-xs sm:grid-cols-[10rem_1fr]">
               {described.details.map((detail) => (
                 <div key={detail.field} className="contents">
                   <dt className="text-muted-foreground">{detail.field}</dt>

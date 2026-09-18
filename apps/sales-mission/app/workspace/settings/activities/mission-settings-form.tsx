@@ -84,7 +84,7 @@ export function MissionSettingsForm({ initial }: { initial: MissionSettings }) {
             checked={form.primaryCanReschedule}
             onChange={(next) => setForm({ ...form, primaryCanReschedule: next })}
           />
-          <div className="grid gap-2 px-5 py-4 sm:grid-cols-[1fr_8rem] sm:items-center">
+          <div className="grid grid-cols-1 gap-2 px-5 py-4 sm:grid-cols-[1fr_8rem] sm:items-center">
             <div>
               <Label htmlFor="max-supporting" className="text-sm font-semibold text-foreground">Maksimal sales pendukung per aktivitas</Label>
               <p className="mt-1 text-sm leading-relaxed text-muted-foreground">Batas orang yang bisa bergabung di luar sales utama, agar klien yang dijanjikan dua orang tidak kedatangan rombongan.</p>
@@ -116,7 +116,7 @@ export function MissionSettingsForm({ initial }: { initial: MissionSettings }) {
             checked={form.conflictCheckEnabled}
             onChange={(next) => setForm({ ...form, conflictCheckEnabled: next })}
           />
-          <div className="grid gap-2 px-5 py-4 sm:grid-cols-[1fr_8rem] sm:items-center">
+          <div className="grid grid-cols-1 gap-2 px-5 py-4 sm:grid-cols-[1fr_8rem] sm:items-center">
             <div>
               <Label htmlFor="travel-buffer" className="text-sm font-semibold text-foreground">Jeda perjalanan (menit)</Label>
               <p className="mt-1 text-sm leading-relaxed text-muted-foreground">Ditambahkan sebelum dan sesudah tiap aktivitas saat memeriksa bentrok. Dua kunjungan berjarak satu jam di sisi kota berbeda tetap bentrok.</p>
@@ -155,7 +155,7 @@ export function MissionSettingsForm({ initial }: { initial: MissionSettings }) {
           checked={form.reportAfterVisitOnly}
           onChange={(next) => setForm({ ...form, reportAfterVisitOnly: next })}
         />
-        <div className="grid gap-2 px-5 py-4 sm:grid-cols-[1fr_8rem] sm:items-center">
+        <div className="grid grid-cols-1 gap-2 px-5 py-4 sm:grid-cols-[1fr_8rem] sm:items-center">
           <div>
             <Label htmlFor="report-edit-window" className="text-sm font-semibold text-foreground">Jendela ubah laporan (hari)</Label>
             <p className="mt-1 text-sm leading-relaxed text-muted-foreground">

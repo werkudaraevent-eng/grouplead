@@ -335,7 +335,7 @@ export function PushLeadPanel({
         </div>
       )}
 
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div className="space-y-1.5 sm:col-span-2 scroll-mt-20" id="push-project-field">
           <Label htmlFor="push-project">Nama proyek / kebutuhan <span className="text-[var(--danger-foreground)]" aria-hidden="true">*</span></Label>
           <Input id="push-project" className="h-11" value={form.projectName} maxLength={300} onChange={(e) => setForm({ ...form, projectName: e.target.value })} />

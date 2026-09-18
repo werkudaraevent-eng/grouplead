@@ -224,7 +224,9 @@ export default async function MissionHomePage() {
     >
       <section aria-label="Aktivitas hari ini">
         {todaysMissions.length > 0 ? (
-          <div className="grid gap-3 xl:grid-cols-2">
+          // grid-cols-1 is not redundant: an implicit column is minmax(auto, auto)
+          // and grows to a nowrap client name, pushing the card past the phone.
+          <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
             {todaysMissions.map((mission) => (
               <TodayCard key={mission.id} mission={mission} policy={settings} />
             ))}
@@ -427,7 +429,7 @@ export default async function MissionHomePage() {
 
       <section className="mt-6" aria-label="Ringkasan aktivitas">
         <h2 className="mb-2 text-base font-semibold text-foreground">Ringkasan</h2>
-        <div className="grid gap-3 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <Metric
             icon={ClipboardList}
             label="Aktivitas berjalan"

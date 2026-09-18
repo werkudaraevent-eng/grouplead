@@ -99,7 +99,7 @@ export function BoardTokenManager({ tokens, boardBaseUrl }: { tokens: BoardToken
           <h2 className="mt-1 text-base font-semibold text-foreground">Buat tautan papan</h2>
         </div>
 
-        <div className="grid gap-4 px-5 py-5 sm:grid-cols-[2fr_1fr] sm:items-end">
+        <div className="grid grid-cols-1 gap-4 px-5 py-5 sm:grid-cols-[2fr_1fr] sm:items-end">
           <div className="space-y-1.5 sm:col-span-2">
             <Segmented
               label="Jenis tautan"

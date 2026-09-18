@@ -148,7 +148,7 @@ function ActionCell({
   if (mission.joinStatus === "JOINABLE") {
     return (
       <span className="flex items-center justify-end gap-1.5">
-        <JoinButton missionId={mission.id} status="JOINABLE" maxSupporting={maxSupporting} />
+        <JoinButton missionId={mission.id} status="JOINABLE" maxSupporting={maxSupporting} clientName={mission.clientCompanyName} />
         {open}
       </span>
     )
@@ -452,7 +452,7 @@ export function MissionTable({
                       <AcceptAssignmentButton missionId={mission.id} size="default" className="h-11" />
                     </>
                   ) : mission.joinStatus === "JOINABLE" ? (
-                    <JoinButton missionId={mission.id} status="JOINABLE" maxSupporting={maxSupporting} size="default" />
+                    <JoinButton missionId={mission.id} status="JOINABLE" maxSupporting={maxSupporting} clientName={mission.clientCompanyName} size="default" className="h-11" />
                   ) : (
                     <Button asChild variant="outline" size="default" className="h-11">
                       <Link href={paths.activity(mission.id, { fokus: "laporan" })}>

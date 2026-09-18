@@ -780,7 +780,7 @@ export function MissionForm({
               <p className="mt-0.5 text-sm text-muted-foreground">{SECTION_HINTS[block.section]}</p>
             )}
           </header>
-          <div className="grid gap-x-4 gap-y-5 px-5 py-5 sm:grid-cols-6 sm:px-6">
+          <div className="grid grid-cols-1 gap-x-4 gap-y-5 px-5 py-5 sm:grid-cols-6 sm:px-6">
             {block.fields.map((field) =>
               field.isCore ? coreField(field) : <CustomField key={field.id} field={field} initial={edit?.customValues[field.reportingKey]} />
             )}

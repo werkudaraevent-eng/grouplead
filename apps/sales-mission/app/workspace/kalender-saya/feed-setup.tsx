@@ -154,7 +154,7 @@ export function SubscribeSteps() {
   return (
     <section aria-labelledby="subscribe-steps">
       <h2 id="subscribe-steps" className="mb-3 text-base font-semibold text-foreground">Cara berlangganan</h2>
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <div className="rounded-xl border bg-card p-5">
           <p className="text-sm font-semibold text-foreground">iPhone</p>
           <ol className="mt-3 space-y-3 text-sm text-foreground">

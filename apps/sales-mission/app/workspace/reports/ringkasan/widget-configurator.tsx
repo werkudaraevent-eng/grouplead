@@ -147,7 +147,7 @@ export function WidgetConfigurator({
             <Input id="widget-title" value={draft.title} maxLength={60} placeholder={placeholder} onChange={(event) => setDraft({ ...draft, title: event.target.value })} className="h-11 md:h-10" />
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className={fieldClass}>
               <Label className={labelClass}>Ukuran</Label>
               <Select value={draft.measure} onValueChange={(value) => setDraft({ ...draft, measure: value as Measure, compare: draft.compare === value ? "" : draft.compare })}>

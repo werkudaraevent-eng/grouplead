@@ -11,6 +11,7 @@ import {
   leaveMission,
   removeSupportingSales,
   setMissionAllowJoin,
+  undoJoinMission,
 } from "@/app/actions/assignment-actions"
 import { canJoin, joinBlockedReason, type JoinStatus } from "@/lib/missions/mission-join"
 import { Button } from "@/components/ui/button"
@@ -21,17 +22,32 @@ import { Button } from "@/components/ui/button"
  * The button is disabled for exactly the statuses the server also refuses, and
  * the reason is shown rather than left to guesswork — a greyed-out control with
  * no explanation reads as a bug.
+ *
+ * Join is one tap and reversible, so it takes no confirming dialog: the
+ * snackbar afterwards carries "Batalkan" for a few seconds, and an undo inside
+ * that window leaves no trace for the team (M3 snackbar with action; Gmail's
+ * Urungkan, Google Calendar's one-tap RSVP). In a list or on a card the
+ * button is outlined, because a filled button on every row is both the
+ * loudest thing on the screen and the easiest to hit while scrolling; the
+ * filled version belongs to the activity's own page.
  */
+const UNDO_WINDOW_MS = 6_000
+
 export function JoinButton({
   missionId,
   status,
   maxSupporting,
+  clientName,
+  emphasis = "outlined",
   size = "sm",
   className,
 }: {
   missionId: string
   status: JoinStatus
   maxSupporting: number
+  /** Named in the snackbar, so an accidental tap says which visit it hit. */
+  clientName?: string
+  emphasis?: "filled" | "outlined"
   size?: "sm" | "default"
   className?: string
 }) {
@@ -42,11 +58,26 @@ export function JoinButton({
 
   const blocked = joinBlockedReason(status, maxSupporting)
 
+  const undo = () => {
+    start(async () => {
+      const result = await undoJoinMission(missionId)
+      if (result.success) {
+        toast.success("Join dibatalkan")
+        router.refresh()
+      } else {
+        toast.error(result.error ?? "Gagal membatalkan")
+      }
+    })
+  }
+
   const handleJoin = () => {
     start(async () => {
       const result = await joinMission(missionId)
       if (result.success) {
-        toast.success("Kamu bergabung ke aktivitas ini")
+        toast.success(clientName ? `Kamu bergabung ke kunjungan ${clientName}` : "Kamu bergabung ke aktivitas ini", {
+          duration: UNDO_WINDOW_MS,
+          action: { label: "Batalkan", onClick: undo },
+        })
         router.refresh()
       } else {
         toast.error(result.error ?? "Gagal bergabung")
@@ -64,7 +95,7 @@ export function JoinButton({
     >
       <Button
         size={size}
-        variant={canJoin(status) ? "default" : "outline"}
+        variant={emphasis === "filled" && canJoin(status) ? "default" : "outline"}
         disabled={!canJoin(status) || pending}
         onClick={handleJoin}
         title={blocked ?? undefined}

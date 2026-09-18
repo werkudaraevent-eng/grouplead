@@ -35,7 +35,7 @@ export default async function MyCalendarPage() {
           layout: use the width, and peers are seen together, not behind a
           tab); the steps for each calendar app once, under both. */}
       <div className="space-y-6">
-        <div className="grid gap-4 lg:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           <FeedSetup
             scope="own"
             title="Kunjungan saya"

@@ -26,7 +26,7 @@ export default function WorkspaceLoading() {
       </div>
 
       <div className="flex-1 space-y-4 px-4 pb-8 sm:px-6 lg:px-8">
-        <div className="grid gap-4 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           {[0, 1, 2].map((index) => (
             <div key={index} className="h-28 animate-pulse rounded-xl border bg-card" />
           ))}

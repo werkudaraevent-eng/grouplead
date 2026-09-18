@@ -117,7 +117,7 @@ export function SchedulePicker({
       <input type="hidden" name={names.startTime} value={value.startTime} />
       <input type="hidden" name={names.endTime} value={value.endTime} />
 
-      <div className="grid sm:grid-cols-[17rem_1fr]">
+      <div className="grid grid-cols-1 sm:grid-cols-[17rem_1fr]">
         {/* ── Month ── */}
         <div className="border-b p-4 sm:border-b-0 sm:border-r">
           <div className="flex items-center justify-between">
@@ -191,7 +191,7 @@ export function SchedulePicker({
 
         {/* ── Day ── */}
         <div className="p-4">
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label htmlFor={`${names.startTime}-input`} className="text-foreground">
                 Jam mulai<span className="ml-0.5 text-[var(--danger-foreground)]" aria-hidden="true">*</span>

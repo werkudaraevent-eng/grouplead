@@ -42,7 +42,10 @@ export function DayPane<T extends MissionListItem>({
       </div>
 
       {missions.length > 0 ? (
-        <div className="min-h-0 flex-1 divide-y overflow-y-auto overscroll-contain">
+        // A scroll box only where the card has a height to fill. On a phone the
+        // card grows with its list and the page scrolls; a scroll container that
+        // cannot scroll would still swallow the touch with overscroll-contain.
+        <div className="min-h-0 flex-1 divide-y lg:overflow-y-auto lg:overscroll-contain">
           {missions.map((mission) => {
             const body = (
               <>

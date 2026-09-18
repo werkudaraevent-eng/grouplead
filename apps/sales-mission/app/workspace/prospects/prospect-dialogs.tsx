@@ -308,7 +308,7 @@ export function LogAttemptDialog({
               ))}
             </div>
           </div>
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label htmlFor="attempt-outcome" className="text-foreground">Hasil</Label>
               <select id="attempt-outcome" value={outcome} onChange={(event) => setOutcome(event.target.value as Outcome)} className={FIELD_CLASS}>

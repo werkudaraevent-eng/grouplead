@@ -28,6 +28,22 @@ export const CHANGE_KIND_LABELS: Record<ChangeKind, string> = {
 export const CHANGELOG: ChangeEntry[] = [
   {
     date: "2026-09-18",
+    title: "Join lebih aman dari salah ketuk",
+    items: [
+      { kind: "lebih-baik", text: "Tombol Join di daftar dan kartu aktivitas tidak lagi biru penuh, supaya tidak mudah terpencet saat menggulir di HP. Yang biru penuh hanya di halaman aktivitasnya sendiri." },
+      { kind: "lebih-baik", text: "Setelah Join muncul pesan “Kamu bergabung ke kunjungan …” dengan tombol Batalkan selama beberapa detik. Kalau dibatalkan saat itu juga, sales utama dan tim tidak menerima notifikasi apa pun, seolah tidak pernah terjadi." },
+    ],
+  },
+  {
+    date: "2026-09-18",
+    title: "Dua perbaikan tampilan di HP",
+    items: [
+      { kind: "diperbaiki", text: "Di HP, menggeser layar dari tengah daftar Jadwal di halaman Kalender tidak menggulir halaman; hanya sentuhan di tepi kartu yang berhasil. Sekarang halaman bergulir dari mana pun jempol Anda berada." },
+      { kind: "diperbaiki", text: "Kartu kunjungan hari ini di halaman Hari ini bisa melebar melewati tepi layar kalau nama kliennya panjang, sehingga statusnya terpotong. Sekarang nama yang panjang dipotong dengan … dan kartunya selalu selebar layar. Aturan yang sama diterapkan ke semua tata letak kartu lain supaya tidak terulang." },
+    ],
+  },
+  {
+    date: "2026-09-18",
     title: "Filter Industri di daftar Aktivitas",
     items: [
       { kind: "baru", text: "Daftar Aktivitas kini bisa disaring per industri. Pilihan “Belum diisi” di paling atas menampilkan aktivitas yang industrinya masih kosong, supaya mudah dilengkapi dan laporan per industri jadi utuh." },
