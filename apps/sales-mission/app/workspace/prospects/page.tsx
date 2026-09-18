@@ -3,7 +3,7 @@ import { canPerform, getReadScope, getSalesMissionAccess, resolveScope } from "@
 import { describeReadScope } from "@/lib/access/record-scope"
 import { canAssignOthers, canAssignTo, toProspectViewer } from "@/lib/prospects/prospect-access"
 import { requireModule } from "@/lib/missions/nav-access"
-import { listTenantSales } from "@/lib/missions/mission-queries"
+import { getMissionSettings, listTenantSales } from "@/lib/missions/mission-queries"
 import { MISSION_TIME_ZONE } from "@/lib/missions/mission-schema"
 import { listProspectStatuses } from "@/lib/prospects/prospect-status-queries"
 import { listImportBatches } from "@/lib/prospects/prospect-queries"
@@ -39,7 +39,7 @@ export default async function ProspectsPage({
   const query = parseProspectQuery(params)
   const { page, size, sort } = parseProspectPageParams(params)
 
-  const [statuses, people, batches, canCreate, canUpdate, canDelete, canCreateMission, scope] = await Promise.all([
+  const [statuses, people, batches, canCreate, canUpdate, canDelete, canCreateMission, scope, settings] = await Promise.all([
     listProspectStatuses(access, { includeArchived: true }),
     listTenantSales(access),
     listImportBatches(access),
@@ -48,6 +48,7 @@ export default async function ProspectsPage({
     canPerform(access, "sales_mission_prospect", "delete"),
     canPerform(access, "sales_mission_mission", "create"),
     resolveScope(access, "sales_mission_prospect"),
+    getMissionSettings(access),
   ])
   // Whose prospects this viewer reaches, and whom they may hand one to.
   const viewer = toProspectViewer(scope)
@@ -100,6 +101,9 @@ export default async function ProspectsPage({
         canCreateMission={canCreateMission}
         filtered={!isEmptyProspectQuery(query)}
         pagination={{ page, size, total: pageResult.total, sort }}
+        viewerName={access.displayName}
+        companyName={access.companyName}
+        whatsappGreeting={settings.whatsappGreeting}
       />
       </SelectionModeProvider>
     </WorkspacePage>

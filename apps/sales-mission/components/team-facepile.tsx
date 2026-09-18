@@ -17,6 +17,19 @@ export interface FacepilePerson {
  * initials, so the face alone would say less than the old grey line did.
  * Nothing here is tappable; the card body is the one link.
  */
+/**
+ * "Setyorini Dewi Ismu Handayani" → "Setyorini D. I. H.": a card's footer
+ * has one line beside the button, and a long name lost its ending to an
+ * ellipsis. The first name reads as the person; the rest as initials.
+ */
+export function shortPersonName(name: string, max = 18): string {
+  const trimmed = name.trim()
+  if (trimmed.length <= max) return trimmed
+  const [first, ...rest] = trimmed.split(/\s+/)
+  const initials = rest.map((part) => `${part[0].toUpperCase()}.`).join(" ")
+  return initials ? `${first} ${initials}` : first
+}
+
 export function TeamFacepile({
   people,
   max = 3,
@@ -49,7 +62,7 @@ export function TeamFacepile({
         )}
       </span>
       <span className="min-w-0 truncate text-xs text-muted-foreground">
-        <span className="font-medium text-foreground">{people[0].name}</span>
+        <span className="font-medium text-foreground">{shortPersonName(people[0].name)}</span>
         {others > 0 && ` · +${others}`}
       </span>
     </span>

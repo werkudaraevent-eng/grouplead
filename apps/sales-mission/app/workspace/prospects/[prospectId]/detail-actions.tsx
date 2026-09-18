@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import { CalendarCheck, MoreVertical, Phone, Trash2, UserPlus } from "@/components/icons"
+import { CalendarCheck, MoreVertical, Trash2, UserPlus } from "@/components/icons"
 import { useRouter } from "next/navigation"
 import { useTransition } from "react"
 import { toast } from "sonner"
@@ -15,6 +15,9 @@ import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { AssignDialog, ChangeStatusDialog, LogAttemptDialog, type DialogTarget } from "../prospect-dialogs"
+import { ContactMenu } from "../contact-menu"
+import { FollowUpPrompt } from "../follow-up-prompt"
+import { addressContact, renderWhatsAppGreeting } from "@/lib/prospects/whatsapp-greeting"
 import { paths } from "@/lib/paths"
 
 /** The detail page's header actions: one filled, the rest in the overflow. */
@@ -27,6 +30,9 @@ export function ProspectDetailActions({
   canUpdate,
   canDelete,
   canCreateMission,
+  viewerName,
+  companyName,
+  whatsappGreeting,
 }: {
   prospect: ProspectDetail
   statuses: ProspectStatus[]
@@ -36,6 +42,10 @@ export function ProspectDetailActions({
   canUpdate: boolean
   canDelete: boolean
   canCreateMission: boolean
+  /** For the WhatsApp opening line: who is writing, from where, in the unit's words. */
+  viewerName: string
+  companyName: string
+  whatsappGreeting: string | null
 }) {
   const router = useRouter()
   const [attempt, setAttempt] = useState<DialogTarget | null>(null)
@@ -66,7 +76,15 @@ export function ProspectDetailActions({
         {prospect.missionId ? (
           <Button asChild variant="outline" size="sm"><Link href={paths.activity(prospect.missionId)}>Buka aktivitas</Link></Button>
         ) : editable && workable ? (
-          <Button size="sm" onClick={() => setAttempt(target)}><Phone className="h-4 w-4" /> Catat kontak</Button>
+          <ContactMenu
+            prospectId={prospect.id}
+            label={target.label || prospect.clientCompanyName}
+            statusId={prospect.statusId}
+            phone={prospect.contactPhone}
+            email={prospect.contactEmail}
+            greeting={renderWhatsAppGreeting(whatsappGreeting, { contact: addressContact(prospect.contactSalutation, prospect.contactName), sales: viewerName, company: companyName })}
+            onLog={() => setAttempt(target)}
+          />
         ) : canUpdate && prospect.ownerId === null ? (
           <Button size="sm" variant="outline" onClick={claim} disabled={pending}><UserPlus className="h-4 w-4" /> Ambil</Button>
         ) : null}
@@ -95,6 +113,7 @@ export function ProspectDetailActions({
 
       <ChangeStatusDialog target={status} statuses={statuses} canCreateMission={canCreateMission} onClose={() => setStatus(null)} />
       <LogAttemptDialog target={attempt} currentStatusId={prospect.statusId} statuses={statuses} canCreateMission={canCreateMission} onClose={() => setAttempt(null)} />
+      <FollowUpPrompt statuses={statuses} onDetail={(pending, prefill) => setAttempt({ ids: [pending.prospectId], label: pending.label, prospectId: pending.prospectId, prefill })} />
       <AssignDialog target={assign} people={people} viewerId={viewer.userId} onClose={() => setAssign(null)} />
 
       <Dialog open={confirmDelete} onOpenChange={(next) => { if (!pending) setConfirmDelete(next) }}>

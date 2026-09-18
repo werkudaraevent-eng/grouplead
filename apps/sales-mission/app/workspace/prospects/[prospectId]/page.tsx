@@ -3,7 +3,7 @@ import { notFound, redirect } from "next/navigation"
 import { Building2, CalendarCheck, Globe, Mail, MapPin, MessageCircle, Phone } from "@/components/icons"
 import { canPerform, getSalesMissionAccess, resolveScope } from "@/lib/sales-mission-access"
 import { requireModule } from "@/lib/missions/nav-access"
-import { listTenantSales } from "@/lib/missions/mission-queries"
+import { getMissionSettings, listTenantSales } from "@/lib/missions/mission-queries"
 import { listFormFields } from "@/lib/missions/form-field-queries"
 import { customAnswers } from "@/lib/prospects/prospect-form-fields"
 import { parsePhotoAnswer } from "@/lib/photos/photo-answer"
@@ -39,7 +39,7 @@ export default async function ProspectDetailPage({ params }: { params: Promise<{
   await requireModule(access, "sales_mission_prospect")
 
   const { prospectId } = await params
-  const [prospect, statuses, allPeople, canUpdate, canDelete, canCreateMission, scope, fields] = await Promise.all([
+  const [prospect, statuses, allPeople, canUpdate, canDelete, canCreateMission, scope, fields, settings] = await Promise.all([
     getProspect(access, prospectId),
     listProspectStatuses(access, { includeArchived: true }),
     listTenantSales(access),
@@ -48,6 +48,7 @@ export default async function ProspectDetailPage({ params }: { params: Promise<{
     canPerform(access, "sales_mission_mission", "create"),
     resolveScope(access, "sales_mission_prospect"),
     listFormFields(access, "prospect"),
+    getMissionSettings(access),
   ])
   if (!prospect) notFound()
 
@@ -68,7 +69,7 @@ export default async function ProspectDetailPage({ params }: { params: Promise<{
       action={
         <>
           <BackLink href="/workspace/prospects" />
-          <ProspectDetailActions prospect={prospect} statuses={statuses} people={people.map((p) => ({ id: p.id, name: p.name, avatarUrl: p.avatarUrl }))} viewer={viewer} editable={editable} canUpdate={canUpdate} canDelete={canDelete} canCreateMission={canCreateMission} />
+          <ProspectDetailActions prospect={prospect} statuses={statuses} people={people.map((p) => ({ id: p.id, name: p.name, avatarUrl: p.avatarUrl }))} viewer={viewer} editable={editable} canUpdate={canUpdate} canDelete={canDelete} canCreateMission={canCreateMission} viewerName={access.displayName} companyName={access.companyName} whatsappGreeting={settings.whatsappGreeting} />
         </>
       }
     >

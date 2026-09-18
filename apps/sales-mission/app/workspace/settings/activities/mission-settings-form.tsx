@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
+import { DEFAULT_WHATSAPP_GREETING, GREETING_PLACEHOLDERS, renderWhatsAppGreeting } from "@/lib/prospects/whatsapp-greeting"
 
 /**
  * The tenant's mission rules.
@@ -45,8 +46,8 @@ function SwitchRow({
   )
 }
 
-export function MissionSettingsForm({ initial }: { initial: MissionSettings }) {
-  const [form, setForm] = useState<MissionSettingsInput>(initial)
+export function MissionSettingsForm({ initial, companyName }: { initial: MissionSettings; companyName: string }) {
+  const [form, setForm] = useState<MissionSettingsInput>({ ...initial, whatsappGreeting: initial.whatsappGreeting ?? "" })
   const [pending, start] = useTransition()
   const router = useRouter()
 
@@ -174,6 +175,42 @@ export function MissionSettingsForm({ initial }: { initial: MissionSettings }) {
             onChange={(event) => setForm({ ...form, reportEditWindowDays: Number(event.target.value) })}
           />
         </div>
+        </div>
+      </section>
+
+      <section className="overflow-clip rounded-xl border bg-card">
+        <header className="border-b px-5 py-4">
+          <h2 className="text-base font-semibold text-foreground">Prospek</h2>
+          <p className="mt-0.5 text-sm text-muted-foreground">Apa yang terjadi saat sales menghubungi prospek dari daftar.</p>
+        </header>
+        <div className="space-y-3 px-5 py-4">
+          <div>
+            <Label htmlFor="whatsapp-greeting" className="text-sm font-semibold text-foreground">Pesan pembuka WhatsApp</Label>
+            <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+              Terisi otomatis saat sales menekan Hubungi → WhatsApp; sales tetap bisa mengubahnya sebelum mengirim. Kosongkan untuk memakai kalimat bawaan.
+            </p>
+          </div>
+          <textarea
+            id="whatsapp-greeting"
+            value={form.whatsappGreeting}
+            onChange={(event) => setForm({ ...form, whatsappGreeting: event.target.value })}
+            rows={3}
+            maxLength={500}
+            placeholder={DEFAULT_WHATSAPP_GREETING}
+            className="w-full rounded-md border border-input bg-field px-3 py-2 text-sm outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+          />
+          <dl className="grid grid-cols-1 gap-x-4 gap-y-1 text-xs text-muted-foreground sm:grid-cols-2">
+            {GREETING_PLACEHOLDERS.map((item) => (
+              <div key={item.token} className="flex gap-2">
+                <dt className="shrink-0 font-mono text-foreground">{item.token}</dt>
+                <dd>{item.means}</dd>
+              </div>
+            ))}
+          </dl>
+          <p className="rounded-lg bg-muted/50 px-3 py-2 text-sm text-foreground">
+            <span className="mr-1 text-xs text-muted-foreground">Contoh:</span>
+            {renderWhatsAppGreeting(form.whatsappGreeting, { contact: "Bapak Nuryono", sales: "Setyorini", company: companyName })}
+          </p>
         </div>
       </section>
 

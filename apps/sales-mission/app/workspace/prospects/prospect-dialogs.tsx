@@ -44,6 +44,8 @@ export interface DialogTarget {
   label?: string
   /** Set for a single target so "Confirmed" can lead to the mission form. */
   prospectId?: string
+  /** From the "Bagaimana hasilnya?" prompt: the channel and outcome already chosen. */
+  prefill?: { channel: Channel; outcome: Outcome }
 }
 
 function localNow(): string {
@@ -252,8 +254,9 @@ export function LogAttemptDialog({
   // because nobody touched the field is the mistake this prevents.
   useEffect(() => {
     if (target) {
-      setChannel("PHONE"); setOutcome("REACHED"); setNote(""); setWhen(localNow())
-      setStatusId(suggestedStatusId("REACHED") ?? currentStatusId ?? ""); setNextContactAt(""); setLostReason("")
+      const outcome = target.prefill?.outcome ?? "REACHED"
+      setChannel(target.prefill?.channel ?? "PHONE"); setOutcome(outcome); setNote(""); setWhen(localNow())
+      setStatusId(suggestedStatusId(outcome) ?? currentStatusId ?? ""); setNextContactAt(""); setLostReason("")
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [target, currentStatusId])
@@ -282,8 +285,8 @@ export function LogAttemptDialog({
         nextContactAt: nextContactAt || null,
         lostReason: lostReason || null,
       })
-      if (!result.success) { toast.error(result.error ?? "Catatan kontak gagal disimpan."); return }
-      toast.success("Kontak tercatat")
+      if (!result.success) { toast.error(result.error ?? "Catatan follow-up gagal disimpan."); return }
+      toast.success("Follow-up tercatat")
       onClose()
       if (thenSchedule && scheduleHref) router.push(scheduleHref)
       else router.refresh()
@@ -294,7 +297,7 @@ export function LogAttemptDialog({
     <Dialog open={target !== null} onOpenChange={(open) => { if (!open && !pending) onClose() }}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Catat kontak</DialogTitle>
+          <DialogTitle>Catat follow-up</DialogTitle>
           <DialogDescription>{target?.label ?? "Apa yang terjadi saat menghubungi prospek ini."}</DialogDescription>
         </DialogHeader>
         <DialogBody className="space-y-4">
