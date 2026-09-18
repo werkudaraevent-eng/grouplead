@@ -54,18 +54,23 @@ step was skipped.
 
 ## Git and deploys
 
-Work happens on `feature/sales-mission-foundation`. Publish with:
+Work happens **directly on `main`**, and publishing is a plain `git push`.
 
-```bash
-git push -q origin HEAD:main
-```
+**Never push any other branch.** Every branch pushed to the remote triggers a
+Vercel preview build alongside the production one for the same commit, and the
+Hobby plan's daily deployment limit has already been hit once that way. Previews
+are not wanted; production only.
 
-**Never push the feature branch itself.** Every branch pushed to the remote
-triggers a Vercel preview build and burns the daily deploy quota. This idiom
-sends the branch's HEAD straight to `main` without creating a second remote
-branch. A side effect worth knowing: it never advances the *local* `main` ref,
-so local `main` drifts behind. Fast-forward it with
-`git fetch origin && git branch -f main origin/main` rather than merging.
+Until 2026-09-18 the work sat on `feature/sales-mission-foundation` and was
+published with `git push origin HEAD:main`. That idiom kept previews away but
+advanced neither the local `main` ref nor the branch's own remote, so local
+`main` fell 190 commits behind and `git status` reported the branch as "98
+ahead" of a stale upstream — which reads as "nothing has been pushed" when in
+fact everything had. An agent on this machine drew exactly that conclusion. If
+you ever see a large ahead/behind count here, check
+`git rev-list --count origin/main..HEAD` before believing it. A stale
+`feature/sales-mission-foundation` still exists on the remote at an old commit;
+leave it alone unless asked.
 
 `.claude/settings.local.json` is tracked but must be **excluded from every
 commit** — it is a per-machine permission list. Stage with
