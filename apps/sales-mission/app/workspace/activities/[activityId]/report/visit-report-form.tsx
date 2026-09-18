@@ -36,6 +36,7 @@ import { Label } from "@/components/ui/label"
 import { NumberInput } from "@/components/ui/number-input"
 import { PhoneInput } from "@/components/ui/phone-input"
 import { cn } from "@/lib/utils"
+import { jumpToField } from "@/lib/ui/scroll-in-panel"
 import { paths } from "@/lib/paths"
 import { missionDayKey } from "@/lib/missions/mission-calendar"
 
@@ -415,15 +416,7 @@ export function VisitReportForm({
 
   // "Belum lengkap" names the fields; each name scrolls to its field, so a
   // rep at the bottom of the form is one tap from what is missing.
-  const jumpTo = (id: string) => {
-    const element = document.getElementById(id)
-    if (!element) return
-    element.scrollIntoView({ block: "center", behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" })
-    // Most ids sit on a field wrapper; a few (the change reason) are the
-    // control itself, which has nothing inside to focus.
-    const control = element.querySelector<HTMLElement>("input, textarea, select") ?? (element.matches("input, textarea, select") ? element : null)
-    control?.focus({ preventScroll: true })
-  }
+  const jumpTo = (id: string) => jumpToField(id)
 
   /**
    * Everything standing between this form and a send, in the order it appears

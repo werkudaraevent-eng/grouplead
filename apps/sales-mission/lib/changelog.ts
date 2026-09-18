@@ -32,6 +32,7 @@ export const CHANGELOG: ChangeEntry[] = [
     items: [
       { kind: "lebih-baik", text: "Di form laporan, tombol Kirim sekarang selalu bisa ditekan. Kalau masih ada yang kurang, menekannya langsung membawa Anda ke isian pertama yang kosong, sama seperti di form Aktivitas dan Prospek. Sebelumnya tombolnya diabukan, jadi tidak ada yang bisa ditanya kenapa." },
       { kind: "lebih-baik", text: "Waktu kunjungan yang masih di masa depan kini ikut disebut di atas tombol beserta tautan untuk memperbaikinya, bukan cuma mematikan tombolnya diam-diam." },
+      { kind: "diperbaiki", text: "Melompat ke isian yang kosong tidak lagi menggeser seluruh halaman: judul di atas sempat terpotong dan muncul pita kosong di bawah, seolah tampilannya rusak. Sekarang yang bergerak hanya panel isi. Perbaikan yang sama berlaku untuk chip bagian di form panjang, daftar \u201cBelum lengkap\u201d, dan kotak merah di form Aktivitas dan Prospek." },
     ],
   },
   {

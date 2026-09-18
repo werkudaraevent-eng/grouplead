@@ -7,6 +7,7 @@ import { AlertTriangle, Building2, Check, ExternalLink, Loader2, Send, TriangleA
 import { getPushPrecheck, pushMissionToLeadEngine, type PushPrecheck } from "@/app/actions/lead-push-actions"
 import type { TenantSalesOption } from "@/lib/missions/mission-queries"
 import { optionLabel } from "@/lib/missions/lead-category"
+import { jumpToField } from "@/lib/ui/scroll-in-panel"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { ChoiceChip } from "@/components/ui/choice-chip"
@@ -155,12 +156,7 @@ export function PushLeadPanel({
     !form.category ? { id: "push-category", label: "kategori lead" } : null,
   ].filter((item): item is { id: string; label: string } => item !== null)
 
-  const jumpTo = (id: string) => {
-    const element = document.getElementById(id)
-    if (!element) return
-    element.scrollIntoView({ block: "center", behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" })
-    element.querySelector<HTMLElement>("input, textarea, select, button")?.focus({ preventScroll: true })
-  }
+  const jumpTo = (id: string) => jumpToField(id, "input, textarea, select, button")
 
   const submit = () => {
     start(async () => {

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { cn } from "@/lib/utils"
+import { scrollInPanel } from "@/lib/ui/scroll-in-panel"
 
 export interface SectionChip {
   /** The id of the section element to scroll to. */
@@ -51,8 +52,7 @@ export function SectionChips({ sections }: { sections: SectionChip[] }) {
   const jump = (id: string) => {
     const element = document.getElementById(id)
     if (!element) return
-    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches
-    element.scrollIntoView({ block: "start", behavior: reduced ? "auto" : "smooth" })
+    scrollInPanel(element, "start")
     setActive(id)
   }
 

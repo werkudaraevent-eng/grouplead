@@ -34,6 +34,7 @@ import { SchedulePicker, type ScheduleValue } from "./schedule-picker"
 import type { ConflictSettings } from "@/lib/missions/mission-join"
 import type { PersonSchedule } from "@/lib/missions/schedule-availability"
 import { paths } from "@/lib/paths"
+import { scrollInPanel } from "@/lib/ui/scroll-in-panel"
 
 /**
  * Mission form, rendered from the tenant's field configuration.
@@ -425,8 +426,8 @@ export function MissionForm({
   // phone a failed submit used to look like nothing had happened at all.
   useEffect(() => {
     if (!state?.error) return
-    errorRef.current?.scrollIntoView({ block: "center", behavior: "smooth" })
-    errorRef.current?.focus()
+    if (errorRef.current) scrollInPanel(errorRef.current)
+    errorRef.current?.focus({ preventScroll: true })
   }, [state])
 
   // Leading a visit means writing its report, so only people whose role

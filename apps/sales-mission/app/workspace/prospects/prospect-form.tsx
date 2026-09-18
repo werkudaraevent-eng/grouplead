@@ -5,6 +5,7 @@ import Link from "next/link"
 import { AlertCircle, Loader2, Save } from "@/components/icons"
 import { createProspect, updateProspect, type ProspectFormState } from "@/app/actions/prospect-actions"
 import type { TenantSalesOption } from "@/lib/missions/mission-queries"
+import { scrollInPanel } from "@/lib/ui/scroll-in-panel"
 import { DEFAULT_INDUSTRIES, configuredOptions, type FormField } from "@/lib/missions/form-fields"
 import type { ProspectDetail } from "@/lib/prospects/prospect-schema"
 import { PROSPECT_SECTION_HINTS, prospectBlocks } from "@/lib/prospects/prospect-form-fields"
@@ -181,8 +182,8 @@ export function ProspectForm({
 
   useEffect(() => {
     if (!state?.error) return
-    errorRef.current?.scrollIntoView({ block: "center", behavior: "smooth" })
-    errorRef.current?.focus()
+    if (errorRef.current) scrollInPanel(errorRef.current)
+    errorRef.current?.focus({ preventScroll: true })
   }, [state])
 
   const people = salesOptions.map((person) => ({ id: person.id, name: person.name, avatarUrl: person.avatarUrl }))
