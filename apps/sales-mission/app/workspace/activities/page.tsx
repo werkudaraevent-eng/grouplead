@@ -16,7 +16,7 @@ import { Button } from "@/components/ui/button"
 import { Download } from "@/components/icons"
 import { ImportMissions } from "./import-missions"
 import { ActivitiesPhoneMenu } from "./activities-phone-menu"
-import { SelectionModeProvider } from "./selection-mode"
+import { SelectionModeProvider } from "@/components/selection-mode"
 import { paths } from "@/lib/paths"
 
 export const dynamic = "force-dynamic"

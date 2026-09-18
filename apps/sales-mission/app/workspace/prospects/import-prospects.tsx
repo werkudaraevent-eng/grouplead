@@ -1,6 +1,6 @@
 "use client"
 
-import { useRef, useState, useTransition } from "react"
+import { useId, useRef, useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { AlertCircle, CheckCircle2, Download, FileUp, Loader2, Upload } from "@/components/icons"
@@ -17,8 +17,32 @@ import { Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, Dia
  * mission import does. Duplicates are shown as their own count because
  * they are the common case with a list that has been worked before.
  */
-export function ImportProspects({ people, canAssignOthers, viewerId }: { people: Person[]; canAssignOthers: boolean; viewerId: string }) {
-  const [open, setOpen] = useState(false)
+export function ImportProspects({
+  people,
+  canAssignOthers,
+  viewerId,
+  open: controlledOpen,
+  onOpenChange,
+  trigger = true,
+}: {
+  people: Person[]
+  canAssignOthers: boolean
+  viewerId: string
+  /** Owned from outside when the opener is elsewhere (the phone's overflow menu). */
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
+  /** Whether to render the Import button itself. */
+  trigger?: boolean
+}) {
+  const [ownOpen, setOwnOpen] = useState(false)
+  const open = controlledOpen ?? ownOpen
+  const setOpen = (next: boolean) => {
+    setOwnOpen(next)
+    onOpenChange?.(next)
+  }
+  // Mounted twice on the page (desk header, phone menu): each label must
+  // point at its own input.
+  const inputId = useId()
   const [check, setCheck] = useState<ProspectImportCheck | null>(null)
   const [rows, setRows] = useState<RawRow[]>([])
   const [fileName, setFileName] = useState("")
@@ -75,9 +99,11 @@ export function ImportProspects({ people, canAssignOthers, viewerId }: { people:
 
   return (
     <>
-      <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
-        <Upload className="h-4 w-4" /> Import
-      </Button>
+      {trigger && (
+        <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
+          <Upload className="h-4 w-4" /> Import
+        </Button>
+      )}
 
       <Dialog open={open} onOpenChange={(next) => { if (!next && (pending || reading)) return; setOpen(next); if (!next) reset() }}>
         <DialogContent className="sm:max-w-2xl">
@@ -92,8 +118,8 @@ export function ImportProspects({ people, canAssignOthers, viewerId }: { people:
             </Button>
 
             <div className="rounded-lg border border-dashed p-4">
-              <input ref={inputRef} type="file" accept=".xlsx,.xls" id="prospect-import-file" className="sr-only" onChange={(event) => { const file = event.target.files?.[0]; if (file) readFile(file) }} />
-              <label htmlFor="prospect-import-file" className="flex min-h-12 cursor-pointer items-center gap-2.5 text-sm">
+              <input ref={inputRef} type="file" accept=".xlsx,.xls" id={inputId} className="sr-only" onChange={(event) => { const file = event.target.files?.[0]; if (file) readFile(file) }} />
+              <label htmlFor={inputId} className="flex min-h-12 cursor-pointer items-center gap-2.5 text-sm">
                 <FileUp className="h-4 w-4 shrink-0 text-muted-foreground" />
                 <span className="min-w-0 flex-1">
                   <span className="block font-medium text-foreground">{fileName || "Pilih file .xlsx"}</span>
@@ -104,9 +130,9 @@ export function ImportProspects({ people, canAssignOthers, viewerId }: { people:
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="import-owner" className="text-foreground">Pemegang untuk baris tanpa email pemegang <span className="font-normal text-muted-foreground">(opsional)</span></Label>
+              <Label htmlFor={`${inputId}-owner`} className="text-foreground">Pemegang untuk baris tanpa email pemegang <span className="font-normal text-muted-foreground">(opsional)</span></Label>
               {canAssignOthers ? (
-                <PersonPicker id="import-owner" name="ownerId" people={people} value={ownerId} onChange={setOwnerId} placeholder="Belum ditentukan" />
+                <PersonPicker id={`${inputId}-owner`} name="ownerId" people={people} value={ownerId} onChange={setOwnerId} placeholder="Belum ditentukan" />
               ) : (
                 <p className="text-sm text-muted-foreground">Prospek yang diimpor menjadi milikmu, kecuali baris yang menyebut email pemegang lain.</p>
               )}

@@ -31,8 +31,8 @@ import { VISIT_STATE_LABELS, reportOwed, visitState } from "@/lib/missions/visit
 import { statusLabel } from "@/lib/missions/status-labels"
 import { AcceptAssignmentButton, AssignmentOverflowMenu } from "./assignment-actions-menu"
 import { JoinButton } from "./join-controls"
-import { useSelectionMode } from "./selection-mode"
-import { useLongPress } from "@/hooks/use-long-press"
+import { useSelectionMode } from "@/components/selection-mode"
+import { SelectableCardBody } from "@/components/selectable-card-body"
 import { paths } from "@/lib/paths"
 
 type Row = MissionListItem & { joinStatus?: JoinStatus; canReport?: boolean }
@@ -238,10 +238,9 @@ function SelectionBar({
 /**
  * One activity as a card, for the phone.
  *
- * The body is the link into the activity; the buttons sit outside it so a
- * tap on Terima never also opens the page. In selection mode the body
- * toggles the tick instead, and a long press on the body enters that mode
- * with this card ticked (Gmail, Google Files, Photos). When and where share
+ * The body is the link into the activity (`SelectableCardBody`: a long
+ * press enters selection mode, a tap then ticks); the buttons sit outside
+ * it so a tap on Terima never also opens the page. When and where share
  * one line, as a calendar shows an event, and who sits under it: three
  * lines and the status, so three cards fit a screen rather than one and a
  * half.
@@ -269,7 +268,6 @@ function MobileMissionCard({
 }) {
   const asksMe = needsMyAnswer(mission, policy)
   const owesMe = reportOwed(visitState(mission, now)) && mission.canReport === true
-  const { handlers, consumeClick } = useLongPress(onLongPress, { enabled: canDelete && !selecting })
 
   const body = (
     <>
@@ -289,12 +287,6 @@ function MobileMissionCard({
         <TeamAnswersLine mission={mission} policy={policy} />
       </span>
     </>
-  )
-  // No text selection or link callout on a long press: the press is a
-  // gesture here, not a request to copy.
-  const bodyClasses = cn(
-    "block min-w-0 flex-1 select-none p-4 text-left transition-colors hover:bg-muted/50 [-webkit-touch-callout:none]",
-    selecting && "pl-2"
   )
 
   return (
@@ -318,22 +310,9 @@ function MobileMissionCard({
             />
           </span>
         )}
-        {selecting ? (
-          <button type="button" onClick={() => onTick(!ticked)} aria-pressed={ticked} className={bodyClasses}>
-            {body}
-          </button>
-        ) : (
-          <Link
-            href={paths.activity(mission.id)}
-            className={bodyClasses}
-            {...handlers}
-            onClick={(event) => {
-              if (consumeClick()) event.preventDefault()
-            }}
-          >
-            {body}
-          </Link>
-        )}
+        <SelectableCardBody href={paths.activity(mission.id)} selecting={selecting} ticked={ticked} onTick={onTick} onLongPress={onLongPress} enabled={canDelete}>
+          {body}
+        </SelectableCardBody>
       </div>
 
       {(asksMe || owesMe || mission.joinStatus === "JOINABLE" || visitState(mission, now) === "reported") && (

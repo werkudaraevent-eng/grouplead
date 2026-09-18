@@ -4,7 +4,7 @@ import { useState } from "react"
 import { CheckSquare, Download, Upload } from "@/components/icons"
 import { PageChrome, type ChromeMenuItem } from "@/components/page-chrome"
 import { ImportMissions } from "./import-missions"
-import { useSelectionMode } from "./selection-mode"
+import { useSelectionMode } from "@/components/selection-mode"
 
 /**
  * The activity list's secondary actions on a phone.

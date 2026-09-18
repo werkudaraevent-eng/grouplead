@@ -135,7 +135,8 @@ export function RingkasanToolbar({
             </DropdownMenu>
           </>
         ) : (
-          <Button type="button" variant="outline" size="sm" className="h-10 md:h-9" onClick={() => onEditingChange(true)}>
+          // On a phone this door is in the top bar's overflow (DashboardEditor).
+          <Button type="button" variant="outline" size="sm" className="hidden h-10 md:inline-flex md:h-9" onClick={() => onEditingChange(true)}>
             <Settings2 className="h-4 w-4" /> Atur widget
           </Button>
         )}
