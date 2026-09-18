@@ -31,7 +31,7 @@ export const CHANGELOG: ChangeEntry[] = [
     title: "Hubungi prospek langsung dari daftar",
     items: [
       { kind: "baru", text: "Tombol Catat kontak berganti menjadi Hubungi. Ketuk lalu pilih WhatsApp (chat terbuka dengan pesan pembuka yang sudah terisi), Telepon, atau Email. Di komputer, Telepon menyalin nomornya supaya bisa ditelepon dari HP." },
-      { kind: "baru", text: "Begitu kembali ke aplikasi setelah menghubungi, muncul pertanyaan “Bagaimana hasilnya?”. Satu ketuk untuk Tersambung, Tidak diangkat, atau Nomor salah; hasil yang butuh tanggal atau alasan membuka form lengkap yang sudah terisi kanalnya. Ketuk Nanti kalau belum sempat." },
+      { kind: "baru", text: "Begitu kembali ke aplikasi setelah menghubungi, muncul lembar “Bagaimana hasilnya?” dari bawah layar. Satu ketuk untuk Tersambung, Tidak diangkat, atau Nomor salah; hasil yang butuh tanggal atau alasan membuka form lengkap yang sudah terisi kanalnya. Ketuk Nanti kalau belum sempat." },
       { kind: "baru", text: "Admin bisa mengatur kalimat pembuka WhatsApp untuk unit bisnisnya di Pengaturan → Aktivitas → Prospek, dengan {sapaan}, {kontak}, {sales}, dan {perusahaan} sebagai isian otomatis." },
       { kind: "lebih-baik", text: "Form pencatatan kini bernama Catat follow-up dan tetap tersedia di menu Hubungi untuk mencatat kontak yang terjadi di luar aplikasi." },
       { kind: "lebih-baik", text: "Di kartu prospek, nama pemegang yang panjang disingkat (misalnya “Setyorini D. I.”) supaya tidak terpotong, dan baris “Belum pernah dihubungi” tidak lagi ditampilkan ketika statusnya sudah mengatakan itu." },
