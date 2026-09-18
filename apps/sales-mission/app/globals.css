@@ -393,6 +393,28 @@ html.sidebar-dark-mode {
   .board-root { font-size: clamp(15px, 1.9vw, 44px); }
 }
 
+/* A chip row that scrolls sideways on a phone. A chip cut at the screen edge
+   is the M3 carousel's own hint that there is more, but on its own it can
+   read as a layout fault, so the right edge fades. Where scroll-driven
+   animations exist the fade lifts as the row reaches its end; elsewhere it
+   simply stays. Wide screens wrap the chips instead and need neither. */
+.chip-scroll {
+  mask-image: linear-gradient(to right, black calc(100% - 2.5rem), transparent 100%);
+}
+@supports (animation-timeline: scroll()) {
+  .chip-scroll {
+    animation: chip-scroll-edge linear both;
+    animation-timeline: scroll(self x);
+  }
+  @keyframes chip-scroll-edge {
+    0%, 85% { mask-image: linear-gradient(to right, black calc(100% - 2.5rem), transparent 100%); }
+    100% { mask-image: linear-gradient(to right, black 100%, transparent 100%); }
+  }
+}
+@media (min-width: 640px) {
+  .chip-scroll { mask-image: none; animation: none; }
+}
+
 /* Between apps and between pages. The transit screen and the shell arrive
    with Material's fade-through (210ms in); the loader itself lives in
    components/ui/loader.tsx and spins only under motion-safe. Reduced

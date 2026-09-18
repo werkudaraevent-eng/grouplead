@@ -219,16 +219,18 @@ export function QuickFilterChips({
   const lenses = availableMissionFilters(policy).filter((lens): lens is Exclude<MissionFilter, "all"> => lens !== "all")
   const href = (next: QuickView) => paths.activities(viewParams(next, defaultSort))
   const chips: { key: string; label: string; active: boolean; href: string; count?: number }[] = [
+    // Whose first, then when: "Saya" sits beside "Semua", and on a phone it is
+    // the chip a rep reaches for most, so it must not be the one past the edge.
     { key: "all", label: "Semua", active: isPlainView(view), href: href(plainView(view)) },
-    ...QUICK_DATES.map((preset) => ({ key: preset, label: DATE_PRESET_LABELS[preset], active: view.query.date === preset, href: href(toggleDate(view, preset)) })),
     { key: "me", label: "Saya", active: hasMe(view.query), href: href(toggleMe(view)) },
+    ...QUICK_DATES.map((preset) => ({ key: preset, label: DATE_PRESET_LABELS[preset], active: view.query.date === preset, href: href(toggleDate(view, preset)) })),
     ...lenses.map((lens) => ({ key: lens, label: QUICK_LENS_LABELS[lens], active: view.lens === lens, href: href(toggleLens(view, lens)), count: counts[lens] })),
   ]
 
   return (
     <nav
       aria-label="Saringan cepat"
-      className="-mx-4 mb-4 flex gap-2 overflow-x-auto px-4 py-1 sm:mx-0 sm:flex-wrap sm:px-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      className="chip-scroll -mx-4 mb-4 flex gap-2 overflow-x-auto px-4 py-1 sm:mx-0 sm:flex-wrap sm:px-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
     >
       {chips.map((chip) => (
         <ViewLink

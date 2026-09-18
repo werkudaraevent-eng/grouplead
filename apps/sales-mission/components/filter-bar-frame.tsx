@@ -92,7 +92,7 @@ export function FilterBarFrame({
         </Button>
       </div>
       {chips && (
-        <div className="-mx-4 flex items-center gap-1.5 overflow-x-auto px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className="chip-scroll -mx-4 flex items-center gap-1.5 overflow-x-auto px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           <div className="flex shrink-0 items-center gap-1.5">{chips}</div>
         </div>
       )}

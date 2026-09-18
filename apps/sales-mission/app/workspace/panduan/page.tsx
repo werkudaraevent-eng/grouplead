@@ -111,7 +111,7 @@ export default async function GuidePage() {
       title="Panduan"
       description={`Cara kerja ${PRODUCT_NAME} dalam beberapa bagian pendek.`}
     >
-      <nav aria-label="Bagian panduan" className="-mx-4 mb-4 flex gap-2 overflow-x-auto px-4 sm:mx-0 sm:flex-wrap sm:px-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <nav aria-label="Bagian panduan" className="chip-scroll -mx-4 mb-4 flex gap-2 overflow-x-auto px-4 sm:mx-0 sm:flex-wrap sm:px-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {parts.map((part) => (
           <a
             key={part.id}
