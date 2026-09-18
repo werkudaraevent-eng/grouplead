@@ -22,6 +22,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { ResponsiveMenu } from "@/components/responsive-menu"
 import { useSelectionMode } from "@/components/selection-mode"
 import { SelectableCardBody } from "@/components/selectable-card-body"
+import { TeamFacepile } from "@/components/team-facepile"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { cn } from "@/lib/utils"
@@ -323,11 +324,12 @@ export function ProspectTable({
                   <p className="mt-2 truncate text-sm text-foreground">
                     {[prospect.contactPhone ? formatPhone(prospect.contactPhone) : prospect.contactEmail, prospect.location].filter(Boolean).join(" · ") || "—"}
                   </p>
-                  <p className="mt-0.5 truncate text-xs text-muted-foreground">{prospect.ownerName ?? "Belum ada pemegang"}</p>
                   <span className="mt-1.5 block"><ContactLine prospect={prospect} today={today} /></span>
                 </SelectableCardBody>
               </div>
-              <div className="flex items-center justify-end gap-2 border-t px-3 py-2">
+              {/* Who holds it at bottom-start, what to do at bottom-end. */}
+              <div className="flex min-h-11 items-center justify-between gap-3 border-t px-3 py-2">
+                <TeamFacepile people={prospect.ownerName ? [{ name: prospect.ownerName, avatarUrl: prospect.ownerAvatarUrl }] : []} empty="Belum ada pemegang" />
                 <Actions prospect={prospect} size="default" showOpen={false} />
               </div>
             </li>

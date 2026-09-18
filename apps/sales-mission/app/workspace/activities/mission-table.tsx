@@ -33,6 +33,7 @@ import { AcceptAssignmentButton, AssignmentOverflowMenu } from "./assignment-act
 import { JoinButton } from "./join-controls"
 import { useSelectionMode } from "@/components/selection-mode"
 import { SelectableCardBody } from "@/components/selectable-card-body"
+import { TeamFacepile, type FacepilePerson } from "@/components/team-facepile"
 import { paths } from "@/lib/paths"
 
 type Row = MissionListItem & { joinStatus?: JoinStatus; canReport?: boolean }
@@ -255,6 +256,7 @@ function MobileMissionCard({
   ticked,
   onTick,
   onLongPress,
+  people,
 }: {
   mission: Row
   now: Date
@@ -265,8 +267,17 @@ function MobileMissionCard({
   ticked: boolean
   onTick: (next: boolean) => void
   onLongPress: () => void
+  /** The unit's sales, for their photos; a name with no match shows initials. */
+  people: Map<string, FacepilePerson>
 }) {
   const asksMe = needsMyAnswer(mission, policy)
+  // The lead first, then the rest of the team, photos where the unit has them.
+  const team: FacepilePerson[] = [
+    ...(mission.primarySalesName ? [people.get(mission.primarySalesId ?? "") ?? { name: mission.primarySalesName }] : []),
+    ...mission.assigneeIds
+      .filter((id) => id !== mission.primarySalesId)
+      .map((id, index) => people.get(id) ?? { name: mission.supportingSalesNames[index] ?? "Sales pendukung" }),
+  ]
   const owesMe = reportOwed(visitState(mission, now)) && mission.canReport === true
 
   const body = (
@@ -281,7 +292,6 @@ function MobileMissionCard({
       <p className="mt-2 truncate text-sm text-foreground">
         {[formatMissionSchedule(mission.scheduledStart, now), mission.location].filter(Boolean).join(" · ")}
       </p>
-      <p className="mt-0.5 truncate text-xs text-muted-foreground">{mission.primarySalesName ?? "Belum ditugaskan"}</p>
       <span className="mt-1.5 block">
         {mission.joinStatus && <JoinStatusLine status={mission.joinStatus} />}
         <TeamAnswersLine mission={mission} policy={policy} />
@@ -315,8 +325,12 @@ function MobileMissionCard({
         </SelectableCardBody>
       </div>
 
-      {(asksMe || owesMe || mission.joinStatus === "JOINABLE" || visitState(mission, now) === "reported") && (
-        <div className="flex items-center justify-end gap-2 border-t px-3 py-2">
+      {/* Who is going, then what the reader can do about it: the team at
+          bottom-start, the one action at bottom-end (M3 card). Every card
+          has the footer, so "who" is always in the same place. */}
+      <div className="flex min-h-11 items-center justify-between gap-3 border-t px-3 py-2">
+        <TeamFacepile people={team} />
+        <span className="flex shrink-0 items-center gap-2">
           {owesMe ? (
             <Button asChild size="default" className="h-11">
               <Link href={paths.activityReport(mission.id)}>
@@ -330,15 +344,15 @@ function MobileMissionCard({
             </>
           ) : mission.joinStatus === "JOINABLE" ? (
             <JoinButton missionId={mission.id} status="JOINABLE" maxSupporting={maxSupporting} clientName={mission.clientCompanyName} size="default" className="h-11" />
-          ) : (
+          ) : visitState(mission, now) === "reported" ? (
             <Button asChild variant="outline" size="default" className="h-11">
               <Link href={paths.activity(mission.id, { fokus: "laporan" })}>
                 <ClipboardList className="h-4 w-4" /> Lihat laporan
               </Link>
             </Button>
-          )}
-        </div>
-      )}
+          ) : null}
+        </span>
+      </div>
     </li>
   )
 }
@@ -353,9 +367,12 @@ export function MissionTable({
   policy = { requireAssignmentConfirmation: false },
   maxSupporting = 2,
   pagination,
+  people = [],
 }: {
   /** Present when the list is a page of a larger set. */
   pagination?: { page: number; size: number; total: number; sort: MissionSort }
+  /** The unit's sales, for the cards' avatars. */
+  people?: Array<{ id: string; name: string; avatarUrl: string | null }>
   missions: Row[]
   now: Date
   /** Whether to offer "Mission baru" from the empty state. */
@@ -383,6 +400,7 @@ export function MissionTable({
   const searchParams = useSearchParams()
 
   const visibleIds = useMemo(() => new Set(missions.map((mission) => mission.id)), [missions])
+  const peopleById = useMemo(() => new Map(people.map((person) => [person.id, { name: person.name, avatarUrl: person.avatarUrl }])), [people])
   // What is on screen, plus what "select all matching" added.
   const chosen = [...new Set([...[...selected].filter((id) => visibleIds.has(id)), ...beyondPage])]
   const pageChosen = chosen.filter((id) => visibleIds.has(id)).length
@@ -516,6 +534,7 @@ export function MissionTable({
             canDelete={canDelete}
             selecting={canDelete && selecting}
             ticked={selected.has(mission.id)}
+            people={peopleById}
             onTick={(next) => toggle(mission.id, next)}
             onLongPress={() => {
               setSelecting(true)

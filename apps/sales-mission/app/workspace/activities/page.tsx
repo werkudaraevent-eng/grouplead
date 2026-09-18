@@ -121,6 +121,7 @@ export default async function MissionsPage({
         policy={settings}
         maxSupporting={settings.maxSupporting}
         pagination={{ page, size, total: pageResult.total, sort }}
+        people={people.map((person) => ({ id: person.id, name: person.name, avatarUrl: person.avatarUrl }))}
       />
       </SelectionModeProvider>
     </WorkspacePage>
