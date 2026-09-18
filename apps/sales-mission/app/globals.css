@@ -144,29 +144,34 @@
   --danger-foreground: #93400a;
 
   /* ── Live board (TV) ──
-     A wall screen read from four metres, so it cannot reuse the light tokens
-     above. This is an M3 dark scheme derived from the brand blue at low
-     chroma: four surface tones instead of borders, one primary container for
-     the single thing the room should look at, and the amber used exactly
-     once. Status is a colour role, never a hue trio. Every text pair below
-     clears 4.5:1 on its own surface; the header rule clears 3:1. */
-  --board-surface: #0F1319;
-  --board-surface-container-low: #171B22;
-  --board-surface-container: #1B2028;
-  --board-on-surface: #E0E3EA;
-  --board-on-surface-variant: #C0C7D4;
-  /* Past and finished rows step down in tone, not in opacity: an accent word
-     inside a dimmed row must keep its own contrast. */
-  --board-on-surface-dim: #8A909B;
-  --board-outline: #5C626D;
-  --board-outline-variant: #2C323C;
+     A wall screen read from four metres: an M3 dark scheme from the brand
+     blue. Tonal surfaces carry the structure (no borders), primary marks the
+     one thing the room should look at, tertiary amber is the live signal and
+     the green custom colour means done. Every text pair clears 4.5:1 on the
+     surface it sits on. */
+  --board-surface: #0C1016;
+  --board-surface-container-low: #141922;
+  --board-surface-container: #1A2029;
+  --board-surface-container-high: #232A35;
+  --board-surface-container-highest: #2D3541;
+  --board-on-surface: #E6E9F0;
+  --board-on-surface-variant: #B9C2D0;
+  /* Past rows step down in tone, not in opacity. */
+  --board-on-surface-dim: #8A93A1;
+  --board-outline-variant: #333B47;
   --board-primary: #B1C5FF;
-  --board-primary-container: #1F3F86;
+  --board-primary-container: #24448F;
   --board-on-primary-container: #DCE4FF;
-  /* The only accent on the board: the visit happening now. There is no error
-     role here: a cancelled visit is taken off the board rather than shouted
-     about, so nothing on this surface is in an error state. */
   --board-tertiary: #F9BB46;
+  --board-success: #7DD8A4;
+  --board-success-container: #0F4D32;
+  /* Identity colours for people, tone 30 containers with tone 90 ink. */
+  --board-avatar-1: #24448F; --board-on-avatar-1: #DCE4FF;
+  --board-avatar-2: #0F4D32; --board-on-avatar-2: #B7F1CD;
+  --board-avatar-3: #6B2A55; --board-on-avatar-3: #FFD7EE;
+  --board-avatar-4: #5C4300; --board-on-avatar-4: #FFDEA6;
+  --board-avatar-5: #1F4E5C; --board-on-avatar-5: #BDEBFF;
+  --board-avatar-6: #4A3A8C; --board-on-avatar-6: #E5DEFF;
 }
 
 /* ── Dark Sidebar Panel (Bigin-style) ── */
@@ -363,9 +368,20 @@ html.sidebar-dark-mode {
   50% { opacity: 0.35; }
 }
 .board-pulse { animation: board-pulse 1.8s ease-in-out infinite; }
-.board-fade-bottom { background: linear-gradient(to bottom, transparent, var(--board-surface)); }
+@keyframes board-ring {
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--board-tertiary) 55%, transparent); }
+  100% { box-shadow: 0 0 0 0.9em transparent; }
+}
+.board-ring { animation: board-ring 2.2s cubic-bezier(0.2, 0, 0, 1) infinite; }
+.board-fade-bottom { background: linear-gradient(to bottom, transparent, var(--board-surface-container-low)); }
+.board-backdrop {
+  background:
+    radial-gradient(60em 36em at 0% 0%, color-mix(in srgb, var(--board-primary) 9%, transparent), transparent 70%),
+    radial-gradient(50em 30em at 100% 100%, color-mix(in srgb, var(--board-tertiary) 5%, transparent), transparent 70%),
+    var(--board-surface);
+}
 @media (prefers-reduced-motion: reduce) {
-  .board-pulse { animation: none; }
+  .board-pulse, .board-ring { animation: none; }
 }
 
 /* One root size for the whole board; every size on it is an `em` of this, so

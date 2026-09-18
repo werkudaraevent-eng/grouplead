@@ -28,6 +28,15 @@ export const CHANGE_KIND_LABELS: Record<ChangeKind, string> = {
 export const CHANGELOG: ChangeEntry[] = [
   {
     date: "2026-09-18",
+    title: "Papan live di TV tampil baru",
+    items: [
+      { kind: "lebih-baik", text: "Papan live sekarang punya satu sorotan besar di atas: kunjungan yang sedang berlangsung, atau kunjungan berikutnya lengkap dengan hitung mundurnya, sehingga orang yang lewat langsung tahu apa yang terjadi." },
+      { kind: "lebih-baik", text: "Progres hari ini tampil sebagai angka besar dengan bilah kemajuan, jadwal disusun sebagai garis waktu dengan tanda selesai, dan setiap sales punya lingkaran inisial berwarna di jadwal maupun di daftar tim." },
+      { kind: "lebih-baik", text: "Saat semua kunjungan sudah selesai, papan mengatakannya dengan jelas alih-alih menyisakan tabel kosong." },
+    ],
+  },
+  {
+    date: "2026-09-18",
     title: "Tombol kirim laporan tidak lagi mati saat ada isian kurang",
     items: [
       { kind: "lebih-baik", text: "Di form laporan, tombol Kirim sekarang selalu bisa ditekan. Kalau masih ada yang kurang, menekannya langsung membawa Anda ke isian pertama yang kosong, sama seperti di form Aktivitas dan Prospek. Sebelumnya tombolnya diabukan, jadi tidak ada yang bisa ditanya kenapa." },
