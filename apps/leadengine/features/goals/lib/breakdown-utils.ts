@@ -321,14 +321,25 @@ function getTargetFromNested(targets: BreakdownTargets | undefined | null, key: 
 
 // ── Target Serialization ──
 
+/**
+ * Set an own property whatever the key is. A node id is a breakdown value
+ * from lead data, so it can be any string, and `obj["__proto__"] = x` on a
+ * plain object changes its prototype instead of storing anything: the
+ * target vanished on the way back. Defining the property sidesteps the
+ * setter; JSON.parse creates own properties the same way.
+ */
+function setOwn(target: BreakdownTargets, key: string, value: BreakdownTargets[string]): void {
+  Object.defineProperty(target, key, { value, enumerable: true, writable: true, configurable: true })
+}
+
 export function serializeTargets(nodes: TreeNodeData[]): BreakdownTargets {
   const result: BreakdownTargets = {}
   for (const node of nodes) {
     if (node.children && node.children.length > 0) {
       const childObj = serializeTargets(node.children)
-      result[node.id] = { _target: node.target, ...childObj } as BreakdownTargets[string]
+      setOwn(result, node.id, { _target: node.target, ...childObj } as BreakdownTargets[string])
     } else {
-      result[node.id] = { _target: node.target } as BreakdownTargets[string]
+      setOwn(result, node.id, { _target: node.target } as BreakdownTargets[string])
     }
   }
   return result
@@ -342,6 +353,9 @@ export function deserializeTargets(
   let current: unknown = targets
   for (const key of path) {
     if (current == null || typeof current !== 'object') return 0
+    // Own properties only: "constructor" or "toString" with no target of
+    // their own would otherwise read Object.prototype's.
+    if (!Object.prototype.hasOwnProperty.call(current, key)) return 0
     current = (current as Record<string, unknown>)[key]
     if (current == null) return 0
   }
