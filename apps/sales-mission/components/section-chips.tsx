@@ -61,7 +61,7 @@ export function SectionChips({ sections }: { sections: SectionChip[] }) {
   return (
     <nav
       aria-label="Bagian formulir"
-      className="sticky top-0 z-20 -mx-4 flex gap-2 overflow-x-auto bg-background px-4 py-2 sm:-mx-6 sm:px-6 lg:hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      className="chip-scroll sticky top-0 z-20 -mx-4 flex gap-2 overflow-x-auto bg-background px-4 py-2 sm:-mx-6 sm:px-6 lg:hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
     >
       {sections.map((section) => {
         const current = active === section.id

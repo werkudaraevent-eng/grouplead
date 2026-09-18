@@ -28,6 +28,15 @@ export const CHANGE_KIND_LABELS: Record<ChangeKind, string> = {
 export const CHANGELOG: ChangeEntry[] = [
   {
     date: "2026-09-18",
+    title: "Form laporan kunjungan lebih lega di HP",
+    items: [
+      { kind: "diperbaiki", text: "Foto bukti kunjungan dan kartu nama kini ada di bagian “Foto” sendiri di akhir form. Sebelumnya bagian “Hasil kunjungan” muncul dua kali, di awal dan di akhir, dan terlihat seperti form mengulang." },
+      { kind: "lebih-baik", text: "Di HP, bar bawah form hanya berisi status dan tombol Kirim laporan yang lebih lebar. Kembali lewat panah di kiri atas; Buang draf lewat menu ⋮ di kanan atas. Baris “Sales Mission · Lokasi” di atas form tidak lagi ditampilkan sehingga ruang untuk mengisi lebih luas." },
+      { kind: "lebih-baik", text: "Keterangan di bawah beberapa field dipersingkat: satu baris untuk foto (batas dan apa yang difoto), tanpa kalimat “Kunjungan ke …” yang mengulang judul, dan kotak centang peluang kini langsung menyebut apa yang terjadi bila dicentang." },
+    ],
+  },
+  {
+    date: "2026-09-18",
     title: "Halaman masuk di HP",
     items: [
       { kind: "lebih-baik", text: "Di HP, form masuk kini mulai dari atas layar, sehingga kolom email dan kata sandi tetap terlihat saat keyboard muncul. Warnanya mengikuti warna halaman lain di aplikasi." },
