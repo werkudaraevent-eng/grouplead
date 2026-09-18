@@ -28,6 +28,13 @@ export const CHANGE_KIND_LABELS: Record<ChangeKind, string> = {
 export const CHANGELOG: ChangeEntry[] = [
   {
     date: "2026-09-18",
+    title: "Halaman masuk di HP",
+    items: [
+      { kind: "lebih-baik", text: "Di HP, form masuk kini mulai dari atas layar, sehingga kolom email dan kata sandi tetap terlihat saat keyboard muncul. Warnanya mengikuti warna halaman lain di aplikasi." },
+    ],
+  },
+  {
+    date: "2026-09-18",
     title: "Siapa yang pergi, terlihat di kartu",
     items: [
       { kind: "lebih-baik", text: "Di HP, kartu aktivitas kini menampilkan foto (atau inisial) sales utama dan pendukungnya di baris bawah, tepat di samping tombol Join, lengkap dengan nama sales utama. Sebelumnya nama hanya tertulis kecil di antara baris lain." },

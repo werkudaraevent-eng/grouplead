@@ -127,7 +127,10 @@ export default function LoginPage() {
       </div>
 
       {/* Right Panel — Login Form */}
-      <div className="flex flex-1 items-center justify-center bg-white px-6 sm:px-12 lg:px-16">
+      {/* On a phone the form starts near the top, so the fields stay in view
+          when the keyboard rises and no third of the screen is empty above
+          them; on a desk it sits at the panel's centre. */}
+      <div className="flex flex-1 justify-center bg-background px-6 pb-8 pt-10 sm:px-12 lg:items-center lg:px-16 lg:py-0">
         <div className="w-full max-w-[380px] space-y-8">
           <div className="mb-4 flex items-center gap-3 lg:hidden">
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary">
@@ -139,7 +142,7 @@ export default function LoginPage() {
           <div className="space-y-2">
             <p className="text-xs font-bold uppercase tracking-[0.18em] text-primary">Sales Activity</p>
             <h2 className="text-2xl font-semibold tracking-tight text-foreground">Selamat datang</h2>
-            <p className="text-[15px] text-muted-foreground">Masuk dengan akun Werkudara Anda.</p>
+            <p className="text-sm text-muted-foreground">Masuk dengan akun Werkudara Anda.</p>
           </div>
 
           <form onSubmit={handleLogin} className="space-y-5">
@@ -164,7 +167,7 @@ export default function LoginPage() {
                 onChange={(event) => setEmail(event.target.value)}
                 required
                 autoComplete="email"
-                className="h-12 bg-muted/40 transition-colors focus:bg-white"
+                className="h-12 bg-field transition-colors focus:bg-card"
               />
             </div>
 
@@ -184,12 +187,12 @@ export default function LoginPage() {
                   onChange={(event) => setPassword(event.target.value)}
                   required
                   autoComplete="current-password"
-                  className="h-12 bg-muted/40 pr-12 transition-colors focus:bg-white"
+                  className="h-12 bg-field pr-12 transition-colors focus:bg-card"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword((value) => !value)}
-                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  aria-label={showPassword ? "Sembunyikan kata sandi" : "Tampilkan kata sandi"}
                   aria-pressed={showPassword}
                   className="absolute right-1 top-1/2 inline-flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                 >
@@ -201,7 +204,7 @@ export default function LoginPage() {
             <Button
               type="submit"
               disabled={loading}
-              className="h-12 w-full text-[15px] font-medium"
+              className="h-12 w-full font-medium"
             >
               {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
               {loading ? "Memproses…" : "Masuk"}
@@ -212,7 +215,7 @@ export default function LoginPage() {
             <p className="text-center text-xs text-muted-foreground">
               Akses diatur oleh administrator Werkudara Group.
               <br />
-              <span>© {new Date().getFullYear()} Werkudara Group. All rights reserved.</span>
+              <span>© {new Date().getFullYear()} Werkudara Group. Hak cipta dilindungi.</span>
             </p>
           </div>
         </div>
