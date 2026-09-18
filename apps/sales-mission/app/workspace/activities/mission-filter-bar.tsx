@@ -15,6 +15,8 @@ import { cn } from "@/lib/utils"
 import {
   DATE_PRESETS,
   DATE_PRESET_LABELS,
+  EMPTY_QUERY,
+  INDUSTRY_NONE,
   REPORT_FACETS,
   countActiveFacets,
   serializeMissionQuery,
@@ -53,6 +55,8 @@ const STATUS_OPTIONS: MissionStatus[] = [
   "CANCELLED",
   "REJECTED",
 ]
+
+const INDUSTRY_NONE_LABEL = "Belum diisi"
 
 export interface FilterPerson {
   id: string
@@ -147,6 +151,7 @@ export function MissionFilterBar({
   people,
   types,
   locations,
+  industries,
   total,
   shown,
 }: {
@@ -154,6 +159,7 @@ export function MissionFilterBar({
   people: FilterPerson[]
   types: string[]
   locations: string[]
+  industries: string[]
   /** Unfiltered and filtered counts, so the bar can say "12 dari 40". */
   total: number
   shown: number
@@ -250,6 +256,13 @@ export function MissionFilterBar({
           onChange={(location) => push({ ...query, location })}
         />
         <FacetSelect
+          label="Industri"
+          pinned={[{ value: INDUSTRY_NONE, label: INDUSTRY_NONE_LABEL }]}
+          options={industries.map((industry) => ({ value: industry, label: industry }))}
+          value={query.industry}
+          onChange={(industry) => push({ ...query, industry })}
+        />
+        <FacetSelect
           label="Jenis"
           options={types.map((type) => ({ value: type, label: type }))}
           value={query.type}
@@ -288,6 +301,13 @@ export function MissionFilterBar({
           {query.location.map((location) => (
             <Chip key={location} label={location} onRemove={() => push({ ...query, location: query.location.filter((l) => l !== location) })} />
           ))}
+          {query.industry.map((industry) => (
+            <Chip
+              key={`industry-${industry}`}
+              label={industry === INDUSTRY_NONE ? `Industri ${INDUSTRY_NONE_LABEL.toLowerCase()}` : industry}
+              onRemove={() => push({ ...query, industry: query.industry.filter((i) => i !== industry) })}
+            />
+          ))}
           {query.type.map((type) => (
             <Chip key={type} label={type} onRemove={() => push({ ...query, type: query.type.filter((t) => t !== type) })} />
           ))}
@@ -303,7 +323,7 @@ export function MissionFilterBar({
           )}
           <button
             type="button"
-            onClick={() => { setText(""); push({ q: "", status: [], type: [], sales: [], creator: [], report: [], location: [], date: null, from: null, to: null }) }}
+            onClick={() => { setText(""); push(EMPTY_QUERY) }}
             className="ml-1 text-xs font-semibold text-primary hover:underline"
           >
             Bersihkan semua

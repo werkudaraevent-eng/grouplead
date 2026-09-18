@@ -109,6 +109,9 @@ export const DATE_PRESET_LABELS: Record<DatePreset, string> = {
   custom: "Rentang tanggal",
 }
 
+/** "Belum diisi" in the industry facet: matches a mission saved without one. */
+export const INDUSTRY_NONE = "__none__"
+
 /** "Saya" in the sales facet: a link can say it without naming the viewer. */
 export const SALES_ME = "me"
 
@@ -129,6 +132,8 @@ export interface MissionQuery {
   /** Visit states, from the report's point of view. */
   report: VisitState[]
   location: string[]
+  /** Industries; INDUSTRY_NONE matches a mission with no industry. */
+  industry: string[]
   date: DatePreset | null
   /** YYYY-MM-DD, mission time. Only read when `date` is "custom". */
   from: string | null
@@ -143,6 +148,7 @@ export const EMPTY_QUERY: MissionQuery = {
   creator: [],
   report: [],
   location: [],
+  industry: [],
   date: null,
   from: null,
   to: null,
@@ -172,6 +178,7 @@ export function parseMissionQuery(params: Record<string, string | string[] | und
     creator: list(params.creator),
     report: list(params.report).filter((item): item is VisitState => REPORT_FACETS.includes(item as VisitState)),
     location: list(params.location),
+    industry: list(params.industry),
     date: DATE_PRESETS.includes(date as DatePreset) ? (date as DatePreset) : null,
     from: DAY.test(from) ? from : null,
     to: DAY.test(to) ? to : null,
@@ -188,6 +195,7 @@ export function serializeMissionQuery(query: MissionQuery): URLSearchParams {
   if (query.creator.length) params.set("creator", query.creator.join(","))
   if (query.report.length) params.set("report", query.report.join(","))
   if (query.location.length) params.set("location", query.location.join(","))
+  if (query.industry.length) params.set("industry", query.industry.join(","))
   if (query.date) params.set("date", query.date)
   if (query.date === "custom") {
     if (query.from) params.set("from", query.from)
@@ -206,6 +214,7 @@ export function countActiveFacets(query: MissionQuery): number {
     (query.creator.length ? 1 : 0) +
     (query.report.length ? 1 : 0) +
     (query.location.length ? 1 : 0) +
+    (query.industry.length ? 1 : 0) +
     (query.date ? 1 : 0)
   )
 }
@@ -273,6 +282,7 @@ export function applyMissionQuery<T extends MissionListItem>(missions: T[], quer
   const creator = new Set(query.creator)
   const report = new Set(query.report)
   const location = new Set(query.location.map(normalise))
+  const industry = new Set(query.industry.map((value) => (value === INDUSTRY_NONE ? value : normalise(value))))
   const range = dateRangeFor(query, now)
 
   return missions.filter((mission) => {
@@ -296,6 +306,7 @@ export function applyMissionQuery<T extends MissionListItem>(missions: T[], quer
     if (creator.size && !creator.has(mission.createdBy)) return false
     if (report.size && !report.has(visitState(mission, now))) return false
     if (location.size && !location.has(normalise(mission.location))) return false
+    if (industry.size && !industry.has(normalise(mission.industry) || INDUSTRY_NONE)) return false
     if (range) {
       if (!mission.scheduledStart) return false
       const day = dayKey(mission.scheduledStart)

@@ -41,6 +41,9 @@ function rpcArgs(access: SalesMissionAccess, request: Omit<MissionPageRequest, "
     p_sales: orNull(resolveSales(request.query.sales, access.userId)),
     p_creator: orNull(request.query.creator),
     p_location: orNull(request.query.location),
+    // Sent only when used: PostgREST resolves the function by the names it is
+    // given, so an unused facet never depends on the newer signature.
+    ...(request.query.industry.length > 0 ? { p_industry: request.query.industry } : {}),
     p_report: orNull(request.query.report),
     p_from: range?.[0] ?? null,
     p_to: range?.[1] ?? null,
@@ -91,13 +94,14 @@ export async function listMatchingMissionIds(
   return listMissionIdsPage(access, { ...request, page: 0, size: cap })
 }
 
-/** Distinct types and locations the tenant has used, for the facets. */
-export async function listMissionFacets(access: SalesMissionAccess): Promise<{ types: string[]; locations: string[] }> {
+/** Distinct types, locations and industries the tenant has used, for the facets. */
+export async function listMissionFacets(access: SalesMissionAccess): Promise<{ types: string[]; locations: string[]; industries: string[] }> {
   const supabase = await createClient()
   const { data } = await supabase.schema("sales_mission").rpc("fn_mission_facets", { p_company_id: access.companyId })
   const rows = (data ?? []) as Array<{ kind: string; value: string }>
   return {
     types: rows.filter((row) => row.kind === "type").map((row) => row.value),
     locations: rows.filter((row) => row.kind === "location").map((row) => row.value),
+    industries: rows.filter((row) => row.kind === "industry").map((row) => row.value),
   }
 }

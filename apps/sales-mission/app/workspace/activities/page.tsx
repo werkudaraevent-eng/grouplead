@@ -99,6 +99,7 @@ export default async function MissionsPage({
         people={people.map((person) => ({ id: person.id, name: person.name, avatarUrl: person.avatarUrl }))}
         types={facets.types}
         locations={facets.locations}
+        industries={facets.industries}
         total={allCount}
         shown={pageResult.total}
       />

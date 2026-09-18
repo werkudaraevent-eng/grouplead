@@ -28,6 +28,13 @@ export const CHANGE_KIND_LABELS: Record<ChangeKind, string> = {
 export const CHANGELOG: ChangeEntry[] = [
   {
     date: "2026-09-18",
+    title: "Filter Industri di daftar Aktivitas",
+    items: [
+      { kind: "baru", text: "Daftar Aktivitas kini bisa disaring per industri. Pilihan “Belum diisi” di paling atas menampilkan aktivitas yang industrinya masih kosong, supaya mudah dilengkapi dan laporan per industri jadi utuh." },
+    ],
+  },
+  {
+    date: "2026-09-18",
     title: "Catat kontak langsung menyarankan status yang benar",
     items: [
       { kind: "diperbaiki", text: "Saat form Catat kontak dibuka, Hasil sudah terisi “Tersambung” tetapi Status setelah ini masih menunjukkan status lama, misalnya Uncontacted. Kalau tidak diubah, prospek yang jelas sudah tersambung tersimpan seolah belum pernah dihubungi. Sekarang status langsung ikut menyarankan In Progress sejak form dibuka." },

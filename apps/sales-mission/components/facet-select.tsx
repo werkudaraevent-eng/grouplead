@@ -9,6 +9,7 @@ import {
   CommandInput,
   CommandItem,
   CommandList,
+  CommandSeparator,
 } from "@/components/ui/command"
 import { ResponsivePopover } from "@/components/responsive-popover"
 import { Button } from "@/components/ui/button"
@@ -47,9 +48,12 @@ export function FacetSelect({
   onChange,
   searchable = true,
   renderOption,
+  pinned = [],
 }: {
   label: string
   options: Array<{ value: string; label: string }>
+  /** Options that are about the field rather than a value of it ("Belum diisi"), kept above a divider. */
+  pinned?: Array<{ value: string; label: string }>
   value: string[]
   onChange: (next: string[]) => void
   searchable?: boolean
@@ -58,6 +62,21 @@ export function FacetSelect({
   const [open, setOpen] = useState(false)
   const chosen = new Set(value)
   const flip = (item: string) => onChange(chosen.has(item) ? value.filter((v) => v !== item) : [...value, item])
+
+  const item = (option: { value: string; label: string }, isPinned: boolean) => (
+    <CommandItem key={option.value} value={option.label} onSelect={() => flip(option.value)} className="min-h-12 gap-3 md:min-h-8 md:gap-2">
+      <span
+        aria-hidden="true"
+        className={cn(
+          "grid h-5 w-5 place-items-center rounded-[4px] border border-input md:h-4 md:w-4",
+          chosen.has(option.value) && "border-primary bg-primary text-primary-foreground"
+        )}
+      >
+        {chosen.has(option.value) && <Check className="h-3 w-3" />}
+      </span>
+      {renderOption && !isPinned ? renderOption(option) : <span className={cn("truncate", isPinned && "text-muted-foreground")}>{option.label}</span>}
+    </CommandItem>
+  )
 
   return (
     <ResponsivePopover
@@ -68,25 +87,16 @@ export function FacetSelect({
       trigger={<span><FacetButton label={label} count={value.length} open={open} /></span>}
     >
         <Command>
-          {searchable && options.length > 6 && <CommandInput placeholder={`Cari ${label.toLowerCase()}…`} />}
+          {searchable && options.length + pinned.length > 6 && <CommandInput placeholder={`Cari ${label.toLowerCase()}…`} />}
           <CommandList className="max-h-[55dvh] md:max-h-72">
             <CommandEmpty>Tidak ada pilihan.</CommandEmpty>
-            <CommandGroup>
-              {options.map((option) => (
-                <CommandItem key={option.value} value={option.label} onSelect={() => flip(option.value)} className="min-h-12 gap-3 md:min-h-8 md:gap-2">
-                  <span
-                    aria-hidden="true"
-                    className={cn(
-                      "grid h-5 w-5 place-items-center rounded-[4px] border border-input md:h-4 md:w-4",
-                      chosen.has(option.value) && "border-primary bg-primary text-primary-foreground"
-                    )}
-                  >
-                    {chosen.has(option.value) && <Check className="h-3 w-3" />}
-                  </span>
-                  {renderOption ? renderOption(option) : <span className="truncate">{option.label}</span>}
-                </CommandItem>
-              ))}
-            </CommandGroup>
+            {pinned.length > 0 && (
+              <>
+                <CommandGroup>{pinned.map((option) => item(option, true))}</CommandGroup>
+                {options.length > 0 && <CommandSeparator />}
+              </>
+            )}
+            <CommandGroup>{options.map((option) => item(option, false))}</CommandGroup>
           </CommandList>
           {value.length > 0 && (
             <div className="border-t p-1">

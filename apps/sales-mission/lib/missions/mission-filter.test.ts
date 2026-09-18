@@ -7,6 +7,7 @@ import {
   countMissionFilters,
   dateRangeFor,
   facetOptions,
+  INDUSTRY_NONE,
   isEmptyQuery,
   parseMissionQuery,
   serializeMissionQuery,
@@ -184,6 +185,18 @@ describe("mission query", () => {
     expect(ids(applyMissionQuery(rows, { ...EMPTY_QUERY, status: ["ACCEPTED", "CANCELLED"] }, now))).toEqual(["a", "c"])
     expect(ids(applyMissionQuery(rows, { ...EMPTY_QUERY, status: ["ACCEPTED", "CANCELLED"], location: ["Jakarta Selatan"], type: ["meeting"] }, now))).toEqual(["a", "c"])
     expect(ids(applyMissionQuery(rows, { ...EMPTY_QUERY, status: ["CANCELLED"], location: ["Tangerang"] }, now))).toEqual([])
+  })
+
+  it("filters by industry, with Belum diisi matching a mission saved without one", () => {
+    const withIndustry = [
+      mission({ id: "x", industry: "Perbankan" }),
+      mission({ id: "y", industry: "  " }),
+      mission({ id: "z", industry: null }),
+    ]
+    expect(ids(applyMissionQuery(withIndustry, { ...EMPTY_QUERY, industry: ["perbankan"] }, now))).toEqual(["x"])
+    expect(ids(applyMissionQuery(withIndustry, { ...EMPTY_QUERY, industry: [INDUSTRY_NONE] }, now))).toEqual(["y", "z"])
+    expect(ids(applyMissionQuery(withIndustry, { ...EMPTY_QUERY, industry: [INDUSTRY_NONE, "Perbankan"] }, now))).toHaveLength(3)
+    expect(parseMissionQuery(Object.fromEntries(serializeMissionQuery({ ...EMPTY_QUERY, industry: [INDUSTRY_NONE] }))).industry).toEqual([INDUSTRY_NONE])
   })
 
   it("narrows by whether a report is owed, drafted, or in", () => {
