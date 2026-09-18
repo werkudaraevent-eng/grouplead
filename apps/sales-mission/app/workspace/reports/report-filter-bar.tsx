@@ -2,10 +2,10 @@
 
 import { useEffect, useRef, useState, useTransition } from "react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
-import { Search, SlidersHorizontal, X } from "@/components/icons"
+import { Search, X } from "@/components/icons"
 import { FilterBarFrame } from "@/components/filter-bar-frame"
 import { rememberView } from "@/components/remember-view"
-import { FacetSelect } from "@/components/facet-select"
+import { FacetSelect, type FacetSpec } from "@/components/facet-select"
 import { DateFacet, type FilterPerson } from "@/app/workspace/activities/mission-filter-bar"
 import { Input } from "@/components/ui/input"
 import { PersonAvatar } from "@/components/person-avatar"
@@ -106,11 +106,62 @@ export function ReportFilterBar({
   const labelIn = (options: Array<{ value: string; label: string }>, value: string) => options.find((option) => option.value === value)?.label ?? value
   const personName = (id: string) => (id === UNASSIGNED_SALES ? "Tanpa sales utama" : (people.find((person) => person.id === id)?.name ?? id))
 
+  const more: FacetSpec[] = [
+    {
+      key: "outcome",
+      label: "Hasil",
+      active: query.outcome.length > 0,
+      render: (props) => <FacetSelect {...props} label="Hasil" options={outcomeOptions} value={query.outcome} onChange={(outcome) => push({ ...query, outcome })} searchable={false} />,
+    },
+    {
+      key: "interest",
+      label: "Minat",
+      active: query.interest.length > 0,
+      render: (props) => <FacetSelect {...props} label="Minat" options={interestOptions} value={query.interest} onChange={(interest) => push({ ...query, interest })} searchable={false} />,
+    },
+    {
+      key: "nextAction",
+      label: "Next action",
+      active: query.nextAction.length > 0,
+      render: (props) => <FacetSelect {...props} label="Next action" options={actionOptions} value={query.nextAction} onChange={(nextAction) => push({ ...query, nextAction })} searchable={false} />,
+    },
+    {
+      key: "opportunity",
+      label: "Peluang",
+      active: triValue(query.opportunity).length > 0,
+      render: (props) => (
+        <FacetSelect
+          {...props}
+          label="Peluang"
+          options={[{ value: TRI_OPTIONS.yes, label: "Ada peluang" }, { value: TRI_OPTIONS.no, label: "Tanpa peluang" }]}
+          value={triValue(query.opportunity)}
+          onChange={(values) => push({ ...query, opportunity: triFrom(values, query.opportunity) })}
+          searchable={false}
+        />
+      ),
+    },
+    {
+      key: "pushed",
+      label: "Lead",
+      active: triValue(query.pushed).length > 0,
+      render: (props) => (
+        <FacetSelect
+          {...props}
+          label="Lead"
+          options={[{ value: TRI_OPTIONS.yes, label: "Sudah dikirim ke CRM" }, { value: TRI_OPTIONS.no, label: "Belum dikirim" }]}
+          value={triValue(query.pushed)}
+          onChange={(values) => push({ ...query, pushed: triFrom(values, query.pushed) })}
+          searchable={false}
+        />
+      ),
+    },
+  ]
+
   return (
     <FilterBarFrame
       activeCount={active}
       search={
-        <div className="relative min-w-0 flex-1 md:basis-56">
+        <div className="relative min-w-0 flex-1 md:max-w-md md:basis-56">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             type="search"
@@ -137,9 +188,6 @@ export function ReportFilterBar({
             </span>
           )}
         />
-        <FacetSelect label="Hasil" options={outcomeOptions} value={query.outcome} onChange={(outcome) => push({ ...query, outcome })} searchable={false} />
-        <FacetSelect label="Minat" options={interestOptions} value={query.interest} onChange={(interest) => push({ ...query, interest })} searchable={false} />
-        <FacetSelect label="Next action" options={actionOptions} value={query.nextAction} onChange={(nextAction) => push({ ...query, nextAction })} searchable={false} />
         <FacetSelect
           label="Sales utama"
           options={[{ value: UNASSIGNED_SALES, label: "Tanpa sales utama" }, ...people.map((person) => ({ value: person.id, label: person.name }))]}
@@ -155,26 +203,13 @@ export function ReportFilterBar({
             )
           }}
         />
-        <FacetSelect
-          label="Peluang"
-          options={[{ value: TRI_OPTIONS.yes, label: "Ada peluang" }, { value: TRI_OPTIONS.no, label: "Tanpa peluang" }]}
-          value={triValue(query.opportunity)}
-          onChange={(values) => push({ ...query, opportunity: triFrom(values, query.opportunity) })}
-          searchable={false}
-        />
-        <FacetSelect
-          label="Lead"
-          options={[{ value: TRI_OPTIONS.yes, label: "Sudah dikirim ke CRM" }, { value: TRI_OPTIONS.no, label: "Belum dikirim" }]}
-          value={triValue(query.pushed)}
-          onChange={(values) => push({ ...query, pushed: triFrom(values, query.pushed) })}
-          searchable={false}
-        />
         <DateFacet value={query.date} from={query.from} to={query.to} presets={REPORT_DATE_PRESETS} onChange={(next) => push({ ...query, ...next })} />
         </>
       }
+      onClearAll={() => { setText(""); push(EMPTY_REPORT_QUERY) }}
+      more={more}
       summary={
         <span className="ml-auto flex items-center gap-2 text-xs text-muted-foreground" aria-live="polite">
-          <SlidersHorizontal className="h-3.5 w-3.5" />
           {pending ? "Menyaring…" : active > 0 ? `${shown} dari ${total} laporan` : `${total} laporan`}
         </span>
       }

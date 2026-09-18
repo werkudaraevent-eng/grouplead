@@ -2,11 +2,11 @@
 
 import { useEffect, useRef, useState, useTransition } from "react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
-import { Search, SlidersHorizontal, X } from "@/components/icons"
+import { Search, X } from "@/components/icons"
 import { ResponsivePopover } from "@/components/responsive-popover"
 import { FilterBarFrame } from "@/components/filter-bar-frame"
 import { rememberView } from "@/components/remember-view"
-import { FacetButton, FacetSelect } from "@/components/facet-select"
+import { FacetButton, FacetSelect, type FacetOpenProps, type FacetSpec } from "@/components/facet-select"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -40,8 +40,9 @@ import { VISIT_STATE_LABELS, type VisitState } from "@/lib/missions/visit-state"
  *   - Each facet is a button that opens a checklist; picking several ORs
  *     them, and the button's label carries the count so a collapsed facet
  *     still says what it is doing.
- *   - Everything active is repeated as removable chips under the bar, plus
- *     one "Bersihkan" for all of it. What narrows the list is never hidden.
+ *   - On a desk the bar shows only the facets in use; the rest join it from
+ *     "+ Filter" (Linear, Notion). On a phone the active ones are repeated
+ *     as removable chips, because the facets sit behind one button there.
  *   - The whole state lives in the URL, so a view can be bookmarked, sent to
  *     a colleague, or exported exactly as seen.
  */
@@ -71,7 +72,9 @@ export function DateFacet({
   to,
   onChange,
   presets = DATE_PRESETS,
-}: {
+  initiallyOpen = false,
+  onOpenChange,
+}: FacetOpenProps & {
   value: DatePreset | null
   from: string | null
   to: string | null
@@ -79,15 +82,13 @@ export function DateFacet({
   /** Which presets to offer; a list of past records has no use for "Mendatang". */
   presets?: readonly DatePreset[]
 }) {
-  const [open, setOpen] = useState(false)
-  return (
-    <ResponsivePopover
-      open={open}
-      onOpenChange={setOpen}
-      title="Tanggal"
-      className="w-72 p-2"
-      trigger={<span><FacetButton label={value ? DATE_PRESET_LABELS[value] : "Tanggal"} count={value ? 1 : 0} open={open} /></span>}
-    >
+  const [open, setOpenState] = useState(initiallyOpen)
+  const setOpen = (next: boolean) => {
+    setOpenState(next)
+    onOpenChange?.(next)
+  }
+  const body = (
+      <div>
         <div className="grid gap-0.5">
           {presets.map((preset) => (
             <button
@@ -126,6 +127,27 @@ export function DateFacet({
             </Button>
           </div>
         )}
+      </div>
+  )
+
+  return (
+    <ResponsivePopover
+      open={open}
+      onOpenChange={setOpen}
+      title="Tanggal"
+      className="w-72 p-2"
+      trigger={
+        <span>
+          <FacetButton
+            label="Tanggal"
+            value={value ? (value === "custom" ? [from, to].filter(Boolean).join(" – ") || DATE_PRESET_LABELS.custom : DATE_PRESET_LABELS[value]) : undefined}
+            count={value ? 1 : 0}
+            open={open}
+          />
+        </span>
+      }
+    >
+      {body}
     </ResponsivePopover>
   )
 }
@@ -196,11 +218,93 @@ export function MissionFilterBar({
   const active = countActiveFacets(query)
   const personName = (id: string) => (id === SALES_ME ? "Saya" : (people.find((person) => person.id === id)?.name ?? id))
 
+  const more: FacetSpec[] = [
+    {
+      key: "date",
+      label: "Tanggal",
+      active: query.date !== null,
+      render: (props) => <DateFacet {...props} value={query.date} from={query.from} to={query.to} onChange={(next) => push({ ...query, ...next })} />,
+    },
+    {
+      key: "report",
+      label: "Laporan",
+      active: query.report.length > 0,
+      render: (props) => (
+        <FacetSelect
+          {...props}
+          label="Laporan"
+          options={REPORT_FACETS.map((state) => ({ value: state, label: VISIT_STATE_LABELS[state] }))}
+          value={query.report}
+          onChange={(report) => push({ ...query, report: report as VisitState[] })}
+          searchable={false}
+        />
+      ),
+    },
+    {
+      key: "creator",
+      label: "Dibuat oleh",
+      active: query.creator.length > 0,
+      render: (props) => (
+        <FacetSelect
+          {...props}
+          label="Dibuat oleh"
+          options={people.map((person) => ({ value: person.id, label: person.name }))}
+          value={query.creator}
+          onChange={(creator) => push({ ...query, creator })}
+        />
+      ),
+    },
+    {
+      key: "location",
+      label: "Lokasi",
+      active: query.location.length > 0,
+      render: (props) => (
+        <FacetSelect
+          {...props}
+          label="Lokasi"
+          options={locations.map((location) => ({ value: location, label: location }))}
+          value={query.location}
+          onChange={(location) => push({ ...query, location })}
+        />
+      ),
+    },
+    {
+      key: "industry",
+      label: "Industri",
+      active: query.industry.length > 0,
+      render: (props) => (
+        <FacetSelect
+          {...props}
+          label="Industri"
+          pinned={[{ value: INDUSTRY_NONE, label: INDUSTRY_NONE_LABEL }]}
+          options={industries.map((industry) => ({ value: industry, label: industry }))}
+          value={query.industry}
+          onChange={(industry) => push({ ...query, industry })}
+        />
+      ),
+    },
+    {
+      key: "type",
+      label: "Jenis",
+      active: query.type.length > 0,
+      render: (props) => (
+        <FacetSelect
+          {...props}
+          label="Jenis"
+          options={types.map((type) => ({ value: type, label: type }))}
+          value={query.type}
+          onChange={(type) => push({ ...query, type })}
+          searchable={false}
+        />
+      ),
+    },
+  ]
+
   return (
     <FilterBarFrame
       activeCount={active}
       search={
-        <div className="relative min-w-0 flex-1 md:basis-56">
+        <div className="relative min-w-0 flex-1 md:max-w-md md:basis-56">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             type="search"
@@ -236,50 +340,12 @@ export function MissionFilterBar({
             )
           }}
         />
-        <FacetSelect
-          label="Laporan"
-          options={REPORT_FACETS.map((state) => ({ value: state, label: VISIT_STATE_LABELS[state] }))}
-          value={query.report}
-          onChange={(report) => push({ ...query, report: report as VisitState[] })}
-          searchable={false}
-        />
-        <FacetSelect
-          label="Dibuat oleh"
-          options={people.map((person) => ({ value: person.id, label: person.name }))}
-          value={query.creator}
-          onChange={(creator) => push({ ...query, creator })}
-        />
-        <FacetSelect
-          label="Lokasi"
-          options={locations.map((location) => ({ value: location, label: location }))}
-          value={query.location}
-          onChange={(location) => push({ ...query, location })}
-        />
-        <FacetSelect
-          label="Industri"
-          pinned={[{ value: INDUSTRY_NONE, label: INDUSTRY_NONE_LABEL }]}
-          options={industries.map((industry) => ({ value: industry, label: industry }))}
-          value={query.industry}
-          onChange={(industry) => push({ ...query, industry })}
-        />
-        <FacetSelect
-          label="Jenis"
-          options={types.map((type) => ({ value: type, label: type }))}
-          value={query.type}
-          onChange={(type) => push({ ...query, type })}
-          searchable={false}
-        />
-        <DateFacet
-          value={query.date}
-          from={query.from}
-          to={query.to}
-          onChange={(next) => push({ ...query, ...next })}
-        />
         </>
       }
+      onClearAll={() => { setText(""); push(EMPTY_QUERY) }}
+      more={more}
       summary={
         <span className="ml-auto flex items-center gap-2 text-xs text-muted-foreground" aria-live="polite">
-          <SlidersHorizontal className="h-3.5 w-3.5" />
           {pending ? "Menyaring…" : active > 0 ? `${shown} dari ${total} aktivitas` : `${total} aktivitas`}
         </span>
       }

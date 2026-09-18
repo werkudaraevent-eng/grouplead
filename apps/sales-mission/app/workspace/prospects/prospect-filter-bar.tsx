@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from "react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
-import { CalendarClock, Search, SlidersHorizontal, X } from "@/components/icons"
+import { CalendarClock, Search, X } from "@/components/icons"
 import { FilterBarFrame } from "@/components/filter-bar-frame"
 import { rememberView } from "@/components/remember-view"
 import { FacetSelect } from "@/components/facet-select"
@@ -182,9 +182,9 @@ export function ProspectFilterBar({
         </button>
         </>
       }
+      onClearAll={() => { setText(""); push(EMPTY_PROSPECT_QUERY) }}
       summary={
         <span className="ml-auto flex items-center gap-2 text-xs text-muted-foreground" aria-live="polite">
-          <SlidersHorizontal className="h-3.5 w-3.5" />
           {pending ? "Menyaring…" : active > 0 ? `${shown} dari ${total} prospek` : `${total} prospek`}
         </span>
       }
