@@ -240,18 +240,28 @@ export function LogAttemptDialog({
   const active = useMemo(() => activeStatuses(statuses), [statuses])
   const chosen = statuses.find((status) => status.id === statusId) ?? null
 
+  // A prospect already in a status of the suggested kind stays where it is.
+  const suggestedStatusId = (value: Outcome) => {
+    const kind = suggestedStatusKind(value)
+    const current = active.find((status) => status.id === currentStatusId)
+    return current?.kind === kind ? current.id : active.find((status) => status.kind === kind)?.id
+  }
+
+  // The default outcome gets its suggestion too: the effect below only runs
+  // when the outcome changes, and a reached prospect saved as uncontacted
+  // because nobody touched the field is the mistake this prevents.
   useEffect(() => {
     if (target) {
       setChannel("PHONE"); setOutcome("REACHED"); setNote(""); setWhen(localNow())
-      setStatusId(currentStatusId ?? ""); setNextContactAt(""); setLostReason("")
+      setStatusId(suggestedStatusId("REACHED") ?? currentStatusId ?? ""); setNextContactAt(""); setLostReason("")
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [target, currentStatusId])
 
   // The outcome suggests where the prospect lands; the person can override.
   useEffect(() => {
-    const kind = suggestedStatusKind(outcome)
-    const suggestion = active.find((status) => status.kind === kind)
-    if (suggestion) setStatusId(suggestion.id)
+    const suggestion = suggestedStatusId(outcome)
+    if (suggestion) setStatusId(suggestion)
     if (outcome === "CALLBACK" || outcome === "NO_ANSWER") setNextContactAt((value) => value || tomorrow())
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [outcome])

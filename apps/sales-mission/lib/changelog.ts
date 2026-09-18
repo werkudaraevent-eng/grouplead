@@ -28,6 +28,13 @@ export const CHANGE_KIND_LABELS: Record<ChangeKind, string> = {
 export const CHANGELOG: ChangeEntry[] = [
   {
     date: "2026-09-18",
+    title: "Catat kontak langsung menyarankan status yang benar",
+    items: [
+      { kind: "diperbaiki", text: "Saat form Catat kontak dibuka, Hasil sudah terisi “Tersambung” tetapi Status setelah ini masih menunjukkan status lama, misalnya Uncontacted. Kalau tidak diubah, prospek yang jelas sudah tersambung tersimpan seolah belum pernah dihubungi. Sekarang status langsung ikut menyarankan In Progress sejak form dibuka." },
+    ],
+  },
+  {
+    date: "2026-09-18",
     title: "Papan live di TV tampil baru",
     items: [
       { kind: "lebih-baik", text: "Papan live sekarang punya satu sorotan besar di atas: kunjungan yang sedang berlangsung, atau kunjungan berikutnya lengkap dengan hitung mundurnya, sehingga orang yang lewat langsung tahu apa yang terjadi." },
