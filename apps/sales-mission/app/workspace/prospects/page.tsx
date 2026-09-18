@@ -17,6 +17,8 @@ import { paths } from "@/lib/paths"
 import { ProspectFilterBar } from "./prospect-filter-bar"
 import { ProspectTable } from "./prospect-table"
 import { ImportProspects } from "./import-prospects"
+import { ProspectsPhoneMenu } from "./prospects-phone-menu"
+import { SelectionModeProvider } from "@/components/selection-mode"
 
 export const dynamic = "force-dynamic"
 
@@ -63,6 +65,10 @@ export default async function ProspectsPage({
       eyebrow="Sales Activity / Prospek"
       title="Prospek"
       description={[describeReadScope(await getReadScope(access, "sales_mission_prospect"), "prospek"), "Calon klien yang belum jadi kunjungan. Catat setiap kontak; begitu janji temu disepakati, jadwalkan kunjungannya dari sini."].filter(Boolean).join(" ")}
+      // The empty state teaches what this sentence says; on a phone the
+      // list opens on its records, and Import waits in the overflow menu.
+      phoneDescription={false}
+      phoneAction={false}
       action={
         <>
           {canCreate && <ImportProspects people={assignable} canAssignOthers={canAssignOthers(viewer)} viewerId={access.userId} />}
@@ -71,6 +77,8 @@ export default async function ProspectsPage({
       primaryAction={canCreate ? { href: "/workspace/prospects/new", label: "Prospek baru" } : undefined}
     >
       <RememberView list="prospects" />
+      <SelectionModeProvider>
+      <ProspectsPhoneMenu canCreate={canCreate} canSelect={canUpdate || canDelete} people={assignable} canAssignOthers={canAssignOthers(viewer)} viewerId={access.userId} />
       <ProspectFilterBar
         query={query}
         statuses={statuses}
@@ -93,6 +101,7 @@ export default async function ProspectsPage({
         filtered={!isEmptyProspectQuery(query)}
         pagination={{ page, size, total: pageResult.total, sort }}
       />
+      </SelectionModeProvider>
     </WorkspacePage>
   )
 }

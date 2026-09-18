@@ -173,18 +173,33 @@ export default async function MissionHomePage() {
   // both places — Jakarta wall-clock, not the server's timezone.
   const todaysMissions = missionsOnDay(missions, today)
 
-  // Everything still ahead, minus today's, which already lead the page.
-  // Compare as instants: scheduled_start ends in "+00:00" while toISOString()
-  // ends in "Z", so a string comparison would not agree.
+  // Everything still ahead, minus today's, which already lead the page, and
+  // minus what was called off: a cancelled visit is not "next" (one waiting
+  // for a new date has its own list below). Compare as instants:
+  // scheduled_start ends in "+00:00" while toISOString() ends in "Z", so a
+  // string comparison would not agree.
   const nowMs = now.getTime()
   const scheduled = missions.filter((mission) => mission.scheduledStart !== null)
   const upcoming = scheduled
     .filter(
       (mission) =>
+        mission.status !== "CANCELLED" &&
         Date.parse(mission.scheduledStart as string) >= nowMs &&
         missionDayKey(new Date(mission.scheduledStart as string)) !== today
     )
     .slice(0, 5)
+  // Grouped by day, as a calendar's agenda: the date once as a header, each
+  // row only its time, so the name keeps the width the date used to take.
+  const tomorrow = missionDayKey(new Date(nowMs + 86_400_000))
+  const dayLabel = new Intl.DateTimeFormat("id-ID", { timeZone: MISSION_TIME_ZONE, weekday: "short", day: "numeric", month: "short" })
+  const upcomingDays = upcoming.reduce<{ day: string; label: string; missions: MissionListItem[] }[]>((groups, mission) => {
+    const start = new Date(mission.scheduledStart as string)
+    const day = missionDayKey(start)
+    const last = groups[groups.length - 1]
+    if (last?.day === day) last.missions.push(mission)
+    else groups.push({ day, label: day === tomorrow ? `Besok, ${dayLabel.format(start)}` : dayLabel.format(start), missions: [mission] })
+    return groups
+  }, [])
 
   // Visits that happened and were not written down, for whoever writes them.
   // Sorted oldest first: the one from last week is the one to chase.
@@ -399,30 +414,35 @@ export default async function MissionHomePage() {
             </Link>
           </div>
 
-          <div className="overflow-hidden rounded-xl border bg-card">
-            <div className="divide-y">
-              {upcoming.map((mission) => (
-                <Link
-                  key={mission.id}
-                  href={paths.activity(mission.id)}
-                  className="flex items-center gap-4 px-4 py-3.5 transition-colors hover:bg-muted/50 sm:px-5"
-                >
-                  <span className="w-24 shrink-0 text-xs font-medium tabular-nums text-muted-foreground">
-                    {formatMissionSchedule(mission.scheduledStart, now)}
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-semibold text-foreground">
-                      {mission.clientCompanyName}
-                    </span>
-                    <span className="block truncate text-xs text-muted-foreground">
-                      {[mission.location, mission.primarySalesName].filter(Boolean).join(" · ") ||
-                        mission.missionType}
-                    </span>
-                  </span>
-                  <StatusBadge status={mission.status} />
-                </Link>
-              ))}
-            </div>
+          <div className="divide-y overflow-hidden rounded-xl border bg-card">
+            {upcomingDays.map((group) => (
+              <div key={group.day}>
+                <p className="border-b bg-muted/40 px-4 py-1.5 text-xs font-semibold text-muted-foreground sm:px-5">{group.label}</p>
+                <div className="divide-y">
+                  {group.missions.map((mission) => (
+                    <Link
+                      key={mission.id}
+                      href={paths.activity(mission.id)}
+                      className="flex items-center gap-3 px-4 py-3.5 transition-colors hover:bg-muted/50 sm:gap-4 sm:px-5"
+                    >
+                      <span className="w-11 shrink-0 text-xs font-medium tabular-nums text-muted-foreground">
+                        {formatMissionTime(mission.scheduledStart)}
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-semibold text-foreground">
+                          {mission.clientCompanyName}
+                        </span>
+                        <span className="block truncate text-xs text-muted-foreground">
+                          {[mission.location, mission.primarySalesName].filter(Boolean).join(" · ") ||
+                            mission.missionType}
+                        </span>
+                      </span>
+                      <StatusBadge status={mission.status} />
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            ))}
           </div>
         </section>
       )}

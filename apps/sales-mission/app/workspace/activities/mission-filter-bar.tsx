@@ -169,6 +169,7 @@ function Chip({ label, onRemove }: { label: string; onRemove: () => void }) {
 }
 
 export function MissionFilterBar({
+  quick,
   query,
   people,
   types,
@@ -178,6 +179,8 @@ export function MissionFilterBar({
   shown,
 }: {
   query: MissionQuery
+  /** The quick-filter chip row; the frame decides where it sits. */
+  quick?: React.ReactNode
   people: FilterPerson[]
   types: string[]
   locations: string[]
@@ -303,6 +306,7 @@ export function MissionFilterBar({
   return (
     <FilterBarFrame
       activeCount={active}
+      quick={quick}
       search={
         <div className="relative min-w-0 flex-1 md:max-w-md md:basis-56">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />

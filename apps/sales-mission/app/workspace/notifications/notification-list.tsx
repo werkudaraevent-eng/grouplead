@@ -51,7 +51,7 @@ export function NotificationList({ notifications }: { notifications: Notificatio
     <div className="overflow-hidden rounded-xl border bg-card">
       <div className="flex items-center justify-between gap-3 border-b px-5 py-4">
         <div>
-          <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Kotak masuk</p>
+          <p className="text-xs font-semibold text-muted-foreground">Kotak masuk</p>
           <h2 className="mt-1 text-base font-semibold text-foreground">
             {unread > 0 ? `${unread} belum dibaca` : "Semua sudah dibaca"}
           </h2>

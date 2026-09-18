@@ -57,7 +57,7 @@ export function MonthGrid<T extends MissionListItem>({
     <article className="flex min-w-0 flex-col rounded-xl border bg-card lg:min-h-0">
       <div className="flex items-center justify-between border-b px-5 py-4">
         <div>
-          <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Tampilan bulan</p>
+          <p className="text-xs font-semibold text-muted-foreground">Tampilan bulan</p>
           <h2 className="mt-1 text-base font-semibold text-foreground">{formatMonthLabel(month)}</h2>
         </div>
         <div className="flex items-center gap-1.5">
@@ -118,10 +118,13 @@ export function MonthGrid<T extends MissionListItem>({
                 )}
               >
                 <span className="md:px-1">{day.dayOfMonth}</span>
+                {/* In flow under the number, not pinned to a corner: a 44px
+                    cell is too narrow for a badge beside a two-digit date
+                    without covering it. */}
                 {day.missionCount > 0 && (
                   <span
                     className={cn(
-                      "cal-badge absolute right-1 top-1 grid h-4 min-w-4 place-items-center rounded-full px-1 text-[10px] font-bold leading-none md:hidden",
+                      "cal-badge mt-0.5 grid h-4 min-w-4 place-items-center self-center rounded-full px-1 text-[10px] font-bold leading-none md:ml-1 md:hidden md:self-start",
                       selected ? "bg-primary-foreground text-primary" : "bg-accent text-accent-foreground"
                     )}
                   >

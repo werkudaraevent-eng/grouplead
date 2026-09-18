@@ -10,6 +10,7 @@ import { sanitizeViewString, VIEW_COOKIES } from "@/lib/view-cookies"
 import { RememberView } from "@/components/remember-view"
 import { CalendarFilter } from "./calendar-filter"
 import { PublicLinkDialog } from "./public-link-dialog"
+import { CalendarPhoneMenu } from "./calendar-phone-menu"
 import { annotateJoinStatus } from "@/lib/missions/mission-join"
 import { MISSION_TIME_ZONE } from "@/lib/missions/mission-schema"
 import {
@@ -114,6 +115,10 @@ export default async function CalendarPage({
       eyebrow="Sales Activity / Kalender"
       title="Kalender"
       description="Lihat jadwal tim dan waktu perjalanan sebelum menugaskan kunjungan baru."
+      // On a phone the grid is the first thing on screen; the two once-only
+      // actions wait in the top bar's overflow.
+      phoneDescription={false}
+      phoneAction={false}
       action={
         <>
           {isAdmin && <PublicLinkDialog baseUrl={baseUrl} />}
@@ -126,6 +131,7 @@ export default async function CalendarPage({
       }
     >
       <RememberView list="calendar" />
+      <CalendarPhoneMenu isAdmin={isAdmin} baseUrl={baseUrl} />
       <div className="flex flex-col gap-4 lg:h-full lg:min-h-0">
         <CalendarFilter
           month={month}

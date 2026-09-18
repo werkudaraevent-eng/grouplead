@@ -32,8 +32,25 @@ import { Switch } from "@/components/ui/switch"
  * Client names default to on here, unlike the TV: a director reading "PT A•••"
  * learns nothing, and the link goes to a named person rather than a room.
  */
-export function PublicLinkDialog({ baseUrl }: { baseUrl: string }) {
-  const [open, setOpen] = useState(false)
+export function PublicLinkDialog({
+  baseUrl,
+  open: controlledOpen,
+  onOpenChange,
+  trigger = true,
+}: {
+  baseUrl: string
+  /** Owned from outside when the opener is elsewhere (the phone's overflow menu). */
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
+  /** Whether to render the Tautan publik button itself. */
+  trigger?: boolean
+}) {
+  const [ownOpen, setOwnOpen] = useState(false)
+  const open = controlledOpen ?? ownOpen
+  const setOpen = (next: boolean) => {
+    setOwnOpen(next)
+    onOpenChange?.(next)
+  }
   const [label, setLabel] = useState("")
   const [showNames, setShowNames] = useState(true)
   const [issued, setIssued] = useState<string | null>(null)
@@ -58,9 +75,11 @@ export function PublicLinkDialog({ baseUrl }: { baseUrl: string }) {
 
   return (
     <>
-      <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
-        <Link2 className="h-4 w-4" /> Tautan publik
-      </Button>
+      {trigger && (
+        <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
+          <Link2 className="h-4 w-4" /> Tautan publik
+        </Button>
+      )}
       <Dialog open={open} onOpenChange={(next) => { if (!pending) (next ? setOpen(true) : reset()) }}>
         <DialogContent className="sm:max-w-lg">
           {!issued ? (

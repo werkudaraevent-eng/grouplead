@@ -75,6 +75,10 @@ export default async function ReportSummaryPage({ searchParams }: { searchParams
       eyebrow="Sales Activity / Reporting"
       title="Laporan"
       description={[describeReadScope(readScope, "laporan"), "Ringkasan dihitung dari laporan yang sudah dikirim; draf tidak ikut. Saring periode dan sales di atas; semua kartu mengikuti."].filter(Boolean).join(" ")}
+      // On a phone the exports and "Atur widget" live in the app bar's
+      // overflow (announced by DashboardEditor, which owns the edit mode).
+      phoneDescription={false}
+      phoneAction={false}
       action={
         <>
           <Button asChild size="sm">
@@ -101,6 +105,7 @@ export default async function ReportSummaryPage({ searchParams }: { searchParams
         canSeeProspects={canSeeProspects}
         canPublish={canPublish}
         hasCompanyDefault={companyDefault !== null}
+        exportQuery={exportQuery.toString()}
       />
     </WorkspacePage>
   )

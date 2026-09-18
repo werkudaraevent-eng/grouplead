@@ -10,6 +10,7 @@ import { isEmptyReportQuery, parseReportQuery, serializeReportQuery } from "@/li
 import { parseReportPageParams } from "@/lib/reporting/report-paging"
 import { listReportsPage } from "@/lib/reporting/report-list-queries"
 import { WorkspacePage } from "@/app/workspace/workspace-page"
+import { PageChrome } from "@/components/page-chrome"
 import { RememberView } from "@/components/remember-view"
 import { rememberedView } from "@/lib/remembered-view"
 import { paths } from "@/lib/paths"
@@ -56,20 +57,27 @@ export default async function ReportListPage({
   const exportParams = serializeReportQuery(query)
   exportParams.set("sort", sort)
   const people = salesOptions.map((person) => ({ id: person.id, name: person.name, avatarUrl: person.avatarUrl }))
+  const exportHref = `/workspace/reports/export?${exportParams.toString()}&format=xlsx`
+  const exportLabel = `Ekspor${total > 0 ? ` (${total})` : ""}`
 
   return (
     <WorkspacePage
       eyebrow="Sales Activity / Reporting"
       title="Laporan"
       description={[describeReadScope(await getReadScope(access, "sales_mission_result"), "laporan"), "Setiap laporan kunjungan yang ditulis sales, terbaru dulu. Saring, urutkan, lalu buka aktivitasnya."].filter(Boolean).join(" ")}
+      // On a phone the tabs sit right under the app bar and Ekspor waits in
+      // its overflow; the empty state teaches what the sentence says.
+      phoneDescription={false}
+      phoneAction={false}
       action={
         <Button asChild variant="outline" size="sm">
-          <a href={`/workspace/reports/export?${exportParams.toString()}&format=xlsx`}>
-            <Download className="h-4 w-4" /> Ekspor{total > 0 ? ` (${total})` : ""}
+          <a href={exportHref}>
+            <Download className="h-4 w-4" /> {exportLabel}
           </a>
         </Button>
       }
     >
+      <PageChrome menu={[{ label: exportLabel, href: exportHref }]} />
       <ReportTabs />
       <RememberView list="reports" />
       <ReportFilterBar query={query} choices={choices} people={people} total={total} shown={items.length} />

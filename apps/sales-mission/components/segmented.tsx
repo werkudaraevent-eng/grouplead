@@ -5,9 +5,12 @@ import { cn } from "@/lib/utils"
 
 /**
  * Material 3 segmented button: two to five mutually exclusive options in
- * one pill, the chosen one filled with a leading check. For "which of
- * these views" questions (a range, a mode), not for filters with many
- * values, which are chips or a facet.
+ * one pill, the chosen one in the secondary container (tonal) with a
+ * leading check. Not the primary fill: that is for the one main action
+ * of a screen, and a filled "Bulan ini" beside a filled Ekspor made two
+ * buttons look like two things to press. For "which of these views"
+ * questions (a range, a mode), not for filters with many values, which
+ * are chips or a facet.
  */
 export function Segmented<T extends string>({
   value,
@@ -38,7 +41,7 @@ export function Segmented<T extends string>({
             className={cn(
               "inline-flex items-center gap-1.5 rounded-full font-medium transition-colors",
               size === "sm" ? "px-2.5 text-xs" : "px-3.5 text-sm",
-              active ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-muted"
+              active ? "bg-[var(--tonal)] text-[var(--tonal-foreground)]" : "text-foreground hover:bg-muted"
             )}
           >
             {active && <Check className={size === "sm" ? "h-3 w-3" : "h-3.5 w-3.5"} aria-hidden="true" />}

@@ -1,6 +1,6 @@
 "use client"
 
-import { useRef, useState, useTransition } from "react"
+import { useId, useRef, useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { AlertCircle, CheckCircle2, Download, FileUp, Loader2, Upload } from "@/components/icons"
@@ -32,14 +32,32 @@ import { paths } from "@/lib/paths"
  * the upload would mean discovering a typo in row 40 after 39 real visits had
  * already been scheduled and notified.
  */
-export function ImportMissions() {
-  const [open, setOpen] = useState(false)
+export function ImportMissions({
+  open: controlledOpen,
+  onOpenChange,
+  trigger = true,
+}: {
+  /** Owned from outside when the opener is elsewhere (the phone's overflow menu). */
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
+  /** Whether to render the Import button itself. */
+  trigger?: boolean
+} = {}) {
+  const [ownOpen, setOwnOpen] = useState(false)
+  const open = controlledOpen ?? ownOpen
+  const setOpen = (next: boolean) => {
+    setOwnOpen(next)
+    onOpenChange?.(next)
+  }
   const [check, setCheck] = useState<ImportCheck | null>(null)
   const [rows, setRows] = useState<RawRow[]>([])
   const [fileName, setFileName] = useState("")
   const [reading, setReading] = useState(false)
   const [pending, start] = useTransition()
   const inputRef = useRef<HTMLInputElement>(null)
+  // The page mounts this twice (the desk's header button, the phone's
+  // overflow menu), so the label must point at its own input.
+  const inputId = useId()
   const router = useRouter()
 
   const reset = () => {
@@ -106,9 +124,11 @@ export function ImportMissions() {
 
   return (
     <>
-      <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
-        <Upload className="h-4 w-4" /> Import
-      </Button>
+      {trigger && (
+        <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
+          <Upload className="h-4 w-4" /> Import
+        </Button>
+      )}
 
       <Dialog
         open={open}
@@ -141,7 +161,7 @@ export function ImportMissions() {
                 ref={inputRef}
                 type="file"
                 accept=".xlsx,.xls"
-                id="aktivitas-import-file"
+                id={inputId}
                 className="sr-only"
                 onChange={(event) => {
                   const file = event.target.files?.[0]
@@ -149,7 +169,7 @@ export function ImportMissions() {
                 }}
               />
               <label
-                htmlFor="aktivitas-import-file"
+                htmlFor={inputId}
                 className="flex min-h-12 cursor-pointer items-center gap-2.5 text-sm"
               >
                 <FileUp className="h-4 w-4 shrink-0 text-muted-foreground" />

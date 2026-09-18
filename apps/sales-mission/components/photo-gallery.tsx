@@ -13,7 +13,7 @@ export async function PhotoGallery({ access, label, photos }: { access: SalesMis
   const urls = await signPhotoUrls(access, photos.map((photo) => photo.path))
   return (
     <div>
-      <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">{label} <span className="font-normal normal-case tracking-normal">· {describePhotoCount(photos.length)}</span></p>
+      <p className="text-xs font-semibold text-muted-foreground">{label} <span className="font-normal">· {describePhotoCount(photos.length)}</span></p>
       <ul className="mt-2 grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-6">
         {photos.map((photo) => {
           const url = urls.get(photo.path)

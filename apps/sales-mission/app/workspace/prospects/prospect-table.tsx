@@ -20,6 +20,8 @@ import { PersonAvatar } from "@/components/person-avatar"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { ResponsiveMenu } from "@/components/responsive-menu"
+import { useSelectionMode } from "@/components/selection-mode"
+import { SelectableCardBody } from "@/components/selectable-card-body"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { cn } from "@/lib/utils"
@@ -83,7 +85,11 @@ function SelectionBar({
   return (
     <div role="region" aria-label="Tindakan untuk baris terpilih" className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-primary/30 bg-primary/5 px-4 py-2.5">
       <span className="text-sm text-foreground">
-        <span className="font-semibold">{count} prospek dipilih</span>
+        {count > 0 ? (
+          <span className="font-semibold">{count} prospek dipilih</span>
+        ) : (
+          <span className="text-muted-foreground">Ketuk prospek untuk memilih</span>
+        )}
         {allMatching && !allMatching.selected && (
           <>
             {" · "}
@@ -96,13 +102,13 @@ function SelectionBar({
       </span>
       <span className="flex flex-wrap items-center gap-2">
         {canAssign && (
-          <Button size="sm" variant="outline" onClick={onAssign}>
+          <Button size="sm" variant="outline" onClick={onAssign} disabled={count === 0}>
             <UserPlus className="h-4 w-4" /> Tugaskan ke
           </Button>
         )}
-        <Button size="sm" variant="outline" onClick={onStatus}>Ubah status</Button>
+        <Button size="sm" variant="outline" onClick={onStatus} disabled={count === 0}>Ubah status</Button>
         {canDelete && (
-          <Button size="sm" variant="outline" onClick={onDelete} className="text-[var(--danger-foreground)] hover:text-[var(--danger-foreground)]">
+          <Button size="sm" variant="outline" onClick={onDelete} disabled={count === 0} className="text-[var(--danger-foreground)] hover:text-[var(--danger-foreground)]">
             <Trash2 className="h-4 w-4" /> Ke sampah
           </Button>
         )}
@@ -143,6 +149,9 @@ export function ProspectTable({
   const searchParams = useSearchParams()
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [beyondPage, setBeyondPage] = useState<Set<string>>(new Set())
+  // The phone's cards show their checkboxes only in this mode; the desk's
+  // table always does.
+  const { selecting, setSelecting } = useSelectionMode()
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [statusTarget, setStatusTarget] = useState<DialogTarget | null>(null)
   const [attemptTarget, setAttemptTarget] = useState<{ target: DialogTarget; statusId: string } | null>(null)
@@ -157,7 +166,7 @@ export function ProspectTable({
   const moreMatch = pagination.total > prospects.length
   const selectable = canUpdate || canDelete
 
-  const clearSelection = () => { setSelected(new Set()); setBeyondPage(new Set()) }
+  const clearSelection = () => { setSelected(new Set()); setBeyondPage(new Set()); setSelecting(false) }
   const toggle = (id: string, next: boolean) => setSelected((prev) => { const copy = new Set(prev); if (next) copy.add(id); else copy.delete(id); return copy })
   const toggleAll = (next: boolean) => { setBeyondPage(new Set()); setSelected(next ? new Set(prospects.map((item) => item.id)) : new Set()) }
   const selectAllMatching = () => {
@@ -216,8 +225,10 @@ export function ProspectTable({
     )
   }
 
-  const Actions = ({ prospect, size = "sm" }: { prospect: ProspectListItem; size?: "sm" | "default" }) => {
-    const open = (
+  // `showOpen`: the arrow into the record, for the table, whose row is not
+  // a link; a card's body already is one.
+  const Actions = ({ prospect, size = "sm", showOpen = true }: { prospect: ProspectListItem; size?: "sm" | "default"; showOpen?: boolean }) => {
+    const open = showOpen && (
       <Link href={`/workspace/prospects/${prospect.id}`} aria-label={`Buka ${prospect.clientCompanyName}`} className="grid h-9 w-9 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground md:h-8 md:w-8">
         <ArrowUpRight className="h-4 w-4" />
       </Link>
@@ -265,7 +276,7 @@ export function ProspectTable({
 
   return (
     <>
-      {selectable && chosen.length > 0 && (
+      {selectable && (chosen.length > 0 || selecting) && (
         <SelectionBar
           count={chosen.length}
           onClear={clearSelection}
@@ -278,18 +289,30 @@ export function ProspectTable({
         />
       )}
 
+      {/* Mobile gets cards, not a squeezed table. The body is the link; a
+          long press enters selection mode (`SelectableCardBody`). How to
+          reach the contact and where they are share one line, who holds
+          the prospect sits under it. */}
       <ul className="space-y-3 md:hidden">
         {prospects.map((prospect) => {
           const ticked = selected.has(prospect.id)
+          const picking = selectable && selecting
           return (
             <li key={prospect.id} className={cn("rounded-xl border bg-card", isDue(prospect) && "border-l-4 border-l-[var(--warning-foreground)]", ticked && "border-primary bg-primary/5")}>
               <div className="flex">
-                {selectable && (
+                {picking && (
                   <span className="grid w-11 shrink-0 place-items-start pl-3 pt-4">
                     <Checkbox checked={ticked} onCheckedChange={(value) => toggle(prospect.id, value === true)} aria-label={`Pilih ${prospect.clientCompanyName}`} />
                   </span>
                 )}
-                <Link href={`/workspace/prospects/${prospect.id}`} className={cn("block min-w-0 flex-1 p-4 transition-colors hover:bg-muted/50", selectable && "pl-2")}>
+                <SelectableCardBody
+                  href={`/workspace/prospects/${prospect.id}`}
+                  selecting={picking}
+                  ticked={ticked}
+                  onTick={(next) => toggle(prospect.id, next)}
+                  onLongPress={() => { setSelecting(true); toggle(prospect.id, true) }}
+                  enabled={selectable}
+                >
                   <div className="flex items-start justify-between gap-3">
                     <span className="min-w-0">
                       <span className="block truncate font-semibold text-foreground">{prospect.clientCompanyName}</span>
@@ -297,13 +320,15 @@ export function ProspectTable({
                     </span>
                     <span className="text-right"><ProspectStatusLabel prospect={prospect} /></span>
                   </div>
-                  <p className="mt-3 text-sm text-foreground">{prospect.contactPhone ? formatPhone(prospect.contactPhone) : prospect.contactEmail ?? "—"}</p>
-                  <p className="mt-1 text-xs text-muted-foreground">{[prospect.location, prospect.ownerName ?? "Belum ada pemegang"].filter(Boolean).join(" · ")}</p>
-                  <span className="mt-2 block"><ContactLine prospect={prospect} today={today} /></span>
-                </Link>
+                  <p className="mt-2 truncate text-sm text-foreground">
+                    {[prospect.contactPhone ? formatPhone(prospect.contactPhone) : prospect.contactEmail, prospect.location].filter(Boolean).join(" · ") || "—"}
+                  </p>
+                  <p className="mt-0.5 truncate text-xs text-muted-foreground">{prospect.ownerName ?? "Belum ada pemegang"}</p>
+                  <span className="mt-1.5 block"><ContactLine prospect={prospect} today={today} /></span>
+                </SelectableCardBody>
               </div>
-              <div className="flex items-center justify-end gap-2 border-t px-4 py-3">
-                <Actions prospect={prospect} size="default" />
+              <div className="flex items-center justify-end gap-2 border-t px-3 py-2">
+                <Actions prospect={prospect} size="default" showOpen={false} />
               </div>
             </li>
           )

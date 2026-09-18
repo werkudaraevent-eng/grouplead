@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useTransition } from "react"
+import { useRef, useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { AlertCircle, Loader2, Plus } from "@/components/icons"
 import { addSupportingNote } from "@/app/actions/visit-report-actions"
@@ -26,10 +26,18 @@ export function SupportingNotes({
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
   const router = useRouter()
+  const field = useRef<HTMLTextAreaElement>(null)
 
+  // Never greyed out for an empty field: a disabled button cannot say why.
+  // Pressing it with nothing written lands the person in the field with
+  // the reason as supporting text.
   const submit = () => {
     const trimmed = note.trim()
-    if (!trimmed) return
+    if (!trimmed) {
+      setError("Tulis pengamatan dulu.")
+      field.current?.focus()
+      return
+    }
 
     setError(null)
     startTransition(async () => {
@@ -73,8 +81,9 @@ export function SupportingNotes({
       {canAdd && (
         <div className="border-t px-5 py-4">
           <textarea
+            ref={field}
             value={note}
-            onChange={(event) => setNote(event.target.value)}
+            onChange={(event) => { setNote(event.target.value); if (error) setError(null) }}
             rows={3}
             maxLength={5000}
             placeholder="Tambahkan pengamatan Anda…"
@@ -87,7 +96,7 @@ export function SupportingNotes({
             </p>
           )}
 
-          <Button className="mt-3 h-10 w-full" onClick={submit} disabled={pending || !note.trim()}>
+          <Button className="mt-3 h-10 w-full" onClick={submit} disabled={pending}>
             {pending ? <><Loader2 className="h-4 w-4 animate-spin" /> Menyimpan…</> : <><Plus className="h-4 w-4" /> Tambah catatan</>}
           </Button>
         </div>

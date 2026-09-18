@@ -91,7 +91,7 @@ export default async function ProspectDetailPage({ params }: { params: Promise<{
 
           <article className="overflow-hidden rounded-xl border bg-card">
             <div className="border-b px-5 py-4">
-              <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Prospek</p>
+              <p className="text-xs font-semibold text-muted-foreground">Prospek</p>
               <h2 className="mt-1 flex items-center gap-3 text-base font-semibold text-foreground"><ProspectStatusLabel prospect={prospect} /></h2>
             </div>
             <dl className="divide-y">
@@ -136,7 +136,7 @@ export default async function ProspectDetailPage({ params }: { params: Promise<{
             )}
             {prospect.notes && (
               <div className="border-t bg-muted/30 px-5 py-4">
-                <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Catatan</p>
+                <p className="text-xs font-semibold text-muted-foreground">Catatan</p>
                 <p className="mt-1 whitespace-pre-wrap text-sm text-foreground">{prospect.notes}</p>
               </div>
             )}
@@ -145,7 +145,7 @@ export default async function ProspectDetailPage({ params }: { params: Promise<{
 
         <aside className="min-w-0 overflow-hidden rounded-xl border bg-card">
           <div className="border-b px-5 py-4">
-            <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Riwayat kontak</p>
+            <p className="text-xs font-semibold text-muted-foreground">Riwayat kontak</p>
             <h2 className="mt-1 text-base font-semibold text-foreground">{prospect.attemptCount > 0 ? `${prospect.attemptCount}× dihubungi` : "Belum pernah dihubungi"}</h2>
           </div>
           {prospect.attempts.length > 0 ? (

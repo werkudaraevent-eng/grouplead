@@ -28,6 +28,39 @@ export const CHANGE_KIND_LABELS: Record<ChangeKind, string> = {
 export const CHANGELOG: ChangeEntry[] = [
   {
     date: "2026-09-18",
+    title: "Kalender dan detail aktivitas di HP lebih rapi",
+    items: [
+      { kind: "diperbaiki", text: "Di Kalender HP, angka jumlah aktivitas tidak lagi menutupi tanggalnya; sekarang duduk di bawah angka tanggal." },
+      { kind: "lebih-baik", text: "Di Kalender HP, Tautan publik dan Sinkron ke ponsel pindah ke menu ⋮ sehingga kalender dan jadwal hari terpilih langsung terlihat." },
+      { kind: "lebih-baik", text: "Di halaman aktivitas di HP, tiap tindakan punya satu pintu: Ubah lewat ikon pensil di bawah atau menu ⋮, Join lewat tombol di bawah, dan Batalkan aktivitas dari menu ⋮. ID aktivitas dan baris ringkasan yang sudah ada di kartu fakta tidak lagi ditampilkan di HP." },
+      { kind: "diperbaiki", text: "Kalimat “Laporan bisa diisi mulai …” tidak lagi muncul dua kali di kartu Laporan kunjungan." },
+      { kind: "lebih-baik", text: "Tombol Tambah catatan tidak lagi abu-abu saat kolom kosong; ditekan tanpa isi, kolomnya yang disorot dengan pesan “Tulis pengamatan dulu.”" },
+      { kind: "lebih-baik", text: "Label kecil di atas judul kartu (Laporan kunjungan, Tim aktivitas, Tampilan bulan, dan lainnya) tidak lagi huruf kapital semua, lebih mudah dibaca." },
+    ],
+  },
+  {
+    date: "2026-09-18",
+    title: "Prospek, Laporan, dan Hari ini di HP mengikuti Aktivitas",
+    items: [
+      { kind: "lebih-baik", text: "Di HP, daftar Prospek dan Laporan sekarang langsung dimulai dari pencarian dan datanya. Import, Ekspor, dan Atur widget pindah ke menu ⋮ di pojok kanan atas; di komputer semuanya tetap di tempat semula." },
+      { kind: "lebih-baik", text: "Kartu prospek lebih ringkas, dan kotak centangnya muncul hanya setelah menekan-tahan kartu atau memilih “Pilih prospek” dari menu ⋮." },
+      { kind: "lebih-baik", text: "Tab Daftar/Ringkasan di Laporan kini menempel di bawah judul halaman." },
+      { kind: "lebih-baik", text: "Di Hari ini, daftar Berikutnya dikelompokkan per tanggal sehingga nama klien tidak lagi terpotong oleh tanggal yang berulang di setiap baris." },
+      { kind: "diperbaiki", text: "Aktivitas yang sudah dibatalkan tidak lagi tampil di daftar Berikutnya." },
+      { kind: "lebih-baik", text: "Pilihan aktif pada tombol bersegmen (Hari ini / Minggu ini / Bulan ini, Umum / Per sales) kini berwarna biru muda, bukan biru penuh, supaya tidak tertukar dengan tombol aksi." },
+    ],
+  },
+  {
+    date: "2026-09-18",
+    title: "Daftar Aktivitas di HP: langsung ke daftarnya",
+    items: [
+      { kind: "lebih-baik", text: "Di HP, kotak pencarian sekarang paling atas dan kartu aktivitas pertama muncul jauh lebih awal. Tombol Export dan Import pindah ke menu ⋮ di pojok kanan atas; di komputer keduanya tetap di tempat semula." },
+      { kind: "lebih-baik", text: "Kartu aktivitas lebih ringkas: tanggal dan lokasi dalam satu baris, nama sales di bawahnya, sehingga tiga kartu muat dalam satu layar, bukan satu setengah." },
+      { kind: "lebih-baik", text: "Kotak centang di kartu tidak lagi selalu tampil. Tekan dan tahan sebuah kartu, atau pilih “Pilih aktivitas” dari menu ⋮, untuk mulai memilih beberapa sekaligus; ketuk Batal untuk keluar." },
+    ],
+  },
+  {
+    date: "2026-09-18",
     title: "Join lebih aman dari salah ketuk",
     items: [
       { kind: "lebih-baik", text: "Tombol Join di daftar dan kartu aktivitas tidak lagi biru penuh, supaya tidak mudah terpencet saat menggulir di HP. Yang biru penuh hanya di halaman aktivitasnya sendiri." },

@@ -57,7 +57,6 @@ import { eventFromMission } from "@/lib/calendar/ics"
 import { googleCalendarLink } from "@/lib/calendar/google-link"
 import { requestOrigin } from "@/lib/request-origin"
 import { FormActionBar } from "@/components/form-action-bar"
-import { PageChrome } from "@/components/page-chrome"
 import { AcceptAssignmentButton, AssignmentOverflowMenu } from "@/app/workspace/activities/assignment-actions-menu"
 import {
   AllowJoinToggle,
@@ -69,6 +68,7 @@ import { PushLeadPanel } from "./push-lead"
 import { SupportingNotes } from "./supporting-notes"
 import { CrmSyncStatus } from "./crm-sync-status"
 import { CancelMissionButton } from "./cancel-mission"
+import { ActivityPhoneMenu } from "./activity-phone-menu"
 import { visitReachesCrm } from "@/lib/missions/crm-sync"
 import { getLastEdit } from "@/lib/audit/audit-queries"
 import { listFormFields } from "@/lib/missions/form-field-queries"
@@ -101,7 +101,7 @@ function Fact({ icon: Icon, label, value }: { icon: typeof CalendarDays; label: 
 function ReportField({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">{label}</p>
+      <p className="text-xs font-semibold text-muted-foreground">{label}</p>
       <p className="mt-1 text-sm text-foreground">{value}</p>
     </div>
   )
@@ -255,11 +255,13 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
       eyebrow="Sales Activity / Detail aktivitas"
       title={mission.clientCompanyName}
       description={[mission.missionType, mission.industry, mission.location].filter(Boolean).join(" · ")}
+      // The facts card right under it carries the same three facts as rows.
+      phoneDescription={false}
       action={<BackLink />}
     >
       {/* ?fokus=laporan from the lists: scroll the shell's panel, never the window. */}
       <Suspense fallback={null}><ScrollToSection /></Suspense>
-      {chromeMenu.length > 0 && <PageChrome menu={chromeMenu} />}
+      <ActivityPhoneMenu links={chromeMenu} cancel={canCancel ? { missionId, clientName: mission.clientCompanyName } : undefined} />
       {/* Two columns from lg; below that one column whose order is the
           rep's, not the layout's: facts, the answer, the report, then the
           contact, the team and the notes (`max-lg:order-*`; the column
@@ -314,7 +316,8 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
           <article className="overflow-hidden rounded-xl border bg-card max-lg:order-1">
             <div className="flex items-center gap-3 border-b px-5 py-4">
               <StatusBadge status={mission.status} />
-              <span className="font-mono text-[11px] text-muted-foreground">ID {mission.id}</span>
+              {/* For support tickets, read at a desk; on a phone it is two lines nobody reads. */}
+              <span className="font-mono text-[11px] text-muted-foreground max-lg:hidden">ID {mission.id}</span>
               <span className="ml-auto flex items-center gap-2">
                 {calendarItems.length > 0 && (
                   <ResponsiveMenu
@@ -327,8 +330,9 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
                     }
                   />
                 )}
+                {/* On a phone the bottom bar and the overflow menu carry Ubah. */}
                 {canEdit && (
-                  <Button asChild variant="outline" size="sm">
+                  <Button asChild variant="outline" size="sm" className="max-lg:hidden">
                     <Link href={paths.activityEdit(missionId)}>
                       <Pencil className="h-4 w-4" /> Ubah
                     </Link>
@@ -358,8 +362,9 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
               )}
             </p>
 
+            {/* On a phone this is "Batalkan aktivitas" in the overflow menu. */}
             {canCancel && (
-              <div className="flex items-center justify-between gap-3 border-t bg-muted/30 px-5 py-3">
+              <div className="flex items-center justify-between gap-3 border-t bg-muted/30 px-5 py-3 max-lg:hidden">
                 <p className="text-xs text-muted-foreground">Klien membatalkan atau sales berhalangan sebelum berangkat?</p>
                 <CancelMissionButton missionId={missionId} clientName={mission.clientCompanyName} />
               </div>
@@ -374,7 +379,7 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
           {canReadContacts && hasAppointmentDetails(mission.appointment) && (
             <article className="overflow-hidden rounded-xl border bg-card max-lg:order-4">
               <div className="border-b px-5 py-4">
-                <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Janji temu</p>
+                <p className="text-xs font-semibold text-muted-foreground">Janji temu</p>
                 <h2 className="mt-1 text-base font-semibold text-foreground">
                   {formatContactName(mission.appointment) ?? "Kontak belum diisi"}
                 </h2>
@@ -412,7 +417,7 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
 
               {mission.appointment.notes && (
                 <div className="border-t bg-muted/30 px-5 py-4">
-                  <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
+                  <p className="text-xs font-semibold text-muted-foreground">
                     Sudah dibicarakan saat membuat janji
                   </p>
                   <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-foreground">
@@ -433,7 +438,7 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
           {canRespond(mission.status) && (pendingReschedule || (isAssigned && !askedToConfirm && answerActions)) && (
             <article id="jawaban" className="scroll-mt-16 overflow-hidden rounded-xl border bg-card max-lg:order-2">
               <div className="border-b px-5 py-4">
-                <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Penugasan</p>
+                <p className="text-xs font-semibold text-muted-foreground">Penugasan</p>
                 <h2 className="mt-1 text-base font-semibold text-foreground">
                   {settings.requireAssignmentConfirmation ? "Jawaban dan jadwal" : "Jadwal"}
                 </h2>
@@ -480,7 +485,7 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
           <aside className="rounded-xl border bg-card max-lg:order-5">
             <div className="flex items-center justify-between gap-3 border-b px-5 py-4">
               <div>
-                <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Tim aktivitas</p>
+                <p className="text-xs font-semibold text-muted-foreground">Tim aktivitas</p>
                 <h2 className="mt-1 text-base font-semibold text-foreground">
                   {team.length} orang
                   <span className="ml-1 font-normal text-muted-foreground">
@@ -517,7 +522,17 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
               ) : (
                 <>
                   {role === "SUPPORTING" && <LeaveButton missionId={missionId} />}
-                  {role === null && <JoinButton missionId={missionId} status={joinStatus} maxSupporting={settings.maxSupporting} clientName={mission.clientCompanyName} emphasis="filled" />}
+                  {role === null && (
+                    <JoinButton
+                      missionId={missionId}
+                      status={joinStatus}
+                      maxSupporting={settings.maxSupporting}
+                      clientName={mission.clientCompanyName}
+                      emphasis="filled"
+                      // One filled Join per screen: below lg the bottom bar has it.
+                      className={compactAction === "join" ? "max-lg:hidden" : undefined}
+                    />
+                  )}
                   {canManageTeam && <AllowJoinToggle missionId={missionId} allowJoin={mission.allowJoin} />}
                 </>
               )}
@@ -530,7 +545,7 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
 
           <aside className="overflow-hidden rounded-xl border bg-card max-lg:order-6">
             <div className="border-b px-5 py-4">
-              <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Catatan pendukung</p>
+              <p className="text-xs font-semibold text-muted-foreground">Catatan pendukung</p>
               <h2 className="mt-1 text-base font-semibold text-foreground">Pengamatan tim</h2>
             </div>
             <SupportingNotes missionId={missionId} notes={notes} canAdd={isAssigned || access.isSuperAdmin} />
@@ -544,7 +559,7 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
       <article id="laporan" className="scroll-mt-16 overflow-hidden rounded-xl border bg-card max-lg:order-3 lg:col-span-2 lg:scroll-mt-24">
         <div className="flex items-center justify-between gap-3 border-b px-5 py-4">
           <div>
-            <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Laporan kunjungan</p>
+            <p className="text-xs font-semibold text-muted-foreground">Laporan kunjungan</p>
             <h2 className="mt-1 text-base font-semibold text-foreground">
               {!canReadReport
                 ? "Tidak termasuk akses Anda"
@@ -624,14 +639,14 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
 
             {report.meetingSummary && (
               <div>
-                <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Ringkasan</p>
+                <p className="text-xs font-semibold text-muted-foreground">Ringkasan</p>
                 <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-foreground">{report.meetingSummary}</p>
               </div>
             )}
 
             {report.clientNeeds.length > 0 && (
               <div>
-                <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Kebutuhan klien</p>
+                <p className="text-xs font-semibold text-muted-foreground">Kebutuhan klien</p>
                 <div className="mt-2 flex flex-wrap gap-1.5">
                   {report.clientNeeds.map((need) => (
                     <span key={need} className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-foreground">{need}</span>
@@ -662,7 +677,7 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
 
             {canReadContacts && report.contacts.length > 0 && (
               <div>
-                <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Ketemu siapa</p>
+                <p className="text-xs font-semibold text-muted-foreground">Ketemu siapa</p>
                 <ul className="mt-2 space-y-1.5">
                   {report.contacts.map((contact, index) => (
                     <li key={index} className="text-sm text-foreground">
@@ -695,7 +710,7 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
           <p className="px-5 py-6 text-sm text-muted-foreground">
             {canWriteReport
               ? reportLock
-                ? `${describeReportOpens(reportLock.until)}.`
+                ? `${describeReportOpens(reportLock.until)}, pada hari kunjungannya. Kunjungan dimajukan? Pindahkan jadwalnya dulu.`
                 : "Isi laporan setelah kunjungan selesai."
               : "Laporan diisi oleh sales utama."}
           </p>
@@ -709,7 +724,7 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
         {leadPush ? (
           <div className="border-t">
             <div className="border-b bg-muted/30 px-5 py-4">
-              <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Integrasi</p>
+              <p className="text-xs font-semibold text-muted-foreground">Integrasi</p>
               <h3 className="mt-1 flex items-center gap-2 text-base font-semibold text-foreground">
                 <span className="inline-block h-2 w-2 shrink-0 rounded-full bg-[var(--success-foreground)]" aria-hidden />
                 Terkirim ke LeadEngine
@@ -732,7 +747,7 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
         ) : report && canPushLead(report) && canWriteReport ? (
           <div className="border-t">
             <div className="border-b bg-muted/30 px-5 py-4">
-              <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Integrasi</p>
+              <p className="text-xs font-semibold text-muted-foreground">Integrasi</p>
               <h3 className="mt-1 text-base font-semibold text-foreground">Kirim ke LeadEngine</h3>
             </div>
             <PushLeadPanel
@@ -748,17 +763,15 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
 
         {/* Once submitted the report is shown in full above, so there is
             nothing left to open. */}
-        {canReadReport && canWriteReport && !reportSubmitted && !isCancelled && (
+        {/* While the tenant's rule keeps the report closed, the body above
+            says when it opens; a footer repeating it said it twice. */}
+        {canReadReport && canWriteReport && !reportSubmitted && !isCancelled && !reportLock && (
           <div className="border-t bg-muted/30 px-5 py-4">
             {askedToConfirm ? (
               // A report on a visit the rep has not agreed to make yet is
               // a contradiction; the button waits for the answer above.
               <p className="text-sm text-muted-foreground">
                 Terima penugasan di atas dulu, lalu laporan bisa diisi setelah kunjungan.
-              </p>
-            ) : reportLock ? (
-              <p className="text-sm text-muted-foreground">
-                {describeReportOpens(reportLock.until)}, pada hari kunjungannya. Kunjungan dimajukan? Pindahkan jadwalnya dulu.
               </p>
             ) : (
               <Button asChild className="h-11 w-full sm:w-auto">

@@ -31,6 +31,8 @@ import { VISIT_STATE_LABELS, reportOwed, visitState } from "@/lib/missions/visit
 import { statusLabel } from "@/lib/missions/status-labels"
 import { AcceptAssignmentButton, AssignmentOverflowMenu } from "./assignment-actions-menu"
 import { JoinButton } from "./join-controls"
+import { useSelectionMode } from "@/components/selection-mode"
+import { SelectableCardBody } from "@/components/selectable-card-body"
 import { paths } from "@/lib/paths"
 
 type Row = MissionListItem & { joinStatus?: JoinStatus; canReport?: boolean }
@@ -200,7 +202,11 @@ function SelectionBar({
       className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-primary/30 bg-primary/5 px-4 py-2.5"
     >
       <span className="text-sm text-foreground">
-        <span className="font-semibold">{count} aktivitas dipilih</span>
+        {count > 0 ? (
+          <span className="font-semibold">{count} aktivitas dipilih</span>
+        ) : (
+          <span className="text-muted-foreground">Ketuk aktivitas untuk memilih</span>
+        )}
         {allMatching && !allMatching.selected && (
           <>
             {" · "}
@@ -216,6 +222,7 @@ function SelectionBar({
           size="sm"
           variant="outline"
           onClick={onDelete}
+          disabled={count === 0}
           className="text-[var(--danger-foreground)] hover:text-[var(--danger-foreground)]"
         >
           <Trash2 className="h-4 w-4" /> Ke sampah
@@ -225,6 +232,114 @@ function SelectionBar({
         </Button>
       </span>
     </div>
+  )
+}
+
+/**
+ * One activity as a card, for the phone.
+ *
+ * The body is the link into the activity (`SelectableCardBody`: a long
+ * press enters selection mode, a tap then ticks); the buttons sit outside
+ * it so a tap on Terima never also opens the page. When and where share
+ * one line, as a calendar shows an event, and who sits under it: three
+ * lines and the status, so three cards fit a screen rather than one and a
+ * half.
+ */
+function MobileMissionCard({
+  mission,
+  now,
+  policy,
+  maxSupporting,
+  canDelete,
+  selecting,
+  ticked,
+  onTick,
+  onLongPress,
+}: {
+  mission: Row
+  now: Date
+  policy: ConfirmationPolicy
+  maxSupporting: number
+  canDelete: boolean
+  selecting: boolean
+  ticked: boolean
+  onTick: (next: boolean) => void
+  onLongPress: () => void
+}) {
+  const asksMe = needsMyAnswer(mission, policy)
+  const owesMe = reportOwed(visitState(mission, now)) && mission.canReport === true
+
+  const body = (
+    <>
+      <div className="flex items-start justify-between gap-3">
+        <span className="min-w-0">
+          <span className="block truncate font-semibold text-foreground">{mission.clientCompanyName}</span>
+          <span className="block truncate text-xs text-muted-foreground">{mission.missionType}</span>
+        </span>
+        <span className="text-right"><VisitStatus mission={mission} now={now} /></span>
+      </div>
+      <p className="mt-2 truncate text-sm text-foreground">
+        {[formatMissionSchedule(mission.scheduledStart, now), mission.location].filter(Boolean).join(" · ")}
+      </p>
+      <p className="mt-0.5 truncate text-xs text-muted-foreground">{mission.primarySalesName ?? "Belum ditugaskan"}</p>
+      <span className="mt-1.5 block">
+        {mission.joinStatus && <JoinStatusLine status={mission.joinStatus} />}
+        <TeamAnswersLine mission={mission} policy={policy} />
+      </span>
+    </>
+  )
+
+  return (
+    <li
+      className={cn(
+        "rounded-xl border bg-card",
+        // A row that asks the reader for something is marked by its
+        // edge, the way Material tones a list item that needs
+        // attention, rather than by a pill that shouts.
+        (asksMe || owesMe) && "border-l-4 border-l-[var(--warning-foreground)]",
+        ticked && "border-primary bg-primary/5"
+      )}
+    >
+      <div className="flex">
+        {selecting && (
+          <span className="grid w-11 shrink-0 place-items-start pl-3 pt-4">
+            <Checkbox
+              checked={ticked}
+              onCheckedChange={(value) => onTick(value === true)}
+              aria-label={`Pilih ${mission.clientCompanyName}`}
+            />
+          </span>
+        )}
+        <SelectableCardBody href={paths.activity(mission.id)} selecting={selecting} ticked={ticked} onTick={onTick} onLongPress={onLongPress} enabled={canDelete}>
+          {body}
+        </SelectableCardBody>
+      </div>
+
+      {(asksMe || owesMe || mission.joinStatus === "JOINABLE" || visitState(mission, now) === "reported") && (
+        <div className="flex items-center justify-end gap-2 border-t px-3 py-2">
+          {owesMe ? (
+            <Button asChild size="default" className="h-11">
+              <Link href={paths.activityReport(mission.id)}>
+                <ClipboardList className="h-4 w-4" /> {mission.reportStatus === "NONE" ? "Isi laporan" : "Lanjutkan laporan"}
+              </Link>
+            </Button>
+          ) : asksMe ? (
+            <>
+              <AssignmentOverflowMenu missionId={mission.id} />
+              <AcceptAssignmentButton missionId={mission.id} size="default" className="h-11" />
+            </>
+          ) : mission.joinStatus === "JOINABLE" ? (
+            <JoinButton missionId={mission.id} status="JOINABLE" maxSupporting={maxSupporting} clientName={mission.clientCompanyName} size="default" className="h-11" />
+          ) : (
+            <Button asChild variant="outline" size="default" className="h-11">
+              <Link href={paths.activity(mission.id, { fokus: "laporan" })}>
+                <ClipboardList className="h-4 w-4" /> Lihat laporan
+              </Link>
+            </Button>
+          )}
+        </div>
+      )}
+    </li>
   )
 }
 
@@ -256,6 +371,9 @@ export function MissionTable({
   maxSupporting?: number
 }) {
   const [selected, setSelected] = useState<Set<string>>(new Set())
+  // The phone's cards show their checkboxes only in this mode; the desk's
+  // table always does.
+  const { selecting, setSelecting } = useSelectionMode()
   const [confirming, setConfirming] = useState(false)
   const [pending, start] = useTransition()
   const [loadingAll, startLoadingAll] = useTransition()
@@ -286,6 +404,7 @@ export function MissionTable({
   const clearSelection = () => {
     setSelected(new Set())
     setBeyondPage(new Set())
+    setSelecting(false)
   }
 
   const toggle = (id: string, next: boolean) =>
@@ -372,7 +491,7 @@ export function MissionTable({
 
   return (
     <>
-      {canDelete && chosen.length > 0 && (
+      {canDelete && (chosen.length > 0 || selecting) && (
         <SelectionBar
           count={chosen.length}
           onClear={clearSelection}
@@ -387,84 +506,23 @@ export function MissionTable({
 
       {/* Mobile gets cards, not a squeezed table. */}
       <ul className="space-y-3 md:hidden">
-        {missions.map((mission) => {
-          const asksMe = needsMyAnswer(mission, policy)
-          const owesMe = reportOwed(visitState(mission, now)) && mission.canReport === true
-          const ticked = selected.has(mission.id)
-          return (
-            <li
-              key={mission.id}
-              className={cn(
-                "rounded-xl border bg-card",
-                // A row that asks the reader for something is marked by its
-                // edge, the way Material tones a list item that needs
-                // attention, rather than by a pill that shouts.
-                (asksMe || owesMe) && "border-l-4 border-l-[var(--warning-foreground)]",
-                ticked && "border-primary bg-primary/5"
-              )}
-            >
-              <div className="flex">
-                {canDelete && (
-                  <span className="grid w-11 shrink-0 place-items-start pl-3 pt-4">
-                    <Checkbox
-                      checked={ticked}
-                      onCheckedChange={(value) => toggle(mission.id, value === true)}
-                      aria-label={`Pilih ${mission.clientCompanyName}`}
-                    />
-                  </span>
-                )}
-                {/* The card body is the link; the buttons sit outside it so a
-                    tap on Terima never also opens the page. */}
-                <Link
-                  href={paths.activity(mission.id)}
-                  className={cn("block min-w-0 flex-1 p-4 transition-colors hover:bg-muted/50", canDelete && "pl-2")}
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <span className="min-w-0">
-                      <span className="block truncate font-semibold text-foreground">{mission.clientCompanyName}</span>
-                      <span className="block truncate text-xs text-muted-foreground">{mission.missionType}</span>
-                    </span>
-                    <span className="text-right"><VisitStatus mission={mission} now={now} /></span>
-                  </div>
-
-                  <p className="mt-3 text-sm text-foreground">{formatMissionSchedule(mission.scheduledStart, now)}</p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {[mission.location, mission.primarySalesName ?? "Belum ditugaskan"].filter(Boolean).join(" · ")}
-                  </p>
-                  <span className="mt-2 block">
-                    {mission.joinStatus && <JoinStatusLine status={mission.joinStatus} />}
-                    <TeamAnswersLine mission={mission} policy={policy} />
-                  </span>
-                </Link>
-              </div>
-
-              {(asksMe || owesMe || mission.joinStatus === "JOINABLE" || visitState(mission, now) === "reported") && (
-                <div className="flex items-center justify-end gap-2 border-t px-4 py-3">
-                  {owesMe ? (
-                    <Button asChild size="default" className="h-11">
-                      <Link href={paths.activityReport(mission.id)}>
-                        <ClipboardList className="h-4 w-4" /> {mission.reportStatus === "NONE" ? "Isi laporan" : "Lanjutkan laporan"}
-                      </Link>
-                    </Button>
-                  ) : asksMe ? (
-                    <>
-                      <AssignmentOverflowMenu missionId={mission.id} />
-                      <AcceptAssignmentButton missionId={mission.id} size="default" className="h-11" />
-                    </>
-                  ) : mission.joinStatus === "JOINABLE" ? (
-                    <JoinButton missionId={mission.id} status="JOINABLE" maxSupporting={maxSupporting} clientName={mission.clientCompanyName} size="default" className="h-11" />
-                  ) : (
-                    <Button asChild variant="outline" size="default" className="h-11">
-                      <Link href={paths.activity(mission.id, { fokus: "laporan" })}>
-                        <ClipboardList className="h-4 w-4" /> Lihat laporan
-                      </Link>
-                    </Button>
-                  )}
-                </div>
-              )}
-            </li>
-          )
-        })}
+        {missions.map((mission) => (
+          <MobileMissionCard
+            key={mission.id}
+            mission={mission}
+            now={now}
+            policy={policy}
+            maxSupporting={maxSupporting}
+            canDelete={canDelete}
+            selecting={canDelete && selecting}
+            ticked={selected.has(mission.id)}
+            onTick={(next) => toggle(mission.id, next)}
+            onLongPress={() => {
+              setSelecting(true)
+              toggle(mission.id, true)
+            }}
+          />
+        ))}
       </ul>
 
       {/*

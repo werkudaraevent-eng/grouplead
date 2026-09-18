@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import type { Layout, LayoutItem } from "react-grid-layout"
 import { publishDashboardDefault, resetDashboardLayout, saveDashboardLayout } from "@/app/actions/dashboard-actions"
+import { Check, Download, Settings2 } from "@/components/icons"
+import { PageChrome } from "@/components/page-chrome"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { useCompact } from "@/hooks/use-compact"
@@ -118,6 +120,7 @@ export function DashboardEditor({
   canSeeProspects,
   canPublish,
   hasCompanyDefault,
+  exportQuery,
 }: {
   query: RingkasanQuery
   range: { from: string; to: string }
@@ -130,6 +133,8 @@ export function DashboardEditor({
   /** Pengaturan → ubah: may make this board the unit's default. */
   canPublish: boolean
   hasCompanyDefault: boolean
+  /** The period as query string, for the export links in the phone's overflow menu. */
+  exportQuery: string
 }) {
   const router = useRouter()
   const compact = useCompact()
@@ -263,6 +268,18 @@ export function DashboardEditor({
 
   return (
     <>
+      {/* The phone's top app bar overflow: the exports (desk buttons in the
+          header) and the door into arranging, which the toolbar shows only
+          from md up. */}
+      <PageChrome
+        menu={[
+          { label: "Ekspor Excel", icon: Download, href: `/workspace/reports/export?${exportQuery}&format=xlsx` },
+          { label: "Ekspor CSV", icon: Download, href: `/workspace/reports/export?${exportQuery}` },
+          editing
+            ? { label: "Selesai mengatur", icon: Check, onSelect: () => setEditing(false) }
+            : { label: "Atur widget", icon: Settings2, onSelect: () => setEditing(true) },
+        ]}
+      />
       <RingkasanToolbar
         query={query}
         range={range}
