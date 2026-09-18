@@ -122,6 +122,9 @@ export default async function VisitReportPage({ params, searchParams }: { params
       eyebrow="Sales Activity / Laporan kunjungan"
       title={mission.clientCompanyName}
       description={[mission.missionType, mission.location].filter(Boolean).join(" · ")}
+      // On a phone the section chips stick right under the app bar; a
+      // second line of facts above them would stay on screen for the whole form.
+      phoneDescription={false}
       action={<BackLink href={paths.activity(missionId)} />}
     >
       <VisitReportForm

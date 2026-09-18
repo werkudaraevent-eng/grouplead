@@ -28,6 +28,7 @@ import { Button } from "@/components/ui/button"
 import { ChipRow, ChoiceChip } from "@/components/ui/choice-chip"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { FormActionBar } from "@/components/form-action-bar"
+import { PageChrome } from "@/components/page-chrome"
 import { SectionChips } from "@/components/section-chips"
 import { CoachMark } from "@/components/coach-mark"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -106,8 +107,11 @@ const CORE_SECTIONS: Record<string, string> = {
   visit_outcome: "Hasil kunjungan",
   visit_time: "Hasil kunjungan",
   contacts_met: "Hasil kunjungan",
-  visit_photos: "Hasil kunjungan",
-  business_card_photos: "Hasil kunjungan",
+  // Their own card, last: the admin's order puts the photos after the
+  // follow-up, and a second "Hasil kunjungan" card (and chip) read as the
+  // form looping back. Attachments close a report (Jobber, ServiceTitan).
+  visit_photos: "Foto",
+  business_card_photos: "Foto",
   meeting_summary: "Isi pertemuan",
   client_needs: "Isi pertemuan",
   product_interest: "Isi pertemuan",
@@ -125,6 +129,7 @@ const SECTION_HINTS: Record<string, string> = {
   "Isi pertemuan": "Apa yang dibahas, apa yang mereka butuhkan, apa yang menarik minat.",
   Penilaian: "Seberapa panas peluangnya, dan nilai yang bisa diperkirakan.",
   "Tindak lanjut": "Langkah berikutnya, siapa yang memegang, kapan.",
+  Foto: "Bukti kunjungan dan kartu nama orang yang ditemui.",
   Tambahan: "Pertanyaan yang ditambahkan admin unit bisnis ini.",
 }
 
@@ -171,7 +176,8 @@ function toDraft(report: VisitReportRecord | null, appointmentContact: ReportCon
 }
 
 /** Label, required marker, help text, and the control, on the shared grid. */
-function FieldShell({ field, hint, span, children }: { field: FormField; hint?: string; span?: Span; children: React.ReactNode }) {
+/** `hint: null` means the control draws its own helper line, so the shell draws none. */
+function FieldShell({ field, hint, span, children }: { field: FormField; hint?: string | null; span?: Span; children: React.ReactNode }) {
   return (
     <div id={`field-${field.reportingKey}`} className={cn("scroll-mt-20 space-y-2", SPAN_CLASS[span ?? spanOf(field)])}>
       <Label className="text-foreground">
@@ -181,7 +187,7 @@ function FieldShell({ field, hint, span, children }: { field: FormField; hint?: 
         </span>
       </Label>
       {children}
-      {(field.helpText ?? hint) && <p className="text-xs leading-relaxed text-muted-foreground">{field.helpText ?? hint}</p>}
+      {hint !== null && (field.helpText ?? hint) && <p className="text-xs leading-relaxed text-muted-foreground">{field.helpText ?? hint}</p>}
     </div>
   )
 }
@@ -462,7 +468,7 @@ export function VisitReportForm({
     switch (field.reportingKey) {
       case "visit_outcome":
         return (
-          <FieldShell key={field.id} field={field} hint={`Kunjungan ke ${clientName}`}>
+          <FieldShell key={field.id} field={field}>
             <ChipGroup options={outcomeChoices.map((choice) => choice.code)} value={draft.visitOutcome} onChange={(next) => update("visitOutcome", next)} labels={labelsOf(outcomeChoices)} />
           </FieldShell>
         )
@@ -527,7 +533,7 @@ export function VisitReportForm({
                         <span className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground"><CalendarDays className="h-3.5 w-3.5" /> Dari janji temu</span>
                       )}
                     </p>
-                    <Button type="button" variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground hover:text-destructive" onClick={() => update("contacts", draft.contacts.filter((_, i) => i !== index))} aria-label={`Hapus kontak ${index + 1}`}>
+                    <Button type="button" variant="ghost" size="icon" className="-mr-2 -mt-1 text-muted-foreground hover:text-destructive" onClick={() => update("contacts", draft.contacts.filter((_, i) => i !== index))} aria-label={`Hapus kontak ${index + 1}`}>
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
@@ -597,7 +603,7 @@ export function VisitReportForm({
           <FieldShell key={field.id} field={field}>
             <div className="flex min-h-12 items-center gap-2.5">
               <Checkbox id="opportunity" checked={draft.opportunityExists} onCheckedChange={(checked) => update("opportunityExists", checked === true)} />
-              <Label htmlFor="opportunity" className="font-normal text-foreground">{field.placeholder || "Ada peluang, bisa dikirim ke LeadEngine"}</Label>
+              <Label htmlFor="opportunity" className="font-normal text-foreground">{field.placeholder || "Kirim sebagai lead ke LeadEngine setelah laporan terkirim"}</Label>
             </div>
           </FieldShell>
         )
@@ -632,14 +638,15 @@ export function VisitReportForm({
       case "visit_photos":
       case "business_card_photos":
         return (
-          <FieldShell key={field.id} field={field}>
+          <FieldShell key={field.id} field={field} hint={null}>
             <PhotoField
               id={`custom-${field.reportingKey}`}
               scope={missionId}
               value={parsePhotoAnswer(draft.custom[field.reportingKey])}
               onChange={(next) => updateCustom(field.reportingKey, next)}
               max={field.reportingKey === "business_card_photos" ? 3 : 5}
-              hint={field.placeholder || undefined}
+              // One line: the limit, then what to photograph.
+              hint={[`Maks ${field.reportingKey === "business_card_photos" ? 3 : 5} foto`, field.placeholder || field.helpText].filter(Boolean).join(" · ")}
             />
           </FieldShell>
         )
@@ -738,6 +745,9 @@ export function VisitReportForm({
       ))}
 
       {/* Action row: fixed to the phone's bottom edge, the last row from sm up. */}
+      {hasDraft && !editing && (
+        <PageChrome menu={[{ label: "Buang draf", icon: Trash2, danger: true, onSelect: () => setDiscarding("ask") }]} />
+      )}
       <FormActionBar>
         {futureVisit ? (
           <p className="mb-2 text-sm text-muted-foreground">
@@ -777,18 +787,21 @@ export function VisitReportForm({
             {sync === "pending" && <span className="flex items-center gap-1.5 text-[var(--warning-foreground)]"><CloudOff className="h-3.5 w-3.5" /> Menunggu koneksi</span>}
             {/* The way back to "belum diisi": a text button, the quietest kind,
                 because it undoes rather than does; the dialog carries the weight. */}
+            {/* From sm up the bar is the form's last row and carries every
+                way out. On a phone it carries the one next step: the top
+                bar's arrow is Kembali, and Buang draf waits in its overflow. */}
             {hasDraft && !editing && (
               <button
                 type="button"
                 onClick={() => setDiscarding("ask")}
                 disabled={submitting || discarding === "busy"}
-                className="inline-flex min-h-11 items-center gap-1 rounded-md px-2 font-medium text-[var(--danger-foreground)] hover:bg-[var(--danger)] md:min-h-8 md:px-1.5"
+                className="hidden min-h-11 items-center gap-1 rounded-md px-2 font-medium text-[var(--danger-foreground)] hover:bg-[var(--danger)] sm:inline-flex md:min-h-8 md:px-1.5"
               >
                 <Trash2 className="h-3.5 w-3.5" /> Buang draf
               </button>
             )}
           </span>
-          <Button asChild variant="outline" className="h-12 md:h-10">
+          <Button asChild variant="outline" className="hidden h-12 sm:inline-flex md:h-10">
             <Link href={paths.activity(missionId)}>Kembali</Link>
           </Button>
           <CoachMark
@@ -799,7 +812,7 @@ export function VisitReportForm({
             learnHref={paths.guideSection("laporan")}
             align="end"
           >
-            <Button className="h-12 md:h-10" onClick={handleSubmit} disabled={submitting}>
+            <Button className="h-12 flex-1 sm:flex-initial md:h-10" onClick={handleSubmit} disabled={submitting}>
               {submitting ? <><Loader2 className="h-4 w-4 animate-spin" /> {editing ? "Menyimpan…" : "Mengirim…"}</> : editing ? <><Save className="h-4 w-4" /> Simpan perubahan</> : <><Send className="h-4 w-4" /> Kirim laporan</>}
             </Button>
           </CoachMark>
