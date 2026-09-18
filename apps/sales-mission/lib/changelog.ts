@@ -28,6 +28,14 @@ export const CHANGE_KIND_LABELS: Record<ChangeKind, string> = {
 export const CHANGELOG: ChangeEntry[] = [
   {
     date: "2026-09-18",
+    title: "Tombol kirim laporan tidak lagi mati saat ada isian kurang",
+    items: [
+      { kind: "lebih-baik", text: "Di form laporan, tombol Kirim sekarang selalu bisa ditekan. Kalau masih ada yang kurang, menekannya langsung membawa Anda ke isian pertama yang kosong, sama seperti di form Aktivitas dan Prospek. Sebelumnya tombolnya diabukan, jadi tidak ada yang bisa ditanya kenapa." },
+      { kind: "lebih-baik", text: "Waktu kunjungan yang masih di masa depan kini ikut disebut di atas tombol beserta tautan untuk memperbaikinya, bukan cuma mematikan tombolnya diam-diam." },
+    ],
+  },
+  {
+    date: "2026-09-18",
     title: "Papan live berhenti menghitung kunjungan yang batal",
     items: [
       { kind: "diperbaiki", text: "Kunjungan yang dibatalkan atau ditolak tidak lagi tampil di Papan live, dan yang lebih penting tidak lagi ikut dihitung. Sebelumnya satu kunjungan batal membuat papan menulis \u201c1 kunjungan · 1 orang di lapangan\u201d dan memunculkan nama salesnya di panel Tim, padahal tidak ada yang berangkat. Aturannya kini sama dengan Kalender: jadwal menampilkan yang akan terjadi, dan pembatalan dilihat di daftar Aktivitas." },

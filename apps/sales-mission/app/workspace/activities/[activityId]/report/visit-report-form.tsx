@@ -392,19 +392,6 @@ export function VisitReportForm({
     update("contacts", draft.contacts.map((contact, i) => (i === index ? { ...contact, ...patch } : contact)))
   }
 
-  const handleSubmit = () => {
-    setError(null)
-    startSubmit(async () => {
-      const result = await submitVisitReport(missionId, { ...latest.current, changeReason: changeReason.trim() })
-      if (result.success) {
-        router.push(paths.activity(missionId))
-        router.refresh()
-      } else {
-        setError(result.error ?? "Laporan gagal dikirim.")
-      }
-    })
-  }
-
   const ordered = visibleFields(fields)
   const byKey = new Map(ordered.map((field) => [field.reportingKey, field]))
   const labelFor = (key: string) => byKey.get(key)?.label ?? key
@@ -432,7 +419,47 @@ export function VisitReportForm({
     const element = document.getElementById(id)
     if (!element) return
     element.scrollIntoView({ block: "center", behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" })
-    element.querySelector<HTMLElement>("input, textarea, select")?.focus({ preventScroll: true })
+    // Most ids sit on a field wrapper; a few (the change reason) are the
+    // control itself, which has nothing inside to focus.
+    const control = element.querySelector<HTMLElement>("input, textarea, select") ?? (element.matches("input, textarea, select") ? element : null)
+    control?.focus({ preventScroll: true })
+  }
+
+  /**
+   * Everything standing between this form and a send, in the order it appears
+   * on the page. Pressing the button lands on the first one.
+   *
+   * This is the same bargain the activity and prospect forms strike, where the
+   * browser's own required check refuses the submit and jumps to the field. A
+   * report has no `<form>` to hand that job to — its fields are controlled and
+   * some are not inputs at all — so the jump is written here, which also means
+   * it can cover what a browser check cannot: a photo field, a contact list, or
+   * a visit dated later than today.
+   */
+  const blockers: string[] = [
+    ...(futureVisit ? ["field-visit_time"] : []),
+    ...missing.map((key) => `field-${key}`),
+    ...(editing && !changeReason.trim() ? ["change-reason"] : []),
+  ]
+
+  const handleSubmit = () => {
+    setError(null)
+    // Not a greyed-out button: a disabled control cannot be focused, so it can
+    // never tell anyone why it is disabled. The press is always allowed, and
+    // what is missing is what it takes you to.
+    if (blockers.length > 0) {
+      jumpTo(blockers[0])
+      return
+    }
+    startSubmit(async () => {
+      const result = await submitVisitReport(missionId, { ...latest.current, changeReason: changeReason.trim() })
+      if (result.success) {
+        router.push(paths.activity(missionId))
+        router.refresh()
+      } else {
+        setError(result.error ?? "Laporan gagal dikirim.")
+      }
+    })
   }
 
   const clientNeedOptions = byKey.get("client_needs")?.options.length ? byKey.get("client_needs")!.options : options.clientNeeds
@@ -719,7 +746,13 @@ export function VisitReportForm({
 
       {/* Action row: fixed to the phone's bottom edge, the last row from sm up. */}
       <FormActionBar>
-        {missing.length > 0 ? (
+        {futureVisit ? (
+          <p className="mb-2 text-sm text-muted-foreground">
+            Waktu kunjungan belum terjadi.{" "}
+            <button type="button" onClick={() => jumpTo("field-visit_time")} className="font-medium text-primary underline-offset-2 hover:underline">Perbaiki waktunya</button>{" "}
+            di atas, atau kirim setelah kunjungannya.
+          </p>
+        ) : missing.length > 0 ? (
           <p className="mb-2 text-sm text-muted-foreground">
             Belum lengkap:{" "}
             {missing.map((key, index) => (
@@ -773,7 +806,7 @@ export function VisitReportForm({
             learnHref={paths.guideSection("laporan")}
             align="end"
           >
-            <Button className="h-12 md:h-10" onClick={handleSubmit} disabled={submitting || missing.length > 0 || futureVisit || (Boolean(editing) && !changeReason.trim())}>
+            <Button className="h-12 md:h-10" onClick={handleSubmit} disabled={submitting}>
               {submitting ? <><Loader2 className="h-4 w-4 animate-spin" /> {editing ? "Menyimpan…" : "Mengirim…"}</> : editing ? <><Save className="h-4 w-4" /> Simpan perubahan</> : <><Send className="h-4 w-4" /> Kirim laporan</>}
             </Button>
           </CoachMark>
