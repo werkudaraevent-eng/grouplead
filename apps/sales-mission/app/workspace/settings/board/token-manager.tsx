@@ -95,7 +95,7 @@ export function BoardTokenManager({ tokens, boardBaseUrl }: { tokens: BoardToken
 
       <div className="overflow-hidden rounded-xl border bg-card">
         <div className="border-b px-5 py-4">
-          <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Tautan baru</p>
+          <p className="text-xs font-semibold text-muted-foreground">Tautan baru</p>
           <h2 className="mt-1 text-base font-semibold text-foreground">Buat tautan papan</h2>
         </div>
 
@@ -138,7 +138,7 @@ export function BoardTokenManager({ tokens, boardBaseUrl }: { tokens: BoardToken
 
       <div className="overflow-hidden rounded-xl border bg-card">
         <div className="border-b px-5 py-4">
-          <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Tautan aktif</p>
+          <p className="text-xs font-semibold text-muted-foreground">Tautan aktif</p>
           <h2 className="mt-1 text-base font-semibold text-foreground">{tokens.length} tautan</h2>
         </div>
 

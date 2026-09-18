@@ -37,8 +37,27 @@ function dayAfter(days: number): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: MISSION_TIME_ZONE }).format(new Date(Date.now() + days * 86_400_000))
 }
 
-export function CancelMissionButton({ missionId, clientName }: { missionId: string; clientName: string }) {
-  const [open, setOpen] = useState(false)
+export function CancelMissionButton({
+  missionId,
+  clientName,
+  open: controlledOpen,
+  onOpenChange,
+  trigger = true,
+}: {
+  missionId: string
+  clientName: string
+  /** Owned from outside when the opener is elsewhere (the phone's overflow menu). */
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
+  /** Whether to render the button itself. */
+  trigger?: boolean
+}) {
+  const [ownOpen, setOwnOpen] = useState(false)
+  const open = controlledOpen ?? ownOpen
+  const setOpen = (next: boolean) => {
+    setOwnOpen(next)
+    onOpenChange?.(next)
+  }
   const [mode, setMode] = useState<Mode>("cancel")
   const [reason, setReason] = useState("")
   const [followUpOn, setFollowUpOn] = useState(() => dayAfter(3))
@@ -68,14 +87,16 @@ export function CancelMissionButton({ missionId, clientName }: { missionId: stri
 
   return (
     <>
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={() => setOpen(true)}
-        className="text-[var(--danger-foreground)] hover:text-[var(--danger-foreground)]"
-      >
-        <Ban className="h-4 w-4" /> Batalkan aktivitas
-      </Button>
+      {trigger && (
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setOpen(true)}
+          className="text-[var(--danger-foreground)] hover:text-[var(--danger-foreground)]"
+        >
+          <Ban className="h-4 w-4" /> Batalkan aktivitas
+        </Button>
+      )}
 
       <Dialog open={open} onOpenChange={(next) => { if (!pending) setOpen(next) }}>
         <DialogContent className="sm:max-w-md">

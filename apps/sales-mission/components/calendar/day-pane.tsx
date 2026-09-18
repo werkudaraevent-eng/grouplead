@@ -35,7 +35,7 @@ export function DayPane<T extends MissionListItem>({
     <aside className="flex min-w-0 flex-col overflow-hidden rounded-xl border bg-card lg:min-h-0">
       <div className="flex shrink-0 items-center justify-between gap-3 border-b px-5 py-4">
         <div>
-          <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">{dayLabel}</p>
+          <p className="text-xs font-semibold text-muted-foreground">{dayLabel}</p>
           <h2 className="mt-1 text-base font-semibold text-foreground">{title}</h2>
         </div>
         {action}

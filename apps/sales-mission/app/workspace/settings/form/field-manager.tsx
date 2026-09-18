@@ -382,7 +382,7 @@ export function FieldManager({ fields, formKey, reportChoices }: { fields: FormF
       <div className="overflow-hidden rounded-xl border bg-card">
         <div className="flex items-center justify-between gap-3 border-b px-5 py-4">
           <div>
-            <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Form buat aktivitas</p>
+            <p className="text-xs font-semibold text-muted-foreground">Form buat aktivitas</p>
             <h2 className="mt-1 text-base font-semibold text-foreground">{active.length} field aktif</h2>
           </div>
           <Button size="sm" onClick={() => { setDraft(EMPTY_DRAFT); setAdding(true); setEditingId(null); setUsage(null) }} disabled={adding}>
@@ -502,7 +502,7 @@ export function FieldManager({ fields, formKey, reportChoices }: { fields: FormF
       {archived.length > 0 && (
         <div className="overflow-hidden rounded-xl border bg-card">
           <div className="border-b px-5 py-4">
-            <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Diarsipkan</p>
+            <p className="text-xs font-semibold text-muted-foreground">Diarsipkan</p>
             <h2 className="mt-1 text-base font-semibold text-foreground">{archived.length} field</h2>
             <p className="mt-1 text-sm text-muted-foreground">
               Tidak lagi muncul di form, tetapi jawaban yang sudah terkumpul tetap tersimpan dan terbaca.

@@ -10,7 +10,7 @@ export function FunnelCard({ counts }: { counts: FunnelCounts }) {
   return (
     <article className="rounded-xl border bg-card">
       <div className="border-b px-5 py-4">
-        <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Prospek</p>
+        <p className="text-xs font-semibold text-muted-foreground">Prospek</p>
         <h2 className="mt-1 text-base font-semibold text-foreground">Corong dari prospek ke lead</h2>
         <p className="mt-0.5 text-sm text-muted-foreground">Prospek yang dibuat pada rentang ini, dan sejauh mana mereka sampai.</p>
       </div>

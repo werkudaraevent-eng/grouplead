@@ -23,6 +23,8 @@ export interface ChromeMenuItem {
   icon?: React.ElementType
   href?: string
   onSelect?: () => void
+  /** Drawn in the danger ink: a destructive action, kept last. */
+  danger?: boolean
 }
 
 export interface Chrome {
