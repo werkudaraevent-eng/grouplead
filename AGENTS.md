@@ -1,114 +1,181 @@
 # AGENTS.md
 
-## Communication Style
+Instructions for any coding agent working in this repository. Read this before
+touching anything; it is the only thing that travels between machines, accounts
+and tools.
 
-Terse like caveman lite. Technical substance exact. Only fluff die.
-Drop: filler (just/really/basically), pleasantries, hedging.
-Keep grammar intact. Professional but no fluff.
-Code/commits/PRs: normal. Off: "stop caveman" / "normal mode".
+## What this repo is
 
-## Architectural Rules
+A npm-workspace monorepo (`apps/*`, `packages/*`) holding **two Next.js 16 / React 19
+applications that share one Supabase project and one login**.
 
-- **Field resolution**: Never show "Unspecified" without checking entity relations first. Use `resolveLeadField()` from `src/lib/resolve-lead-field.ts`. Resolution order: lead field → client_company field → null.
-- **Currency formatting**: Use `useCurrency()` hook from `src/contexts/currency-context.tsx`. Never hardcode "Rp" or create local formatters. Chart axis labels use `fmtAxis` (always compact).
-- **Server actions**: Use `ActionResult<T>` from `src/types/action-result.ts`. Use `createServiceClient()` from `src/utils/supabase/service.ts` for admin operations.
+| | Sales Activity | LeadEngine |
+|---|---|---|
+| Path | `apps/sales-mission` | `apps/leadengine` |
+| Package | `@werkudara/sales-mission` | `@werkudara/leadengine` |
+| Production | `mission.werkudara.group` | `crm.werkudara.group` |
+| Dev port | 3001 | 3000 |
+| What it is | Field sales: plan a visit, assign a team, record what happened | Internal CRM: leads, contacts, companies, goals |
+| Product copy | **Indonesian** | **English** |
+| DB schema | `sales_mission` | `public` |
 
-## Project
-
-LeadEngine — internal CRM for Werkudara Group. Next.js 16 App Router + React 19 + Supabase + Tailwind v4 + shadcn/ui (new-york style).
+**Neither app has a `src/` directory.** Both are flat at the app root: `app/`,
+`components/`, `lib/`, `hooks/`, `utils/`, `types/`, plus `features/`, `config/`
+and `contexts/` in LeadEngine. Any document that says otherwise is out of date.
 
 ## Commands
 
+Run from the app directory you are changing:
+
 ```bash
-npm run dev          # local dev server (port 3000)
-npm run build        # production build
-npm run lint         # eslint (flat config, next core-web-vitals + typescript)
-npm run typecheck    # tsc --noEmit (strict type checking)
-npm test             # vitest run (all unit tests)
-npx vitest run src/features/goals/lib/__tests__/rollup-engine.test.ts  # single test file
+cd apps/sales-mission        # or apps/leadengine
+npx tsc --noEmit             # types
+npx vitest run               # unit tests (vitest, node environment, no DOM)
+npx next build               # production build, which also lints
+npm run dev                  # 3001 for sales-mission, 3000 for leadengine
 ```
 
-- **CI workflow** in `.github/workflows/ci.yml` runs type check, lint, unit tests, and production build on push/PR to main/develop.
-- No pre-commit hooks. No deploy pipeline in the repo.
-- Vitest uses `environment: 'node'` with `globals: true`. The `@/` alias resolves to `./src`.
+Root scripts exist but **default to LeadEngine**: plain `npm run dev`, `npm run
+build`, `npm test` all target LeadEngine only. Use `npm run dev:sales-mission`,
+or just `cd` into the app.
 
-## Architecture
+## Before every commit
 
-### Source of truth priority
+Run the whole chain in the app you touched, in this order, and do not commit
+until all three are clean:
 
-1. `docs/leadengine-system-overview.md` — canonical system doc
-2. Latest migrations in `supabase/migrations/`
-3. Implemented code in `src/`
-4. TypeScript types in `src/types/`
+1. `npx tsc --noEmit`
+2. `npx vitest run`
+3. `npx next build`
+4. If the change includes a migration, apply it (see below) before committing.
 
-Files in `reference/` are specs/proposals, **not** implemented features. If README or `reference/` conflicts with code, trust the code.
+Report failures honestly with their output. Never describe work as done when a
+step was skipped.
 
-### Directory layout
+## Git and deploys
 
-```
-src/app/            Route pages + layout (App Router)
-src/app/actions/    Server Actions ("use server") — all write operations go here
-src/features/       Feature modules (leads, contacts, companies, goals, settings, roles, tasks, users)
-src/components/     Shared UI primitives + layout shell
-src/components/ui/  shadcn/ui components (managed by `npx shadcn`)
-src/types/          Domain type definitions
-src/utils/supabase/ Browser client, server client, scoped-query helper
-src/config/         Field registries (lead fields, dimension registry)
-src/contexts/       React contexts (company, permissions, sidebar theme)
-src/hooks/          Custom hooks (master options, cascade relations)
-src/lib/            Utility functions (utils.ts has cn() for tailwind-merge)
-supabase/migrations/ SQL migrations (no single canonical schema file)
+Work happens on `feature/sales-mission-foundation`. Publish with:
+
+```bash
+git push -q origin HEAD:main
 ```
 
-### Key patterns
+**Never push the feature branch itself.** Every branch pushed to the remote
+triggers a Vercel preview build and burns the daily deploy quota. This idiom
+sends the branch's HEAD straight to `main` without creating a second remote
+branch. A side effect worth knowing: it never advances the *local* `main` ref,
+so local `main` drifts behind. Fast-forward it with
+`git fetch origin && git branch -f main origin/main` rather than merging.
 
-- **Server Components by default.** Client Components only when interactivity is needed.
-- **Server Actions** in `src/app/actions/` handle all mutations. They use `createClient()` from `src/utils/supabase/server.ts` and call `revalidatePath()` after writes.
-- **Company scoping**: `scopedQuery()` in `src/utils/supabase/scoped-query.ts` applies `company_id` filter. Holding companies see all data (RLS handles it). Use `getScopedCompanyId()` to determine the filter value.
-- **RLS is the security boundary.** Database helper functions `fn_user_company_ids()` and `fn_user_has_holding_access()` drive row-level security.
+`.claude/settings.local.json` is tracked but must be **excluded from every
+commit** — it is a per-machine permission list. Stage with
+`git add -A -- ':!.claude/settings.local.json'`.
 
-### Critical domain distinction
+End commit messages with the attribution lines the session's own instructions
+give you. Commit or push only when asked.
 
-`companies` ≠ `client_companies`:
-- `companies` = internal tenant/business units (used for access scoping)
-- `client_companies` = CRM customer organizations (attached to leads and contacts)
+## Database and migrations
 
-Confusing these will break queries and RLS.
+One Supabase project serves both apps. **Every migration for both apps lives in
+`apps/leadengine/supabase/migrations`**, including the `sales_mission` schema's.
+There is no `supabase/` directory under `apps/sales-mission`.
+
+```bash
+cd apps/leadengine
+npx supabase db push --linked
+```
+
+New migrations are timestamped `.sql` files. Keep `NOTIFY pgrst, 'reload
+schema';` outside the transaction when you change a function signature or add a
+column PostgREST must see. There is no single canonical schema file: the schema
+is the cumulative result of the migrations, and `schema.sql` is a legacy
+snapshot — do not trust it.
+
+**Never read from or write to the production database with a service-role
+script.** Diagnose through the app, through migrations, or by asking. Fetching a
+public feed URL for diagnosis is fine; anything holding the service-role key is
+not.
+
+## Design
+
+Material Design 3 is the foundation for both apps — **as rules and logic, not as
+a look**: component structure, spacing, hierarchy, colour roles, states, and how
+a control is supposed to behave. Global products are references, never something
+to copy.
+
+Every UI decision and its reasoning is recorded as a row in the app's own
+`DESIGN.md` (`apps/sales-mission/DESIGN.md`, `apps/leadengine/DESIGN.md`). The
+format is: rule, why it is the rule with its references, and where it lands in
+the code. **Read the relevant rows before changing a screen, and add or rewrite
+a row in the same commit as the change.** A DESIGN.md row that no longer matches
+the code is worse than no row.
+
+Half-changes are not acceptable. If a rule implies three adjustments, make all
+three.
+
+## Product copy and documentation
+
+- Sales Activity is Indonesian throughout; LeadEngine is English. One word per
+  concept, matching the product's own vocabulary: in Sales Activity a *prospek*
+  is a plan, an *aktivitas* is an appointment, a *laporan* is a visit that
+  happened.
+- Ship a changelog entry **in the same commit as the feature**, written for sales
+  and admins rather than developers: `apps/sales-mission/lib/changelog.ts`
+  (newest first) and `apps/leadengine/features/changelog/changelog-data.ts`.
+- If a change adds or alters a rule a user must follow, update the guide in the
+  same commit: `apps/sales-mission/app/workspace/panduan/page.tsx`.
+
+## Sales Activity specifics
+
+- Server actions live in `app/actions/`, return `ActionResult` from
+  `types/action-result.ts`, and validate with zod v4 schemas in `lib/`.
+- RLS is the security boundary for session-bound reads. Pages with no session
+  (the TV board, the public calendar, the iCalendar feed) use
+  `createServiceClient()` from `utils/supabase/service.ts`, and **every query
+  made with it must filter by `company_id` explicitly** — that filter is the
+  boundary, not RLS.
+- Public routes are listed in `proxy.ts`; the token in the URL is the credential.
+- The activity, report and prospect forms are **admin-configurable**: fields, their
+  order, labels and requiredness come from tenant config (`lib/missions/form-fields.ts`).
+  A field's `reportingKey` is frozen at creation and can drift from its current
+  label, so always resolve key → label at render time.
+- Scrolling: the shell owns it. Never call `Element.scrollIntoView` or bare
+  `.focus()` — both ask every ancestor to scroll and slide the whole page. Use
+  `scrollInPanel` / `jumpToField` from `lib/ui/scroll-in-panel.ts`.
+
+## LeadEngine specifics
+
+- **`companies` ≠ `client_companies`.** `companies` are internal tenant business
+  units used for access scoping; `client_companies` are CRM customer
+  organisations attached to leads and contacts. Confusing them breaks queries and
+  RLS.
+- Company scoping goes through `scopedQuery()` in `utils/supabase/scoped-query.ts`;
+  holding companies see everything. `fn_user_company_ids()` and
+  `fn_user_has_holding_access()` drive RLS.
+- Never show "Unspecified" without checking entity relations first: use
+  `resolveLeadField()` from `lib/resolve-lead-field.ts` (lead field →
+  client_company field → null).
+- Currency comes from the `useCurrency()` hook in `contexts/currency-context.tsx`.
+  Never hardcode "Rp" or write a local formatter. Chart axis labels use `fmtAxis`,
+  which is always compact.
+- Lead writes go through a column whitelist in `app/actions/lead-actions.ts`. A
+  new lead column must be added there or it is silently dropped.
+- `lead_tasks` and `/dashboard/tasks` are legacy and outside the active product.
 
 ## Environment
 
-Required in `.env.local`:
-- `NEXT_PUBLIC_SUPABASE_URL`
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-
-## Testing
-
-- Tests live alongside feature code: `src/features/*/lib/__tests__/` and `src/features/*/lib/*.test.mts`
-- Property-based tests use `fast-check` (see `*.property.test.ts` files in goals)
-- Test files use both `.test.ts` and `.test.mts` extensions
-- No integration tests requiring a running Supabase instance — all tests are pure unit/property tests
-
-## Supabase / Database
-
-- **No single schema file.** The schema is the cumulative result of ~90 migrations in `supabase/migrations/`. `schema.sql` is a legacy snapshot — do not treat it as current.
-- Supabase local dev: `supabase start` (requires Docker). Config in `supabase/config.toml`, Postgres 17.
-- New migrations: create timestamped `.sql` files in `supabase/migrations/`.
-- Key migrations to understand the current model: `migration_multi_company.sql`, `rls_multi_company.sql`, `20260308055300_create_client_companies_and_contacts.sql`, `20260311054837_standardize_leads_schema.sql`.
-
-## Style conventions
-
-- UI components: shadcn/ui (new-york variant, RSC-enabled, Tailwind CSS variables)
-- Add shadcn components via `npx shadcn add <component>`
-- Path alias: `@/*` maps to `src/*`
-- Forms: React Hook Form + Zod validation
-- Tables: TanStack Table
-- Rich text: Tiptap
-- Icons: lucide-react
-- Toasts: sonner
+Each app needs its own `.env.local`; see `apps/*/.env.example`, which documents
+every variable and why it exists. Both apps point at the same Supabase project
+and share an auth cookie on the parent domain, so one login covers both.
+`SUPABASE_SERVICE_ROLE_KEY` is server-only and must never reach browser code.
 
 ## Gotchas
 
-- Several `scratch*.js`, `fix-stages*.js`, and `check-delete.ts` files in the root are one-off debug/migration scripts, not part of the app.
-- `lead_tasks` and `/dashboard/tasks` are legacy artifacts — not part of the active product scope.
-- Lead actions use a column whitelist (`LEADS_COLUMNS` set) and relational key blocklist to sanitize payloads before DB writes. New lead columns must be added to this whitelist in `src/app/actions/lead-actions.ts`.
-- The `src/proxy.ts` file exists at the src root — not a standard Next.js pattern.
+- Root `npm run dev` / `build` / `test` silently mean LeadEngine. Always say
+  which app you ran.
+- Files under `reference/` are proposals, not implemented features. When
+  `README`, `docs/` or `reference/` disagrees with the code, the code wins.
+- `.claude/DASHBOARD_*.md` are leftovers from old sessions, not specifications.
+- On Windows, bash heredocs carrying complex content (JSX, nested quotes) fail
+  with "unexpected EOF". Write a Python script to the scratchpad directory and
+  run it instead of inlining a heredoc.
