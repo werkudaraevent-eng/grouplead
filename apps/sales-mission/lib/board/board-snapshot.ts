@@ -165,6 +165,17 @@ export function boardRangeBounds(range: BoardRange, today: string): [string, str
 }
 
 const OPEN_STATUSES: MissionStatus[] = ["SCHEDULED", "ASSIGNED", "ACCEPTED", "IN_PROGRESS"]
+/**
+ * A visit that was called off is not on the board.
+ *
+ * The same rule the calendar already applies: a schedule shows what will
+ * happen, and the Aktivitas list with its Status filter is where a
+ * cancellation is reviewed. It matters more here than on a calendar, because
+ * the board does not only draw these rows — it counts them. A cancelled visit
+ * left in put a person in "orang di lapangan" who was sitting at their desk,
+ * so the wall stated something untrue about the room reading it.
+ */
+const OFF_THE_BOARD: MissionStatus[] = ["CANCELLED", "REJECTED"]
 const ASSUMED_MINUTES = 60
 
 /**
@@ -185,6 +196,7 @@ export function buildBoardSnapshot(
   const location = new Set((options.location ?? []).map((item) => item.trim().toLowerCase()))
 
   const scoped = missions.filter((mission) => {
+    if (OFF_THE_BOARD.includes(mission.status)) return false
     if (sales.size && !mission.assigneeIds.some((id) => sales.has(id))) return false
     if (location.size && !location.has((mission.location ?? "").trim().toLowerCase())) return false
     return true

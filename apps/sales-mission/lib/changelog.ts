@@ -28,6 +28,15 @@ export const CHANGE_KIND_LABELS: Record<ChangeKind, string> = {
 export const CHANGELOG: ChangeEntry[] = [
   {
     date: "2026-09-18",
+    title: "Papan live berhenti menghitung kunjungan yang batal",
+    items: [
+      { kind: "diperbaiki", text: "Kunjungan yang dibatalkan atau ditolak tidak lagi tampil di Papan live, dan yang lebih penting tidak lagi ikut dihitung. Sebelumnya satu kunjungan batal membuat papan menulis \u201c1 kunjungan · 1 orang di lapangan\u201d dan memunculkan nama salesnya di panel Tim, padahal tidak ada yang berangkat. Aturannya kini sama dengan Kalender: jadwal menampilkan yang akan terjadi, dan pembatalan dilihat di daftar Aktivitas." },
+      { kind: "lebih-baik", text: "Sisa layar di bawah jadwal kini tetap bergaris sampai dasar, seperti papan keberangkatan sungguhan, jadi papan yang lengang terbaca sebagai \u201ctidak ada lagi hari ini\u201d dan bukan sebagai tampilan rusak." },
+      { kind: "lebih-baik", text: "Nama klien mendapat ruang dua kali lipat dibanding kolom di sebelahnya sehingga tidak lagi terpotong, bilah atas dan tabel kini mulai pada garis yang sama, jam dinding dikecilkan agar tidak menyaingi jam kunjungan, dan penanda pratinjau tidak lagi berbentuk chip yang seolah bisa ditekan." },
+    ],
+  },
+  {
+    date: "2026-09-18",
     title: "Papan live dibaca seperti papan keberangkatan, dan jadwal untuk manajemen",
     items: [
       { kind: "baru", text: "Tautan jadwal publik: admin bisa membuat tautan dari halaman Kalender agar manajemen membuka jadwal tim di browser tanpa login. Isinya sama dengan Kalender — jam, klien, lokasi, sales — baca-saja, tanpa tombol apa pun, dan bisa disaring per sales. Tautannya rahasia dan bisa dicabut kapan saja." },

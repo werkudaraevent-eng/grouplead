@@ -153,7 +153,6 @@
   --board-surface: #0F1319;
   --board-surface-container-low: #171B22;
   --board-surface-container: #1B2028;
-  --board-surface-container-high: #252A33;
   --board-on-surface: #E0E3EA;
   --board-on-surface-variant: #C0C7D4;
   /* Past and finished rows step down in tone, not in opacity: an accent word
@@ -164,9 +163,10 @@
   --board-primary: #B1C5FF;
   --board-primary-container: #1F3F86;
   --board-on-primary-container: #DCE4FF;
-  /* The only accent on the board: the visit happening now. */
+  /* The only accent on the board: the visit happening now. There is no error
+     role here: a cancelled visit is taken off the board rather than shouted
+     about, so nothing on this surface is in an error state. */
   --board-tertiary: #F9BB46;
-  --board-error: #FFB4AB;
 }
 
 /* ── Dark Sidebar Panel (Bigin-style) ── */

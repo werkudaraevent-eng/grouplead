@@ -94,7 +94,7 @@ function DayTimeline({ missions, nowMinute, isToday }: { missions: BoardMission[
         const height = ((Math.min(mission.endMinute, DAY_END) - Math.max(mission.startMinute, DAY_START)) / 60) * PX_PER_HOUR
         if (height <= 0) return null
         const lane = laneOf.get(mission.id) ?? 0
-        const done = mission.status === "COMPLETED" || mission.status === "CANCELLED"
+        const done = mission.status === "COMPLETED"
         return (
           <Link
             key={mission.id}
@@ -299,7 +299,7 @@ export function BoardDashboard({
       {show("schedule") && !week && snapshot.missions.length > 0 && (
         <p className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
           <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-4 rounded-sm border border-primary/40 bg-primary/10" /> Terjadwal</span>
-          <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-4 rounded-sm border bg-muted" /> Selesai atau dibatalkan</span>
+          <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-4 rounded-sm border bg-muted" /> Selesai</span>
           <span className="inline-flex items-center gap-1.5"><span className="h-0.5 w-4 bg-[var(--danger-foreground)]" /> Sekarang</span>
           <span className="ml-auto inline-flex items-center gap-2"><StatusBadge status="ACCEPTED" /> dipakai di daftar aktivitas</span>
         </p>

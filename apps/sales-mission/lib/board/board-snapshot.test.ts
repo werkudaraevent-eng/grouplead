@@ -126,6 +126,36 @@ describe("buildBoardSnapshot", () => {
     ])
   })
 
+  it("takes a cancelled visit off the board entirely", () => {
+    const called_off = [
+      mission({ id: "gone", status: "CANCELLED" as MissionStatus, primarySalesName: "Nadia" }),
+      mission({ id: "refused", scheduledStart: "2026-09-01T04:00:00.000Z", status: "REJECTED" as MissionStatus, primarySalesName: "Raka" }),
+    ]
+    const snapshot = buildBoardSnapshot(called_off, NOW, { masked: false })
+    expect(snapshot.missions).toEqual([])
+    expect(snapshot.days[0].missions).toEqual([])
+  })
+
+  it("does not count a cancelled visit as someone being in the field", () => {
+    // The bug this guards: one cancelled visit made the wall say "1 kunjungan
+    // · 1 orang di lapangan" while that person sat at their desk.
+    const called_off = [mission({ id: "gone", status: "CANCELLED" as MissionStatus, primarySalesName: "Nadia" })]
+    const snapshot = buildBoardSnapshot(called_off, NOW, { masked: false })
+    expect(snapshot.team).toEqual([])
+    expect(snapshot.counts.todayTotal).toBe(0)
+    expect(snapshot.counts.openMissions).toBe(0)
+  })
+
+  it("keeps the visits around a cancelled one", () => {
+    const mixed = [
+      mission({ id: "keep", primarySalesName: "Nadia" }),
+      mission({ id: "gone", scheduledStart: "2026-09-01T04:00:00.000Z", status: "CANCELLED" as MissionStatus, primarySalesName: "Nadia" }),
+    ]
+    const snapshot = buildBoardSnapshot(mixed, NOW, { masked: false })
+    expect(snapshot.missions.map((item) => item.id)).toEqual(["keep"])
+    expect(snapshot.team).toEqual([{ name: "Nadia", missionCount: 1, next: null }])
+  })
+
   it("renders times in mission time, not UTC", () => {
     const snapshot = buildBoardSnapshot(missions, NOW, { masked: true })
     // 02:30Z is 09.30 WIB.
