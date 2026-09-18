@@ -20,10 +20,16 @@ import { cn } from "@/lib/utils"
  * facet moves behind one "Filter" button into a bottom sheet, and the
  * active ones are repeated as a sideways-scrolling chip row, because there
  * the facets themselves are out of sight.
+ *
+ * The quick-filter chips (`quick`) sit above the bar on a desk and under
+ * the search on a phone: search is the first control of every list a
+ * person carries in a pocket (Gmail, Google Maps, Linear), and the chips
+ * narrow what it found.
  */
 export function FilterBarFrame({
   activeCount,
   search,
+  quick,
   facets,
   more = [],
   onClearAll,
@@ -32,6 +38,8 @@ export function FilterBarFrame({
 }: {
   activeCount: number
   search: React.ReactNode
+  /** The list's one-tap narrowings, when it has them. */
+  quick?: React.ReactNode
   /** The facets always in view on a desk. */
   facets: React.ReactNode
   /** Facets shown on a desk only while in use, added from "+ Filter". */
@@ -50,6 +58,8 @@ export function FilterBarFrame({
     const shown = more.filter((spec) => spec.active || spec.key === revealed)
     const hidden = more.filter((spec) => !spec.active && spec.key !== revealed)
     return (
+      <>
+      {quick}
       <div className="mb-4 flex flex-wrap items-center gap-2">
         {search}
         {facets}
@@ -71,6 +81,7 @@ export function FilterBarFrame({
         )}
         {summary}
       </div>
+      </>
     )
   }
 
@@ -91,6 +102,7 @@ export function FilterBarFrame({
           {activeCount > 0 && <span className="rounded-full bg-primary px-1.5 text-[11px] font-bold tabular-nums text-primary-foreground">{activeCount}</span>}
         </Button>
       </div>
+      {quick}
       {chips && (
         <div className="chip-scroll -mx-4 flex items-center gap-1.5 overflow-x-auto px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           <div className="flex shrink-0 items-center gap-1.5">{chips}</div>

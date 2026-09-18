@@ -28,6 +28,15 @@ export const CHANGE_KIND_LABELS: Record<ChangeKind, string> = {
 export const CHANGELOG: ChangeEntry[] = [
   {
     date: "2026-09-18",
+    title: "Daftar Aktivitas di HP: langsung ke daftarnya",
+    items: [
+      { kind: "lebih-baik", text: "Di HP, kotak pencarian sekarang paling atas dan kartu aktivitas pertama muncul jauh lebih awal. Tombol Export dan Import pindah ke menu ⋮ di pojok kanan atas; di komputer keduanya tetap di tempat semula." },
+      { kind: "lebih-baik", text: "Kartu aktivitas lebih ringkas: tanggal dan lokasi dalam satu baris, nama sales di bawahnya, sehingga tiga kartu muat dalam satu layar, bukan satu setengah." },
+      { kind: "lebih-baik", text: "Kotak centang di kartu tidak lagi selalu tampil. Tekan dan tahan sebuah kartu, atau pilih “Pilih aktivitas” dari menu ⋮, untuk mulai memilih beberapa sekaligus; ketuk Batal untuk keluar." },
+    ],
+  },
+  {
+    date: "2026-09-18",
     title: "Join lebih aman dari salah ketuk",
     items: [
       { kind: "lebih-baik", text: "Tombol Join di daftar dan kartu aktivitas tidak lagi biru penuh, supaya tidak mudah terpencet saat menggulir di HP. Yang biru penuh hanya di halaman aktivitasnya sendiri." },

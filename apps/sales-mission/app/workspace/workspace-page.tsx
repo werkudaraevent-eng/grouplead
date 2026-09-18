@@ -31,31 +31,49 @@ export function WorkspacePage({
   eyebrow,
   title,
   description,
+  phoneDescription = true,
   action,
+  phoneAction = true,
   primaryAction,
   children,
 }: {
   eyebrow?: string
   title: string
   description?: string
+  /**
+   * Whether the description also shows on a phone. A sentence that only
+   * teaches what a coach mark already teaches costs two lines on every
+   * visit there, before the first record; a description that states facts
+   * (the record's type and place) earns them.
+   */
+  phoneDescription?: boolean
   action?: React.ReactNode
+  /**
+   * Whether `action` also shows on a phone. Secondary page actions (export,
+   * import) belong in the top app bar's overflow there, announced by the
+   * page through `PageChrome menu`; the desk keeps them in the header.
+   */
+  phoneAction?: boolean
   /** The screen's one primary action: a FAB on a phone, a filled button on a desk. */
   primaryAction?: { href: string; label: string; hint?: FabHint }
   children: React.ReactNode
 }) {
+  // Whether anything in the header reaches a phone; if not, the block is
+  // desk-only rather than an empty band of padding above the list.
+  const phoneHeader = Boolean((description && phoneDescription) || (action && phoneAction))
   return (
     <div className="flex h-full w-full flex-col overflow-clip bg-background">
       <PageChrome title={title} />
       {(eyebrow || description || action || primaryAction) && (
-        <div className="shrink-0 px-4 pb-3 pt-3 sm:px-6 lg:px-8 lg:pb-4 lg:pt-6">
+        <div className={cn("shrink-0 px-4 pb-3 pt-3 sm:px-6 lg:px-8 lg:pb-4 lg:pt-6", !phoneHeader && "max-lg:hidden")}>
           <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
             <div className="min-w-0">
               {eyebrow && <p className="mb-1 hidden text-[11px] font-bold uppercase tracking-widest text-muted-foreground lg:block">{eyebrow}</p>}
               <h1 className="hidden text-xl font-semibold tracking-tight text-foreground lg:block">{title}</h1>
-              {description && <p className="text-sm text-muted-foreground lg:mt-1">{description}</p>}
+              {description && <p className={cn("text-sm text-muted-foreground lg:mt-1", !phoneDescription && "max-lg:hidden")}>{description}</p>}
             </div>
             {(action || primaryAction) && (
-              <div className="flex shrink-0 flex-wrap items-center gap-2">
+              <div className={cn("flex shrink-0 flex-wrap items-center gap-2", !phoneAction && "max-lg:hidden")}>
                 {action}
                 {primaryAction && (
                   <Button asChild size="sm" className="hidden lg:inline-flex">
@@ -69,7 +87,7 @@ export function WorkspacePage({
           </div>
         </div>
       )}
-      <div id="page-scroll" className="custom-scrollbar flex-1 overflow-y-auto px-4 pb-[calc(6rem+env(safe-area-inset-bottom))] sm:px-6 lg:px-8 lg:pb-8">
+      <div id="page-scroll" className={cn("custom-scrollbar flex-1 overflow-y-auto px-4 pb-[calc(6rem+env(safe-area-inset-bottom))] sm:px-6 lg:px-8 lg:pb-8", !phoneHeader && "max-lg:pt-3")}>
         {children}
       </div>
       {primaryAction && <Fab href={primaryAction.href} label={primaryAction.label} hint={primaryAction.hint} />}
@@ -230,7 +248,7 @@ export function QuickFilterChips({
   return (
     <nav
       aria-label="Saringan cepat"
-      className="chip-scroll -mx-4 mb-4 flex gap-2 overflow-x-auto px-4 py-1 sm:mx-0 sm:flex-wrap sm:px-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      className="chip-scroll -mx-4 flex gap-2 overflow-x-auto px-4 py-1 sm:mx-0 sm:flex-wrap sm:px-0 md:mb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
     >
       {chips.map((chip) => (
         <ViewLink

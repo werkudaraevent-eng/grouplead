@@ -1,6 +1,6 @@
 "use client"
 
-import { createContext, useCallback, useContext, useEffect, useState } from "react"
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react"
 
 /**
  * What the phone's top app bar and bottom bar need to know about the page
@@ -14,9 +14,15 @@ import { createContext, useCallback, useContext, useEffect, useState } from "rea
  * every page writing its header twice.
  */
 
+/**
+ * One row of the top app bar's overflow menu: a destination (`href`) or an
+ * action (`onSelect`, for a dialog or a mode the page enters).
+ */
 export interface ChromeMenuItem {
   label: string
-  href: string
+  icon?: React.ElementType
+  href?: string
+  onSelect?: () => void
 }
 
 export interface Chrome {
@@ -63,14 +69,19 @@ export function usePageChrome(): Chrome {
 export function PageChrome({ title, backHref, hideNav, menu }: Chrome) {
   const announce = useContext(AnnounceContext)
   // Compared by content: a server page builds the array on every render.
-  const menuKey = menu ? JSON.stringify(menu) : undefined
+  // Only the labels and hrefs take part; an item's handler and icon are
+  // functions, so the announced value is the array itself, read through a
+  // ref so a re-render with the same content does not re-announce.
+  const menuKey = menu ? JSON.stringify(menu.map((item) => [item.label, item.href ?? ""])) : undefined
+  const menuRef = useRef(menu)
+  menuRef.current = menu
   useEffect(() => {
     if (!announce) return
     const partial: Chrome = {}
     if (title !== undefined) partial.title = title
     if (backHref !== undefined) partial.backHref = backHref
     if (hideNav !== undefined) partial.hideNav = hideNav
-    if (menuKey !== undefined) partial.menu = JSON.parse(menuKey) as ChromeMenuItem[]
+    if (menuKey !== undefined) partial.menu = menuRef.current
     return announce(partial)
   }, [announce, title, backHref, hideNav, menuKey])
   return null

@@ -15,6 +15,8 @@ import { MissionFilterBar } from "./mission-filter-bar"
 import { Button } from "@/components/ui/button"
 import { Download } from "@/components/icons"
 import { ImportMissions } from "./import-missions"
+import { ActivitiesPhoneMenu } from "./activities-phone-menu"
+import { SelectionModeProvider } from "./selection-mode"
 import { paths } from "@/lib/paths"
 
 export const dynamic = "force-dynamic"
@@ -79,6 +81,10 @@ export default async function MissionsPage({
           ? "Baris bertepi kuning menunggu jawaban Anda; jawab langsung dari tombol di barisnya."
           : "Aktivitas yang bisa Anda ikuti punya tombol Join di barisnya.",
       ].join(" ")}
+      // The coach marks on Join and on the FAB teach what this sentence says;
+      // on a phone it would cost two lines before the first record.
+      phoneDescription={false}
+      phoneAction={false}
       action={
         <>
           {/* Exports everything the filters match, not the page on screen. */}
@@ -93,8 +99,10 @@ export default async function MissionsPage({
       primaryAction={canCreate ? { href: paths.newActivity(), label: "Aktivitas baru", hint: { key: "fab-activity", title: "Jadwalkan kunjungan", body: "Aktivitas baru: pilih klien, jadwal, lokasi, dan sales utama. Kalender tim tampil supaya jamnya tidak bentrok.", learnHref: paths.guideSection("aktivitas") } } : undefined}
     >
       <RememberView list="activities" />
-      <QuickFilterChips view={{ query, lens: filter, sort }} counts={{ all: allCount, mine: mineCount, team: teamCount }} policy={settings} defaultSort="upcoming" />
+      <SelectionModeProvider>
+      <ActivitiesPhoneMenu exportHref={exportHref} exportCount={pageResult.total} canCreate={canCreate} canDelete={canDelete} />
       <MissionFilterBar
+        quick={<QuickFilterChips view={{ query, lens: filter, sort }} counts={{ all: allCount, mine: mineCount, team: teamCount }} policy={settings} defaultSort="upcoming" />}
         query={query}
         people={people.map((person) => ({ id: person.id, name: person.name, avatarUrl: person.avatarUrl }))}
         types={facets.types}
@@ -114,6 +122,7 @@ export default async function MissionsPage({
         maxSupporting={settings.maxSupporting}
         pagination={{ page, size, total: pageResult.total, sort }}
       />
+      </SelectionModeProvider>
     </WorkspacePage>
   )
 }
