@@ -28,6 +28,16 @@ export const CHANGE_KIND_LABELS: Record<ChangeKind, string> = {
 export const CHANGELOG: ChangeEntry[] = [
   {
     date: "2026-09-19",
+    title: "Rekaman pertemuan di laporan kunjungan",
+    items: [
+      { kind: "baru", text: "Form laporan punya field Rekaman pertemuan di kartu Lampiran. Rekam pertemuan dengan Memo Suara di iPhone (aplikasi bawaannya tahan layar terkunci dan telepon masuk), lalu ketuk Unggah rekaman dan pilih berkasnya. Atur sekali Kualitas Audio Memo Suara ke Terkompresi supaya satu jam hanya sekitar 30 MB. Maksimal 3 rekaman, 50 MB per berkas, dengan progres unggah yang terlihat." },
+      { kind: "baru", text: "Di halaman aktivitas, rekaman bisa diputar langsung dan diunduh dengan nama aslinya, siap dimasukkan ke alat analisis percakapan seperti Fireflies. Hanya anggota unit bisnis yang sama yang bisa membukanya." },
+      { kind: "baru", text: "Admin bisa menambahkan field Rekaman suara ke form aktivitas dan form prospek, serta mengganti label atau teks bantuan field Rekaman pertemuan di Pengaturan → Form laporan." },
+      { kind: "lebih-baik", text: "Kartu Foto di form laporan kini bernama Lampiran karena memuat foto dan rekaman." },
+    ],
+  },
+  {
+    date: "2026-09-19",
     title: "Hubungi prospek langsung dari daftar",
     items: [
       { kind: "baru", text: "Tombol Catat kontak berganti menjadi Hubungi. Ketuk lalu pilih WhatsApp (chat terbuka dengan pesan pembuka yang sudah terisi), Telepon, atau Email. Di komputer, Telepon menyalin nomornya supaya bisa ditelepon dari HP." },

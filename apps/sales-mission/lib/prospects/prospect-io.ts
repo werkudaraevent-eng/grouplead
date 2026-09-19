@@ -1,7 +1,7 @@
 import { normalizePhone, isValidPhone } from "@/lib/format/phone"
 import { parseNumber } from "@/lib/format/number"
 import { normaliseDate, normaliseTime, splitList, type ImportColumn, type RawRow, type RowIssue } from "@/lib/missions/mission-io"
-import { visibleFields, type FieldAnswer, type FormField } from "@/lib/missions/form-fields"
+import { isAttachmentType, visibleFields, type FieldAnswer, type FormField } from "@/lib/missions/form-fields"
 
 /**
  * Spreadsheet shape for importing prospects.
@@ -47,7 +47,7 @@ function exampleForCustomField(field: FormField): string {
 export function buildProspectColumns(fields: FormField[]): ImportColumn[] {
   const columns: ImportColumn[] = []
   for (const field of visibleFields(fields)) {
-    if (field.fieldType === "PHOTO") continue
+    if (isAttachmentType(field.fieldType)) continue
     if (field.reportingKey === "owner") {
       columns.push({ header: OWNER_EMAIL_COLUMN, key: "owner_email", required: field.isRequired, example: "yulia@werkudara.com" })
       continue
@@ -162,7 +162,7 @@ export function parseProspectRow(
 
   const custom: Record<string, FieldAnswer> = {}
   for (const field of visibleFields(options.fields)) {
-    if (field.isCore || field.fieldType === "PHOTO") continue
+    if (field.isCore || isAttachmentType(field.fieldType)) continue
     const value = cell(field.label)
     if (!value) continue
 

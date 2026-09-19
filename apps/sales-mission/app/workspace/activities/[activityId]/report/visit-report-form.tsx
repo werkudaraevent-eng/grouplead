@@ -21,6 +21,8 @@ import { choicesFor, isNoAction, noActionCode, type ChoiceSet } from "@/lib/miss
 import { parsePhotoAnswer } from "@/lib/photos/photo-answer"
 import { FUTURE_VISIT_MESSAGE, describeTiming, formatVisitWindow, splitMissionInstant, toVisitInstants, visitTimeInFuture } from "@/lib/missions/visit-time"
 import { PhotoField } from "@/components/photo-field"
+import { AudioField } from "@/components/audio-field"
+import { AUDIO_FORMATS_LABEL, parseAudioAnswer } from "@/lib/audio/audio-answer"
 import type { VisitReportRecord } from "@/lib/missions/mission-queries"
 import type { TenantSalesOption } from "@/lib/missions/mission-queries"
 import type { ReportOptions } from "@/lib/missions/report-options"
@@ -107,11 +109,12 @@ const CORE_SECTIONS: Record<string, string> = {
   visit_outcome: "Hasil kunjungan",
   visit_time: "Hasil kunjungan",
   contacts_met: "Hasil kunjungan",
-  // Their own card, last: the admin's order puts the photos after the
+  // Their own card, last: the admin's order puts the attachments after the
   // follow-up, and a second "Hasil kunjungan" card (and chip) read as the
   // form looping back. Attachments close a report (Jobber, ServiceTitan).
-  visit_photos: "Foto",
-  business_card_photos: "Foto",
+  visit_photos: "Lampiran",
+  business_card_photos: "Lampiran",
+  visit_audio: "Lampiran",
   meeting_summary: "Isi pertemuan",
   client_needs: "Isi pertemuan",
   product_interest: "Isi pertemuan",
@@ -129,7 +132,7 @@ const SECTION_HINTS: Record<string, string> = {
   "Isi pertemuan": "Apa yang dibahas, apa yang mereka butuhkan, apa yang menarik minat.",
   Penilaian: "Seberapa panas peluangnya, dan nilai yang bisa diperkirakan.",
   "Tindak lanjut": "Langkah berikutnya, siapa yang memegang, kapan.",
-  Foto: "Bukti kunjungan dan kartu nama orang yang ditemui.",
+  Lampiran: "Foto bukti kunjungan, kartu nama, dan rekaman pertemuan.",
   Tambahan: "Pertanyaan yang ditambahkan admin unit bisnis ini.",
 }
 
@@ -260,6 +263,9 @@ function CustomControl({ field, value, onChange, scope }: { field: FormField; va
   const id = `custom-${field.reportingKey}`
   if (field.fieldType === "PHOTO") {
     return <PhotoField id={id} scope={scope} value={parsePhotoAnswer(value)} onChange={(next) => onChange(next)} hint={field.placeholder || undefined} />
+  }
+  if (field.fieldType === "AUDIO") {
+    return <AudioField id={id} scope={scope} value={parseAudioAnswer(value)} onChange={(next) => onChange(next)} hint={field.placeholder || undefined} />
   }
   if (field.fieldType === "BOOLEAN") {
     return (
@@ -647,6 +653,21 @@ export function VisitReportForm({
               max={field.reportingKey === "business_card_photos" ? 3 : 5}
               // One line: the limit, then what to photograph.
               hint={[`Maks ${field.reportingKey === "business_card_photos" ? 3 : 5} foto`, field.placeholder || field.helpText].filter(Boolean).join(" · ")}
+            />
+          </FieldShell>
+        )
+      case "visit_audio":
+        return (
+          <FieldShell key={field.id} field={field} hint={null}>
+            <AudioField
+              id={`custom-${field.reportingKey}`}
+              scope={missionId}
+              value={parseAudioAnswer(draft.custom[field.reportingKey])}
+              onChange={(next) => updateCustom(field.reportingKey, next)}
+              // The rule first, before anyone picks a file (M3 supporting text;
+              // Google Forms' "supported file: … Max 10 MB"), then the admin's
+              // reminder (consent, by default).
+              hint={[`Maks 3 rekaman · ${AUDIO_FORMATS_LABEL} · 50 MB per berkas`, field.placeholder || field.helpText].filter(Boolean).join(" · ")}
             />
           </FieldShell>
         )

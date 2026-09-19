@@ -15,6 +15,8 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { MultiChoiceWithOther, SelectWithOther } from "@/components/ui/choice-with-other"
 import { PhotoField } from "@/components/photo-field"
 import { parsePhotoAnswer } from "@/lib/photos/photo-answer"
+import { AudioField } from "@/components/audio-field"
+import { parseAudioAnswer } from "@/lib/audio/audio-answer"
 import { FormActionBar } from "@/components/form-action-bar"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -123,6 +125,13 @@ function CustomField({ field, initial }: { field: FormField; initial?: unknown }
     return (
       <FieldShell field={field}>
         <PhotoField id={id} name={name} scope="prospects" defaultValue={parsePhotoAnswer(initial)} hint={field.placeholder || undefined} />
+      </FieldShell>
+    )
+  }
+  if (field.fieldType === "AUDIO") {
+    return (
+      <FieldShell field={field}>
+        <AudioField id={id} name={name} scope="prospects" defaultValue={parseAudioAnswer(initial)} hint={field.placeholder || undefined} />
       </FieldShell>
     )
   }

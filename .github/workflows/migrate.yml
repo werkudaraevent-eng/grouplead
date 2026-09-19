@@ -53,9 +53,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Pinned: "latest" asks the GitHub API for the newest release, and the
+      # runner's unauthenticated quota ran out on the first real run.
       - uses: supabase/setup-cli@v1
         with:
-          version: latest
+          version: 2.117.0
 
       - name: Check secrets
         run: |

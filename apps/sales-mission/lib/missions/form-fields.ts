@@ -1,5 +1,6 @@
 import { z } from "zod"
 import { parsePhotoAnswer, photoAnswerViolation, type PhotoAnswer } from "@/lib/photos/photo-answer"
+import { audioAnswerViolation, parseAudioAnswer, type AudioAnswer } from "@/lib/audio/audio-answer"
 
 /**
  * Admin-configurable form fields.
@@ -50,6 +51,8 @@ export const FIELD_TYPES = [
   "BOOLEAN",
   // Photos, taken or picked on the device, stored in the company's bucket.
   "PHOTO",
+  // Recordings the phone made (Memo Suara), uploaded to the company's bucket.
+  "AUDIO",
   // Core-only: the report's "who did you meet" group. Named so the settings
   // screen shows it for what it is; never offered for a custom field.
   "CONTACTS",
@@ -58,6 +61,16 @@ export type FieldType = (typeof FIELD_TYPES)[number]
 
 /** Types an admin may give a field they add. */
 export const CUSTOM_FIELD_TYPES = FIELD_TYPES.filter((type) => type !== "CONTACTS")
+
+/**
+ * Types whose answer is a list of files in the company's bucket. They are
+ * the exception to "core fields answer through their own columns": an
+ * attachment always lives with the custom answers, whatever its core-ness,
+ * and a spreadsheet can carry neither.
+ */
+export function isAttachmentType(type: FieldType): boolean {
+  return type === "PHOTO" || type === "AUDIO"
+}
 
 export type FormKey = "mission" | "visit_report" | "prospect"
 export const FORM_KEYS: readonly FormKey[] = ["mission", "visit_report", "prospect"]
@@ -75,6 +88,7 @@ export const FIELD_TYPE_LABELS: Record<FieldType, string> = {
   BOOLEAN: "Ya / tidak",
   CONTACTS: "Daftar kontak",
   PHOTO: "Foto",
+  AUDIO: "Rekaman suara",
 }
 
 /** Types whose answers come from a fixed list the admin maintains. */
@@ -226,6 +240,9 @@ export const CORE_REPORT_FIELDS: Array<
   // require or drop them, and so they arrive on every tenant's form.
   { reportingKey: "visit_photos", label: "Foto bukti kunjungan", fieldType: "PHOTO", isRequired: false, displayOrder: 125, helpText: "Suasana pertemuan, papan nama, atau produk yang dibahas." },
   { reportingKey: "business_card_photos", label: "Foto kartu nama", fieldType: "PHOTO", isRequired: false, displayOrder: 130, helpText: "Kartu nama orang yang ditemui, supaya nomor dan jabatannya tidak salah ketik." },
+  // The meeting itself, for coaching and the tools that listen to it. The
+  // phone records; the form only keeps the file (see AudioField).
+  { reportingKey: "visit_audio", label: "Rekaman pertemuan", fieldType: "AUDIO", isRequired: false, displayOrder: 135, helpText: "Rekam dengan Memo Suara (kualitas Terkompresi, bukan Lossless), lalu unggah di sini. Beri tahu klien bahwa pertemuan direkam." },
 ]
 
 /**
@@ -375,8 +392,8 @@ export function describeCoreFieldViolation(
 ): string | null {
   if (!field.isCore) return null
 
-  // A photo field carries nothing the code reads, so the admin may drop it.
-  if (change.archive && field.fieldType !== "PHOTO") return "Field inti tidak bisa dihapus."
+  // An attachment field carries nothing the code reads, so the admin may drop it.
+  if (change.archive && !isAttachmentType(field.fieldType)) return "Field inti tidak bisa dihapus."
   if (change.fieldType && change.fieldType !== field.fieldType) {
     return "Tipe field inti tidak bisa diubah."
   }
@@ -460,20 +477,22 @@ export function visibleFields(fields: FormField[]): FormField[] {
   return fields.filter((field) => field.isActive).sort((a, b) => a.displayOrder - b.displayOrder)
 }
 
-export type FieldAnswer = string | string[] | number | boolean | null | PhotoAnswer[]
+export type FieldAnswer = string | string[] | number | boolean | null | PhotoAnswer[] | AudioAnswer[]
 
 /** Custom-field answers off a submitted form, by the tenant's field types. */
 export function readCustomAnswers(formData: FormData, customFields: FormField[]): Record<string, FieldAnswer> {
   const answers: Record<string, FieldAnswer> = {}
   for (const field of customFields) {
-    // Core fields answer through their own columns, except photos, which
-    // always live with the custom answers.
-    if (field.isCore && field.fieldType !== "PHOTO") continue
+    // Core fields answer through their own columns, except attachments,
+    // which always live with the custom answers.
+    if (field.isCore && !isAttachmentType(field.fieldType)) continue
     const name = `custom__${field.reportingKey}`
     if (field.fieldType === "MULTI_SELECT") {
       answers[field.reportingKey] = formData.getAll(name).map(String)
     } else if (field.fieldType === "PHOTO") {
       answers[field.reportingKey] = parsePhotoAnswer(formData.get(name))
+    } else if (field.fieldType === "AUDIO") {
+      answers[field.reportingKey] = parseAudioAnswer(formData.get(name))
     } else if (field.fieldType === "BOOLEAN") {
       answers[field.reportingKey] = formData.get(name) === "true"
     } else {
@@ -498,7 +517,7 @@ export function validateFieldAnswers(
   const errors: Record<string, string> = {}
 
   for (const field of visibleFields(fields)) {
-    if (field.isCore && field.fieldType !== "PHOTO") continue
+    if (field.isCore && !isAttachmentType(field.fieldType)) continue
 
     const answer = answers[field.reportingKey]
     const empty =
@@ -535,6 +554,11 @@ export function validateFieldAnswers(
         break
       case "PHOTO": {
         const violation = photoAnswerViolation(answer, field.label)
+        if (violation) errors[field.reportingKey] = violation
+        break
+      }
+      case "AUDIO": {
+        const violation = audioAnswerViolation(answer, field.label)
         if (violation) errors[field.reportingKey] = violation
         break
       }
