@@ -2,14 +2,19 @@
 
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { useTransition } from "react"
+import { useState, useTransition } from "react"
 import { ExternalLink } from "@/components/icons"
 import { PersonAvatar } from "@/components/person-avatar"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { buildFunnelSteps } from "@/lib/prospects/prospect-funnel"
 import type { ProspectFunnel } from "@/lib/prospects/prospect-page-queries"
 import type { KpiSummary } from "@/lib/reporting/kpi"
-import { formatValue, type DailyReportRow, type WidgetView } from "@/lib/reporting/widget-view"
+import { formatValue, type DailyReportRow, type ListDrill, type ListRow, type WidgetView } from "@/lib/reporting/widget-view"
+import { INDUSTRY_NONE } from "@/lib/missions/mission-filter"
+import { BottomSheet } from "@/components/ui/bottom-sheet"
+import { Button } from "@/components/ui/button"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { useCompact } from "@/hooks/use-compact"
 import { ON_TIME_GRACE_MINUTES } from "@/lib/missions/visit-time"
 import { paths } from "@/lib/paths"
 import { cn } from "@/lib/utils"
@@ -21,24 +26,122 @@ import { cn } from "@/lib/utils"
  * a phone than an axis.
  */
 
-export function ListBars({ rows, unit }: { rows: Array<{ key: string; label: string; value: number; share: number }>; unit: WidgetView extends { unit: infer U } ? U : "count" | "currency" }) {
+/**
+ * A bar list: label, value and share on one line, the bar under it.
+ *
+ * Google Analytics, Plausible and Vercel Analytics use this shape for
+ * "top N by category" because the numbers read without a tooltip and a
+ * phone fits a dozen rows. The bar is a bar, not a progress indicator:
+ * 8dp tall, 2dp corners, no track behind it (a full-width track means
+ * "of 100%", which is a meter's message, not a count's), its length
+ * relative to the longest row and its colour the measure's own token, so
+ * a card about Aktivitas is the same green as the chart above it. The top
+ * rows stay, the rest fold into a muted "Lainnya" row, and "Lihat semua"
+ * opens the full list in a sheet (a dialog on a desk). A row that a list
+ * can answer ("which activities?") is a link into that list, narrowed to
+ * the row and the period.
+ */
+export function ListBars({
+  rows,
+  all,
+  unit,
+  drill,
+  range,
+  sales,
+}: {
+  rows: ListRow[]
+  all: ListRow[]
+  unit: WidgetView extends { unit: infer U } ? U : "count" | "currency"
+  drill: ListDrill | null
+  range: { from: string; to: string }
+  sales: string[]
+}) {
+  const [open, setOpen] = useState(false)
+  const compact = useCompact()
   if (rows.length === 0) return <p className="text-sm text-muted-foreground">Belum ada data pada periode ini.</p>
-  const max = rows.reduce((highest, row) => Math.max(highest, row.value), 0)
-  return (
-    <ol className="h-full space-y-2.5 overflow-y-auto pr-1">
-      {rows.map((row) => (
-        <li key={row.key}>
-          <div className="flex items-baseline justify-between gap-3 text-sm">
-            <span className="min-w-0 flex-1 truncate text-foreground">{row.label}</span>
-            <span className="shrink-0 tabular-nums text-foreground">{formatValue(row.value, unit)}</span>
-            <span className="w-8 shrink-0 text-right text-[11px] tabular-nums text-muted-foreground">{row.share}%</span>
-          </div>
-          <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-muted" aria-hidden="true">
-            <div className="h-full rounded-full bg-primary" style={{ width: `${max === 0 ? 0 : (row.value / max) * 100}%` }} />
-          </div>
-        </li>
+  const max = all.reduce((highest, row) => Math.max(highest, row.value), 0)
+  const hidden = all.length - rows.filter((row) => !row.folded).length
+  const list = (items: ListRow[]) => (
+    <ol className="space-y-1">
+      {items.map((row) => (
+        <BarRow key={row.key} row={row} max={max} unit={unit} href={rowHref(row, drill, range, sales)} />
       ))}
     </ol>
+  )
+  const title = "Semua baris"
+  const description = `${all.length} baris pada periode ini`
+  return (
+    <div className="flex h-full min-h-0 flex-col">
+      {/* The scroller is widened by the row inset, so a hovered row reaches the card's padding without any negative margin inside the scroll box. */}
+      <div className="thin-scrollbar -mx-2 min-h-0 flex-1 overflow-y-auto px-2">{list(rows)}</div>
+      {hidden > 0 && (
+        <div className="-mb-1 shrink-0 pt-1">
+          <Button type="button" variant="ghost" size="sm" className="-ml-2 h-9 md:h-9" onClick={() => setOpen(true)}>
+            Lihat semua ({all.length})
+          </Button>
+          {compact ? (
+            <BottomSheet open={open} onOpenChange={setOpen} title={title} description={description}>
+              {list(all)}
+            </BottomSheet>
+          ) : (
+            <Dialog open={open} onOpenChange={setOpen}>
+              <DialogContent className="sm:max-w-[28rem]">
+                <DialogHeader>
+                  <DialogTitle>{title}</DialogTitle>
+                  <DialogDescription>{description}</DialogDescription>
+                </DialogHeader>
+                <div className="thin-scrollbar -mx-2 max-h-[60dvh] overflow-y-auto px-2">{list(all)}</div>
+              </DialogContent>
+            </Dialog>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/** The list a row opens, narrowed to the row and the card's period and people; null when no list can. */
+function rowHref(row: ListRow, drill: ListDrill | null, range: { from: string; to: string }, sales: string[]): string | null {
+  if (!drill || row.folded) return null
+  const period = { date: "custom", from: range.from, to: range.to }
+  if (drill.list === "reports") {
+    return row.key ? paths.reportList({ ...period, sales: row.key }) : null
+  }
+  const people = sales.length ? sales.join(",") : undefined
+  switch (drill.dimension) {
+    case "industry":
+      return paths.activities({ ...period, sales: people, industry: row.key || INDUSTRY_NONE })
+    case "mission_type":
+      return row.key ? paths.activities({ ...period, sales: people, type: row.key }) : null
+    case "sales":
+      return row.key ? paths.activities({ ...period, sales: row.key }) : null
+  }
+}
+
+function BarRow({ row, max, unit, href }: { row: ListRow; max: number; unit: "count" | "currency"; href: string | null }) {
+  const body = (
+    <>
+      <div className="flex items-baseline justify-between gap-3 text-sm">
+        <span className={cn("min-w-0 flex-1 truncate", row.folded ? "text-muted-foreground" : "text-foreground")}>{row.label}</span>
+        <span className="shrink-0 tabular-nums text-foreground">{formatValue(row.value, unit)}</span>
+        <span className="w-8 shrink-0 text-right text-[11px] tabular-nums text-muted-foreground">{row.share}%</span>
+      </div>
+      <div className="mt-1 h-2" aria-hidden="true">
+        <div className="h-full rounded-[2px]" style={{ width: `${max === 0 ? 0 : Math.max((row.value / max) * 100, row.value > 0 ? 1.5 : 0)}%`, background: row.color }} />
+      </div>
+    </>
+  )
+  const rowClass = "block rounded-md px-2 py-1.5"
+  return (
+    <li>
+      {href ? (
+        <Link href={href} className={cn(rowClass, "transition-colors hover:bg-muted focus-visible:bg-muted focus-visible:outline-none")} title="Buka daftarnya">
+          {body}
+        </Link>
+      ) : (
+        <div className={rowClass}>{body}</div>
+      )}
+    </li>
   )
 }
 

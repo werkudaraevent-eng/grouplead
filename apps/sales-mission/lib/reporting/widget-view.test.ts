@@ -71,6 +71,32 @@ describe("presentWidget", () => {
     if (view.type !== "list_bars") throw new Error(view.type)
     expect(view.rows.map((row) => row.label)).toEqual(["Banking", "Retail"])
     expect(view.rows[0].share).toBe(75)
+    expect(view.rows[0].color).toBe("var(--chart-1)")
+    expect(view.drill).toBeNull()
+  })
+
+  it("folds the rows past the top twelve into Lainnya, with shares of the whole", () => {
+    const rows = Array.from({ length: 15 }, (_, i) => ({ bucket: `Industri ${String.fromCharCode(65 + i)}`, series: "", value: 15 - i }))
+    const view = presentWidget(builtinWidget("visits_by_industry")!, cube({ visits: { umum: rows } }), "umum", ctx, range)
+    if (view.type !== "list_bars") throw new Error(view.type)
+    expect(view.rows).toHaveLength(13)
+    const other = view.rows[12]
+    expect(other.label).toBe("Lainnya (3 industri)")
+    expect(other.folded).toBe(3)
+    expect(other.value).toBe(3 + 2 + 1)
+    expect(view.all).toHaveLength(15)
+    expect(view.total).toBe(120)
+    // Shares are of all 120 visits, so the visible rows plus Lainnya make 100.
+    expect(view.rows.reduce((sum, row) => sum + row.share, 0)).toBe(100)
+    expect(view.rows[0].share).toBe(Math.round((15 / 120) * 100))
+  })
+
+  it("links a bar list into the list that can answer it", () => {
+    const byIndustry: CubeWidget = { id: "c_actind0001", kind: "custom", source: "cube", title: "Aktivitas per industri", measures: ["appointments"], group: "industry", chart: "hbars", size: "sm" }
+    const view = presentWidget(byIndustry, cube({ appointments: { umum: [{ bucket: "Retail", series: "", value: 1 }] } }), "umum", ctx, range)
+    if (view.type !== "list_bars") throw new Error(view.type)
+    expect(view.drill).toEqual({ list: "activities", dimension: "industry" })
+    expect(view.rows[0].color).toBe("var(--chart-2)")
   })
 
   it("draws a pie without a ring, an area as lines, and a trend under a number", () => {

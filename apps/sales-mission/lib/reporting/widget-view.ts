@@ -2,6 +2,7 @@ import type { ProspectFunnel } from "@/lib/prospects/prospect-page-queries"
 import type { KpiSummary } from "@/lib/reporting/kpi"
 import type { ReportListItem } from "@/lib/reporting/report-list-queries"
 import {
+  DIMENSION_LABELS,
   MEASURE_LABELS,
   MEASURE_UNITS,
   OTHER_KEY,
@@ -46,7 +47,7 @@ export interface Category {
 export type WidgetView =
   | { type: "day_bars"; categories: Category[]; series: Series[]; values: number[][]; stacked: boolean; unit: Unit; horizontal: boolean }
   | { type: "lines"; categories: Category[]; series: Series[]; values: number[][]; unit: Unit; area: boolean }
-  | { type: "list_bars"; rows: Array<{ key: string; label: string; value: number; share: number }>; unit: Unit }
+  | { type: "list_bars"; rows: ListRow[]; all: ListRow[]; total: number; unit: Unit; drill: ListDrill | null }
   | { type: "donut"; slices: Array<{ key: string; label: string; value: number; share: number; color: string }>; total: number; unit: Unit; ring: boolean }
   | { type: "number"; value: number; unit: Unit; hint?: string; spark?: number[] }
   | { type: "table"; columns: Array<{ key: string; label: string; unit: Unit | "percent" }>; rows: Array<{ label: string; cells: Array<number | null> }> }
@@ -54,6 +55,33 @@ export type WidgetView =
   | { type: "funnel"; counts: ProspectFunnel }
   | { type: "kpi_strip"; summary: KpiSummary }
   | { type: "empty"; text: string }
+
+/** One row of a bar list. `folded` is set on the "Lainnya" row: how many buckets it stands for. */
+export interface ListRow {
+  key: string
+  label: string
+  value: number
+  /** Share of the whole total, not of the rows shown. */
+  share: number
+  color: string
+  folded?: number
+}
+
+/**
+ * Where a row leads when tapped: the list that answers "which ones?". Only
+ * the pairs whose list has that facet; anything else has no link.
+ */
+export interface ListDrill {
+  list: "activities" | "reports"
+  dimension: "industry" | "mission_type" | "sales"
+}
+
+/** The list a bar-list row opens, if that list can be narrowed by this grouping. */
+export function listDrill(measure: Measure, group: Dimension): ListDrill | null {
+  if (measure === "appointments" && (group === "industry" || group === "mission_type" || group === "sales")) return { list: "activities", dimension: group }
+  if ((measure === "visits" || measure === "opportunities" || measure === "estimated_value") && group === "sales") return { list: "reports", dimension: "sales" }
+  return null
+}
 
 export interface DailyReportRow {
   missionId: string
@@ -235,9 +263,40 @@ function presentCube(
       if (config.chart === "lines" || config.chart === "area") return { type: "lines", categories, series, values, unit, area: config.chart === "area" }
       return { type: "day_bars", categories, series, values, stacked: false, unit, horizontal: false }
     }
-    const values = keys.map((key) => grid.totals.get(key) ?? 0)
-    const pct = shares(values)
-    return { type: "list_bars", rows: keys.map((key, index) => ({ key, label: categories[index].label, value: values[index], share: pct[index] })), unit }
+    /*
+      A bar list shows the top rows and folds the rest into one "Lainnya"
+      row, so a category that did not make the cut is still counted and
+      the reader can see there is more; the shares are of the whole, so
+      the visible rows never add up to a hundred while something is
+      hidden. `all` carries every bucket for the "Lihat semua" sheet.
+    */
+    const color = seriesColor("measure", measure, 0)
+    const everyKey = grid.buckets
+    const everyValue = everyKey.map((key) => grid.totals.get(key) ?? 0)
+    const everyShare = shares(everyValue)
+    const all: ListRow[] = everyKey.map((key, index) => ({
+      key,
+      label: bucketLabel(group, key, ctx),
+      value: everyValue[index],
+      share: everyShare[index],
+      color: key === UNSET_KEY ? MUTED : color,
+    }))
+    const shown = all.slice(0, TOP_ROWS)
+    const rest = all.slice(TOP_ROWS)
+    const rows: ListRow[] = rest.length === 0
+      ? shown
+      : [
+          ...shown,
+          {
+            key: OTHER_KEY,
+            label: `Lainnya (${rest.length} ${DIMENSION_LABELS[group].toLowerCase()})`,
+            value: rest.reduce((sum, row) => sum + row.value, 0),
+            share: rest.reduce((sum, row) => sum + row.share, 0),
+            color: MUTED,
+            folded: rest.length,
+          },
+        ]
+    return { type: "list_bars", rows, all, total: grid.total, unit, drill: listDrill(measure, group) }
   }
 
   const series: Series[] = grid.series.map((key, index) => ({ key, label: bucketLabel(seriesDimension, key, ctx), color: seriesColor(seriesDimension, key, index) }))
