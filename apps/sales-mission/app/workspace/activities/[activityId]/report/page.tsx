@@ -13,6 +13,7 @@ import {
   getVisitReport,
   listMissionTeam,
   listTenantSales,
+  lastDiscForCompany,
 } from "@/lib/missions/mission-queries"
 import { awaitsConfirmation } from "@/lib/missions/assignment-workflow"
 import { listFormFields } from "@/lib/missions/form-field-queries"
@@ -46,6 +47,11 @@ export default async function VisitReportPage({ params, searchParams }: { params
     listFormFields(access, "visit_report"),
     listReportChoices(access),
   ])
+
+  // Earlier readings of the people met here, only when the unit uses DISC.
+  const knownDisc = settings.contactDiscEnabled
+    ? Object.fromEntries(await lastDiscForCompany(access, { id: missionId, clientCompanyId: mission.clientCompanyId, clientCompanyName: mission.clientCompanyName }))
+    : {}
 
   // The matrix decides: result:create, within the Cakupan that reaches the
   // report's author. The sales utama owns it; a supervisor reaches it.
@@ -134,6 +140,8 @@ export default async function VisitReportPage({ params, searchParams }: { params
         afterVisitOnly={settings.reportAfterVisitOnly}
         report={report}
         appointmentContact={contactFromAppointment(mission.appointment)}
+        discEnabled={settings.contactDiscEnabled}
+        knownDisc={knownDisc}
         editing={editing}
         choices={choices}
         options={options}

@@ -20,6 +20,7 @@ import { describeReportOpens, reportLocked } from "@/lib/missions/report-window"
 import { describeDueDate } from "@/lib/prospects/prospect-schema"
 import { missionDayKey } from "@/lib/missions/mission-calendar"
 import { formatPhone, normalizePhone } from "@/lib/format/phone"
+import { describeAssessment, describeDisc, discCode } from "@/lib/contacts/disc"
 import {
   getCancellation,
   getLeadPush,
@@ -691,6 +692,18 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
                       {contact.fullName}
                       {contact.jobTitle ? <span className="text-muted-foreground"> · {contact.jobTitle}</span> : null}
                       {contact.isDecisionMaker ? <span className="ml-2 rounded-md bg-secondary px-1.5 py-0.5 text-xs font-medium text-secondary-foreground">Pengambil keputusan</span> : null}
+                      {settings.contactDiscEnabled && contact.discPrimary ? (
+                        <>
+                          {/* The reading as a tonal badge beside the name, the way Crystal Knows sits beside a HubSpot contact; the approach line under it so the next rep can act on it without opening the report. */}
+                          <span className="ml-2 rounded-md bg-[var(--tonal)] px-1.5 py-0.5 text-xs font-semibold text-[var(--tonal-foreground)]" title={describeDisc(contact.discPrimary, contact.discSecondary)}>
+                            DISC {discCode(contact.discPrimary, contact.discSecondary)}
+                          </span>
+                          <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
+                            {contact.discNote?.trim() || describeDisc(contact.discPrimary, contact.discSecondary)}
+                            {contact.discAssessedByName ? <span className="text-muted-foreground/80"> · {describeAssessment(contact.discAssessedByName, contact.discAssessedAt)}</span> : null}
+                          </p>
+                        </>
+                      ) : null}
                     </li>
                   ))}
                 </ul>

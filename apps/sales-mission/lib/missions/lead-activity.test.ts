@@ -10,8 +10,8 @@ const report = {
   nextActionType: "SEND_PROPOSAL" as const,
   followUpDate: "2026-09-29",
   contacts: [
-    { fullName: "Tim Cook", jobTitle: "CEO", phone: "", email: "", isDecisionMaker: true, leadEngineContactId: null },
-    { fullName: "Ani", jobTitle: "", phone: "", email: "", isDecisionMaker: false, leadEngineContactId: null },
+    { fullName: "Tim Cook", jobTitle: "CEO", phone: "", email: "", isDecisionMaker: true, leadEngineContactId: null, discAssessedByName: null, discAssessedAt: null },
+    { fullName: "Ani", jobTitle: "", phone: "", email: "", isDecisionMaker: false, leadEngineContactId: null, discAssessedByName: null, discAssessedAt: null },
   ],
 }
 

@@ -8,6 +8,7 @@ import { describeOutOfScope, reportOwners } from "@/lib/access/record-scope"
 import { getMission, getVisitReport } from "@/lib/missions/mission-queries"
 import { notify } from "@/lib/notifications/notification-queries"
 import { canPushLead } from "@/lib/missions/visit-report-schema"
+import { discForCrm } from "@/lib/missions/crm-sync"
 import { visitActivities } from "@/lib/missions/lead-activity"
 import { listReportChoices } from "@/lib/missions/report-choice-queries"
 import { kindOf, labelOf } from "@/lib/missions/report-choices"
@@ -434,6 +435,7 @@ export async function pushMissionToLeadEngine(
           jobTitle: contact.jobTitle || null,
           phone: contact.phone || null,
           email: contact.email || null,
+          disc: discForCrm(contact),
         })
 
         await schema

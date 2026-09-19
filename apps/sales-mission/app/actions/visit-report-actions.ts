@@ -20,7 +20,8 @@ import {
   recordCompanyVisit,
 } from "@/lib/leadengine/client"
 import { notify } from "@/lib/notifications/notification-queries"
-import { contactsForCrm, describeOutcome, visitReachesCrm } from "@/lib/missions/crm-sync"
+import { contactsForCrm, describeOutcome, discForCrm, visitReachesCrm } from "@/lib/missions/crm-sync"
+import { normalizeDisc } from "@/lib/contacts/disc"
 import { MISSION_TIME_ZONE } from "@/lib/missions/mission-schema"
 import {
   missingConfiguredFields,
@@ -132,11 +133,40 @@ async function reportNotYetOpen(access: SalesMissionAccess, mission: { scheduled
 async function replaceContacts(
   missions: ReturnType<Awaited<ReturnType<typeof createClient>>["schema"]>,
   reportId: string,
-  companyId: string,
+  access: SalesMissionAccess,
   contacts: VisitReportDraft["contacts"],
   /** The mission's CRM company, when it has one. Null skips the matching. */
   clientCompanyId: string | null
 ) {
+  const companyId = access.companyId
+
+  /*
+    A DISC reading is signed: who made it and when. Every save rewrites the
+    rows, so the signature would otherwise move to whoever pressed Simpan
+    last, autosave included. The previous rows are read first and a reading
+    that has not changed keeps its signature; a new or changed reading is
+    signed by the person saving it now. A reading carried in from an earlier
+    visit and kept as it was is signed by the rep who confirmed it on this
+    visit: the earlier name shows on the form as its origin, and the saved
+    row says who stood by it here.
+  */
+  const previous = new Map<string, { primary: string | null; secondary: string | null; note: string; by: string | null; byName: string | null; at: string | null }>()
+  const { data: previousRows } = await missions
+    .from("report_contacts")
+    .select("full_name, disc_primary, disc_secondary, disc_note, disc_assessed_by, disc_assessed_by_name, disc_assessed_at")
+    .eq("report_id", reportId)
+    .not("disc_primary", "is", null)
+  for (const row of previousRows ?? []) {
+    previous.set((row.full_name as string).trim().toLowerCase(), {
+      primary: row.disc_primary as string | null,
+      secondary: row.disc_secondary as string | null,
+      note: (row.disc_note as string | null) ?? "",
+      by: row.disc_assessed_by as string | null,
+      byName: row.disc_assessed_by_name as string | null,
+      at: row.disc_assessed_at as string | null,
+    })
+  }
+
   await missions.from("report_contacts").delete().eq("report_id", reportId)
 
   if (contacts.length === 0) return null
@@ -170,7 +200,12 @@ async function replaceContacts(
 
   const { error } = await missions.from("report_contacts").insert(
     contacts.map((contact) => {
-      const matched = known.get(contact.fullName.trim().toLowerCase()) ?? null
+      const key = contact.fullName.trim().toLowerCase()
+      const matched = known.get(key) ?? null
+      const disc = normalizeDisc(contact.discPrimary, contact.discSecondary)
+      const note = disc.primary ? contact.discNote?.trim() || "" : ""
+      const before = previous.get(key)
+      const kept = before && disc.primary && before.primary === disc.primary && before.secondary === disc.secondary && before.note === note ? before : null
       return {
         report_id: reportId,
         company_id: companyId,
@@ -181,6 +216,12 @@ async function replaceContacts(
         is_decision_maker: contact.isDecisionMaker,
         lead_engine_contact_id: matched,
         link_status: matched ? "LINKED" : "SNAPSHOT",
+        disc_primary: disc.primary,
+        disc_secondary: disc.secondary,
+        disc_note: note || null,
+        disc_assessed_by: disc.primary ? (kept ? kept.by : access.userId) : null,
+        disc_assessed_by_name: disc.primary ? (kept ? kept.byName : access.displayName) : null,
+        disc_assessed_at: disc.primary ? (kept ? kept.at : new Date().toISOString()) : null,
       }
     })
   )
@@ -273,7 +314,7 @@ export async function saveVisitReportDraft(
 
   const [mission, fields] = await Promise.all([getMission(access, missionId), listFormFields(access, "visit_report")])
   const contactError = await replaceContacts(
-    missions, reportId, access.companyId, parsed.data.contacts, mission?.clientCompanyId ?? null
+    missions, reportId, access, parsed.data.contacts, mission?.clientCompanyId ?? null
   )
   if (contactError) return { success: false, error: "Kontak gagal disimpan." }
   await replaceCustomValues(missions, reportId, access.companyId, fields, parsed.data.custom)
@@ -477,7 +518,7 @@ export async function submitVisitReport(
 
   const submitMission = await getMission(access, missionId)
   const contactError = await replaceContacts(
-    missions, reportId, access.companyId, parsed.data.contacts, submitMission?.clientCompanyId ?? null
+    missions, reportId, access, parsed.data.contacts, submitMission?.clientCompanyId ?? null
   )
   if (contactError) return { success: false, error: "Kontak gagal disimpan." }
   await replaceCustomValues(missions, reportId, access.companyId, fields, parsed.data.custom)
@@ -605,6 +646,7 @@ async function syncVisitToCrm(
         phone: contact.phone || null,
         email: contact.email || null,
         ownerId: primary?.userId ?? access.userId,
+        disc: discForCrm(contact),
       })
       await missions
         .from("report_contacts")

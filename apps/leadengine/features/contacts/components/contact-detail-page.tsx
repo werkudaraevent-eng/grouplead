@@ -13,7 +13,7 @@ import {
     ArrowLeft, Pencil, Building2, Phone, Globe, MapPin,
     Briefcase, FileText, Clock, Folder, Users, Mail,
     Target, TrendingUp, CheckCircle2, XCircle, Loader2, Linkedin,
-    CalendarDays, Link2, Search, ChevronLeft, ChevronRight, ArrowUpRight, AlertTriangle
+    CalendarDays, Link2, Search, ChevronLeft, ChevronRight, ArrowUpRight, AlertTriangle, MessageCircle
 } from "@/components/icons"
 import { useCurrency } from "@/contexts/currency-context"
 
@@ -61,6 +61,8 @@ interface ContactData {
     date_of_birth: string | null
     address: string | null
     social_urls: SocialUrl[] | null
+    /** Free-form per-tenant fields; `disc` is the reading Sales Mission sends (see readDisc). */
+    custom_fields?: Record<string, unknown> | null
     client_company?: { id: string; name: string } | null
     owner?: { id: string; full_name: string; email: string; avatar_url?: string | null } | null
     needs_enrichment?: boolean
@@ -421,6 +423,7 @@ export function ContactDetailPage({ contact, leads, lastModified, lastModifiedBy
                         <div className="px-5 py-4 space-y-3">
                             <InlineTextField table="contacts" id={contact.id} fieldPath="job_title" icon={Briefcase} label="Job Title" rawValue={contact.job_title} />
                             <InfoRow icon={Globe} label="Contact Source" value={contact.contact_source} />
+                            <DiscRow disc={readDisc(contact.custom_fields)} />
 
                             <InlineTextField table="contacts" id={contact.id} fieldPath="email" icon={Mail} label="Email" rawValue={contact.email} inputType="text" />
                             <InfoRow icon={Mail} label="Secondary Email(s)" value={[contact.secondary_email, ...(contact.secondary_emails || [])].filter(Boolean).join("\n")} isEmail />
@@ -721,6 +724,63 @@ function TabBtn({ value, icon: Icon, label }: { value: string; icon: typeof Cloc
             <Icon className="h-3.5 w-3.5 mr-1.5 shrink-0" />
             {label}
         </TabsTrigger>
+    )
+}
+
+const DISC_NAMES: Record<string, string> = { D: "Dominance", I: "Influence", S: "Steadiness", C: "Conscientiousness" }
+
+interface DiscReading {
+    primary: string
+    secondary: string | null
+    note: string | null
+    assessedByName: string | null
+    assessedAt: string | null
+}
+
+/** The DISC reading Sales Mission stores under custom_fields.disc, or null when malformed or absent. */
+function readDisc(customFields: Record<string, unknown> | null | undefined): DiscReading | null {
+    const raw = customFields?.disc
+    if (!raw || typeof raw !== "object") return null
+    const disc = raw as Record<string, unknown>
+    const primary = typeof disc.primary === "string" && DISC_NAMES[disc.primary] ? disc.primary : null
+    if (!primary) return null
+    const secondary = typeof disc.secondary === "string" && DISC_NAMES[disc.secondary] && disc.secondary !== primary ? disc.secondary : null
+    return {
+        primary,
+        secondary,
+        note: typeof disc.note === "string" && disc.note.trim() ? disc.note.trim() : null,
+        assessedByName: typeof disc.assessedByName === "string" && disc.assessedByName.trim() ? disc.assessedByName : null,
+        assessedAt: typeof disc.assessedAt === "string" ? disc.assessedAt : null,
+    }
+}
+
+/**
+ * The reading as a badge with its meaning under it, the way Crystal Knows
+ * and Humantic AI sit beside a contact in HubSpot and Salesforce. It is one
+ * rep's impression on one day, so the name and the date stay attached; the
+ * note is shown in the rep's own words, which are Indonesian.
+ */
+function DiscRow({ disc }: { disc: DiscReading | null }) {
+    if (!disc) return null
+    const code = disc.secondary ? `${disc.primary}${disc.secondary}` : disc.primary
+    const meaning = disc.secondary
+        ? `${DISC_NAMES[disc.primary]} with a ${DISC_NAMES[disc.secondary]} side`
+        : DISC_NAMES[disc.primary]
+    const when = disc.assessedAt ? new Date(disc.assessedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : null
+    const signed = disc.assessedByName ? `Assessed by ${disc.assessedByName}${when ? ` on ${when}` : ""}` : when ? `Assessed on ${when}` : null
+    return (
+        <div className="flex items-start gap-3 py-1.5">
+            <MessageCircle className="w-4 h-4 text-slate-400 mt-0.5 shrink-0" />
+            <div className="min-w-0 flex-1">
+                <p className="text-[11px] text-slate-400 font-medium uppercase tracking-wider">Communication style (DISC)</p>
+                <p className="mt-0.5 flex flex-wrap items-center gap-2 text-[13px] text-slate-800">
+                    <span className="rounded-md bg-primary/10 px-1.5 py-0.5 text-[12px] font-semibold text-primary" title={meaning}>{code}</span>
+                    <span>{meaning}</span>
+                </p>
+                {disc.note && <p className="mt-0.5 text-[13px] text-slate-800 break-words">{disc.note}</p>}
+                {signed && <p className="mt-0.5 text-[11px] text-slate-400">{signed}</p>}
+            </div>
+        </div>
     )
 }
 

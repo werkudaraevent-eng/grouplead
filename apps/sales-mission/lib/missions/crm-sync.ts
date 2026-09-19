@@ -1,4 +1,6 @@
 import type { VisitOutcome } from "./visit-report-schema"
+import { normalizeDisc, type DiscLetter } from "@/lib/contacts/disc"
+import type { DiscForCrm } from "@/lib/leadengine/client"
 import { labelOf, outcomeReachesCrm, type ChoiceSet } from "./report-choices"
 
 /**
@@ -26,9 +28,9 @@ export function visitReachesCrm(outcome: VisitOutcome, choices?: ChoiceSet | nul
 }
 
 /** Contacts worth a CRM row: a name is required, everything else is a bonus. */
-export function contactsForCrm(contacts: VisitForCrm["contacts"]): VisitForCrm["contacts"] {
+export function contactsForCrm<T extends VisitForCrm["contacts"][number]>(contacts: T[]): T[] {
   const seen = new Set<string>()
-  const result: VisitForCrm["contacts"] = []
+  const result: T[] = []
   for (const contact of contacts) {
     const name = contact.fullName.trim()
     if (!name) continue
@@ -40,6 +42,29 @@ export function contactsForCrm(contacts: VisitForCrm["contacts"]): VisitForCrm["
     result.push({ ...contact, fullName: name })
   }
   return result
+}
+
+/**
+ * The DISC reading as the CRM stores it, or null when the rep made none.
+ * Signed with the name and the date because a reading is one person's
+ * impression on one day, and the CRM shows it as such.
+ */
+export function discForCrm(contact: {
+  discPrimary?: DiscLetter | null
+  discSecondary?: DiscLetter | null
+  discNote?: string | null
+  discAssessedByName?: string | null
+  discAssessedAt?: string | null
+}): DiscForCrm | null {
+  const disc = normalizeDisc(contact.discPrimary, contact.discSecondary)
+  if (!disc.primary) return null
+  return {
+    primary: disc.primary,
+    secondary: disc.secondary,
+    note: contact.discNote?.trim() || null,
+    assessedByName: contact.discAssessedByName ?? null,
+    assessedAt: contact.discAssessedAt ?? null,
+  }
 }
 
 /** One line for the CRM timeline, in the CRM's language. */
