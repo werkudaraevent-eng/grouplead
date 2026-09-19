@@ -369,15 +369,6 @@ export function ProspectTable({
             with the full value on hover; the detail page has the rest.
           */}
           <Table className="min-w-[960px] table-fixed">
-            <colgroup>
-              {selectable && <col className="w-10" />}
-              <col />
-              <col />
-              <col className="w-[200px]" />
-              <col className="hidden w-[200px] xl:table-column" />
-              <col className="hidden w-[88px] 2xl:table-column" />
-              <col className="w-[210px]" />
-            </colgroup>
             <TableHeader>
               <TableRow className="hover:bg-transparent">
                 {selectable && (
@@ -387,10 +378,13 @@ export function ProspectTable({
                 )}
                 <TableHead><Sort column="company" label="Perusahaan" sort={pagination.sort} /></TableHead>
                 <TableHead><Sort column="contact" label="Kontak" sort={pagination.sort} /></TableHead>
-                <TableHead><Sort column="status" label="Status" sort={pagination.sort} /></TableHead>
-                <TableHead className="hidden xl:table-cell"><Sort column="owner" label="Pemegang" sort={pagination.sort} /></TableHead>
-                <TableHead className="hidden 2xl:table-cell"><Sort column="created" label="Dibuat" sort={pagination.sort} /></TableHead>
-                <TableHead className="text-right">Aksi</TableHead>
+                {/* Widths on the header cells, not a <colgroup>: Chrome ignores
+                    display:none on a <col>, so a hidden column's width was still
+                    handed out one column over (see the mission table). */}
+                <TableHead className="w-[200px]"><Sort column="status" label="Status" sort={pagination.sort} /></TableHead>
+                <TableHead className="hidden w-[200px] xl:table-cell"><Sort column="owner" label="Pemegang" sort={pagination.sort} /></TableHead>
+                <TableHead className="hidden w-[88px] 2xl:table-cell"><Sort column="created" label="Dibuat" sort={pagination.sort} /></TableHead>
+                <TableHead className="w-[210px] text-right">Aksi</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>

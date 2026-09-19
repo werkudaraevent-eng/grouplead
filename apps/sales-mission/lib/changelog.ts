@@ -28,6 +28,14 @@ export const CHANGE_KIND_LABELS: Record<ChangeKind, string> = {
 export const CHANGELOG: ChangeEntry[] = [
   {
     date: "2026-09-19",
+    title: "Tampilan komputer: pertanyaan hasil follow-up dan lebar kolom tabel",
+    items: [
+      { kind: "lebih-baik", text: "Di komputer, pertanyaan “Bagaimana hasilnya?” setelah menghubungi prospek kini tampil sebagai dialog di tengah layar dengan latar yang meredup, sama seperti di HP, sehingga tidak lagi menyerupai baris tabel." },
+      { kind: "diperbaiki", text: "Di tabel Aktivitas dan Prospek pada layar sedang, kolom Status tidak lagi melebar dengan ruang kosong; lebar sisa kembali ke kolom nama perusahaan sehingga nama panjang tidak terpotong." },
+    ],
+  },
+  {
+    date: "2026-09-19",
     title: "Rekaman pertemuan di laporan kunjungan",
     items: [
       { kind: "baru", text: "Form laporan punya field Rekaman pertemuan di kartu Lampiran. Rekam pertemuan dengan Memo Suara di iPhone (aplikasi bawaannya tahan layar terkunci dan telepon masuk), lalu ketuk Unggah rekaman dan pilih berkasnya. Atur sekali Kualitas Audio Memo Suara ke Terkompresi supaya satu jam hanya sekitar 30 MB. Maksimal 3 rekaman, 50 MB per berkas, dengan progres unggah yang terlihat." },

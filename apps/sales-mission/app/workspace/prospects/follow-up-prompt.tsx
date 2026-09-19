@@ -7,6 +7,7 @@ import { Loader2 } from "@/components/icons"
 import { logProspectAttempt } from "@/app/actions/prospect-actions"
 import { Button } from "@/components/ui/button"
 import { BottomSheet } from "@/components/ui/bottom-sheet"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { ChoiceChip } from "@/components/ui/choice-chip"
 import { useCompact } from "@/hooks/use-compact"
 import { MISSION_TIME_ZONE } from "@/lib/missions/mission-schema"
@@ -26,14 +27,15 @@ import { PENDING_FOLLOW_UP_EVENT, clearPendingFollowUp, readPendingFollowUp, typ
  *
  * Six answers is not a snackbar, so it does not look like one, and it is
  * not a card either: on a phone it is a modal bottom sheet with a scrim,
- * the surface the Hubungi menu itself uses (HubSpot's and Pipedrive's
- * "Log call?" sheet after a call). A first cut drew it as a card above
- * the bar, on the same white with the same border as the prospect cards,
- * and it read as one more prospect with odd contents. On a desk it is a
- * card at the corner at elevation level 3, without a border, so it sits
- * over the table rather than among its rows. Never traps the person:
- * the scrim, "Nanti" or a swipe put it away, and the note expires on
- * its own.
+ * the surface the Hubungi menu itself uses; on a desk it is a dialog,
+ * centred, with the same scrim (HubSpot's and Pipedrive's "Log call?"
+ * after a call). Two earlier cuts drew it as a card: above the bar on the
+ * phone, at the corner on the desk, on the same white as the prospect
+ * cards and rows, and both read as one more row with odd contents. In M3's
+ * light theme a floating surface is told apart by its container colour
+ * as much as its shadow, and a scrim leaves no doubt. Never traps the
+ * person: the scrim, "Nanti" or a swipe put it away, and the note expires
+ * on its own.
  */
 
 /** Outcomes the prompt can save by itself; the others need the dialog's date or reason. */
@@ -169,18 +171,21 @@ export function FollowUpPrompt({
     )
   }
 
-  if (!pending) return null
-
   return (
-    <div
-      role="dialog"
-      aria-label={TITLE}
-      className="fixed right-6 bottom-6 z-40 w-[26rem] rounded-xl bg-popover p-4 shadow-xl ring-1 ring-foreground/10"
+    <Dialog
+      open={Boolean(pending)}
+      onOpenChange={(open) => {
+        if (!open && !saving) dismiss()
+      }}
     >
-      <p className="text-sm font-semibold text-foreground">{TITLE}</p>
-      <p className="mt-0.5 truncate text-xs text-muted-foreground">{subtitle}</p>
-      <div className="mt-3">{chips}</div>
-      <div className="mt-3">{footer}</div>
-    </div>
+      <DialogContent className="sm:max-w-[26rem]" showCloseButton={false}>
+        <DialogHeader>
+          <DialogTitle>{TITLE}</DialogTitle>
+          <DialogDescription className="truncate">{subtitle}</DialogDescription>
+        </DialogHeader>
+        {chips}
+        {footer}
+      </DialogContent>
+    </Dialog>
   )
 }

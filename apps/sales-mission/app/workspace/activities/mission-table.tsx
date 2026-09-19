@@ -554,17 +554,11 @@ export function MissionTable({
       {/* Same rule as the prospect table: fixed layout, the mission column
           takes what is left, the rest are sized to their content, and the
           location and sales columns leave at narrower widths before
-          anything scrolls. */}
+          anything scrolls. The widths sit on the header cells, not on a
+          <colgroup>: Chrome ignores display:none on a <col>, so a hidden
+          column's width was still handed out, one column over, and Status
+          grew a void while the mission name truncated. */}
       <Table className="min-w-[960px] table-fixed">
-        <colgroup>
-          {canDelete && <col className="w-10" />}
-          <col />
-          <col className="w-[150px]" />
-          <col className="hidden w-[160px] 2xl:table-column" />
-          <col className="hidden w-[190px] xl:table-column" />
-          <col className="w-[240px]" />
-          <col className="w-[230px]" />
-        </colgroup>
         <TableHeader>
           <TableRow className="hover:bg-transparent">
             {canDelete && (
@@ -577,11 +571,11 @@ export function MissionTable({
               </TableHead>
             )}
             <TableHead>{pagination ? <SortHeader column="client" label="Aktivitas" sort={pagination.sort} /> : "Aktivitas"}</TableHead>
-            <TableHead>{pagination ? <SortHeader column="schedule" label="Jadwal" sort={pagination.sort} /> : "Jadwal"}</TableHead>
-            <TableHead className="hidden 2xl:table-cell">{pagination ? <SortHeader column="location" label="Lokasi" sort={pagination.sort} /> : "Lokasi"}</TableHead>
-            <TableHead className="hidden xl:table-cell">{pagination ? <SortHeader column="sales" label="Sales utama" sort={pagination.sort} /> : "Sales utama"}</TableHead>
-            <TableHead>{pagination ? <SortHeader column="status" label="Status" sort={pagination.sort} /> : "Status"}</TableHead>
-            <TableHead className="text-right">Aksi</TableHead>
+            <TableHead className="w-[150px]">{pagination ? <SortHeader column="schedule" label="Jadwal" sort={pagination.sort} /> : "Jadwal"}</TableHead>
+            <TableHead className="hidden w-[160px] 2xl:table-cell">{pagination ? <SortHeader column="location" label="Lokasi" sort={pagination.sort} /> : "Lokasi"}</TableHead>
+            <TableHead className="hidden w-[190px] xl:table-cell">{pagination ? <SortHeader column="sales" label="Sales utama" sort={pagination.sort} /> : "Sales utama"}</TableHead>
+            <TableHead className="w-[240px]">{pagination ? <SortHeader column="status" label="Status" sort={pagination.sort} /> : "Status"}</TableHead>
+            <TableHead className="w-[230px] text-right">Aksi</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
