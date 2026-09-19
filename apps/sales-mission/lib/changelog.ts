@@ -34,6 +34,7 @@ export const CHANGELOG: ChangeEntry[] = [
       { kind: "lebih-baik", text: "Di tabel Aktivitas dan Prospek, klik di mana saja pada baris untuk membuka datanya; nama perusahaan juga menjadi tautan. Panah kecil di ujung baris dihapus karena banyak yang tidak tahu itu bisa diklik." },
       { kind: "lebih-baik", text: "Kolom Sales utama kini menampilkan foto sales utama dan pendukungnya, sama seperti kartu di HP." },
       { kind: "diperbaiki", text: "Lebar kolom tabel Aktivitas dan Prospek ditata ulang: kolom Status dan Aksi tidak lagi menyisakan ruang kosong di laptop, dan nama perusahaan mendapat ruang lebih sehingga tidak terpotong." },
+      { kind: "diperbaiki", text: "Di Kalender pada komputer, angka jumlah aktivitas di tiap tanggal tidak lagi terpotong ketika kartu kalendernya pendek; angka itu kembali ke pojok kanan atas sel. Di HP tetap di bawah tanggal." },
     ],
   },
   {
