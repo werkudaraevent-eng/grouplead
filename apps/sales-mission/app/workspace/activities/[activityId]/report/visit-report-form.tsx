@@ -22,7 +22,7 @@ import { parsePhotoAnswer } from "@/lib/photos/photo-answer"
 import { FUTURE_VISIT_MESSAGE, describeTiming, formatVisitWindow, splitMissionInstant, toVisitInstants, visitTimeInFuture } from "@/lib/missions/visit-time"
 import { PhotoField } from "@/components/photo-field"
 import { AudioField } from "@/components/audio-field"
-import { parseAudioAnswer } from "@/lib/audio/audio-answer"
+import { AUDIO_FORMATS_LABEL, parseAudioAnswer } from "@/lib/audio/audio-answer"
 import type { VisitReportRecord } from "@/lib/missions/mission-queries"
 import type { TenantSalesOption } from "@/lib/missions/mission-queries"
 import type { ReportOptions } from "@/lib/missions/report-options"
@@ -664,8 +664,10 @@ export function VisitReportForm({
               scope={missionId}
               value={parseAudioAnswer(draft.custom[field.reportingKey])}
               onChange={(next) => updateCustom(field.reportingKey, next)}
-              // One line: the limit, then the admin's reminder (consent, by default).
-              hint={["Maks 3 rekaman, 50 MB per berkas", field.placeholder || field.helpText].filter(Boolean).join(" · ")}
+              // The rule first, before anyone picks a file (M3 supporting text;
+              // Google Forms' "supported file: … Max 10 MB"), then the admin's
+              // reminder (consent, by default).
+              hint={[`Maks 3 rekaman · ${AUDIO_FORMATS_LABEL} · 50 MB per berkas`, field.placeholder || field.helpText].filter(Boolean).join(" · ")}
             />
           </FieldShell>
         )

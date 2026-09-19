@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react"
 import { AlertCircle, AudioFile, Loader2, Upload, X } from "@/components/icons"
 import { createClient } from "@/utils/supabase/client"
 import { prepareAudioUpload, removeAudio, signAudio } from "@/app/actions/audio-actions"
-import { AUDIO_BUCKET, AUDIO_MAX_BYTES, AUDIO_MAX_FILES, WAV_MESSAGE, audioExtension, formatBytes, formatDuration, isWavFile, type AudioAnswer } from "@/lib/audio/audio-answer"
+import { AUDIO_BUCKET, AUDIO_FORMATS_LABEL, AUDIO_MAX_BYTES, AUDIO_MAX_FILES, WAV_MESSAGE, audioExtension, formatBytes, formatDuration, isWavFile, type AudioAnswer } from "@/lib/audio/audio-answer"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
@@ -96,7 +96,7 @@ export function AudioField({
     const picked = Array.from(files)
     if (picked.some((file) => isWavFile(file.type, file.name))) { setError(WAV_MESSAGE); return }
     const list = picked.filter((file) => audioExtension(file.type, file.name))
-    if (list.length === 0) { setError("Pilih berkas rekaman suara (misalnya .m4a dari Memo Suara)."); return }
+    if (list.length === 0) { setError(`Pilih berkas rekaman suara (${AUDIO_FORMATS_LABEL}), misalnya .m4a dari Memo Suara.`); return }
     const room = max - items.length - pending.length
     if (room <= 0) { setError(`Maksimal ${max} rekaman.`); return }
     for (const file of list.slice(0, room)) void uploadOne(file)
@@ -229,7 +229,7 @@ export function AudioField({
       </Button>
 
       <p className="text-xs text-muted-foreground">
-        {error ? <span className="text-[var(--danger-foreground)]">{error}</span> : hint ?? `Maks ${max} rekaman, 50 MB per berkas.`}
+        {error ? <span className="text-[var(--danger-foreground)]">{error}</span> : hint ?? `Maks ${max} rekaman · ${AUDIO_FORMATS_LABEL} · 50 MB per berkas.`}
       </p>
     </div>
   )

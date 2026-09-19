@@ -37,6 +37,9 @@ export const AUDIO_MIME_TYPES = [
   "audio/webm", "audio/ogg", "audio/x-caf",
 ] as const
 
+/** The formats named to the person, before they pick: the supporting text says the rule, the error only repeats it. */
+export const AUDIO_FORMATS_LABEL = "M4A, AAC, atau MP3"
+
 export const WAV_MESSAGE = "Format WAV tidak dikompresi (sekitar 10 MB per menit). Ubah format perekam ke M4A atau AAC, lalu rekam ulang."
 
 /** Whether a picked file is an uncompressed WAV, by type or by name. */
