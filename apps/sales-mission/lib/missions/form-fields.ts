@@ -242,7 +242,7 @@ export const CORE_REPORT_FIELDS: Array<
   { reportingKey: "business_card_photos", label: "Foto kartu nama", fieldType: "PHOTO", isRequired: false, displayOrder: 130, helpText: "Kartu nama orang yang ditemui, supaya nomor dan jabatannya tidak salah ketik." },
   // The meeting itself, for coaching and the tools that listen to it. The
   // phone records; the form only keeps the file (see AudioField).
-  { reportingKey: "visit_audio", label: "Rekaman pertemuan", fieldType: "AUDIO", isRequired: false, displayOrder: 135, helpText: "Rekam dengan Memo Suara, lalu unggah di sini. Beri tahu klien bahwa pertemuan direkam." },
+  { reportingKey: "visit_audio", label: "Rekaman pertemuan", fieldType: "AUDIO", isRequired: false, displayOrder: 135, helpText: "Rekam dengan Memo Suara (kualitas Terkompresi, bukan Lossless), lalu unggah di sini. Beri tahu klien bahwa pertemuan direkam." },
 ]
 
 /**
