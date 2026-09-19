@@ -1,4 +1,4 @@
-import { KIND_LABELS } from "@/lib/missions/report-choices"
+import { KIND_LABELS, type ChoiceSet } from "@/lib/missions/report-choices"
 import { UNASSIGNED_LABEL } from "@/lib/reporting/kpi"
 
 /**
@@ -498,6 +498,54 @@ export function ratio(part: number, whole: number): number | null {
 export interface LabelContext {
   /** User id → display name, for the sales dimension. */
   people: ReadonlyMap<string, string>
+  /** The tenant's report choices, so an outcome or interest kind can be turned into the codes a list filters by. */
+  choices?: ChoiceSet | null
+}
+
+/**
+ * Where a bar-list row leads when tapped: the list that answers "which
+ * ones?", narrowed to the row. A pair is listed only when that list has a
+ * facet for the grouping and a period, so the count on the card and the
+ * rows in the list agree. Prospects have no period facet, so `planning`
+ * never links; a time grouping is the period itself, so it never links.
+ */
+export interface ListDrill {
+  list: "activities" | "reports"
+  dimension: "industry" | "mission_type" | "sales" | "client" | "outcome" | "interest"
+  /** Extra facets that pin the list to the measure (an opportunity, a pushed lead). */
+  extra?: Record<string, string>
+}
+
+export function listDrill(measure: Measure, group: Dimension): ListDrill | null {
+  if (measure === "appointments") {
+    if (group === "industry" || group === "mission_type" || group === "sales" || group === "client") return { list: "activities", dimension: group }
+    return null
+  }
+  const reportGroup = group === "sales" || group === "client" || group === "outcome" || group === "interest" ? group : null
+  if (!reportGroup) return null
+  if (measure === "visits") return { list: "reports", dimension: reportGroup }
+  if (measure === "opportunities" || measure === "estimated_value") return { list: "reports", dimension: reportGroup, extra: { opp: "1" } }
+  if (measure === "leads_pushed" && (reportGroup === "sales" || reportGroup === "client")) return { list: "reports", dimension: reportGroup, extra: { pushed: "1" } }
+  return null
+}
+
+/** The value the list's facet takes for a bucket key, or null when no list can name it (an unset bucket, an unknown kind). */
+export function drillParam(drill: ListDrill, key: string, ctx: LabelContext): string | null {
+  switch (drill.dimension) {
+    case "industry":
+      return key || "__none__"
+    case "sales":
+      return key ? key : drill.list === "reports" ? "none" : null
+    case "mission_type":
+    case "client":
+      return key || null
+    case "outcome":
+    case "interest": {
+      const field = drill.dimension === "outcome" ? "visit_outcome" : "interest_level"
+      const codes = (ctx.choices?.[field] ?? []).filter((choice) => choice.kind === key).map((choice) => choice.code)
+      return codes.length ? codes.join(",") : null
+    }
+  }
 }
 
 const PROSPECT_STATUS_LABELS: Record<string, string> = {

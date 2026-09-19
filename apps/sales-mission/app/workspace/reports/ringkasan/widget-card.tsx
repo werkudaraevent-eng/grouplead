@@ -15,7 +15,7 @@ export function WidgetCard({ view, range, sales, editing }: { view: WidgetView; 
     case "donut":
       return <Donut slices={view.slices} total={view.total} unit={view.unit} ring={view.ring} />
     case "list_bars":
-      return <ListBars rows={view.rows} unit={view.unit} />
+      return <ListBars rows={view.rows} all={view.all} unit={view.unit} drill={view.drill} range={range} sales={sales} />
     case "number":
       return <NumberTile value={view.value} unit={view.unit} hint={view.hint} spark={view.spark} />
     case "table":

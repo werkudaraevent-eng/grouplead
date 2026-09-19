@@ -29,7 +29,12 @@ const twoLevelTreeArb = fc
       pipelineValue: fc.double({ min: 0, max: 1e12, noNaN: true }),
       target: fc.double({ min: 0, max: 1e12, noNaN: true }),
       leadIds: fc.array(fc.nat()),
-      children: fc.array(leafNodeArb, { minLength: 0, maxLength: 5 }),
+      // Unique ids among siblings: serializeTargets keys children by id and
+      // the last duplicate wins, so two children sharing an id is not a
+      // tree the round-trip can promise anything about.
+      children: fc
+        .array(leafNodeArb, { minLength: 0, maxLength: 5 })
+        .filter((children) => new Set(children.map((c) => c.id)).size === children.length),
     }),
     { minLength: 1, maxLength: 10 }
   )
@@ -68,10 +73,7 @@ describe('Property 1: Breakdown targets serialization round-trip', () => {
           expect(parentTarget).toBeCloseTo(parent.target, 5)
 
           // Child targets
-          const uniqueChildren = parent.children.filter(
-            (c, i, arr) => arr.findIndex((x) => x.id === c.id) === i
-          )
-          for (const child of uniqueChildren) {
+          for (const child of parent.children) {
             const childTarget = deserializeTargets(serialized, [parent.id, child.id])
             expect(childTarget).toBeCloseTo(child.target, 5)
           }

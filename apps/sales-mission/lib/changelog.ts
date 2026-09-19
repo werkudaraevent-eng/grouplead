@@ -28,6 +28,15 @@ export const CHANGE_KIND_LABELS: Record<ChangeKind, string> = {
 export const CHANGELOG: ChangeEntry[] = [
   {
     date: "2026-09-19",
+    title: "Ringkasan: daftar per industri tidak lagi menyembunyikan sisanya",
+    items: [
+      { kind: "diperbaiki", text: "Kartu daftar di Ringkasan (misalnya Aktivitas per industri) hanya menampilkan 12 baris teratas dan diam-diam membuang sisanya, sehingga industri dengan sedikit aktivitas seolah tidak ada. Sekarang sisanya digabung menjadi satu baris “Lainnya (N industri)”, dan persentase dihitung dari total seluruhnya, bukan dari baris yang tampil saja." },
+      { kind: "baru", text: "Tombol “Lihat semua” di kaki kartu membuka seluruh baris. Baris yang bisa dijawab oleh daftar bisa diketuk untuk membuka daftar itu, sudah tersaring baris dan periodenya: industri, jenis aktivitas, sales, dan klien membuka Aktivitas; sales, klien, hasil kunjungan, dan tingkat minat membuka Laporan (kartu peluang dan lead ikut menyaringnya). Baris seperti itu bertanda chevron di ujungnya. Prospek tidak bisa dibuka begini karena daftarnya belum punya saringan periode. Saat membuat widget, form menyebutkan kalau barisnya akan bisa diketuk." },
+      { kind: "lebih-baik", text: "Batang di kartu daftar kini benar-benar batang: lebih tebal, sudut kecil, tanpa rel abu-abu di belakangnya, dan warnanya mengikuti ukuran yang ditampilkan (hijau untuk Aktivitas, biru untuk Laporan), sama seperti grafik batang di kartu lain. Sebelumnya tampak seperti indikator progres." },
+    ],
+  },
+  {
+    date: "2026-09-19",
     title: "Gaya komunikasi (DISC) pada kontak yang ditemui",
     items: [
       { kind: "baru", text: "Di laporan kunjungan, tiap kontak yang ditemui bisa diberi tipe DISC dari pelatihan: satu huruf Utama dan, kalau terlihat, satu huruf Pendamping, lalu catatan cara menghadapinya. Selalu opsional; begitu huruf dipilih, cara pendekatan dari materi pelatihan tampil sebagai pengingat." },

@@ -71,6 +71,60 @@ describe("presentWidget", () => {
     if (view.type !== "list_bars") throw new Error(view.type)
     expect(view.rows.map((row) => row.label)).toEqual(["Banking", "Retail"])
     expect(view.rows[0].share).toBe(75)
+    expect(view.rows[0].color).toBe("var(--chart-1)")
+    expect(view.drill).toBeNull()
+  })
+
+  it("folds the rows past the top twelve into Lainnya, with shares of the whole", () => {
+    const rows = Array.from({ length: 15 }, (_, i) => ({ bucket: `Industri ${String.fromCharCode(65 + i)}`, series: "", value: 15 - i }))
+    const view = presentWidget(builtinWidget("visits_by_industry")!, cube({ visits: { umum: rows } }), "umum", ctx, range)
+    if (view.type !== "list_bars") throw new Error(view.type)
+    expect(view.rows).toHaveLength(13)
+    const other = view.rows[12]
+    expect(other.label).toBe("Lainnya (3 industri)")
+    expect(other.folded).toBe(3)
+    expect(other.value).toBe(3 + 2 + 1)
+    expect(view.all).toHaveLength(15)
+    expect(view.total).toBe(120)
+    // Shares are of all 120 visits, so the visible rows plus Lainnya make 100.
+    expect(view.rows.reduce((sum, row) => sum + row.share, 0)).toBe(100)
+    expect(view.rows[0].share).toBe(Math.round((15 / 120) * 100))
+  })
+
+  it("links a bar list into the list that can answer it", () => {
+    const byIndustry: CubeWidget = { id: "c_actind0001", kind: "custom", source: "cube", title: "Aktivitas per industri", measures: ["appointments"], group: "industry", chart: "hbars", size: "sm" }
+    const view = presentWidget(byIndustry, cube({ appointments: { umum: [{ bucket: "Retail", series: "", value: 1 }] } }), "umum", ctx, range)
+    if (view.type !== "list_bars") throw new Error(view.type)
+    expect(view.drill).toEqual({ list: "activities", dimension: "industry" })
+    expect(view.rows[0].color).toBe("var(--chart-2)")
+    expect(view.rows[0].param).toBe("Retail")
+  })
+
+  it("turns an outcome kind into the tenant's codes for the Laporan list, and pins opportunities", () => {
+    const choices = {
+      visit_outcome: [
+        { fieldKey: "visit_outcome", code: "MET_DM", label: "Bertemu DM", kind: "met_decision_maker", displayOrder: 1 },
+        { fieldKey: "visit_outcome", code: "MET_OWNER", label: "Bertemu pemilik", kind: "met_decision_maker", displayOrder: 2 },
+        { fieldKey: "visit_outcome", code: "ABSENT", label: "Tidak ada", kind: "absent", displayOrder: 3 },
+      ],
+      interest_level: [],
+      next_action_type: [],
+    } as unknown as NonNullable<Parameters<typeof presentWidget>[3]["choices"]>
+    const byOutcome: CubeWidget = { id: "c_oppout0001", kind: "custom", source: "cube", title: "Peluang per hasil", measures: ["opportunities"], group: "outcome", chart: "hbars", size: "sm" }
+    const view = presentWidget(byOutcome, cube({ opportunities: { umum: [{ bucket: "met_decision_maker", series: "", value: 2 }, { bucket: "unknown", series: "", value: 1 }] } }), "umum", { ...ctx, choices }, range)
+    if (view.type !== "list_bars") throw new Error(view.type)
+    expect(view.drill).toEqual({ list: "reports", dimension: "outcome", extra: { opp: "1" } })
+    expect(view.rows[0].param).toBe("MET_DM,MET_OWNER")
+    // A kind the tenant has no code for cannot be opened.
+    expect(view.rows[1].param).toBeNull()
+  })
+
+  it("never links prospects or time groupings", () => {
+    const byOwner: CubeWidget = { id: "c_plan000001", kind: "custom", source: "cube", title: "Prospek per sales", measures: ["planning"], group: "sales", chart: "hbars", size: "sm" }
+    const view = presentWidget(byOwner, cube({ planning: { umum: [{ bucket: "u1", series: "", value: 1 }] } }), "umum", ctx, range)
+    if (view.type !== "list_bars") throw new Error(view.type)
+    expect(view.drill).toBeNull()
+    expect(view.rows[0].param).toBeNull()
   })
 
   it("draws a pie without a ring, an area as lines, and a trend under a number", () => {
