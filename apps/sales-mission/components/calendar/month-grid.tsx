@@ -118,13 +118,16 @@ export function MonthGrid<T extends MissionListItem>({
                 )}
               >
                 <span className="md:px-1">{day.dayOfMonth}</span>
-                {/* In flow under the number, not pinned to a corner: a 44px
-                    cell is too narrow for a badge beside a two-digit date
-                    without covering it. */}
+                {/* On a phone, in flow under the number: a 44px cell is too
+                    narrow for a badge beside a two-digit date without covering
+                    it. From md the cell is wide, and when the card is short the
+                    container query brings this badge back in a one-line cell,
+                    so it pins to the corner as before; under the number it
+                    would fall below the cell's edge and be clipped. */}
                 {day.missionCount > 0 && (
                   <span
                     className={cn(
-                      "cal-badge mt-0.5 grid h-4 min-w-4 place-items-center self-center rounded-full px-1 text-[10px] font-bold leading-none md:ml-1 md:hidden md:self-start",
+                      "cal-badge mt-0.5 grid h-4 min-w-4 place-items-center self-center rounded-full px-1 text-[10px] font-bold leading-none md:absolute md:top-1 md:right-1 md:mt-0 md:hidden",
                       selected ? "bg-primary-foreground text-primary" : "bg-accent text-accent-foreground"
                     )}
                   >
