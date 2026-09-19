@@ -31,7 +31,7 @@ export default async function MissionSettingsPage() {
       description="Penugasan, batas tim, dan pemeriksaan bentrok jadwal untuk unit bisnis ini."
       action={<BackLink href="/workspace/settings" />}
     >
-      <MissionSettingsForm initial={settings} />
+      <MissionSettingsForm initial={settings} companyName={access.companyName} />
     </WorkspacePage>
   )
 }

@@ -5,7 +5,7 @@ import Link from "next/link"
 import { ViewLink } from "@/components/remember-view"
 import { useRouter, useSearchParams } from "next/navigation"
 import { toast } from "sonner"
-import { ArrowUpRight, CalendarCheck, Loader2, MoreVertical, Phone, Plus, Trash2, UserPlus, X } from "@/components/icons"
+import { ArrowUpRight, CalendarCheck, Loader2, MoreVertical, Plus, Trash2, UserPlus, X } from "@/components/icons"
 import { deleteProspects, assignProspects, matchingProspectIds } from "@/app/actions/prospect-actions"
 import { MissionPagination } from "@/app/workspace/activities/mission-pagination"
 import { SortHeader } from "@/components/sort-header"
@@ -23,6 +23,9 @@ import { ResponsiveMenu } from "@/components/responsive-menu"
 import { useSelectionMode } from "@/components/selection-mode"
 import { SelectableCardBody } from "@/components/selectable-card-body"
 import { TeamFacepile } from "@/components/team-facepile"
+import { ContactMenu } from "./contact-menu"
+import { FollowUpPrompt } from "./follow-up-prompt"
+import { addressContact, renderWhatsAppGreeting } from "@/lib/prospects/whatsapp-greeting"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { cn } from "@/lib/utils"
@@ -61,6 +64,8 @@ function ContactLine({ prospect, today }: { prospect: ProspectListItem; today: s
   if (prospect.statusKind === "lost" && prospect.lostReason) {
     return <span className="block text-xs text-muted-foreground">{prospect.lostReason}</span>
   }
+  // An open status with no attempts already says it in its label.
+  if (prospect.statusKind === "open") return null
   return <span className="block text-xs text-muted-foreground">Belum pernah dihubungi</span>
 }
 
@@ -133,6 +138,9 @@ export function ProspectTable({
   canCreateMission,
   filtered,
   pagination,
+  viewerName,
+  companyName,
+  whatsappGreeting,
 }: {
   prospects: ProspectListItem[]
   statuses: ProspectStatus[]
@@ -145,6 +153,10 @@ export function ProspectTable({
   canCreateMission: boolean
   filtered: boolean
   pagination: { page: number; size: number; total: number; sort: ProspectSort }
+  /** For the WhatsApp opening line: who is writing, from where, in the unit's words. */
+  viewerName: string
+  companyName: string
+  whatsappGreeting: string | null
 }) {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -240,9 +252,17 @@ export function ProspectTable({
         <Link href={paths.activity(prospect.missionId)}>Buka aktivitas</Link>
       </Button>
     ) : !editable(prospect) && canUpdate && prospect.ownerId === null ? null : editable(prospect) && workable(prospect) ? (
-      <Button size={size} className={h} onClick={() => setAttemptTarget({ target: { ids: [prospect.id], label: label(prospect), prospectId: prospect.id }, statusId: prospect.statusId })}>
-        <Phone className="h-4 w-4" /> Catat kontak
-      </Button>
+      <ContactMenu
+        prospectId={prospect.id}
+        label={label(prospect)}
+        statusId={prospect.statusId}
+        phone={prospect.contactPhone}
+        email={prospect.contactEmail}
+        greeting={renderWhatsAppGreeting(whatsappGreeting, { contact: addressContact(prospect.contactSalutation, prospect.contactName), sales: viewerName, company: companyName })}
+        size={size}
+        className={h}
+        onLog={() => setAttemptTarget({ target: { ids: [prospect.id], label: label(prospect), prospectId: prospect.id }, statusId: prospect.statusId })}
+      />
     ) : canUpdate && prospect.ownerId === null ? (
       <Button size={size} variant="outline" className={h} onClick={() => claim(prospect)} disabled={pending}>
         <UserPlus className="h-4 w-4" /> Ambil
@@ -436,6 +456,7 @@ export function ProspectTable({
 
       <ChangeStatusDialog target={statusTarget} statuses={statuses} canCreateMission={canCreateMission} onClose={() => setStatusTarget(null)} />
       <LogAttemptDialog target={attemptTarget?.target ?? null} currentStatusId={attemptTarget?.statusId ?? null} statuses={statuses} canCreateMission={canCreateMission} onClose={() => setAttemptTarget(null)} />
+      <FollowUpPrompt statuses={statuses} onDetail={(pending, prefill) => setAttemptTarget({ target: { ids: [pending.prospectId], label: pending.label, prospectId: pending.prospectId, prefill }, statusId: pending.statusId })} />
       <AssignDialog target={assignTarget} people={people} viewerId={viewer.userId} onClose={() => setAssignTarget(null)} />
     </>
   )

@@ -195,6 +195,8 @@ export interface MissionSettings {
    * the scheduled day and the actual time may not be in the future.
    */
   reportAfterVisitOnly: boolean
+  /** Opening line for a WhatsApp chat started from a prospect; null = the app's default. */
+  whatsappGreeting: string | null
 }
 
 /**
@@ -211,7 +213,7 @@ export async function getMissionSettings(access: SalesMissionAccess): Promise<Mi
   const { data } = await supabase
     .schema("sales_mission")
     .from("mission_settings")
-    .select("conflict_check_enabled, default_travel_buffer_minutes, allow_same_location_back_to_back, max_supporting_per_mission, require_assignment_confirmation, primary_can_reschedule, report_edit_window_days, report_after_visit_only")
+    .select("conflict_check_enabled, default_travel_buffer_minutes, allow_same_location_back_to_back, max_supporting_per_mission, require_assignment_confirmation, primary_can_reschedule, report_edit_window_days, report_after_visit_only, whatsapp_greeting")
     .eq("company_id", access.companyId)
     .maybeSingle()
 
@@ -224,6 +226,7 @@ export async function getMissionSettings(access: SalesMissionAccess): Promise<Mi
     primaryCanReschedule: data?.primary_can_reschedule ?? true,
     reportEditWindowDays: data?.report_edit_window_days ?? 7,
     reportAfterVisitOnly: data?.report_after_visit_only ?? true,
+    whatsappGreeting: (data?.whatsapp_greeting as string | null | undefined)?.trim() || null,
   }
 }
 

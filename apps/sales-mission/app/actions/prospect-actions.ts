@@ -279,7 +279,7 @@ export async function logProspectAttempt(prospectId: string, input: unknown): Pr
   const { access, viewer } = guard
 
   const parsed = attemptInputSchema.safeParse(input)
-  if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message ?? "Catatan kontak tidak valid." }
+  if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message ?? "Catatan follow-up tidak valid." }
 
   const { allowed, rows } = await editableRows(access, viewer, [prospectId])
   if (rows.length === 0) return { success: false, error: "Prospek tidak ditemukan." }
@@ -318,7 +318,7 @@ export async function logProspectAttempt(prospectId: string, input: unknown): Pr
     status_id_after: (statusPatch.status_id as string | undefined) ?? (prospect.status_id as string),
     created_by: access.userId,
   })
-  if (attemptError) return { success: false, error: "Catatan kontak gagal disimpan." }
+  if (attemptError) return { success: false, error: "Catatan follow-up gagal disimpan." }
 
   const { count } = await schema.from("prospect_attempts").select("id", { count: "exact", head: true }).eq("prospect_id", prospectId)
   const { error: updateError } = await schema

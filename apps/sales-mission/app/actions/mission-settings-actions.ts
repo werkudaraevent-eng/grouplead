@@ -17,6 +17,8 @@ const settingsSchema = z.object({
   primaryCanReschedule: z.boolean(),
   reportEditWindowDays: z.number().int().min(0, "Minimal 0 hari").max(365, "Maksimal 365 hari"),
   reportAfterVisitOnly: z.boolean(),
+  /** Empty means the app's default line. */
+  whatsappGreeting: z.string().trim().max(500, "Maksimal 500 karakter"),
 })
 
 export type MissionSettingsInput = z.infer<typeof settingsSchema>
@@ -55,6 +57,7 @@ export async function updateMissionSettings(input: unknown): Promise<ActionResul
         primary_can_reschedule: parsed.data.primaryCanReschedule,
         report_edit_window_days: parsed.data.reportEditWindowDays,
         report_after_visit_only: parsed.data.reportAfterVisitOnly,
+        whatsapp_greeting: parsed.data.whatsappGreeting || null,
         updated_by: access.userId,
         updated_at: new Date().toISOString(),
       },
@@ -72,5 +75,6 @@ export async function updateMissionSettings(input: unknown): Promise<ActionResul
   revalidatePath(paths.activities())
   revalidatePath("/workspace/calendar")
   revalidatePath(paths.settings.activities)
+  revalidatePath(paths.prospects)
   return { success: true }
 }
