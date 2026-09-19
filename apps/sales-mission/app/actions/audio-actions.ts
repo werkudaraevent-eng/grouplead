@@ -3,7 +3,7 @@
 import { randomUUID } from "crypto"
 import { createClient } from "@/utils/supabase/server"
 import { getSalesMissionAccess } from "@/lib/sales-mission-access"
-import { AUDIO_BUCKET, AUDIO_MAX_BYTES, audioExtension, isCompanyAudio } from "@/lib/audio/audio-answer"
+import { AUDIO_BUCKET, AUDIO_MAX_BYTES, WAV_MESSAGE, audioExtension, isCompanyAudio, isWavFile } from "@/lib/audio/audio-answer"
 import { removeAudioFiles, signAudioUrls } from "@/lib/audio/audio-storage"
 import type { ActionResult } from "@/types/action-result"
 import { NO_ACCESS_MESSAGE } from "@/lib/brand"
@@ -25,6 +25,7 @@ export async function prepareAudioUpload(input: { scope: string; size: number; t
   if (typeof input.size !== "number" || input.size <= 0 || input.size > AUDIO_MAX_BYTES) {
     return { success: false, error: "Rekaman maksimal 50 MB." }
   }
+  if (isWavFile(String(input.type ?? ""), String(input.name ?? ""))) return { success: false, error: WAV_MESSAGE }
   const extension = audioExtension(String(input.type ?? ""), String(input.name ?? ""))
   if (!extension) return { success: false, error: "Berkas bukan rekaman suara yang dikenal." }
   const path = `${access.companyId}/${input.scope}/${randomUUID()}.${extension}`

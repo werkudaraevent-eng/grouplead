@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { audioAnswerViolation, audioExtension, formatBytes, formatDuration, isCompanyAudio, parseAudioAnswer } from "./audio-answer"
+import { audioAnswerViolation, audioExtension, formatBytes, formatDuration, isCompanyAudio, isWavFile, parseAudioAnswer } from "./audio-answer"
 
 const company = "11111111-1111-4111-8111-111111111111"
 const good = { path: `${company}/mission-abc/22222222-2222-4222-8222-222222222222.m4a`, name: "Rekaman baru 3.m4a", size: 12_000_000, durationMs: 1_845_000 }
@@ -42,6 +42,13 @@ describe("paths and formats", () => {
     expect(audioExtension("", "Rekaman baru 3.M4A")).toBe("m4a")
     expect(audioExtension("audio/mpeg", "song.mp3")).toBe("mp3")
     expect(audioExtension("application/pdf", "file.pdf")).toBeNull()
+  })
+
+  it("refuses WAV as uncompressed, by type or by name", () => {
+    expect(audioExtension("audio/wav", "meeting.wav")).toBeNull()
+    expect(isWavFile("audio/x-wav", "")).toBe(true)
+    expect(isWavFile("", "Rekaman.WAV")).toBe(true)
+    expect(isWavFile("audio/mp4", "tes3.m4a")).toBe(false)
   })
 
   it("formats a length and a size the way a phone does", () => {

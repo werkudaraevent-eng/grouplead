@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react"
 import { AlertCircle, AudioFile, Loader2, Upload, X } from "@/components/icons"
 import { createClient } from "@/utils/supabase/client"
 import { prepareAudioUpload, removeAudio, signAudio } from "@/app/actions/audio-actions"
-import { AUDIO_BUCKET, AUDIO_MAX_BYTES, AUDIO_MAX_FILES, audioExtension, formatBytes, formatDuration, type AudioAnswer } from "@/lib/audio/audio-answer"
+import { AUDIO_BUCKET, AUDIO_MAX_BYTES, AUDIO_MAX_FILES, WAV_MESSAGE, audioExtension, formatBytes, formatDuration, isWavFile, type AudioAnswer } from "@/lib/audio/audio-answer"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
@@ -93,7 +93,9 @@ export function AudioField({
 
   const addFiles = async (files: FileList | File[]) => {
     setError(null)
-    const list = Array.from(files).filter((file) => audioExtension(file.type, file.name))
+    const picked = Array.from(files)
+    if (picked.some((file) => isWavFile(file.type, file.name))) { setError(WAV_MESSAGE); return }
+    const list = picked.filter((file) => audioExtension(file.type, file.name))
     if (list.length === 0) { setError("Pilih berkas rekaman suara (misalnya .m4a dari Memo Suara)."); return }
     const room = max - items.length - pending.length
     if (room <= 0) { setError(`Maksimal ${max} rekaman.`); return }
@@ -220,7 +222,7 @@ export function AudioField({
         </ul>
       )}
 
-      <input ref={pickerRef} id={id} type="file" accept="audio/*,.m4a,.mp3,.aac,.wav,.ogg,.webm,.caf" multiple className="sr-only" onChange={(event) => { if (event.target.files) void addFiles(event.target.files); event.target.value = "" }} />
+      <input ref={pickerRef} id={id} type="file" accept="audio/*,.m4a,.mp4,.mp3,.aac,.ogg,.webm,.caf" multiple className="sr-only" onChange={(event) => { if (event.target.files) void addFiles(event.target.files); event.target.value = "" }} />
 
       <Button type="button" variant="outline" className={cn("h-12 sm:h-11")} disabled={busy} onClick={() => pickerRef.current?.click()}>
         <Upload className="h-4 w-4" /> Unggah rekaman

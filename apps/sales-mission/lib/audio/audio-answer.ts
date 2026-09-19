@@ -22,21 +22,34 @@ export interface AudioAnswer {
 }
 
 const UUID = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
-export const AUDIO_EXTENSIONS = ["m4a", "mp4", "aac", "mp3", "webm", "ogg", "wav", "caf"] as const
+/**
+ * Compressed formats only. WAV is left out on purpose: uncompressed audio
+ * runs 10 MB a minute, so no real meeting fits the cap, and a rep who
+ * recorded one deserves to hear that when they pick the file, not after
+ * a failed upload. The recorder's format setting is the fix.
+ */
+export const AUDIO_EXTENSIONS = ["m4a", "mp4", "aac", "mp3", "webm", "ogg", "caf"] as const
 export const AUDIO_PATH_PATTERN = new RegExp(`^${UUID}/[A-Za-z0-9_-]{1,60}/${UUID}\\.(${AUDIO_EXTENSIONS.join("|")})$`)
 
-/** What the bucket accepts; the same list gates the picker and the upload. */
+/** What the picker offers and the upload accepts. */
 export const AUDIO_MIME_TYPES = [
   "audio/mp4", "audio/x-m4a", "audio/m4a", "audio/aac", "audio/mpeg", "audio/mp3",
-  "audio/webm", "audio/ogg", "audio/wav", "audio/x-wav", "audio/wave", "audio/x-caf",
+  "audio/webm", "audio/ogg", "audio/x-caf",
 ] as const
+
+export const WAV_MESSAGE = "Format WAV tidak dikompresi (sekitar 10 MB per menit). Ubah format perekam ke M4A atau AAC, lalu rekam ulang."
+
+/** Whether a picked file is an uncompressed WAV, by type or by name. */
+export function isWavFile(type: string, name: string): boolean {
+  return ["audio/wav", "audio/x-wav", "audio/wave", "audio/vnd.wave"].includes(type) || /\.wav$/i.test(name)
+}
 
 /** The extension a file gets from its type, or its name when the browser reports none (iOS often sends "" for a Voice Memo). */
 export function audioExtension(type: string, name: string): (typeof AUDIO_EXTENSIONS)[number] | null {
   const byType: Record<string, (typeof AUDIO_EXTENSIONS)[number]> = {
     "audio/mp4": "m4a", "audio/x-m4a": "m4a", "audio/m4a": "m4a", "audio/aac": "aac",
     "audio/mpeg": "mp3", "audio/mp3": "mp3", "audio/webm": "webm", "audio/ogg": "ogg",
-    "audio/wav": "wav", "audio/x-wav": "wav", "audio/wave": "wav", "audio/x-caf": "caf",
+    "audio/x-caf": "caf",
   }
   if (byType[type]) return byType[type]
   const fromName = name.toLowerCase().match(/\.([a-z0-9]+)$/)?.[1]
