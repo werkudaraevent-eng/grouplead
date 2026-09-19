@@ -1,0 +1,89 @@
+name: Migrate
+
+# Applies apps/leadengine/supabase/migrations to the Supabase project: the
+# same `supabase db push --linked` a laptop runs, started from a phone.
+#
+# Actions tab → Migrate → Run workflow. The default mode is a dry run that
+# only lists what would be applied; choose "apply" to run it. Two repository
+# secrets are needed (Settings → Secrets and variables → Actions):
+#   SUPABASE_ACCESS_TOKEN  a personal access token, supabase.com/dashboard/account/tokens
+#   SUPABASE_DB_PASSWORD   the project's database password (Project Settings → Database)
+# The project ref defaults to production; the repository variable
+# SUPABASE_PROJECT_REF overrides it.
+#
+# A migration already run by hand in the SQL Editor is unknown to the CLI's
+# history and would be run again on the next push. Ours are written to be
+# idempotent, but "mark as applied" records such versions without running
+# them, so the history matches what the database already has.
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "dry-run lists the pending migrations; apply runs them"
+        type: choice
+        options:
+          - dry-run
+          - apply
+        default: dry-run
+      mark_applied:
+        description: "Versions already run by hand to mark as applied without running, space-separated (e.g. 20260919030000 20260919040000)"
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+
+# Two taps queue rather than cancel a migration halfway through.
+concurrency:
+  group: migrate
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    name: ${{ inputs.mode }}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/leadengine
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      SUPABASE_PROJECT_REF: ${{ vars.SUPABASE_PROJECT_REF || 'lfudnmpcmgiopbtluukd' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Check secrets
+        run: |
+          ok=1
+          [ -n "$SUPABASE_ACCESS_TOKEN" ] || { echo "::error::Repository secret SUPABASE_ACCESS_TOKEN is not set"; ok=0; }
+          [ -n "$SUPABASE_DB_PASSWORD" ] || { echo "::error::Repository secret SUPABASE_DB_PASSWORD is not set"; ok=0; }
+          [ "$ok" = 1 ]
+
+      - name: Link project
+        run: supabase link --project-ref "$SUPABASE_PROJECT_REF" --password "$SUPABASE_DB_PASSWORD"
+
+      - name: Mark hand-run migrations as applied
+        if: inputs.mark_applied != ''
+        env:
+          MARK: ${{ inputs.mark_applied }}
+        run: supabase migration repair --linked --status applied --password "$SUPABASE_DB_PASSWORD" $MARK
+
+      - name: Migration history
+        run: supabase migration list --linked --password "$SUPABASE_DB_PASSWORD"
+
+      - name: Dry run
+        if: inputs.mode == 'dry-run'
+        run: supabase db push --linked --dry-run --password "$SUPABASE_DB_PASSWORD"
+
+      - name: Apply
+        if: inputs.mode == 'apply'
+        run: supabase db push --linked --password "$SUPABASE_DB_PASSWORD"
+
+      - name: Migration history after
+        if: inputs.mode == 'apply'
+        run: supabase migration list --linked --password "$SUPABASE_DB_PASSWORD"

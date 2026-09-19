@@ -90,6 +90,14 @@ cd apps/leadengine
 npx supabase db push --linked
 ```
 
+Without a laptop, the **Migrate** workflow (`.github/workflows/migrate.yml`)
+runs the same push from the Actions tab: the default mode is a dry run that
+lists what is pending, "apply" runs it. It needs the repository secrets
+`SUPABASE_ACCESS_TOKEN` and `SUPABASE_DB_PASSWORD`. A migration run by hand in
+the SQL Editor is unknown to the CLI's history; pass its version in the
+workflow's "mark as applied" input (or `npx supabase migration repair --status
+applied <version>`) so it is not run again.
+
 New migrations are timestamped `.sql` files. Keep `NOTIFY pgrst, 'reload
 schema';` outside the transaction when you change a function signature or add a
 column PostgREST must see. There is no single canonical schema file: the schema
