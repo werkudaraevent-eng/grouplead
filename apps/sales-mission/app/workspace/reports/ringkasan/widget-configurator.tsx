@@ -21,6 +21,7 @@ import {
   chartsFor,
   defaultTitle,
   groupsFor,
+  listDrill,
   seriesFor,
   validateWidget,
   type ChartKind,
@@ -129,6 +130,8 @@ export function WidgetConfigurator({
 
   const candidate = toWidget(draft, widget?.id ?? "c_preview000")
   const problem = validateWidget(candidate)
+  // A single-measure bar list is drawn as rows; a row opens the list that can answer it.
+  const drill = draft.chart === "hbars" && measures.length === 1 && !draft.series ? listDrill(draft.measure, draft.group) : null
   const placeholder = defaultTitle({ measures, group: draft.group, series: draft.series || undefined })
 
   const fieldClass = "space-y-1.5"
@@ -208,6 +211,11 @@ export function WidgetConfigurator({
                 </ChoiceChip>
               ))}
             </ChipRow>
+            {drill && (
+              <p className="text-xs text-muted-foreground">
+                Tiap baris kartu bisa diketuk: membuka {drill.list === "reports" ? "Laporan" : "Aktivitas"} yang sudah tersaring {DIMENSION_LABELS[draft.group].toLowerCase()} itu dan periode Ringkasan.
+              </p>
+            )}
           </div>
 
           <div className={fieldClass}>

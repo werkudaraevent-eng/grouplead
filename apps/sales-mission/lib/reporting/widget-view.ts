@@ -4,6 +4,9 @@ import type { ReportListItem } from "@/lib/reporting/report-list-queries"
 import {
   DIMENSION_LABELS,
   MEASURE_LABELS,
+  drillParam,
+  listDrill,
+  type ListDrill,
   MEASURE_UNITS,
   OTHER_KEY,
   UNSET_KEY,
@@ -65,22 +68,8 @@ export interface ListRow {
   share: number
   color: string
   folded?: number
-}
-
-/**
- * Where a row leads when tapped: the list that answers "which ones?". Only
- * the pairs whose list has that facet; anything else has no link.
- */
-export interface ListDrill {
-  list: "activities" | "reports"
-  dimension: "industry" | "mission_type" | "sales"
-}
-
-/** The list a bar-list row opens, if that list can be narrowed by this grouping. */
-export function listDrill(measure: Measure, group: Dimension): ListDrill | null {
-  if (measure === "appointments" && (group === "industry" || group === "mission_type" || group === "sales")) return { list: "activities", dimension: group }
-  if ((measure === "visits" || measure === "opportunities" || measure === "estimated_value") && group === "sales") return { list: "reports", dimension: "sales" }
-  return null
+  /** The value the drill-down list's facet takes for this row; null when the row cannot be opened. */
+  param: string | null
 }
 
 export interface DailyReportRow {
@@ -271,6 +260,7 @@ function presentCube(
       hidden. `all` carries every bucket for the "Lihat semua" sheet.
     */
     const color = seriesColor("measure", measure, 0)
+    const drill = listDrill(measure, group)
     const everyKey = grid.buckets
     const everyValue = everyKey.map((key) => grid.totals.get(key) ?? 0)
     const everyShare = shares(everyValue)
@@ -280,6 +270,7 @@ function presentCube(
       value: everyValue[index],
       share: everyShare[index],
       color: key === UNSET_KEY ? MUTED : color,
+      param: drill ? drillParam(drill, key, ctx) : null,
     }))
     const shown = all.slice(0, TOP_ROWS)
     const rest = all.slice(TOP_ROWS)
@@ -294,9 +285,10 @@ function presentCube(
             share: rest.reduce((sum, row) => sum + row.share, 0),
             color: MUTED,
             folded: rest.length,
+            param: null,
           },
         ]
-    return { type: "list_bars", rows, all, total: grid.total, unit, drill: listDrill(measure, group) }
+    return { type: "list_bars", rows, all, total: grid.total, unit, drill }
   }
 
   const series: Series[] = grid.series.map((key, index) => ({ key, label: bucketLabel(seriesDimension, key, ctx), color: seriesColor(seriesDimension, key, index) }))

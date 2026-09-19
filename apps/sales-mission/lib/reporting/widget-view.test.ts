@@ -97,6 +97,34 @@ describe("presentWidget", () => {
     if (view.type !== "list_bars") throw new Error(view.type)
     expect(view.drill).toEqual({ list: "activities", dimension: "industry" })
     expect(view.rows[0].color).toBe("var(--chart-2)")
+    expect(view.rows[0].param).toBe("Retail")
+  })
+
+  it("turns an outcome kind into the tenant's codes for the Laporan list, and pins opportunities", () => {
+    const choices = {
+      visit_outcome: [
+        { fieldKey: "visit_outcome", code: "MET_DM", label: "Bertemu DM", kind: "met_decision_maker", displayOrder: 1 },
+        { fieldKey: "visit_outcome", code: "MET_OWNER", label: "Bertemu pemilik", kind: "met_decision_maker", displayOrder: 2 },
+        { fieldKey: "visit_outcome", code: "ABSENT", label: "Tidak ada", kind: "absent", displayOrder: 3 },
+      ],
+      interest_level: [],
+      next_action_type: [],
+    } as unknown as NonNullable<Parameters<typeof presentWidget>[3]["choices"]>
+    const byOutcome: CubeWidget = { id: "c_oppout0001", kind: "custom", source: "cube", title: "Peluang per hasil", measures: ["opportunities"], group: "outcome", chart: "hbars", size: "sm" }
+    const view = presentWidget(byOutcome, cube({ opportunities: { umum: [{ bucket: "met_decision_maker", series: "", value: 2 }, { bucket: "unknown", series: "", value: 1 }] } }), "umum", { ...ctx, choices }, range)
+    if (view.type !== "list_bars") throw new Error(view.type)
+    expect(view.drill).toEqual({ list: "reports", dimension: "outcome", extra: { opp: "1" } })
+    expect(view.rows[0].param).toBe("MET_DM,MET_OWNER")
+    // A kind the tenant has no code for cannot be opened.
+    expect(view.rows[1].param).toBeNull()
+  })
+
+  it("never links prospects or time groupings", () => {
+    const byOwner: CubeWidget = { id: "c_plan000001", kind: "custom", source: "cube", title: "Prospek per sales", measures: ["planning"], group: "sales", chart: "hbars", size: "sm" }
+    const view = presentWidget(byOwner, cube({ planning: { umum: [{ bucket: "u1", series: "", value: 1 }] } }), "umum", ctx, range)
+    if (view.type !== "list_bars") throw new Error(view.type)
+    expect(view.drill).toBeNull()
+    expect(view.rows[0].param).toBeNull()
   })
 
   it("draws a pie without a ring, an area as lines, and a trend under a number", () => {

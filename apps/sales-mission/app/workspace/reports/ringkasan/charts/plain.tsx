@@ -3,14 +3,14 @@
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useState, useTransition } from "react"
-import { ExternalLink } from "@/components/icons"
+import { ChevronRight, ExternalLink } from "@/components/icons"
 import { PersonAvatar } from "@/components/person-avatar"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { buildFunnelSteps } from "@/lib/prospects/prospect-funnel"
 import type { ProspectFunnel } from "@/lib/prospects/prospect-page-queries"
 import type { KpiSummary } from "@/lib/reporting/kpi"
-import { formatValue, type DailyReportRow, type ListDrill, type ListRow, type WidgetView } from "@/lib/reporting/widget-view"
-import { INDUSTRY_NONE } from "@/lib/missions/mission-filter"
+import { formatValue, type DailyReportRow, type ListRow, type WidgetView } from "@/lib/reporting/widget-view"
+import type { ListDrill } from "@/lib/reporting/cube"
 import { BottomSheet } from "@/components/ui/bottom-sheet"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -64,7 +64,7 @@ export function ListBars({
   const list = (items: ListRow[]) => (
     <ol className="space-y-1">
       {items.map((row) => (
-        <BarRow key={row.key} row={row} max={max} unit={unit} href={rowHref(row, drill, range, sales)} />
+        <BarRow key={row.key} row={row} max={max} unit={unit} href={rowHref(row, drill, range, sales)} linked={drill !== null} />
       ))}
     </ol>
   )
@@ -100,31 +100,45 @@ export function ListBars({
   )
 }
 
-/** The list a row opens, narrowed to the row and the card's period and people; null when no list can. */
+/**
+ * The list a row opens, narrowed to the row, the card's period and the
+ * page's people. Same tab, on purpose: this is navigation inside the app,
+ * so Kembali returns to the board as it was (M3 navigation, WCAG 3.2.5 on
+ * unrequested context changes; GA4 and HubSpot drill-downs), and on an
+ * iPhone running the app from the home screen a new tab would leave the
+ * app for Safari. The row is a real link, so Cmd/Ctrl+click or a long
+ * press still opens a new tab when the person asks for one.
+ */
 function rowHref(row: ListRow, drill: ListDrill | null, range: { from: string; to: string }, sales: string[]): string | null {
-  if (!drill || row.folded) return null
-  const period = { date: "custom", from: range.from, to: range.to }
-  if (drill.list === "reports") {
-    return row.key ? paths.reportList({ ...period, sales: row.key }) : null
-  }
+  if (!drill || row.param === null) return null
+  const period = { date: "custom", from: range.from, to: range.to, ...drill.extra }
   const people = sales.length ? sales.join(",") : undefined
+  const build = drill.list === "reports" ? paths.reportList : paths.activities
   switch (drill.dimension) {
-    case "industry":
-      return paths.activities({ ...period, sales: people, industry: row.key || INDUSTRY_NONE })
-    case "mission_type":
-      return row.key ? paths.activities({ ...period, sales: people, type: row.key }) : null
     case "sales":
-      return row.key ? paths.activities({ ...period, sales: row.key }) : null
+      return build({ ...period, sales: row.param })
+    case "industry":
+      return build({ ...period, sales: people, industry: row.param })
+    case "mission_type":
+      return build({ ...period, sales: people, type: row.param })
+    case "client":
+      return build({ ...period, sales: people, q: row.param })
+    case "outcome":
+      return build({ ...period, sales: people, outcome: row.param })
+    case "interest":
+      return build({ ...period, sales: people, interest: row.param })
   }
 }
 
-function BarRow({ row, max, unit, href }: { row: ListRow; max: number; unit: "count" | "currency"; href: string | null }) {
+function BarRow({ row, max, unit, href, linked }: { row: ListRow; max: number; unit: "count" | "currency"; href: string | null; linked: boolean }) {
   const body = (
     <>
       <div className="flex items-baseline justify-between gap-3 text-sm">
         <span className={cn("min-w-0 flex-1 truncate", row.folded ? "text-muted-foreground" : "text-foreground")}>{row.label}</span>
         <span className="shrink-0 tabular-nums text-foreground">{formatValue(row.value, unit)}</span>
         <span className="w-8 shrink-0 text-right text-[11px] tabular-nums text-muted-foreground">{row.share}%</span>
+        {/* The trailing chevron is M3's "this row navigates" mark (list item with trailing icon), needed because a phone has no hover. Rows in a card that links keep the column even when their own row cannot open, so the numbers stay aligned. */}
+        {linked && (href ? <ChevronRight className="h-4 w-4 shrink-0 self-center text-muted-foreground" aria-hidden="true" /> : <span className="w-4 shrink-0" aria-hidden="true" />)}
       </div>
       <div className="mt-1 h-2" aria-hidden="true">
         <div className="h-full rounded-[2px]" style={{ width: `${max === 0 ? 0 : Math.max((row.value / max) * 100, row.value > 0 ? 1.5 : 0)}%`, background: row.color }} />

@@ -58,7 +58,7 @@ export default async function ReportSummaryPage({ searchParams }: { searchParams
   const { visible, hidden } = resolveWidgets(layout)
 
   const data = await Promise.all(visible.map((widget) => loadWidgetData(access, widget, { range, sales, day, choices, now })))
-  const ctx = await labelContext(access, salesIdsSeen(data))
+  const ctx = { ...(await labelContext(access, salesIdsSeen(data))), choices }
 
   const cards: CardData[] = visible.map((widget, index) => {
     const modes: readonly WidgetMode[] = widget.source === "cube" && widget.modes?.length ? widget.modes : ["umum"]
