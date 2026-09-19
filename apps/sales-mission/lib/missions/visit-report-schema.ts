@@ -1,5 +1,6 @@
 import { z } from "zod"
 import { isValidPhone, normalizePhone } from "@/lib/format/phone"
+import { DISC_LETTERS } from "@/lib/contacts/disc"
 import { isAttachmentType, visibleFields, type FormField } from "./form-fields"
 import { isNoAction, isNoInterest, outcomeRequiresContacts as choiceOutcomeRequiresContacts, type ChoiceSet } from "./report-choices"
 import { visitTimeViolation } from "./visit-time"
@@ -84,6 +85,11 @@ const contactSchema = z.object({
   phone: z.string().trim().max(40).transform(normalizePhone).optional().or(z.literal("")),
   email: z.union([z.string().trim().email("Format email tidak valid").max(150), z.literal("")]).optional(),
   isDecisionMaker: z.boolean().default(false),
+  // The rep's DISC reading of the person, when the unit has the feature on.
+  // Optional everywhere; a secondary without a primary is dropped on save.
+  discPrimary: z.enum(DISC_LETTERS).nullish(),
+  discSecondary: z.enum(DISC_LETTERS).nullish(),
+  discNote: z.string().trim().max(300, "Maksimal 300 karakter").optional().or(z.literal("")),
 })
 
 export type ReportContactInput = z.infer<typeof contactSchema>
@@ -108,6 +114,9 @@ export function contactFromAppointment(appointment: {
     phone: appointment.phone?.trim() ?? "",
     email: appointment.email?.trim() ?? "",
     isDecisionMaker: false,
+    discPrimary: null,
+    discSecondary: null,
+    discNote: "",
   }
 }
 

@@ -51,6 +51,13 @@ export const CHANGE_TYPE_META: Record<
 
 export const CHANGELOG: ChangelogEntry[] = [
     {
+        date: "2026-09-19",
+        title: "Communication style from the field on the contact page",
+        items: [
+            { type: "feature", text: "When a Sales Activity rep records a DISC reading for someone they met (which letter dominates, an optional secondary letter, and how to approach them), it now appears on that contact's page under Contact Information as a Communication style (DISC) badge, with who assessed it and when. A newer reading from a later visit replaces the earlier one." },
+        ],
+    },
+    {
         date: "2026-09-18",
         title: "Arranging the dashboard is smooth again",
         items: [

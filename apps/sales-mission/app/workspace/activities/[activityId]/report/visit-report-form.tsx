@@ -23,7 +23,8 @@ import { FUTURE_VISIT_MESSAGE, describeTiming, formatVisitWindow, splitMissionIn
 import { PhotoField } from "@/components/photo-field"
 import { AudioField } from "@/components/audio-field"
 import { AUDIO_FORMATS_LABEL, parseAudioAnswer } from "@/lib/audio/audio-answer"
-import type { VisitReportRecord } from "@/lib/missions/mission-queries"
+import type { DiscAssessment, KnownDisc, VisitReportRecord } from "@/lib/missions/mission-queries"
+import { DISC_LETTERS, DISC_PROFILES, describeAssessment, describeDisc, discCode } from "@/lib/contacts/disc"
 import type { TenantSalesOption } from "@/lib/missions/mission-queries"
 import type { ReportOptions } from "@/lib/missions/report-options"
 import { Button } from "@/components/ui/button"
@@ -79,9 +80,17 @@ type Draft = {
   actualDate: string | null
   actualStartTime: string | null
   actualEndTime: string | null
-  contacts: ReportContactInput[]
+  contacts: DraftContact[]
   custom: Record<string, FieldAnswer>
 }
+
+/**
+ * A contact as the form holds it: the input, plus who signed its DISC
+ * reading (from the saved report, or from the earlier visit it was carried
+ * in from). The signature is display only; the schema drops it on save and
+ * the server signs the row itself.
+ */
+type DraftContact = ReportContactInput & Partial<DiscAssessment> & { discCarried?: boolean }
 
 type SyncState = "idle" | "saving" | "saved" | "pending"
 
@@ -89,7 +98,7 @@ const AUTOSAVE_DELAY_MS = 1200
 const RETRY_BASE_MS = 2000
 const RETRY_CEILING_MS = 30_000
 
-const EMPTY_CONTACT: ReportContactInput = { fullName: "", jobTitle: "", phone: "", email: "", isDecisionMaker: false }
+const EMPTY_CONTACT: DraftContact = { fullName: "", jobTitle: "", phone: "", email: "", isDecisionMaker: false, discPrimary: null, discSecondary: null, discNote: "" }
 
 /** Draft property → reporting key, so a missing draft field is labelled from config. */
 const DRAFT_TO_KEY: Record<string, string> = {
@@ -153,7 +162,22 @@ function spanOf(field: FormField): Span {
 const FIELD_CLASS =
   "w-full rounded-md border border-input bg-field px-3 text-sm text-foreground shadow-xs outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
 
-function toDraft(report: VisitReportRecord | null, appointmentContact: ReportContactInput | null, noAction: string, schedule: { start: string | null; end: string | null }): Draft {
+/** The earlier reading applied to a contact, marked as carried in. Unchanged when there is none. */
+function withKnownDisc(contact: DraftContact, known: Record<string, KnownDisc>): DraftContact {
+  const reading = known[contact.fullName.trim().toLowerCase()]
+  if (!reading || contact.discPrimary) return contact
+  return {
+    ...contact,
+    discPrimary: reading.discPrimary,
+    discSecondary: reading.discSecondary,
+    discNote: reading.discNote,
+    discAssessedByName: reading.discAssessedByName,
+    discAssessedAt: reading.discAssessedAt,
+    discCarried: true,
+  }
+}
+
+function toDraft(report: VisitReportRecord | null, appointmentContact: ReportContactInput | null, noAction: string, schedule: { start: string | null; end: string | null }, knownDisc: Record<string, KnownDisc>): Draft {
   return {
     visitOutcome: report?.visitOutcome ?? null,
     meetingSummary: report?.meetingSummary ?? "",
@@ -173,9 +197,117 @@ function toDraft(report: VisitReportRecord | null, appointmentContact: ReportCon
     actualEndTime: (report ? splitMissionInstant(report.actualEnd) : splitMissionInstant(schedule.end))?.time ?? null,
     // A fresh report starts with the person the visit was arranged with. A
     // saved draft keeps whatever the rep left, including an emptied list.
-    contacts: report ? report.contacts : appointmentContact ? [{ ...appointmentContact }] : [],
+    contacts: report ? report.contacts : appointmentContact ? [withKnownDisc({ ...appointmentContact }, knownDisc)] : [],
     custom: (report?.custom as Record<string, FieldAnswer> | undefined) ?? {},
   }
+}
+
+/**
+ * The DISC reading on one contact: two chip rows (the dominant letter, then
+ * an optional secondary one), the training's approach line for what was
+ * chosen, and a free line in the rep's words. Filter chips because the
+ * answer is one of four and every option should be visible; the secondary
+ * row is disabled until a primary exists and never offers the same letter.
+ * A reading carried in from an earlier visit says so and who made it, and a
+ * known reading for a name typed fresh is offered with one tap rather than
+ * applied behind the rep's back. Crystal Knows and Humantic AI show the same
+ * badge-plus-summary in HubSpot and Salesforce.
+ */
+function DiscBlock({
+  index,
+  contact,
+  known,
+  onChange,
+  onUseKnown,
+}: {
+  index: number
+  contact: DraftContact
+  known: KnownDisc | null
+  onChange: (patch: Partial<DraftContact>) => void
+  onUseKnown: () => void
+}) {
+  const primary = contact.discPrimary ?? null
+  const secondary = contact.discSecondary ?? null
+  const signed = describeAssessment(contact.discAssessedByName, contact.discAssessedAt)
+  const offer = !primary && known
+  return (
+    <div className="space-y-2 border-t pt-3 sm:col-span-2">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
+        <p className="text-sm font-medium text-foreground" id={`contact-disc-${index}`}>Gaya komunikasi (DISC)</p>
+        <p className="text-xs text-muted-foreground">Opsional · perkiraanmu setelah bertemu</p>
+      </div>
+      <div className="grid gap-x-4 gap-y-2 sm:grid-cols-2">
+        <div>
+          <p className="text-xs text-muted-foreground" id={`contact-disc-primary-${index}`}>Utama</p>
+          <ChipRow role="group" aria-labelledby={`contact-disc-primary-${index}`}>
+            {DISC_LETTERS.map((letter) => (
+              <ChoiceChip
+                key={letter}
+                selected={primary === letter}
+                onClick={() =>
+                  primary === letter
+                    ? onChange({ discPrimary: null, discSecondary: null })
+                    : onChange({ discPrimary: letter, discSecondary: secondary === letter ? null : secondary })
+                }
+              >
+                <span className="font-semibold">{letter}</span>
+                <span className={cn("text-xs", primary === letter ? "opacity-80" : "text-muted-foreground")}>{DISC_PROFILES[letter].name}</span>
+              </ChoiceChip>
+            ))}
+          </ChipRow>
+        </div>
+        <div>
+          <p className="text-xs text-muted-foreground" id={`contact-disc-secondary-${index}`}>Pendamping</p>
+          <ChipRow role="group" aria-labelledby={`contact-disc-secondary-${index}`}>
+            {DISC_LETTERS.map((letter) => (
+              <ChoiceChip
+                key={letter}
+                selected={secondary === letter}
+                disabled={!primary || primary === letter}
+                onClick={() => onChange({ discSecondary: secondary === letter ? null : letter })}
+              >
+                <span className="font-semibold">{letter}</span>
+                <span className={cn("text-xs", secondary === letter ? "opacity-80" : "text-muted-foreground")}>{DISC_PROFILES[letter].name}</span>
+              </ChoiceChip>
+            ))}
+          </ChipRow>
+        </div>
+      </div>
+      {primary && (
+        <>
+          <p className="text-xs leading-relaxed text-muted-foreground">
+            <span className="mr-1.5 rounded-md bg-[var(--tonal)] px-1.5 py-0.5 font-semibold text-[var(--tonal-foreground)]">{discCode(primary, secondary)}</span>
+            {describeDisc(primary, secondary)}
+          </p>
+          <div className="space-y-1.5">
+            <Label htmlFor={`contact-disc-note-${index}`}>Cara menghadapi orang ini <span className="font-normal text-muted-foreground">(opsional)</span></Label>
+            <Input
+              id={`contact-disc-note-${index}`}
+              className="h-12 bg-card"
+              maxLength={300}
+              value={contact.discNote ?? ""}
+              onChange={(e) => onChange({ discNote: e.target.value })}
+              placeholder="Misal: jangan telepon pagi, minta angka tertulis dulu"
+            />
+          </div>
+          {signed && (
+            <p className="text-xs text-muted-foreground">
+              {contact.discCarried ? "Dari kunjungan sebelumnya · " : ""}{signed}
+            </p>
+          )}
+        </>
+      )}
+      {offer && (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg bg-muted/60 px-3 py-2 text-xs text-muted-foreground">
+          <span>
+            Kunjungan sebelumnya: <span className="font-semibold text-foreground">{discCode(known.discPrimary, known.discSecondary)}</span>
+            {known.discAssessedByName ? ` · ${describeAssessment(known.discAssessedByName, known.discAssessedAt)}` : ""}
+          </span>
+          <Button type="button" variant="outline" size="sm" className="h-8 md:h-8" onClick={onUseKnown}>Pakai</Button>
+        </div>
+      )}
+    </div>
+  )
 }
 
 /** Label, required marker, help text, and the control, on the shared grid. */
@@ -316,6 +448,8 @@ export function VisitReportForm({
   afterVisitOnly,
   report,
   appointmentContact,
+  discEnabled,
+  knownDisc,
   editing,
   choices,
   options,
@@ -331,6 +465,10 @@ export function VisitReportForm({
   report: VisitReportRecord | null
   /** The mission's appointment contact, offered as the first person met. */
   appointmentContact: ReportContactInput | null
+  /** The unit's switch: whether each contact gets the DISC chips. */
+  discEnabled: boolean
+  /** Earlier readings of people met at this company, by lowercased name. */
+  knownDisc: Record<string, KnownDisc>
   /**
    * Set when a sent report is being changed: autosave is off (there is no
    * draft to keep), a reason is required, and saving files the old version.
@@ -344,7 +482,7 @@ export function VisitReportForm({
   fields: FormField[]
 }) {
   const router = useRouter()
-  const [draft, setDraft] = useState<Draft>(() => toDraft(report, appointmentContact, noActionCode(choices), schedule))
+  const [draft, setDraft] = useState<Draft>(() => toDraft(report, appointmentContact, noActionCode(choices), schedule, discEnabled ? knownDisc : {}))
   const [sync, setSync] = useState<SyncState>("idle")
   const [attempt, setAttempt] = useState(0)
   const [error, setError] = useState<string | null>(null)
@@ -401,8 +539,12 @@ export function VisitReportForm({
   const addCustom = (key: "clientNeeds" | "productInterest") => (option: string) => {
     if (!draft[key].includes(option)) update(key, [...draft[key], option])
   }
-  const updateContact = (index: number, patch: Partial<ReportContactInput>) => {
+  const updateContact = (index: number, patch: Partial<DraftContact>) => {
     update("contacts", draft.contacts.map((contact, i) => (i === index ? { ...contact, ...patch } : contact)))
+  }
+  /** A reading the rep changes is theirs; the carried-in mark and its signature go. */
+  const updateDisc = (index: number, patch: Partial<DraftContact>) => {
+    updateContact(index, { ...patch, discCarried: false, discAssessedByName: null, discAssessedAt: null })
   }
 
   const ordered = visibleFields(fields)
@@ -564,6 +706,15 @@ export function VisitReportForm({
                       <Checkbox id={`contact-dm-${index}`} checked={contact.isDecisionMaker} onCheckedChange={(checked) => updateContact(index, { isDecisionMaker: checked === true })} />
                       <Label htmlFor={`contact-dm-${index}`} className="font-normal">Pengambil keputusan</Label>
                     </div>
+                    {discEnabled && (
+                      <DiscBlock
+                        index={index}
+                        contact={contact}
+                        known={knownDisc[contact.fullName.trim().toLowerCase()] ?? null}
+                        onChange={(patch) => updateDisc(index, patch)}
+                        onUseKnown={() => update("contacts", draft.contacts.map((row, i) => (i === index ? withKnownDisc(row, knownDisc) : row)))}
+                      />
+                    )}
                   </div>
                 </div>
               ))}

@@ -1,4 +1,5 @@
 import { cache } from "react"
+import { normalizeDisc, type DiscLetter } from "@/lib/contacts/disc"
 import { createClient } from "@/utils/supabase/server"
 import { reportChoiceLabels } from "./report-choice-queries"
 import type { SalesMissionAccess } from "@/lib/sales-mission-access"
@@ -197,6 +198,8 @@ export interface MissionSettings {
   reportAfterVisitOnly: boolean
   /** Opening line for a WhatsApp chat started from a prospect; null = the app's default. */
   whatsappGreeting: string | null
+  /** Whether the report offers DISC chips on each contact met. Off until the unit trained on it. */
+  contactDiscEnabled: boolean
 }
 
 /**
@@ -213,7 +216,7 @@ export async function getMissionSettings(access: SalesMissionAccess): Promise<Mi
   const { data } = await supabase
     .schema("sales_mission")
     .from("mission_settings")
-    .select("conflict_check_enabled, default_travel_buffer_minutes, allow_same_location_back_to_back, max_supporting_per_mission, require_assignment_confirmation, primary_can_reschedule, report_edit_window_days, report_after_visit_only, whatsapp_greeting")
+    .select("conflict_check_enabled, default_travel_buffer_minutes, allow_same_location_back_to_back, max_supporting_per_mission, require_assignment_confirmation, primary_can_reschedule, report_edit_window_days, report_after_visit_only, whatsapp_greeting, contact_disc_enabled")
     .eq("company_id", access.companyId)
     .maybeSingle()
 
@@ -227,6 +230,7 @@ export async function getMissionSettings(access: SalesMissionAccess): Promise<Mi
     reportEditWindowDays: data?.report_edit_window_days ?? 7,
     reportAfterVisitOnly: data?.report_after_visit_only ?? true,
     whatsappGreeting: (data?.whatsapp_greeting as string | null | undefined)?.trim() || null,
+    contactDiscEnabled: Boolean(data?.contact_disc_enabled),
   }
 }
 
@@ -434,7 +438,22 @@ export interface VisitReportRecord {
   /** Answers to admin-added fields, keyed by reporting key. */
   custom: Record<string, unknown>
   // The CRM link, so the push modal can tell a known contact from a new one.
-  contacts: Array<ReportContactInput & { leadEngineContactId: string | null }>
+  contacts: Array<ReportContactInput & { leadEngineContactId: string | null } & DiscAssessment>
+}
+
+/** Who made a contact's DISC reading, and when. Both null until one is saved. */
+export interface DiscAssessment {
+  discAssessedByName: string | null
+  discAssessedAt: string | null
+}
+
+/** A contact's last DISC reading at a company, for prefilling the next report. */
+export interface KnownDisc {
+  discPrimary: DiscLetter
+  discSecondary: DiscLetter | null
+  discNote: string
+  discAssessedByName: string | null
+  discAssessedAt: string | null
 }
 
 export interface SupportingNoteRecord {
@@ -465,7 +484,7 @@ export async function getVisitReport(
   const [{ data: contacts }, { data: customRows }] = await Promise.all([
     missions
       .from("report_contacts")
-      .select("full_name, job_title, phone, email, is_decision_maker, lead_engine_contact_id")
+      .select("full_name, job_title, phone, email, is_decision_maker, lead_engine_contact_id, disc_primary, disc_secondary, disc_note, disc_assessed_by_name, disc_assessed_at")
       .eq("company_id", access.companyId)
       .eq("report_id", report.id)
       .order("created_at"),
@@ -507,8 +526,77 @@ export async function getVisitReport(
       email: (row.email as string | null) ?? "",
       isDecisionMaker: Boolean(row.is_decision_maker),
       leadEngineContactId: (row.lead_engine_contact_id as string | null) ?? null,
+      discPrimary: normalizeDisc(row.disc_primary, row.disc_secondary).primary,
+      discSecondary: normalizeDisc(row.disc_primary, row.disc_secondary).secondary,
+      discNote: (row.disc_note as string | null) ?? "",
+      discAssessedByName: (row.disc_assessed_by_name as string | null) ?? null,
+      discAssessedAt: (row.disc_assessed_at as string | null) ?? null,
     })),
   }
+}
+
+/**
+ * The last DISC reading of each person met before at this company, keyed by
+ * lowercased name.
+ *
+ * A reading belongs to the person, not to one visit: the rep who met Pak
+ * Nuryono last month already worked out how to talk to him, and the next rep
+ * should start from that, not from blank chips. Matched by name within the
+ * same CRM company (or the same company name when the mission was never
+ * linked), the same rule `replaceContacts` uses to link a contact, so the
+ * two never disagree about who is who. Newest reading wins. Scoped to the
+ * unit by `company_id`; RLS keeps other units out as everywhere else.
+ */
+export async function lastDiscForCompany(
+  access: SalesMissionAccess,
+  mission: { id: string; clientCompanyId: string | null; clientCompanyName: string }
+): Promise<Map<string, KnownDisc>> {
+  const { missions } = await missionSchema()
+
+  let related = missions
+    .from("missions")
+    .select("id")
+    .eq("company_id", access.companyId)
+    .neq("id", mission.id)
+  related = mission.clientCompanyId
+    ? related.eq("client_company_id", mission.clientCompanyId)
+    : related.ilike("client_company_name", mission.clientCompanyName.trim().replace(/[%_]/g, (m) => `\\${m}`))
+  const { data: missionRows } = await related.limit(200)
+  const missionIds = (missionRows ?? []).map((row) => row.id as string)
+  if (missionIds.length === 0) return new Map()
+
+  const { data: reportRows } = await missions
+    .from("visit_reports")
+    .select("id")
+    .eq("company_id", access.companyId)
+    .in("mission_id", missionIds)
+  const reportIds = (reportRows ?? []).map((row) => row.id as string)
+  if (reportIds.length === 0) return new Map()
+
+  const { data: rows } = await missions
+    .from("report_contacts")
+    .select("full_name, disc_primary, disc_secondary, disc_note, disc_assessed_by_name, disc_assessed_at")
+    .eq("company_id", access.companyId)
+    .in("report_id", reportIds)
+    .not("disc_primary", "is", null)
+    .order("disc_assessed_at", { ascending: false, nullsFirst: false })
+    .limit(200)
+
+  const known = new Map<string, KnownDisc>()
+  for (const row of rows ?? []) {
+    const key = (row.full_name as string).trim().toLowerCase()
+    if (!key || known.has(key)) continue
+    const disc = normalizeDisc(row.disc_primary, row.disc_secondary)
+    if (!disc.primary) continue
+    known.set(key, {
+      discPrimary: disc.primary,
+      discSecondary: disc.secondary,
+      discNote: (row.disc_note as string | null) ?? "",
+      discAssessedByName: (row.disc_assessed_by_name as string | null) ?? null,
+      discAssessedAt: (row.disc_assessed_at as string | null) ?? null,
+    })
+  }
+  return known
 }
 
 /** Supporting notes for a mission, oldest first, with author names resolved. */

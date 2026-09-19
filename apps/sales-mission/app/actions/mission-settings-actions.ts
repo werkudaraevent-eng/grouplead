@@ -19,6 +19,7 @@ const settingsSchema = z.object({
   reportAfterVisitOnly: z.boolean(),
   /** Empty means the app's default line. */
   whatsappGreeting: z.string().trim().max(500, "Maksimal 500 karakter"),
+  contactDiscEnabled: z.boolean(),
 })
 
 export type MissionSettingsInput = z.infer<typeof settingsSchema>
@@ -58,6 +59,7 @@ export async function updateMissionSettings(input: unknown): Promise<ActionResul
         report_edit_window_days: parsed.data.reportEditWindowDays,
         report_after_visit_only: parsed.data.reportAfterVisitOnly,
         whatsapp_greeting: parsed.data.whatsappGreeting || null,
+        contact_disc_enabled: parsed.data.contactDiscEnabled,
         updated_by: access.userId,
         updated_at: new Date().toISOString(),
       },

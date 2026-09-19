@@ -46,6 +46,18 @@ describe("visitReportDraftSchema", () => {
     expect(visitReportDraftSchema.safeParse({ followUpDate: "05-09-2026" }).success).toBe(false)
   })
 
+  it("takes a DISC reading on a contact, and only the four letters", () => {
+    const ok = visitReportDraftSchema.safeParse({
+      contacts: [{ fullName: "Budi", isDecisionMaker: false, discPrimary: "D", discSecondary: "I", discNote: " jangan telepon pagi " }],
+    })
+    expect(ok.success).toBe(true)
+    expect(ok.success && ok.data.contacts[0]).toMatchObject({ discPrimary: "D", discSecondary: "I", discNote: "jangan telepon pagi" })
+    // A contact without a reading is the common case and stays valid.
+    expect(visitReportDraftSchema.safeParse({ contacts: [{ fullName: "Budi", isDecisionMaker: false }] }).success).toBe(true)
+    expect(visitReportDraftSchema.safeParse({ contacts: [{ fullName: "Budi", isDecisionMaker: false, discPrimary: "X" }] }).success).toBe(false)
+    expect(visitReportDraftSchema.safeParse({ contacts: [{ fullName: "Budi", isDecisionMaker: false, discPrimary: "D", discNote: "x".repeat(301) }] }).success).toBe(false)
+  })
+
   it("rejects a malformed contact email", () => {
     const draft = { contacts: [{ fullName: "Budi", email: "budi-at-example", isDecisionMaker: false }] }
     expect(visitReportDraftSchema.safeParse(draft).success).toBe(false)
@@ -157,6 +169,9 @@ describe("contactFromAppointment", () => {
       phone: "+628123456789",
       email: "",
       isDecisionMaker: false,
+      discPrimary: null,
+      discSecondary: null,
+      discNote: "",
     })
   })
 

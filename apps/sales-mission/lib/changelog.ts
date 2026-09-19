@@ -28,6 +28,16 @@ export const CHANGE_KIND_LABELS: Record<ChangeKind, string> = {
 export const CHANGELOG: ChangeEntry[] = [
   {
     date: "2026-09-19",
+    title: "Gaya komunikasi (DISC) pada kontak yang ditemui",
+    items: [
+      { kind: "baru", text: "Di laporan kunjungan, tiap kontak yang ditemui bisa diberi tipe DISC dari pelatihan: satu huruf Utama dan, kalau terlihat, satu huruf Pendamping, lalu catatan cara menghadapinya. Selalu opsional; begitu huruf dipilih, cara pendekatan dari materi pelatihan tampil sebagai pengingat." },
+      { kind: "baru", text: "Hasilnya tampil sebagai lencana DISC di halaman aktivitas pada daftar Ketemu siapa, lengkap dengan siapa yang menilai dan kapan, sehingga rekan yang berkunjung berikutnya tahu cara menghadapi orang itu." },
+      { kind: "baru", text: "Kunjungan berikutnya ke orang yang sama di perusahaan yang sama langsung terisi penilaian terakhir, ditandai “Dari kunjungan sebelumnya”; ubah kalau kesanmu berbeda. Penilaian juga ikut ke kontak di LeadEngine." },
+      { kind: "baru", text: "Admin menyalakannya di Pengaturan → Aktivitas → Laporan kunjungan → Gaya komunikasi (DISC) pada kontak. Bawaan mati, jadi tim yang belum ikut pelatihan tidak melihatnya. Tidak pernah tampil di tautan publik atau ekspor." },
+    ],
+  },
+  {
+    date: "2026-09-19",
     title: "Tampilan komputer: pertanyaan hasil follow-up dan lebar kolom tabel",
     items: [
       { kind: "lebih-baik", text: "Di komputer, pertanyaan “Bagaimana hasilnya?” setelah menghubungi prospek kini tampil sebagai dialog di tengah layar dengan latar yang meredup, sama seperti di HP, sehingga tidak lagi menyerupai baris tabel." },

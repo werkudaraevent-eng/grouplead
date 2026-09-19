@@ -54,6 +54,24 @@ export async function GET(request: Request) {
     })
 }
 
+const discLetter = z.enum(['D', 'I', 'S', 'C'])
+
+/**
+ * A DISC reading from the field: the rep's estimate of how the person
+ * communicates, with who made it and when. Stored under
+ * `custom_fields.disc`, and unlike the identity columns it is REPLACED when
+ * a newer one arrives: a reading is dated, so the latest meeting is the
+ * better guide, and it is an impression rather than a fact the CRM could
+ * be "right" about.
+ */
+const discSchema = z.object({
+    primary: discLetter,
+    secondary: discLetter.nullish(),
+    note: z.string().trim().max(300).nullish(),
+    assessedByName: z.string().trim().max(200).nullish(),
+    assessedAt: z.string().datetime({ offset: true }).nullish(),
+})
+
 const createSchema = z.object({
     clientCompanyId: z.string().uuid(),
     fullName: z.string().trim().min(1).max(200),
@@ -63,7 +81,20 @@ const createSchema = z.object({
     /** Record owner for a contact created here. Ignored when they already exist. */
     ownerId: z.string().uuid().nullish(),
     companyId: z.string().uuid().nullish(),
+    disc: discSchema.nullish(),
 })
+
+/** The stored shape, normalised: no secondary equal to the primary, blanks as null. */
+function discRecord(disc: z.infer<typeof discSchema>) {
+    return {
+        primary: disc.primary,
+        secondary: disc.secondary && disc.secondary !== disc.primary ? disc.secondary : null,
+        note: disc.note?.trim() || null,
+        assessedByName: disc.assessedByName?.trim() || null,
+        assessedAt: disc.assessedAt ?? null,
+        source: 'Sales Mission',
+    }
+}
 
 /**
  * POST /api/v1/contacts
@@ -117,7 +148,7 @@ export async function POST(request: Request) {
 
     const { data: existing, error: lookupError } = await supabase
         .from('contacts')
-        .select('id, full_name, job_title, phone, email')
+        .select('id, full_name, job_title, phone, email, custom_fields')
         .eq('client_company_id', parsed.data.clientCompanyId)
         .ilike('full_name', escaped)
         .is('deleted_at', null)
@@ -131,10 +162,15 @@ export async function POST(request: Request) {
     if (existing) {
         // Fill blanks only. The same rule as PATCH /contacts/:id, for the same
         // reason: a disagreement is for a human, only a gap is safe to close.
-        const patch: Record<string, string> = {}
+        const patch: Record<string, unknown> = {}
         if (!existing.job_title && parsed.data.jobTitle?.trim()) patch.job_title = parsed.data.jobTitle.trim()
         if (!existing.phone && parsed.data.phone?.trim()) patch.phone = parsed.data.phone.trim()
         if (!existing.email && parsed.data.email?.trim()) patch.email = parsed.data.email.trim()
+        // The one deliberate exception to fill-blanks: see discSchema.
+        if (parsed.data.disc) {
+            const custom = (existing.custom_fields && typeof existing.custom_fields === 'object' ? existing.custom_fields : {}) as Record<string, unknown>
+            patch.custom_fields = { ...custom, disc: discRecord(parsed.data.disc) }
+        }
         if (Object.keys(patch).length > 0) {
             await supabase.from('contacts').update(patch).eq('id', existing.id)
         }
@@ -143,9 +179,9 @@ export async function POST(request: Request) {
             contact: {
                 id: existing.id,
                 fullName: existing.full_name,
-                jobTitle: existing.job_title ?? patch.job_title ?? null,
-                phone: existing.phone ?? patch.phone ?? null,
-                email: existing.email ?? patch.email ?? null,
+                jobTitle: existing.job_title ?? (patch.job_title as string | undefined) ?? null,
+                phone: existing.phone ?? (patch.phone as string | undefined) ?? null,
+                email: existing.email ?? (patch.email as string | undefined) ?? null,
             },
             created: false,
         })
@@ -162,6 +198,7 @@ export async function POST(request: Request) {
             phone: parsed.data.phone?.trim() || null,
             email: parsed.data.email?.trim() || null,
             contact_source: 'Sales Mission',
+            custom_fields: parsed.data.disc ? { disc: discRecord(parsed.data.disc) } : {},
         })
         .select('id, full_name, job_title, phone, email')
         .single()

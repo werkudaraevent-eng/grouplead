@@ -156,6 +156,13 @@ export function MissionSettingsForm({ initial, companyName }: { initial: Mission
           checked={form.reportAfterVisitOnly}
           onChange={(next) => setForm({ ...form, reportAfterVisitOnly: next })}
         />
+        <SwitchRow
+          id="contact-disc"
+          label="Gaya komunikasi (DISC) pada kontak"
+          hint="Nyala: di laporan, tiap kontak yang ditemui bisa diberi tipe DISC (utama dan pendamping) plus catatan cara menghadapinya; hasilnya tampil di halaman aktivitas dan ikut ke kontak LeadEngine, dan terisi otomatis di kunjungan berikutnya ke orang yang sama. Selalu opsional. Mati: bagian ini tidak muncul. Untuk tim yang sudah ikut pelatihan DISC."
+          checked={form.contactDiscEnabled}
+          onChange={(next) => setForm({ ...form, contactDiscEnabled: next })}
+        />
         <div className="grid grid-cols-1 gap-2 px-5 py-4 sm:grid-cols-[1fr_8rem] sm:items-center">
           <div>
             <Label htmlFor="report-edit-window" className="text-sm font-semibold text-foreground">Jendela ubah laporan (hari)</Label>

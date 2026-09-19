@@ -123,12 +123,19 @@ const COLUMN_LABELS: Record<string, string> = {
   source: "sumber",
   job_title: "jabatan",
   is_decision_maker: "pengambil keputusan",
+  disc_primary: "DISC utama",
+  disc_secondary: "DISC pendamping",
+  disc_note: "cara menghadapi",
+  disc_assessed_by_name: "dinilai oleh",
+  disc_assessed_at: "dinilai pada",
+  contact_disc_enabled: "DISC pada kontak",
   body: "isi",
   value: "isi",
 }
 
 const HIDDEN_COLUMNS = new Set([
   "id",
+  "disc_assessed_by",
   "company_id",
   "mission_id",
   "report_id",

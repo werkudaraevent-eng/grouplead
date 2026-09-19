@@ -170,6 +170,15 @@ const createdContactSchema = z.object({
 
 export type CreatedContact = z.infer<typeof createdContactSchema>
 
+/** A DISC reading as LeadEngine keeps it on the contact. */
+export interface DiscForCrm {
+  primary: "D" | "I" | "S" | "C"
+  secondary: "D" | "I" | "S" | "C" | null
+  note: string | null
+  assessedByName: string | null
+  assessedAt: string | null
+}
+
 export interface CreateContactPayload {
   clientCompanyId: string
   fullName: string
@@ -178,6 +187,12 @@ export interface CreateContactPayload {
   email?: string | null
   /** Record owner when the contact is new. Ignored when they already exist. */
   ownerId?: string | null
+  /**
+   * The rep's DISC reading. Unlike the other fields it is written even when
+   * the contact already has one: a reading is dated, and the latest meeting
+   * is the better guide. Null leaves whatever the CRM has.
+   */
+  disc?: DiscForCrm | null
 }
 
 /**
