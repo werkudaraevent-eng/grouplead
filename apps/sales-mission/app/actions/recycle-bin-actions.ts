@@ -5,6 +5,7 @@ import { createClient } from "@/utils/supabase/server"
 import { getSalesMissionAccess, isSettingsAdmin, type SalesMissionAccess } from "@/lib/sales-mission-access"
 import type { ActionResult } from "@/types/action-result"
 import { photoPathsForMissions, photoPathsForProspects, removePhotoFiles } from "@/lib/photos/photo-storage"
+import { audioPathsForMissions, audioPathsForProspects, removeAudioFiles } from "@/lib/audio/audio-storage"
 import { paths } from "@/lib/paths"
 import { NO_ACCESS_MESSAGE } from "@/lib/brand"
 
@@ -151,6 +152,10 @@ async function removePhotosFor(access: SalesMissionAccess, kind: "missions" | "p
       ? await photoPathsForMissions(schema, access.companyId, targets)
       : await photoPathsForProspects(schema, access.companyId, targets)
     await removePhotoFiles(access, paths)
+    const recordings = kind === "missions"
+      ? await audioPathsForMissions(schema, access.companyId, targets)
+      : await audioPathsForProspects(schema, access.companyId, targets)
+    await removeAudioFiles(access, recordings)
   } catch {
     // The rows still go; an orphaned file is the lesser problem.
   }

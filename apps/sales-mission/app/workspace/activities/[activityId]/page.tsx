@@ -7,6 +7,9 @@ import { labelOf } from "@/lib/missions/report-choices"
 import { parsePhotoAnswer } from "@/lib/photos/photo-answer"
 import { describeTiming, formatVisitWindow } from "@/lib/missions/visit-time"
 import { PhotoGallery } from "@/components/photo-gallery"
+import { AudioList } from "@/components/audio-list"
+import { parseAudioAnswer } from "@/lib/audio/audio-answer"
+import { isAttachmentType } from "@/lib/missions/form-fields"
 import { RequestClarificationButton, WithdrawReportButton } from "./report-admin-actions"
 import { canPerform, getSalesMissionAccess } from "@/lib/sales-mission-access"
 import { resolveMissionGates } from "@/lib/missions/mission-rights"
@@ -655,9 +658,9 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
               </div>
             )}
 
-            {customAnswers.some(({ field }) => field.fieldType !== "PHOTO") && (
+            {customAnswers.some(({ field }) => !isAttachmentType(field.fieldType)) && (
               <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-                {customAnswers.filter(({ field }) => field.fieldType !== "PHOTO").map(({ field, value }) => (
+                {customAnswers.filter(({ field }) => !isAttachmentType(field.fieldType)).map(({ field, value }) => (
                   <ReportField
                     key={field.id}
                     label={field.label}
@@ -673,6 +676,10 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
 
             {customAnswers.filter(({ field }) => field.fieldType === "PHOTO").map(({ field, value }) => (
               <PhotoGallery key={field.id} access={access} label={field.label} photos={parsePhotoAnswer(value)} />
+            ))}
+
+            {customAnswers.filter(({ field }) => field.fieldType === "AUDIO").map(({ field, value }) => (
+              <AudioList key={field.id} access={access} label={field.label} recordings={parseAudioAnswer(value)} />
             ))}
 
             {canReadContacts && report.contacts.length > 0 && (

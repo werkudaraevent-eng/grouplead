@@ -8,6 +8,8 @@ import { listFormFields } from "@/lib/missions/form-field-queries"
 import { customAnswers } from "@/lib/prospects/prospect-form-fields"
 import { parsePhotoAnswer } from "@/lib/photos/photo-answer"
 import { PhotoGallery } from "@/components/photo-gallery"
+import { AudioList } from "@/components/audio-list"
+import { parseAudioAnswer } from "@/lib/audio/audio-answer"
 import { MISSION_TIME_ZONE, formatMissionSchedule } from "@/lib/missions/mission-schema"
 import { statusLabel } from "@/lib/missions/status-labels"
 import { getProspect } from "@/lib/prospects/prospect-queries"
@@ -132,6 +134,15 @@ export default async function ProspectDetailPage({ params }: { params: Promise<{
                   .filter((field) => field.fieldType === "PHOTO" && field.isActive)
                   .map((field) => (
                     <PhotoGallery key={field.id} access={access} label={field.label} photos={parsePhotoAnswer(prospect.customValues[field.reportingKey])} />
+                  ))}
+              </div>
+            )}
+            {fields.some((field) => field.fieldType === "AUDIO" && field.isActive && parseAudioAnswer(prospect.customValues[field.reportingKey]).length > 0) && (
+              <div className="space-y-4 border-t px-5 py-4">
+                {fields
+                  .filter((field) => field.fieldType === "AUDIO" && field.isActive)
+                  .map((field) => (
+                    <AudioList key={field.id} access={access} label={field.label} recordings={parseAudioAnswer(prospect.customValues[field.reportingKey])} />
                   ))}
               </div>
             )}

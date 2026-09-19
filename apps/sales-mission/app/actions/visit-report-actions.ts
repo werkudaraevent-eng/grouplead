@@ -31,7 +31,7 @@ import {
 } from "@/lib/missions/visit-report-schema"
 import { listFormFields } from "@/lib/missions/form-field-queries"
 import { getReportOptions } from "@/lib/missions/report-options"
-import { isAllowedChoice, validateFieldAnswers, type FieldAnswer, type FormField } from "@/lib/missions/form-fields"
+import { isAllowedChoice, isAttachmentType, validateFieldAnswers, type FieldAnswer, type FormField } from "@/lib/missions/form-fields"
 import type { ActionResult } from "@/types/action-result"
 import { paths } from "@/lib/paths"
 import { NO_ACCESS_MESSAGE } from "@/lib/brand"
@@ -202,7 +202,7 @@ async function replaceCustomValues(
 ) {
   await missions.from("report_field_values").delete().eq("report_id", reportId)
   const rows = fields
-    .filter((field) => (!field.isCore || field.fieldType === "PHOTO") && field.isActive)
+    .filter((field) => (!field.isCore || isAttachmentType(field.fieldType)) && field.isActive)
     .map((field) => ({ field, value: custom[field.reportingKey] }))
     .filter(({ value }) => value !== null && value !== undefined && value !== "" && !(Array.isArray(value) && value.length === 0))
     .map(({ field, value }) => ({

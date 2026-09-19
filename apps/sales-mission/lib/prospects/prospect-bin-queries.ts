@@ -1,5 +1,6 @@
 import { createClient } from "@/utils/supabase/server"
 import { photoPathsForProspects, removePhotoFiles } from "@/lib/photos/photo-storage"
+import { audioPathsForProspects, removeAudioFiles } from "@/lib/audio/audio-storage"
 import type { SalesMissionAccess } from "@/lib/sales-mission-access"
 import { purgeCutoff } from "@/lib/missions/recycle-bin"
 
@@ -54,6 +55,7 @@ export async function purgeExpiredProspects(access: SalesMissionAccess, now: Dat
   if (ids.length === 0) return 0
   try {
     await removePhotoFiles(access, await photoPathsForProspects(schema, access.companyId, ids))
+    await removeAudioFiles(access, await audioPathsForProspects(schema, access.companyId, ids))
   } catch {}
   const { data } = await schema.from("prospects").delete().eq("company_id", access.companyId).in("id", ids).select("id")
   return data?.length ?? 0

@@ -2,6 +2,7 @@ import { createClient } from "@/utils/supabase/server"
 import type { SalesMissionAccess } from "@/lib/sales-mission-access"
 import { purgeCutoff } from "./recycle-bin"
 import { photoPathsForMissions, removePhotoFiles } from "@/lib/photos/photo-storage"
+import { audioPathsForMissions, removeAudioFiles } from "@/lib/audio/audio-storage"
 
 export interface DeletedMission {
   id: string
@@ -66,6 +67,7 @@ export async function purgeExpiredMissions(access: SalesMissionAccess, now: Date
   // The photos go with the rows; best effort, the purge itself must not wait on storage.
   try {
     await removePhotoFiles(access, await photoPathsForMissions(schema, access.companyId, ids))
+    await removeAudioFiles(access, await audioPathsForMissions(schema, access.companyId, ids))
   } catch {}
   const { data } = await schema.from("missions").delete().eq("company_id", access.companyId).in("id", ids).select("id")
   return data?.length ?? 0

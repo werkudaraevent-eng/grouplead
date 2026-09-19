@@ -1,6 +1,6 @@
 import { z } from "zod"
 import { isValidPhone, normalizePhone } from "@/lib/format/phone"
-import { visibleFields, type FormField } from "./form-fields"
+import { isAttachmentType, visibleFields, type FormField } from "./form-fields"
 import { isNoAction, isNoInterest, outcomeRequiresContacts as choiceOutcomeRequiresContacts, type ChoiceSet } from "./report-choices"
 import { visitTimeViolation } from "./visit-time"
 
@@ -284,8 +284,8 @@ export function missingConfiguredFields(draft: VisitReportDraft, fields: FormFie
   for (const field of visibleFields(fields)) {
     if (!field.isRequired) continue
     if (field.isCore) {
-      // Photos live with the custom answers whatever their core-ness.
-      if (field.fieldType === "PHOTO") {
+      // Attachments live with the custom answers whatever their core-ness.
+      if (isAttachmentType(field.fieldType)) {
         if (isBlank(draft.custom[field.reportingKey])) missing.push(field.reportingKey)
         continue
       }
