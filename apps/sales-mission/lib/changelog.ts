@@ -31,7 +31,9 @@ export const CHANGELOG: ChangeEntry[] = [
     title: "Tampilan komputer: pertanyaan hasil follow-up dan lebar kolom tabel",
     items: [
       { kind: "lebih-baik", text: "Di komputer, pertanyaan “Bagaimana hasilnya?” setelah menghubungi prospek kini tampil sebagai dialog di tengah layar dengan latar yang meredup, sama seperti di HP, sehingga tidak lagi menyerupai baris tabel." },
-      { kind: "diperbaiki", text: "Di tabel Aktivitas dan Prospek pada layar sedang, kolom Status tidak lagi melebar dengan ruang kosong; lebar sisa kembali ke kolom nama perusahaan sehingga nama panjang tidak terpotong." },
+      { kind: "lebih-baik", text: "Di tabel Aktivitas dan Prospek, klik di mana saja pada baris untuk membuka datanya; nama perusahaan juga menjadi tautan. Panah kecil di ujung baris dihapus karena banyak yang tidak tahu itu bisa diklik." },
+      { kind: "lebih-baik", text: "Kolom Sales utama kini menampilkan foto sales utama dan pendukungnya, sama seperti kartu di HP." },
+      { kind: "diperbaiki", text: "Lebar kolom tabel Aktivitas dan Prospek ditata ulang: kolom Status dan Aksi tidak lagi menyisakan ruang kosong di laptop, dan nama perusahaan mendapat ruang lebih sehingga tidak terpotong." },
     ],
   },
   {

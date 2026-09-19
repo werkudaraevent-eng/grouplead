@@ -5,7 +5,7 @@ import Link from "next/link"
 import { ViewLink } from "@/components/remember-view"
 import { useRouter, useSearchParams } from "next/navigation"
 import { toast } from "sonner"
-import { ArrowUpRight, CalendarCheck, Loader2, MoreVertical, Plus, Trash2, UserPlus, X } from "@/components/icons"
+import { CalendarCheck, Loader2, MoreVertical, Plus, Trash2, UserPlus, X } from "@/components/icons"
 import { deleteProspects, assignProspects, matchingProspectIds } from "@/app/actions/prospect-actions"
 import { MissionPagination } from "@/app/workspace/activities/mission-pagination"
 import { SortHeader } from "@/components/sort-header"
@@ -23,6 +23,7 @@ import { ResponsiveMenu } from "@/components/responsive-menu"
 import { useSelectionMode } from "@/components/selection-mode"
 import { SelectableCardBody } from "@/components/selectable-card-body"
 import { TeamFacepile } from "@/components/team-facepile"
+import { useRowLink } from "@/components/row-link"
 import { ContactMenu } from "./contact-menu"
 import { FollowUpPrompt } from "./follow-up-prompt"
 import { addressContact, renderWhatsAppGreeting } from "@/lib/prospects/whatsapp-greeting"
@@ -159,6 +160,7 @@ export function ProspectTable({
   whatsappGreeting: string | null
 }) {
   const router = useRouter()
+  const rowLink = useRowLink()
   const searchParams = useSearchParams()
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [beyondPage, setBeyondPage] = useState<Set<string>>(new Set())
@@ -238,14 +240,7 @@ export function ProspectTable({
     )
   }
 
-  // `showOpen`: the arrow into the record, for the table, whose row is not
-  // a link; a card's body already is one.
-  const Actions = ({ prospect, size = "sm", showOpen = true }: { prospect: ProspectListItem; size?: "sm" | "default"; showOpen?: boolean }) => {
-    const open = showOpen && (
-      <Link href={`/workspace/prospects/${prospect.id}`} aria-label={`Buka ${prospect.clientCompanyName}`} className="grid h-9 w-9 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground md:h-8 md:w-8">
-        <ArrowUpRight className="h-4 w-4" />
-      </Link>
-    )
+  const Actions = ({ prospect, size = "sm" }: { prospect: ProspectListItem; size?: "sm" | "default" }) => {
     const h = size === "default" ? "h-11" : ""
     const primary = prospect.missionId ? (
       <Button asChild size={size} variant="outline" className={h}>
@@ -290,7 +285,6 @@ export function ProspectTable({
       <span className="flex items-center justify-end gap-1.5">
         {primary}
         {menu}
-        {open}
       </span>
     )
   }
@@ -350,7 +344,7 @@ export function ProspectTable({
               {/* Who holds it at bottom-start, what to do at bottom-end. */}
               <div className="flex min-h-11 items-center justify-between gap-3 border-t px-3 py-2">
                 <TeamFacepile people={prospect.ownerName ? [{ name: prospect.ownerName, avatarUrl: prospect.ownerAvatarUrl }] : []} empty="Belum ada pemegang" />
-                <Actions prospect={prospect} size="default" showOpen={false} />
+                <Actions prospect={prospect} size="default" />
               </div>
             </li>
           )
@@ -378,20 +372,19 @@ export function ProspectTable({
                 )}
                 <TableHead><Sort column="company" label="Perusahaan" sort={pagination.sort} /></TableHead>
                 <TableHead><Sort column="contact" label="Kontak" sort={pagination.sort} /></TableHead>
-                {/* Widths on the header cells, not a <colgroup>: Chrome ignores
-                    display:none on a <col>, so a hidden column's width was still
-                    handed out one column over (see the mission table). */}
+                {/* Widths sized to what the cells hold; the company column
+                    takes what is left (see the mission table). */}
                 <TableHead className="w-[200px]"><Sort column="status" label="Status" sort={pagination.sort} /></TableHead>
-                <TableHead className="hidden w-[200px] xl:table-cell"><Sort column="owner" label="Pemegang" sort={pagination.sort} /></TableHead>
+                <TableHead className="hidden w-[190px] xl:table-cell"><Sort column="owner" label="Pemegang" sort={pagination.sort} /></TableHead>
                 <TableHead className="hidden w-[88px] 2xl:table-cell"><Sort column="created" label="Dibuat" sort={pagination.sort} /></TableHead>
-                <TableHead className="w-[210px] text-right">Aksi</TableHead>
+                <TableHead className="w-[170px] text-right">Aksi</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {prospects.map((prospect) => {
                 const ticked = selected.has(prospect.id)
                 return (
-                  <TableRow key={prospect.id} data-state={ticked ? "selected" : undefined} className={cn(isDue(prospect) && "shadow-[inset_4px_0_0_0_var(--warning-foreground)]", ticked && "bg-primary/5")}>
+                  <TableRow key={prospect.id} data-state={ticked ? "selected" : undefined} onClick={rowLink(`/workspace/prospects/${prospect.id}`)} className={cn("cursor-pointer", isDue(prospect) && "shadow-[inset_4px_0_0_0_var(--warning-foreground)]", ticked && "bg-primary/5")}>
                     {selectable && (
                       <TableCell>
                         <Checkbox checked={ticked} onCheckedChange={(value) => toggle(prospect.id, value === true)} aria-label={`Pilih ${prospect.clientCompanyName}`} />

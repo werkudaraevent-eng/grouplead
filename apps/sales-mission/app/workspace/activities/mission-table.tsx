@@ -5,7 +5,7 @@ import Link from "next/link"
 import { ViewLink } from "@/components/remember-view"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
-import { ArrowUpRight, ClipboardList, Loader2, Trash2, X } from "@/components/icons"
+import { ClipboardList, Loader2, Trash2, X } from "@/components/icons"
 import { deleteMissions, matchingMissionIds } from "@/app/actions/mission-actions"
 import { useSearchParams } from "next/navigation"
 import { MissionPagination, SortHeader } from "./mission-pagination"
@@ -34,6 +34,7 @@ import { JoinButton } from "./join-controls"
 import { useSelectionMode } from "@/components/selection-mode"
 import { SelectableCardBody } from "@/components/selectable-card-body"
 import { TeamFacepile, type FacepilePerson } from "@/components/team-facepile"
+import { useRowLink } from "@/components/row-link"
 import { paths } from "@/lib/paths"
 
 type Row = MissionListItem & { joinStatus?: JoinStatus; canReport?: boolean }
@@ -100,6 +101,16 @@ function LifecycleLine({ mission, now }: { mission: Row; now: Date }) {
  * decision: the primary action is a filled button in the row, the rest sit
  * behind an overflow menu, and a row that needs nothing gets only its link.
  */
+/** The lead first, then the rest of the team, photos where the unit has them. */
+function teamOf(mission: Row, people: Map<string, FacepilePerson>): FacepilePerson[] {
+  return [
+    ...(mission.primarySalesName ? [people.get(mission.primarySalesId ?? "") ?? { name: mission.primarySalesName }] : []),
+    ...mission.assigneeIds
+      .filter((id) => id !== mission.primarySalesId)
+      .map((id, index) => people.get(id) ?? { name: mission.supportingSalesNames[index] ?? "Sales pendukung" }),
+  ]
+}
+
 function ActionCell({
   mission,
   policy,
@@ -111,16 +122,6 @@ function ActionCell({
   maxSupporting: number
   now: Date
 }) {
-  const open = (
-    <Link
-      href={paths.activity(mission.id)}
-      aria-label={`Buka ${mission.clientCompanyName}`}
-      className="grid h-9 w-9 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground md:h-8 md:w-8"
-    >
-      <ArrowUpRight className="h-4 w-4" />
-    </Link>
-  )
-
   // A visit that owes a report gets the report button, for whoever may write
   // it (decided per row by the server from the matrix). Same rule as Terima:
   // a row that needs something offers the thing, right there.
@@ -133,7 +134,6 @@ function ActionCell({
             <ClipboardList className="h-4 w-4" /> {state === "draft" ? "Lanjutkan laporan" : "Isi laporan"}
           </Link>
         </Button>
-        {open}
       </span>
     )
   }
@@ -143,7 +143,6 @@ function ActionCell({
       <span className="flex items-center justify-end gap-1.5">
         <AcceptAssignmentButton missionId={mission.id} />
         <AssignmentOverflowMenu missionId={mission.id} />
-        {open}
       </span>
     )
   }
@@ -152,7 +151,6 @@ function ActionCell({
     return (
       <span className="flex items-center justify-end gap-1.5">
         <JoinButton missionId={mission.id} status="JOINABLE" maxSupporting={maxSupporting} clientName={mission.clientCompanyName} />
-        {open}
       </span>
     )
   }
@@ -167,12 +165,12 @@ function ActionCell({
             <ClipboardList className="h-4 w-4" /> Lihat laporan
           </Link>
         </Button>
-        {open}
       </span>
     )
   }
 
-  return <span className="flex justify-end">{open}</span>
+  // Nothing to do on this row: the row itself opens the record.
+  return null
 }
 
 /**
@@ -271,13 +269,7 @@ function MobileMissionCard({
   people: Map<string, FacepilePerson>
 }) {
   const asksMe = needsMyAnswer(mission, policy)
-  // The lead first, then the rest of the team, photos where the unit has them.
-  const team: FacepilePerson[] = [
-    ...(mission.primarySalesName ? [people.get(mission.primarySalesId ?? "") ?? { name: mission.primarySalesName }] : []),
-    ...mission.assigneeIds
-      .filter((id) => id !== mission.primarySalesId)
-      .map((id, index) => people.get(id) ?? { name: mission.supportingSalesNames[index] ?? "Sales pendukung" }),
-  ]
+  const team = teamOf(mission, people)
   const owesMe = reportOwed(visitState(mission, now)) && mission.canReport === true
 
   const body = (
@@ -397,6 +389,7 @@ export function MissionTable({
   // Ids beyond the page, once "pilih semua yang cocok" was used.
   const [beyondPage, setBeyondPage] = useState<Set<string>>(new Set())
   const router = useRouter()
+  const rowLink = useRowLink()
   const searchParams = useSearchParams()
 
   const visibleIds = useMemo(() => new Set(missions.map((mission) => mission.id)), [missions])
@@ -552,12 +545,11 @@ export function MissionTable({
       <div className="hidden rounded-xl border bg-card md:block">
       <div className="data-table-scroll overflow-x-auto rounded-xl">
       {/* Same rule as the prospect table: fixed layout, the mission column
-          takes what is left, the rest are sized to their content, and the
-          location and sales columns leave at narrower widths before
-          anything scrolls. The widths sit on the header cells, not on a
-          <colgroup>: Chrome ignores display:none on a <col>, so a hidden
-          column's width was still handed out, one column over, and Status
-          grew a void while the mission name truncated. */}
+          takes what is left, the rest are sized to what they actually hold
+          (a date, a facepile, a status with a second line, one button), and
+          the location and sales columns leave at narrower widths before
+          anything scrolls. Generous widths here are not free: on a 1280px
+          laptop the mission column is what pays for them. */}
       <Table className="min-w-[960px] table-fixed">
         <TableHeader>
           <TableRow className="hover:bg-transparent">
@@ -571,11 +563,11 @@ export function MissionTable({
               </TableHead>
             )}
             <TableHead>{pagination ? <SortHeader column="client" label="Aktivitas" sort={pagination.sort} /> : "Aktivitas"}</TableHead>
-            <TableHead className="w-[150px]">{pagination ? <SortHeader column="schedule" label="Jadwal" sort={pagination.sort} /> : "Jadwal"}</TableHead>
-            <TableHead className="hidden w-[160px] 2xl:table-cell">{pagination ? <SortHeader column="location" label="Lokasi" sort={pagination.sort} /> : "Lokasi"}</TableHead>
-            <TableHead className="hidden w-[190px] xl:table-cell">{pagination ? <SortHeader column="sales" label="Sales utama" sort={pagination.sort} /> : "Sales utama"}</TableHead>
-            <TableHead className="w-[240px]">{pagination ? <SortHeader column="status" label="Status" sort={pagination.sort} /> : "Status"}</TableHead>
-            <TableHead className="w-[230px] text-right">Aksi</TableHead>
+            <TableHead className="w-[130px]">{pagination ? <SortHeader column="schedule" label="Jadwal" sort={pagination.sort} /> : "Jadwal"}</TableHead>
+            <TableHead className="hidden w-[150px] 2xl:table-cell">{pagination ? <SortHeader column="location" label="Lokasi" sort={pagination.sort} /> : "Lokasi"}</TableHead>
+            <TableHead className="hidden w-[210px] xl:table-cell">{pagination ? <SortHeader column="sales" label="Sales utama" sort={pagination.sort} /> : "Sales utama"}</TableHead>
+            <TableHead className="w-[200px]">{pagination ? <SortHeader column="status" label="Status" sort={pagination.sort} /> : "Status"}</TableHead>
+            <TableHead className="w-[170px] text-right">Aksi</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -587,7 +579,8 @@ export function MissionTable({
               <TableRow
                 key={mission.id}
                 data-state={ticked ? "selected" : undefined}
-                className={cn((asksMe || owesMe) && "shadow-[inset_4px_0_0_0_var(--warning-foreground)]", ticked && "bg-primary/5")}
+                onClick={rowLink(paths.activity(mission.id))}
+                className={cn("cursor-pointer", (asksMe || owesMe) && "shadow-[inset_4px_0_0_0_var(--warning-foreground)]", ticked && "bg-primary/5")}
               >
                 {canDelete && (
                   <TableCell>
@@ -599,16 +592,14 @@ export function MissionTable({
                   </TableCell>
                 )}
                 <TableCell>
-                  <span className="block truncate font-semibold text-foreground" title={mission.clientCompanyName}>{mission.clientCompanyName}</span>
+                  <Link href={paths.activity(mission.id)} className="block truncate font-semibold text-foreground hover:underline" title={mission.clientCompanyName}>{mission.clientCompanyName}</Link>
                   <span className="block truncate text-xs text-muted-foreground">{mission.missionType}</span>
                 </TableCell>
                 <TableCell className="text-sm">{formatMissionSchedule(mission.scheduledStart, now)}</TableCell>
                 <TableCell className="hidden truncate text-sm text-muted-foreground 2xl:table-cell" title={mission.location ?? undefined}>{mission.location ?? "Belum diisi"}</TableCell>
-                <TableCell className="hidden text-sm xl:table-cell">
-                  <span className="block truncate" title={mission.primarySalesName ?? undefined}>{mission.primarySalesName ?? <span className="text-muted-foreground">Belum ditugaskan</span>}</span>
-                  {mission.supportingCount > 0 && (
-                    <span className="block text-xs text-muted-foreground">+{mission.supportingCount} pendukung</span>
-                  )}
+                <TableCell className="hidden xl:table-cell">
+                  {/* The same faces as the phone's card: the lead first, then the team. */}
+                  <TeamFacepile people={teamOf(mission, peopleById)} />
                 </TableCell>
                 <TableCell>
                   <VisitStatus mission={mission} now={now} />
