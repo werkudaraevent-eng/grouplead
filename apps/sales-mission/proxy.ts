@@ -30,7 +30,8 @@ export async function proxy(request: NextRequest) {
   // session; the token in its path is the credential.
   // `/jadwal` is the read-only calendar management opens without an account;
   // same rule, the token in its path is the credential.
-  const publicPaths = ["/login", "/forgot-password", "/reset-password", "/board", "/kalender", "/jadwal"]
+  // /api/ai/insights/run is called by Supabase Cron with a bearer token it checks itself.
+  const publicPaths = ["/login", "/forgot-password", "/reset-password", "/board", "/kalender", "/jadwal", "/api/ai/insights/run"]
   const isPublic = publicPaths.some((path) => pathname.startsWith(path))
 
   // The root has nothing to say to anyone. Sales Mission is an internal tool

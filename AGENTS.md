@@ -191,6 +191,14 @@ row is empty. Both apps reach it through `lib/ai/ai-settings.ts`
 `fn_ai_read_key`, a function only the service role may call; every caller
 checks the person's grant first.
 
+The daily AI insight is written by `POST /api/ai/insights/run` in Sales
+Activity, called every ten minutes by Supabase Cron (`pg_cron` + `pg_net`,
+scheduled in migration `20260920110000_ai_insights.sql`) with a bearer token
+that lives in Vault as `ai_cron_secret`. The route decides what is due per unit
+(the morning run at the unit's hour, a rewrite after new reports); changing the
+hour is a settings change, never a cron change. The job's URL is production's;
+previews are never called by the schedule.
+
 ## Gotchas
 
 - Root `npm run dev` / `build` / `test` silently mean LeadEngine. Always say

@@ -124,6 +124,30 @@ export interface ChatRequest {
   maxTokens?: number
 }
 
+export interface ChatResult {
+  text: string
+  promptTokens: number | null
+  completionTokens: number | null
+}
+
+/** One chat completion, with the token counts the proxy reports (null when it reports none). */
+export async function chatCompleteDetailed(connection: AiConnection, request: ChatRequest): Promise<ChatResult> {
+  const body = await call(connection, "/chat/completions", {
+    method: "POST",
+    body: JSON.stringify({
+      model: request.model,
+      messages: request.messages,
+      temperature: request.temperature ?? 0.3,
+      ...(request.maxTokens ? { max_tokens: request.maxTokens } : {}),
+    }),
+  })
+  const text = parseCompletion(body)
+  if (!text) throw new Error(`EMPTY_ANSWER:${request.model}`)
+  const usage = body && typeof body === "object" ? (body as { usage?: Record<string, unknown> }).usage : undefined
+  const count = (key: string) => (usage && typeof usage[key] === "number" ? (usage[key] as number) : null)
+  return { text, promptTokens: count("prompt_tokens"), completionTokens: count("completion_tokens") }
+}
+
 /** One chat completion, returned as the assistant's text. */
 export async function chatComplete(connection: AiConnection, request: ChatRequest): Promise<string> {
   const body = await call(connection, "/chat/completions", {

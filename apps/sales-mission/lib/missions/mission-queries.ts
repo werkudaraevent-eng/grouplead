@@ -200,6 +200,10 @@ export interface MissionSettings {
   whatsappGreeting: string | null
   /** Whether the report offers DISC chips on each contact met. Off until the unit trained on it. */
   contactDiscEnabled: boolean
+  /** Whether the AI writes a daily insight for the unit (Ringkasan). */
+  aiInsightsEnabled: boolean
+  /** Hour of day (WIB) for the morning insight. */
+  aiInsightsHour: number
 }
 
 /**
@@ -216,7 +220,7 @@ export async function getMissionSettings(access: SalesMissionAccess): Promise<Mi
   const { data } = await supabase
     .schema("sales_mission")
     .from("mission_settings")
-    .select("conflict_check_enabled, default_travel_buffer_minutes, allow_same_location_back_to_back, max_supporting_per_mission, require_assignment_confirmation, primary_can_reschedule, report_edit_window_days, report_after_visit_only, whatsapp_greeting, contact_disc_enabled")
+    .select("conflict_check_enabled, default_travel_buffer_minutes, allow_same_location_back_to_back, max_supporting_per_mission, require_assignment_confirmation, primary_can_reschedule, report_edit_window_days, report_after_visit_only, whatsapp_greeting, contact_disc_enabled, ai_insights_enabled, ai_insights_hour")
     .eq("company_id", access.companyId)
     .maybeSingle()
 
@@ -231,6 +235,8 @@ export async function getMissionSettings(access: SalesMissionAccess): Promise<Mi
     reportAfterVisitOnly: data?.report_after_visit_only ?? true,
     whatsappGreeting: (data?.whatsapp_greeting as string | null | undefined)?.trim() || null,
     contactDiscEnabled: Boolean(data?.contact_disc_enabled),
+    aiInsightsEnabled: Boolean(data?.ai_insights_enabled),
+    aiInsightsHour: typeof data?.ai_insights_hour === "number" ? data.ai_insights_hour : 6,
   }
 }
 
