@@ -28,6 +28,14 @@ export const CHANGE_KIND_LABELS: Record<ChangeKind, string> = {
 export const CHANGELOG: ChangeEntry[] = [
   {
     date: "2026-09-20",
+    title: "Tanya AI di Ringkasan, dan insight yang lebih kaya",
+    items: [
+      { kind: "baru", text: "Tanya AI: di Ringkasan ada kotak pertanyaan bebas tentang periode dan sales yang sedang disaring, misalnya “sales mana yang paling banyak laporan?” atau “industri apa yang paling sering dikunjungi?”. Jawabannya dihitung dari angka yang sama dengan kartu-kartu di bawahnya, jadi selalu bisa dicek. Nyalakan di Pengaturan → Aturan aktivitas → Insight AI; yang boleh bertanya mengikuti modul Insight AI di Role & Izin." },
+      { kind: "lebih-baik", text: "Insight hari ini kini juga membaca jam tersibuk, industri terbanyak, hasil kunjungan dan klien yang paling sering, serta jadwal besok dan tujuh hari ke depan, sehingga di akhir pekan pun tetap ada 3 sampai 5 poin, bukan satu kalimat saja." },
+    ],
+  },
+  {
+    date: "2026-09-20",
     title: "Insight hari ini di Ringkasan, ditulis AI",
     items: [
       { kind: "baru", text: "Di atas Ringkasan Laporan ada kartu “Insight hari ini”: 3 sampai 5 kalimat tentang laporan yang masuk hari ini, laporan tertunda, prospek yang lewat tanggal hubungi lagi, dan perbandingan minggu ini dengan minggu lalu, ditulis AI dari angka yang sudah dihitung aplikasi. Poin yang bisa dijawab daftar bisa diketuk untuk membukanya." },

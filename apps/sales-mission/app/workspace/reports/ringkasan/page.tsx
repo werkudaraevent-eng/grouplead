@@ -7,6 +7,7 @@ import { wibDayOf } from "@/lib/ai/insight-facts"
 import { resolveInsightScope, toInsightView, type InsightView } from "@/lib/ai/insight-view"
 import { createClient } from "@/utils/supabase/server"
 import { InsightCard } from "./insight-card"
+import { AskCard } from "./ask-card"
 import { requireModule } from "@/lib/missions/nav-access"
 import { listTenantSales } from "@/lib/missions/mission-queries"
 import { listReportChoices } from "@/lib/missions/report-choice-queries"
@@ -114,9 +115,10 @@ export default async function ReportSummaryPage({ searchParams }: { searchParams
     >
       <ReportTabs />
       <RememberView list="ringkasan" />
-      {showInsight && (
-        <div className="mb-4">
-          <InsightCard initial={insight} canRegenerate={canPublish} scopeNote={insightScopeNote} />
+      {(showInsight || (settings.aiAskEnabled && canSeeInsight)) && (
+        <div className="mb-4 space-y-4">
+          {showInsight && <InsightCard initial={insight} canRegenerate={canPublish} scopeNote={insightScopeNote} />}
+          {settings.aiAskEnabled && canSeeInsight && <AskCard range={range} sales={sales} />}
         </div>
       )}
       <DashboardEditor

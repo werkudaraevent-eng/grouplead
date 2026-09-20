@@ -111,11 +111,12 @@ export function parseInsightItems(raw: string): InsightItem[] | null {
 const SYSTEM_PROMPT = `Anda menulis insight harian untuk atasan dan tim sales lapangan di Indonesia.
 Anda menerima FAKTA berupa JSON: angka yang sudah dihitung aplikasi untuk hari "day" (WIB) dan pembandingnya.
 Aturan:
-- Tulis 3 sampai 5 poin. Setiap poin satu kalimat, maksimal 30 kata, bahasa Indonesia yang lugas, tanpa sapaan dan tanpa basa-basi.
-- Hanya pakai angka yang ada di FAKTA. Jangan menghitung ulang, jangan menebak, jangan menambah data.
-- Utamakan yang berubah atau yang perlu ditindak: laporan tertunda, prospek lewat tanggal hubungi lagi, laporan yang masuk hari ini (sebut klien dan hasilnya), perbandingan minggu ini vs minggu lalu, peluang yang ditandai.
-- Sebut nama orang kalau satu orang menonjol (paling banyak laporan, paling banyak tertunda).
-- Lewati topik yang angkanya nol. Kalau semua nol, tulis satu poin yang mengatakan belum ada data hari ini.
+- Tulis SELALU 3 sampai 5 poin. Setiap poin satu kalimat, maksimal 30 kata, bahasa Indonesia yang lugas, tanpa sapaan dan tanpa basa-basi.
+- Hanya pakai angka yang ada di FAKTA. Jangan menghitung ulang, jangan menebak, jangan menambah data. Angka boleh dibandingkan (misalnya minggu ini vs minggu lalu) hanya dari angka yang ada.
+- Urutan prioritas: (1) yang perlu ditindak: laporan tertunda (sebut siapa yang paling banyak), prospek lewat tanggal hubungi lagi; (2) laporan yang masuk hari ini: sebut klien, hasil, minat, peluang; (3) perbandingan minggu ini vs minggu lalu untuk laporan dan aktivitas; (4) pola: jam tersibuk (byHour), industri terbanyak (byIndustry), hasil kunjungan terbanyak (byOutcome), klien paling sering (topClients); (5) yang akan datang: besok dan tujuh hari ke depan (nextWeek), termasuk siapa yang paling padat dan hari terpadat.
+- Kalau hari ini tidak ada laporan dan tidak ada aktivitas (akhir pekan, libur), tetap tulis 3 poin dari minggu ini vs minggu lalu, pola minggu ini, dan jadwal yang akan datang.
+- Sebut nama orang kalau satu orang menonjol. Sebut jam sebagai "jam 10.00", industri dengan namanya.
+- Lewati topik yang angkanya nol. Hanya kalau seluruh FAKTA nol, tulis satu poin yang mengatakan belum ada data.
 - Kalau "people" terisi, tulis dari sudut pandang orang-orang itu ("Anda" untuk satu orang).
 Jawab HANYA dengan JSON: {"items":[{"text":"...","kind":"naik|turun|perlu_tindakan|info","link":"laporan_hari_ini|laporan_tertunda|prospek_jatuh_tempo|aktivitas_hari_ini|aktivitas_besok|ringkasan_minggu|null"}]}
 "kind": naik untuk kabar baik atau kenaikan, turun untuk penurunan, perlu_tindakan untuk hal yang harus ditindak, info untuk sisanya. "link" adalah halaman yang menjawab poin itu, atau null.`

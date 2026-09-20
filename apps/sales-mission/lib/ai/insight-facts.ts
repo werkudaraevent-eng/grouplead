@@ -36,10 +36,15 @@ export interface InsightFacts {
   today: {
     scheduled: number
     scheduledByPerson: PersonCount[]
+    /** "10.00" style labels, busiest first. */
+    byHour: PersonCount[]
+    byIndustry: PersonCount[]
     reportsSubmitted: number
     reports: ReportFact[]
   }
-  tomorrow: { scheduled: number }
+  tomorrow: { scheduled: number; byPerson: PersonCount[]; byHour: PersonCount[]; byIndustry: PersonCount[] }
+  /** The seven days after today. */
+  nextWeek: { scheduled: number; byPerson: PersonCount[]; byIndustry: PersonCount[]; byDay: PersonCount[] }
   pending: {
     /** Past visits without a sent report. */
     count: number
@@ -59,6 +64,12 @@ export interface InsightFacts {
     opportunities: number
     estimatedValue: number
     reportsByPerson: PersonCount[]
+    reportsByIndustry: PersonCount[]
+    appointmentsByIndustry: PersonCount[]
+    appointmentsByHour: PersonCount[]
+    byOutcome: PersonCount[]
+    byInterest: PersonCount[]
+    topClients: PersonCount[]
   }
 }
 
@@ -68,6 +79,7 @@ export interface MissionRow {
   scheduledStart: string
   status: string
   primaryId: string | null
+  industry: string | null
 }
 
 export interface ReportRow {
@@ -126,14 +138,36 @@ export function shiftDay(day: string, days: number): string {
 }
 
 function tally(ids: Array<string | null>, names: ReadonlyMap<string, string>): PersonCount[] {
+  return tallyLabels(ids.map((id) => (id ? (names.get(id) ?? "Tanpa nama") : "Belum ditugaskan")))
+}
+
+/** Counts per label, largest first, capped so the model reads a list and not a table. */
+function tallyLabels(labels: Array<string | null>, limit = 8): PersonCount[] {
   const counts = new Map<string, number>()
-  for (const id of ids) {
-    const name = id ? (names.get(id) ?? "Tanpa nama") : "Belum ditugaskan"
-    counts.set(name, (counts.get(name) ?? 0) + 1)
+  for (const label of labels) {
+    const key = label && label.trim() ? label.trim() : "Belum diisi"
+    counts.set(key, (counts.get(key) ?? 0) + 1)
   }
   return [...counts.entries()]
     .map(([name, count]) => ({ name, count }))
     .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
+    .slice(0, limit)
+}
+
+/** "10.00" for the WIB hour a visit starts, so "jam tersibuk" is a fact, not a guess. */
+function hourLabel(iso: string): string {
+  return `${String(wibHourOf(new Date(iso))).padStart(2, "0")}.00`
+}
+
+const DAY_NAMES = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"]
+
+/** "Senin 22 Sep" for the WIB day a visit falls on. */
+function dayLabel(iso: string): string {
+  const instant = new Date(iso)
+  const weekday = new Intl.DateTimeFormat("en-US", { timeZone: "Asia/Jakarta", weekday: "short" }).format(instant)
+  const index = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].indexOf(weekday)
+  const date = new Intl.DateTimeFormat("id-ID", { timeZone: "Asia/Jakarta", day: "numeric", month: "short" }).format(instant)
+  return `${index >= 0 ? DAY_NAMES[index] : ""} ${date}`.trim()
 }
 
 const between = (iso: string | null | undefined, from: Date, to: Date): boolean => {
@@ -147,6 +181,7 @@ export function assembleFacts(input: FactInput): InsightFacts {
   const dayStart = wibDayStart(day)
   const dayEnd = wibDayStart(shiftDay(day, 1))
   const tomorrowEnd = wibDayStart(shiftDay(day, 2))
+  const nextWeekEnd = wibDayStart(shiftDay(day, 8))
   const weekStart = wibDayStart(shiftDay(day, -6))
   const prevWeekStart = wibDayStart(shiftDay(day, -13))
 
@@ -158,6 +193,8 @@ export function assembleFacts(input: FactInput): InsightFacts {
   const label = (code: string | null) => (code ? (labels.get(code) ?? code) : null)
 
   const todayMissions = missions.filter((m) => between(m.scheduledStart, dayStart, dayEnd))
+  const tomorrowMissions = missions.filter((m) => between(m.scheduledStart, dayEnd, tomorrowEnd))
+  const nextWeekMissions = missions.filter((m) => between(m.scheduledStart, dayEnd, nextWeekEnd))
   const todayReports = sent.filter((r) => between(r.submittedAt, dayStart, dayEnd))
   const pendingMissions = missions.filter((m) => new Date(m.scheduledStart) < now && !sentByMission.has(m.id) && m.status !== "COMPLETED")
   const oldestPending = pendingMissions.reduce<number | null>((oldest, m) => {
@@ -180,6 +217,8 @@ export function assembleFacts(input: FactInput): InsightFacts {
     today: {
       scheduled: todayMissions.length,
       scheduledByPerson: tally(todayMissions.map((m) => m.primaryId), names),
+      byHour: tallyLabels(todayMissions.map((m) => hourLabel(m.scheduledStart))),
+      byIndustry: tallyLabels(todayMissions.map((m) => m.industry)),
       reportsSubmitted: todayReports.length,
       reports: todayReports.slice(0, 12).map((r) => {
         const mission = missionById.get(r.missionId)!
@@ -196,7 +235,18 @@ export function assembleFacts(input: FactInput): InsightFacts {
         }
       }),
     },
-    tomorrow: { scheduled: missions.filter((m) => between(m.scheduledStart, dayEnd, tomorrowEnd)).length },
+    tomorrow: {
+      scheduled: tomorrowMissions.length,
+      byPerson: tally(tomorrowMissions.map((m) => m.primaryId), names),
+      byHour: tallyLabels(tomorrowMissions.map((m) => hourLabel(m.scheduledStart))),
+      byIndustry: tallyLabels(tomorrowMissions.map((m) => m.industry)),
+    },
+    nextWeek: {
+      scheduled: nextWeekMissions.length,
+      byPerson: tally(nextWeekMissions.map((m) => m.primaryId), names),
+      byIndustry: tallyLabels(nextWeekMissions.map((m) => m.industry)),
+      byDay: tallyLabels(nextWeekMissions.map((m) => dayLabel(m.scheduledStart))),
+    },
     pending: {
       count: pendingMissions.length,
       byPerson: tally(pendingMissions.map((m) => m.primaryId), names),
@@ -214,6 +264,12 @@ export function assembleFacts(input: FactInput): InsightFacts {
       opportunities: weekReports.filter((r) => r.opportunityExists).length,
       estimatedValue: weekReports.reduce((sum, r) => sum + (r.estimatedValue ?? 0), 0),
       reportsByPerson: tally(weekReports.map((r) => missionById.get(r.missionId)?.primaryId ?? null), names),
+      reportsByIndustry: tallyLabels(weekReports.map((r) => missionById.get(r.missionId)?.industry ?? null)),
+      appointmentsByIndustry: tallyLabels(weekAppointments.map((m) => m.industry)),
+      appointmentsByHour: tallyLabels(weekAppointments.map((m) => hourLabel(m.scheduledStart)), 5),
+      byOutcome: tallyLabels(weekReports.map((r) => label(r.visitOutcome))),
+      byInterest: tallyLabels(weekReports.map((r) => label(r.interestLevel))),
+      topClients: tallyLabels(weekReports.map((r) => missionById.get(r.missionId)?.client ?? null), 5),
     },
   }
 }
@@ -233,12 +289,12 @@ export async function loadInsightFacts(
 ): Promise<InsightFacts> {
   const missions = supabase.schema("sales_mission")
   const fromIso = wibDayStart(shiftDay(day, -13)).toISOString()
-  const toIso = wibDayStart(shiftDay(day, 2)).toISOString()
+  const toIso = wibDayStart(shiftDay(day, 8)).toISOString()
 
   const [{ data: missionRows }, { data: prospectRows }, { data: statusRows }, { data: choiceRows }] = await Promise.all([
     missions
       .from("missions")
-      .select("id, client_company_name_snapshot, scheduled_start, status")
+      .select("id, client_company_name_snapshot, scheduled_start, status, industry")
       .eq("company_id", companyId)
       .is("deleted_at", null)
       .not("status", "in", "(CANCELLED,REJECTED)")
@@ -300,6 +356,7 @@ export async function loadInsightFacts(
       scheduledStart: row.scheduled_start as string,
       status: row.status as string,
       primaryId: primaryByMission.get(row.id as string) ?? null,
+      industry: (row.industry as string | null) ?? null,
     })),
     reports: (reportRows ?? []).map((row) => ({
       missionId: row.mission_id as string,
