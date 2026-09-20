@@ -187,6 +187,38 @@ export function MissionSettingsForm({ initial, companyName }: { initial: Mission
 
       <section className="overflow-clip rounded-xl border bg-card">
         <header className="border-b px-5 py-4">
+          <h2 className="text-base font-semibold text-foreground">Insight AI</h2>
+          <p className="mt-0.5 text-sm text-muted-foreground">Beberapa kalimat tentang hari ini, ditulis AI dari angka yang sudah dihitung aplikasi, di atas Ringkasan.</p>
+        </header>
+        <div className="divide-y">
+          <SwitchRow
+            id="ai-insights"
+            label="Insight harian di Ringkasan"
+            hint="Nyala: tiap pagi pada jam di bawah, dan lagi setiap ada laporan masuk (paling cepat 10 menit sekali), AI menulis 3 sampai 5 poin tentang kunjungan, laporan, dan prospek hari itu. Butuh koneksi AI di Pengaturan → AI. Mati: tidak ada yang dibuat."
+            checked={form.aiInsightsEnabled}
+            onChange={(next) => setForm({ ...form, aiInsightsEnabled: next })}
+          />
+          <div className="grid grid-cols-1 gap-2 px-5 py-4 sm:grid-cols-[1fr_8rem] sm:items-center">
+            <div>
+              <Label htmlFor="ai-insights-hour" className="text-sm font-semibold text-foreground">Jam insight pagi (WIB)</Label>
+              <p className="mt-1 text-sm leading-relaxed text-muted-foreground">Jam 0 sampai 23. Insight pagi merangkum kemarin dan apa yang dijadwalkan hari ini. Siapa yang melihatnya diatur di Role & Izin (LeadEngine), modul Insight AI: Cakupan lihat Semua berarti insight unit, Tim berarti timnya, Sendiri berarti dirinya saja.</p>
+            </div>
+            <Input
+              id="ai-insights-hour"
+              type="number"
+              inputMode="numeric"
+              min={0}
+              max={23}
+              className="h-12"
+              value={form.aiInsightsHour}
+              onChange={(event) => setForm({ ...form, aiInsightsHour: Number(event.target.value) })}
+            />
+          </div>
+        </div>
+      </section>
+
+      <section className="overflow-clip rounded-xl border bg-card">
+        <header className="border-b px-5 py-4">
           <h2 className="text-base font-semibold text-foreground">Prospek</h2>
           <p className="mt-0.5 text-sm text-muted-foreground">Apa yang terjadi saat sales menghubungi prospek dari daftar.</p>
         </header>

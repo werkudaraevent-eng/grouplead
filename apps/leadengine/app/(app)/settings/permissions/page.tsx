@@ -55,9 +55,9 @@ const MODULE_GROUPS: ReadonlyArray<{ title: string; description: string; modules
     // the grouping, never a stair-step indent.
     title: "Sales Activity",
     description: "Pintu masuk aplikasi Sales Activity dan kontrol rinci di dalamnya.",
-    modules: ["sales_mission", "sales_mission_mission", "sales_mission_result", "sales_mission_contact", "sales_mission_settings", "sales_mission_prospect"],
+    modules: ["sales_mission", "sales_mission_mission", "sales_mission_result", "sales_mission_contact", "sales_mission_settings", "sales_mission_prospect", "sales_mission_ai"],
     hub: "sales_mission",
-    hubNote: "Baris Sales Activity disalin ke lima modul di bawahnya; setelah itu tiap modul bisa diatur sendiri.",
+    hubNote: "Baris Sales Activity disalin ke enam modul di bawahnya; setelah itu tiap modul bisa diatur sendiri.",
   },
   {
     title: "Pengaturan",
@@ -104,6 +104,11 @@ const MODULE_DISPLAY: Record<string, { name: string; description: string; detail
     name: "Pengaturan aktivitas",
     description: "Ubah di sini berarti admin Sales Activity.",
     details: "Pengaturan aktivitas, form, pilihan laporan, status prospek, papan, dan sampah. Tanpa Cakupan: ini bukan record milik seseorang.",
+  },
+  sales_mission_ai: {
+    name: "Insight AI",
+    description: "Insight harian yang ditulis AI di Ringkasan Laporan. Lihat: boleh melihatnya. Cakupan lihat: Semua berarti insight unit, Tim berarti insight timnya, Sendiri berarti insight tentang dirinya saja.",
+    details: "Tanpa Buat, Ubah, dan Hapus: insight dibuat sistem, tidak ditulis orang. Buat ulang tersedia bagi yang punya Ubah pada Pengaturan aktivitas. Menyala hanya jika admin menyalakannya di Sales Activity → Pengaturan → Aturan aktivitas.",
   },
   sales_mission_prospect: {
     name: "Prospek",
@@ -174,6 +179,7 @@ const SALES_MISSION_SUBMODULES = [
   "sales_mission_contact",
   "sales_mission_settings",
   "sales_mission_prospect",
+  "sales_mission_ai",
 ] as const
 
 /**
@@ -185,7 +191,7 @@ const SALES_MISSION_SUBMODULES = [
  * ownership at all; a control that changes nothing is the mistake the old
  * four-value Lihat made. The parent row carries both as a cascade.
  */
-const SCOPED_MODULE_IDS: Set<string> = new Set(["sales_mission_mission", "sales_mission_result", "sales_mission_prospect"])
+const SCOPED_MODULE_IDS: Set<string> = new Set(["sales_mission_mission", "sales_mission_result", "sales_mission_prospect", "sales_mission_ai"])
 const SCOPE_RANK: Record<RecordScope, number> = { own: 0, team: 1, all: 2 }
 const narrower = (a: RecordScope, b: RecordScope): RecordScope => (SCOPE_RANK[a] <= SCOPE_RANK[b] ? a : b)
 const wider = (a: RecordScope, b: RecordScope): RecordScope => (SCOPE_RANK[a] >= SCOPE_RANK[b] ? a : b)

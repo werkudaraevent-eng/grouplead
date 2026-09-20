@@ -145,6 +145,8 @@ export type SalesMissionModule =
   | "sales_mission_contact"
   | "sales_mission_settings"
   | "sales_mission_prospect"
+  /** Insight AI: whether the person sees the AI-written daily insight, and whose (its read scope). */
+  | "sales_mission_ai"
 
 export type ModuleAction = "create" | "read" | "update" | "delete"
 

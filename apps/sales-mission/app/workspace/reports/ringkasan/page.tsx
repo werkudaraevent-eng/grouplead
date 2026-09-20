@@ -1,6 +1,12 @@
 import { redirect } from "next/navigation"
 import { Download } from "@/components/icons"
 import { canPerform, getReadScope, getSalesMissionAccess } from "@/lib/sales-mission-access"
+import { getMissionSettings } from "@/lib/missions/mission-queries"
+import { readInsight } from "@/lib/ai/insights"
+import { wibDayOf } from "@/lib/ai/insight-facts"
+import { resolveInsightScope, toInsightView, type InsightView } from "@/lib/ai/insight-view"
+import { createClient } from "@/utils/supabase/server"
+import { InsightCard } from "./insight-card"
 import { requireModule } from "@/lib/missions/nav-access"
 import { listTenantSales } from "@/lib/missions/mission-queries"
 import { listReportChoices } from "@/lib/missions/report-choice-queries"
@@ -44,7 +50,7 @@ export default async function ReportSummaryPage({ searchParams }: { searchParams
   const sales = resolveSales(query.sales, access.userId)
   const day = resolveReportDay(query, range, now)
 
-  const [people, choices, saved, companyDefault, canSeeProspects, canPublish, readScope] = await Promise.all([
+  const [people, choices, saved, companyDefault, canSeeProspects, canPublish, readScope, settings, canSeeInsight] = await Promise.all([
     listTenantSales(access),
     listReportChoices(access),
     readDashboardLayout(access),
@@ -52,7 +58,21 @@ export default async function ReportSummaryPage({ searchParams }: { searchParams
     canPerform(access, "sales_mission_prospect", "read"),
     canPerform(access, "sales_mission_settings", "update"),
     getReadScope(access, "sales_mission_result"),
+    getMissionSettings(access),
+    canPerform(access, "sales_mission_ai", "read"),
   ])
+
+  // The day's insight, read through the session (RLS: the unit's row, or
+  // the person's own). Made by the card after paint when there is none.
+  let insight: InsightView | null = null
+  let insightScopeNote: string | null = null
+  const showInsight = settings.aiInsightsEnabled && canSeeInsight
+  if (showInsight) {
+    const { scope, userId } = await resolveInsightScope(access)
+    const stored = await readInsight(await createClient(), access.companyId, wibDayOf(now), scope, userId)
+    insight = stored ? toInsightView(stored) : null
+    insightScopeNote = scope === "person" ? "tentang orang dalam cakupan Anda" : null
+  }
   // Your own board if you arranged one; else the unit's default; else the built-ins.
   const layout = mergeLayout(saved ?? companyDefault, { canSeeProspects })
   const { visible, hidden } = resolveWidgets(layout)
@@ -94,6 +114,11 @@ export default async function ReportSummaryPage({ searchParams }: { searchParams
     >
       <ReportTabs />
       <RememberView list="ringkasan" />
+      {showInsight && (
+        <div className="mb-4">
+          <InsightCard initial={insight} canRegenerate={canPublish} scopeNote={insightScopeNote} />
+        </div>
+      )}
       <DashboardEditor
         query={query}
         range={range}

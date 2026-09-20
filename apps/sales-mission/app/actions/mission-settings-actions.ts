@@ -20,6 +20,8 @@ const settingsSchema = z.object({
   /** Empty means the app's default line. */
   whatsappGreeting: z.string().trim().max(500, "Maksimal 500 karakter"),
   contactDiscEnabled: z.boolean(),
+  aiInsightsEnabled: z.boolean(),
+  aiInsightsHour: z.number().int().min(0, "Jam antara 0 dan 23").max(23, "Jam antara 0 dan 23"),
 })
 
 export type MissionSettingsInput = z.infer<typeof settingsSchema>
@@ -60,6 +62,8 @@ export async function updateMissionSettings(input: unknown): Promise<ActionResul
         report_after_visit_only: parsed.data.reportAfterVisitOnly,
         whatsapp_greeting: parsed.data.whatsappGreeting || null,
         contact_disc_enabled: parsed.data.contactDiscEnabled,
+        ai_insights_enabled: parsed.data.aiInsightsEnabled,
+        ai_insights_hour: parsed.data.aiInsightsHour,
         updated_by: access.userId,
         updated_at: new Date().toISOString(),
       },

@@ -28,6 +28,15 @@ export const CHANGE_KIND_LABELS: Record<ChangeKind, string> = {
 export const CHANGELOG: ChangeEntry[] = [
   {
     date: "2026-09-20",
+    title: "Insight hari ini di Ringkasan, ditulis AI",
+    items: [
+      { kind: "baru", text: "Di atas Ringkasan Laporan ada kartu “Insight hari ini”: 3 sampai 5 kalimat tentang laporan yang masuk hari ini, laporan tertunda, prospek yang lewat tanggal hubungi lagi, dan perbandingan minggu ini dengan minggu lalu, ditulis AI dari angka yang sudah dihitung aplikasi. Poin yang bisa dijawab daftar bisa diketuk untuk membukanya." },
+      { kind: "baru", text: "Dibuat otomatis tiap pagi pada jam yang diatur admin (bawaan 06.00 WIB) dan diperbarui saat ada laporan masuk, paling cepat 10 menit sekali. Admin bisa menekan Buat ulang. Kartu selalu menyebut kapan dibuat dan dari berapa laporan." },
+      { kind: "baru", text: "Nyalakan di Pengaturan → Aturan aktivitas → Insight AI. Siapa yang melihatnya diatur di Role & Izin (LeadEngine), modul baru Insight AI: bawaan hanya admin dan atasan (cakupan Tim melihat insight timnya, Semua melihat unit); sales bisa diberi akses kapan saja, dan akan melihat insight tentang dirinya sendiri." },
+    ],
+  },
+  {
+    date: "2026-09-20",
     title: "Pengaturan AI: koneksi ke proxy diatur dari aplikasi",
     items: [
       { kind: "baru", text: "Pengaturan → AI: admin mengisi alamat endpoint proxy dan kunci API, menekan Uji koneksi untuk melihat model apa saja yang tersedia di endpoint itu, lalu memilih model cepat dan model analisis dari daftarnya. Kunci disimpan terenkripsi di Supabase Vault dan tidak pernah ditampilkan kembali; ganti kunci cukup dengan mengisi kolomnya lagi." },
