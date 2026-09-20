@@ -22,6 +22,7 @@ const settingsSchema = z.object({
   contactDiscEnabled: z.boolean(),
   aiInsightsEnabled: z.boolean(),
   aiInsightsHour: z.number().int().min(0, "Jam antara 0 dan 23").max(23, "Jam antara 0 dan 23"),
+  aiAskEnabled: z.boolean(),
 })
 
 export type MissionSettingsInput = z.infer<typeof settingsSchema>
@@ -64,6 +65,7 @@ export async function updateMissionSettings(input: unknown): Promise<ActionResul
         contact_disc_enabled: parsed.data.contactDiscEnabled,
         ai_insights_enabled: parsed.data.aiInsightsEnabled,
         ai_insights_hour: parsed.data.aiInsightsHour,
+        ai_ask_enabled: parsed.data.aiAskEnabled,
         updated_by: access.userId,
         updated_at: new Date().toISOString(),
       },

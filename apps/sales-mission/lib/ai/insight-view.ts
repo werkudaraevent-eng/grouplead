@@ -1,5 +1,6 @@
 import { createClient } from "@/utils/supabase/server"
-import { getReadScope, type SalesMissionAccess } from "@/lib/sales-mission-access"
+import { canPerform, getReadScope, type SalesMissionAccess } from "@/lib/sales-mission-access"
+import { getMissionSettings } from "@/lib/missions/mission-queries"
 import { insightHref, type InsightItem, type InsightRecord, type InsightScope } from "./insights"
 
 /** What the card shows: the record with each item's link resolved. */
@@ -49,3 +50,9 @@ export async function resolveInsightScope(access: SalesMissionAccess): Promise<{
   return { scope: "person", userId: access.userId, salesIds: ids }
 }
 
+
+/** Whether the insight card exists for this person: the unit's switch is on and they may read Insight AI. */
+export async function canSeeInsight(access: SalesMissionAccess): Promise<boolean> {
+  const [settings, allowed] = await Promise.all([getMissionSettings(access), canPerform(access, "sales_mission_ai", "read")])
+  return settings.aiInsightsEnabled && allowed
+}

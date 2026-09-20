@@ -8,6 +8,9 @@ import { listReportsPage, type ReportListItem } from "@/lib/reporting/report-lis
 import { EMPTY_REPORT_QUERY } from "@/lib/reporting/report-filter"
 import { listReportRecords } from "@/lib/reporting/report-queries"
 import { buildKpiReport, type KpiSummary } from "@/lib/reporting/kpi"
+import { readInsight } from "@/lib/ai/insights"
+import { wibDayOf } from "@/lib/ai/insight-facts"
+import { resolveInsightScope, toInsightView, type InsightView } from "@/lib/ai/insight-view"
 import { type CubeRow, type Dimension, type LabelContext, type Measure, type WidgetConfig } from "./cube"
 
 /**
@@ -70,6 +73,7 @@ export type WidgetData =
   | { source: "daily_reports"; day: string; items: ReportListItem[]; total: number }
   | { source: "funnel"; counts: ProspectFunnel }
   | { source: "kpi_strip"; summary: KpiSummary }
+  | { source: "ai_insight"; insight: InsightView | null; scopeNote: string | null }
 
 /** The rows one card needs, for its configuration and the page's context. */
 export async function loadWidgetData(access: SalesMissionAccess, config: WidgetConfig, ctx: LoadContext): Promise<WidgetData> {
@@ -116,6 +120,14 @@ export async function loadWidgetData(access: SalesMissionAccess, config: WidgetC
       // The old whole-tenant read; hidden by default, so nobody pays for it unknowingly.
       const records = await listReportRecords(access)
       return { source: "kpi_strip", summary: buildKpiReport(records, ctx.now, ctx.range, ctx.choices).summary }
+    }
+    case "ai_insight": {
+      // Today's, whatever the period: read through the session (RLS: the
+      // unit's row, or the person's own). Made by the card after paint when
+      // there is none.
+      const { scope, userId } = await resolveInsightScope(access)
+      const stored = await readInsight(await createClient(), access.companyId, wibDayOf(ctx.now), scope, userId)
+      return { source: "ai_insight", insight: stored ? toInsightView(stored) : null, scopeNote: scope === "person" ? "tentang orang dalam cakupan Anda" : null }
     }
   }
 }

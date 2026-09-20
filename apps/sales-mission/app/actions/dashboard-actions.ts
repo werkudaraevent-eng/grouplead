@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache"
 import { createClient } from "@/utils/supabase/server"
 import { canPerform, getSalesMissionAccess } from "@/lib/sales-mission-access"
 import { layoutSchema, mergeLayout } from "@/lib/reporting/dashboard-layout"
+import { canSeeInsight } from "@/lib/ai/insight-view"
 import type { ActionResult } from "@/types/action-result"
 import { paths } from "@/lib/paths"
 import { NO_ACCESS_MESSAGE } from "@/lib/brand"
@@ -20,8 +21,8 @@ export async function saveDashboardLayout(input: unknown): Promise<ActionResult>
   const parsed = layoutSchema.safeParse(input)
   if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message ?? "Susunan widget tidak valid." }
 
-  const canSeeProspects = await canPerform(access, "sales_mission_prospect", "read")
-  const layout = mergeLayout(parsed.data, { canSeeProspects })
+  const [canSeeProspects, insight] = await Promise.all([canPerform(access, "sales_mission_prospect", "read"), canSeeInsight(access)])
+  const layout = mergeLayout(parsed.data, { canSeeProspects, canSeeInsight: insight })
 
   const supabase = await createClient()
   const { error } = await supabase
@@ -54,8 +55,8 @@ export async function publishDashboardDefault(): Promise<ActionResult> {
   if (readError) return { success: false, error: "Susunan Anda tidak bisa dibaca." }
   if (!own?.layout) return { success: false, error: "Susun dulu widget di akun Anda; belum ada susunan yang tersimpan." }
 
-  const canSeeProspects = await canPerform(access, "sales_mission_prospect", "read")
-  const layout = mergeLayout(own.layout, { canSeeProspects })
+  const [canSeeProspects, insight] = await Promise.all([canPerform(access, "sales_mission_prospect", "read"), canSeeInsight(access)])
+  const layout = mergeLayout(own.layout, { canSeeProspects, canSeeInsight: insight })
   const { error } = await schema
     .from("company_dashboards")
     .upsert({ company_id: access.companyId, layout, set_by: access.userId, updated_at: new Date().toISOString() }, { onConflict: "company_id" })

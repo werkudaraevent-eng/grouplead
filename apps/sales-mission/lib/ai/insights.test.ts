@@ -19,10 +19,11 @@ describe("assembleFacts", () => {
   const day = "2026-09-20"
   const now = new Date("2026-09-20T05:00:00Z") // 12:00 WIB
   const missions = [
-    { id: "m1", client: "PT Andalan", scheduledStart: "2026-09-20T02:00:00Z", status: "COMPLETED", primaryId: "u1" },
-    { id: "m2", client: "PT Baru", scheduledStart: "2026-09-19T03:00:00Z", status: "CONFIRMED", primaryId: "u2" },
-    { id: "m3", client: "PT Cepat", scheduledStart: "2026-09-21T03:00:00Z", status: "CONFIRMED", primaryId: "u1" },
-    { id: "m4", client: "PT Dulu", scheduledStart: "2026-09-10T03:00:00Z", status: "COMPLETED", primaryId: "u2" },
+    { id: "m1", client: "PT Andalan", scheduledStart: "2026-09-20T02:00:00Z", status: "COMPLETED", primaryId: "u1", industry: "Perbankan" },
+    { id: "m2", client: "PT Baru", scheduledStart: "2026-09-19T03:00:00Z", status: "CONFIRMED", primaryId: "u2", industry: "Perbankan" },
+    { id: "m3", client: "PT Cepat", scheduledStart: "2026-09-21T03:00:00Z", status: "CONFIRMED", primaryId: "u1", industry: null },
+    { id: "m4", client: "PT Dulu", scheduledStart: "2026-09-10T03:00:00Z", status: "COMPLETED", primaryId: "u2", industry: "Retail" },
+    { id: "m5", client: "PT Esok", scheduledStart: "2026-09-24T07:30:00Z", status: "CONFIRMED", primaryId: "u2", industry: "Retail" },
   ]
   const reports = [
     { missionId: "m1", status: "SUBMITTED", submittedAt: "2026-09-20T04:00:00Z", visitOutcome: "MET_DM", interestLevel: "HOT", opportunityExists: true, estimatedValue: 5_000_000, nextActionType: "SEND_PROPOSAL", followUpDate: "2026-09-25", meetingSummary: "  Bahas   paket   MICE  " },
@@ -50,6 +51,15 @@ describe("assembleFacts", () => {
     expect(facts.week.appointments).toBe(2)
     expect(facts.week.estimatedValue).toBe(5_000_000)
     expect(facts.people).toBeNull()
+    // Hours are WIB: 02:00Z is 09.00; industries are counted with "Belum diisi" for a blank.
+    expect(facts.today.byHour).toEqual([{ name: "09.00", count: 1 }])
+    expect(facts.today.byIndustry).toEqual([{ name: "Perbankan", count: 1 }])
+    expect(facts.tomorrow.byIndustry).toEqual([{ name: "Belum diisi", count: 1 }])
+    expect(facts.nextWeek.scheduled).toBe(2)
+    expect(facts.nextWeek.byDay).toEqual([{ name: "Kamis 24 Sep", count: 1 }, { name: "Senin 21 Sep", count: 1 }])
+    expect(facts.week.appointmentsByIndustry).toEqual([{ name: "Perbankan", count: 2 }])
+    expect(facts.week.byOutcome).toEqual([{ name: "Bertemu pengambil keputusan", count: 1 }])
+    expect(facts.week.topClients).toEqual([{ name: "PT Andalan", count: 1 }])
   })
 
   it("limits a person-scoped insight to those people", () => {

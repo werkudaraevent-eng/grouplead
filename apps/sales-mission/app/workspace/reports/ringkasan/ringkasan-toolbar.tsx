@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation"
 import { useTransition } from "react"
-import { Check, Loader2, MoreVertical, Plus, Settings2 } from "@/components/icons"
+import { Check, Loader2, MoreVertical, Plus, Settings2, Sparkles } from "@/components/icons"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { FacetSelect } from "@/components/facet-select"
@@ -16,9 +16,10 @@ import { cn } from "@/lib/utils"
 /**
  * One row: what to show on the left (the period as a segmented button,
  * a custom range's two dates, whose visits as the Sales facet), how it
- * is shown on the right ("Atur widget", and in that mode "Tambah widget",
- * "Selesai" and an overflow with "Susunan awal"). The filters are the
- * URL; the cookie remembers them for the next bare open.
+ * is shown on the right ("Tanya AI" when the unit has it, "Atur widget",
+ * and in that mode "Tambah widget", "Selesai" and an overflow with
+ * "Susunan awal"). The filters are the URL; the cookie remembers them for
+ * the next bare open.
  */
 export function RingkasanToolbar({
   query,
@@ -31,6 +32,7 @@ export function RingkasanToolbar({
   onReset,
   resetLabel = "Kembali ke susunan awal",
   onPublish,
+  onAsk,
 }: {
   query: RingkasanQuery
   range: { from: string; to: string }
@@ -43,6 +45,8 @@ export function RingkasanToolbar({
   resetLabel?: string
   /** Admin only: make this board the unit's default. */
   onPublish?: () => void
+  /** Opens the Tanya AI pane; absent when the unit has not switched it on or the person may not use it. */
+  onAsk?: () => void
 }) {
   const router = useRouter()
   const [pending, startTransition] = useTransition()
@@ -135,10 +139,17 @@ export function RingkasanToolbar({
             </DropdownMenu>
           </>
         ) : (
-          // On a phone this door is in the top bar's overflow (DashboardEditor).
-          <Button type="button" variant="outline" size="sm" className="hidden h-10 md:inline-flex md:h-9" onClick={() => onEditingChange(true)}>
-            <Settings2 className="h-4 w-4" /> Atur widget
-          </Button>
+          <>
+            {onAsk && (
+              <Button type="button" variant="outline" size="sm" className="h-10 md:h-9" onClick={onAsk}>
+                <Sparkles className="h-4 w-4" /> Tanya AI
+              </Button>
+            )}
+            {/* On a phone this door is in the top bar's overflow (DashboardEditor). */}
+            <Button type="button" variant="outline" size="sm" className="hidden h-10 md:inline-flex md:h-9" onClick={() => onEditingChange(true)}>
+              <Settings2 className="h-4 w-4" /> Atur widget
+            </Button>
+          </>
         )}
       </div>
     </div>

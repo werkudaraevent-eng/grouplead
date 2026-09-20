@@ -41,6 +41,12 @@ export interface Position extends Box {
   y: number
 }
 
+export interface LayoutOptions {
+  canSeeProspects: boolean
+  /** The unit's Insight AI switch is on and the viewer may read the module. */
+  canSeeInsight: boolean
+}
+
 export interface DashboardLayout {
   version: typeof LAYOUT_VERSION
   /** Visible ids, in order; the place a card without a position is appended. */
@@ -93,10 +99,20 @@ export function defaultLayout(): DashboardLayout {
     version: LAYOUT_VERSION,
     order: BUILTIN_WIDGETS.filter((widget) => !widget.defaultHidden).map((widget) => widget.id),
     hidden: BUILTIN_WIDGETS.filter((widget) => widget.defaultHidden).map((widget) => widget.id),
-    positions: {},
+    positions: Object.fromEntries(BUILTIN_WIDGETS.filter((widget) => widget.first && !widget.defaultHidden).map((widget) => [widget.id, topPosition(widget)])),
     modes: {},
     custom: [],
   }
+}
+
+/** Where a card that belongs at the top goes: the first row, full width if it asks for it. */
+function topPosition(widget: WidgetConfig): Position {
+  return { x: 0, y: 0, ...presetBox(widget) }
+}
+
+/** The card's box before anyone resized it: its own, else its preset's. */
+function presetBox(widget: WidgetConfig): Box {
+  return widget.source !== "cube" && widget.box ? widget.box : SIZE_BOX[widget.size]
 }
 
 function usesProspects(widget: CubeWidget): boolean {
@@ -108,9 +124,11 @@ function usesProspects(widget: CubeWidget): boolean {
  * Unparseable → defaults. Unknown ids are dropped; an id in both lists is
  * visible; built-ins in neither are appended (visible or hidden per their
  * default); custom cards in neither are appended visible. Cards that need
- * prospects vanish for a viewer without that right.
+ * prospects vanish for a viewer without that right, and the insight card
+ * for a viewer without Insight AI. A built-in marked `first` that a saved
+ * board has never seen goes to the top row instead of the bottom.
  */
-export function mergeLayout(saved: unknown, options: { canSeeProspects: boolean }): DashboardLayout {
+export function mergeLayout(saved: unknown, options: LayoutOptions): DashboardLayout {
   const parsed = layoutSchema.safeParse(saved ?? {})
   const input = parsed.success ? parsed.data : {}
 
@@ -129,6 +147,7 @@ export function mergeLayout(saved: unknown, options: { canSeeProspects: boolean 
   const known = new Map<string, WidgetConfig>()
   for (const widget of BUILTIN_WIDGETS) {
     if (widget.needsProspects && !options.canSeeProspects) continue
+    if (widget.needsInsight && !options.canSeeInsight) continue
     known.set(widget.id, widget)
   }
   for (const widget of uniqueCustom) known.set(widget.id, widget)
@@ -138,11 +157,14 @@ export function mergeLayout(saved: unknown, options: { canSeeProspects: boolean 
   const hidden: string[] = []
   for (const id of input.hidden ?? []) if (known.has(id) && !order.includes(id) && !hidden.includes(id)) hidden.push(id)
 
+  const unseenFirst: string[] = []
   for (const widget of BUILTIN_WIDGETS) {
     if (!known.has(widget.id) || order.includes(widget.id) || hidden.includes(widget.id)) continue
     if (widget.defaultHidden) hidden.push(widget.id)
+    else if (widget.first) unseenFirst.push(widget.id)
     else order.push(widget.id)
   }
+  order.unshift(...unseenFirst)
   for (const widget of uniqueCustom) {
     if (!order.includes(widget.id) && !hidden.includes(widget.id)) order.push(widget.id)
   }
@@ -154,6 +176,8 @@ export function mergeLayout(saved: unknown, options: { canSeeProspects: boolean 
     const box = clampBox(position, minBoxFor(widget))
     positions[id] = { ...box, x: Math.min(position.x, GRID_COLS - box.w), y: position.y }
   }
+  // A top card the board has not placed yet takes the first row; the grid moves the rest down.
+  for (const id of unseenFirst) if (!positions[id]) positions[id] = topPosition(known.get(id)!)
   const modes: Record<string, WidgetMode> = {}
   for (const [id, mode] of Object.entries(input.modes ?? {})) {
     const widget = known.get(id)
@@ -170,7 +194,7 @@ function configOf(layout: DashboardLayout, id: string): WidgetConfig | undefined
 /** The card's box: its saved one, else its preset, never below its minimum. */
 export function boxOf(layout: DashboardLayout, widget: WidgetConfig): Box {
   const saved = layout.positions[widget.id]
-  return clampBox(saved ? { w: saved.w, h: saved.h } : SIZE_BOX[widget.size], minBoxFor(widget))
+  return clampBox(saved ? { w: saved.w, h: saved.h } : presetBox(widget), minBoxFor(widget))
 }
 
 /** The preset whose box this is, if any (for the size menu's current mark). */

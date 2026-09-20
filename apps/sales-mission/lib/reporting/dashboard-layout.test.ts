@@ -31,7 +31,7 @@ const custom = (id: string, measure: "visits" | "planning" = "visits") => ({
   size: "sm" as const,
 })
 
-const all = { canSeeProspects: true }
+const all = { canSeeProspects: true, canSeeInsight: true }
 
 describe("mergeLayout", () => {
   it("is the default for nothing, garbage, or an unparseable shape", () => {
@@ -41,8 +41,8 @@ describe("mergeLayout", () => {
   })
 
   it("drops unknown ids, keeps the saved order, and appends built-ins it has never seen", () => {
-    const layout = mergeLayout({ order: ["daily_reports", "ghost", "visits_per_day"], hidden: ["interest_mix"] }, all)
-    expect(layout.order.slice(0, 2)).toEqual(["daily_reports", "visits_per_day"])
+    const layout = mergeLayout({ order: ["ai_insight", "daily_reports", "ghost", "visits_per_day"], hidden: ["interest_mix"] }, all)
+    expect(layout.order.slice(0, 3)).toEqual(["ai_insight", "daily_reports", "visits_per_day"])
     expect(layout.order).not.toContain("ghost")
     expect(layout.hidden).toContain("interest_mix")
     expect(layout.order).toContain("visits_vs_appointments")
@@ -58,11 +58,30 @@ describe("mergeLayout", () => {
   })
 
   it("removes what needs prospects for a viewer without the right", () => {
-    const layout = mergeLayout({ custom: [custom("c_planning01", "planning"), custom("c_visits0001")] }, { canSeeProspects: false })
+    const layout = mergeLayout({ custom: [custom("c_planning01", "planning"), custom("c_visits0001")] }, { canSeeProspects: false, canSeeInsight: true })
     const ids = [...layout.order, ...layout.hidden]
     expect(ids).not.toContain("appointments_vs_planning")
     expect(ids).not.toContain("funnel")
     expect(layout.custom.map((widget) => widget.id)).toEqual(["c_visits0001"])
+  })
+
+  it("removes the insight card for a viewer without Insight AI, and keeps the rest", () => {
+    const layout = mergeLayout({ order: ["ai_insight", "visits_per_day"] }, { canSeeProspects: true, canSeeInsight: false })
+    expect([...layout.order, ...layout.hidden]).not.toContain("ai_insight")
+    expect(layout.order[0]).toBe("visits_per_day")
+    expect(layout.positions.ai_insight).toBeUndefined()
+  })
+
+  it("puts the insight card first, full width, on a board that has never seen it", () => {
+    const saved = { order: ["daily_reports", "visits_per_day"], positions: { daily_reports: { x: 0, y: 0, w: 6, h: 14 }, visits_per_day: { x: 6, y: 0, w: 6, h: 7 } } }
+    const layout = mergeLayout(saved, all)
+    expect(layout.order.slice(0, 3)).toEqual(["ai_insight", "daily_reports", "visits_per_day"])
+    expect(layout.positions.ai_insight).toEqual({ x: 0, y: 0, w: 12, h: 6 })
+    // Once placed or hidden, the board's own word stands.
+    const moved = mergeLayout({ ...saved, order: [...saved.order, "ai_insight"], positions: { ...saved.positions, ai_insight: { x: 0, y: 20, w: 6, h: 6 } } }, all)
+    expect(moved.order.indexOf("ai_insight")).toBe(2)
+    expect(moved.positions.ai_insight).toEqual({ x: 0, y: 20, w: 6, h: 6 })
+    expect(mergeLayout({ ...saved, hidden: ["ai_insight"] }, all).hidden).toContain("ai_insight")
   })
 
   it("keeps positions and modes only for known cards, clamped to the board and the minimum", () => {

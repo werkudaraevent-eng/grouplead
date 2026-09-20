@@ -214,6 +214,13 @@ export function MissionSettingsForm({ initial, companyName }: { initial: Mission
               onChange={(event) => setForm({ ...form, aiInsightsHour: Number(event.target.value) })}
             />
           </div>
+          <SwitchRow
+            id="ai-ask"
+            label="Tanya AI di Ringkasan"
+            hint="Nyala: di Ringkasan ada kotak pertanyaan bebas tentang periode dan sales yang sedang disaring, dijawab AI dari angka yang sama dengan kartu-kartunya. Siapa yang boleh bertanya mengikuti modul Insight AI di Role & Izin. Mati: kotaknya tidak muncul."
+            checked={form.aiAskEnabled}
+            onChange={(next) => setForm({ ...form, aiAskEnabled: next })}
+          />
         </div>
       </section>
 
