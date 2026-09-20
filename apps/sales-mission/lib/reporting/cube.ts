@@ -170,9 +170,11 @@ export interface CubeWidget {
 export interface SpecialWidget {
   id: string
   kind: "builtin"
-  source: "daily_reports" | "funnel" | "kpi_strip"
+  source: "daily_reports" | "funnel" | "kpi_strip" | "ai_insight"
   title: string
   size: WidgetSize
+  /** The card's own box when no preset fits it (a full-width strip); `size` still names its nearest preset. */
+  box?: Box
 }
 
 export type WidgetConfig = CubeWidget | SpecialWidget
@@ -239,6 +241,10 @@ export type BuiltinWidget = WidgetConfig & {
   description: string
   /** Needs Lihat on prospects; dropped for viewers without it. */
   needsProspects?: boolean
+  /** Needs the unit's Insight AI switch and Lihat on Insight AI; dropped otherwise. */
+  needsInsight?: boolean
+  /** New to a saved board, the card goes to the top rather than the bottom. */
+  first?: boolean
 }
 
 const cube = (
@@ -252,6 +258,21 @@ const cube = (
 ): BuiltinWidget => ({ id, kind: "builtin", source: "cube", title, measures, group, chart, size, ...extra })
 
 export const BUILTIN_WIDGETS: readonly BuiltinWidget[] = [
+  {
+    // One card in the grid like any other (Google Analytics Insights):
+    // movable, resizable, hideable from Atur widget. It is about today
+    // whatever the toolbar says, and its description says so.
+    id: "ai_insight",
+    kind: "builtin",
+    source: "ai_insight",
+    title: "Insight hari ini",
+    size: "wide",
+    box: { w: GRID_COLS, h: 6 },
+    defaultHidden: false,
+    needsInsight: true,
+    first: true,
+    description: "3 sampai 5 kalimat yang ditulis AI dari angka hari ini; selalu hari ini, tidak mengikuti periode di atas.",
+  },
   cube("visits_per_day", "Laporan per hari", ["visits"], "day", "bars", "wide", {
     modes: ["umum", "sales"],
     defaultHidden: false,
@@ -322,7 +343,7 @@ export const DEFAULT_HIDDEN: readonly string[] = BUILTIN_WIDGETS.filter((widget)
  * number, a donut, a list or the funnel manage in one.
  */
 export function minSizeFor(config: WidgetConfig): WidgetSize {
-  if (config.source === "daily_reports" || config.source === "kpi_strip") return "wide"
+  if (config.source === "daily_reports" || config.source === "kpi_strip" || config.source === "ai_insight") return "wide"
   if (config.source === "funnel") return "sm"
   if (config.source !== "cube") return "wide"
   if (config.group === "none") return "sm"

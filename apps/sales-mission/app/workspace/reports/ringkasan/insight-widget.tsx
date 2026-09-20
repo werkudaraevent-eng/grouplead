@@ -3,7 +3,7 @@
 import { useEffect, useState, useTransition } from "react"
 import Link from "next/link"
 import { toast } from "sonner"
-import { AlertCircle, Info, Loader2, RefreshCw, Sparkles, TrendingDown, TrendingUp } from "@/components/icons"
+import { AlertCircle, Info, Loader2, RefreshCw, TrendingDown, TrendingUp } from "@/components/icons"
 import { ensureTodayInsight, regenerateTodayInsight } from "@/app/actions/ai-insight-actions"
 import type { InsightView } from "@/lib/ai/insight-view"
 import { Button } from "@/components/ui/button"
@@ -11,25 +11,29 @@ import { MISSION_TIME_ZONE } from "@/lib/missions/mission-schema"
 import { cn } from "@/lib/utils"
 
 /**
- * The day's AI-written insight, above the widgets.
- *
- * A card that says what it is: a leading spark icon, the label "Dibuat AI"
- * as a tonal chip, and the time it was written, because a sentence from a
- * model is an estimate with a timestamp, not a figure (HubSpot's and
- * Salesforce's generative summaries carry the same mark). Each point is a
- * list item with a kind icon; a point that a list can answer is a link into
- * that list, the same drill-down the widgets use. If nothing exists yet the
- * card asks for one after the page has painted and shows what it is doing,
- * so the board never waits on the model. Failure is a sentence and, for
- * admins, a Buat ulang.
+ * The day's AI-written insight: the body of one card in the grid, whose
+ * shell (title, "Dibuat AI" chip, drag handle, size menu) is the same as
+ * every other widget's, so the board's owner arranges, shrinks or hides
+ * it like any card (Google Analytics Insights). A sentence from a model
+ * is an estimate with a timestamp, not a figure, so the foot says when it
+ * was written and from what, and that it can be wrong. Each point is a
+ * list item with a kind icon; a point that a list can answer is a link
+ * into that list, the same drill-down the widgets use. If nothing exists
+ * yet the card asks for one after the page has painted and shows what it
+ * is doing, so the board never waits on the model. Failure is a sentence
+ * and, for admins, a Buat ulang.
  */
-export function InsightCard({ initial, canRegenerate, scopeNote }: { initial: InsightView | null; canRegenerate: boolean; scopeNote: string | null }) {
+export function InsightWidget({ initial, canRegenerate, scopeNote }: { initial: InsightView | null; canRegenerate: boolean; scopeNote: string | null }) {
   const [view, setView] = useState<InsightView | null>(initial)
   const [loading, setLoading] = useState(!initial || initial.status === "pending")
   const [regenerating, startRegenerate] = useTransition()
 
   useEffect(() => {
-    if (initial && initial.status !== "pending") return
+    if (initial && initial.status !== "pending") {
+      setView(initial)
+      setLoading(false)
+      return
+    }
     let cancelled = false
     ensureTodayInsight().then((result) => {
       if (cancelled) return
@@ -55,22 +59,14 @@ export function InsightCard({ initial, canRegenerate, scopeNote }: { initial: In
   }
 
   return (
-    <section className="rounded-xl border bg-card" aria-labelledby="insight-title" aria-busy={loading || regenerating}>
-      <header className="flex flex-wrap items-center gap-x-3 gap-y-1 px-5 pt-4">
-        <span className="grid h-8 w-8 place-items-center rounded-lg bg-[var(--tonal)] text-[var(--tonal-foreground)]" aria-hidden="true">
-          <Sparkles className="h-4 w-4" />
-        </span>
-        <h2 id="insight-title" className="text-base font-semibold text-foreground">Insight hari ini</h2>
-        <span className="rounded-md bg-[var(--tonal)] px-1.5 py-0.5 text-[11px] font-semibold text-[var(--tonal-foreground)]">Dibuat AI</span>
-      </header>
-
-      <div className="px-5 pb-4 pt-3">
+    <div className="flex h-full flex-col" aria-busy={loading || regenerating}>
+      <div className="thin-scrollbar min-h-0 flex-1 overflow-y-auto">
         {loading || regenerating ? (
-          <p className="flex items-center gap-2 text-sm text-muted-foreground" role="status">
+          <p className="flex items-center gap-2 py-1 text-sm text-muted-foreground" role="status">
             <Loader2 className="h-4 w-4 animate-spin" /> Menyusun insight dari data hari ini…
           </p>
         ) : view?.status === "ready" ? (
-          <ol className="space-y-2">
+          <ol className="space-y-1">
             {view.items.map((item, index) => (
               <li key={index}>
                 <InsightLine item={item} />
@@ -78,14 +74,12 @@ export function InsightCard({ initial, canRegenerate, scopeNote }: { initial: In
             ))}
           </ol>
         ) : (
-          <p className="text-sm text-muted-foreground">
-            {view?.error ?? "Insight belum tersedia."}
-          </p>
+          <p className="py-1 text-sm text-muted-foreground">{view?.error ?? "Insight belum tersedia."}</p>
         )}
       </div>
 
-      {/* M3 card: supporting text at the start of the bottom row, the one action at its end. The model's id stays in the audit table, not on the card. */}
-      <footer className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t px-5 py-2 text-xs text-muted-foreground">
+      {/* M3 card foot: supporting text at the start, the one action at the end. The model's id stays in the audit table, not on the card. */}
+      <footer className="mt-2 flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1 border-t pt-2 text-xs text-muted-foreground">
         <span className="min-w-0 flex-1">
           {view?.generatedAt ? (
             <>
@@ -105,7 +99,7 @@ export function InsightCard({ initial, canRegenerate, scopeNote }: { initial: In
           </Button>
         )}
       </footer>
-    </section>
+    </div>
   )
 }
 

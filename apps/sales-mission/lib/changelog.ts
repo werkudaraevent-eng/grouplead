@@ -30,8 +30,9 @@ export const CHANGELOG: ChangeEntry[] = [
     date: "2026-09-20",
     title: "Tanya AI di Ringkasan, dan insight yang lebih kaya",
     items: [
-      { kind: "baru", text: "Tanya AI: di Ringkasan ada kotak pertanyaan bebas tentang periode dan sales yang sedang disaring, misalnya “sales mana yang paling banyak laporan?” atau “industri apa yang paling sering dikunjungi?”. Jawabannya dihitung dari angka yang sama dengan kartu-kartu di bawahnya, jadi selalu bisa dicek. Nyalakan di Pengaturan → Aturan aktivitas → Insight AI; yang boleh bertanya mengikuti modul Insight AI di Role & Izin." },
+      { kind: "baru", text: "Tanya AI: tombol “Tanya AI” di baris saringan Ringkasan membuka panel samping (di ponsel: lembar dari bawah) untuk bertanya bebas tentang periode dan sales yang sedang disaring, misalnya “sales mana yang paling banyak laporan?” atau “industri apa yang paling sering dikunjungi?”. Jawabannya dihitung dari angka yang sama dengan kartu-kartu Ringkasan, jadi selalu bisa dicek, dan percakapan tetap ada saat panel ditutup. Nyalakan di Pengaturan → Aturan aktivitas → Insight AI; yang boleh bertanya mengikuti modul Insight AI di Role & Izin." },
       { kind: "lebih-baik", text: "Insight hari ini kini juga membaca jam tersibuk, industri terbanyak, hasil kunjungan dan klien yang paling sering, serta jadwal besok dan tujuh hari ke depan, sehingga di akhir pekan pun tetap ada 3 sampai 5 poin, bukan satu kalimat saja." },
+      { kind: "lebih-baik", text: "Insight hari ini kini satu kartu di dalam papan Ringkasan, bukan spanduk di atasnya: bisa dipindah, diubah ukurannya, atau disembunyikan lewat Atur widget seperti kartu lain. Pertama kali muncul, kartu ini mengambil baris pertama selebar papan; isinya selalu tentang hari ini, tidak ikut periode yang disaring." },
     ],
   },
   {

@@ -28,6 +28,7 @@ import {
 import type { RingkasanQuery } from "@/lib/reporting/ringkasan-filter"
 import type { WidgetView } from "@/lib/reporting/widget-view"
 import { AddWidgetSheet } from "./add-widget-sheet"
+import { AskPanel } from "./ask-panel"
 import { DashboardGrid } from "./dashboard-grid"
 import { RingkasanToolbar } from "./ringkasan-toolbar"
 import { WidgetCard } from "./widget-card"
@@ -65,6 +66,7 @@ const Card = memo(function Card({
   preset,
   minSize,
   filterChip,
+  canPublish,
   onMode,
   onPreset,
   onHide,
@@ -79,6 +81,7 @@ const Card = memo(function Card({
   preset: WidgetSize | null
   minSize: WidgetSize
   filterChip?: string
+  canPublish: boolean
   onMode: (id: string, mode: WidgetMode) => void
   onPreset: (id: string, size: WidgetSize) => void
   onHide: (id: string) => void
@@ -91,6 +94,7 @@ const Card = memo(function Card({
   return (
     <WidgetShell
       title={config.title}
+      badge={config.source === "ai_insight" ? "Dibuat AI" : undefined}
       editing={editing}
       preset={preset}
       minSize={minSize}
@@ -104,7 +108,7 @@ const Card = memo(function Card({
       onEdit={isCustom ? () => onEdit(card.id) : undefined}
       onRemove={isCustom ? () => onRemove(card.id) : undefined}
     >
-      <WidgetCard view={view} range={range} sales={sales} editing={editing} />
+      <WidgetCard view={view} range={range} sales={sales} editing={editing} canRegenerate={canPublish} />
     </WidgetShell>
   )
 })
@@ -121,7 +125,7 @@ export function DashboardEditor({
   canPublish,
   hasCompanyDefault,
   exportQuery,
-  beforeGrid,
+  askEnabled,
 }: {
   query: RingkasanQuery
   range: { from: string; to: string }
@@ -136,14 +140,15 @@ export function DashboardEditor({
   hasCompanyDefault: boolean
   /** The period as query string, for the export links in the phone's overflow menu. */
   exportQuery: string
-  /** Content that follows the toolbar's period and people, drawn above the widgets: Tanya AI. */
-  beforeGrid?: React.ReactNode
+  /** Tanya AI is on for the unit and this person may use it: a toolbar button opens its pane. */
+  askEnabled: boolean
 }) {
   const router = useRouter()
   const compact = useCompact()
   const [layout, setLayout] = useState(initialLayout)
   const [editing, setEditing] = useState(false)
   const [sheetOpen, setSheetOpen] = useState(false)
+  const [askOpen, setAskOpen] = useState(false)
   const [configuring, setConfiguring] = useState<{ open: boolean; widget: CubeWidget | null }>({ open: false, widget: null })
   const [publishing, setPublishing] = useState(false)
   const [saving, startSaving] = useTransition()
@@ -260,6 +265,7 @@ export function DashboardEditor({
         preset={presetOf(boxOf(layout, config))}
         minSize={minSizeFor(config)}
         filterChip={filterChip}
+        canPublish={canPublish}
         onMode={onMode}
         onPreset={onPreset}
         onHide={onHide}
@@ -303,6 +309,7 @@ export function DashboardEditor({
           })
         }}
         onPublish={canPublish ? () => setPublishing(true) : undefined}
+        onAsk={askEnabled ? () => setAskOpen(true) : undefined}
       />
 
       <Dialog open={publishing} onOpenChange={(open) => { if (!saving) setPublishing(open) }}>
@@ -343,8 +350,6 @@ export function DashboardEditor({
         </DialogContent>
       </Dialog>
 
-      {beforeGrid ? <div className="mb-4">{beforeGrid}</div> : null}
-
       {visibleIds.length === 0 ? (
         <p className="rounded-xl border border-dashed bg-card/50 px-6 py-10 text-center text-sm text-muted-foreground">
           Tidak ada widget yang tampil. Buka Atur widget lalu Tambah widget.
@@ -367,6 +372,8 @@ export function DashboardEditor({
           ))}
         </DashboardGrid>
       )}
+
+      {askEnabled && <AskPanel open={askOpen} onOpenChange={setAskOpen} range={range} sales={sales} />}
 
       <AddWidgetSheet
         open={sheetOpen}

@@ -26,6 +26,7 @@ import {
   type WidgetMode,
 } from "./cube"
 import type { WidgetData } from "./dashboard-queries"
+import type { InsightView } from "@/lib/ai/insight-view"
 
 /**
  * Rows → what a card draws. Plain, serialisable data: the page computes
@@ -57,6 +58,7 @@ export type WidgetView =
   | { type: "daily"; day: string; items: DailyReportRow[]; total: number }
   | { type: "funnel"; counts: ProspectFunnel }
   | { type: "kpi_strip"; summary: KpiSummary }
+  | { type: "insight"; insight: InsightView | null; scopeNote: string | null }
   | { type: "empty"; text: string }
 
 /** One row of a bar list. `folded` is set on the "Lainnya" row: how many buckets it stands for. */
@@ -143,6 +145,9 @@ export function presentWidget(
   }
   if (config.source === "kpi_strip") {
     return data.source === "kpi_strip" ? { type: "kpi_strip", summary: data.summary } : { type: "empty", text: "Data tidak tersedia." }
+  }
+  if (config.source === "ai_insight") {
+    return data.source === "ai_insight" ? { type: "insight", insight: data.insight, scopeNote: data.scopeNote } : { type: "empty", text: "Data tidak tersedia." }
   }
   if (config.source !== "cube" || data.source !== "cube") return { type: "empty", text: "Data tidak tersedia." }
   return presentCube(config, data, mode, ctx, range)

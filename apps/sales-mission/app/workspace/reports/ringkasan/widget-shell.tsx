@@ -26,6 +26,7 @@ import { cn } from "@/lib/utils"
  */
 export function WidgetShell({
   title,
+  badge,
   editing,
   preset,
   minSize,
@@ -41,6 +42,8 @@ export function WidgetShell({
   children,
 }: {
   title: string
+  /** A tonal chip after the title that says what the card is ("Dibuat AI"). */
+  badge?: string
   editing: boolean
   /** The preset the card's box matches, if any. */
   preset: WidgetSize | null
@@ -62,7 +65,10 @@ export function WidgetShell({
     <section className="@container relative flex h-full w-full flex-col" aria-label={title}>
       <header className={cn("flex shrink-0 items-center gap-2 px-4 pb-1 pt-3", editing && "widget-drag-handle cursor-grab select-none active:cursor-grabbing")}>
         {editing && <GripVertical className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />}
-        <h3 className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">{title}</h3>
+        <div className="flex min-w-0 flex-1 items-center gap-2">
+          <h3 className="min-w-0 truncate text-sm font-medium text-foreground">{title}</h3>
+          {badge && <span className="shrink-0 rounded-md bg-[var(--tonal)] px-1.5 py-0.5 text-[11px] font-semibold text-[var(--tonal-foreground)]">{badge}</span>}
+        </div>
         <div className="flex shrink-0 items-center gap-1" onPointerDown={stop} onMouseDown={stop} onTouchStart={stop}>
           {filterChip && <span className="hidden max-w-[8rem] truncate rounded-md bg-[var(--tonal)] px-1.5 py-0.5 text-[11px] font-medium text-[var(--tonal-foreground)] @[300px]:inline">{filterChip}</span>}
           {truncated && (

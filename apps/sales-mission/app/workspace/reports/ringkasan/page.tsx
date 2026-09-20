@@ -2,12 +2,6 @@ import { redirect } from "next/navigation"
 import { Download } from "@/components/icons"
 import { canPerform, getReadScope, getSalesMissionAccess } from "@/lib/sales-mission-access"
 import { getMissionSettings } from "@/lib/missions/mission-queries"
-import { readInsight } from "@/lib/ai/insights"
-import { wibDayOf } from "@/lib/ai/insight-facts"
-import { resolveInsightScope, toInsightView, type InsightView } from "@/lib/ai/insight-view"
-import { createClient } from "@/utils/supabase/server"
-import { InsightCard } from "./insight-card"
-import { AskCard } from "./ask-card"
 import { requireModule } from "@/lib/missions/nav-access"
 import { listTenantSales } from "@/lib/missions/mission-queries"
 import { listReportChoices } from "@/lib/missions/report-choice-queries"
@@ -31,10 +25,11 @@ export const dynamic = "force-dynamic"
 
 /**
  * Ringkasan: the summary as a board of cards over one period and one set
- * of people. Each card is one question of the cube (or one of the three
- * special loaders), answered here on the server and handed to the board
- * as plain data; the board arranges, resizes and switches modes without
- * asking again.
+ * of people. Each card is one question of the cube (or one of the special
+ * loaders: the daily list, the funnel, the KPI strip, today's AI insight),
+ * answered here on the server and handed to the board as plain data; the
+ * board arranges, resizes and switches modes without asking again. Tanya
+ * AI is a pane off the toolbar, not a card, so the board stays the page.
  */
 export default async function ReportSummaryPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const access = await getSalesMissionAccess()
@@ -63,19 +58,10 @@ export default async function ReportSummaryPage({ searchParams }: { searchParams
     canPerform(access, "sales_mission_ai", "read"),
   ])
 
-  // The day's insight, read through the session (RLS: the unit's row, or
-  // the person's own). Made by the card after paint when there is none.
-  let insight: InsightView | null = null
-  let insightScopeNote: string | null = null
-  const showInsight = settings.aiInsightsEnabled && canSeeInsight
-  if (showInsight) {
-    const { scope, userId } = await resolveInsightScope(access)
-    const stored = await readInsight(await createClient(), access.companyId, wibDayOf(now), scope, userId)
-    insight = stored ? toInsightView(stored) : null
-    insightScopeNote = scope === "person" ? "tentang orang dalam cakupan Anda" : null
-  }
-  // Your own board if you arranged one; else the unit's default; else the built-ins.
-  const layout = mergeLayout(saved ?? companyDefault, { canSeeProspects })
+  // Your own board if you arranged one; else the unit's default; else the
+  // built-ins. The insight card exists only while the unit's switch is on
+  // and the person may read Insight AI.
+  const layout = mergeLayout(saved ?? companyDefault, { canSeeProspects, canSeeInsight: settings.aiInsightsEnabled && canSeeInsight })
   const { visible, hidden } = resolveWidgets(layout)
 
   const data = await Promise.all(visible.map((widget) => loadWidgetData(access, widget, { range, sales, day, choices, now })))
@@ -115,12 +101,6 @@ export default async function ReportSummaryPage({ searchParams }: { searchParams
     >
       <ReportTabs />
       <RememberView list="ringkasan" />
-      {/* Today's insight does not follow the period or the people below, so it sits above the toolbar; Tanya AI does, so it sits under it (beforeGrid). */}
-      {showInsight && (
-        <div className="mb-4">
-          <InsightCard initial={insight} canRegenerate={canPublish} scopeNote={insightScopeNote} />
-        </div>
-      )}
       <DashboardEditor
         query={query}
         range={range}
@@ -133,7 +113,7 @@ export default async function ReportSummaryPage({ searchParams }: { searchParams
         canPublish={canPublish}
         hasCompanyDefault={companyDefault !== null}
         exportQuery={exportQuery.toString()}
-        beforeGrid={settings.aiAskEnabled && canSeeInsight ? <AskCard range={range} sales={sales} /> : null}
+        askEnabled={settings.aiAskEnabled && canSeeInsight}
       />
     </WorkspacePage>
   )

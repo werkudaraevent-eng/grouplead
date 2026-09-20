@@ -181,14 +181,17 @@ describe("sizes", () => {
 
   it("fills whole rows of the twelve-column board by default", async () => {
     const { SIZE_BOX, GRID_COLS } = await import("./cube")
-    const area = BUILTIN_WIDGETS.filter((widget) => !widget.defaultHidden).reduce((sum, widget) => sum + SIZE_BOX[widget.size].w * SIZE_BOX[widget.size].h, 0)
+    const area = BUILTIN_WIDGETS.filter((widget) => !widget.defaultHidden).reduce((sum, widget) => {
+      const box = widget.source !== "cube" && widget.box ? widget.box : SIZE_BOX[widget.size]
+      return sum + box.w * box.h
+    }, 0)
     expect(area % GRID_COLS).toBe(0)
   })
 })
 
 describe("built-ins", () => {
-  it("show six cards by default and hide the rest", () => {
-    expect(DEFAULT_ORDER).toEqual(["visits_per_day", "visits_vs_appointments", "appointments_vs_planning", "interest_mix", "visits_by_industry", "daily_reports"])
+  it("show the insight and six cards by default and hide the rest", () => {
+    expect(DEFAULT_ORDER).toEqual(["ai_insight", "visits_per_day", "visits_vs_appointments", "appointments_vs_planning", "interest_mix", "visits_by_industry", "daily_reports"])
     expect(DEFAULT_HIDDEN.length).toBe(BUILTIN_WIDGETS.length - DEFAULT_ORDER.length)
     expect(new Set(BUILTIN_WIDGETS.map((widget) => widget.id)).size).toBe(BUILTIN_WIDGETS.length)
   })
