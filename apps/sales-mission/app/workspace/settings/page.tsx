@@ -2,7 +2,7 @@ import Link from "next/link"
 import { redirect } from "next/navigation"
 import { getSalesMissionAccess } from "@/lib/sales-mission-access"
 import { requireModule } from "@/lib/missions/nav-access"
-import { ArrowUpRight, Bell, Building2, Database, History, ListChecks, MonitorPlay, ShieldCheck, Trash2, UserSearch } from "@/components/icons"
+import { ArrowUpRight, Bell, Building2, Database, History, ListChecks, MonitorPlay, ShieldCheck, Sparkles, Trash2, UserSearch } from "@/components/icons"
 import { WorkspacePage } from "@/app/workspace/workspace-page"
 import { paths } from "@/lib/paths"
 
@@ -41,6 +41,13 @@ const SETTING_CARDS = [
     title: "Aturan aktivitas",
     description: "Apakah sales harus mengonfirmasi penugasan, batas sales pendukung, dan pemeriksaan bentrok jadwal.",
     href: paths.settings.activities,
+  },
+  {
+    icon: Sparkles,
+    tone: "bg-[var(--tonal)] text-[var(--tonal-foreground)]",
+    title: "AI",
+    description: "Endpoint proxy, kunci API, dan model untuk fitur AI. Satu koneksi dipakai Sales Activity dan LeadEngine.",
+    href: paths.settings.ai,
   },
   {
     icon: History,

@@ -10,6 +10,7 @@ import {
     ChevronRight,
     Database,
     ShieldAlert,
+    Sparkles,
     Trash2,
 } from "@/components/icons"
 import { SettingsPageHeader } from "@/components/layout/settings-page-header"
@@ -99,6 +100,13 @@ const sections: ModuleSection[] = [
                 href: "/settings/recycle-bin",
                 icon: Trash2,
                 permission: { module: "permissions", action: "read" },
+            },
+            {
+                title: "AI",
+                description: "Endpoint, API key and models for the AI features. One connection, shared with Sales Activity.",
+                href: "/settings/ai",
+                icon: Sparkles,
+                permission: { module: "settings", action: "update" },
             },
         ],
     },

@@ -27,6 +27,14 @@ export const CHANGE_KIND_LABELS: Record<ChangeKind, string> = {
 
 export const CHANGELOG: ChangeEntry[] = [
   {
+    date: "2026-09-20",
+    title: "Pengaturan AI: koneksi ke proxy diatur dari aplikasi",
+    items: [
+      { kind: "baru", text: "Pengaturan → AI: admin mengisi alamat endpoint proxy dan kunci API, menekan Uji koneksi untuk melihat model apa saja yang tersedia di endpoint itu, lalu memilih model cepat dan model analisis dari daftarnya. Kunci disimpan terenkripsi di Supabase Vault dan tidak pernah ditampilkan kembali; ganti kunci cukup dengan mengisi kolomnya lagi." },
+      { kind: "baru", text: "Satu koneksi dipakai Sales Activity dan LeadEngine. LeadEngine langsung memakainya untuk Ask AI dan Analyze di dashboard; fitur AI di Sales Activity (insight harian di Laporan, ringkasan periode, tanya data) menyusul dengan saklarnya sendiri." },
+    ],
+  },
+  {
     date: "2026-09-19",
     title: "Ringkasan: daftar per industri tidak lagi menyembunyikan sisanya",
     items: [

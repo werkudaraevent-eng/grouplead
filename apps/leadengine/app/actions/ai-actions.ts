@@ -1,6 +1,6 @@
 "use server"
 
-import { createAIClient, getAIModelFast, getAIModelReasoning } from "@/lib/ai-client"
+import { createAIClient } from "@/lib/ai-client"
 import type { ActionResult } from "@/types/action-result"
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -22,8 +22,7 @@ export async function analyzeDashboard(
   dashboardData: Record<string, unknown>
 ): Promise<ActionResult<DashboardAnalysis>> {
   try {
-    const client = createAIClient()
-    const model = getAIModelReasoning()
+    const { client, modelReasoning: model } = await createAIClient()
 
     const systemPrompt = `You are a senior sales analytics consultant analyzing a CRM dashboard for Werkudara Group.
 Respond in Bahasa Indonesia. Be concise, data-driven, and actionable.
@@ -78,8 +77,7 @@ export async function askAI(
   dashboardContext: Record<string, unknown>
 ): Promise<ActionResult<AskAIResponse>> {
   try {
-    const client = createAIClient()
-    const model = getAIModelFast()
+    const { client, modelFast: model } = await createAIClient()
 
     const systemPrompt = `You are a helpful sales analytics assistant for Werkudara Group's CRM (LeadEngine).
 You have access to the current dashboard data. Answer questions about sales performance, leads, revenue, goals, and pipeline.
