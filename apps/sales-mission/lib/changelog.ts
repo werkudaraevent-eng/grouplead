@@ -31,6 +31,7 @@ export const CHANGELOG: ChangeEntry[] = [
     title: "Tanya AI menjawab lagi",
     items: [
       { kind: "diperbaiki", text: "Tanya AI tadi selalu gagal dengan pesan “EMPTY_ANSWER”: model diberi jatah jawaban yang terlalu kecil, dan pada proxy yang dipakai jatah itu juga menghitung proses berpikir model, jadi jawabannya kosong. Jatahnya kini mengikuti proxy, sama seperti Ask AI di LeadEngine yang memang lancar. Kalau model tetap tidak menjawab, pesannya sekarang kalimat yang jelas, bukan kode." },
+      { kind: "diperbaiki", text: "Di ponsel, chip saran Tanya AI yang panjang tulisannya keluar dari kotaknya. Chip kini membesar mengikuti tulisannya, dan saran yang panjang dipersingkat." },
       { kind: "lebih-baik", text: "Pengaturan → AI: Simpan kini juga mengajukan satu pertanyaan singkat ke model fast dan model penalaran yang dipilih, jadi model yang terdaftar tapi tidak menjawab ketahuan di halaman pengaturan, bukan saat sales bertanya." },
     ],
   },

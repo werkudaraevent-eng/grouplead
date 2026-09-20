@@ -19,7 +19,7 @@ interface Turn {
 const SUGGESTIONS = [
   "Sales mana yang paling banyak laporan?",
   "Industri apa yang paling sering dikunjungi?",
-  "Berapa laporan yang menandai peluang, dan siapa saja?",
+  "Berapa laporan peluang, dan siapa saja?",
   "Klien mana yang paling sering dikunjungi?",
 ]
 
