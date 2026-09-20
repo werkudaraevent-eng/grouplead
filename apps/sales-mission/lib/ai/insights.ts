@@ -223,7 +223,8 @@ export async function generateInsight(service: SupabaseClient, options: Generate
     const result = await chatCompleteDetailed(config, {
       model: config.modelReasoning,
       temperature: 0.3,
-      maxTokens: 900,
+      // Covers a model's reasoning tokens too on most proxies; the answer itself is five short lines of JSON.
+      maxTokens: 2000,
       messages: [
         { role: "system", content: SYSTEM_PROMPT },
         { role: "user", content: `FAKTA:\n${JSON.stringify(facts)}` },

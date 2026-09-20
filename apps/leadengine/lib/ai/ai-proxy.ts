@@ -62,18 +62,58 @@ export function parseModels(body: unknown): AiModel[] {
   return models.sort((a, b) => a.id.localeCompare(b.id))
 }
 
-/** The assistant's text out of a chat completion, tolerant of proxies that put it elsewhere. */
-export function parseCompletion(body: unknown): string | null {
-  if (!body || typeof body !== "object") return null
+export interface ParsedCompletion {
+  text: string | null
+  /** Why the model stopped, as the proxy reports it ("stop", "length", "content_filter", …); null when it says nothing. */
+  finishReason: string | null
+}
+
+/** A string, or the text of an array of parts ({ type: "text", text } or plain strings), joined; null when empty. */
+function textOf(value: unknown): string | null {
+  if (typeof value === "string") return value.trim() ? value : null
+  if (Array.isArray(value)) {
+    const joined = value
+      .map((part) => (typeof part === "string" ? part : part && typeof part === "object" && typeof (part as { text?: unknown }).text === "string" ? (part as { text: string }).text : ""))
+      .join("")
+    return joined.trim() ? joined : null
+  }
+  return null
+}
+
+/**
+ * The assistant's text out of a chat completion, tolerant of proxies that
+ * put it elsewhere: OpenAI's message.content (a string or an array of
+ * parts), reasoning_content, a legacy choices[].text, Gemini's own
+ * candidates[].content.parts passed through untouched, or a bare output.
+ * The finish reason rides along so an empty answer can say why.
+ */
+export function parseCompletionDetailed(body: unknown): ParsedCompletion {
+  if (!body || typeof body !== "object") return { text: null, finishReason: null }
   const record = body as Record<string, unknown>
   const choices = Array.isArray(record.choices) ? record.choices : []
   const first = choices[0] as Record<string, unknown> | undefined
   const message = first?.message as Record<string, unknown> | undefined
-  for (const candidate of [message?.content, message?.reasoning_content]) {
-    if (typeof candidate === "string" && candidate.trim()) return candidate
+  const finishReason = typeof first?.finish_reason === "string" ? first.finish_reason : null
+  for (const candidate of [message?.content, message?.reasoning_content, first?.text]) {
+    const text = textOf(candidate)
+    if (text) return { text, finishReason }
   }
-  if (typeof record.output === "string" && record.output.trim()) return record.output
-  return null
+  const candidates = Array.isArray(record.candidates) ? record.candidates : []
+  const candidate = candidates[0] as Record<string, unknown> | undefined
+  const content = candidate?.content as Record<string, unknown> | undefined
+  const fromParts = textOf(content?.parts)
+  if (fromParts) return { text: fromParts, finishReason: typeof candidate?.finishReason === "string" ? candidate.finishReason : finishReason }
+  return { text: textOf(record.output), finishReason: finishReason ?? (typeof candidate?.finishReason === "string" ? candidate.finishReason : null) }
+}
+
+export function parseCompletion(body: unknown): string | null {
+  return parseCompletionDetailed(body).text
+}
+
+/** The error an empty completion throws; `describeAiError` turns it into a sentence. */
+function emptyAnswer(model: string, body: unknown, finishReason: string | null): Error {
+  console.error("[ai-proxy] empty completion", model, finishReason, JSON.stringify(body).slice(0, 600))
+  return new Error(`EMPTY_ANSWER:${finishReason ?? "unknown"}`)
 }
 
 const TIMEOUT_MS = 20_000
@@ -141,8 +181,9 @@ export async function chatCompleteDetailed(connection: AiConnection, request: Ch
       ...(request.maxTokens ? { max_tokens: request.maxTokens } : {}),
     }),
   })
-  const text = parseCompletion(body)
-  if (!text) throw new Error(`EMPTY_ANSWER:${request.model}`)
+  const parsed = parseCompletionDetailed(body)
+  if (!parsed.text) throw emptyAnswer(request.model, body, parsed.finishReason)
+  const text = parsed.text
   const usage = body && typeof body === "object" ? (body as { usage?: Record<string, unknown> }).usage : undefined
   const count = (key: string) => (usage && typeof usage[key] === "number" ? (usage[key] as number) : null)
   return { text, promptTokens: count("prompt_tokens"), completionTokens: count("completion_tokens") }
@@ -159,9 +200,9 @@ export async function chatComplete(connection: AiConnection, request: ChatReques
       ...(request.maxTokens ? { max_tokens: request.maxTokens } : {}),
     }),
   })
-  const text = parseCompletion(body)
-  if (!text) throw new Error(`Model ${request.model} returned an empty answer.`)
-  return text
+  const parsed = parseCompletionDetailed(body)
+  if (!parsed.text) throw emptyAnswer(request.model, body, parsed.finishReason)
+  return parsed.text
 }
 
 /** A readable sentence for the settings page, from whatever fetch threw. */
@@ -171,6 +212,13 @@ export function describeAiError(error: unknown): string {
     if (/HTTP 401|HTTP 403/.test(error.message)) return "The endpoint rejected the API key (401/403)."
     if (/HTTP 404/.test(error.message)) return "The endpoint answered but has no /models. Check whether the address needs to end in /v1."
     if (/fetch failed|ENOTFOUND|ECONNREFUSED/.test(error.message)) return "The endpoint could not be reached. Check the address."
+    const empty = /^EMPTY_ANSWER:(.*)$/.exec(error.message)
+    if (empty) {
+      const reason = empty[1]
+      if (/length|max_tokens/i.test(reason)) return "The model ran out of tokens before it answered; usually a model that reasons at length first. Try again, or pick another model under Settings → AI."
+      if (/content_filter|safety|blocked|recitation/i.test(reason)) return "The answer was withheld by the model's content filter."
+      return `The model returned an empty answer${reason && reason !== "unknown" ? ` (finish reason: ${reason})` : ""}. Check the model under Settings → AI; Save there tests it with one question.`
+    }
     return error.message
   }
   return "Could not reach the endpoint."

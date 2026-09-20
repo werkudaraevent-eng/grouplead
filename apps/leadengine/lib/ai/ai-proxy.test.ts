@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { normalizeEndpoint, parseCompletion, parseModels } from "./ai-proxy"
+import { normalizeEndpoint, parseCompletion, parseCompletionDetailed, parseModels } from "./ai-proxy"
 
 describe("normalizeEndpoint", () => {
   it("keeps a full base URL and strips trailing slashes", () => {
@@ -36,5 +36,19 @@ describe("parseCompletion", () => {
     expect(parseCompletion({ choices: [{ message: { content: "", reasoning_content: "pikir" } }] })).toBe("pikir")
     expect(parseCompletion({ output: "teks" })).toBe("teks")
     expect(parseCompletion({ choices: [] })).toBeNull()
+  })
+
+  it("reads content given as parts, a legacy text choice, and Gemini's own shape", () => {
+    expect(parseCompletion({ choices: [{ message: { content: [{ type: "text", text: "satu " }, { type: "text", text: "dua" }] } }] })).toBe("satu dua")
+    expect(parseCompletion({ choices: [{ text: "lama" }] })).toBe("lama")
+    expect(parseCompletion({ candidates: [{ content: { parts: [{ text: "asli" }] } }] })).toBe("asli")
+    expect(parseCompletion({ choices: [{ message: { content: [] } }] })).toBeNull()
+  })
+
+  it("keeps the finish reason so an empty answer can say why", () => {
+    expect(parseCompletionDetailed({ choices: [{ message: { content: "" }, finish_reason: "length" }] })).toEqual({ text: null, finishReason: "length" })
+    expect(parseCompletionDetailed({ candidates: [{ content: { parts: [] }, finishReason: "SAFETY" }] })).toEqual({ text: null, finishReason: "SAFETY" })
+    expect(parseCompletionDetailed({ choices: [{ message: { content: "ok" }, finish_reason: "stop" }] })).toEqual({ text: "ok", finishReason: "stop" })
+    expect(parseCompletionDetailed(null)).toEqual({ text: null, finishReason: null })
   })
 })

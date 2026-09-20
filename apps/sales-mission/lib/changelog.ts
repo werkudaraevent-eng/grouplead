@@ -28,6 +28,14 @@ export const CHANGE_KIND_LABELS: Record<ChangeKind, string> = {
 export const CHANGELOG: ChangeEntry[] = [
   {
     date: "2026-09-20",
+    title: "Tanya AI menjawab lagi",
+    items: [
+      { kind: "diperbaiki", text: "Tanya AI tadi selalu gagal dengan pesan “EMPTY_ANSWER”: model diberi jatah jawaban yang terlalu kecil, dan pada proxy yang dipakai jatah itu juga menghitung proses berpikir model, jadi jawabannya kosong. Jatahnya kini mengikuti proxy, sama seperti Ask AI di LeadEngine yang memang lancar. Kalau model tetap tidak menjawab, pesannya sekarang kalimat yang jelas, bukan kode." },
+      { kind: "lebih-baik", text: "Pengaturan → AI: Simpan kini juga mengajukan satu pertanyaan singkat ke model fast dan model penalaran yang dipilih, jadi model yang terdaftar tapi tidak menjawab ketahuan di halaman pengaturan, bukan saat sales bertanya." },
+    ],
+  },
+  {
+    date: "2026-09-20",
     title: "Tanya AI di Ringkasan, dan insight yang lebih kaya",
     items: [
       { kind: "baru", text: "Tanya AI: tombol “Tanya AI” di baris saringan Ringkasan membuka panel samping (di ponsel: lembar dari bawah) untuk bertanya bebas tentang periode dan sales yang sedang disaring, misalnya “sales mana yang paling banyak laporan?” atau “industri apa yang paling sering dikunjungi?”. Jawabannya dihitung dari angka yang sama dengan kartu-kartu Ringkasan, jadi selalu bisa dicek, dan percakapan tetap ada saat panel ditutup. Nyalakan di Pengaturan → Aturan aktivitas → Insight AI; yang boleh bertanya mengikuti modul Insight AI di Role & Izin." },
