@@ -5,7 +5,7 @@ import { z } from "zod"
 import { createServiceClient } from "@/utils/supabase/service"
 import { canPerform, getSalesMissionAccess } from "@/lib/sales-mission-access"
 import { readAiKey, readAiSettings, storeAiKey, type AiSettings } from "@/lib/ai/ai-settings"
-import { describeAiError, listModels, normalizeEndpoint, type AiModel } from "@/lib/ai/ai-proxy"
+import { chatComplete, describeAiError, listModels, normalizeEndpoint, type AiModel } from "@/lib/ai/ai-proxy"
 import type { ActionResult } from "@/types/action-result"
 import { paths } from "@/lib/paths"
 import { NO_ACCESS_MESSAGE } from "@/lib/brand"
@@ -91,6 +91,19 @@ export async function saveAiSettings(input: unknown): Promise<ActionResult<AiSet
     } catch (error) {
       testOk = false
       testError = describeAiError(error)
+    }
+    // A model that lists but does not answer is caught here, not in Tanya AI.
+    if (testOk) {
+      const chosen = [...new Set([parsed.data.modelFast, parsed.data.modelReasoning].filter(Boolean))]
+      for (const model of chosen) {
+        try {
+          await chatComplete({ endpoint, apiKey }, { model, messages: [{ role: "user", content: "Balas hanya dengan satu kata: OK" }] })
+        } catch (error) {
+          testOk = false
+          testError = `Model ${model} tidak menjawab: ${describeAiError(error)}`
+          break
+        }
+      }
     }
   }
 

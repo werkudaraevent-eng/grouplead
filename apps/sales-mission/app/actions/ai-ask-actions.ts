@@ -62,10 +62,10 @@ export async function askSalesData(input: unknown): Promise<ActionResult<AskAnsw
   const ctx = { people: new Map(people.map((person) => [person.id, person.name])), choices }
   const context = await buildAskContext(access, range, sales, ctx, canSeeProspects)
 
+  // The data rides in the system message: one system turn, then the
+  // conversation, which every OpenAI-compatible proxy accepts as is.
   const messages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
-    { role: "system", content: SYSTEM_PROMPT },
-    { role: "user", content: `DATA:\n${JSON.stringify(context)}` },
-    { role: "assistant", content: "Siap. Tanyakan tentang periode ini." },
+    { role: "system", content: `${SYSTEM_PROMPT}\n\nDATA:\n${JSON.stringify(context)}` },
   ]
   for (const turn of history) {
     messages.push({ role: "user", content: turn.question })
@@ -75,7 +75,10 @@ export async function askSalesData(input: unknown): Promise<ActionResult<AskAnsw
 
   const log = hasServiceClientConfig() ? createServiceClient() : null
   try {
-    const result = await chatCompleteDetailed(config, { model: config.modelFast, temperature: 0.2, maxTokens: 500, messages })
+    // No max_tokens, like LeadEngine's Ask AI on the same proxy: there the
+    // budget covers the model's thinking too, and a small cap came back as
+    // an empty answer. The prompt keeps the answer short.
+    const result = await chatCompleteDetailed(config, { model: config.modelFast, temperature: 0.2, messages })
     if (log) {
       await log.schema("sales_mission").from("ai_questions").insert({
         company_id: access.companyId,

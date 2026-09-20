@@ -52,6 +52,13 @@ export const CHANGE_TYPE_META: Record<
 export const CHANGELOG: ChangelogEntry[] = [
     {
         date: "2026-09-20",
+        title: "AI settings test the chosen models",
+        items: [
+            { type: "improvement", text: "Settings → AI: Save now also asks the chosen fast and reasoning models one short question, so a model the endpoint lists but that does not answer is caught on the settings page. An empty answer is reported as a plain sentence with the model's stop reason instead of a code." },
+        ],
+    },
+    {
+        date: "2026-09-20",
         title: "AI connection settings",
         items: [
             { type: "feature", text: "Settings → AI: enter the AI proxy endpoint and API key, press Test connection to see which models that endpoint serves, and pick the fast and reasoning models from the list. The key is stored encrypted in Supabase Vault and never shown again. Ask AI and Analyze on the dashboard now use this connection instead of deployment variables; the same connection is shared with Sales Activity." },
