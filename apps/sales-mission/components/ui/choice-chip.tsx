@@ -15,7 +15,10 @@ import { cn } from "@/lib/utils"
  * easy on the eyes.
  *
  * The visible chip is 32dp; the 48dp touch target comes from the
- * pseudo-element that extends the hit area above and below.
+ * pseudo-element that extends the hit area above and below. A label a
+ * narrow screen must wrap grows the chip with it (min height, not a fixed
+ * one), so the text never spills past the border; labels are still
+ * written to fit one line on a phone.
  */
 export function ChoiceChip({
   selected,
@@ -37,7 +40,7 @@ export function ChoiceChip({
       disabled={disabled}
       aria-pressed={selected}
       className={cn(
-        "relative inline-flex h-8 items-center gap-1.5 rounded-lg border px-3 text-sm transition-colors after:absolute after:inset-x-0 after:-inset-y-2 after:content-[''] disabled:opacity-50",
+        "relative inline-flex min-h-8 items-center gap-1.5 rounded-lg border px-3 py-1 text-left text-sm leading-tight transition-colors after:absolute after:inset-x-0 after:-inset-y-2 after:content-[''] disabled:opacity-50",
         selected
           ? "border-transparent bg-[var(--tonal)] font-medium text-[var(--tonal-foreground)]"
           : "border-input bg-transparent text-foreground hover:bg-muted",
