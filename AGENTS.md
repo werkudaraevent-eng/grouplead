@@ -182,6 +182,15 @@ every variable and why it exists. Both apps point at the same Supabase project
 and share an auth cookie on the parent domain, so one login covers both.
 `SUPABASE_SERVICE_ROLE_KEY` is server-only and must never reach browser code.
 
+The AI connection (proxy endpoint, API key, model names) is **not** an
+environment variable in production: it lives in the shared `public.ai_settings`
+row, the key in Supabase Vault, and is edited from either app's Settings → AI
+page. `AI_PROXY_URL` / `AI_PROXY_KEY` / `AI_MODEL_*` are read only while that
+row is empty. Both apps reach it through `lib/ai/ai-settings.ts`
+(`resolveAiConfig()`), which uses the service client because the key is behind
+`fn_ai_read_key`, a function only the service role may call; every caller
+checks the person's grant first.
+
 ## Gotchas
 
 - Root `npm run dev` / `build` / `test` silently mean LeadEngine. Always say
