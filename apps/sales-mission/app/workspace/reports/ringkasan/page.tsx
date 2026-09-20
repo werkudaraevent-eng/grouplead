@@ -115,10 +115,10 @@ export default async function ReportSummaryPage({ searchParams }: { searchParams
     >
       <ReportTabs />
       <RememberView list="ringkasan" />
-      {(showInsight || (settings.aiAskEnabled && canSeeInsight)) && (
-        <div className="mb-4 space-y-4">
-          {showInsight && <InsightCard initial={insight} canRegenerate={canPublish} scopeNote={insightScopeNote} />}
-          {settings.aiAskEnabled && canSeeInsight && <AskCard range={range} sales={sales} />}
+      {/* Today's insight does not follow the period or the people below, so it sits above the toolbar; Tanya AI does, so it sits under it (beforeGrid). */}
+      {showInsight && (
+        <div className="mb-4">
+          <InsightCard initial={insight} canRegenerate={canPublish} scopeNote={insightScopeNote} />
         </div>
       )}
       <DashboardEditor
@@ -133,6 +133,7 @@ export default async function ReportSummaryPage({ searchParams }: { searchParams
         canPublish={canPublish}
         hasCompanyDefault={companyDefault !== null}
         exportQuery={exportQuery.toString()}
+        beforeGrid={settings.aiAskEnabled && canSeeInsight ? <AskCard range={range} sales={sales} /> : null}
       />
     </WorkspacePage>
   )

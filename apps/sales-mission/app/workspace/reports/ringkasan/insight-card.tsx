@@ -62,12 +62,6 @@ export function InsightCard({ initial, canRegenerate, scopeNote }: { initial: In
         </span>
         <h2 id="insight-title" className="text-base font-semibold text-foreground">Insight hari ini</h2>
         <span className="rounded-md bg-[var(--tonal)] px-1.5 py-0.5 text-[11px] font-semibold text-[var(--tonal-foreground)]">Dibuat AI</span>
-        {canRegenerate && (
-          <Button type="button" variant="ghost" size="sm" className="ml-auto -mr-2 h-9 md:h-9" onClick={regenerate} disabled={loading || regenerating}>
-            {regenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-            Buat ulang
-          </Button>
-        )}
       </header>
 
       <div className="px-5 pb-4 pt-3">
@@ -90,18 +84,26 @@ export function InsightCard({ initial, canRegenerate, scopeNote }: { initial: In
         )}
       </div>
 
-      <footer className="border-t px-5 py-2 text-xs text-muted-foreground">
-        {view?.generatedAt ? (
-          <>
-            {describeWhen(view.generatedAt)}
-            {view.status === "ready" ? ` · dari ${view.reportsSeen} laporan hari ini` : ""}
-            {view.model ? ` · ${view.model}` : ""}
-          </>
-        ) : (
-          "Belum pernah dibuat hari ini."
+      {/* M3 card: supporting text at the start of the bottom row, the one action at its end. The model's id stays in the audit table, not on the card. */}
+      <footer className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t px-5 py-2 text-xs text-muted-foreground">
+        <span className="min-w-0 flex-1">
+          {view?.generatedAt ? (
+            <>
+              {describeWhen(view.generatedAt)}
+              {view.status === "ready" ? (view.reportsSeen > 0 ? ` · dari ${view.reportsSeen} laporan hari ini` : " · belum ada laporan hari ini") : ""}
+            </>
+          ) : (
+            "Belum pernah dibuat hari ini."
+          )}
+          {scopeNote ? ` · ${scopeNote}` : ""}
+          {" · AI bisa keliru; angkanya berasal dari data aplikasi."}
+        </span>
+        {canRegenerate && (
+          <Button type="button" variant="ghost" size="sm" className="-mr-2 h-9 shrink-0 md:h-8" onClick={regenerate} disabled={loading || regenerating}>
+            {regenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+            Buat ulang
+          </Button>
         )}
-        {scopeNote ? ` · ${scopeNote}` : ""}
-        {" · AI bisa keliru; angkanya berasal dari data aplikasi."}
       </footer>
     </section>
   )

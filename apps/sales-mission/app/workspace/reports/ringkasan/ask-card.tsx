@@ -69,7 +69,7 @@ export function AskCard({ range, sales }: { range: { from: string; to: string };
               <li key={index} className="space-y-1">
                 <p className="text-sm font-medium text-foreground">{turn.question}</p>
                 <p className="whitespace-pre-line text-sm leading-relaxed text-foreground">{turn.answer}</p>
-                <p className="text-[11px] text-muted-foreground">Dibuat AI · {turn.model}</p>
+                <p className="text-[11px] text-muted-foreground">Dibuat AI</p>
               </li>
             ))}
           </ol>

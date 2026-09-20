@@ -121,6 +121,7 @@ export function DashboardEditor({
   canPublish,
   hasCompanyDefault,
   exportQuery,
+  beforeGrid,
 }: {
   query: RingkasanQuery
   range: { from: string; to: string }
@@ -135,6 +136,8 @@ export function DashboardEditor({
   hasCompanyDefault: boolean
   /** The period as query string, for the export links in the phone's overflow menu. */
   exportQuery: string
+  /** Content that follows the toolbar's period and people, drawn above the widgets: Tanya AI. */
+  beforeGrid?: React.ReactNode
 }) {
   const router = useRouter()
   const compact = useCompact()
@@ -339,6 +342,8 @@ export function DashboardEditor({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {beforeGrid ? <div className="mb-4">{beforeGrid}</div> : null}
 
       {visibleIds.length === 0 ? (
         <p className="rounded-xl border border-dashed bg-card/50 px-6 py-10 text-center text-sm text-muted-foreground">
