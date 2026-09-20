@@ -28,6 +28,13 @@ export const CHANGE_KIND_LABELS: Record<ChangeKind, string> = {
 export const CHANGELOG: ChangeEntry[] = [
   {
     date: "2026-09-20",
+    title: "Pesan gangguan proxy AI yang terbaca",
+    items: [
+      { kind: "diperbaiki", text: "Saat server proxy AI tidak bisa dijangkau, Tanya AI dan Insight menampilkan halaman HTML mentah dari Cloudflare. Sekarang pesannya satu kalimat: server proxy atau tunnel-nya sedang mati, atau proxy sedang bermasalah, coba lagi sebentar lagi." },
+    ],
+  },
+  {
+    date: "2026-09-20",
     title: "Tanya AI menjawab lagi",
     items: [
       { kind: "diperbaiki", text: "Tanya AI tadi selalu gagal dengan pesan “EMPTY_ANSWER”: model diberi jatah jawaban yang terlalu kecil, dan pada proxy yang dipakai jatah itu juga menghitung proses berpikir model, jadi jawabannya kosong. Jatahnya kini mengikuti proxy, sama seperti Ask AI di LeadEngine yang memang lancar. Kalau model tetap tidak menjawab, pesannya sekarang kalimat yang jelas, bukan kode." },

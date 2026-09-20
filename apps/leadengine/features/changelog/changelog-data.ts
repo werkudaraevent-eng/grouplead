@@ -52,6 +52,13 @@ export const CHANGE_TYPE_META: Record<
 export const CHANGELOG: ChangelogEntry[] = [
     {
         date: "2026-09-20",
+        title: "Readable AI proxy outage messages",
+        items: [
+            { type: "fix", text: "When the AI proxy server cannot be reached, Settings → AI and Ask AI now report it in one sentence (proxy or tunnel down, or the proxy having trouble) instead of showing Cloudflare's raw HTML error page." },
+        ],
+    },
+    {
+        date: "2026-09-20",
         title: "AI settings test the chosen models",
         items: [
             { type: "improvement", text: "Settings → AI: Save now also asks the chosen fast and reasoning models one short question, so a model the endpoint lists but that does not answer is caught on the settings page. An empty answer is reported as a plain sentence with the model's stop reason instead of a code." },
