@@ -60,7 +60,8 @@ export function InsightWidget({ initial, canRegenerate, scopeNote }: { initial: 
 
   return (
     <div className="flex h-full flex-col" aria-busy={loading || regenerating}>
-      <div className="thin-scrollbar min-h-0 flex-1 overflow-y-auto">
+      {/* The scroller carries the 8px the hover backgrounds bleed into, so nothing inside is wider than it (a negative margin on a line would grow a horizontal scrollbar). */}
+      <div className="thin-scrollbar -mx-2 min-h-0 flex-1 overflow-x-hidden overflow-y-auto px-2">
         {loading || regenerating ? (
           <p className="flex items-center gap-2 py-1 text-sm text-muted-foreground" role="status">
             <Loader2 className="h-4 w-4 animate-spin" /> Menyusun insight dari data hari ini…
@@ -120,11 +121,11 @@ function InsightLine({ item }: { item: InsightView["items"][number] }) {
     </>
   )
   return item.href ? (
-    <Link href={item.href} className="-mx-2 flex items-start gap-2.5 rounded-md px-2 py-1 transition-colors hover:bg-muted focus-visible:bg-muted focus-visible:outline-none" title="Buka daftarnya">
+    <Link href={item.href} className="flex items-start gap-2.5 rounded-md px-2 py-1 transition-colors hover:bg-muted focus-visible:bg-muted focus-visible:outline-none" title="Buka daftarnya">
       {body}
     </Link>
   ) : (
-    <div className="flex items-start gap-2.5 px-0 py-1">{body}</div>
+    <div className="flex items-start gap-2.5 px-2 py-1">{body}</div>
   )
 }
 
