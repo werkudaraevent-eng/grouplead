@@ -28,6 +28,13 @@ export const CHANGE_KIND_LABELS: Record<ChangeKind, string> = {
 export const CHANGELOG: ChangeEntry[] = [
   {
     date: "2026-09-21",
+    title: "Kartu laporan di layar lebar: isi di kiri, pendamping di kanan",
+    items: [
+      { kind: "lebih-baik", text: "Di komputer, kartu laporan tidak lagi menyisakan sisi kanan kosong. Tindak lanjut dan ringkasan pembicaraan tetap di kolom utama dengan lebar baca yang nyaman; Ketemu siapa, foto dan rekaman, serta status CRM pindah ke panel pendamping di kanan, mengikuti tata letak Material untuk jendela lebar. Di ponsel dan tablet urutannya tetap seperti sekarang." },
+    ],
+  },
+  {
+    date: "2026-09-21",
     title: "Peluang yang belum dicentang tidak lagi dibaca sebagai tidak ada",
     items: [
       { kind: "diperbaiki", text: "Ubin Peluang di kartu laporan kini menulis Belum ditandai, bukan Tidak ada, kalau centang Ada peluang di laporan kosong; keterangannya menyebut centang itu belum diisi. Centang itu opsional dan menjadi syarat Kirim ke LeadEngine, jadi kosong artinya belum ditandai, bukan tidak ada peluang." },
