@@ -52,6 +52,8 @@ const TopLoader = dynamic(
 import { Button } from "@/components/ui/button"
 import { PageChromeProvider, usePageChrome } from "@/components/page-chrome"
 import { HintsProvider } from "@/components/coach-mark"
+import { AnnouncementDialog, WhatsNewDot } from "@/components/announcements/announcement-dialog"
+import type { AnnouncementState } from "@/lib/announcements/announcements"
 import { MobileNavBar } from "@/components/mobile-nav-bar"
 import { ResponsiveMenu } from "@/components/responsive-menu"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
@@ -175,6 +177,7 @@ function SidebarBody({
   onToggleCollapse,
   isSheet = false,
   onNavigate,
+  announcements = [],
 }: {
   displayName: string
   avatarUrl: string | null
@@ -185,6 +188,7 @@ function SidebarBody({
   onToggleCollapse?: () => void
   isSheet?: boolean
   onNavigate?: () => void
+  announcements?: readonly AnnouncementState[]
 }) {
   const pathname = usePathname()
   const router = useRouter()
@@ -412,7 +416,7 @@ function SidebarBody({
               <Link href={paths.guide} onClick={onNavigate}><HelpCircle className="h-4 w-4" /> Panduan</Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
-              <Link href={paths.whatsNew} onClick={onNavigate}><Sparkles className="h-4 w-4" /> Yang baru</Link>
+              <Link href={paths.whatsNew} onClick={onNavigate}><Sparkles className="h-4 w-4" /> Yang baru <WhatsNewDot announcements={announcements} /></Link>
             </DropdownMenuItem>
             <DropdownMenuSeparator className="bg-sidebar-border" />
             <DropdownMenuItem onSelect={togglePanel}>
@@ -439,6 +443,7 @@ export function WorkspaceShell({
   companyName,
   initialCollapsed = false,
   seenHints = [],
+  announcements = [],
 }: {
   children: React.ReactNode
   displayName: string
@@ -450,6 +455,8 @@ export function WorkspaceShell({
   initialCollapsed?: boolean
   /** Coach marks this person has already dismissed, on any device. */
   seenHints?: string[]
+  /** The releases the unit announces; the dialog and the Yang baru dot read them against seenHints. */
+  announcements?: AnnouncementState[]
 }) {
   const [collapsed, setCollapsed] = useState(initialCollapsed ?? false)
 
@@ -484,7 +491,7 @@ export function WorkspaceShell({
         data-sidebar
         className={`relative hidden shrink-0 flex-none overflow-clip bg-sidebar transition-[width] duration-200 ease-out lg:flex lg:flex-col ${collapsed ? "lg:w-[60px]" : "lg:w-[220px]"}`}
       >
-        <SidebarBody displayName={displayName} avatarUrl={avatarUrl} unreadCount={unreadCount} navAccess={navAccess} companyName={companyName} collapsed={collapsed} onToggleCollapse={toggleCollapse} />
+        <SidebarBody displayName={displayName} avatarUrl={avatarUrl} unreadCount={unreadCount} navAccess={navAccess} companyName={companyName} collapsed={collapsed} onToggleCollapse={toggleCollapse} announcements={announcements} />
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col overflow-clip">
@@ -493,7 +500,8 @@ export function WorkspaceShell({
           {children}
         </main>
       </div>
-      <MobileNavBar navAccess={navAccess} unreadCount={unreadCount} displayName={displayName} avatarUrl={avatarUrl} />
+      <MobileNavBar navAccess={navAccess} unreadCount={unreadCount} displayName={displayName} avatarUrl={avatarUrl} announcements={announcements} />
+      <AnnouncementDialog announcements={announcements} />
     </div>
     </HintsProvider>
     </PageChromeProvider>
