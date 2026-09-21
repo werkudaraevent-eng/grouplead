@@ -12,11 +12,29 @@ export interface ChangeItem {
   text: string
 }
 
+/**
+ * A release worth a dialog. Written with the feature, like the entry; the
+ * unit's admin decides in Pengaturan → Pengumuman whether it shows.
+ */
+export interface Announcement {
+  /** Stable slug: the settings row and the "seen" marks hang off it. */
+  key: string
+  title: string
+  /** One sentence, for a sales rep. */
+  body: string
+  /** Where "Coba sekarang" goes. */
+  href?: string
+  hrefLabel?: string
+  /** Off until an admin switches it on; for a change that is not every rep's business. */
+  defaultOn?: boolean
+}
+
 export interface ChangeEntry {
   /** YYYY-MM-DD */
   date: string
   title: string
   items: ChangeItem[]
+  announcement?: Announcement
 }
 
 export const CHANGE_KIND_LABELS: Record<ChangeKind, string> = {
@@ -26,6 +44,14 @@ export const CHANGE_KIND_LABELS: Record<ChangeKind, string> = {
 }
 
 export const CHANGELOG: ChangeEntry[] = [
+  {
+    date: "2026-09-21",
+    title: "Fitur baru diumumkan saat membuka Hari ini; admin yang memilih",
+    items: [
+      { kind: "baru", text: "Saat membuka Hari ini, dialog Yang baru menampilkan sampai tiga fitur baru yang siap dipakai, masing-masing dengan tombol Coba sekarang. Muncul sekali per akun; pilih Nanti saja untuk menutupnya, titik di menu Yang baru tetap ada sampai halamannya dibuka." },
+      { kind: "baru", text: "Admin memilih fitur mana yang diumumkan di Pengaturan → Pengumuman: saklar per rilis, dan Umumkan ulang untuk memunculkan dialognya lagi ke semua akun, misalnya setelah training." },
+    ],
+  },
   {
     date: "2026-09-21",
     title: "Ringkasan: kartu angka lebih ringkas, dan cara mengubah ukurannya terlihat",
@@ -38,6 +64,14 @@ export const CHANGELOG: ChangeEntry[] = [
   {
     date: "2026-09-21",
     title: "Aktivitas yang sudah selesai masih bisa dirapikan keterangannya",
+    announcement: {
+      key: "edit-completed",
+      title: "Ubah aktivitas setelah laporan dikirim",
+      body: "Kontak janji temu, alamat, dan tujuan kunjungan yang sudah selesai bisa dirapikan lewat Ubah aktivitas, tanpa menarik laporan.",
+      href: "/workspace/activities",
+      hrefLabel: "Buka daftar aktivitas",
+      defaultOn: false,
+    },
     items: [
       { kind: "lebih-baik", text: "Setelah laporan dikirim, Ubah aktivitas tetap tersedia untuk merapikan keterangan kunjungan: nama, jabatan, dan nomor kontak janji temu, alamat, industri, tujuan, dan isian tambahan. Tidak perlu lagi menarik laporan hanya untuk membetulkan nama." },
       { kind: "lebih-baik", text: "Yang tetap dibekukan pada kunjungan yang sudah selesai: jadwal dan tim, karena keduanya bagian dari apa yang terjadi. Formulir menampilkannya apa adanya tanpa bisa diubah. Aktivitas yang dibatalkan tetap tidak bisa diubah. Siapa yang benar-benar ditemui tetap diubah lewat Ubah laporan → Ketemu siapa." },
@@ -89,6 +123,13 @@ export const CHANGELOG: ChangeEntry[] = [
   {
     date: "2026-09-21",
     title: "Tindak lanjut yang hidup: dari next action sampai selesai",
+    announcement: {
+      key: "follow-ups",
+      title: "Tindak lanjut yang dilacak",
+      body: "Next action di laporan kini punya penanggung jawab, jatuh tempo, dan status. Muncul di Hari ini sampai kamu mencatat hasilnya.",
+      href: "/workspace/reports",
+      hrefLabel: "Lihat di daftar laporan",
+    },
     items: [
       { kind: "baru", text: "Next action di laporan kini menjadi tindak lanjut yang dilacak: punya penanggung jawab, jatuh tempo, dan status. Muncul di Hari ini pemiliknya pada bagian Tindak lanjut hari ini (yang lewat tanggal ditandai) sampai dicatat hasilnya." },
       { kind: "baru", text: "Di kartu laporan ada Catat tindak lanjut: lewat apa, bagaimana hasilnya, kapan, catatan, dan kalau perlu langkah berikutnya, yang langsung dibuka sebagai tindak lanjut baru. Rangkaiannya tampil sebagai riwayat di kartu laporan; Tambah tindak lanjut untuk membuka langkah baru, ⋮ untuk membatalkan." },
@@ -109,6 +150,13 @@ export const CHANGELOG: ChangeEntry[] = [
   {
     date: "2026-09-21",
     title: "Bagikan laporan ke WhatsApp, QR jadwal di layar TV",
+    announcement: {
+      key: "share-whatsapp",
+      title: "Bagikan laporan ke WhatsApp",
+      body: "Setelah kirim laporan, satu ketukan menyusun teks laporan beserta fotonya untuk grup WhatsApp. Tinggal pilih grupnya.",
+      href: "/workspace/reports",
+      hrefLabel: "Buka daftar laporan",
+    },
     items: [
       { kind: "baru", text: "Di laporan yang sudah dikirim ada tombol Bagikan ke WhatsApp: teksnya disusun otomatis dari laporan dalam format grup (tanggal, jam, klien, PIC, jabatan, ringkasan) beserta foto pertama, lalu kamu tinggal memilih grupnya di ponsel. Tidak perlu mengetik ulang, formatnya selalu sama." },
       { kind: "baru", text: "Formatnya diatur admin di Pengaturan → Aturan aktivitas → Laporan kunjungan: ketik sendiri, sisipkan isian seperti {klien}, {pic}, {hasil}, {ringkasan}, {foto} dengan sekali ketuk, dan lihat contoh hasilnya langsung. Baris yang isiannya kosong tidak ikut terkirim." },

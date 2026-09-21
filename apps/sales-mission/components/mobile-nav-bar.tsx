@@ -23,6 +23,8 @@ import { BottomSheet, SheetRow } from "@/components/ui/bottom-sheet"
 import { PersonAvatar } from "@/components/person-avatar"
 import { usePageChrome } from "@/components/page-chrome"
 import { CoachMark, useHintSeen } from "@/components/coach-mark"
+import { WhatsNewDot } from "@/components/announcements/announcement-dialog"
+import type { AnnouncementState } from "@/lib/announcements/announcements"
 import { useStandalone } from "@/hooks/use-compact"
 import { createClient } from "@/utils/supabase/client"
 import { clearActiveSessionId } from "@/lib/session-guard"
@@ -59,11 +61,13 @@ export function MobileNavBar({
   unreadCount,
   displayName,
   avatarUrl,
+  announcements = [],
 }: {
   navAccess: NavAccess
   unreadCount: number
   displayName: string
   avatarUrl: string | null
+  announcements?: readonly AnnouncementState[]
 }) {
   const pathname = usePathname()
   const router = useRouter()
@@ -168,7 +172,7 @@ export function MobileNavBar({
             <SheetRow icon={CalendarDays} label="Kalender saya" hint="Sinkron ke Google Calendar atau iPhone" active={isActive(pathname, paths.myCalendar)} onClick={() => go(paths.myCalendar)} />
           )}
           <SheetRow icon={HelpCircle} label="Panduan" hint="Cara kerja Sales Activity, singkat" active={isActive(pathname, paths.guide)} onClick={() => go(paths.guide)} />
-          <SheetRow icon={Sparkles} label="Yang baru" hint="Perubahan terbaru di aplikasi" active={isActive(pathname, paths.whatsNew)} onClick={() => go(paths.whatsNew)} />
+          <SheetRow icon={Sparkles} label="Yang baru" hint="Perubahan terbaru di aplikasi" active={isActive(pathname, paths.whatsNew)} onClick={() => go(paths.whatsNew)} trailing={<WhatsNewDot announcements={announcements} className="h-2 w-2 shrink-0 rounded-full bg-primary" />} />
           {!standalone && (
             <SheetRow icon={Download} label="Pasang di ponsel" hint="Buka seperti aplikasi, dari layar utama" onClick={() => go(paths.install)} />
           )}

@@ -2,7 +2,7 @@ import Link from "next/link"
 import { redirect } from "next/navigation"
 import { getSalesMissionAccess } from "@/lib/sales-mission-access"
 import { requireModule } from "@/lib/missions/nav-access"
-import { ArrowUpRight, Bell, Building2, ClipboardList, Database, History, ListChecks, MonitorPlay, ShieldCheck, Sparkles, Trash2, UserSearch } from "@/components/icons"
+import { ArrowUpRight, Bell, Building2, ClipboardList, Database, History, ListChecks, Megaphone, MonitorPlay, ShieldCheck, Sparkles, Trash2, UserSearch } from "@/components/icons"
 import { WorkspacePage } from "@/app/workspace/workspace-page"
 import { paths } from "@/lib/paths"
 
@@ -48,6 +48,13 @@ const SETTING_CARDS = [
     title: "AI",
     description: "Endpoint proxy, kunci API, dan model untuk fitur AI. Satu koneksi dipakai Sales Activity dan LeadEngine.",
     href: paths.settings.ai,
+  },
+  {
+    icon: Megaphone,
+    tone: "bg-[var(--tonal)] text-[var(--tonal-foreground)]",
+    title: "Pengumuman",
+    description: "Fitur baru mana yang diumumkan lewat dialog Yang baru saat orang membuka Hari ini, dan umumkan ulang setelah training.",
+    href: paths.settings.announcements,
   },
   {
     icon: History,

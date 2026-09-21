@@ -102,6 +102,19 @@ export function useHintSeen(key: string): boolean {
   return useContext(HintContext)?.seen.has(key) ?? true
 }
 
+const NOTHING_SEEN: ReadonlySet<string> = new Set()
+
+/** The seen set itself, for anything (a badge) that must clear the moment a key is dismissed. */
+export function useSeenHints(): ReadonlySet<string> {
+  return useContext(HintContext)?.seen ?? NOTHING_SEEN
+}
+
+/** Mark any key seen: on this device at once, on the account through the server. */
+export function useDismissHint(): (key: string) => void {
+  const store = useContext(HintContext)
+  return useCallback((key: string) => store?.dismiss(key), [store])
+}
+
 export function CoachMark({
   hintKey,
   title,

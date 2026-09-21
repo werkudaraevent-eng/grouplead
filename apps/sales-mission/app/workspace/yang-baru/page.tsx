@@ -2,6 +2,8 @@ import { redirect } from "next/navigation"
 import { getSalesMissionAccess } from "@/lib/sales-mission-access"
 import { WorkspacePage } from "@/app/workspace/workspace-page"
 import { CHANGELOG, CHANGE_KIND_LABELS, type ChangeKind } from "@/lib/changelog"
+import { listAnnouncements } from "@/lib/announcements/announcement-queries"
+import { MarkAnnouncementsRead } from "@/components/announcements/announcement-dialog"
 import { MISSION_TIME_ZONE } from "@/lib/missions/mission-schema"
 import { PRODUCT_NAME } from "@/lib/brand"
 import { cn } from "@/lib/utils"
@@ -27,9 +29,12 @@ const formatDate = (iso: string) =>
 export default async function WhatsNewPage() {
   const access = await getSalesMissionAccess()
   if (!access) redirect("/login?error=access_not_provisioned")
+  const announcements = await listAnnouncements(access)
 
   return (
     <WorkspacePage eyebrow={`${PRODUCT_NAME} / Yang baru`} title="Yang baru" description={`Perubahan di ${PRODUCT_NAME}, dari yang terbaru.`}>
+      {/* Opening the page is reading: the dot on the menu clears for every announcement that is on. */}
+      <MarkAnnouncementsRead readKeys={announcements.filter((item) => item.enabled).map((item) => item.readKey)} />
       <ol className="relative max-w-3xl space-y-8 border-l border-border pl-6 lg:pl-8">
         {CHANGELOG.map((entry, index) => (
           <li key={`${entry.date}-${index}`} className="relative">
