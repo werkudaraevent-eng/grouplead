@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { normalizeEndpoint, parseCompletion, parseCompletionDetailed, parseModels } from "./ai-proxy"
+import { describeAiError, normalizeEndpoint, parseCompletion, parseCompletionDetailed, parseModels } from "./ai-proxy"
 
 describe("normalizeEndpoint", () => {
   it("keeps a full base URL and strips trailing slashes", () => {
@@ -50,5 +50,18 @@ describe("parseCompletion", () => {
     expect(parseCompletionDetailed({ candidates: [{ content: { parts: [] }, finishReason: "SAFETY" }] })).toEqual({ text: null, finishReason: "SAFETY" })
     expect(parseCompletionDetailed({ choices: [{ message: { content: "ok" }, finish_reason: "stop" }] })).toEqual({ text: "ok", finishReason: "stop" })
     expect(parseCompletionDetailed(null)).toEqual({ text: null, finishReason: null })
+  })
+})
+
+describe("describeAiError", () => {
+  it("turns a Cloudflare origin error into a sentence, never markup", () => {
+    const text = describeAiError(new Error("HTTP 530: Cloudflare error 1033"))
+    expect(text).toMatch(/Cloudflare/)
+    expect(text).not.toMatch(/</)
+  })
+
+  it("names an empty answer's stop reason", () => {
+    expect(describeAiError(new Error("EMPTY_ANSWER:length"))).toMatch(/token/i)
+    expect(describeAiError(new Error("EMPTY_ANSWER:unknown"))).not.toMatch(/unknown/)
   })
 })

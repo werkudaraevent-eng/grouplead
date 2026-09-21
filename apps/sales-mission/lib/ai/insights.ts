@@ -11,6 +11,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { chatCompleteDetailed, describeAiError } from "./ai-proxy"
 import { resolveAiConfig } from "./ai-settings"
+import { recordAiUsage } from "./ai-usage"
 import { loadInsightFacts, wibDayOf, wibHourOf, type InsightFacts } from "./insight-facts"
 import { paths } from "@/lib/paths"
 
@@ -230,6 +231,7 @@ export async function generateInsight(service: SupabaseClient, options: Generate
         { role: "user", content: `FAKTA:\n${JSON.stringify(facts)}` },
       ],
     })
+    void recordAiUsage({ feature: "insight", model: config.modelReasoning, promptTokens: result.promptTokens, completionTokens: result.completionTokens, ok: true, companyId, userId: userId ?? null })
     const items = parseInsightItems(result.text)
     if (!items) {
       return finish({ status: "failed", error: "Model tidak menjawab dengan format yang diminta.", facts, model: config.modelReasoning, generated_at: new Date().toISOString() })
@@ -246,6 +248,7 @@ export async function generateInsight(service: SupabaseClient, options: Generate
       generated_at: new Date().toISOString(),
     })
   } catch (error) {
+    void recordAiUsage({ feature: "insight", model: config.modelReasoning, promptTokens: null, completionTokens: null, ok: false, companyId, userId: userId ?? null })
     return finish({ status: "failed", error: describeAiError(error), facts, model: config.modelReasoning, generated_at: new Date().toISOString() })
   }
 }

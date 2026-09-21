@@ -116,6 +116,19 @@ function emptyAnswer(model: string, body: unknown, finishReason: string | null):
   return new Error(`EMPTY_ANSWER:${finishReason ?? "unknown"}`)
 }
 
+/**
+ * What an HTML error page says, in a few words: a Cloudflare error code when
+ * there is one ("Error 1033"), else the page's title, else nothing. Never
+ * the markup itself, which is what a toast would otherwise show.
+ */
+function describeErrorPage(text: string): string {
+  if (!/^\s*<(!doctype|html)/i.test(text)) return text.slice(0, 200)
+  const code = /\bError(?: code)?:?\s+(1\d{3})\b/i.exec(text.replace(/<[^>]+>/g, " "))
+  if (code) return `Cloudflare error ${code[1]}`
+  const title = /<title>([^<]{1,120})<\/title>/i.exec(text)
+  return title ? title[1].trim() : ""
+}
+
 const TIMEOUT_MS = 20_000
 
 async function call(connection: AiConnection, path: string, init: RequestInit = {}): Promise<unknown> {
@@ -143,7 +156,7 @@ async function call(connection: AiConnection, path: string, init: RequestInit = 
       const detail =
         body && typeof body === "object" && (body as { error?: { message?: string } }).error?.message
           ? (body as { error: { message: string } }).error.message
-          : text.slice(0, 200)
+          : describeErrorPage(text)
       throw new Error(`HTTP ${response.status}${detail ? `: ${detail}` : ""}`)
     }
     return body
@@ -212,6 +225,9 @@ export function describeAiError(error: unknown): string {
     if (/HTTP 401|HTTP 403/.test(error.message)) return "Endpoint menolak kunci API (401/403)."
     if (/HTTP 404/.test(error.message)) return "Endpoint ditemukan tapi tidak punya /models. Periksa apakah alamatnya perlu diakhiri /v1."
     if (/fetch failed|ENOTFOUND|ECONNREFUSED/.test(error.message)) return "Endpoint tidak bisa dihubungi. Periksa alamatnya."
+    if (/HTTP 52\d|HTTP 530/.test(error.message)) return "Server proxy AI tidak bisa dijangkau oleh Cloudflare (HTTP 5xx). Periksa apakah server proxy atau tunnel-nya sedang mati."
+    if (/HTTP 5\d\d/.test(error.message)) return `Proxy AI sedang bermasalah (${error.message.slice(0, 80)}). Coba lagi sebentar lagi.`
+    if (/HTTP 429/.test(error.message)) return "Proxy AI membatasi permintaan (429). Coba lagi sebentar lagi."
     const empty = /^EMPTY_ANSWER:(.*)$/.exec(error.message)
     if (empty) {
       const reason = empty[1]
