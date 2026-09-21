@@ -5,7 +5,7 @@ import { CalendarDays, Plus } from "@/components/icons"
 import { canPerform, getSalesMissionAccess } from "@/lib/sales-mission-access"
 import { requireModule } from "@/lib/missions/nav-access"
 import { getMissionSettings, listMissions, listTenantSales } from "@/lib/missions/mission-queries"
-import { calendarHref, parseCalendarSales, resolveSales } from "@/lib/missions/calendar-filter"
+import { calendarFacetValues, calendarHref, filterCalendarMissions, hasCalendarView, parseCalendarView, resolveSales, type CalendarGroup } from "@/lib/missions/calendar-filter"
 import { sanitizeViewString, VIEW_COOKIES } from "@/lib/view-cookies"
 import { RememberView } from "@/components/remember-view"
 import { CalendarFilter } from "./calendar-filter"
@@ -24,6 +24,7 @@ import {
 } from "@/lib/missions/mission-calendar"
 import { MonthGrid } from "@/components/calendar/month-grid"
 import { DayPane } from "@/components/calendar/day-pane"
+import { DayGroupMenu } from "@/components/calendar/day-group-menu"
 import { JoinStatusLine, WorkspacePage } from "@/app/workspace/workspace-page"
 import { Button } from "@/components/ui/button"
 import { paths } from "@/lib/paths"
@@ -33,7 +34,7 @@ export const dynamic = "force-dynamic"
 export default async function CalendarPage({
   searchParams,
 }: {
-  searchParams: Promise<{ month?: string; day?: string; sales?: string }>
+  searchParams: Promise<{ month?: string; day?: string; sales?: string | string[]; location?: string | string[]; type?: string | string[]; group?: string | string[] }>
 }) {
   const access = await getSalesMissionAccess()
   if (!access) redirect("/login?error=access_not_provisioned")
@@ -43,11 +44,11 @@ export default async function CalendarPage({
   const now = new Date()
   const month = resolveMonth(params.month, now)
 
-  // The remembered filter. A request that says nothing about `sales` (a
+  // The remembered view. A request that says nothing about the view (a
   // bare open, or a month link from elsewhere) gets the person's last
-  // choice; one that carries `sales=` (even empty, from "Semua") is honest
-  // as it is.
-  if (params.sales === undefined) {
+  // choice; one that carries any of it (even an empty `sales=`, from
+  // "Semua") is honest as it is.
+  if (!hasCalendarView(params)) {
     const raw = (await cookies()).get(VIEW_COOKIES.calendar)?.value
     if (raw) {
       let decoded = raw
@@ -56,11 +57,15 @@ export default async function CalendarPage({
       } catch {
         // Left as is; the parser drops what it cannot read.
       }
-      const remembered = new URLSearchParams(sanitizeViewString("calendar", decoded)).get("sales")
-      if (remembered) redirect(calendarHref({ month, day: params.day, sales: parseCalendarSales(remembered) }))
+      const remembered = new URLSearchParams(sanitizeViewString("calendar", decoded))
+      if ([...remembered.keys()].length > 0) {
+        const view = parseCalendarView({ sales: remembered.get("sales") ?? undefined, location: remembered.getAll("location"), type: remembered.getAll("type"), group: remembered.get("group") ?? undefined })
+        redirect(calendarHref({ month, day: params.day, ...view }))
+      }
     }
   }
-  const sales = parseCalendarSales(params.sales)
+  const view = parseCalendarView(params)
+  const { sales } = view
   const chosen = new Set(resolveSales(sales, access.userId))
 
   const { since, until } = monthWindow(month)
@@ -77,15 +82,8 @@ export default async function CalendarPage({
   // Status filter, is where they are found. The day panel doubles as the
   // join surface, so each entry carries where the viewer stands relative
   // to it.
-  const missions = annotateJoinStatus(
-    rawMissions.filter(
-      (mission) =>
-        mission.status !== "CANCELLED" &&
-        mission.status !== "REJECTED" &&
-        (chosen.size === 0 || mission.assigneeIds.some((id) => chosen.has(id)))
-    ),
-    settings
-  )
+  const missions = annotateJoinStatus(filterCalendarMissions(rawMissions, { chosen, location: view.location, type: view.type }), settings)
+  const facets = calendarFacetValues(rawMissions, view)
   const grid = buildMonthGrid(month, missions, now)
   const monthTotal = grid.days.reduce((sum, day) => sum + day.missionCount, 0)
 
@@ -136,8 +134,10 @@ export default async function CalendarPage({
         <CalendarFilter
           month={month}
           day={selectedDay}
-          sales={sales}
+          view={view}
           people={people.map((person) => ({ id: person.id, name: person.name, avatarUrl: person.avatarUrl }))}
+          locations={facets.locations}
+          types={facets.types}
         />
         {/* One screen, no page scroll (Google Calendar's month view, Outlook's
             calendar): from lg the two panes fill the height under the chips,
@@ -151,16 +151,16 @@ export default async function CalendarPage({
             grid={grid}
             selectedDay={selectedDay}
             today={today}
-            hrefFor={(day) => calendarHref({ month, day, sales })}
+            hrefFor={(day) => calendarHref({ month, day, ...view })}
             navHref={{
-              prev: calendarHref({ month: shiftMonth(month, -1), sales }),
-              next: calendarHref({ month: shiftMonth(month, 1), sales }),
-              today: calendarHref({ month: today.slice(0, 7), day: today, sales }),
+              prev: calendarHref({ month: shiftMonth(month, -1), ...view }),
+              next: calendarHref({ month: shiftMonth(month, 1), ...view }),
+              today: calendarHref({ month: today.slice(0, 7), day: today, ...view }),
             }}
             footer={
               <>
                 {monthTotal === 0
-                  ? `Tidak ada aktivitas pada ${formatMonthLabel(month)}${sales.length ? " untuk saringan ini" : ""}`
+                  ? `Tidak ada aktivitas pada ${formatMonthLabel(month)}${sales.length || view.location.length || view.type.length ? " untuk saringan ini" : ""}`
                   : `${monthTotal} aktivitas bulan ini · ${dayMissions.length} pada hari terpilih`}
                 <Link href={paths.activities()} className="ml-auto font-semibold text-primary hover:underline">
                   Lihat semua aktivitas
@@ -174,6 +174,9 @@ export default async function CalendarPage({
             title={selectedDay === today ? "Hari ini" : "Jadwal"}
             missions={dayMissions}
             now={now}
+            people={people.map((person) => ({ id: person.id, name: person.name, avatarUrl: person.avatarUrl }))}
+            group={view.group}
+            tools={<DayGroupMenu value={view.group} hrefFor={(group: CalendarGroup) => calendarHref({ month, day: selectedDay, ...view, group })} list="calendar" />}
             // Click a day, schedule on it: the calendar is where the gap is
             // visible, so it is where the visit that fills it should start.
             action={

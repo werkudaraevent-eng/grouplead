@@ -28,6 +28,23 @@ export const CHANGE_KIND_LABELS: Record<ChangeKind, string> = {
 export const CHANGELOG: ChangeEntry[] = [
   {
     date: "2026-09-21",
+    title: "Jawaban Tanya AI rapi, Pemakaian AI di halaman sendiri",
+    items: [
+      { kind: "diperbaiki", text: "Jawaban Tanya AI tidak lagi memperlihatkan tanda ** mentah: bagian yang ditebalkan model tampil tebal, daftar tampil sebagai daftar. Poin Insight hari ini juga dibersihkan dari tanda itu." },
+      { kind: "lebih-baik", text: "Pemakaian token AI pindah ke halaman sendiri, Pengaturan → AI → Pemakaian, dengan lebar yang sama seperti formulir koneksi, sehingga tombol Simpan tetap menjadi penutup formulir." },
+    ],
+  },
+  {
+    date: "2026-09-21",
+    title: "Kalender: foto sales, saringan lokasi dan jenis, daftar hari bisa dikelompokkan",
+    items: [
+      { kind: "lebih-baik", text: "Di panel hari Kalender, tiap kunjungan kini memperlihatkan foto sales utamanya di ujung baris; namanya tetap tertulis. Berlaku juga di kalender publik (Jadwal tim)." },
+      { kind: "baru", text: "Di samping pilihan Sales ada pilihan Lokasi dan Jenis. Isinya hanya lokasi dan jenis yang ada pada bulan itu. Angka di tiap tanggal ikut tersaring, dan saringan ini ikut di tautan kalender publik." },
+      { kind: "baru", text: "Tombol kelompokkan di header panel hari menyusun daftar per lokasi atau per sales, dengan jumlah di tiap kelompok. Pilihan ini diingat seperti saringan lain dan ikut di tautan kalender publik." },
+    ],
+  },
+  {
+    date: "2026-09-21",
     title: "Tanya AI tahu jadwal dan laporannya, bukan hanya angkanya",
     items: [
       { kind: "lebih-baik", text: "Tanya AI kini juga diberi daftar di balik angka: aktivitas dan laporan pada periode yang disaring (klien, sales, jam, lokasi, hasil, peluang, next action), janji temu hari ini dan besok apa pun periodenya, prospek yang jatuh tempo, dan daftar sales. Jadi “kunjungan hari ini ke mana saja?” atau “siapa yang belum ada laporan?” bisa dijawab. Daftar yang panjang dipotong ke yang terdekat dengan hari ini dan AI menyebutkannya; semua tetap dibatasi cakupan lihatmu." },

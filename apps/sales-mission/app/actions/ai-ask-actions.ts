@@ -39,6 +39,7 @@ Aturan:
 - Sebut angka dan nama apa adanya dari DATA. Jangan menghitung yang tidak bisa dihitung dari DATA, jangan menebak, jangan menambah data dari luar.
 - Kalau DATA tidak memuat jawabannya, katakan itu dalam satu kalimat dan sebut tab atau kartu mana (Aktivitas, Daftar laporan, Prospek, Ringkasan) yang mungkin menjawab.
 - "laporan" = kunjungan yang terjadi dan dilaporkan; "aktivitas" = janji temu terjadwal; "prospek" = calon klien sebelum ada janji temu.
+- Teks polos: tanpa Markdown, tanpa tanda ** atau #. Daftar boleh dengan tanda - di awal baris.
 - Jangan menyapa, jangan menutup dengan basa-basi.`
 
 /**

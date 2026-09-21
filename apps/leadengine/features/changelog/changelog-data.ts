@@ -52,6 +52,13 @@ export const CHANGE_TYPE_META: Record<
 export const CHANGELOG: ChangelogEntry[] = [
     {
         date: "2026-09-21",
+        title: "AI usage on its own page",
+        items: [
+            { type: "improvement", text: "AI usage moved from a card under the connection form to its own page, Settings → AI → Usage, reached from a button in the AI page header." },
+        ],
+    },
+    {
+        date: "2026-09-21",
         title: "AI usage on the settings page",
         items: [
             { type: "feature", text: "Settings → AI shows a Usage card: tokens both apps sent through the proxy in the last 7 and 30 days, a projected week and month at the current pace, and the split per feature (Ask AI, Analyze, Sales Activity's insight and Tanya AI) and per model. Ask AI and Analyze now log their token counts." },
