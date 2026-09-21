@@ -1,4 +1,5 @@
 import type { MissionListItem } from "@/lib/missions/mission-schema"
+import { filterCalendarMissions, parseCalendarGroup, parseCalendarValues, writeCalendarView, type CalendarGroup } from "@/lib/missions/calendar-filter"
 import { maskClientName } from "./board-snapshot"
 
 /**
@@ -30,15 +31,32 @@ export function parsePublicSales(raw: string | string[] | undefined): string[] {
   return [...seen]
 }
 
-/** The public calendar URL for a token, a month, a day, and a filter. */
+export interface PublicCalendarView {
+  sales: string[]
+  location: string[]
+  type: string[]
+  group: CalendarGroup
+}
+
+/** The whole view out of the query: whose, where, what kind, and how the day is grouped. */
+export function parsePublicView(query: { sales?: string | string[]; location?: string | string[]; type?: string | string[]; group?: string | string[] }): PublicCalendarView {
+  return {
+    sales: parsePublicSales(query.sales),
+    location: parseCalendarValues(query.location),
+    type: parseCalendarValues(query.type),
+    group: parseCalendarGroup(query.group),
+  }
+}
+
+/** The public calendar URL for a token, a month, a day, and a view; nothing empty is written. */
 export function publicCalendarHref(
   token: string,
-  { month, day, sales }: { month: string; day?: string | null; sales: string[] }
+  { month, day, ...view }: { month: string; day?: string | null } & Partial<PublicCalendarView> & { sales: string[] }
 ): string {
   const params = new URLSearchParams()
   params.set("month", month)
   if (day) params.set("day", day)
-  if (sales.length) params.set("sales", sales.join(","))
+  writeCalendarView(params, view)
   return `/jadwal/${encodeURIComponent(token)}?${params.toString()}`
 }
 
@@ -52,15 +70,9 @@ export function publicCalendarHref(
  */
 export function publicCalendarMissions(
   missions: MissionListItem[],
-  { sales, masked }: { sales: string[]; masked: boolean }
+  { sales, location = [], type = [], masked }: { sales: string[]; location?: string[]; type?: string[]; masked: boolean }
 ): MissionListItem[] {
-  const chosen = new Set(sales)
-  return missions
-    .filter(
-      (mission) =>
-        mission.status !== "CANCELLED" &&
-        mission.status !== "REJECTED" &&
-        (chosen.size === 0 || mission.assigneeIds.some((id) => chosen.has(id)))
-    )
-    .map((mission) => (masked ? { ...mission, clientCompanyName: maskClientName(mission.clientCompanyName) } : mission))
+  return filterCalendarMissions(missions, { chosen: new Set(sales), location, type }).map((mission) =>
+    masked ? { ...mission, clientCompanyName: maskClientName(mission.clientCompanyName) } : mission
+  )
 }

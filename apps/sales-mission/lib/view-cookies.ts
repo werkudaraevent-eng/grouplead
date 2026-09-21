@@ -4,7 +4,7 @@ import { parseProspectQuery, serializeProspectQuery } from "@/lib/prospects/pros
 import { parseProspectPageParams } from "@/lib/prospects/prospect-paging"
 import { parseReportQuery, serializeReportQuery } from "@/lib/reporting/report-filter"
 import { parseReportPageParams } from "@/lib/reporting/report-paging"
-import { parseCalendarSales } from "@/lib/missions/calendar-filter"
+import { parseCalendarView, writeCalendarView } from "@/lib/missions/calendar-filter"
 import { parseRingkasanQuery, serializeRingkasanQuery } from "@/lib/reporting/ringkasan-filter"
 
 /**
@@ -57,11 +57,10 @@ export function sanitizeView(list: ListKey, params: Params): string {
       return out.toString()
     }
     case "calendar": {
-      // Only whose visits are drawn; the month and the day are a place,
-      // not a view, and are never restored.
-      const sales = parseCalendarSales(params.sales)
+      // Whose, where, what kind, and how the day is grouped; the month and
+      // the day are a place, not a view, and are never restored.
       const out = new URLSearchParams()
-      if (sales.length) out.set("sales", sales.join(","))
+      writeCalendarView(out, parseCalendarView(params))
       return out.toString()
     }
     case "ringkasan":

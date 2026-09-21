@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { parsePublicSales, publicCalendarHref, publicCalendarMissions } from "./public-calendar"
+import { parsePublicSales, parsePublicView, publicCalendarHref, publicCalendarMissions } from "./public-calendar"
 import { boardTokenUrl } from "./board-access"
 import type { MissionListItem, MissionStatus } from "@/lib/missions/mission-schema"
 
@@ -112,5 +112,25 @@ describe("publicCalendarMissions", () => {
   it("never mutates what it was given", () => {
     publicCalendarMissions(missions, { sales: [], masked: true })
     expect(missions[0].clientCompanyName).toBe("PT Arunika Kreasi")
+  })
+})
+
+describe("public view: where, what kind, grouping", () => {
+  it("carries location, type and group in the link and reads them back without a viewer", () => {
+    const href = publicCalendarHref("tok", { month: "2026-09", day: "2026-09-21", sales: [], location: ["Jakarta Pusat"], type: ["Meeting"], group: "sales" })
+    expect(href).toBe("/jadwal/tok?month=2026-09&day=2026-09-21&location=Jakarta+Pusat&type=Meeting&group=sales")
+    const params = new URLSearchParams(href.split("?")[1])
+    expect(parsePublicView({ sales: "me", location: params.getAll("location"), type: params.getAll("type"), group: params.get("group") ?? undefined })).toEqual({
+      sales: [],
+      location: ["Jakarta Pusat"],
+      type: ["Meeting"],
+      group: "sales",
+    })
+  })
+
+  it("narrows by location and type like the signed-in calendar", () => {
+    const rows = [mission({ id: "a", location: "Bogor" }), mission({ id: "b", location: "Jakarta Selatan", missionType: "Follow-up" })]
+    expect(publicCalendarMissions(rows, { sales: [], location: ["Bogor"], masked: false }).map((row) => row.id)).toEqual(["a"])
+    expect(publicCalendarMissions(rows, { sales: [], type: ["Follow-up"], masked: false }).map((row) => row.id)).toEqual(["b"])
   })
 })

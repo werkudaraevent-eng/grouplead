@@ -1,7 +1,8 @@
 import type { Metadata } from "next"
 import { resolveBoardToken } from "@/lib/board/board-access"
 import { listBoardPeople, listMissionsForCompany } from "@/lib/board/board-queries"
-import { parsePublicSales, publicCalendarHref, publicCalendarMissions } from "@/lib/board/public-calendar"
+import { parsePublicView, publicCalendarHref, publicCalendarMissions } from "@/lib/board/public-calendar"
+import { calendarFacetValues, type CalendarGroup } from "@/lib/missions/calendar-filter"
 import { hasServiceClientConfig } from "@/utils/supabase/service"
 import { MISSION_TIME_ZONE } from "@/lib/missions/mission-schema"
 import {
@@ -15,6 +16,7 @@ import {
 } from "@/lib/missions/mission-calendar"
 import { MonthGrid } from "@/components/calendar/month-grid"
 import { DayPane } from "@/components/calendar/day-pane"
+import { DayGroupMenu } from "@/components/calendar/day-group-menu"
 import { JadwalFilter } from "./jadwal-filter"
 import { PublicRefusal, PublicShell } from "./public-shell"
 
@@ -42,7 +44,7 @@ export default async function PublicSchedulePage({
   searchParams,
 }: {
   params: Promise<{ token: string }>
-  searchParams: Promise<{ month?: string; day?: string; sales?: string }>
+  searchParams: Promise<{ month?: string; day?: string; sales?: string | string[]; location?: string | string[]; type?: string | string[]; group?: string | string[] }>
 }) {
   const { token } = await params
   const query = await searchParams
@@ -68,14 +70,16 @@ export default async function PublicSchedulePage({
 
   const now = new Date()
   const month = resolveMonth(query.month, now)
-  const sales = parsePublicSales(query.sales)
+  const view = parsePublicView(query)
+  const { sales } = view
   const { since, until } = monthWindow(month)
 
   const [rawMissions, people] = await Promise.all([
     listMissionsForCompany(resolved.companyId, { since, until }),
     listBoardPeople(),
   ])
-  const missions = publicCalendarMissions(rawMissions, { sales, masked: !resolved.showClientNames })
+  const missions = publicCalendarMissions(rawMissions, { ...view, masked: !resolved.showClientNames })
+  const facets = calendarFacetValues(rawMissions, view)
   const grid = buildMonthGrid(month, missions, now)
   const monthTotal = grid.days.reduce((sum, day) => sum + day.missionCount, 0)
 
@@ -91,8 +95,8 @@ export default async function PublicSchedulePage({
     month: "long",
   }).format(new Date(`${selectedDay}T00:00:00+07:00`))
 
-  const href = (next: { month: string; day?: string | null }) =>
-    publicCalendarHref(token, { month: next.month, day: next.day, sales })
+  const href = (next: { month: string; day?: string | null; group?: CalendarGroup }) =>
+    publicCalendarHref(token, { month: next.month, day: next.day, ...view, ...(next.group ? { group: next.group } : {}) })
 
   return (
     <PublicShell label={resolved.label}>
@@ -101,8 +105,10 @@ export default async function PublicSchedulePage({
           token={token}
           month={month}
           day={selectedDay}
-          sales={sales}
+          view={view}
           people={people}
+          locations={facets.locations}
+          types={facets.types}
         />
         <section className="grid grid-cols-1 gap-4 lg:min-h-0 lg:flex-1 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] lg:grid-rows-[minmax(0,1fr)]">
           <MonthGrid
@@ -118,7 +124,7 @@ export default async function PublicSchedulePage({
             }}
             footer={
               monthTotal === 0
-                ? `Tidak ada aktivitas pada ${formatMonthLabel(month)}${sales.length ? " untuk saringan ini" : ""}`
+                ? `Tidak ada aktivitas pada ${formatMonthLabel(month)}${sales.length || view.location.length || view.type.length ? " untuk saringan ini" : ""}`
                 : `${monthTotal} aktivitas bulan ini · ${dayMissions.length} pada hari terpilih`
             }
           />
@@ -128,6 +134,9 @@ export default async function PublicSchedulePage({
             title={selectedDay === today ? "Hari ini" : "Jadwal"}
             missions={dayMissions}
             now={now}
+            people={people}
+            group={view.group}
+            tools={<DayGroupMenu value={view.group} hrefFor={(group) => href({ month, day: selectedDay, group })} />}
           />
         </section>
       </div>

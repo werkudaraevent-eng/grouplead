@@ -5,41 +5,48 @@ import { Check } from "@/components/icons"
 import { FacetSelect } from "@/components/facet-select"
 import { PersonAvatar } from "@/components/person-avatar"
 import { rememberView, ViewLink } from "@/components/remember-view"
-import { calendarHref, SALES_ME, toggleMe } from "@/lib/missions/calendar-filter"
+import { calendarHref, SALES_ME, toggleMe, type CalendarView } from "@/lib/missions/calendar-filter"
 import { cn } from "@/lib/utils"
 
 /**
- * Whose calendar: "Semua" and "Saya" as filter chips, then the Sales facet
- * for one or more named people. The same shapes as the activity list's
- * quick chips and facet (M3 filter chips, tonal with a leading check when
- * on), so the two pages read as one. Every change is remembered as the
- * calendar's view before navigating, and "Semua" writes an empty memory
- * first so the server does not restore the filter it is leaving.
+ * Whose calendar, where, and what kind: "Semua" and "Saya" as filter chips,
+ * then the Sales, Lokasi and Jenis facets. The same shapes as the activity
+ * list's quick chips and facets (M3 filter chips, tonal with a leading check
+ * when on; a facet button opening a checklist), so the two pages read as
+ * one. Lokasi and Jenis list what the month actually holds. Every change is
+ * remembered as the calendar's view before navigating, and "Semua" writes
+ * an empty memory first so the server does not restore the filter it is
+ * leaving.
  */
 export function CalendarFilter({
   month,
   day,
-  sales,
+  view,
   people,
+  locations,
+  types,
 }: {
   month: string
   day: string
-  sales: string[]
+  view: CalendarView
   people: Array<{ id: string; name: string; avatarUrl: string | null }>
+  locations: string[]
+  types: string[]
 }) {
   const router = useRouter()
+  const { sales } = view
   const hasMe = sales.includes(SALES_ME)
   const named = sales.filter((id) => id !== SALES_ME)
-  const href = (next: string[]) => calendarHref({ month, day, sales: next })
-  const go = (next: string[]) => {
+  const href = (next: Partial<CalendarView>) => calendarHref({ month, day, ...view, ...next })
+  const go = (next: Partial<CalendarView>) => {
     const target = href(next)
     rememberView("calendar", target.split("?")[1] ?? "")
     router.push(target)
   }
 
   const chips = [
-    { key: "all", label: "Semua", active: sales.length === 0, href: href([]) },
-    { key: "me", label: "Saya", active: hasMe, href: href(toggleMe(sales)) },
+    { key: "all", label: "Semua", active: sales.length === 0, href: href({ sales: [] }) },
+    { key: "me", label: "Saya", active: hasMe, href: href({ sales: toggleMe(sales) }) },
   ]
 
   return (
@@ -68,7 +75,7 @@ export function CalendarFilter({
         label="Sales"
         options={people.map((person) => ({ value: person.id, label: person.name }))}
         value={named}
-        onChange={(next) => go(hasMe ? [SALES_ME, ...next] : next)}
+        onChange={(next) => go({ sales: hasMe ? [SALES_ME, ...next] : next })}
         renderOption={(option) => {
           const person = people.find((item) => item.id === option.value)
           return (
@@ -79,6 +86,8 @@ export function CalendarFilter({
           )
         }}
       />
+      <FacetSelect label="Lokasi" options={locations.map((location) => ({ value: location, label: location }))} value={view.location} onChange={(next) => go({ location: next })} />
+      <FacetSelect label="Jenis" options={types.map((type) => ({ value: type, label: type }))} value={view.type} onChange={(next) => go({ type: next })} />
     </nav>
   )
 }
