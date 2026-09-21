@@ -716,8 +716,8 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
               <Highlight label="Tingkat minat" value={report.interestLevel ? labelOf(choices, "interest_level", report.interestLevel) : "—"} />
               <Highlight
                 label="Peluang"
-                value={report.opportunityExists ? (report.estimatedValue ? `Rp ${formatNumber(report.estimatedValue)}` : "Ada") : "Tidak ada"}
-                hint={report.opportunityExists && report.estimatedValue ? "estimasi nilai" : null}
+                value={report.opportunityExists ? (report.estimatedValue ? `Rp ${formatNumber(report.estimatedValue)}` : "Ada") : "Belum ditandai"}
+                hint={report.opportunityExists ? (report.estimatedValue ? "estimasi nilai" : null) : "belum dicentang di laporan"}
               />
               <Highlight
                 label="Waktu kunjungan"
