@@ -46,7 +46,7 @@ export function ReportActions({
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      {share && <ShareReportButton text={share.text} photo={share.photo} />}
+      {share && <ShareReportButton missionId={missionId} text={share.text} photo={share.photo} />}
       {editHref && (
         <Button asChild variant="outline" size="sm" className="max-sm:hidden">
           <Link href={editHref}><Pencil className="h-4 w-4" /> Ubah laporan</Link>

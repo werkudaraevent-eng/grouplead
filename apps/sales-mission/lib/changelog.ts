@@ -28,6 +28,15 @@ export const CHANGE_KIND_LABELS: Record<ChangeKind, string> = {
 export const CHANGELOG: ChangeEntry[] = [
   {
     date: "2026-09-21",
+    title: "Setelah kirim laporan: langsung ditawari bagikan ke WhatsApp",
+    items: [
+      { kind: "baru", text: "Begitu laporan terkirim, penulisnya melihat kartu “Laporan terkirim” di atas laporan dengan tombol Bagikan ke WhatsApp; di ponsel tombol itu jadi langkah berikutnya di bilah bawah. Tidak ada pop-up: tawarannya menempel di laporan sampai dibagikan atau ditunda dengan Nanti saja." },
+      { kind: "baru", text: "Laporan yang sudah dibagikan lewat aplikasi mencatat siapa dan kapan (“Dibagikan ke WhatsApp oleh Ananda · Sen, 21 Sep, 13.20”), jadi tawaran tidak muncul lagi dan atasan tahu laporan mana yang sudah masuk grup." },
+      { kind: "baru", text: "Admin bisa mematikan tawaran ini di Pengaturan → Aturan aktivitas → Laporan kunjungan untuk unit yang tidak memakai grup WhatsApp; tombol Bagikan di kartu laporan tetap ada." },
+    ],
+  },
+  {
+    date: "2026-09-21",
     title: "Bagikan laporan ke WhatsApp, QR jadwal di layar TV",
     items: [
       { kind: "baru", text: "Di laporan yang sudah dikirim ada tombol Bagikan ke WhatsApp: teksnya disusun otomatis dari laporan dalam format grup (tanggal, jam, klien, PIC, jabatan, ringkasan) beserta foto pertama, lalu kamu tinggal memilih grupnya di ponsel. Tidak perlu mengetik ulang, formatnya selalu sama." },
