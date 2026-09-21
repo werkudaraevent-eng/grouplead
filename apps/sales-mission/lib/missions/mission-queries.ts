@@ -198,6 +198,8 @@ export interface MissionSettings {
   reportAfterVisitOnly: boolean
   /** Opening line for a WhatsApp chat started from a prospect; null = the app's default. */
   whatsappGreeting: string | null
+  /** Template for "Bagikan ke WhatsApp" on a sent report; null = the default in lib/missions/report-share.ts. */
+  reportShareTemplate: string | null
   /** Whether the report offers DISC chips on each contact met. Off until the unit trained on it. */
   contactDiscEnabled: boolean
   /** Whether the AI writes a daily insight for the unit (Ringkasan). */
@@ -222,7 +224,7 @@ export async function getMissionSettings(access: SalesMissionAccess): Promise<Mi
   const { data } = await supabase
     .schema("sales_mission")
     .from("mission_settings")
-    .select("conflict_check_enabled, default_travel_buffer_minutes, allow_same_location_back_to_back, max_supporting_per_mission, require_assignment_confirmation, primary_can_reschedule, report_edit_window_days, report_after_visit_only, whatsapp_greeting, contact_disc_enabled, ai_insights_enabled, ai_insights_hour, ai_ask_enabled")
+    .select("conflict_check_enabled, default_travel_buffer_minutes, allow_same_location_back_to_back, max_supporting_per_mission, require_assignment_confirmation, primary_can_reschedule, report_edit_window_days, report_after_visit_only, whatsapp_greeting, contact_disc_enabled, ai_insights_enabled, ai_insights_hour, ai_ask_enabled, report_share_template")
     .eq("company_id", access.companyId)
     .maybeSingle()
 
@@ -236,6 +238,7 @@ export async function getMissionSettings(access: SalesMissionAccess): Promise<Mi
     reportEditWindowDays: data?.report_edit_window_days ?? 7,
     reportAfterVisitOnly: data?.report_after_visit_only ?? true,
     whatsappGreeting: (data?.whatsapp_greeting as string | null | undefined)?.trim() || null,
+    reportShareTemplate: (data?.report_share_template as string | null | undefined)?.trim() || null,
     contactDiscEnabled: Boolean(data?.contact_disc_enabled),
     aiInsightsEnabled: Boolean(data?.ai_insights_enabled),
     aiInsightsHour: typeof data?.ai_insights_hour === "number" ? data.ai_insights_hour : 6,

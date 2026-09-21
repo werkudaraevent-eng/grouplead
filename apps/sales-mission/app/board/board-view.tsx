@@ -87,7 +87,22 @@ function Eyebrow({ children, className }: { children: React.ReactNode; className
 
 /* ── Top bar ── */
 
-function TopBar({ screenLabel, dateLabel, clock, preview, masked }: { screenLabel: string | null; dateLabel: string; clock: string; preview: boolean; masked: boolean }) {
+function TopBar({
+  screenLabel,
+  dateLabel,
+  clock,
+  preview,
+  masked,
+  qr,
+}: {
+  screenLabel: string | null
+  dateLabel: string
+  clock: string
+  preview: boolean
+  masked: boolean
+  /** The QR when the rail cannot hold it: portrait, or a board with no rail. */
+  qr: { svg: string; className?: string } | null
+}) {
   return (
     <header className="flex items-end justify-between gap-[2em]">
       <div className="min-w-0">
@@ -99,9 +114,51 @@ function TopBar({ screenLabel, dateLabel, clock, preview, masked }: { screenLabe
       </div>
       <div className="flex shrink-0 items-end gap-[1.4em]">
         {preview && <p className="mb-[0.5em] text-[0.85em] text-[var(--board-on-surface-dim)]">Pratinjau · nama klien {masked ? "disamarkan" : "ditampilkan"}</p>}
+        {qr && (
+          <div className={cn("items-center gap-[0.7em]", qr.className)}>
+            <QrTile svg={qr.svg} size="3.6em" />
+            <p className="text-[0.85em] leading-tight text-[var(--board-on-surface-variant)]">
+              Pindai untuk jadwal
+              <br />
+              di ponselmu
+            </p>
+          </div>
+        )}
         <BoardClock initial={clock} className="text-[3.4em] font-semibold tabular-nums leading-none tracking-[-0.02em]" />
       </div>
     </header>
+  )
+}
+
+/* ── QR ── */
+
+/** The code on a white tile: dark modules on light is what a phone camera expects, and the tile's padding is the quiet zone. */
+function QrTile({ svg, size }: { svg: string; size: string }) {
+  return (
+    <span
+      aria-hidden="true"
+      className="board-qr grid shrink-0 place-items-center rounded-[0.7em] bg-white p-[0.45em]"
+      style={{ width: size, height: size }}
+      dangerouslySetInnerHTML={{ __html: svg }}
+    />
+  )
+}
+
+/**
+ * The wall's one call to action, as signage does it: a persistent QR in the
+ * supporting rail with a verb, sized for someone who walks up to it, never
+ * in the hero. It opens the public calendar, so the phone shows the same
+ * schedule with the same masking and can be checked at the viewer's own pace.
+ */
+function QrCard({ svg }: { svg: string }) {
+  return (
+    <section className={cn(CARD, "flex shrink-0 items-center gap-[1.1em] px-[1.3em] py-[1.1em] portrait:hidden")}>
+      <QrTile svg={svg} size="6.4em" />
+      <div className="min-w-0">
+        <p className="text-[1.15em] font-semibold leading-tight">Pindai untuk jadwal di ponselmu</p>
+        <p className="mt-[0.3em] text-[0.95em] leading-snug text-[var(--board-on-surface-variant)]">Jadwal tim, tanpa login. Cek kapan saja dengan waktumu sendiri.</p>
+      </div>
+    </section>
   )
 }
 
@@ -550,6 +607,7 @@ export function BoardView({
   preview,
   masked,
   screenLabel,
+  qr = null,
 }: {
   snapshot: BoardSnapshot
   now: Date
@@ -559,6 +617,8 @@ export function BoardView({
   masked: boolean
   /** The screen's name as the admin labelled its link, if any. */
   screenLabel: string | null
+  /** QR code to the paired calendar link as SVG markup, when the link carries one. */
+  qr?: string | null
 }) {
   const dateLabel = new Intl.DateTimeFormat("id-ID", {
     timeZone: MISSION_TIME_ZONE,
@@ -621,7 +681,15 @@ export function BoardView({
 
   return (
     <div className="board-backdrop grid h-dvh grid-rows-[auto_minmax(0,1fr)] gap-[1.3em] overflow-hidden p-[1.6em] text-[var(--board-on-surface)]">
-      <TopBar screenLabel={screenLabel} dateLabel={dateLabel} clock={clock} preview={preview} masked={masked} />
+      <TopBar
+        screenLabel={screenLabel}
+        dateLabel={dateLabel}
+        clock={clock}
+        preview={preview}
+        masked={masked}
+        // In the rail when there is one (landscape); in the bar when the rail is a band (portrait) or absent.
+        qr={qr ? { svg: qr, className: rail ? "hidden portrait:flex" : "flex" } : null}
+      />
 
       <div
         className={cn(
@@ -688,6 +756,7 @@ export function BoardView({
                 )}
               </section>
             )}
+            {qr && <QrCard svg={qr} />}
           </div>
         )}
       </div>

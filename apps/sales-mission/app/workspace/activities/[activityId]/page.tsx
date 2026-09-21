@@ -11,6 +11,9 @@ import { AudioList } from "@/components/audio-list"
 import { parseAudioAnswer } from "@/lib/audio/audio-answer"
 import { isAttachmentType } from "@/lib/missions/form-fields"
 import { RequestClarificationButton, WithdrawReportButton } from "./report-admin-actions"
+import { ShareReportButton } from "./share-report-button"
+import { renderReportShare, reportShareValues } from "@/lib/missions/report-share"
+import { signPhotoUrls } from "@/lib/photos/photo-storage"
 import { canPerform, getSalesMissionAccess } from "@/lib/sales-mission-access"
 import { resolveMissionGates } from "@/lib/missions/mission-rights"
 import { requireModule } from "@/lib/missions/nav-access"
@@ -155,6 +158,12 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
         .map((field) => ({ field, value: report.custom[field.reportingKey] }))
         .filter(({ value }) => value !== null && value !== undefined && value !== "" && !(Array.isArray(value) && value.length === 0))
     : []
+  // The WhatsApp message for a sent report, and its first photo when the
+  // template asks for one: the "visit_photos" field first, else any photo field.
+  const share = report && report.status === "SUBMITTED" ? renderReportShare(settings.reportShareTemplate, reportShareValues({ mission, report, choices, team: team.map((member) => member.name) })) : null
+  const photoAnswers = customAnswers.filter(({ field }) => field.fieldType === "PHOTO").map(({ field, value }) => ({ key: field.reportingKey, photos: parsePhotoAnswer(value) }))
+  const firstPhoto = share?.withPhoto ? (photoAnswers.find((item) => item.key === "visit_photos" && item.photos.length > 0) ?? photoAnswers.find((item) => item.photos.length > 0))?.photos[0] ?? null : null
+  const sharePhotoUrl = firstPhoto ? ((await signPhotoUrls(access, [firstPhoto.path])).get(firstPhoto.path) ?? null) : null
   const stamp = (iso: string) =>
     new Intl.DateTimeFormat("id-ID", { timeZone: MISSION_TIME_ZONE, weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }).format(new Date(iso))
   const leadEngineUrl = process.env.NEXT_PUBLIC_LEADENGINE_URL?.trim() || null
@@ -578,6 +587,7 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
           </div>
           {report && (
             <div className="flex flex-wrap items-center justify-end gap-2">
+              {share && <ShareReportButton text={share.text} photo={firstPhoto && sharePhotoUrl ? { url: sharePhotoUrl, name: firstPhoto.name } : null} />}
               {reportSubmitted && supervisesReport && !isAuthor && !isCancelled && <RequestClarificationButton missionId={missionId} authorName={primaryName} />}
               {reportSubmitted && editVerdict?.allowed && !isCancelled && (
                 <>

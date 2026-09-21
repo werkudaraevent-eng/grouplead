@@ -33,7 +33,7 @@ export default async function BoardSettingsPage() {
   const { data } = await supabase
     .schema("sales_mission")
     .from("board_tokens")
-    .select("id, label, kind, created_at, expires_at, revoked_at, last_used_at, show_client_names, show_outcomes")
+    .select("id, label, kind, created_at, expires_at, revoked_at, last_used_at, show_client_names, show_outcomes, qr_calendar_token_id")
     .eq("company_id", access.companyId)
     .order("created_at", { ascending: false })
 
@@ -43,6 +43,7 @@ export default async function BoardSettingsPage() {
     kind: ((row.kind as string | null) ?? "screen") as BoardTokenKind,
     showClientNames: row.show_client_names === true,
     showOutcomes: row.show_outcomes === true,
+    hasQr: Boolean(row.qr_calendar_token_id),
     createdAt: row.created_at as string,
     expiresAt: (row.expires_at as string | null) ?? null,
     revokedAt: (row.revoked_at as string | null) ?? null,

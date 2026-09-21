@@ -26,12 +26,18 @@ export interface CreateBoardTokenOptions {
   /** The two privacy decisions, made here once and bound to the row. */
   showClientNames?: boolean
   showOutcomes?: boolean
+  /**
+   * Screen links only: also make a calendar link, with the same name masking,
+   * for the wall to draw as a QR. It is a row of its own in the link list and
+   * can be revoked on its own.
+   */
+  calendarQr?: boolean
   kind?: BoardTokenKind
 }
 
 export async function createBoardToken(
   label: string,
-  { expiresInDays, showClientNames = false, showOutcomes = false, kind = "screen" }: CreateBoardTokenOptions = {}
+  { expiresInDays, showClientNames = false, showOutcomes = false, calendarQr = false, kind = "screen" }: CreateBoardTokenOptions = {}
 ): Promise<ActionResult<{ token: string }>> {
   const guard = await authorize()
   if ("error" in guard) return { success: false, error: guard.error }
@@ -49,12 +55,40 @@ export async function createBoardToken(
       : null
 
   const supabase = await createClient()
+
+  // The QR's calendar link first, so the screen row can point at it. Same
+  // masking and lifetime as the screen; its own hash, its own revocation.
+  let qr: { id: string; token: string } | null = null
+  if (kind === "screen" && calendarQr) {
+    const calendar = generateBoardToken()
+    const { data: calendarRow, error: calendarError } = await supabase
+      .schema("sales_mission")
+      .from("board_tokens")
+      .insert({
+        company_id: access.companyId,
+        label: `${trimmed} · QR`,
+        token_hash: calendar.hash,
+        expires_at: expiresAt,
+        created_by: access.userId,
+        show_client_names: showClientNames,
+        show_outcomes: false,
+        kind: "calendar",
+      })
+      .select("id")
+      .single()
+    if (calendarError || !calendarRow) return { success: false, error: "Tautan kalender untuk QR gagal dibuat." }
+    qr = { id: calendarRow.id as string, token: calendar.token }
+  }
+
   const { error } = await supabase.schema("sales_mission").from("board_tokens").insert({
     company_id: access.companyId,
     label: trimmed,
     token_hash: hash,
     expires_at: expiresAt,
     created_by: access.userId,
+    // Printed on the wall as a QR, so the plaintext lives here on purpose.
+    qr_calendar_token_id: qr?.id ?? null,
+    qr_calendar_token: qr?.token ?? null,
     // Decided here, once, by the admin. A screen in an open office keeps it
     // false; a screen in the sales room may not need to.
     show_client_names: showClientNames,
@@ -81,14 +115,30 @@ export async function revokeBoardToken(tokenId: string): Promise<ActionResult> {
   if ("error" in guard) return { success: false, error: guard.error }
 
   const supabase = await createClient()
-  const { error } = await supabase
+  const revokedAt = new Date().toISOString()
+  const { data: row, error } = await supabase
     .schema("sales_mission")
     .from("board_tokens")
-    .update({ revoked_at: new Date().toISOString() })
+    .update({ revoked_at: revokedAt })
     .eq("id", tokenId)
     .eq("company_id", guard.access.companyId)
+    .select("qr_calendar_token_id")
+    .maybeSingle()
 
   if (error) return { success: false, error: "Tautan gagal dicabut." }
+
+  // A screen's QR calendar link goes with it: nobody can scan a wall that is
+  // no longer showing it, and an orphan link would outlive its purpose.
+  const pairedId = (row?.qr_calendar_token_id as string | null) ?? null
+  if (pairedId) {
+    await supabase
+      .schema("sales_mission")
+      .from("board_tokens")
+      .update({ revoked_at: revokedAt })
+      .eq("id", pairedId)
+      .eq("company_id", guard.access.companyId)
+      .is("revoked_at", null)
+  }
 
   revalidatePath(paths.settings.board)
   return { success: true }

@@ -218,6 +218,7 @@ function ScreenLinkDialog({ options, baseUrl }: { options: BoardOptions; baseUrl
   const [label, setLabel] = useState("")
   const [showNames, setShowNames] = useState(false)
   const [showOutcomes, setShowOutcomes] = useState(false)
+  const [calendarQr, setCalendarQr] = useState(true)
   const [issued, setIssued] = useState<string | null>(null)
   const [pending, start] = useTransition()
 
@@ -227,7 +228,7 @@ function ScreenLinkDialog({ options, baseUrl }: { options: BoardOptions; baseUrl
 
   const create = () => {
     start(async () => {
-      const result = await createBoardToken(label, { showClientNames: showNames, showOutcomes })
+      const result = await createBoardToken(label, { showClientNames: showNames, showOutcomes, calendarQr })
       if (result.success && result.data) setIssued(result.data.token)
       else toast.error(result.error ?? "Tautan gagal dibuat")
     })
@@ -239,6 +240,7 @@ function ScreenLinkDialog({ options, baseUrl }: { options: BoardOptions; baseUrl
     setLabel("")
     setShowNames(false)
     setShowOutcomes(false)
+    setCalendarQr(true)
   }
 
   return (
@@ -280,6 +282,15 @@ function ScreenLinkDialog({ options, baseUrl }: { options: BoardOptions; baseUrl
                     </p>
                   </div>
                   <Switch id="screen-outcomes" checked={showOutcomes} onCheckedChange={setShowOutcomes} />
+                </div>
+                <div className="flex items-start justify-between gap-4 rounded-lg border px-4 py-3">
+                  <div>
+                    <Label htmlFor="screen-qr" className="text-sm font-semibold text-foreground">Sertakan QR ke kalender</Label>
+                    <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                      Layar menampilkan QR kecil ke Jadwal tim (kalender publik, tanpa login) dengan penyamaran nama dan saringan yang sama, supaya orang bisa cek jadwal di ponselnya sendiri. Tautan kalendernya bisa dicabut terpisah dari Pengaturan → Tautan publik.
+                    </p>
+                  </div>
+                  <Switch id="screen-qr" checked={calendarQr} onCheckedChange={setCalendarQr} />
                 </div>
               </DialogBody>
               <DialogFooter>

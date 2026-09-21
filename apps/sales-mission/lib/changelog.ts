@@ -28,6 +28,15 @@ export const CHANGE_KIND_LABELS: Record<ChangeKind, string> = {
 export const CHANGELOG: ChangeEntry[] = [
   {
     date: "2026-09-21",
+    title: "Bagikan laporan ke WhatsApp, QR jadwal di layar TV",
+    items: [
+      { kind: "baru", text: "Di laporan yang sudah dikirim ada tombol Bagikan ke WhatsApp: teksnya disusun otomatis dari laporan dalam format grup (tanggal, jam, klien, PIC, jabatan, ringkasan) beserta foto pertama, lalu kamu tinggal memilih grupnya di ponsel. Tidak perlu mengetik ulang, formatnya selalu sama." },
+      { kind: "baru", text: "Formatnya diatur admin di Pengaturan → Aturan aktivitas → Laporan kunjungan: ketik sendiri, sisipkan isian seperti {klien}, {pic}, {hasil}, {ringkasan}, {foto} dengan sekali ketuk, dan lihat contoh hasilnya langsung. Baris yang isiannya kosong tidak ikut terkirim." },
+      { kind: "baru", text: "Saat membuat tautan layar ada saklar Sertakan QR ke kalender: layar TV menampilkan QR kecil ke Jadwal tim, jadi siapa pun bisa memindai dan mengecek jadwal di ponselnya sendiri, tanpa login, dengan penyamaran nama yang sama seperti di layar. Tautan kalendernya tampil di Tautan publik dan bisa dicabut terpisah." },
+    ],
+  },
+  {
+    date: "2026-09-21",
     title: "Papan live: hasil kunjungan, angka yang jujur, tanpa kata status",
     items: [
       { kind: "baru", text: "Saat membuat tautan layar ada saklar Tampilkan hasil kunjungan: baris yang sudah dilaporkan menyebut hasilnya (“Bertemu pengambil keputusan”, “Klien tidak ada”) dengan warna menurut jenisnya. Seperti nama klien, keputusan ini terikat ke tautan dan tidak bisa diubah dari URL; nyalakan hanya untuk ruang tim sendiri." },
