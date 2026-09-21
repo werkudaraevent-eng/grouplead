@@ -115,7 +115,8 @@ function Highlight({ label, value, hint }: { label: string; value: string; hint?
   return (
     <div className="min-w-0 rounded-lg bg-muted/40 px-4 py-3">
       <p className="text-xs font-semibold text-muted-foreground">{label}</p>
-      <p className="mt-1 truncate text-sm font-semibold text-foreground" title={value}>{value}</p>
+      {/* A key fact wraps to a second line before it is cut: the tile has the height, and "Bertemu pengambil keputus…" is not a fact. */}
+      <p className="mt-1 line-clamp-2 text-sm font-semibold leading-snug text-foreground" title={value}>{value}</p>
       {hint && <p className="mt-0.5 truncate text-xs text-muted-foreground">{hint}</p>}
     </div>
   )

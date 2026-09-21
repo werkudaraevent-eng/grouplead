@@ -32,6 +32,8 @@ export const CHANGELOG: ChangeEntry[] = [
     items: [
       { kind: "lebih-baik", text: "Baris di daftar Laporan kini membuka laporannya dengan sekali klik di mana saja pada baris itu, sama seperti Aktivitas dan Prospek. Tombol Lihat dan panah di ujung baris dihapus karena keduanya membuka halaman yang sama; Ctrl/Cmd+klik atau klik pada nama tetap membuka di tab baru." },
       { kind: "diperbaiki", text: "Di kartu laporan, label Pengambil keputusan dan DISC di samping nama kontak tidak lagi terpotong di tengah kata saat ruangnya sempit; label pindah utuh ke baris berikutnya." },
+      { kind: "diperbaiki", text: "Tindak lanjut yang dibatalkan tidak lagi menulis Dibatalkan dua kali; di bawah judulnya langsung alasan pembatalan, siapa, dan kapan." },
+      { kind: "diperbaiki", text: "Ubin sorotan di kartu laporan (Hasil, Tingkat minat, Peluang, Waktu kunjungan) boleh dua baris, sehingga hasil seperti Bertemu pengambil keputusan tidak lagi terpotong." },
     ],
   },
   {
