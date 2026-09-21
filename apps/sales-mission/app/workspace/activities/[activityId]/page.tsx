@@ -115,7 +115,8 @@ function Highlight({ label, value, hint }: { label: string; value: string; hint?
   return (
     <div className="min-w-0 rounded-lg bg-muted/40 px-4 py-3">
       <p className="text-xs font-semibold text-muted-foreground">{label}</p>
-      <p className="mt-1 truncate text-sm font-semibold text-foreground" title={value}>{value}</p>
+      {/* A key fact wraps to a second line before it is cut: the tile has the height, and "Bertemu pengambil keputus…" is not a fact. */}
+      <p className="mt-1 line-clamp-2 text-sm font-semibold leading-snug text-foreground" title={value}>{value}</p>
       {hint && <p className="mt-0.5 truncate text-xs text-muted-foreground">{hint}</p>}
     </div>
   )
@@ -198,6 +199,16 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
   const gates = await resolveMissionGates(access, mission, role, settings)
   const { canCancel, canEdit, canWriteReport, canManageTeam, supervisesReport, isAuthor } = gates
   const reportSubmitted = report?.status === "SUBMITTED"
+  // The supporting pane exists only when something goes in it, so a wide
+  // screen never reserves an empty column beside the prose.
+  const hasSidePane = Boolean(
+    report && (
+      (canReadContacts && report.contacts.length > 0) ||
+      customAnswers.some(({ field }) => isAttachmentType(field.fieldType)) ||
+      (reportSubmitted && report.visitOutcome) ||
+      (!leadPush && canPushLead(report) && !canWriteReport)
+    ),
+  )
   // Changing a sent report: its author inside the tenant's window, a
   // supervisor whenever. The card says which, and until when.
   const editVerdict = report && reportSubmitted
@@ -726,6 +737,13 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
               />
             </div>
 
+            {/* On an expanded window the record splits into a body and a supporting
+                pane (M3 canonical layouts): the prose keeps its measure on the left,
+                who was met, attachments and the CRM line sit on the right instead of
+                leaving the right half of a wide screen empty. Compact and medium
+                windows keep the single stacked column. */}
+            <div className={hasSidePane ? "space-y-5 lg:grid lg:grid-cols-[minmax(0,1fr)_360px] lg:gap-8 lg:space-y-0" : "space-y-5"}>
+            <div className="min-w-0 space-y-5">
             {/* The next action as a task that lives: the chain, the open one to log, the next step. */}
             {settings.followUpEnabled && reportSubmitted ? (
               <FollowUpPanel
@@ -806,21 +824,32 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
               </div>
             )}
 
+            </div>
+            {hasSidePane && (
+            <aside className="min-w-0 space-y-5 lg:border-l lg:pl-6 lg:[&>*:first-child]:border-t-0 lg:[&>*:first-child]:pt-0" aria-label="Pendamping laporan">
             {canReadContacts && report.contacts.length > 0 && (
               <div className="border-t pt-5">
                 <p className="text-xs font-semibold text-muted-foreground">Ketemu siapa</p>
                 <ul className="mt-2 space-y-1.5">
                   {report.contacts.map((contact, index) => (
                     <li key={index} className="text-sm text-foreground">
-                      {contact.fullName}
-                      {contact.jobTitle ? <span className="text-muted-foreground"> · {contact.jobTitle}</span> : null}
-                      {contact.isDecisionMaker ? <span className="ml-2 rounded-md bg-secondary px-1.5 py-0.5 text-xs font-medium text-secondary-foreground">Pengambil keputusan</span> : null}
-                      {settings.contactDiscEnabled && contact.discPrimary ? (
-                        <>
-                          {/* The reading as a tonal badge beside the name, the way Crystal Knows sits beside a HubSpot contact; the approach line under it so the next rep can act on it without opening the report. */}
-                          <span className="ml-2 rounded-md bg-[var(--tonal)] px-1.5 py-0.5 text-xs font-semibold text-[var(--tonal-foreground)]" title={describeDisc(contact.discPrimary, contact.discSecondary)}>
+                      {/* Name, title and badges wrap as whole items: a badge never breaks across two lines. */}
+                      <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                        <span>
+                          {contact.fullName}
+                          {contact.jobTitle ? <span className="text-muted-foreground"> · {contact.jobTitle}</span> : null}
+                        </span>
+                        {contact.isDecisionMaker ? <span className="whitespace-nowrap rounded-md bg-secondary px-1.5 py-0.5 text-xs font-medium text-secondary-foreground">Pengambil keputusan</span> : null}
+                        {settings.contactDiscEnabled && contact.discPrimary ? (
+                          /* The reading as a tonal badge beside the name, the way Crystal Knows sits beside a HubSpot contact. */
+                          <span className="whitespace-nowrap rounded-md bg-[var(--tonal)] px-1.5 py-0.5 text-xs font-semibold text-[var(--tonal-foreground)]" title={describeDisc(contact.discPrimary, contact.discSecondary)}>
                             DISC {discCode(contact.discPrimary, contact.discSecondary)}
                           </span>
+                        ) : null}
+                      </span>
+                      {settings.contactDiscEnabled && contact.discPrimary ? (
+                        <>
+                          {/* The approach line under the name so the next rep can act on it without opening the report. */}
                           <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
                             {contact.discNote?.trim() || describeDisc(contact.discPrimary, contact.discSecondary)}
                             {contact.discAssessedByName ? <span className="text-muted-foreground/80"> · {describeAssessment(contact.discAssessedByName, contact.discAssessedAt)}</span> : null}
@@ -845,13 +874,15 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
             )}
 
             {reportSubmitted && report.visitOutcome && (
-              <CrmSyncStatus
-                missionId={missionId}
-                syncedAt={report.crmSyncedAt}
-                error={report.crmSyncError}
-                reachesCrm={visitReachesCrm(report.visitOutcome)}
-                canRetry={canWriteReport}
-              />
+              <div className="border-t pt-5">
+                <CrmSyncStatus
+                  missionId={missionId}
+                  syncedAt={report.crmSyncedAt}
+                  error={report.crmSyncError}
+                  reachesCrm={visitReachesCrm(report.visitOutcome)}
+                  canRetry={canWriteReport}
+                />
+              </div>
             )}
 
             {!leadPush && canPushLead(report) && !canWriteReport && (
@@ -859,6 +890,9 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
                 Laporan ini menandai adanya peluang. Sales utama dapat mengirimkannya ke LeadEngine.
               </p>
             )}
+            </aside>
+            )}
+            </div>
           </div>
         ) : (
           <p className="px-5 py-6 text-sm text-muted-foreground">

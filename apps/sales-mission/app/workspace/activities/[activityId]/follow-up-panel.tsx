@@ -195,18 +195,19 @@ export function FollowUpPanel({
                     </div>
                   )}
                 </div>
+                {/* The status label in the title already says Selesai or Dibatalkan;
+                    the body adds only what it does not: the outcome and channel of a
+                    logged one, the reason of a cancelled one, then who and when. */}
                 {item.status !== "OPEN" && (
                   <div className="mt-2 text-sm text-foreground">
-                    {item.status === "DONE" ? (
+                    {item.status === "DONE" && (
                       <p className="flex flex-wrap items-center gap-x-1.5">
                         <Check className="h-4 w-4 text-[var(--success-foreground)]" />
                         <span className="font-medium">{item.outcomeLabel ?? "Selesai"}</span>
                         {item.channelLabel && <span className="text-muted-foreground">· lewat {item.channelLabel.toLowerCase()}</span>}
                       </p>
-                    ) : (
-                      <p className="text-muted-foreground">Dibatalkan</p>
                     )}
-                    {item.note && <p className="mt-1 whitespace-pre-wrap text-sm text-muted-foreground">{item.note}</p>}
+                    {item.note && <p className={cn("whitespace-pre-wrap text-sm text-muted-foreground", item.status === "DONE" && "mt-1")}>{item.note}</p>}
                     {item.closedAt && (
                       <p className="mt-1 text-xs text-muted-foreground">{item.closedByName ?? "Seseorang"} · {stamp(item.closedAt)}</p>
                     )}

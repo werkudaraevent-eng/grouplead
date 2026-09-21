@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { ViewLink } from "@/components/remember-view"
-import { ArrowUpRight, ClipboardList, Send } from "@/components/icons"
+import { ClipboardList, Send } from "@/components/icons"
 import { MissionPagination } from "@/app/workspace/activities/mission-pagination"
 import { SortHeader } from "@/components/sort-header"
 import { DEFAULT_REPORT_SORT, nextReportSort, reportSortParts, type ReportSort, type ReportSortColumn } from "@/lib/reporting/report-paging"
@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { cn } from "@/lib/utils"
 import { paths } from "@/lib/paths"
+import { useRowLink } from "@/components/row-link"
 
 /**
  * The report list: the mission table's shape (cards on a phone, a fixed
@@ -104,6 +105,7 @@ export function ReportTable({
   filtered: boolean
   today: string
 }) {
+  const rowLink = useRowLink()
   if (reports.length === 0) {
     return filtered ? (
       <EmptyState
@@ -161,7 +163,6 @@ export function ReportTable({
               <col className="hidden w-[140px] 2xl:table-column" />
               <col className="w-[200px]" />
               <col className="w-[170px]" />
-              <col className="w-[120px]" />
             </colgroup>
             <TableHeader>
               <TableRow className="hover:bg-transparent">
@@ -171,12 +172,11 @@ export function ReportTable({
                 <TableHead className="hidden 2xl:table-cell"><Sort column="value" label="Peluang" sort={pagination.sort} /></TableHead>
                 <TableHead><Sort column="follow_up" label="Next action" sort={pagination.sort} /></TableHead>
                 <TableHead><Sort column="submitted" label="Status" sort={pagination.sort} /></TableHead>
-                <TableHead className="text-right">Aksi</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {reports.map((report) => (
-                <TableRow key={report.reportId}>
+                <TableRow key={report.reportId} onClick={rowLink(href(report))} className="cursor-pointer">
                   <TableCell>
                     <Link href={href(report)} className="block truncate font-semibold text-foreground hover:underline" title={report.clientCompanyName}>{report.clientCompanyName}</Link>
                     <span className="block truncate text-xs text-muted-foreground">{report.missionType} · {visitWhen(report)}</span>
@@ -207,16 +207,6 @@ export function ReportTable({
                     <StatusLabel report={report} />
                     <span className="block text-xs text-muted-foreground">
                       {report.pushedLeadId ? <span className="inline-flex items-center gap-1"><Send className="h-3 w-3" /> Lead #{report.pushedLeadId}</span> : report.submittedAt ? `Dikirim ${day(report.submittedAt)}` : `Diubah ${day(report.updatedAt)}`}
-                    </span>
-                  </TableCell>
-                  <TableCell className="whitespace-nowrap">
-                    <span className="flex items-center justify-end gap-1.5">
-                      <Button asChild size="sm" variant="outline">
-                        <Link href={href(report)}><ClipboardList className="h-4 w-4" /> Lihat</Link>
-                      </Button>
-                      <Link href={paths.activity(report.missionId)} aria-label={`Buka aktivitas ${report.clientCompanyName}`} className="grid h-8 w-8 place-items-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground">
-                        <ArrowUpRight className="h-4 w-4" />
-                      </Link>
                     </span>
                   </TableCell>
                 </TableRow>

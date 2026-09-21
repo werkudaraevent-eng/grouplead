@@ -12,9 +12,11 @@ export async function PhotoGallery({ access, label, photos }: { access: SalesMis
   if (photos.length === 0) return null
   const urls = await signPhotoUrls(access, photos.map((photo) => photo.path))
   return (
-    <div>
+    <div className="@container">
       <p className="text-xs font-semibold text-muted-foreground">{label} <span className="font-normal">· {describePhotoCount(photos.length)}</span></p>
-      <ul className="mt-2 grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-6">
+      {/* Columns follow the gallery's own width, not the viewport: three in a
+          supporting pane or on a phone, six across a full-width card. */}
+      <ul className="mt-2 grid grid-cols-3 gap-2 @sm:grid-cols-4 @2xl:grid-cols-6">
         {photos.map((photo) => {
           const url = urls.get(photo.path)
           return (

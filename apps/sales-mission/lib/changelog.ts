@@ -28,6 +28,23 @@ export const CHANGE_KIND_LABELS: Record<ChangeKind, string> = {
 export const CHANGELOG: ChangeEntry[] = [
   {
     date: "2026-09-21",
+    title: "Daftar Laporan: klik barisnya, seperti di Aktivitas dan Prospek",
+    items: [
+      { kind: "lebih-baik", text: "Baris di daftar Laporan kini membuka laporannya dengan sekali klik di mana saja pada baris itu, sama seperti Aktivitas dan Prospek. Tombol Lihat dan panah di ujung baris dihapus karena keduanya membuka halaman yang sama; Ctrl/Cmd+klik atau klik pada nama tetap membuka di tab baru." },
+      { kind: "diperbaiki", text: "Di kartu laporan, label Pengambil keputusan dan DISC di samping nama kontak tidak lagi terpotong di tengah kata saat ruangnya sempit; label pindah utuh ke baris berikutnya." },
+      { kind: "diperbaiki", text: "Tindak lanjut yang dibatalkan tidak lagi menulis Dibatalkan dua kali; di bawah judulnya langsung alasan pembatalan, siapa, dan kapan." },
+      { kind: "diperbaiki", text: "Ubin sorotan di kartu laporan (Hasil, Tingkat minat, Peluang, Waktu kunjungan) boleh dua baris, sehingga hasil seperti Bertemu pengambil keputusan tidak lagi terpotong." },
+    ],
+  },
+  {
+    date: "2026-09-21",
+    title: "Kartu laporan di layar lebar: isi di kiri, pendamping di kanan",
+    items: [
+      { kind: "lebih-baik", text: "Di komputer, kartu laporan tidak lagi menyisakan sisi kanan kosong. Tindak lanjut dan ringkasan pembicaraan tetap di kolom utama dengan lebar baca yang nyaman; Ketemu siapa, foto dan rekaman, serta status CRM pindah ke panel pendamping di kanan, mengikuti tata letak Material untuk jendela lebar. Di ponsel dan tablet urutannya tetap seperti sekarang." },
+    ],
+  },
+  {
+    date: "2026-09-21",
     title: "Peluang yang belum dicentang tidak lagi dibaca sebagai tidak ada",
     items: [
       { kind: "diperbaiki", text: "Ubin Peluang di kartu laporan kini menulis Belum ditandai, bukan Tidak ada, kalau centang Ada peluang di laporan kosong; keterangannya menyebut centang itu belum diisi. Centang itu opsional dan menjadi syarat Kirim ke LeadEngine, jadi kosong artinya belum ditandai, bukan tidak ada peluang." },
