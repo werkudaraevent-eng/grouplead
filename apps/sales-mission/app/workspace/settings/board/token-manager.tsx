@@ -19,6 +19,7 @@ export interface BoardTokenRow {
   label: string
   kind: BoardTokenKind
   showClientNames: boolean
+  showOutcomes: boolean
   createdAt: string
   expiresAt: string | null
   revokedAt: string | null
@@ -42,6 +43,7 @@ export function BoardTokenManager({ tokens, boardBaseUrl }: { tokens: BoardToken
   const [kind, setKind] = useState<BoardTokenKind>("screen")
   const [expiresInDays, setExpiresInDays] = useState("")
   const [showNames, setShowNames] = useState(false)
+  const [showOutcomes, setShowOutcomes] = useState(false)
   const [issued, setIssued] = useState<{ token: string; kind: BoardTokenKind } | null>(null)
   const [pending, start] = useTransition()
   const router = useRouter()
@@ -51,12 +53,18 @@ export function BoardTokenManager({ tokens, boardBaseUrl }: { tokens: BoardToken
   const create = () => {
     start(async () => {
       const days = expiresInDays ? Number(expiresInDays) : undefined
-      const result = await createBoardToken(label, Number.isFinite(days) ? days : undefined, showNames, kind)
+      const result = await createBoardToken(label, {
+        expiresInDays: Number.isFinite(days) ? days : undefined,
+        showClientNames: showNames,
+        showOutcomes: kind === "screen" && showOutcomes,
+        kind,
+      })
       if (result.success && result.data) {
         setIssued({ token: result.data.token, kind })
         setLabel("")
         setExpiresInDays("")
         setShowNames(false)
+        setShowOutcomes(false)
         router.refresh()
       } else {
         toast.error(result.error ?? "Tautan gagal dibuat")
@@ -130,6 +138,17 @@ export function BoardTokenManager({ tokens, boardBaseUrl }: { tokens: BoardToken
             </div>
             <Switch id="token-names" checked={showNames} onCheckedChange={setShowNames} />
           </div>
+          {kind === "screen" && (
+            <div className="flex items-start justify-between gap-4 rounded-lg border px-4 py-3 sm:col-span-2">
+              <div>
+                <Label htmlFor="token-outcomes" className="text-sm font-semibold text-foreground">Tampilkan hasil kunjungan</Label>
+                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                  Baris yang sudah dilaporkan menyebut hasilnya (“Bertemu pengambil keputusan”). Bersama nama klien ini adalah pipeline; hanya untuk ruang tim sendiri. Terikat ke tautan.
+                </p>
+              </div>
+              <Switch id="token-outcomes" checked={showOutcomes} onCheckedChange={setShowOutcomes} />
+            </div>
+          )}
           <Button className="h-11 sm:col-span-2 sm:justify-self-end" onClick={create} disabled={pending || !label.trim()}>
             {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />} Buat
           </Button>
@@ -164,6 +183,9 @@ export function BoardTokenManager({ tokens, boardBaseUrl }: { tokens: BoardToken
                       )}
                       {token.showClientNames && (
                         <span className="rounded-full bg-[var(--warning)] px-2 py-0.5 text-[10px] font-bold text-[var(--warning-foreground)]">Nama klien tampil</span>
+                      )}
+                      {token.showOutcomes && (
+                        <span className="rounded-full bg-[var(--warning)] px-2 py-0.5 text-[10px] font-bold text-[var(--warning-foreground)]">Hasil kunjungan tampil</span>
                       )}
                     </p>
                     <p className="mt-0.5 text-xs text-muted-foreground">

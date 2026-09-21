@@ -28,6 +28,15 @@ export const CHANGE_KIND_LABELS: Record<ChangeKind, string> = {
 export const CHANGELOG: ChangeEntry[] = [
   {
     date: "2026-09-21",
+    title: "Papan live: hasil kunjungan, angka yang jujur, tanpa kata status",
+    items: [
+      { kind: "baru", text: "Saat membuat tautan layar ada saklar Tampilkan hasil kunjungan: baris yang sudah dilaporkan menyebut hasilnya (“Bertemu pengambil keputusan”, “Klien tidak ada”) dengan warna menurut jenisnya. Seperti nama klien, keputusan ini terikat ke tautan dan tidak bisa diubah dari URL; nyalakan hanya untuk ruang tim sendiri." },
+      { kind: "lebih-baik", text: "Kartu progres kini menghitung yang sudah berlangsung, bukan hanya yang sudah diketik: “4 / 6 sudah berlangsung”, batang dua warna (hijau dilaporkan, kuning berlangsung tapi belum dilaporkan), dan ubin Belum dilaporkan yang menyala kalau ada. Pukul 16.00 papan tidak lagi berkata 1 dari 6 selesai saat lima orang sudah kembali ke meja." },
+      { kind: "lebih-baik", text: "Kolom kanan tiap baris jadwal tidak lagi memuat kata status penugasan (Diterima, Ditugaskan). Yang tampil: jam selesai untuk yang belum mulai, Sekarang, Selesai, atau Belum dilaporkan begitu jamnya lewat tanpa laporan. Jenis kunjungan tampil sebagai chip kecil di samping nama klien." },
+    ],
+  },
+  {
+    date: "2026-09-21",
     title: "Papan live: siapa sedang di mana, terbaca dari jauh",
     items: [
       { kind: "lebih-baik", text: "Sorotan di atas Papan live kini memperlihatkan semua kunjungan yang sedang berlangsung, bukan hanya satu: “Sedang berlangsung · 3 kunjungan” dengan tiga yang pertama berdampingan, sisanya dihitung, dan semuanya menyala di jadwal." },

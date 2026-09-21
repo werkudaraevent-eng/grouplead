@@ -21,11 +21,17 @@ async function authorize() {
   return { access }
 }
 
+export interface CreateBoardTokenOptions {
+  expiresInDays?: number
+  /** The two privacy decisions, made here once and bound to the row. */
+  showClientNames?: boolean
+  showOutcomes?: boolean
+  kind?: BoardTokenKind
+}
+
 export async function createBoardToken(
   label: string,
-  expiresInDays?: number,
-  showClientNames = false,
-  kind: BoardTokenKind = "screen"
+  { expiresInDays, showClientNames = false, showOutcomes = false, kind = "screen" }: CreateBoardTokenOptions = {}
 ): Promise<ActionResult<{ token: string }>> {
   const guard = await authorize()
   if ("error" in guard) return { success: false, error: guard.error }
@@ -52,6 +58,8 @@ export async function createBoardToken(
     // Decided here, once, by the admin. A screen in an open office keeps it
     // false; a screen in the sales room may not need to.
     show_client_names: showClientNames,
+    // Outcomes only mean something on a screen; a calendar link never shows them.
+    show_outcomes: kind === "screen" && showOutcomes,
     // Bound to the row, so a screen link cannot be typed into the calendar
     // route or the other way round.
     kind,

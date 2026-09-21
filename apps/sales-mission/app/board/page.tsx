@@ -60,6 +60,7 @@ export default async function BoardPage({
 
   let companyId: string | null = null
   let masked = true
+  let showOutcomes = false
   let screenLabel: string | null = null
   let preview = false
 
@@ -68,6 +69,7 @@ export default async function BoardPage({
     if (resolved) {
       companyId = resolved.companyId
       masked = !resolved.showClientNames
+      showOutcomes = resolved.showOutcomes
       screenLabel = resolved.label
     }
   } else {
@@ -75,6 +77,7 @@ export default async function BoardPage({
     if (access && (await canPerform(access, "sales_mission_mission", "read"))) {
       companyId = access.companyId
       masked = params.names !== "1"
+      showOutcomes = params.outcomes === "1"
       preview = true
     }
   }
@@ -91,6 +94,7 @@ export default async function BoardPage({
   const now = new Date()
   const snapshot = await getBoardSnapshot(companyId, now, {
     masked,
+    showOutcomes,
     range: options.range,
     sales: options.sales,
     location: options.location,

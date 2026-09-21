@@ -64,6 +64,8 @@ export interface BoardTokenResolution {
   kind: BoardTokenKind
   /** Bound to the link when it was made; the URL cannot change it. */
   showClientNames: boolean
+  /** Same rule: whether reported visits show their outcome on the wall. */
+  showOutcomes: boolean
 }
 
 /**
@@ -83,7 +85,7 @@ export async function resolveBoardToken(token: string, kind: BoardTokenKind): Pr
   const { data } = await supabase
     .schema("sales_mission")
     .from("board_tokens")
-    .select("id, company_id, label, kind, token_hash, expires_at, revoked_at, show_client_names")
+    .select("id, company_id, label, kind, token_hash, expires_at, revoked_at, show_client_names, show_outcomes")
     .eq("token_hash", hash)
     .maybeSingle()
 
@@ -110,5 +112,6 @@ export async function resolveBoardToken(token: string, kind: BoardTokenKind): Pr
     label: data.label as string,
     kind,
     showClientNames: data.show_client_names === true,
+    showOutcomes: data.show_outcomes === true,
   }
 }

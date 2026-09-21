@@ -191,7 +191,8 @@ export function BoardToolbar({
 }
 
 export function BoardActions({ options, isAdmin, baseUrl }: { options: BoardOptions; isAdmin: boolean; baseUrl: string }) {
-  const previewHref = `/board?${new URLSearchParams({ ...Object.fromEntries(serializeBoardOptions(options)), names: "1" })}`
+  // The admin can read names and outcomes everywhere else, so the preview shows both.
+  const previewHref = `/board?${new URLSearchParams({ ...Object.fromEntries(serializeBoardOptions(options)), names: "1", outcomes: "1" })}`
   return (
     <>
       {isAdmin && <ScreenLinkDialog options={options} baseUrl={baseUrl} />}
@@ -207,15 +208,16 @@ export function BoardActions({ options, isAdmin, baseUrl }: { options: BoardOpti
 /**
  * Mint a screen link carrying the current options.
  *
- * The one privacy decision, client names, is asked here and bound to the
- * token: the URL carries everything else and can be edited by whoever holds
- * it, so it must not carry this. The link is shown once. Managing and
+ * The two privacy decisions, client names and visit outcomes, are asked here
+ * and bound to the token: the URL carries everything else and can be edited
+ * by whoever holds it, so it must not carry these. The link is shown once. Managing and
  * revoking existing links stays in Pengaturan.
  */
 function ScreenLinkDialog({ options, baseUrl }: { options: BoardOptions; baseUrl: string }) {
   const [open, setOpen] = useState(false)
   const [label, setLabel] = useState("")
   const [showNames, setShowNames] = useState(false)
+  const [showOutcomes, setShowOutcomes] = useState(false)
   const [issued, setIssued] = useState<string | null>(null)
   const [pending, start] = useTransition()
 
@@ -225,7 +227,7 @@ function ScreenLinkDialog({ options, baseUrl }: { options: BoardOptions; baseUrl
 
   const create = () => {
     start(async () => {
-      const result = await createBoardToken(label, undefined, showNames)
+      const result = await createBoardToken(label, { showClientNames: showNames, showOutcomes })
       if (result.success && result.data) setIssued(result.data.token)
       else toast.error(result.error ?? "Tautan gagal dibuat")
     })
@@ -236,6 +238,7 @@ function ScreenLinkDialog({ options, baseUrl }: { options: BoardOptions; baseUrl
     setIssued(null)
     setLabel("")
     setShowNames(false)
+    setShowOutcomes(false)
   }
 
   return (
@@ -268,6 +271,15 @@ function ScreenLinkDialog({ options, baseUrl }: { options: BoardOptions; baseUrl
                     </p>
                   </div>
                   <Switch id="screen-names" checked={showNames} onCheckedChange={setShowNames} />
+                </div>
+                <div className="flex items-start justify-between gap-4 rounded-lg border px-4 py-3">
+                  <div>
+                    <Label htmlFor="screen-outcomes" className="text-sm font-semibold text-foreground">Tampilkan hasil kunjungan</Label>
+                    <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                      Baris kunjungan yang sudah dilaporkan menyebut hasilnya, misalnya “Bertemu pengambil keputusan”. Bersama nama klien ini adalah pipeline; nyalakan hanya untuk ruang tim sendiri. Ikut terikat ke tautan.
+                    </p>
+                  </div>
+                  <Switch id="screen-outcomes" checked={showOutcomes} onCheckedChange={setShowOutcomes} />
                 </div>
               </DialogBody>
               <DialogFooter>

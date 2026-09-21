@@ -33,7 +33,7 @@ export default async function BoardSettingsPage() {
   const { data } = await supabase
     .schema("sales_mission")
     .from("board_tokens")
-    .select("id, label, kind, created_at, expires_at, revoked_at, last_used_at, show_client_names")
+    .select("id, label, kind, created_at, expires_at, revoked_at, last_used_at, show_client_names, show_outcomes")
     .eq("company_id", access.companyId)
     .order("created_at", { ascending: false })
 
@@ -42,6 +42,7 @@ export default async function BoardSettingsPage() {
     label: row.label as string,
     kind: ((row.kind as string | null) ?? "screen") as BoardTokenKind,
     showClientNames: row.show_client_names === true,
+    showOutcomes: row.show_outcomes === true,
     createdAt: row.created_at as string,
     expiresAt: (row.expires_at as string | null) ?? null,
     revokedAt: (row.revoked_at as string | null) ?? null,
@@ -65,7 +66,7 @@ export default async function BoardSettingsPage() {
       <div className="mb-4 rounded-xl border border-dashed bg-muted/40 px-5 py-4 text-sm text-muted-foreground">
         Tautan dibuat di tempat yang ditampilkannya: <strong className="text-foreground">Papan live</strong> untuk layar TV
         (rentang, sales, lokasi, dan panel ikut ke tautannya), <strong className="text-foreground">Kalender</strong> untuk
-        tautan jadwal yang dibuka manajemen tanpa login. Keduanya dicabut di sini. Nama klien mengikuti pilihan saat tautan
+        tautan jadwal yang dibuka manajemen tanpa login. Keduanya dicabut di sini. Nama klien dan hasil kunjungan mengikuti pilihan saat tautan
         dibuat; layar di ruang terbuka terbaca tamu, dan foto layar berjalan lebih jauh dari yang siapa pun kira.
         <div className="mt-3 flex flex-wrap gap-2">
           <Button asChild size="sm" variant="outline">

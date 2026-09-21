@@ -66,6 +66,7 @@ export default async function InternalBoardPage({
   const [snapshot, people, facets, isAdmin, activity, headerList] = await Promise.all([
     getBoardSnapshot(access.companyId, now, {
       masked: false,
+      showOutcomes: true,
       range: options.range,
       sales: options.sales,
       location: options.location,

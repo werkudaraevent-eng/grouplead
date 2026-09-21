@@ -60,7 +60,7 @@ export function PublicLinkDialog({
 
   const create = () => {
     start(async () => {
-      const result = await createBoardToken(label, undefined, showNames, "calendar")
+      const result = await createBoardToken(label, { showClientNames: showNames, kind: "calendar" })
       if (result.success && result.data) setIssued(result.data.token)
       else toast.error(result.error ?? "Tautan gagal dibuat")
     })
