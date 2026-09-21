@@ -8,6 +8,7 @@ import { listReportChoices } from "@/lib/missions/report-choice-queries"
 import { resolveAiConfig } from "@/lib/ai/ai-settings"
 import { chatCompleteDetailed, describeAiError } from "@/lib/ai/ai-proxy"
 import { buildAskContext } from "@/lib/ai/ask-context"
+import { recordAiUsage } from "@/lib/ai/ai-usage"
 import type { ActionResult } from "@/types/action-result"
 import { NO_ACCESS_MESSAGE } from "@/lib/brand"
 
@@ -25,11 +26,18 @@ export interface AskAnswer {
 }
 
 const SYSTEM_PROMPT = `Anda asisten data untuk tim sales lapangan di Indonesia (aplikasi Sales Activity).
-Anda menerima DATA berupa JSON: angka periode yang sedang dilihat pengguna, sudah dihitung aplikasi. Jawab pertanyaan pengguna HANYA dari DATA itu.
+Anda menerima DATA berupa JSON tentang periode dan sales yang sedang dilihat pengguna, sudah dihitung aplikasi. Jawab pertanyaan pengguna HANYA dari DATA itu.
+Isi DATA:
+- totals dan breakdowns: angka rekap periode (laporan, aktivitas, peluang, nilai estimasi, per sales/industri/hasil/minat/klien/minggu).
+- daftar_sales: semua orang di daftar sales. Orang yang tidak muncul di laporan_per_sales berarti belum punya laporan pada periode ini.
+- aktivitas_hari_ini, aktivitas_besok: janji temu hari ini dan besok (jam WIB, klien, sales, lokasi, industri), apa pun periodenya.
+- aktivitas_periode, laporan_periode, prospek_jatuh_tempo: baris-baris pada periode; kalau terpotong=true, sebutkan bahwa daftarnya dipotong dan pakai total untuk jumlahnya.
+- aktivitas_periode_per_jam: jumlah aktivitas per jam WIB.
 Aturan:
-- Bahasa Indonesia yang lugas. Maksimal 120 kata. Boleh daftar pendek kalau membandingkan beberapa hal.
-- Sebut angka apa adanya dari DATA. Jangan menghitung yang tidak bisa dihitung dari DATA, jangan menebak, jangan menambah data dari luar.
-- Kalau DATA tidak memuat jawabannya, katakan itu dalam satu kalimat dan sebut kartu atau saringan mana di Ringkasan yang mungkin menjawab.
+- Bahasa Indonesia yang lugas. Maksimal 150 kata. Boleh daftar pendek kalau menyebut beberapa hal.
+- "pagi" = sebelum 12.00 WIB, "siang" = 12.00–15.00, "sore" = setelah 15.00. "hari ini" = hari_ini di DATA.
+- Sebut angka dan nama apa adanya dari DATA. Jangan menghitung yang tidak bisa dihitung dari DATA, jangan menebak, jangan menambah data dari luar.
+- Kalau DATA tidak memuat jawabannya, katakan itu dalam satu kalimat dan sebut tab atau kartu mana (Aktivitas, Daftar laporan, Prospek, Ringkasan) yang mungkin menjawab.
 - "laporan" = kunjungan yang terjadi dan dilaporkan; "aktivitas" = janji temu terjadwal; "prospek" = calon klien sebelum ada janji temu.
 - Jangan menyapa, jangan menutup dengan basa-basi.`
 
@@ -60,7 +68,7 @@ export async function askSalesData(input: unknown): Promise<ActionResult<AskAnsw
     canPerform(access, "sales_mission_prospect", "read"),
   ])
   const ctx = { people: new Map(people.map((person) => [person.id, person.name])), choices }
-  const context = await buildAskContext(access, range, sales, ctx, canSeeProspects)
+  const context = await buildAskContext(access, range, sales, ctx, canSeeProspects, { now: new Date(), choices, roster: people.map((person) => ({ id: person.id, name: person.name })) })
 
   // The data rides in the system message: one system turn, then the
   // conversation, which every OpenAI-compatible proxy accepts as is.
@@ -79,6 +87,7 @@ export async function askSalesData(input: unknown): Promise<ActionResult<AskAnsw
     // budget covers the model's thinking too, and a small cap came back as
     // an empty answer. The prompt keeps the answer short.
     const result = await chatCompleteDetailed(config, { model: config.modelFast, temperature: 0.2, messages })
+    void recordAiUsage({ feature: "tanya_ai", model: config.modelFast, promptTokens: result.promptTokens, completionTokens: result.completionTokens, ok: true, companyId: access.companyId, userId: access.userId })
     if (log) {
       await log.schema("sales_mission").from("ai_questions").insert({
         company_id: access.companyId,
@@ -95,6 +104,7 @@ export async function askSalesData(input: unknown): Promise<ActionResult<AskAnsw
     return { success: true, data: { answer: result.text.trim(), model: config.modelFast } }
   } catch (error) {
     const message = describeAiError(error)
+    void recordAiUsage({ feature: "tanya_ai", model: config.modelFast, promptTokens: null, completionTokens: null, ok: false, companyId: access.companyId, userId: access.userId })
     if (log) {
       await log.schema("sales_mission").from("ai_questions").insert({
         company_id: access.companyId,

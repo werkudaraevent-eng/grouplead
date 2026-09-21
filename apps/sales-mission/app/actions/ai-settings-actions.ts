@@ -6,6 +6,7 @@ import { createServiceClient } from "@/utils/supabase/service"
 import { canPerform, getSalesMissionAccess } from "@/lib/sales-mission-access"
 import { readAiKey, readAiSettings, storeAiKey, type AiSettings } from "@/lib/ai/ai-settings"
 import { chatComplete, describeAiError, listModels, normalizeEndpoint, type AiModel } from "@/lib/ai/ai-proxy"
+import { recordAiUsage } from "@/lib/ai/ai-usage"
 import type { ActionResult } from "@/types/action-result"
 import { paths } from "@/lib/paths"
 import { NO_ACCESS_MESSAGE } from "@/lib/brand"
@@ -98,7 +99,9 @@ export async function saveAiSettings(input: unknown): Promise<ActionResult<AiSet
       for (const model of chosen) {
         try {
           await chatComplete({ endpoint, apiKey }, { model, messages: [{ role: "user", content: "Balas hanya dengan satu kata: OK" }] })
+          void recordAiUsage({ feature: "uji_model", model, promptTokens: null, completionTokens: null, ok: true })
         } catch (error) {
+          void recordAiUsage({ feature: "uji_model", model, promptTokens: null, completionTokens: null, ok: false })
           testOk = false
           testError = `Model ${model} tidak menjawab: ${describeAiError(error)}`
           break

@@ -6,6 +6,7 @@ import { createServiceClient } from "@/utils/supabase/service"
 import { requirePermission } from "@/lib/require-permission"
 import { readAiKey, readAiSettings, storeAiKey, type AiSettings } from "@/lib/ai/ai-settings"
 import { chatComplete, describeAiError, listModels, normalizeEndpoint, type AiModel } from "@/lib/ai/ai-proxy"
+import { recordAiUsage } from "@/lib/ai/ai-usage"
 import type { ActionResult } from "@/types/action-result"
 
 const connectionSchema = z.object({
@@ -87,7 +88,9 @@ export async function saveAiSettings(input: unknown): Promise<ActionResult<AiSet
       for (const model of chosen) {
         try {
           await chatComplete({ endpoint, apiKey }, { model, messages: [{ role: "user", content: "Reply with one word only: OK" }] })
+          void recordAiUsage({ feature: "uji_model", model, promptTokens: null, completionTokens: null, ok: true })
         } catch (error) {
+          void recordAiUsage({ feature: "uji_model", model, promptTokens: null, completionTokens: null, ok: false })
           testOk = false
           testError = `Model ${model} did not answer: ${describeAiError(error)}`
           break

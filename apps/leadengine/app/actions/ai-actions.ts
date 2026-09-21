@@ -1,6 +1,7 @@
 "use server"
 
 import { createAIClient } from "@/lib/ai-client"
+import { recordAiUsage } from "@/lib/ai/ai-usage"
 import type { ActionResult } from "@/types/action-result"
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -51,6 +52,7 @@ Focus on: revenue trends, win rates, pipeline health, conversion efficiency, and
       || choice?.message?.reasoning_content
       || (typeof response?.output === "string" ? response.output : null)
 
+    void recordAiUsage({ feature: "analyze", model, promptTokens: response?.usage?.prompt_tokens ?? null, completionTokens: response?.usage?.completion_tokens ?? null, ok: Boolean(content) })
     if (!content) {
       console.error("[AI] Empty response. Raw:", JSON.stringify(response, null, 2))
       return { success: false, error: `AI returned empty response (model: ${model})` }
@@ -101,6 +103,7 @@ If you don't have enough data to answer, say so clearly.`
       || choice?.message?.reasoning_content
       || (typeof response?.output === "string" ? response.output : null)
 
+    void recordAiUsage({ feature: "ask_ai", model, promptTokens: response?.usage?.prompt_tokens ?? null, completionTokens: response?.usage?.completion_tokens ?? null, ok: Boolean(answer) })
     if (!answer) {
       console.error("[AI] Empty response. Raw:", JSON.stringify(response, null, 2))
       return { success: false, error: `AI returned empty response (model: ${model})` }

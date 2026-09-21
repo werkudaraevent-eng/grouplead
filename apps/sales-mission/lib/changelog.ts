@@ -27,6 +27,15 @@ export const CHANGE_KIND_LABELS: Record<ChangeKind, string> = {
 
 export const CHANGELOG: ChangeEntry[] = [
   {
+    date: "2026-09-21",
+    title: "Tanya AI tahu jadwal dan laporannya, bukan hanya angkanya",
+    items: [
+      { kind: "lebih-baik", text: "Tanya AI kini juga diberi daftar di balik angka: aktivitas dan laporan pada periode yang disaring (klien, sales, jam, lokasi, hasil, peluang, next action), janji temu hari ini dan besok apa pun periodenya, prospek yang jatuh tempo, dan daftar sales. Jadi “kunjungan hari ini ke mana saja?” atau “siapa yang belum ada laporan?” bisa dijawab. Daftar yang panjang dipotong ke yang terdekat dengan hari ini dan AI menyebutkannya; semua tetap dibatasi cakupan lihatmu." },
+      { kind: "lebih-baik", text: "Chip saran di Tanya AI diganti dengan pertanyaan yang memang bisa dijawab datanya." },
+      { kind: "baru", text: "Pengaturan → AI punya kartu Pemakaian: token yang dipakai kedua aplikasi dalam 7 dan 30 hari terakhir, perkiraan seminggu dan sebulan dari laju terakhir, serta rinciannya per fitur dan per model. Angkanya token, harganya mengikuti tarif proxy." },
+    ],
+  },
+  {
     date: "2026-09-20",
     title: "Pesan gangguan proxy AI yang terbaca",
     items: [

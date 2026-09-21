@@ -17,10 +17,11 @@ interface Turn {
 }
 
 const SUGGESTIONS = [
+  "Kunjungan hari ini ke mana saja?",
+  "Siapa yang belum ada laporan?",
   "Sales mana yang paling banyak laporan?",
   "Industri apa yang paling sering dikunjungi?",
-  "Berapa laporan peluang, dan siapa saja?",
-  "Klien mana yang paling sering dikunjungi?",
+  "Ada peluang apa saja, dan nilainya?",
 ]
 
 const TITLE = "Tanya AI"
@@ -127,7 +128,7 @@ export function AskPanel({
         aria-label="Pertanyaan"
         className="h-12 md:h-10"
         maxLength={300}
-        placeholder="Misal: siapa yang belum ada laporan minggu ini?"
+        placeholder="Misal: besok jam berapa saja ada kunjungan?"
         value={question}
         onChange={(event) => setQuestion(event.target.value)}
         disabled={pending}

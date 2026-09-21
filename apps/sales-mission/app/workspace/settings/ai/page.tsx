@@ -1,10 +1,12 @@
 import { redirect } from "next/navigation"
 import { canPerform, getSalesMissionAccess } from "@/lib/sales-mission-access"
 import { readAiSettings } from "@/lib/ai/ai-settings"
-import { hasServiceClientConfig } from "@/utils/supabase/service"
+import { readAiUsage } from "@/lib/ai/ai-usage"
+import { createServiceClient, hasServiceClientConfig } from "@/utils/supabase/service"
 import { BackLink, EmptyState, WorkspacePage } from "@/app/workspace/workspace-page"
 import { paths } from "@/lib/paths"
 import { AiSettingsForm } from "./ai-settings-form"
+import { UsageCard } from "./usage-card"
 
 export const dynamic = "force-dynamic"
 
@@ -30,6 +32,11 @@ export default async function AiSettingsPage() {
     return shell(<EmptyState title="Belum bisa dibuka" description="Deployment ini belum punya kunci service Supabase, yang diperlukan untuk menyimpan kunci API ke Vault." />)
   }
 
-  const settings = await readAiSettings()
-  return shell(<AiSettingsForm initial={settings} />)
+  const [settings, usage] = await Promise.all([readAiSettings(), readAiUsage(createServiceClient())])
+  return shell(
+    <div className="space-y-6">
+      <AiSettingsForm initial={settings} />
+      <UsageCard summary={usage} />
+    </div>
+  )
 }

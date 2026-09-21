@@ -191,6 +191,10 @@ row is empty. Both apps reach it through `lib/ai/ai-settings.ts`
 `fn_ai_read_key`, a function only the service role may call; every caller
 checks the person's grant first.
 
+Every AI proxy call from either app logs one row to `public.ai_usage`
+(service role only) through `lib/ai/ai-usage.ts`; the Pemakaian / Usage card
+under Settings → AI sums it. A new AI feature must call `recordAiUsage`.
+
 The daily AI insight is written by `POST /api/ai/insights/run` in Sales
 Activity, called every ten minutes by Supabase Cron (`pg_cron` + `pg_net`,
 scheduled in migration `20260920110000_ai_insights.sql`) with a bearer token
