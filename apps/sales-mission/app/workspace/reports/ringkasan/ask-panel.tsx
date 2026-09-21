@@ -10,6 +10,7 @@ import { ChipRow, ChoiceChip } from "@/components/ui/choice-chip"
 import { Input } from "@/components/ui/input"
 import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { useCompact } from "@/hooks/use-compact"
+import { parseAnswer, type Inline } from "@/lib/ai/answer-format"
 
 interface Turn {
   question: string
@@ -101,7 +102,7 @@ export function AskPanel({
             <li key={index} className="space-y-1.5">
               <p className="ml-6 rounded-xl rounded-tr-sm bg-[var(--tonal)] px-3 py-2 text-sm text-[var(--tonal-foreground)]">{turn.question}</p>
               <div className="mr-6 space-y-1 px-1">
-                <p className="whitespace-pre-line text-sm leading-relaxed text-foreground">{turn.answer}</p>
+                <AnswerText text={turn.answer} />
                 <p className="text-[11px] text-muted-foreground">Dibuat AI · angkanya sama dengan kartu Ringkasan; cek di sana.</p>
               </div>
             </li>
@@ -167,5 +168,31 @@ export function AskPanel({
         <SheetFooter className="border-t">{form}</SheetFooter>
       </SheetContent>
     </Sheet>
+  )
+}
+
+/** The answer as paragraphs and lists with bold where the model bolded, never raw Markdown marks. */
+function AnswerText({ text }: { text: string }) {
+  const runs = (items: Inline[]) => items.map((run, index) => (run.strong ? <strong key={index} className="font-semibold">{run.text}</strong> : <span key={index}>{run.text}</span>))
+  return (
+    <div className="space-y-2 text-sm leading-relaxed text-foreground">
+      {parseAnswer(text).map((block, index) =>
+        block.type === "paragraph" ? (
+          <p key={index}>{runs(block.runs)}</p>
+        ) : block.ordered ? (
+          <ol key={index} className="list-decimal space-y-1 pl-5">
+            {block.items.map((item, itemIndex) => (
+              <li key={itemIndex}>{runs(item)}</li>
+            ))}
+          </ol>
+        ) : (
+          <ul key={index} className="list-disc space-y-1 pl-5">
+            {block.items.map((item, itemIndex) => (
+              <li key={itemIndex}>{runs(item)}</li>
+            ))}
+          </ul>
+        )
+      )}
+    </div>
   )
 }

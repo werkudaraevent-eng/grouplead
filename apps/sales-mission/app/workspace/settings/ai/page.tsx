@@ -1,12 +1,13 @@
+import Link from "next/link"
 import { redirect } from "next/navigation"
+import { BarChart3 } from "@/components/icons"
+import { Button } from "@/components/ui/button"
 import { canPerform, getSalesMissionAccess } from "@/lib/sales-mission-access"
 import { readAiSettings } from "@/lib/ai/ai-settings"
-import { readAiUsage } from "@/lib/ai/ai-usage"
-import { createServiceClient, hasServiceClientConfig } from "@/utils/supabase/service"
+import { hasServiceClientConfig } from "@/utils/supabase/service"
 import { BackLink, EmptyState, WorkspacePage } from "@/app/workspace/workspace-page"
 import { paths } from "@/lib/paths"
 import { AiSettingsForm } from "./ai-settings-form"
-import { UsageCard } from "./usage-card"
 
 export const dynamic = "force-dynamic"
 
@@ -19,7 +20,16 @@ export default async function AiSettingsPage() {
       eyebrow="Sales Activity / Pengaturan"
       title="AI"
       description="Koneksi ke proxy AI yang dipakai kedua aplikasi: alamat endpoint, kunci API, dan model yang dipilih dari daftar endpoint itu."
-      action={<BackLink href={paths.settings.index} />}
+      action={
+        <>
+          <Button asChild variant="outline" size="sm">
+            <Link href={paths.settings.aiUsage}>
+              <BarChart3 className="h-4 w-4" /> Pemakaian
+            </Link>
+          </Button>
+          <BackLink href={paths.settings.index} />
+        </>
+      }
     >
       {children}
     </WorkspacePage>
@@ -32,11 +42,6 @@ export default async function AiSettingsPage() {
     return shell(<EmptyState title="Belum bisa dibuka" description="Deployment ini belum punya kunci service Supabase, yang diperlukan untuk menyimpan kunci API ke Vault." />)
   }
 
-  const [settings, usage] = await Promise.all([readAiSettings(), readAiUsage(createServiceClient())])
-  return shell(
-    <div className="space-y-6">
-      <AiSettingsForm initial={settings} />
-      <UsageCard summary={usage} />
-    </div>
-  )
+  const settings = await readAiSettings()
+  return shell(<AiSettingsForm initial={settings} />)
 }

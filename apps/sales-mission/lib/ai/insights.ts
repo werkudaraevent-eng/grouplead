@@ -12,6 +12,7 @@ import type { SupabaseClient } from "@supabase/supabase-js"
 import { chatCompleteDetailed, describeAiError } from "./ai-proxy"
 import { resolveAiConfig } from "./ai-settings"
 import { recordAiUsage } from "./ai-usage"
+import { plainText } from "./answer-format"
 import { loadInsightFacts, wibDayOf, wibHourOf, type InsightFacts } from "./insight-facts"
 import { paths } from "@/lib/paths"
 
@@ -99,7 +100,7 @@ export function parseInsightItems(raw: string): InsightItem[] | null {
   for (const entry of list) {
     if (!entry || typeof entry !== "object") continue
     const record = entry as Record<string, unknown>
-    const body = typeof record.text === "string" ? record.text.replace(/\s+/g, " ").trim() : ""
+    const body = typeof record.text === "string" ? plainText(record.text.replace(/\s+/g, " ")) : ""
     if (!body) continue
     const kind = (INSIGHT_KINDS as readonly string[]).includes(String(record.kind)) ? (record.kind as InsightKind) : "info"
     const link = (INSIGHT_LINKS as readonly string[]).includes(String(record.link)) ? (record.link as InsightLink) : null
@@ -113,6 +114,7 @@ const SYSTEM_PROMPT = `Anda menulis insight harian untuk atasan dan tim sales la
 Anda menerima FAKTA berupa JSON: angka yang sudah dihitung aplikasi untuk hari "day" (WIB) dan pembandingnya.
 Aturan:
 - Tulis SELALU 3 sampai 5 poin. Setiap poin satu kalimat, maksimal 30 kata, bahasa Indonesia yang lugas, tanpa sapaan dan tanpa basa-basi.
+- Teks polos di dalam "text": tanpa Markdown, tanpa tanda ** atau #.
 - Hanya pakai angka yang ada di FAKTA. Jangan menghitung ulang, jangan menebak, jangan menambah data. Angka boleh dibandingkan (misalnya minggu ini vs minggu lalu) hanya dari angka yang ada.
 - Urutan prioritas: (1) yang perlu ditindak: laporan tertunda (sebut siapa yang paling banyak), prospek lewat tanggal hubungi lagi; (2) laporan yang masuk hari ini: sebut klien, hasil, minat, peluang; (3) perbandingan minggu ini vs minggu lalu untuk laporan dan aktivitas; (4) pola: jam tersibuk (byHour), industri terbanyak (byIndustry), hasil kunjungan terbanyak (byOutcome), klien paling sering (topClients); (5) yang akan datang: besok dan tujuh hari ke depan (nextWeek), termasuk siapa yang paling padat dan hari terpadat.
 - Kalau hari ini tidak ada laporan dan tidak ada aktivitas (akhir pekan, libur), tetap tulis 3 poin dari minggu ini vs minggu lalu, pola minggu ini, dan jadwal yang akan datang.

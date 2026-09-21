@@ -28,6 +28,14 @@ export const CHANGE_KIND_LABELS: Record<ChangeKind, string> = {
 export const CHANGELOG: ChangeEntry[] = [
   {
     date: "2026-09-21",
+    title: "Jawaban Tanya AI rapi, Pemakaian AI di halaman sendiri",
+    items: [
+      { kind: "diperbaiki", text: "Jawaban Tanya AI tidak lagi memperlihatkan tanda ** mentah: bagian yang ditebalkan model tampil tebal, daftar tampil sebagai daftar. Poin Insight hari ini juga dibersihkan dari tanda itu." },
+      { kind: "lebih-baik", text: "Pemakaian token AI pindah ke halaman sendiri, Pengaturan → AI → Pemakaian, dengan lebar yang sama seperti formulir koneksi, sehingga tombol Simpan tetap menjadi penutup formulir." },
+    ],
+  },
+  {
+    date: "2026-09-21",
     title: "Kalender: foto sales, saringan lokasi dan jenis, daftar hari bisa dikelompokkan",
     items: [
       { kind: "lebih-baik", text: "Di panel hari Kalender, tiap kunjungan kini memperlihatkan foto sales utamanya di ujung baris; namanya tetap tertulis. Berlaku juga di kalender publik (Jadwal tim)." },

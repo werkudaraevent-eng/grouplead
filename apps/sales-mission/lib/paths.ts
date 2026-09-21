@@ -65,6 +65,7 @@ export const paths = {
     index: "/workspace/settings",
     activities: "/workspace/settings/activities",
     ai: "/workspace/settings/ai",
+    aiUsage: "/workspace/settings/ai/pemakaian",
     board: "/workspace/settings/board",
     history: "/workspace/settings/history",
   },
