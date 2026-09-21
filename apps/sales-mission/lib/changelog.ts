@@ -28,6 +28,15 @@ export const CHANGE_KIND_LABELS: Record<ChangeKind, string> = {
 export const CHANGELOG: ChangeEntry[] = [
   {
     date: "2026-09-21",
+    title: "Papan live: siapa sedang di mana, terbaca dari jauh",
+    items: [
+      { kind: "lebih-baik", text: "Sorotan di atas Papan live kini memperlihatkan semua kunjungan yang sedang berlangsung, bukan hanya satu: “Sedang berlangsung · 3 kunjungan” dengan tiga yang pertama berdampingan, sisanya dihitung, dan semuanya menyala di jadwal." },
+      { kind: "lebih-baik", text: "Daftar Tim di lapangan diurutkan menurut pertanyaan orang kantor: yang sedang bersama klien dulu (baris menyala, menyebut klien dan lokasinya), lalu yang sebentar lagi berangkat (“Berikutnya 15.00 · …”), lalu yang jadwalnya selesai. Angka di ujung baris kini bertuliskan “kunj.” supaya jelas apa yang dihitung." },
+      { kind: "lebih-baik", text: "Daftar yang lebih panjang dari layar kini berpindah per halaman, mulai dari baris yang tadi terpotong, jadi tidak ada baris yang tampil setengah. Halaman yang memuat kunjungan yang sedang berlangsung ditahan dua kali lebih lama." },
+    ],
+  },
+  {
+    date: "2026-09-21",
     title: "Kalender bisa dibuka lagi",
     items: [
       { kind: "diperbaiki", text: "Halaman Kalender dan Jadwal tim gagal dimuat sesaat setelah pembaruan pengelompokan; tombol kelompokkan menerima data yang tidak boleh dikirim ke komponen klien. Sudah diperbaiki." },

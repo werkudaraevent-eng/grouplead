@@ -120,9 +120,11 @@ describe("buildBoardSnapshot", () => {
       }),
     ]
     const snapshot = buildBoardSnapshot(shared, NOW, { masked: true })
+    // Both are in the 09.30 visit right now, so they tie on state and time
+    // and fall back to name; the count is what this test is about.
     expect(snapshot.team.map(({ name, missionCount }) => ({ name, missionCount }))).toEqual([
-      { name: "Raka", missionCount: 2 },
       { name: "Nadia", missionCount: 1 },
+      { name: "Raka", missionCount: 2 },
     ])
   })
 
@@ -153,7 +155,9 @@ describe("buildBoardSnapshot", () => {
     ]
     const snapshot = buildBoardSnapshot(mixed, NOW, { masked: false })
     expect(snapshot.missions.map((item) => item.id)).toEqual(["keep"])
-    expect(snapshot.team).toEqual([{ name: "Nadia", missionCount: 1, next: null }])
+    expect(snapshot.team).toEqual([
+      { name: "Nadia", missionCount: 1, now: { time: "09.30", client: "PT Arunika Kreasi", location: "Jakarta Selatan" }, next: null },
+    ])
   })
 
   it("renders times in mission time, not UTC", () => {
@@ -217,5 +221,30 @@ describe("buildBoardSnapshot ranges and filters", () => {
     expect(u2?.next?.isToday).toBe(false)
     expect(u2?.next?.day).toBe("Min, 6 Sep")
     expect(formatTeamNext(u2?.next ?? null)).toMatch(/09\.30 · PT A•••$/)
+  })
+})
+
+describe("buildBoardSnapshot: where everyone is right now", () => {
+  // NOW is 10:00 WIB. Ana is in a visit that started 09:30; Budi's first visit is at 11:00; Cici's only visit ended at 09:00.
+  const rows = [
+    mission({ id: "a", scheduledStart: "2026-09-01T02:30:00.000Z", scheduledEnd: "2026-09-01T03:30:00.000Z", primarySalesName: "Ana", clientCompanyName: "PT Alfa", location: "Bogor" }),
+    mission({ id: "b", scheduledStart: "2026-09-01T04:00:00.000Z", primarySalesName: "Budi", clientCompanyName: "PT Beta" }),
+    mission({ id: "c", scheduledStart: "2026-09-01T01:00:00.000Z", scheduledEnd: "2026-09-01T02:00:00.000Z", primarySalesName: "Cici", clientCompanyName: "PT Gama" }),
+    mission({ id: "d", scheduledStart: "2026-09-01T06:00:00.000Z", primarySalesName: "Cici", clientCompanyName: "PT Delta", status: "CANCELLED" as MissionStatus }),
+  ]
+
+  it("names the visit each person is in, and orders now, next, done", () => {
+    const snapshot = buildBoardSnapshot(rows, NOW, { masked: false })
+    expect(snapshot.team.map((member) => member.name)).toEqual(["Ana", "Budi", "Cici"])
+    expect(snapshot.team[0].now).toEqual({ time: "09.30", client: "PT Alfa", location: "Bogor" })
+    expect(snapshot.team[1].now).toBeNull()
+    expect(snapshot.team[1].next?.time).toBe("11.00")
+    expect(snapshot.team[2].now).toBeNull()
+    expect(snapshot.team[2].next).toBeNull()
+  })
+
+  it("does not call a visit 'now' once it is marked done", () => {
+    const snapshot = buildBoardSnapshot([rows[0] && { ...rows[0], status: "COMPLETED" as MissionStatus }], NOW, { masked: false })
+    expect(snapshot.team[0].now).toBeNull()
   })
 })

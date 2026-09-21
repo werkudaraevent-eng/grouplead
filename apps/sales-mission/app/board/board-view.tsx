@@ -108,7 +108,13 @@ function TopBar({ screenLabel, dateLabel, clock, preview, masked }: { screenLabe
 
 /* ── Spotlight ── */
 
-type Spotlight = { kind: "now"; mission: BoardMission } | { kind: "next"; mission: BoardMission; when: string } | { kind: "done"; completed: number } | { kind: "empty" }
+type Spotlight =
+  | { kind: "now"; mission: BoardMission }
+  /** Several visits at once: the wall says so and shows the first few, the timeline shows them all. */
+  | { kind: "many"; missions: BoardMission[] }
+  | { kind: "next"; mission: BoardMission; when: string }
+  | { kind: "done"; completed: number }
+  | { kind: "empty" }
 
 function SpotlightCard({ spotlight, week }: { spotlight: Spotlight; week: boolean }) {
   if (spotlight.kind === "empty" || spotlight.kind === "done") {
@@ -143,6 +149,41 @@ function SpotlightCard({ spotlight, week }: { spotlight: Spotlight; week: boolea
             {done ? "Kerja bagus, tim. Jadwal berikutnya akan muncul di sini." : "Kunjungan yang dijadwalkan akan muncul di sini, urut jam."}
           </p>
         </div>
+      </section>
+    )
+  }
+
+  if (spotlight.kind === "many") {
+    const shown = spotlight.missions.slice(0, 3)
+    const rest = spotlight.missions.length - shown.length
+    return (
+      <section className="relative overflow-hidden rounded-[1.6em] bg-[var(--board-primary-container)] px-[1.8em] py-[1.4em] text-[var(--board-on-primary-container)]">
+        <div className="flex items-center gap-[0.6em]">
+          <span className="board-ring h-[0.75em] w-[0.75em] rounded-full bg-[var(--board-tertiary)]" aria-hidden="true" />
+          <Eyebrow className="text-[var(--board-tertiary)]">Sedang berlangsung · {spotlight.missions.length} kunjungan</Eyebrow>
+        </div>
+        <ul className="mt-[0.8em] grid grid-cols-3 gap-[1.2em] portrait:grid-cols-1 portrait:gap-[0.6em]">
+          {shown.map((mission) => {
+            const people = peopleOf(mission)
+            return (
+              <li
+                key={mission.id}
+                className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)] items-center gap-x-[0.9em] border-l-[0.12em] pl-[0.9em]"
+                style={{ borderColor: "color-mix(in srgb, var(--board-on-primary-container) 25%, transparent)" }}
+              >
+                <span className="text-[2.2em] font-semibold tabular-nums leading-none tracking-[-0.03em]">{mission.time ?? "—"}</span>
+                <span className="min-w-0">
+                  <span className="block truncate text-[1.5em] font-semibold leading-[1.15]">{mission.clientLabel}</span>
+                  <span className="mt-[0.2em] flex min-w-0 items-center gap-[0.35em] text-[1em]">
+                    {people[0] && <Avatar name={people[0]} size="1.5em" ring="var(--board-primary-container)" />}
+                    <span className="truncate">{[people[0], mission.location].filter(Boolean).join(" · ")}</span>
+                  </span>
+                </span>
+              </li>
+            )
+          })}
+        </ul>
+        {rest > 0 && <p className="mt-[0.7em] text-[1em] text-[var(--board-primary)]">+{rest} kunjungan lagi, lihat jadwal di bawah</p>}
       </section>
     )
   }
@@ -310,7 +351,7 @@ function VisitRow({ mission, tone }: { mission: BoardMission; tone: RowTone }) {
   const fg = tone === "past" ? "var(--board-on-surface-dim)" : tone === "now" ? "var(--board-on-primary-container)" : "var(--board-on-surface)"
   const muted = tone === "past" ? "var(--board-on-surface-dim)" : tone === "now" ? "var(--board-primary)" : "var(--board-on-surface-variant)"
   return (
-    <li className="grid grid-cols-[2.2em_minmax(0,1fr)] items-center">
+    <li className="grid grid-cols-[2.2em_minmax(0,1fr)] items-center" data-board-now={tone === "now" ? "" : undefined}>
       <span className="grid place-items-center" aria-hidden="true">
         <TimelineNode tone={tone} done={mission.status === "COMPLETED"} />
       </span>
@@ -376,15 +417,30 @@ function EndOfList({ week }: { week: boolean }) {
 /* ── Team ── */
 
 function TeamRow({ member }: { member: BoardTeamMember }) {
+  const live = Boolean(member.now)
   return (
-    <li className="flex items-center gap-[0.9em] rounded-[1.1em] bg-[var(--board-surface-container)] px-[0.9em] py-[0.7em]">
-      <Avatar name={member.name} size="2.7em" />
+    <li
+      className="flex items-center gap-[0.9em] rounded-[1.1em] px-[0.9em] py-[0.7em]"
+      style={{ background: live ? "var(--board-primary-container)" : "var(--board-surface-container)", color: live ? "var(--board-on-primary-container)" : "var(--board-on-surface)" }}
+      data-board-now={live ? "" : undefined}
+    >
+      <Avatar name={member.name} size="2.7em" ring={live ? "var(--board-tertiary)" : undefined} />
       <span className="min-w-0 flex-1">
         <span className="block truncate text-[1.2em] font-semibold leading-tight">{member.name}</span>
-        <span className="mt-[0.2em] flex items-center gap-[0.35em] truncate text-[0.98em] text-[var(--board-on-surface-variant)]">
-          {member.next ? (
+        <span className="mt-[0.2em] flex items-center gap-[0.35em] truncate text-[0.98em]" style={{ color: live ? "var(--board-on-primary-container)" : "var(--board-on-surface-variant)" }}>
+          {member.now ? (
+            <>
+              <span aria-hidden="true" className="board-pulse h-[0.55em] w-[0.55em] shrink-0 rounded-full bg-[var(--board-tertiary)]" />
+              <span className="truncate">
+                <span className="font-semibold tabular-nums">{member.now.time}</span>
+                {" · "}
+                {member.now.client}
+                {member.now.location && <span style={{ color: "var(--board-primary)" }}> · {member.now.location}</span>}
+              </span>
+            </>
+          ) : member.next ? (
             <span className="truncate">
-              {member.next.day && `${member.next.day} `}
+              Berikutnya {member.next.day && `${member.next.day} `}
               <span className="font-semibold tabular-nums text-[var(--board-on-surface)]">{member.next.time}</span>
               {" · "}
               {member.next.client}
@@ -397,8 +453,12 @@ function TeamRow({ member }: { member: BoardTeamMember }) {
           )}
         </span>
       </span>
-      <span className="grid h-[2em] min-w-[2em] shrink-0 place-items-center rounded-full bg-[var(--board-surface-container-highest)] px-[0.5em] text-[1em] font-semibold tabular-nums">
-        {member.missionCount}
+      <span
+        className="shrink-0 rounded-full px-[0.65em] py-[0.3em] text-[0.9em] font-semibold tabular-nums"
+        style={{ background: live ? "color-mix(in srgb, var(--board-on-primary-container) 14%, transparent)" : "var(--board-surface-container-highest)" }}
+        title={`${member.missionCount} kunjungan`}
+      >
+        {member.missionCount} <span className="font-normal opacity-80">kunj.</span>
       </span>
     </li>
   )
@@ -454,9 +514,13 @@ export function BoardView({
     if (mission.startMinute <= nowMinute && nowMinute < mission.endMinute) return "now"
     return mission.endMinute <= nowMinute ? "past" : "later"
   }
-  const ongoing = snapshot.missions.find((mission) => stateOf(mission) === "now" && !isOver(mission))
+  // Every visit in progress at this minute, in the day's order: with ten
+  // people out, two or three at once is the normal case, not the edge.
+  const ongoingAll = snapshot.missions.filter((mission) => stateOf(mission) === "now" && !isOver(mission))
+  const ongoingIds = new Set(ongoingAll.map((mission) => mission.id))
+  const ongoing = ongoingAll[0]
   const toneOf = (mission: BoardMission): RowTone => {
-    if (mission.id === ongoing?.id) return "now"
+    if (ongoingIds.has(mission.id)) return "now"
     return isOver(mission) || stateOf(mission) === "past" ? "past" : "normal"
   }
 
@@ -465,11 +529,13 @@ export function BoardView({
   const agenda = days.flatMap((day) => day.missions)
   const visits = agenda.length
   const completed = agenda.filter(isOver).length
-  const live = agenda.filter((mission) => mission.status === "IN_PROGRESS" || mission.id === ongoing?.id).length
+  const live = agenda.filter((mission) => mission.status === "IN_PROGRESS" || ongoingIds.has(mission.id)).length
   const dayLabel = new Map(snapshot.days.map((day) => [day.date, day.label]))
 
   const upcoming = agenda.find((mission) => !isOver(mission) && stateOf(mission) === "later")
-  const spotlight: Spotlight = ongoing
+  const spotlight: Spotlight = ongoingAll.length > 1
+    ? { kind: "many", missions: ongoingAll }
+    : ongoing
     ? { kind: "now", mission: ongoing }
     : upcoming
       ? {
