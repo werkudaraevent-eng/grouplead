@@ -1,7 +1,9 @@
 import Link from "next/link"
 import { redirect } from "next/navigation"
-import { CalendarDays, CheckCircle2, ClipboardList, MapPin, Phone, RotateCcw } from "@/components/icons"
+import { CalendarDays, CheckCircle2, ClipboardList, Flag, MapPin, Phone, RotateCcw } from "@/components/icons"
 import { listDueProspects } from "@/lib/prospects/prospect-queries"
+import { listMyDueFollowUps } from "@/lib/missions/follow-up-queries"
+import { listReportChoices } from "@/lib/missions/report-choice-queries"
 import { describeDueDate } from "@/lib/prospects/prospect-schema"
 import { formatPhone } from "@/lib/format/phone"
 import { canPerform, getSalesMissionAccess } from "@/lib/sales-mission-access"
@@ -168,6 +170,13 @@ export default async function MissionHomePage() {
   const dueProspects = (await canPerform(access, "sales_mission_prospect", "read"))
     ? await listDueProspects(access, { today, limit: 8 })
     : []
+
+  // The follow-ups that are mine and due: the CRM's "my tasks today", on the
+  // same page as the visits, because that is the page a rep opens each morning.
+  const dueFollowUps =
+    settings.followUpEnabled && (await canPerform(access, "sales_mission_result", "read"))
+      ? await listMyDueFollowUps(access, { today, limit: 8, choices: await listReportChoices(access) })
+      : []
 
   // Same day-bucketing the calendar uses, so "today" means the same thing in
   // both places — Jakarta wall-clock, not the server's timezone.
@@ -342,6 +351,37 @@ export default async function MissionHomePage() {
                 )
               })}
             </div>
+          </div>
+        </section>
+      )}
+
+      {dueFollowUps.length > 0 && (
+        <section className="mt-6" aria-label="Tindak lanjut hari ini">
+          <h2 className="mb-2 text-base font-semibold text-foreground">Tindak lanjut hari ini</h2>
+          <div className="overflow-hidden rounded-xl border border-l-4 border-l-primary bg-card">
+            <ul className="divide-y">
+              {dueFollowUps.map((item) => {
+                const due = item.dueDate ? describeDueDate(item.dueDate, today) : null
+                return (
+                  <li key={item.id} className="flex flex-wrap items-center gap-3 px-5 py-3">
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-semibold text-foreground">{item.clientCompanyName}</span>
+                      <span className="block truncate text-xs text-muted-foreground">
+                        {item.actionLabel}
+                        {due ? (
+                          <span className={cn("ml-2", due.overdue ? "font-medium text-[var(--warning-foreground)]" : "")}>{due.text}</span>
+                        ) : (
+                          <span className="ml-2">tanpa tanggal</span>
+                        )}
+                      </span>
+                    </span>
+                    <Button asChild size="sm" className="h-11 md:h-8">
+                      <Link href={paths.activity(item.missionId, { fokus: "tindak-lanjut" })}><Flag className="h-4 w-4" /> Catat</Link>
+                    </Button>
+                  </li>
+                )
+              })}
+            </ul>
           </div>
         </section>
       )}

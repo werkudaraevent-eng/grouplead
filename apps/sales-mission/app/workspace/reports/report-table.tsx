@@ -8,6 +8,7 @@ import { SortHeader } from "@/components/sort-header"
 import { DEFAULT_REPORT_SORT, nextReportSort, reportSortParts, type ReportSort, type ReportSortColumn } from "@/lib/reporting/report-paging"
 import { REPORT_STATUS_LABELS } from "@/lib/reporting/report-filter"
 import type { ReportListItem } from "@/lib/reporting/report-list-queries"
+import { FOLLOW_UP_STATE_LABELS, followUpState } from "@/lib/missions/follow-ups"
 import { formatVisitWindow } from "@/lib/missions/visit-time"
 import { MISSION_TIME_ZONE } from "@/lib/missions/mission-schema"
 import { formatNumber } from "@/lib/format/number"
@@ -66,6 +67,23 @@ function visitWhen(report: ReportListItem): string {
 }
 
 function FollowUp({ report, today }: { report: ReportListItem; today: string }) {
+  // A tracked follow-up speaks for itself: open or late with its day and owner, or how it ended.
+  if (report.followUp) {
+    const item = report.followUp
+    const state = followUpState(item, today)
+    const late = state === "late"
+    const label = FOLLOW_UP_STATE_LABELS[state]
+    return (
+      <span className={cn("block text-xs", late ? "font-medium text-[var(--warning-foreground)]" : "text-muted-foreground")}>
+        {state === "done"
+          ? `${label}${item.outcomeLabel ? ` · ${item.outcomeLabel.toLowerCase()}` : ""}${item.closedAt ? ` · ${day(item.closedAt)}` : ""}`
+          : state === "cancelled"
+            ? label
+            : `${label}${item.dueDate ? ` · ${dayOf(item.dueDate)}` : ""}${item.ownerName ? ` · ${item.ownerName}` : ""}`}
+        {item.count > 1 ? ` · ${item.count} langkah` : ""}
+      </span>
+    )
+  }
   if (!report.followUpDate) return null
   const late = report.followUpDate < today && report.status !== "DRAFT"
   return (
@@ -182,7 +200,7 @@ export function ReportTable({
                     )}
                   </TableCell>
                   <TableCell className="text-sm">
-                    <span className="block truncate text-foreground">{report.nextActionLabel}</span>
+                    <span className="block truncate text-foreground">{report.followUp?.actionLabel ?? report.nextActionLabel}</span>
                     <FollowUp report={report} today={today} />
                   </TableCell>
                   <TableCell>

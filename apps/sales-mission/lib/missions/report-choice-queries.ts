@@ -79,6 +79,8 @@ export async function reportChoiceLabels(
     visit_outcome: new Map(),
     interest_level: new Map(),
     next_action_type: new Map(),
+    follow_up_channel: new Map(),
+    follow_up_outcome: new Map(),
   }
   for (const seed of DEFAULT_REPORT_CHOICES) result[seed.fieldKey].set(seed.code, seed.label)
   for (const row of data ?? []) {

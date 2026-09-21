@@ -28,6 +28,17 @@ export const CHANGE_KIND_LABELS: Record<ChangeKind, string> = {
 export const CHANGELOG: ChangeEntry[] = [
   {
     date: "2026-09-21",
+    title: "Tindak lanjut yang hidup: dari next action sampai selesai",
+    items: [
+      { kind: "baru", text: "Next action di laporan kini menjadi tindak lanjut yang dilacak: punya penanggung jawab, jatuh tempo, dan status. Muncul di Hari ini pemiliknya pada bagian Tindak lanjut hari ini (yang lewat tanggal ditandai) sampai dicatat hasilnya." },
+      { kind: "baru", text: "Di kartu laporan ada Catat tindak lanjut: lewat apa, bagaimana hasilnya, kapan, catatan, dan kalau perlu langkah berikutnya, yang langsung dibuka sebagai tindak lanjut baru. Rangkaiannya tampil sebagai riwayat di kartu laporan; Tambah tindak lanjut untuk membuka langkah baru, ⋮ untuk membatalkan." },
+      { kind: "lebih-baik", text: "Kolom Next action di daftar Laporan kini berkata jujur: Terbuka, Lewat, Selesai beserta hasil dan tanggalnya, dan berapa langkah yang sudah dijalani." },
+      { kind: "baru", text: "Tindak lanjut yang diberikan ke orang lain mengirim notifikasi ke penerimanya. Yang boleh mencatat: penanggung jawabnya, sales utama, atau admin yang membawahi laporan." },
+      { kind: "baru", text: "Admin mengatur pilihan cara dan hasil tindak lanjut di Pengaturan → Tindak lanjut, dan bisa mematikan pelacakannya di Aturan aktivitas." },
+    ],
+  },
+  {
+    date: "2026-09-21",
     title: "Setelah kirim laporan: langsung ditawari bagikan ke WhatsApp",
     items: [
       { kind: "baru", text: "Begitu laporan terkirim, penulisnya melihat kartu “Laporan terkirim” di atas laporan dengan tombol Bagikan ke WhatsApp; di ponsel tombol itu jadi langkah berikutnya di bilah bawah. Tidak ada pop-up: tawarannya menempel di laporan sampai dibagikan atau ditunda dengan Nanti saja." },

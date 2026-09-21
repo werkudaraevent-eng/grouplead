@@ -12,6 +12,9 @@ import { parseAudioAnswer } from "@/lib/audio/audio-answer"
 import { isAttachmentType } from "@/lib/missions/form-fields"
 import { ReportActions } from "./report-actions"
 import { ShareOfferBar, ShareOfferCard, type ShareOffer } from "./share-offer"
+import { FollowUpPanel } from "./follow-up-panel"
+import { listMissionFollowUps } from "@/lib/missions/follow-up-queries"
+import { choicesFor, kindOf } from "@/lib/missions/report-choices"
 import { renderReportShare, reportShareValues } from "@/lib/missions/report-share"
 import { signPhotoUrls } from "@/lib/photos/photo-storage"
 import { canPerform, getSalesMissionAccess } from "@/lib/sales-mission-access"
@@ -152,6 +155,8 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
   ])
   const reportFields = report ? await listFormFields(access, "visit_report") : []
   const choices = report ? await listReportChoices(access) : null
+  // The follow-ups this visit spawned, when the unit tracks them.
+  const followUps = report && settings.followUpEnabled ? await listMissionFollowUps(access, missionId, choices) : []
   const customAnswers = report
     ? reportFields
         .filter((field) => (!field.isCore || field.fieldType === "PHOTO") && field.isActive)
@@ -696,9 +701,30 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
                 />
               )}
               <ReportField label="Tingkat minat" value={report.interestLevel ? labelOf(choices, "interest_level", report.interestLevel) : "—"} />
-              <ReportField label="Next action" value={labelOf(choices, "next_action_type", report.nextActionType)} />
-              <ReportField label="Follow-up" value={report.followUpDate ?? "—"} />
+              {!settings.followUpEnabled && (
+                <>
+                  <ReportField label="Next action" value={labelOf(choices, "next_action_type", report.nextActionType)} />
+                  <ReportField label="Follow-up" value={report.followUpDate ?? "—"} />
+                </>
+              )}
             </div>
+
+            {/* The next action as a task that lives: the chain, the open one to log, the next step. */}
+            {settings.followUpEnabled && reportSubmitted && (
+              <FollowUpPanel
+                missionId={missionId}
+                followUps={followUps}
+                channels={choicesFor(choices, "follow_up_channel").map((choice) => ({ code: choice.code, label: choice.label, kind: choice.kind }))}
+                outcomes={choicesFor(choices, "follow_up_outcome").map((choice) => ({ code: choice.code, label: choice.label, kind: choice.kind }))}
+                actionTypes={choicesFor(choices, "next_action_type")
+                  .filter((choice) => kindOf(choices, "next_action_type", choice.code) !== "none")
+                  .map((choice) => ({ code: choice.code, label: choice.label, kind: choice.kind }))}
+                people={salesOptions.map((person) => ({ id: person.id, name: person.name }))}
+                viewerId={access.userId}
+                canManage={isAuthor || supervisesReport}
+                today={missionDayKey(new Date())}
+              />
+            )}
 
             {report.meetingSummary && (
               <div>

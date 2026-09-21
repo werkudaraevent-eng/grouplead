@@ -1,5 +1,6 @@
 import { createClient } from "@/utils/supabase/server"
 import type { SalesMissionAccess } from "@/lib/sales-mission-access"
+import { summarizeFollowUpsByReport, type FollowUpSummary } from "@/lib/missions/follow-up-queries"
 import { labelOf, type ChoiceSet } from "@/lib/missions/report-choices"
 import { dateRangeFor } from "@/lib/missions/mission-filter"
 import type { ReportStatus } from "@/lib/missions/visit-report-schema"
@@ -38,6 +39,8 @@ export interface ReportListItem {
   nextActionOwnerId: string | null
   nextActionOwnerName: string | null
   followUpDate: string | null
+  /** The tracked follow-up, when the unit tracks them and the report has one. */
+  followUp: FollowUpSummary | null
   contactCount: number
   pushedLeadId: string | null
   submittedAt: string | null
@@ -95,6 +98,13 @@ const chunk = <T,>(list: T[], size: number) => Array.from({ length: Math.ceil(li
  * already holds, so the list and the KPI cannot disagree about a code.
  */
 export async function listReportsByIds(access: SalesMissionAccess, ids: string[], choices: ChoiceSet | null): Promise<ReportListItem[]> {
+  const items = await listReportRows(access, ids, choices)
+  if (items.length === 0) return items
+  const followUps = await summarizeFollowUpsByReport(access, items.map((item) => item.reportId), choices)
+  return items.map((item) => ({ ...item, followUp: followUps.get(item.reportId) ?? null }))
+}
+
+async function listReportRows(access: SalesMissionAccess, ids: string[], choices: ChoiceSet | null): Promise<ReportListItem[]> {
   if (ids.length === 0) return []
   const supabase = await createClient()
   const schema = supabase.schema("sales_mission")
@@ -181,6 +191,7 @@ export async function listReportsByIds(access: SalesMissionAccess, ids: string[]
         nextActionOwnerId: ownerId,
         nextActionOwnerName: ownerId ? (people.get(ownerId)?.name ?? null) : null,
         followUpDate: (row.follow_up_date as string | null) ?? null,
+        followUp: null,
         contactCount: contactCount.get(row.id as string) ?? 0,
         pushedLeadId: pushByMission.get(row.mission_id as string) ?? null,
         submittedAt: (row.submitted_at as string | null) ?? null,

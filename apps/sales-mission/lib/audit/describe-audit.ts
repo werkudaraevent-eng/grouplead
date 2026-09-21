@@ -54,6 +54,7 @@ const TABLE_LABELS: Record<string, string> = {
   prospect_statuses: "status prospek",
   prospect_field_values: "isian field tambahan prospek",
   report_choices: "pilihan laporan",
+  follow_ups: "tindak lanjut",
 }
 
 export const AUDIT_TABLE_LABELS = TABLE_LABELS
@@ -280,6 +281,14 @@ export function describeAudit(row: AuditRow): AuditDescription {
     case "prospect_attempts":
       if (row.action === "INSERT") return { sentence: `mencatat kontak dengan prospek ${name}`, tone: "create", details }
       return { sentence: `mengubah catatan kontak prospek ${name}`, tone: "update", details }
+
+    case "follow_ups":
+      if (row.action === "INSERT") return { sentence: `membuka tindak lanjut untuk ${name}`, tone: "create", details }
+      if (has("status")) {
+        if (to("status") === "DONE") return { sentence: `mencatat tindak lanjut ${name}`, tone: "update", details }
+        if (to("status") === "CANCELLED") return { sentence: `membatalkan tindak lanjut ${name}`, tone: "delete", details }
+      }
+      return { sentence: `mengubah tindak lanjut ${name}`, tone: "update", details }
 
     case "prospect_statuses":
       if (row.action === "INSERT") return { sentence: `menambah status prospek "${name}"`, tone: "create", details }
