@@ -32,6 +32,7 @@ export const CHANGELOG: ChangeEntry[] = [
     items: [
       { kind: "baru", text: "Di laporan yang sudah dikirim ada tombol Bagikan ke WhatsApp: teksnya disusun otomatis dari laporan dalam format grup (tanggal, jam, klien, PIC, jabatan, ringkasan) beserta foto pertama, lalu kamu tinggal memilih grupnya di ponsel. Tidak perlu mengetik ulang, formatnya selalu sama." },
       { kind: "baru", text: "Formatnya diatur admin di Pengaturan → Aturan aktivitas → Laporan kunjungan: ketik sendiri, sisipkan isian seperti {klien}, {pic}, {hasil}, {ringkasan}, {foto} dengan sekali ketuk, dan lihat contoh hasilnya langsung. Baris yang isiannya kosong tidak ikut terkirim." },
+      { kind: "diperbaiki", text: "Kepala kartu Laporan kunjungan di ponsel tidak lagi berebut tempat: status menempel di judul, tombol turun ke baris sendiri, dan Ubah laporan, Minta klarifikasi, serta Tarik kembali ada di menu ⋮ (di komputer, Ubah laporan tetap terlihat)." },
       { kind: "baru", text: "Saat membuat tautan layar ada saklar Sertakan QR ke kalender: layar TV menampilkan QR kecil ke Jadwal tim, jadi siapa pun bisa memindai dan mengecek jadwal di ponselnya sendiri, tanpa login, dengan penyamaran nama yang sama seperti di layar. Tautan kalendernya tampil di Tautan publik dan bisa dicabut terpisah." },
     ],
   },

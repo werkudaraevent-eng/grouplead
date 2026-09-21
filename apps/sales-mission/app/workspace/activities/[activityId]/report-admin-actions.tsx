@@ -14,8 +14,27 @@ import { Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, Dia
  * note. A dialog, because it needs one input and a decision; the note is
  * required because a report returned without a reason is a puzzle.
  */
-export function RequestClarificationButton({ missionId, authorName }: { missionId: string; authorName: string | null }) {
-  const [open, setOpen] = useState(false)
+export function RequestClarificationButton({
+  missionId,
+  authorName,
+  open: controlledOpen,
+  onOpenChange,
+  trigger = true,
+}: {
+  missionId: string
+  authorName: string | null
+  /** Owned from outside when the opener is elsewhere (the report card's overflow menu). */
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
+  /** Whether to render the button itself. */
+  trigger?: boolean
+}) {
+  const [ownOpen, setOwnOpen] = useState(false)
+  const open = controlledOpen ?? ownOpen
+  const setOpen = (next: boolean) => {
+    setOwnOpen(next)
+    onOpenChange?.(next)
+  }
   const [note, setNote] = useState("")
   const [pending, start] = useTransition()
   const router = useRouter()
@@ -35,9 +54,11 @@ export function RequestClarificationButton({ missionId, authorName }: { missionI
 
   return (
     <>
-      <Button type="button" variant="ghost" size="sm" onClick={() => setOpen(true)}>
-        <MessageCircle className="h-4 w-4" /> Minta klarifikasi
-      </Button>
+      {trigger && (
+        <Button type="button" variant="ghost" size="sm" onClick={() => setOpen(true)}>
+          <MessageCircle className="h-4 w-4" /> Minta klarifikasi
+        </Button>
+      )}
       <Dialog open={open} onOpenChange={(next) => { if (!pending) setOpen(next) }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -77,8 +98,25 @@ export function RequestClarificationButton({ missionId, authorName }: { missionI
  * archived with the reason. A dialog, because it is a decision with one
  * required input; the copy says what does and does not come back.
  */
-export function WithdrawReportButton({ missionId, leadPushed }: { missionId: string; leadPushed: boolean }) {
-  const [open, setOpen] = useState(false)
+export function WithdrawReportButton({
+  missionId,
+  leadPushed,
+  open: controlledOpen,
+  onOpenChange,
+  trigger = true,
+}: {
+  missionId: string
+  leadPushed: boolean
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
+  trigger?: boolean
+}) {
+  const [ownOpen, setOwnOpen] = useState(false)
+  const open = controlledOpen ?? ownOpen
+  const setOpen = (next: boolean) => {
+    setOwnOpen(next)
+    onOpenChange?.(next)
+  }
   const [reason, setReason] = useState("")
   const [pending, start] = useTransition()
   const router = useRouter()
@@ -98,9 +136,11 @@ export function WithdrawReportButton({ missionId, leadPushed }: { missionId: str
 
   return (
     <>
-      <Button type="button" variant="ghost" size="sm" onClick={() => setOpen(true)}>
-        <Undo2 className="h-4 w-4" /> Tarik kembali
-      </Button>
+      {trigger && (
+        <Button type="button" variant="ghost" size="sm" onClick={() => setOpen(true)}>
+          <Undo2 className="h-4 w-4" /> Tarik kembali
+        </Button>
+      )}
       <Dialog open={open} onOpenChange={(next) => { if (!pending) setOpen(next) }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
