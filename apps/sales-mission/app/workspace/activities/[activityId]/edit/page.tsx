@@ -38,18 +38,21 @@ export default async function EditMissionPage({ params }: { params: Promise<{ ac
   if (!mission) notFound()
 
   const gates = await resolveMissionGates(access, mission, role, settings)
-  const closed = mission.status === "COMPLETED" || mission.status === "CANCELLED"
+  // A completed visit keeps its facts editable (contact, address, objective)
+  // with the schedule and team frozen; a cancelled one is closed for good.
+  const completed = mission.status === "COMPLETED"
+  const cancelled = mission.status === "CANCELLED"
 
-  if (!gates.canEdit) {
-    // Say which rule refused, in the matrix's own words: a closed mission is
-    // history; an open one is outside the Cakupan the role holds.
+  if (completed ? !gates.canEditDetails : !gates.canEdit) {
+    // Say which rule refused, in the matrix's own words: a cancelled mission
+    // is history; an open one is outside the Cakupan the role holds.
     return (
       <WorkspacePage eyebrow="Sales Activity / Aktivitas" title="Ubah aktivitas" action={<BackLink href={paths.activity(missionId)} />}>
         <EmptyState
           title="Aktivitas ini tidak bisa diubah"
           description={
-            closed
-              ? "Aktivitas yang sudah selesai atau dibatalkan adalah riwayat; tidak diubah lagi."
+            cancelled
+              ? "Aktivitas yang dibatalkan adalah riwayat; tidak diubah lagi."
               : describeOutOfScope(gates.missionCtx.scope, "mission")
           }
         />
@@ -101,7 +104,11 @@ export default async function EditMissionPage({ params }: { params: Promise<{ ac
     <WorkspacePage
       eyebrow="Sales Activity / Aktivitas"
       title="Ubah aktivitas"
-      description={`Perbaiki detail kunjungan ke ${mission.clientCompanyName}. Kalau jadwalnya ikut berubah, tim diberi tahu saat disimpan.`}
+      description={
+        completed
+          ? `Kunjungan ke ${mission.clientCompanyName} sudah selesai. Keterangannya masih bisa dirapikan: kontak janji temu, alamat, industri, tujuan. Jadwal dan timnya tetap.`
+          : `Perbaiki detail kunjungan ke ${mission.clientCompanyName}. Kalau jadwalnya ikut berubah, tim diberi tahu saat disimpan.`
+      }
       action={<BackLink href={paths.activity(missionId)} />}
     >
       <MissionForm
@@ -121,7 +128,8 @@ export default async function EditMissionPage({ params }: { params: Promise<{ ac
           action: updateMission.bind(null, missionId),
           schedule,
           customValues,
-          canMoveSchedule: gates.scheduleMode === "move",
+          canMoveSchedule: gates.scheduleMode === "move" && !completed,
+          frozen: completed,
         }}
       />
     </WorkspacePage>

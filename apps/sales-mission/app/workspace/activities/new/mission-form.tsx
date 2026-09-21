@@ -311,6 +311,11 @@ function CustomField({ field, initial }: { field: FormField; initial?: unknown }
   )
 }
 
+/** A frozen fact on the edit form: shown as it stands, dashed like the read-only schedule, never a control. */
+function FrozenLine({ text }: { text: string }) {
+  return <p className="rounded-md border border-dashed bg-muted/40 px-4 py-3 text-sm text-foreground">{text}</p>
+}
+
 /** The form is uncontrolled, so a formatted number needs its own bit of state and a hidden input. */
 function NumberField({ id, name, initial, currency, required, placeholder }: { id: string; name: string; initial: string; currency: boolean; required: boolean; placeholder: string }) {
   const [value, setValue] = useState<number | null>(() => parseNumber(initial))
@@ -381,6 +386,11 @@ export function MissionForm({
      * is a proposal made from the mission page.
      */
     canMoveSchedule: boolean
+    /**
+     * The visit already happened. Its facts can be tidied, but the schedule
+     * and the team are shown read-only and submitted unchanged.
+     */
+    frozen?: boolean
   }
 }) {
   // On success the action redirects server-side, so this state only ever holds
@@ -558,9 +568,13 @@ export function MissionForm({
                   <span className="font-semibold">{field.label}:</span> {schedule.date}, {schedule.startTime}
                   {schedule.endTime ? `–${schedule.endTime}` : ""}
                 </span>
-                <Link href={paths.activity(edit.missionId, { hash: "jawaban" })} className="text-xs font-semibold text-primary hover:underline">
-                  Usulkan jadwal lain di halaman aktivitas
-                </Link>
+                {edit.frozen ? (
+                  <span className="text-xs text-muted-foreground">Kunjungan sudah selesai; jadwalnya tidak diubah.</span>
+                ) : (
+                  <Link href={paths.activity(edit.missionId, { hash: "jawaban" })} className="text-xs font-semibold text-primary hover:underline">
+                    Usulkan jadwal lain di halaman aktivitas
+                  </Link>
+                )}
               </p>
             </div>
           )
@@ -609,6 +623,15 @@ export function MissionForm({
           </FieldShell>
         )
       case "primary_sales":
+        if (edit?.frozen) {
+          // The team is part of what happened; it submits as it stands.
+          return (
+            <FieldShell field={field} key={field.id}>
+              <input type="hidden" name="primarySalesId" value={primarySalesId} />
+              <FrozenLine text={salesOptions.find((option) => option.id === primarySalesId)?.name ?? "—"} />
+            </FieldShell>
+          )
+        }
         return (
           <FieldShell field={field} key={field.id}>
             <PersonPicker
@@ -700,6 +723,16 @@ export function MissionForm({
         // unique key on mission_id and user_id), so offering the choice only
         // invites an error after the form is filled in.
         const supportingOptions = salesOptions.filter((option) => option.id !== primarySalesId)
+
+        if (edit?.frozen) {
+          const names = supportingIds.map((id) => salesOptions.find((option) => option.id === id)?.name ?? "—")
+          return (
+            <FieldShell field={field} key={field.id}>
+              {supportingIds.map((id) => <input key={id} type="hidden" name="supportingSalesIds" value={id} />)}
+              <FrozenLine text={names.length > 0 ? names.join(", ") : "Tidak ada sales pendukung"} />
+            </FieldShell>
+          )
+        }
 
         return (
           <FieldShell field={field} key={field.id}>
