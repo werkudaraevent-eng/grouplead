@@ -28,6 +28,14 @@ export const CHANGE_KIND_LABELS: Record<ChangeKind, string> = {
 export const CHANGELOG: ChangeEntry[] = [
   {
     date: "2026-09-21",
+    title: "Daftar Laporan: klik barisnya, seperti di Aktivitas dan Prospek",
+    items: [
+      { kind: "lebih-baik", text: "Baris di daftar Laporan kini membuka laporannya dengan sekali klik di mana saja pada baris itu, sama seperti Aktivitas dan Prospek. Tombol Lihat dan panah di ujung baris dihapus karena keduanya membuka halaman yang sama; Ctrl/Cmd+klik atau klik pada nama tetap membuka di tab baru." },
+      { kind: "diperbaiki", text: "Di kartu laporan, label Pengambil keputusan dan DISC di samping nama kontak tidak lagi terpotong di tengah kata saat ruangnya sempit; label pindah utuh ke baris berikutnya." },
+    ],
+  },
+  {
+    date: "2026-09-21",
     title: "Kartu laporan di layar lebar: isi di kiri, pendamping di kanan",
     items: [
       { kind: "lebih-baik", text: "Di komputer, kartu laporan tidak lagi menyisakan sisi kanan kosong. Tindak lanjut dan ringkasan pembicaraan tetap di kolom utama dengan lebar baca yang nyaman; Ketemu siapa, foto dan rekaman, serta status CRM pindah ke panel pendamping di kanan, mengikuti tata letak Material untuk jendela lebar. Di ponsel dan tablet urutannya tetap seperti sekarang." },
