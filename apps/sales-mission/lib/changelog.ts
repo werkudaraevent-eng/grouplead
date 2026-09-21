@@ -28,6 +28,14 @@ export const CHANGE_KIND_LABELS: Record<ChangeKind, string> = {
 export const CHANGELOG: ChangeEntry[] = [
   {
     date: "2026-09-21",
+    title: "Peluang yang belum dicentang tidak lagi dibaca sebagai tidak ada",
+    items: [
+      { kind: "diperbaiki", text: "Ubin Peluang di kartu laporan kini menulis Belum ditandai, bukan Tidak ada, kalau centang Ada peluang di laporan kosong; keterangannya menyebut centang itu belum diisi. Centang itu opsional dan menjadi syarat Kirim ke LeadEngine, jadi kosong artinya belum ditandai, bukan tidak ada peluang." },
+      { kind: "diperbaiki", text: "Variabel {peluang} pada teks bagikan ke WhatsApp mengikuti aturan yang sama: Ada peluang, atau Belum ditandai." },
+    ],
+  },
+  {
+    date: "2026-09-21",
     title: "Kartu laporan dibaca dari sorotan; semua isian sales tampil",
     items: [
       { kind: "lebih-baik", text: "Kartu laporan di halaman aktivitas kini dibuka dengan strip sorotan: Hasil, Tingkat minat, Peluang beserta estimasi nilainya, dan Waktu kunjungan dalam satu baris ubin; lalu Tindak lanjut, Ringkasan dan pembicaraan, Ketemu siapa, dan lampiran, masing-masing dalam bagiannya. Teks ringkasan tidak lagi membentang selebar layar." },
