@@ -248,3 +248,56 @@ describe("buildBoardSnapshot: where everyone is right now", () => {
     expect(snapshot.team[0].now).toBeNull()
   })
 })
+
+describe("buildBoardSnapshot: what happened, and what the wall may say about it", () => {
+  // 10.00 WIB. Morning visit 08.00–09.00 is over; the 09.30 one is in progress.
+  const day = [
+    mission({ id: "reported", scheduledStart: "2026-09-01T01:00:00.000Z", scheduledEnd: "2026-09-01T02:00:00.000Z", status: "COMPLETED" as MissionStatus, reportStatus: "SUBMITTED", visitOutcome: "MET_DECISION_MAKER", visitOutcomeLabel: "Bertemu pengambil keputusan", primarySalesName: "Ana" }),
+    mission({ id: "silent", scheduledStart: "2026-09-01T01:00:00.000Z", scheduledEnd: "2026-09-01T02:00:00.000Z", status: "ACCEPTED" as MissionStatus, primarySalesName: "Budi" }),
+    mission({ id: "ongoing", primarySalesName: "Cici" }),
+    mission({ id: "later", scheduledStart: "2026-09-01T07:00:00.000Z", primarySalesName: "Dedi" }),
+  ]
+
+  it("counts a visit whose end has passed as happened, reported or not", () => {
+    const snapshot = buildBoardSnapshot(day, NOW, { masked: true })
+    expect(snapshot.counts.todayTotal).toBe(4)
+    expect(snapshot.counts.completed).toBe(1)
+    expect(snapshot.counts.elapsed).toBe(2)
+    expect(snapshot.counts.unreported).toBe(1)
+    expect(snapshot.missions.map((item) => [item.id, item.reported])).toEqual([
+      ["reported", true],
+      ["silent", false],
+      ["ongoing", false],
+      ["later", false],
+    ])
+  })
+
+  it("keeps outcomes off the wall unless the link allows them", () => {
+    const masked = buildBoardSnapshot(day, NOW, { masked: true })
+    expect(masked.missions.every((item) => item.outcome === null)).toBe(true)
+
+    const open = buildBoardSnapshot(day, NOW, { masked: false, showOutcomes: true })
+    expect(open.missions[0].outcome).toEqual({ label: "Bertemu pengambil keputusan", kind: "met_decision_maker" })
+    expect(open.missions[1].outcome).toBeNull()
+  })
+
+  it("colours an admin-made outcome by the kind the tenant locked it to", () => {
+    const custom = [
+      mission({ id: "video", status: "COMPLETED" as MissionStatus, reportStatus: "SUBMITTED", visitOutcome: "VIDEO_CALL", visitOutcomeLabel: "Bertemu via video call" }),
+    ]
+    const snapshot = buildBoardSnapshot(custom, NOW, {
+      masked: false,
+      showOutcomes: true,
+      outcomeKinds: new Map([["VIDEO_CALL", "met_staff"]]),
+    })
+    expect(snapshot.missions[0].outcome).toEqual({ label: "Bertemu via video call", kind: "met_staff" })
+  })
+
+  it("treats a submitted report as done even before the mission status catches up", () => {
+    const submitted = [mission({ id: "s", status: "IN_PROGRESS" as MissionStatus, reportStatus: "SUBMITTED", visitOutcome: "CLIENT_ABSENT" })]
+    const snapshot = buildBoardSnapshot(submitted, NOW, { masked: false, showOutcomes: true })
+    expect(snapshot.missions[0].reported).toBe(true)
+    expect(snapshot.missions[0].outcome).toEqual({ label: "CLIENT_ABSENT", kind: "absent" })
+    expect(snapshot.counts.completed).toBe(1)
+  })
+})

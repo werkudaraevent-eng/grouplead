@@ -64,6 +64,14 @@ export interface BoardTokenResolution {
   kind: BoardTokenKind
   /** Bound to the link when it was made; the URL cannot change it. */
   showClientNames: boolean
+  /** Same rule: whether reported visits show their outcome on the wall. */
+  showOutcomes: boolean
+  /**
+   * Screen links only: the calendar token the wall draws as a QR, or null.
+   * Already checked to be a live calendar link; the screen prints it, so the
+   * plaintext travelling here is by design.
+   */
+  qrCalendarToken: string | null
 }
 
 /**
@@ -83,7 +91,7 @@ export async function resolveBoardToken(token: string, kind: BoardTokenKind): Pr
   const { data } = await supabase
     .schema("sales_mission")
     .from("board_tokens")
-    .select("id, company_id, label, kind, token_hash, expires_at, revoked_at, show_client_names")
+    .select("id, company_id, label, kind, token_hash, expires_at, revoked_at, show_client_names, show_outcomes, qr_calendar_token_id, qr_calendar_token")
     .eq("token_hash", hash)
     .maybeSingle()
 
@@ -110,5 +118,30 @@ export async function resolveBoardToken(token: string, kind: BoardTokenKind): Pr
     label: data.label as string,
     kind,
     showClientNames: data.show_client_names === true,
+    showOutcomes: data.show_outcomes === true,
+    qrCalendarToken:
+      kind === "screen" ? await liveCalendarToken(data.qr_calendar_token_id as string | null, data.qr_calendar_token as string | null) : null,
   }
+}
+
+/**
+ * The QR's calendar token, only while its own row is still usable. Revoking
+ * or expiring the calendar link takes the QR off the wall at the next
+ * refresh, without touching the screen link. Not "used" by this check: the
+ * calendar's last_used_at should say when someone opened it, not when the
+ * wall redrew it.
+ */
+async function liveCalendarToken(id: string | null, token: string | null): Promise<string | null> {
+  if (!id || !token) return null
+  const supabase = createServiceClient()
+  const { data } = await supabase
+    .schema("sales_mission")
+    .from("board_tokens")
+    .select("revoked_at, expires_at, kind")
+    .eq("id", id)
+    .maybeSingle()
+  if (!data || data.revoked_at || data.kind !== "calendar") return null
+  const expiresAt = data.expires_at as string | null
+  if (expiresAt && new Date(expiresAt).getTime() <= Date.now()) return null
+  return token
 }

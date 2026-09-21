@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useTransition } from "react"
+import { useRef, useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { Loader2, Save } from "@/components/icons"
@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { DEFAULT_WHATSAPP_GREETING, GREETING_PLACEHOLDERS, renderWhatsAppGreeting } from "@/lib/prospects/whatsapp-greeting"
+import { DEFAULT_REPORT_SHARE_TEMPLATE, REPORT_SHARE_PLACEHOLDERS, SAMPLE_REPORT_SHARE_VALUES, renderReportShare } from "@/lib/missions/report-share"
 
 /**
  * The tenant's mission rules.
@@ -47,9 +48,29 @@ function SwitchRow({
 }
 
 export function MissionSettingsForm({ initial, companyName }: { initial: MissionSettings; companyName: string }) {
-  const [form, setForm] = useState<MissionSettingsInput>({ ...initial, whatsappGreeting: initial.whatsappGreeting ?? "" })
+  const [form, setForm] = useState<MissionSettingsInput>({
+    ...initial,
+    whatsappGreeting: initial.whatsappGreeting ?? "",
+    reportShareTemplate: initial.reportShareTemplate ?? "",
+  })
   const [pending, start] = useTransition()
   const router = useRouter()
+  const shareTemplateRef = useRef<HTMLTextAreaElement>(null)
+  const sharePreview = renderReportShare(form.reportShareTemplate, SAMPLE_REPORT_SHARE_VALUES)
+
+  /** Drop a placeholder where the caret is, or at the end; an empty field starts from the default so the admin edits rather than retypes. */
+  const insertPlaceholder = (token: string) => {
+    const field = shareTemplateRef.current
+    const current = form.reportShareTemplate || DEFAULT_REPORT_SHARE_TEMPLATE
+    const startAt = field && form.reportShareTemplate ? field.selectionStart : current.length
+    const endAt = field && form.reportShareTemplate ? field.selectionEnd : current.length
+    const next = `${current.slice(0, startAt)}${token}${current.slice(endAt)}`
+    setForm({ ...form, reportShareTemplate: next })
+    requestAnimationFrame(() => {
+      field?.focus({ preventScroll: true })
+      field?.setSelectionRange(startAt + token.length, startAt + token.length)
+    })
+  }
 
   const save = () => {
     start(async () => {
@@ -257,6 +278,61 @@ export function MissionSettingsForm({ initial, companyName }: { initial: Mission
             <span className="mr-1 text-xs text-muted-foreground">Contoh:</span>
             {renderWhatsAppGreeting(form.whatsappGreeting, { contact: "Bapak Nuryono", sales: "Setyorini", company: companyName })}
           </p>
+        </div>
+      </section>
+
+      <section className="overflow-clip rounded-xl border bg-card">
+        <header className="border-b px-5 py-4">
+          <h2 className="text-base font-semibold text-foreground">Laporan kunjungan</h2>
+          <p className="mt-0.5 text-sm text-muted-foreground">Apa yang dibagikan ke grup WhatsApp setelah laporan dikirim.</p>
+        </header>
+        <div className="space-y-3 px-5 py-4">
+          <div>
+            <Label htmlFor="report-share-template" className="text-sm font-semibold text-foreground">Format Bagikan ke WhatsApp</Label>
+            <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+              Di laporan yang sudah dikirim ada tombol Bagikan ke WhatsApp; teksnya disusun dari format ini, lalu sales memilih grupnya di ponsel. Baris yang semua isiannya kosong tidak ikut. Kosongkan untuk memakai format bawaan.
+            </p>
+          </div>
+          <textarea
+            ref={shareTemplateRef}
+            id="report-share-template"
+            value={form.reportShareTemplate}
+            onChange={(event) => setForm({ ...form, reportShareTemplate: event.target.value })}
+            rows={8}
+            maxLength={2000}
+            placeholder={DEFAULT_REPORT_SHARE_TEMPLATE}
+            spellCheck={false}
+            className="w-full rounded-md border border-input bg-field px-3 py-2 font-mono text-sm outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+          />
+          <div>
+            <p className="text-xs font-semibold text-muted-foreground">Isian yang bisa dipakai · ketuk untuk menyisipkan</p>
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {REPORT_SHARE_PLACEHOLDERS.map((item) => (
+                <button
+                  key={item.token}
+                  type="button"
+                  onClick={() => insertPlaceholder(item.token)}
+                  title={item.means}
+                  className="rounded-full border bg-background px-2.5 py-1 font-mono text-xs text-foreground transition-colors hover:bg-muted"
+                >
+                  {item.token}
+                </button>
+              ))}
+            </div>
+            <dl className="mt-3 grid grid-cols-1 gap-x-4 gap-y-1 text-xs text-muted-foreground sm:grid-cols-2">
+              {REPORT_SHARE_PLACEHOLDERS.map((item) => (
+                <div key={item.token} className="flex gap-2">
+                  <dt className="shrink-0 font-mono text-foreground">{item.token}</dt>
+                  <dd>{item.means}</dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+          <div className="rounded-lg bg-muted/50 px-3 py-2 text-sm text-foreground">
+            <p className="text-xs text-muted-foreground">Contoh hasilnya:</p>
+            <p className="mt-1 whitespace-pre-wrap">{sharePreview.text}</p>
+            {sharePreview.withPhoto && <p className="mt-2 text-xs text-muted-foreground">+ foto pertama laporan ikut dibagikan</p>}
+          </div>
         </div>
       </section>
 

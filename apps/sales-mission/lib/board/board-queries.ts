@@ -1,5 +1,6 @@
 import { createServiceClient } from "@/utils/supabase/service"
-import { mapMissions, type AssignmentRow, type MissionListItem, type MissionRow } from "@/lib/missions/mission-schema"
+import { mapMissions, type AssignmentRow, type MissionListItem, type MissionRow, type ReportStateMap } from "@/lib/missions/mission-schema"
+import { DEFAULT_REPORT_CHOICES } from "@/lib/missions/report-choices"
 import { boardRangeBounds, buildBoardSnapshot, type BoardSnapshot, type BoardSnapshotOptions } from "./board-snapshot"
 import { missionDayKey } from "@/lib/missions/mission-calendar"
 
@@ -62,7 +63,48 @@ export async function listMissionsForCompany(
     }
   }
 
-  return mapMissions(missions, assignments, names)
+  // Report state per mission, the same shape the signed-in list carries:
+  // whether it was written down and, when the screen may show it, what it said.
+  const [{ data: reportRows }, choices] = await Promise.all([
+    schema
+      .from("visit_reports")
+      .select("mission_id, status, visit_outcome")
+      .eq("company_id", companyId)
+      .in("mission_id", missions.map((mission) => mission.id)),
+    listOutcomeChoices(companyId),
+  ])
+  const reports: ReportStateMap = new Map()
+  for (const row of reportRows ?? []) {
+    const outcome = (row.visit_outcome as string | null) ?? null
+    reports.set(row.mission_id as string, {
+      status: row.status as "DRAFT" | "SUBMITTED" | "NEEDS_CLARIFICATION",
+      visitOutcome: outcome,
+      visitOutcomeLabel: outcome ? (choices.get(outcome)?.label ?? outcome) : null,
+    })
+  }
+
+  return mapMissions(missions, assignments, names, undefined, reports)
+}
+
+/**
+ * The tenant's outcome choices by code: the label the admin gave and the
+ * locked kind the wall colours by. The defaults fill in for a tenant that
+ * never opened the editor, the same seed the form uses.
+ */
+export async function listOutcomeChoices(companyId: string): Promise<Map<string, { label: string; kind: string }>> {
+  const supabase = createServiceClient()
+  const result = new Map<string, { label: string; kind: string }>()
+  for (const seed of DEFAULT_REPORT_CHOICES) {
+    if (seed.fieldKey === "visit_outcome") result.set(seed.code, { label: seed.label, kind: seed.kind })
+  }
+  const { data } = await supabase
+    .schema("sales_mission")
+    .from("report_choices")
+    .select("code, label, kind")
+    .eq("company_id", companyId)
+    .eq("field_key", "visit_outcome")
+  for (const row of data ?? []) result.set(row.code as string, { label: row.label as string, kind: row.kind as string })
+  return result
 }
 
 /**
@@ -92,8 +134,9 @@ export async function getBoardSnapshot(
   // Only the days on the board, not the tenant's whole history; the one
   // all-days number ("mission berjalan") is counted separately.
   const [from, to] = boardRangeBounds(options.range ?? "today", missionDayKey(now))
-  const [missions, { count: openCount }] = await Promise.all([
+  const [missions, choices, { count: openCount }] = await Promise.all([
     listMissionsForCompany(companyId, { since: `${from}T00:00:00+07:00`, until: `${to}T23:59:59.999+07:00` }),
+    options.showOutcomes ? listOutcomeChoices(companyId) : Promise.resolve(new Map<string, { label: string; kind: string }>()),
     schema
       .from("missions")
       .select("id", { count: "exact", head: true })
@@ -102,6 +145,7 @@ export async function getBoardSnapshot(
       .in("status", ["SCHEDULED", "ASSIGNED", "ACCEPTED", "IN_PROGRESS"]),
   ])
 
-  const snapshot = buildBoardSnapshot(missions, now, options)
+  const outcomeKinds = new Map([...choices].map(([code, choice]) => [code, choice.kind]))
+  const snapshot = buildBoardSnapshot(missions, now, { ...options, outcomeKinds })
   return { ...snapshot, counts: { ...snapshot.counts, openMissions: openCount ?? snapshot.counts.openMissions } }
 }

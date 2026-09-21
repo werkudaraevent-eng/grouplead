@@ -1,5 +1,8 @@
 import type { Metadata } from "next"
+import { headers } from "next/headers"
 import { resolveBoardToken } from "@/lib/board/board-access"
+import { renderQrSvg } from "@/lib/board/qr"
+import { writeCalendarView } from "@/lib/missions/calendar-filter"
 import { getBoardSnapshot } from "@/lib/board/board-queries"
 import { parseBoardOptions } from "@/lib/board/board-options"
 import { canPerform, getSalesMissionAccess } from "@/lib/sales-mission-access"
@@ -60,6 +63,8 @@ export default async function BoardPage({
 
   let companyId: string | null = null
   let masked = true
+  let showOutcomes = false
+  let qrCalendarToken: string | null = null
   let screenLabel: string | null = null
   let preview = false
 
@@ -68,6 +73,8 @@ export default async function BoardPage({
     if (resolved) {
       companyId = resolved.companyId
       masked = !resolved.showClientNames
+      showOutcomes = resolved.showOutcomes
+      qrCalendarToken = resolved.qrCalendarToken
       screenLabel = resolved.label
     }
   } else {
@@ -75,6 +82,7 @@ export default async function BoardPage({
     if (access && (await canPerform(access, "sales_mission_mission", "read"))) {
       companyId = access.companyId
       masked = params.names !== "1"
+      showOutcomes = params.outcomes === "1"
       preview = true
     }
   }
@@ -91,10 +99,26 @@ export default async function BoardPage({
   const now = new Date()
   const snapshot = await getBoardSnapshot(companyId, now, {
     masked,
+    showOutcomes,
     range: options.range,
     sales: options.sales,
     location: options.location,
   })
+
+  // The QR: the paired calendar link, carrying the screen's people and place
+  // filters so the phone shows what the wall shows. No month, so the link
+  // always opens on the current one. The origin is the request's, so a
+  // preview deployment's QR opens that deployment.
+  let qr: string | null = null
+  if (qrCalendarToken) {
+    const headerList = await headers()
+    const host = headerList.get("x-forwarded-host") ?? headerList.get("host") ?? "localhost:3001"
+    const proto = headerList.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https")
+    const params = new URLSearchParams()
+    writeCalendarView(params, { sales: options.sales, location: options.location })
+    const query = params.toString()
+    qr = await renderQrSvg(`${proto}://${host}/jadwal/${encodeURIComponent(qrCalendarToken)}${query ? `?${query}` : ""}`)
+  }
 
   return (
     <>
@@ -107,6 +131,7 @@ export default async function BoardPage({
         preview={preview}
         masked={masked}
         screenLabel={screenLabel}
+        qr={qr}
       />
     </>
   )

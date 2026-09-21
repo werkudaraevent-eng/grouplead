@@ -30,7 +30,19 @@ export interface BoardMission {
   endMinute: number
   primarySalesName: string | null
   supportingSalesNames: string[]
+  /** A report was submitted for it (or it is marked done). Never sensitive: "Selesai" already says this. */
+  reported: boolean
+  /** What the report said, only when the link may show it; null otherwise, so it never leaves the server. */
+  outcome: BoardOutcome | null
 }
+
+/** The report's outcome as the wall shows it: the tenant's label and the locked kind that colours it. */
+export interface BoardOutcome {
+  label: string
+  kind: BoardOutcomeKind
+}
+
+export type BoardOutcomeKind = "met_decision_maker" | "met_staff" | "rescheduled" | "absent" | "cancelled"
 
 export interface BoardDay {
   /** YYYY-MM-DD in mission time. */
@@ -83,6 +95,10 @@ export interface BoardSnapshot {
     todayTotal: number
     accepted: number
     completed: number
+    /** Visits that have happened: reported, or their scheduled end has passed. */
+    elapsed: number
+    /** Happened, but nobody wrote it down yet. The office's honest number. */
+    unreported: number
     /** Open missions across all days, not just the range. */
     openMissions: number
   }
@@ -100,6 +116,35 @@ export interface BoardSnapshotOptions {
   sales?: string[]
   /** Location strings; empty means everywhere. */
   location?: string[]
+  /** Whether reported visits carry their outcome. Bound to the screen link, like `masked`. */
+  showOutcomes?: boolean
+  /** Outcome code → locked kind, from the tenant's report choices; the default kinds fill in the rest. */
+  outcomeKinds?: Map<string, string>
+}
+
+const OUTCOME_KINDS: readonly BoardOutcomeKind[] = ["met_decision_maker", "met_staff", "rescheduled", "absent", "cancelled"]
+
+/** A visit is reported once its report is in; a mission marked done without one counts too. */
+function isReported(mission: MissionListItem): boolean {
+  return mission.status === "COMPLETED" || mission.reportStatus === "SUBMITTED" || mission.reportStatus === "NEEDS_CLARIFICATION"
+}
+
+function outcomeOf(mission: MissionListItem, options: BoardSnapshotOptions): BoardOutcome | null {
+  if (!options.showOutcomes || !isReported(mission) || !mission.visitOutcome) return null
+  const kind = options.outcomeKinds?.get(mission.visitOutcome) ?? DEFAULT_OUTCOME_KINDS[mission.visitOutcome] ?? "met_staff"
+  return {
+    label: mission.visitOutcomeLabel ?? mission.visitOutcome,
+    kind: OUTCOME_KINDS.includes(kind as BoardOutcomeKind) ? (kind as BoardOutcomeKind) : "met_staff",
+  }
+}
+
+/** The codes the report has always stored, for a tenant that never touched its choices. */
+const DEFAULT_OUTCOME_KINDS: Record<string, BoardOutcomeKind> = {
+  MET_DECISION_MAKER: "met_decision_maker",
+  MET_STAFF: "met_staff",
+  RESCHEDULED_ON_SITE: "rescheduled",
+  CLIENT_ABSENT: "absent",
+  CANCELLED_ON_SITE: "cancelled",
 }
 
 /**
@@ -243,6 +288,8 @@ export function buildBoardSnapshot(
       endMinute,
       primarySalesName: mission.primarySalesName,
       supportingSalesNames: mission.supportingSalesNames,
+      reported: isReported(mission),
+      outcome: outcomeOf(mission, options),
     }
   })
 
@@ -302,6 +349,13 @@ export function buildBoardSnapshot(
       return b.missionCount - a.missionCount || a.name.localeCompare(b.name)
     })
 
+  // What has happened. A visit whose scheduled end has passed happened whether
+  // or not anyone wrote it down, and the wall says so instead of showing a
+  // day at 16.00 as "1 / 6 selesai" when five reps are back at their desks.
+  const elapsed = boardMissions.filter(
+    (mission) => mission.reported || mission.day < today || (mission.day === today && mission.endMinute <= nowMinute)
+  )
+
   return {
     today,
     range,
@@ -310,7 +364,9 @@ export function buildBoardSnapshot(
     counts: {
       todayTotal: ordered.length,
       accepted: ordered.filter((mission) => mission.status === "ACCEPTED").length,
-      completed: ordered.filter((mission) => mission.status === "COMPLETED").length,
+      completed: boardMissions.filter((mission) => mission.reported).length,
+      elapsed: elapsed.length,
+      unreported: elapsed.filter((mission) => !mission.reported).length,
       openMissions: scoped.filter((mission) => OPEN_STATUSES.includes(mission.status)).length,
     },
     missions: boardMissions,

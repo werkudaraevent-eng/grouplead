@@ -1,8 +1,7 @@
-import { Check, Clock3, MapPin, Users } from "lucide-react"
-import type { BoardMission, BoardSnapshot, BoardTeamMember } from "@/lib/board/board-snapshot"
+import { Ban, CalendarClock, Check, Clock3, MapPin, UserX, Users } from "lucide-react"
+import type { BoardMission, BoardOutcome, BoardSnapshot, BoardTeamMember } from "@/lib/board/board-snapshot"
 import type { BoardPanel } from "@/lib/board/board-options"
 import { MISSION_TIME_ZONE } from "@/lib/missions/mission-schema"
-import { statusLabel } from "@/lib/missions/status-labels"
 import { cn } from "@/lib/utils"
 import { AutoScroll } from "./auto-scroll"
 import { BoardClock } from "./board-clock"
@@ -19,7 +18,7 @@ import { BoardClock } from "./board-clock"
  */
 
 const CARD = "rounded-[1.6em] bg-[var(--board-surface-container-low)]"
-const ROW_COLUMNS = "grid grid-cols-[5.2em_minmax(0,2fr)_minmax(0,1.1fr)_8.5em] portrait:grid-cols-[4.6em_minmax(0,2fr)_7.5em] items-center gap-x-[1.1em]"
+const ROW_COLUMNS = "grid grid-cols-[5.2em_minmax(0,2fr)_minmax(0,1.1fr)_10em] portrait:grid-cols-[4.6em_minmax(0,2fr)_9em] items-center gap-x-[1.1em]"
 
 type VisitState = "past" | "now" | "later"
 type RowTone = "normal" | "past" | "now"
@@ -44,8 +43,8 @@ function countdown(minutes: number): string {
   return rest > 0 ? `dalam ${hours} jam ${rest} menit` : `dalam ${hours} jam`
 }
 
-/** Cancelled and refused visits never reach here (OFF_THE_BOARD), so done means done. */
-const isOver = (mission: BoardMission) => mission.status === "COMPLETED"
+/** Cancelled and refused visits never reach here (OFF_THE_BOARD), so reported means done. */
+const isOver = (mission: BoardMission) => mission.reported
 
 function initials(name: string): string {
   const words = name.trim().split(/\s+/).filter(Boolean)
@@ -88,7 +87,22 @@ function Eyebrow({ children, className }: { children: React.ReactNode; className
 
 /* ── Top bar ── */
 
-function TopBar({ screenLabel, dateLabel, clock, preview, masked }: { screenLabel: string | null; dateLabel: string; clock: string; preview: boolean; masked: boolean }) {
+function TopBar({
+  screenLabel,
+  dateLabel,
+  clock,
+  preview,
+  masked,
+  qr,
+}: {
+  screenLabel: string | null
+  dateLabel: string
+  clock: string
+  preview: boolean
+  masked: boolean
+  /** The QR when the rail cannot hold it: portrait, or a board with no rail. */
+  qr: { svg: string; className?: string } | null
+}) {
   return (
     <header className="flex items-end justify-between gap-[2em]">
       <div className="min-w-0">
@@ -100,9 +114,51 @@ function TopBar({ screenLabel, dateLabel, clock, preview, masked }: { screenLabe
       </div>
       <div className="flex shrink-0 items-end gap-[1.4em]">
         {preview && <p className="mb-[0.5em] text-[0.85em] text-[var(--board-on-surface-dim)]">Pratinjau · nama klien {masked ? "disamarkan" : "ditampilkan"}</p>}
+        {qr && (
+          <div className={cn("items-center gap-[0.7em]", qr.className)}>
+            <QrTile svg={qr.svg} size="3.6em" />
+            <p className="text-[0.85em] leading-tight text-[var(--board-on-surface-variant)]">
+              Pindai untuk jadwal
+              <br />
+              di ponselmu
+            </p>
+          </div>
+        )}
         <BoardClock initial={clock} className="text-[3.4em] font-semibold tabular-nums leading-none tracking-[-0.02em]" />
       </div>
     </header>
+  )
+}
+
+/* ── QR ── */
+
+/** The code on a white tile: dark modules on light is what a phone camera expects, and the tile's padding is the quiet zone. */
+function QrTile({ svg, size }: { svg: string; size: string }) {
+  return (
+    <span
+      aria-hidden="true"
+      className="board-qr grid shrink-0 place-items-center rounded-[0.7em] bg-white p-[0.45em]"
+      style={{ width: size, height: size }}
+      dangerouslySetInnerHTML={{ __html: svg }}
+    />
+  )
+}
+
+/**
+ * The wall's one call to action, as signage does it: a persistent QR in the
+ * supporting rail with a verb, sized for someone who walks up to it, never
+ * in the hero. It opens the public calendar, so the phone shows the same
+ * schedule with the same masking and can be checked at the viewer's own pace.
+ */
+function QrCard({ svg }: { svg: string }) {
+  return (
+    <section className={cn(CARD, "flex shrink-0 items-center gap-[1.1em] px-[1.3em] py-[1.1em] portrait:hidden")}>
+      <QrTile svg={svg} size="6.4em" />
+      <div className="min-w-0">
+        <p className="text-[1.15em] font-semibold leading-tight">Pindai untuk jadwal di ponselmu</p>
+        <p className="mt-[0.3em] text-[0.95em] leading-snug text-[var(--board-on-surface-variant)]">Jadwal tim, tanpa login. Cek kapan saja dengan waktumu sendiri.</p>
+      </div>
+    </section>
   )
 }
 
@@ -260,33 +316,50 @@ function SpotlightCard({ spotlight, week }: { spotlight: Spotlight; week: boolea
 
 /* ── Progress ── */
 
-function StatsCard({ total, completed, live, peopleOut, week }: { total: number; completed: number; live: number; peopleOut: number; week: boolean }) {
-  const ratio = total > 0 ? completed / total : 0
+function StatsCard({
+  total,
+  completed,
+  elapsed,
+  unreported,
+  peopleOut,
+  week,
+}: {
+  total: number
+  completed: number
+  elapsed: number
+  unreported: number
+  peopleOut: number
+  week: boolean
+}) {
+  const pct = (value: number) => (total > 0 ? `${Math.round((value / total) * 100)}%` : "0%")
   const stats = [
-    { label: "Kunjungan", value: total },
-    { label: "Berjalan", value: live },
-    { label: "Di lapangan", value: peopleOut },
+    { label: "Dilaporkan", value: completed, tone: completed > 0 ? "var(--board-success)" : undefined },
+    { label: "Belum dilaporkan", value: unreported, tone: unreported > 0 ? "var(--board-tertiary)" : undefined },
+    { label: "Di lapangan", value: peopleOut, tone: undefined },
   ]
   return (
     <section className={cn(CARD, "px-[1.5em] py-[1.3em]")}>
       <Eyebrow className="text-[var(--board-on-surface-variant)]">{week ? "Progres minggu ini" : "Progres hari ini"}</Eyebrow>
       <div className="mt-[0.4em] flex items-baseline gap-[0.4em] tabular-nums">
-        <span className="text-[3.2em] font-semibold leading-none tracking-[-0.02em]">{completed}</span>
-        <span className="text-[1.4em] font-medium text-[var(--board-on-surface-variant)]">/ {total} selesai</span>
+        <span className="text-[3.2em] font-semibold leading-none tracking-[-0.02em]">{elapsed}</span>
+        <span className="text-[1.4em] font-medium text-[var(--board-on-surface-variant)]">/ {total} sudah berlangsung</span>
       </div>
+      {/* Two segments: what was written down, and what happened but was not. */}
       <div
-        className="mt-[0.9em] h-[0.6em] overflow-hidden rounded-full bg-[var(--board-surface-container-highest)]"
+        className="mt-[0.9em] flex h-[0.6em] overflow-hidden rounded-full bg-[var(--board-surface-container-highest)]"
         role="progressbar"
         aria-valuemin={0}
         aria-valuemax={total}
-        aria-valuenow={completed}
+        aria-valuenow={elapsed}
+        aria-label={`${completed} dilaporkan, ${unreported} belum dilaporkan, dari ${total} kunjungan`}
       >
-        <div className="h-full rounded-full bg-[var(--board-success)]" style={{ width: `${Math.round(ratio * 100)}%` }} />
+        <div className="h-full bg-[var(--board-success)]" style={{ width: pct(completed) }} />
+        <div className="h-full bg-[var(--board-tertiary)] opacity-70" style={{ width: pct(unreported) }} />
       </div>
       <dl className="mt-[1.1em] grid grid-cols-3 gap-[0.6em]">
         {stats.map((stat) => (
           <div key={stat.label} className="rounded-[1em] bg-[var(--board-surface-container)] px-[0.9em] py-[0.7em]">
-            <dd className="text-[1.9em] font-semibold tabular-nums leading-none">{stat.value}</dd>
+            <dd className="text-[1.9em] font-semibold tabular-nums leading-none" style={{ color: stat.tone }}>{stat.value}</dd>
             <dt className="mt-[0.35em] truncate text-[0.9em] text-[var(--board-on-surface-variant)]">{stat.label}</dt>
           </div>
         ))}
@@ -297,7 +370,13 @@ function StatsCard({ total, completed, live, peopleOut, week }: { total: number;
 
 /* ── Schedule ── */
 
-function StatusCell({ status, tone }: { status: string; tone: RowTone }) {
+/**
+ * The last column says what the wall can know about the visit's state, not
+ * what the workflow calls it. "Diterima" or "Ditugaskan" is a fact about the
+ * assignment nobody in the office acts on; the end time, "Sekarang",
+ * "Selesai" or "Belum dilaporkan" is.
+ */
+function StatusCell({ mission, tone, elapsed }: { mission: BoardMission; tone: RowTone; elapsed: boolean }) {
   if (tone === "now") {
     return (
       <span className="flex items-center gap-[0.5em] text-[1.15em] font-semibold text-[var(--board-tertiary)]">
@@ -306,7 +385,7 @@ function StatusCell({ status, tone }: { status: string; tone: RowTone }) {
       </span>
     )
   }
-  if (status === "COMPLETED") {
+  if (mission.reported) {
     return (
       <span className="flex items-center gap-[0.45em] text-[1.15em] font-medium text-[var(--board-success)]">
         <Check aria-hidden="true" className="h-[1em] w-[1em] shrink-0" strokeWidth={2.6} />
@@ -314,16 +393,51 @@ function StatusCell({ status, tone }: { status: string; tone: RowTone }) {
       </span>
     )
   }
-  const dot = status === "IN_PROGRESS" ? "var(--board-tertiary)" : status === "ACCEPTED" ? "var(--board-primary)" : "var(--board-on-surface-dim)"
+  if (elapsed) {
+    return (
+      <span className="flex min-w-0 items-center gap-[0.45em] text-[1.15em] font-medium text-[var(--board-tertiary)]">
+        <span aria-hidden="true" className="h-[0.6em] w-[0.6em] shrink-0 rounded-full border-[0.14em] border-current" />
+        <span className="truncate">Belum dilaporkan</span>
+      </span>
+    )
+  }
+  return (
+    <span className="text-[1.15em] font-medium tabular-nums" style={{ color: tone === "past" ? "var(--board-on-surface-dim)" : "var(--board-on-surface-variant)" }}>
+      {mission.time ? `s.d. ${clockOf(mission.endMinute)}` : "—"}
+    </span>
+  )
+}
+
+/** The kind of a visit's outcome, as a colour and a glyph: met, moved, nobody there, called off. */
+function OutcomeLine({ outcome, tone }: { outcome: BoardOutcome; tone: RowTone }) {
+  const met = outcome.kind === "met_decision_maker" || outcome.kind === "met_staff"
+  const color =
+    tone === "now"
+      ? "var(--board-on-primary-container)"
+      : met
+        ? "var(--board-success)"
+        : outcome.kind === "rescheduled"
+          ? "var(--board-primary)"
+          : "var(--board-tertiary)"
+  const Icon = met ? Check : outcome.kind === "rescheduled" ? CalendarClock : outcome.kind === "absent" ? UserX : Ban
+  return (
+    <span className="flex min-w-0 items-center gap-[0.3em]" style={{ color }}>
+      <Icon aria-hidden="true" className="h-[1em] w-[1em] shrink-0" strokeWidth={met ? 2.6 : 2.2} />
+      <span className="truncate">{outcome.label}</span>
+    </span>
+  )
+}
+
+function TypeChip({ type, tone }: { type: string; tone: RowTone }) {
   return (
     <span
-      className="flex min-w-0 items-center gap-[0.5em] text-[1.15em] font-medium"
+      className="shrink-0 rounded-full px-[0.6em] py-[0.18em] text-[0.8em] font-medium leading-none"
       style={{
-        color: tone === "past" ? "var(--board-on-surface-dim)" : "var(--board-on-surface-variant)",
+        background: tone === "now" ? "color-mix(in srgb, var(--board-on-primary-container) 14%, transparent)" : "var(--board-surface-container-highest)",
+        color: tone === "now" ? "var(--board-on-primary-container)" : tone === "past" ? "var(--board-on-surface-dim)" : "var(--board-on-surface-variant)",
       }}
     >
-      <span aria-hidden="true" className="h-[0.55em] w-[0.55em] shrink-0 rounded-full" style={{ background: dot }} />
-      <span className="truncate">{statusLabel(status)}</span>
+      {type}
     </span>
   )
 }
@@ -346,14 +460,15 @@ function TimelineNode({ tone, done }: { tone: RowTone; done: boolean }) {
   )
 }
 
-function VisitRow({ mission, tone }: { mission: BoardMission; tone: RowTone }) {
+function VisitRow({ mission, tone, elapsed }: { mission: BoardMission; tone: RowTone; elapsed: boolean }) {
   const people = peopleOf(mission)
   const fg = tone === "past" ? "var(--board-on-surface-dim)" : tone === "now" ? "var(--board-on-primary-container)" : "var(--board-on-surface)"
   const muted = tone === "past" ? "var(--board-on-surface-dim)" : tone === "now" ? "var(--board-primary)" : "var(--board-on-surface-variant)"
+  const type = mission.missionType.trim()
   return (
     <li className="grid grid-cols-[2.2em_minmax(0,1fr)] items-center" data-board-now={tone === "now" ? "" : undefined}>
       <span className="grid place-items-center" aria-hidden="true">
-        <TimelineNode tone={tone} done={mission.status === "COMPLETED"} />
+        <TimelineNode tone={tone} done={mission.reported} />
       </span>
       <div
         className={cn(ROW_COLUMNS, "rounded-[1.1em] px-[1.1em] py-[0.75em]")}
@@ -364,11 +479,21 @@ function VisitRow({ mission, tone }: { mission: BoardMission; tone: RowTone }) {
       >
         <span className="text-[1.9em] font-semibold tabular-nums leading-none tracking-[-0.01em]">{mission.time ?? "—"}</span>
         <span className="min-w-0">
-          <span className="block truncate text-[1.55em] font-semibold leading-[1.2]">{mission.clientLabel}</span>
-          {(mission.location || mission.missionType) && (
-            <span className="mt-[0.15em] flex items-center gap-[0.3em] truncate text-[1em]" style={{ color: muted }}>
-              {mission.location && <MapPin aria-hidden="true" className="h-[1em] w-[1em] shrink-0" />}
-              <span className="truncate">{mission.location || mission.missionType}</span>
+          <span className="flex min-w-0 items-center gap-[0.6em]">
+            <span className="min-w-0 truncate text-[1.55em] font-semibold leading-[1.2]">{mission.clientLabel}</span>
+            {type && <TypeChip type={type} tone={tone} />}
+          </span>
+          {/* Second line: what the report said when the wall may say it, then where. */}
+          {(mission.outcome || mission.location) && (
+            <span className="mt-[0.15em] flex min-w-0 items-center gap-[0.5em] text-[1em]" style={{ color: muted }}>
+              {mission.outcome && <OutcomeLine outcome={mission.outcome} tone={tone} />}
+              {mission.outcome && mission.location && <span aria-hidden="true">·</span>}
+              {mission.location && (
+                <span className="flex min-w-0 items-center gap-[0.3em]">
+                  <MapPin aria-hidden="true" className="h-[1em] w-[1em] shrink-0" />
+                  <span className="truncate">{mission.location}</span>
+                </span>
+              )}
             </span>
           )}
         </span>
@@ -379,7 +504,7 @@ function VisitRow({ mission, tone }: { mission: BoardMission; tone: RowTone }) {
             {people.length > 1 && <span style={{ color: muted }}> +{people.length - 1}</span>}
           </span>
         </span>
-        <StatusCell status={mission.status} tone={tone} />
+        <StatusCell mission={mission} tone={tone} elapsed={elapsed} />
       </div>
     </li>
   )
@@ -482,6 +607,7 @@ export function BoardView({
   preview,
   masked,
   screenLabel,
+  qr = null,
 }: {
   snapshot: BoardSnapshot
   now: Date
@@ -491,6 +617,8 @@ export function BoardView({
   masked: boolean
   /** The screen's name as the admin labelled its link, if any. */
   screenLabel: string | null
+  /** QR code to the paired calendar link as SVG markup, when the link carries one. */
+  qr?: string | null
 }) {
   const dateLabel = new Intl.DateTimeFormat("id-ID", {
     timeZone: MISSION_TIME_ZONE,
@@ -523,6 +651,8 @@ export function BoardView({
     if (ongoingIds.has(mission.id)) return "now"
     return isOver(mission) || stateOf(mission) === "past" ? "past" : "normal"
   }
+  /** Its scheduled end has passed: it happened, whether or not it was reported. */
+  const hasElapsed = (mission: BoardMission) => stateOf(mission) === "past"
 
   // The agenda: today onward. On the week board yesterday is history.
   const days = snapshot.days.filter((day) => day.date >= snapshot.today)
@@ -551,7 +681,15 @@ export function BoardView({
 
   return (
     <div className="board-backdrop grid h-dvh grid-rows-[auto_minmax(0,1fr)] gap-[1.3em] overflow-hidden p-[1.6em] text-[var(--board-on-surface)]">
-      <TopBar screenLabel={screenLabel} dateLabel={dateLabel} clock={clock} preview={preview} masked={masked} />
+      <TopBar
+        screenLabel={screenLabel}
+        dateLabel={dateLabel}
+        clock={clock}
+        preview={preview}
+        masked={masked}
+        // In the rail when there is one (landscape); in the bar when the rail is a band (portrait) or absent.
+        qr={qr ? { svg: qr, className: rail ? "hidden portrait:flex" : "flex" } : null}
+      />
 
       <div
         className={cn(
@@ -564,7 +702,7 @@ export function BoardView({
             <SpotlightCard spotlight={spotlight} week={week} />
             {visits > 0 && (
               <section className={cn(CARD, "flex min-h-0 flex-1 flex-col overflow-hidden")}>
-                <PanelHeading title={week ? "Jadwal minggu ini" : "Jadwal hari ini"} meta={`${visits} kunjungan`} />
+                <PanelHeading title={week ? "Jadwal minggu ini" : "Jadwal hari ini"} meta={live > 0 ? `${visits} kunjungan · ${live} berlangsung` : `${visits} kunjungan`} />
                 <div className="min-h-0 flex-1">
                   <AutoScroll id={`schedule-${snapshot.range}`}>
                     <ul className="relative flex flex-col gap-[0.45em] pb-[1.2em] pl-[0.6em] pr-[1.2em]">
@@ -572,9 +710,11 @@ export function BoardView({
                       {week
                         ? days.flatMap((day) => [
                             <DayHeading key={`day-${day.date}`} label={day.label} isToday={day.isToday} count={day.missions.length} />,
-                            ...day.missions.map((mission) => <VisitRow key={mission.id} mission={mission} tone={toneOf(mission)} />),
+                            ...day.missions.map((mission) => (
+                              <VisitRow key={mission.id} mission={mission} tone={toneOf(mission)} elapsed={hasElapsed(mission)} />
+                            )),
                           ])
-                        : agenda.map((mission) => <VisitRow key={mission.id} mission={mission} tone={toneOf(mission)} />)}
+                        : agenda.map((mission) => <VisitRow key={mission.id} mission={mission} tone={toneOf(mission)} elapsed={hasElapsed(mission)} />)}
                       <EndOfList week={week} />
                     </ul>
                   </AutoScroll>
@@ -586,7 +726,16 @@ export function BoardView({
 
         {rail && (
           <div className={cn("flex min-h-0 min-w-0 flex-col gap-[1.3em]", show("schedule") && "portrait:grid portrait:h-[21em] portrait:grid-cols-2")}>
-            {show("counts") && <StatsCard total={visits} completed={completed} live={live} peopleOut={snapshot.team.length} week={week} />}
+            {show("counts") && (
+              <StatsCard
+                total={snapshot.counts.todayTotal}
+                completed={snapshot.counts.completed}
+                elapsed={snapshot.counts.elapsed}
+                unreported={snapshot.counts.unreported}
+                peopleOut={snapshot.team.length}
+                week={week}
+              />
+            )}
             {show("team") && (
               <section className={cn(CARD, "flex min-h-0 flex-1 flex-col overflow-hidden")}>
                 <PanelHeading title="Tim di lapangan" meta={`${snapshot.team.length} orang`} />
@@ -607,6 +756,7 @@ export function BoardView({
                 )}
               </section>
             )}
+            {qr && <QrCard svg={qr} />}
           </div>
         )}
       </div>

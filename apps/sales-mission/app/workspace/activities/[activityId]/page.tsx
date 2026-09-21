@@ -10,7 +10,9 @@ import { PhotoGallery } from "@/components/photo-gallery"
 import { AudioList } from "@/components/audio-list"
 import { parseAudioAnswer } from "@/lib/audio/audio-answer"
 import { isAttachmentType } from "@/lib/missions/form-fields"
-import { RequestClarificationButton, WithdrawReportButton } from "./report-admin-actions"
+import { ReportActions } from "./report-actions"
+import { renderReportShare, reportShareValues } from "@/lib/missions/report-share"
+import { signPhotoUrls } from "@/lib/photos/photo-storage"
 import { canPerform, getSalesMissionAccess } from "@/lib/sales-mission-access"
 import { resolveMissionGates } from "@/lib/missions/mission-rights"
 import { requireModule } from "@/lib/missions/nav-access"
@@ -155,6 +157,12 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
         .map((field) => ({ field, value: report.custom[field.reportingKey] }))
         .filter(({ value }) => value !== null && value !== undefined && value !== "" && !(Array.isArray(value) && value.length === 0))
     : []
+  // The WhatsApp message for a sent report, and its first photo when the
+  // template asks for one: the "visit_photos" field first, else any photo field.
+  const share = report && report.status === "SUBMITTED" ? renderReportShare(settings.reportShareTemplate, reportShareValues({ mission, report, choices, team: team.map((member) => member.name) })) : null
+  const photoAnswers = customAnswers.filter(({ field }) => field.fieldType === "PHOTO").map(({ field, value }) => ({ key: field.reportingKey, photos: parsePhotoAnswer(value) }))
+  const firstPhoto = share?.withPhoto ? (photoAnswers.find((item) => item.key === "visit_photos" && item.photos.length > 0) ?? photoAnswers.find((item) => item.photos.length > 0))?.photos[0] ?? null : null
+  const sharePhotoUrl = firstPhoto ? ((await signPhotoUrls(access, [firstPhoto.path])).get(firstPhoto.path) ?? null) : null
   const stamp = (iso: string) =>
     new Intl.DateTimeFormat("id-ID", { timeZone: MISSION_TIME_ZONE, weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }).format(new Date(iso))
   const leadEngineUrl = process.env.NEXT_PUBLIC_LEADENGINE_URL?.trim() || null
@@ -561,10 +569,11 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
           than the left one, where it trailed on alone under a short right column.
           On a phone it comes third, right after the answer. */}
       <article id="laporan" className="scroll-mt-16 overflow-hidden rounded-xl border bg-card max-lg:order-3 lg:col-span-2 lg:scroll-mt-24">
-        <div className="flex items-center justify-between gap-3 border-b px-5 py-4">
-          <div>
+        {/* Title and status first, actions on their own row: on a desk they sit to the right, on a phone under the title, one line, the rest behind ⋮. */}
+        <div className="flex flex-col gap-3 border-b px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
             <p className="text-xs font-semibold text-muted-foreground">Laporan kunjungan</p>
-            <h2 className="mt-1 text-base font-semibold text-foreground">
+            <h2 className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-base font-semibold text-foreground">
               {!canReadReport
                 ? "Tidak termasuk akses Anda"
                 : report
@@ -574,21 +583,19 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
                       ? "Dikembalikan untuk klarifikasi"
                       : "Draft tersimpan"
                   : "Belum diisi"}
+              {report && <StatusBadge status={report.status} />}
             </h2>
           </div>
           {report && (
-            <div className="flex flex-wrap items-center justify-end gap-2">
-              {reportSubmitted && supervisesReport && !isAuthor && !isCancelled && <RequestClarificationButton missionId={missionId} authorName={primaryName} />}
-              {reportSubmitted && editVerdict?.allowed && !isCancelled && (
-                <>
-                  <WithdrawReportButton missionId={missionId} leadPushed={Boolean(leadPush)} />
-                  <Button asChild variant="outline" size="sm">
-                    <Link href={paths.activityReport(missionId, { edit: true })}><Pencil className="h-4 w-4" /> Ubah laporan</Link>
-                  </Button>
-                </>
-              )}
-              <StatusBadge status={report.status} />
-            </div>
+            <ReportActions
+              missionId={missionId}
+              authorName={primaryName}
+              leadPushed={Boolean(leadPush)}
+              share={share ? { text: share.text, photo: firstPhoto && sharePhotoUrl ? { url: sharePhotoUrl, name: firstPhoto.name } : null } : null}
+              editHref={reportSubmitted && editVerdict?.allowed && !isCancelled ? paths.activityReport(missionId, { edit: true }) : null}
+              canClarify={reportSubmitted && supervisesReport && !isAuthor && !isCancelled}
+              canWithdraw={reportSubmitted && Boolean(editVerdict?.allowed) && !isCancelled}
+            />
           )}
         </div>
 
