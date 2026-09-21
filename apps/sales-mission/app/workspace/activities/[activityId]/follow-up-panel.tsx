@@ -106,6 +106,7 @@ export function FollowUpPanel({
   viewerId,
   canManage,
   today,
+  fromReport = null,
 }: {
   missionId: string
   followUps: FollowUp[]
@@ -118,6 +119,8 @@ export function FollowUpPanel({
   /** The report's author or a supervisor: may act on any follow-up here and add one. */
   canManage: boolean
   today: string
+  /** The report's own next action, shown when nothing is tracked yet (a report sent while tracking was off). */
+  fromReport?: { actionLabel: string; ownerName: string | null; dueDate: string | null } | null
 }) {
   const [logging, setLogging] = useState<FollowUp | null>(null)
   const [cancelling, setCancelling] = useState<FollowUp | null>(null)
@@ -127,19 +130,30 @@ export function FollowUpPanel({
 
   return (
     <div id="tindak-lanjut" className="scroll-mt-16 lg:scroll-mt-24">
-      <div className="flex flex-wrap items-center justify-between gap-2">
+      {/* The button sits beside its title, not at the far edge of a wide screen. */}
+      <div className="flex flex-wrap items-center gap-3">
         <p className="text-xs font-semibold text-muted-foreground">
           Tindak lanjut{followUps.length > 0 ? <span className="font-normal"> · {followUps.length}</span> : null}
         </p>
         {!open && canManage && (
-          <Button variant="outline" size="sm" onClick={() => setAdding(true)}>
+          <Button variant="outline" size="sm" className="h-8" onClick={() => setAdding(true)}>
             <Plus className="h-4 w-4" /> Tambah tindak lanjut
           </Button>
         )}
       </div>
 
       {followUps.length === 0 ? (
-        <p className="mt-1 text-sm text-muted-foreground">Tidak ada tindak lanjut dari laporan ini.</p>
+        fromReport ? (
+          <div className="mt-2 rounded-lg border border-dashed px-4 py-3 text-sm">
+            <p className="font-semibold text-foreground">{fromReport.actionLabel}</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              {fromReport.ownerName ?? "Belum ada penanggung jawab"}
+              {fromReport.dueDate ? ` · jatuh tempo ${dayOf(fromReport.dueDate)}` : ""} · dari laporan, belum dilacak
+            </p>
+          </div>
+        ) : (
+          <p className="mt-1 text-sm text-muted-foreground">Tidak ada tindak lanjut dari laporan ini.</p>
+        )
       ) : (
         <ol className="mt-2 space-y-2">
           {followUps.map((item) => {

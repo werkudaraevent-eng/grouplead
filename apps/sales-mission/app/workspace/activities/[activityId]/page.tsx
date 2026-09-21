@@ -17,6 +17,7 @@ import { FollowUpPanel } from "./follow-up-panel"
 import { listMissionFollowUps } from "@/lib/missions/follow-up-queries"
 import { choicesFor, kindOf } from "@/lib/missions/report-choices"
 import { renderReportShare, reportShareValues } from "@/lib/missions/report-share"
+import { formatNumber } from "@/lib/format/number"
 import { signPhotoUrls } from "@/lib/photos/photo-storage"
 import { canPerform, getSalesMissionAccess } from "@/lib/sales-mission-access"
 import { resolveMissionGates } from "@/lib/missions/mission-rights"
@@ -105,6 +106,17 @@ function Fact({ icon: Icon, label, value }: { icon: typeof CalendarDays; label: 
       <Icon className="h-4 w-4 self-center text-muted-foreground" aria-hidden="true" />
       <dt className="text-sm text-muted-foreground">{label}</dt>
       <dd className="col-start-2 text-sm leading-relaxed text-foreground sm:col-start-3">{value}</dd>
+    </div>
+  )
+}
+
+/** One key fact in the report's highlights strip: label above value, on a tonal tile so the row reads as one band. */
+function Highlight({ label, value, hint }: { label: string; value: string; hint?: string | null }) {
+  return (
+    <div className="min-w-0 rounded-lg bg-muted/40 px-4 py-3">
+      <p className="text-xs font-semibold text-muted-foreground">{label}</p>
+      <p className="mt-1 truncate text-sm font-semibold text-foreground" title={value}>{value}</p>
+      {hint && <p className="mt-0.5 truncate text-xs text-muted-foreground">{hint}</p>}
     </div>
   )
 }
@@ -698,25 +710,24 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
                 {editHint && <span>{editHint}</span>}
               </div>
             )}
-            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-              <ReportField label="Hasil" value={report.visitOutcome ? labelOf(choices, "visit_outcome", report.visitOutcome) : "—"} />
-              {report.actualStart && (
-                <ReportField
-                  label="Waktu kunjungan"
-                  value={`${formatVisitWindow(report.actualStart, report.actualEnd)}${describeTiming(report.actualStart, mission.scheduledStart) ? ` · ${describeTiming(report.actualStart, mission.scheduledStart)!.text.toLowerCase()}` : ""}`}
-                />
-              )}
-              <ReportField label="Tingkat minat" value={report.interestLevel ? labelOf(choices, "interest_level", report.interestLevel) : "—"} />
-              {!settings.followUpEnabled && (
-                <>
-                  <ReportField label="Next action" value={labelOf(choices, "next_action_type", report.nextActionType)} />
-                  <ReportField label="Follow-up" value={report.followUpDate ?? "—"} />
-                </>
-              )}
+            {/* Highlights first, as a CRM record page opens: the four facts a reader wants before the prose. */}
+            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+              <Highlight label="Hasil" value={report.visitOutcome ? labelOf(choices, "visit_outcome", report.visitOutcome) : "—"} />
+              <Highlight label="Tingkat minat" value={report.interestLevel ? labelOf(choices, "interest_level", report.interestLevel) : "—"} />
+              <Highlight
+                label="Peluang"
+                value={report.opportunityExists ? (report.estimatedValue ? `Rp ${formatNumber(report.estimatedValue)}` : "Ada") : "Tidak ada"}
+                hint={report.opportunityExists && report.estimatedValue ? "estimasi nilai" : null}
+              />
+              <Highlight
+                label="Waktu kunjungan"
+                value={report.actualStart ? formatVisitWindow(report.actualStart, report.actualEnd) : "—"}
+                hint={report.actualStart ? describeTiming(report.actualStart, mission.scheduledStart)?.text.toLowerCase() ?? null : null}
+              />
             </div>
 
             {/* The next action as a task that lives: the chain, the open one to log, the next step. */}
-            {settings.followUpEnabled && reportSubmitted && (
+            {settings.followUpEnabled && reportSubmitted ? (
               <FollowUpPanel
                 missionId={missionId}
                 followUps={followUps}
@@ -729,53 +740,74 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
                 viewerId={access.userId}
                 canManage={isAuthor || supervisesReport}
                 today={missionDayKey(new Date())}
+                fromReport={
+                  kindOf(choices, "next_action_type", report.nextActionType) !== "none"
+                    ? {
+                        actionLabel: labelOf(choices, "next_action_type", report.nextActionType),
+                        ownerName: report.nextActionOwner ? (salesOptions.find((person) => person.id === report.nextActionOwner)?.name ?? null) : null,
+                        dueDate: report.followUpDate,
+                      }
+                    : null
+                }
               />
-            )}
-
-            {report.meetingSummary && (
-              <div>
-                <p className="text-xs font-semibold text-muted-foreground">Ringkasan</p>
-                <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-foreground">{report.meetingSummary}</p>
+            ) : (
+              <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+                <ReportField label="Next action" value={labelOf(choices, "next_action_type", report.nextActionType)} />
+                <ReportField label="Penanggung jawab" value={report.nextActionOwner ? (salesOptions.find((person) => person.id === report.nextActionOwner)?.name ?? "—") : "—"} />
+                <ReportField label="Follow-up" value={report.followUpDate ?? "—"} />
               </div>
             )}
 
-            {report.clientNeeds.length > 0 && (
-              <div>
-                <p className="text-xs font-semibold text-muted-foreground">Kebutuhan klien</p>
-                <div className="mt-2 flex flex-wrap gap-1.5">
-                  {report.clientNeeds.map((need) => (
-                    <span key={need} className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-foreground">{need}</span>
-                  ))}
-                </div>
+            {/* What was said: prose at a readable measure, then the lists. */}
+            {(report.meetingSummary || report.clientNeeds.length > 0 || report.productInterest.length > 0 || report.competitorMentioned || customAnswers.some(({ field }) => !isAttachmentType(field.fieldType))) && (
+              <div className="space-y-4 border-t pt-5">
+                {report.meetingSummary && (
+                  <div>
+                    <p className="text-xs font-semibold text-muted-foreground">Ringkasan</p>
+                    <p className="mt-1 max-w-[72ch] whitespace-pre-wrap text-sm leading-relaxed text-foreground">{report.meetingSummary}</p>
+                  </div>
+                )}
+                {report.clientNeeds.length > 0 && (
+                  <div>
+                    <p className="text-xs font-semibold text-muted-foreground">Kebutuhan klien</p>
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {report.clientNeeds.map((need) => (
+                        <span key={need} className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-foreground">{need}</span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {report.productInterest.length > 0 && (
+                  <div>
+                    <p className="text-xs font-semibold text-muted-foreground">Produk yang diminati</p>
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {report.productInterest.map((product) => (
+                        <span key={product} className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-foreground">{product}</span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {report.competitorMentioned && <ReportField label="Kompetitor disebut" value={report.competitorMentioned} />}
+                {customAnswers.some(({ field }) => !isAttachmentType(field.fieldType)) && (
+                  <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+                    {customAnswers.filter(({ field }) => !isAttachmentType(field.fieldType)).map(({ field, value }) => (
+                      <ReportField
+                        key={field.id}
+                        label={field.label}
+                        value={
+                          typeof value === "boolean" ? (value ? "Ya" : "Tidak")
+                          : Array.isArray(value) ? value.map(String).join(", ")
+                          : String(value)
+                        }
+                      />
+                    ))}
+                  </div>
+                )}
               </div>
             )}
-
-            {customAnswers.some(({ field }) => !isAttachmentType(field.fieldType)) && (
-              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-                {customAnswers.filter(({ field }) => !isAttachmentType(field.fieldType)).map(({ field, value }) => (
-                  <ReportField
-                    key={field.id}
-                    label={field.label}
-                    value={
-                      typeof value === "boolean" ? (value ? "Ya" : "Tidak")
-                      : Array.isArray(value) ? value.map(String).join(", ")
-                      : String(value)
-                    }
-                  />
-                ))}
-              </div>
-            )}
-
-            {customAnswers.filter(({ field }) => field.fieldType === "PHOTO").map(({ field, value }) => (
-              <PhotoGallery key={field.id} access={access} label={field.label} photos={parsePhotoAnswer(value)} />
-            ))}
-
-            {customAnswers.filter(({ field }) => field.fieldType === "AUDIO").map(({ field, value }) => (
-              <AudioList key={field.id} access={access} label={field.label} recordings={parseAudioAnswer(value)} />
-            ))}
 
             {canReadContacts && report.contacts.length > 0 && (
-              <div>
+              <div className="border-t pt-5">
                 <p className="text-xs font-semibold text-muted-foreground">Ketemu siapa</p>
                 <ul className="mt-2 space-y-1.5">
                   {report.contacts.map((contact, index) => (
@@ -798,6 +830,17 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
                     </li>
                   ))}
                 </ul>
+              </div>
+            )}
+
+            {customAnswers.some(({ field }) => isAttachmentType(field.fieldType)) && (
+              <div className="space-y-4 border-t pt-5">
+                {customAnswers.filter(({ field }) => field.fieldType === "PHOTO").map(({ field, value }) => (
+                  <PhotoGallery key={field.id} access={access} label={field.label} photos={parsePhotoAnswer(value)} />
+                ))}
+                {customAnswers.filter(({ field }) => field.fieldType === "AUDIO").map(({ field, value }) => (
+                  <AudioList key={field.id} access={access} label={field.label} recordings={parseAudioAnswer(value)} />
+                ))}
               </div>
             )}
 

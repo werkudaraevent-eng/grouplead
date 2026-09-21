@@ -28,6 +28,15 @@ export const CHANGE_KIND_LABELS: Record<ChangeKind, string> = {
 export const CHANGELOG: ChangeEntry[] = [
   {
     date: "2026-09-21",
+    title: "Kartu laporan dibaca dari sorotan; semua isian sales tampil",
+    items: [
+      { kind: "lebih-baik", text: "Kartu laporan di halaman aktivitas kini dibuka dengan strip sorotan: Hasil, Tingkat minat, Peluang beserta estimasi nilainya, dan Waktu kunjungan dalam satu baris ubin; lalu Tindak lanjut, Ringkasan dan pembicaraan, Ketemu siapa, dan lampiran, masing-masing dalam bagiannya. Teks ringkasan tidak lagi membentang selebar layar." },
+      { kind: "diperbaiki", text: "Empat isian laporan yang sebelumnya tidak tampil di halaman aktivitas kini terlihat: Produk yang diminati, Ada peluang, Estimasi nilai, dan Kompetitor disebut. Penanggung jawab next action juga tampil." },
+      { kind: "diperbaiki", text: "Laporan yang dikirim sebelum fitur tindak lanjut ada kini mendapat tindak lanjut terbuka dari next action-nya, sehingga muncul di Hari ini pemiliknya dan di kartu laporan; yang belum dilacak tetap memperlihatkan next action dari laporannya." },
+    ],
+  },
+  {
+    date: "2026-09-21",
     title: "Bagikan ke WhatsApp dari komputer: langsung ke aplikasinya, atau WhatsApp Web",
     items: [
       { kind: "lebih-baik", text: "Dari komputer, Bagikan ke WhatsApp tidak lagi membuka share sheet Windows yang membingungkan. Aplikasi mencoba WhatsApp desktop; kalau terpasang, WhatsApp terbuka dengan teks laporan terisi. Kalau tidak terpasang, WhatsApp Web yang dibuka, dan pesannya menjelaskan kenapa. Pilihan ini diingat untuk klik berikutnya." },
