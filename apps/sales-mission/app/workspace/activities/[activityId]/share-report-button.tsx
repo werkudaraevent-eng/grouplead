@@ -7,6 +7,7 @@ import { Loader2, Share } from "@/components/icons"
 import { markReportShared } from "@/app/actions/visit-report-actions"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
+import { DESK_SHARE_EVENT, type DeskShareDetail } from "./desk-share-notice"
 
 /**
  * "Bagikan ke WhatsApp" on a sent report.
@@ -99,29 +100,29 @@ export function ShareReportButton({
     } catch {
       copied = false
     }
-    const photoHint = (downloaded: boolean) => (photo ? (downloaded ? " Seret foto yang baru diunduh ke chat." : " Foto: unduh dari galeri di bawah.") : "")
-
     const remembered = readDeskRoad()
     if (remembered !== "web") {
       const opened = await probeDesktopApp(text)
       if (opened) {
         rememberDeskRoad("app")
         const downloaded = file.current ? downloadFile(file.current) : false
-        toast.success(`WhatsApp di komputer ini dibuka dengan teks laporan terisi.${photoHint(downloaded)}`, { duration: 8000 })
+        toast.success(downloaded ? "WhatsApp dibuka. Seret foto yang baru diunduh ke chat." : "WhatsApp dibuka dengan teks laporan.")
         return
       }
     }
 
-    // No desktop app: WhatsApp Web, and say so. The tab is opened after the
-    // probe, still inside the click's activation window on Chrome, Edge and
-    // Brave; where a browser blocks it anyway, the toast carries the button.
+    // No desktop app: WhatsApp Web. The tab is opened after the probe, still
+    // inside the click's activation window on most browsers; Brave holds it
+    // anyway. The snackbar stays short; the explanation and the button that
+    // waits are a banner in the report card, sent there as an event.
     rememberDeskRoad("web")
     const tab = window.open(webUrl(text), "_blank", "noopener")
     const downloaded = file.current ? downloadFile(file.current) : false
-    const why = remembered === "web" ? "WhatsApp Web dibuka" : "WhatsApp desktop tidak terpasang di komputer ini, jadi dibuka WhatsApp Web"
-    const body = `${why}. Teks laporan sudah terisi${copied ? " dan tersalin" : ""}.${photoHint(downloaded)}`
-    if (tab) toast.info(body, { duration: 10000 })
-    else toast.info(`${body} Browser menahan tab barunya; tekan tombol ini.`, { duration: 20000, action: { label: "Buka WhatsApp Web", onClick: () => openWeb(text) } })
+    if (!tab || remembered !== "web") {
+      window.dispatchEvent(new CustomEvent<DeskShareDetail>(DESK_SHARE_EVENT, { detail: { url: webUrl(text), opened: Boolean(tab) } }))
+    }
+    const facts = [copied ? "Teks tersalin" : null, downloaded ? "foto diunduh" : null].filter(Boolean).join(", ")
+    toast.success(tab ? `WhatsApp Web dibuka.${facts ? ` ${facts[0].toUpperCase()}${facts.slice(1)}.` : ""}` : facts ? `${facts[0].toUpperCase()}${facts.slice(1)}. Buka WhatsApp Web dari tombol di kartu laporan.` : "Buka WhatsApp Web dari tombol di kartu laporan.")
   }
 
   const share = async () => {
@@ -168,10 +169,6 @@ function rememberDeskRoad(road: "app" | "web") {
 }
 
 const webUrl = (text: string) => `https://web.whatsapp.com/send?text=${encodeURIComponent(text)}`
-
-function openWeb(text: string) {
-  window.open(webUrl(text), "_blank", "noopener")
-}
 
 /**
  * Try the desktop app through its link and watch whether the page loses

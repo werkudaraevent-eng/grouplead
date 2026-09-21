@@ -12,6 +12,7 @@ import { parseAudioAnswer } from "@/lib/audio/audio-answer"
 import { isAttachmentType } from "@/lib/missions/form-fields"
 import { ReportActions } from "./report-actions"
 import { ShareOfferBar, ShareOfferCard, type ShareOffer } from "./share-offer"
+import { DeskShareNotice } from "./desk-share-notice"
 import { FollowUpPanel } from "./follow-up-panel"
 import { listMissionFollowUps } from "@/lib/missions/follow-up-queries"
 import { choicesFor, kindOf } from "@/lib/missions/report-choices"
@@ -660,6 +661,7 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
           </p>
         ) : report ? (
           <div className="space-y-5 px-5 py-5">
+            {share && <DeskShareNotice />}
             {shareOffer && <ShareOfferCard offer={shareOffer} />}
             {report.whatsappSharedAt && (
               <p className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">

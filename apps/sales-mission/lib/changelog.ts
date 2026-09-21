@@ -31,6 +31,7 @@ export const CHANGELOG: ChangeEntry[] = [
     title: "Bagikan ke WhatsApp dari komputer: langsung ke aplikasinya, atau WhatsApp Web",
     items: [
       { kind: "lebih-baik", text: "Dari komputer, Bagikan ke WhatsApp tidak lagi membuka share sheet Windows yang membingungkan. Aplikasi mencoba WhatsApp desktop; kalau terpasang, WhatsApp terbuka dengan teks laporan terisi. Kalau tidak terpasang, WhatsApp Web yang dibuka, dan pesannya menjelaskan kenapa. Pilihan ini diingat untuk klik berikutnya." },
+      { kind: "lebih-baik", text: "Notifikasi kecil (toast) di komputer pindah ke kiri bawah, tempat yang ditentukan Material Design; di ponsel tetap di bawah. Penjelasan soal WhatsApp Web beserta tombolnya kini tampil sebagai banner di kartu laporan sampai ditutup, bukan toast yang keburu hilang." },
       { kind: "lebih-baik", text: "Di komputer, foto pertama laporan diunduh otomatis dengan nama rapi (klien-tanggal.jpg) untuk diseret ke chat, karena WhatsApp desktop maupun WhatsApp Web hanya menerima teks lewat tautan. Di ponsel tidak ada yang berubah: teks dan foto ikut lewat share sheet." },
     ],
   },
