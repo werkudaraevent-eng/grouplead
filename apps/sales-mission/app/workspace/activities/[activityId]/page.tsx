@@ -169,6 +169,10 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
   const photoAnswers = customAnswers.filter(({ field }) => field.fieldType === "PHOTO").map(({ field, value }) => ({ key: field.reportingKey, photos: parsePhotoAnswer(value) }))
   const firstPhoto = share?.withPhoto ? (photoAnswers.find((item) => item.key === "visit_photos" && item.photos.length > 0) ?? photoAnswers.find((item) => item.photos.length > 0))?.photos[0] ?? null : null
   const sharePhotoUrl = firstPhoto ? ((await signPhotoUrls(access, [firstPhoto.path])).get(firstPhoto.path) ?? null) : null
+  // The photo travels under a name that says what it is, not the camera's number.
+  const sharePhotoName = firstPhoto
+    ? `${mission.clientCompanyName.normalize("NFKD").replace(/[^\w\s-]/g, "").trim().replace(/\s+/g, "-").slice(0, 60) || "kunjungan"}-${mission.scheduledStart ? missionDayKey(new Date(mission.scheduledStart)) : "laporan"}.${(firstPhoto.name.split(".").pop() || "jpg").toLowerCase()}`
+    : null
   const stamp = (iso: string) =>
     new Intl.DateTimeFormat("id-ID", { timeZone: MISSION_TIME_ZONE, weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }).format(new Date(iso))
   const leadEngineUrl = process.env.NEXT_PUBLIC_LEADENGINE_URL?.trim() || null
@@ -255,7 +259,7 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
   // put off. The unit can turn the offer off; the header button stays.
   const shareOffer: ShareOffer | null =
     share && report && isAuthor && settings.reportSharePrompt && !report.whatsappSharedAt && !isCancelled
-      ? { missionId, text: share.text, photo: firstPhoto && sharePhotoUrl ? { url: sharePhotoUrl, name: firstPhoto.name } : null }
+      ? { missionId, text: share.text, photo: firstPhoto && sharePhotoUrl && sharePhotoName ? { url: sharePhotoUrl, name: sharePhotoName } : null }
       : null
   const compactAction: "answer" | "report" | "join" | "edit" | "share" | null =
     shareOffer && baseAction !== "answer" && baseAction !== "report" ? "share" : baseAction
@@ -642,7 +646,7 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
               missionId={missionId}
               authorName={primaryName}
               leadPushed={Boolean(leadPush)}
-              share={share ? { text: share.text, photo: firstPhoto && sharePhotoUrl ? { url: sharePhotoUrl, name: firstPhoto.name } : null } : null}
+              share={share ? { text: share.text, photo: firstPhoto && sharePhotoUrl && sharePhotoName ? { url: sharePhotoUrl, name: sharePhotoName } : null } : null}
               editHref={reportSubmitted && editVerdict?.allowed && !isCancelled ? paths.activityReport(missionId, { edit: true }) : null}
               canClarify={reportSubmitted && supervisesReport && !isAuthor && !isCancelled}
               canWithdraw={reportSubmitted && Boolean(editVerdict?.allowed) && !isCancelled}

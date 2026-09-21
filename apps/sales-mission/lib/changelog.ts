@@ -28,6 +28,14 @@ export const CHANGE_KIND_LABELS: Record<ChangeKind, string> = {
 export const CHANGELOG: ChangeEntry[] = [
   {
     date: "2026-09-21",
+    title: "Bagikan ke WhatsApp dari komputer: langsung ke aplikasinya, atau WhatsApp Web",
+    items: [
+      { kind: "lebih-baik", text: "Dari komputer, Bagikan ke WhatsApp tidak lagi membuka share sheet Windows yang membingungkan. Aplikasi mencoba WhatsApp desktop; kalau terpasang, WhatsApp terbuka dengan teks laporan terisi. Kalau tidak terpasang, WhatsApp Web yang dibuka, dan pesannya menjelaskan kenapa. Pilihan ini diingat untuk klik berikutnya." },
+      { kind: "lebih-baik", text: "Di komputer, foto pertama laporan diunduh otomatis dengan nama rapi (klien-tanggal.jpg) untuk diseret ke chat, karena WhatsApp desktop maupun WhatsApp Web hanya menerima teks lewat tautan. Di ponsel tidak ada yang berubah: teks dan foto ikut lewat share sheet." },
+    ],
+  },
+  {
+    date: "2026-09-21",
     title: "Tindak lanjut yang hidup: dari next action sampai selesai",
     items: [
       { kind: "baru", text: "Next action di laporan kini menjadi tindak lanjut yang dilacak: punya penanggung jawab, jatuh tempo, dan status. Muncul di Hari ini pemiliknya pada bagian Tindak lanjut hari ini (yang lewat tanggal ditandai) sampai dicatat hasilnya." },
