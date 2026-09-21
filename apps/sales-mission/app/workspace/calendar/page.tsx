@@ -5,7 +5,7 @@ import { CalendarDays, Plus } from "@/components/icons"
 import { canPerform, getSalesMissionAccess } from "@/lib/sales-mission-access"
 import { requireModule } from "@/lib/missions/nav-access"
 import { getMissionSettings, listMissions, listTenantSales } from "@/lib/missions/mission-queries"
-import { calendarFacetValues, calendarHref, filterCalendarMissions, hasCalendarView, parseCalendarView, resolveSales, type CalendarGroup } from "@/lib/missions/calendar-filter"
+import { CALENDAR_GROUPS, calendarFacetValues, calendarHref, filterCalendarMissions, hasCalendarView, parseCalendarView, resolveSales, type CalendarGroup } from "@/lib/missions/calendar-filter"
 import { sanitizeViewString, VIEW_COOKIES } from "@/lib/view-cookies"
 import { RememberView } from "@/components/remember-view"
 import { CalendarFilter } from "./calendar-filter"
@@ -93,6 +93,8 @@ export default async function CalendarPage({
   const requestedDay = params.day && params.day.startsWith(month) ? params.day : null
   const selectedDay = requestedDay ?? (today.startsWith(month) ? today : `${month}-01`)
   const dayMissions = missionsOnDay(missions, selectedDay)
+  // Built here: the grouping menu is a client component and may only be handed data, never a function.
+  const groupHrefs = Object.fromEntries(CALENDAR_GROUPS.map((group) => [group, calendarHref({ month, day: selectedDay, ...view, group })])) as Record<CalendarGroup, string>
 
   const dayLabel = new Intl.DateTimeFormat("id-ID", {
     timeZone: MISSION_TIME_ZONE,
@@ -176,7 +178,7 @@ export default async function CalendarPage({
             now={now}
             people={people.map((person) => ({ id: person.id, name: person.name, avatarUrl: person.avatarUrl }))}
             group={view.group}
-            tools={<DayGroupMenu value={view.group} hrefFor={(group: CalendarGroup) => calendarHref({ month, day: selectedDay, ...view, group })} list="calendar" />}
+            tools={<DayGroupMenu value={view.group} hrefs={groupHrefs} list="calendar" />}
             // Click a day, schedule on it: the calendar is where the gap is
             // visible, so it is where the visit that fills it should start.
             action={

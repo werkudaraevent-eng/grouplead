@@ -16,7 +16,7 @@ import { cn } from "@/lib/utils"
  * link carries it, and on the signed-in calendar it is remembered with the
  * rest of the view. The button reads as "on" while a grouping is active.
  */
-export function DayGroupMenu({ value, hrefFor, list }: { value: CalendarGroup; hrefFor: (group: CalendarGroup) => string; list?: ListKey }) {
+export function DayGroupMenu({ value, hrefs, list }: { value: CalendarGroup; /** The page's URL for each grouping, built on the server: a client component may only receive data. */ hrefs: Record<CalendarGroup, string>; list?: ListKey }) {
   const router = useRouter()
   const active = value !== "none"
   return (
@@ -38,7 +38,7 @@ export function DayGroupMenu({ value, hrefFor, list }: { value: CalendarGroup; h
         <DropdownMenuRadioGroup
           value={value}
           onValueChange={(next) => {
-            const href = hrefFor(next as CalendarGroup)
+            const href = hrefs[next as CalendarGroup]
             if (list) rememberView(list, href.split("?")[1] ?? "")
             router.push(href)
           }}
