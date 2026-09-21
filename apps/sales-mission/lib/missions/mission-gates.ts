@@ -32,6 +32,13 @@ export interface MissionGateInput {
 export interface MissionGates {
   /** Change the details while the visit is still ahead. */
   canEdit: boolean
+  /**
+   * Tidy the descriptive facts of a visit that already happened: the
+   * appointment contact, address, industry, objective. The outcome is
+   * history; the schedule and the team are frozen with it. A cancelled
+   * visit is closed for good.
+   */
+  canEditDetails: boolean
   /** Call it off before it happens. */
   canCancel: boolean
   /** Remove supporting sales, open or close joining, decide reschedule proposals. */
@@ -55,6 +62,7 @@ export function missionGates(input: MissionGateInput): MissionGates {
     (input.isCreator || input.mission.supervises || (input.role === "PRIMARY" && input.primaryCanReschedule))
   return {
     canEdit: open && updateInScope,
+    canEditDetails: input.status !== "CANCELLED" && updateInScope,
     canCancel: open && updateInScope,
     canManageTeam: updateInScope,
     canWriteReport: input.resultCreate && (input.report.owns || input.report.supervises),

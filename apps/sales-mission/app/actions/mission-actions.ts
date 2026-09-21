@@ -626,11 +626,14 @@ export async function updateMission(
 
   const [mission, role, settings] = await Promise.all([getMission(access, missionId), getMissionRole(access, missionId), getMissionSettings(access)])
   if (!mission) return { success: false, error: "Aktivitas tidak ditemukan." }
-  if (mission.status === "COMPLETED" || mission.status === "CANCELLED") {
-    return { success: false, error: "Aktivitas yang sudah selesai atau dibatalkan tidak bisa diubah." }
+  if (mission.status === "CANCELLED") {
+    return { success: false, error: "Aktivitas yang dibatalkan tidak bisa diubah." }
   }
   const gates = await resolveMissionGates(access, mission, role, settings)
-  if (!gates.canEdit) return { success: false, error: describeOutOfScope(gates.missionCtx.scope, "mission") }
+  // A completed visit is history: its facts may still be tidied, but the
+  // schedule and the team are frozen with the outcome.
+  const closed = mission.status === "COMPLETED"
+  if (closed ? !gates.canEditDetails : !gates.canEdit) return { success: false, error: describeOutOfScope(gates.missionCtx.scope, "mission") }
 
   const parsed = readMissionForm(formData)
   if (!parsed.success) {
@@ -683,18 +686,37 @@ export async function updateMission(
     if (empty) return { success: false, error: `${field.label} wajib diisi.` }
   }
 
-  const validIds = assignable.members
-  if (!assignable.leads.has(input.primarySalesId)) {
-    return { success: false, error: "Sales utama harus punya izin Laporan kunjungan → Buat di Role & Izin." }
-  }
-  // Handing the visit to a new sales utama is reaching them: within Cakupan
-  // ubah. Keeping the current one is not a hand-over.
   const currentPrimaryId = team.find((member) => member.role === "PRIMARY")?.userId ?? null
-  if (input.primarySalesId !== currentPrimaryId && !personInScope(gates.missionCtx, input.primarySalesId)) {
-    return { success: false, error: describeAssignReach(gates.missionCtx.scope, "sales utama") }
-  }
-  if (assigneeIds.some((id) => !validIds.has(id))) {
-    return { success: false, error: "Sales yang dipilih bukan anggota grup ini." }
+  const nextStart = toMissionTimestamp(input.date, input.startTime)
+  const nextEnd = input.endTime ? toMissionTimestamp(input.date, input.endTime) : null
+  const sameInstant = (a: string | null, b: string | null) =>
+    (a ? new Date(a).getTime() : null) === (b ? new Date(b).getTime() : null)
+  const scheduleChanged = !sameInstant(mission.scheduledStart, nextStart) || !sameInstant(mission.scheduledEnd, nextEnd)
+  if (closed) {
+    // The team and the slot are part of what happened. They must come back
+    // as they stand, and they are not re-validated against today's members
+    // or grants: someone who has since left the unit stays on a past visit.
+    const teamBefore = new Set(team.map((member) => member.userId))
+    const teamChanged =
+      input.primarySalesId !== currentPrimaryId ||
+      assigneeIds.length !== team.length ||
+      assigneeIds.some((id) => !teamBefore.has(id))
+    if (scheduleChanged || teamChanged) {
+      return { success: false, error: "Kunjungan yang sudah selesai: jadwal dan timnya tidak diubah lagi. Yang bisa dirapikan adalah keterangannya." }
+    }
+  } else {
+    const validIds = assignable.members
+    if (!assignable.leads.has(input.primarySalesId)) {
+      return { success: false, error: "Sales utama harus punya izin Laporan kunjungan → Buat di Role & Izin." }
+    }
+    // Handing the visit to a new sales utama is reaching them: within Cakupan
+    // ubah. Keeping the current one is not a hand-over.
+    if (input.primarySalesId !== currentPrimaryId && !personInScope(gates.missionCtx, input.primarySalesId)) {
+      return { success: false, error: describeAssignReach(gates.missionCtx.scope, "sales utama") }
+    }
+    if (assigneeIds.some((id) => !validIds.has(id))) {
+      return { success: false, error: "Sales yang dipilih bukan anggota grup ini." }
+    }
   }
 
   // Custom answers are validated before anything is written, so a bad
@@ -710,11 +732,6 @@ export async function updateMission(
   // same path Pindahkan jadwal used, so the team is told and, under
   // confirmation, re-asked. Someone who may only propose is refused here;
   // the form did not offer them the picker, so this only guards the endpoint.
-  const nextStart = toMissionTimestamp(input.date, input.startTime)
-  const nextEnd = input.endTime ? toMissionTimestamp(input.date, input.endTime) : null
-  const sameInstant = (a: string | null, b: string | null) =>
-    (a ? new Date(a).getTime() : null) === (b ? new Date(b).getTime() : null)
-  const scheduleChanged = !sameInstant(mission.scheduledStart, nextStart) || !sameInstant(mission.scheduledEnd, nextEnd)
   if (scheduleChanged && gates.scheduleMode !== "move") {
     return { success: false, error: "Jadwal aktivitas ini hanya bisa diusulkan, bukan diubah langsung. Gunakan Usulkan jadwal lain." }
   }

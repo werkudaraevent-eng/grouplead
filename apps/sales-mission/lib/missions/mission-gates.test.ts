@@ -20,6 +20,7 @@ describe("missionGates", () => {
   it("an admin with scope Semua who is not on the team may do everything, directly", () => {
     expect(missionGates({ ...base, mission: boss, report: boss })).toEqual({
       canEdit: true,
+      canEditDetails: true,
       canCancel: true,
       canManageTeam: true,
       canWriteReport: true,
@@ -28,12 +29,13 @@ describe("missionGates", () => {
   })
 
   it("a stranger with Ubah but scope Sendiri is refused everywhere", () => {
-    expect(missionGates(base)).toEqual({ canEdit: false, canCancel: false, canManageTeam: false, canWriteReport: false, scheduleMode: "propose" })
+    expect(missionGates(base)).toEqual({ canEdit: false, canEditDetails: false, canCancel: false, canManageTeam: false, canWriteReport: false, scheduleMode: "propose" })
   })
 
   it("the matrix grant is required even when the record is owned", () => {
     expect(missionGates({ ...base, role: "PRIMARY", mission: owner, report: owner, missionUpdate: false, resultCreate: false })).toEqual({
       canEdit: false,
+      canEditDetails: false,
       canCancel: false,
       canManageTeam: false,
       canWriteReport: false,
@@ -72,5 +74,15 @@ describe("missionGates", () => {
     const gates = missionGates({ ...base, role: "SUPPORTING", mission: none, report: none })
     expect(gates.canEdit).toBe(false)
     expect(gates.canWriteReport).toBe(false)
+  })
+
+  it("a completed visit keeps its facts editable, a cancelled one does not", () => {
+    const done = missionGates({ ...base, status: "COMPLETED", mission: boss, report: boss })
+    expect(done.canEdit).toBe(false)
+    expect(done.canEditDetails).toBe(true)
+    const off = missionGates({ ...base, status: "CANCELLED", mission: boss, report: boss })
+    expect(off.canEdit).toBe(false)
+    expect(off.canEditDetails).toBe(false)
+    expect(missionGates({ ...base, status: "COMPLETED" }).canEditDetails).toBe(false)
   })
 })

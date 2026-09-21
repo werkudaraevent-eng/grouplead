@@ -197,7 +197,10 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
   // module and the Cakupan that says whose missions it reaches. Cancelling
   // and editing stop once the visit is history; managing the team does not.
   const gates = await resolveMissionGates(access, mission, role, settings)
-  const { canCancel, canEdit, canWriteReport, canManageTeam, supervisesReport, isAuthor } = gates
+  const { canCancel, canEdit, canEditDetails, canWriteReport, canManageTeam, supervisesReport, isAuthor } = gates
+  // Ubah stays offered on a completed visit (its facts can be tidied), but it
+  // is never the phone bar's main action there: that bar is for what is next.
+  const offersEdit = canEdit || canEditDetails
   const reportSubmitted = report?.status === "SUBMITTED"
   // The supporting pane exists only when something goes in it, so a wide
   // screen never reserves an empty column beside the prose.
@@ -313,7 +316,7 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
             </Link>
           </Button>
         )}
-        {canEdit && action !== "edit" && action !== "answer" && (
+        {offersEdit && action !== "edit" && action !== "answer" && (
           <Button asChild variant="outline" size="icon" className="h-12 w-12 shrink-0">
             <Link href={paths.activityEdit(missionId)} aria-label="Ubah aktivitas">
               <Pencil className="h-4 w-4" />
@@ -335,7 +338,7 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
       ]
     : []
   const chromeMenu = [
-    canEdit && compactAction !== "edit" ? { label: "Ubah aktivitas", href: paths.activityEdit(missionId) } : null,
+    offersEdit && compactAction !== "edit" ? { label: "Ubah aktivitas", href: paths.activityEdit(missionId) } : null,
     ...calendarItems.map((item) => ({ label: item.label === "Google Calendar" ? "Tambah ke Google Calendar" : "Tambah ke kalender (.ics)", href: item.href })),
     canReadReport ? { label: "Laporan kunjungan", href: paths.activity(missionId, { fokus: "laporan" }) } : null,
     leadPush && leadEngineUrl ? { label: "Buka lead di LeadEngine", href: `${leadEngineUrl}/leads/${leadPush.leadId}` } : null,
@@ -422,7 +425,7 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
                   />
                 )}
                 {/* On a phone the bottom bar and the overflow menu carry Ubah. */}
-                {canEdit && (
+                {offersEdit && (
                   <Button asChild variant="outline" size="sm" className="max-lg:hidden">
                     <Link href={paths.activityEdit(missionId)}>
                       <Pencil className="h-4 w-4" /> Ubah

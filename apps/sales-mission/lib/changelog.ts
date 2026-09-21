@@ -28,6 +28,14 @@ export const CHANGE_KIND_LABELS: Record<ChangeKind, string> = {
 export const CHANGELOG: ChangeEntry[] = [
   {
     date: "2026-09-21",
+    title: "Aktivitas yang sudah selesai masih bisa dirapikan keterangannya",
+    items: [
+      { kind: "lebih-baik", text: "Setelah laporan dikirim, Ubah aktivitas tetap tersedia untuk merapikan keterangan kunjungan: nama, jabatan, dan nomor kontak janji temu, alamat, industri, tujuan, dan isian tambahan. Tidak perlu lagi menarik laporan hanya untuk membetulkan nama." },
+      { kind: "lebih-baik", text: "Yang tetap dibekukan pada kunjungan yang sudah selesai: jadwal dan tim, karena keduanya bagian dari apa yang terjadi. Formulir menampilkannya apa adanya tanpa bisa diubah. Aktivitas yang dibatalkan tetap tidak bisa diubah. Siapa yang benar-benar ditemui tetap diubah lewat Ubah laporan → Ketemu siapa." },
+    ],
+  },
+  {
+    date: "2026-09-21",
     title: "Daftar Laporan: klik barisnya, seperti di Aktivitas dan Prospek",
     items: [
       { kind: "lebih-baik", text: "Baris di daftar Laporan kini membuka laporannya dengan sekali klik di mana saja pada baris itu, sama seperti Aktivitas dan Prospek. Tombol Lihat dan panah di ujung baris dihapus karena keduanya membuka halaman yang sama; Ctrl/Cmd+klik atau klik pada nama tetap membuka di tab baru." },
