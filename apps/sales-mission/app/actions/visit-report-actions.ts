@@ -898,3 +898,28 @@ export async function requestReportClarification(missionId: string, note: string
   revalidatePath(paths.activity(missionId))
   return { success: true }
 }
+
+/**
+ * The share sheet completed: remember that this report reached WhatsApp,
+ * and by whom. Anyone who could read the report could share it, so the
+ * gate is read access; RLS scopes the write to the unit. The offer on the
+ * report ends here, and the list can say "dibagikan".
+ */
+export async function markReportShared(missionId: string): Promise<ActionResult> {
+  const access = await getSalesMissionAccess()
+  if (!access) return { success: false, error: NO_ACCESS_MESSAGE }
+  if (!(await canPerform(access, "sales_mission_result", "read"))) return { success: false, error: NO_ACCESS_MESSAGE }
+
+  const supabase = await createClient()
+  const { error } = await supabase
+    .schema("sales_mission")
+    .from("visit_reports")
+    .update({ whatsapp_shared_at: new Date().toISOString(), whatsapp_shared_by: access.userId })
+    .eq("company_id", access.companyId)
+    .eq("mission_id", missionId)
+    .eq("status", "SUBMITTED")
+  if (error) return { success: false, error: "Tanda dibagikan gagal disimpan." }
+
+  revalidatePath(paths.activity(missionId))
+  return { success: true }
+}

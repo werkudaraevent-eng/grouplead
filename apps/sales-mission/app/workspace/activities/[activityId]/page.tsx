@@ -1,6 +1,6 @@
 import Link from "next/link"
 import { notFound, redirect } from "next/navigation"
-import { AlertCircle, Ban, Building2, CalendarDays, ClipboardList, ExternalLink, History, Mail, MapPin, Pencil, Phone, RotateCcw, UsersRound } from "@/components/icons"
+import { AlertCircle, Ban, Building2, CalendarDays, ClipboardList, ExternalLink, History, Mail, MapPin, Pencil, Phone, RotateCcw, Share, UsersRound } from "@/components/icons"
 import { canEditSubmittedReport, describeEditWindow } from "@/lib/missions/report-edit"
 import { listReportChoices } from "@/lib/missions/report-choice-queries"
 import { labelOf } from "@/lib/missions/report-choices"
@@ -11,6 +11,7 @@ import { AudioList } from "@/components/audio-list"
 import { parseAudioAnswer } from "@/lib/audio/audio-answer"
 import { isAttachmentType } from "@/lib/missions/form-fields"
 import { ReportActions } from "./report-actions"
+import { ShareOfferBar, ShareOfferCard, type ShareOffer } from "./share-offer"
 import { renderReportShare, reportShareValues } from "@/lib/missions/report-share"
 import { signPhotoUrls } from "@/lib/photos/photo-storage"
 import { canPerform, getSalesMissionAccess } from "@/lib/sales-mission-access"
@@ -233,7 +234,7 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
   // Not before the visit: under the tenant's rule the report opens at the
   // start of the scheduled day, and until then the button is a date.
   const reportLock = settings.reportAfterVisitOnly && !report ? reportLocked(mission.scheduledStart, new Date()) : null
-  const compactAction: "answer" | "report" | "join" | "edit" | null = isCancelled
+  const baseAction: "answer" | "report" | "join" | "edit" | null = isCancelled
     ? null
     : askedToConfirm
       ? "answer"
@@ -244,6 +245,51 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
           : canEdit
             ? "edit"
             : null
+  // Right after sending, the author's next step is the share: a success card
+  // on the report and the bottom bar's one button, until it is shared or
+  // put off. The unit can turn the offer off; the header button stays.
+  const shareOffer: ShareOffer | null =
+    share && report && isAuthor && settings.reportSharePrompt && !report.whatsappSharedAt && !isCancelled
+      ? { missionId, text: share.text, photo: firstPhoto && sharePhotoUrl ? { url: sharePhotoUrl, name: firstPhoto.name } : null }
+      : null
+  const compactAction: "answer" | "report" | "join" | "edit" | "share" | null =
+    shareOffer && baseAction !== "answer" && baseAction !== "report" ? "share" : baseAction
+  /** The phone's bottom bar for one next step; the share offer has its own bar. */
+  const bar = (action: "answer" | "report" | "join" | "edit") => (
+      <div className="flex items-center gap-2">
+        {action === "answer" && (
+          <>
+            <AssignmentOverflowMenu missionId={missionId} />
+            <AcceptAssignmentButton missionId={missionId} size="default" className="h-12 flex-1" />
+          </>
+        )}
+        {action === "report" && (
+          <Button asChild className="h-12 flex-1">
+            <Link href={paths.activityReport(missionId)}>
+              <ClipboardList className="h-4 w-4" /> {report ? "Lanjutkan laporan" : "Isi laporan kunjungan"}
+            </Link>
+          </Button>
+        )}
+        {action === "join" && (
+          <JoinButton missionId={missionId} status={joinStatus} maxSupporting={settings.maxSupporting} clientName={mission.clientCompanyName} emphasis="filled" size="default" className="h-12 flex-1" />
+        )}
+        {action === "edit" && (
+          <Button asChild variant="outline" className="h-12 flex-1">
+            <Link href={paths.activityEdit(missionId)}>
+              <Pencil className="h-4 w-4" /> Ubah aktivitas
+            </Link>
+          </Button>
+        )}
+        {canEdit && action !== "edit" && action !== "answer" && (
+          <Button asChild variant="outline" size="icon" className="h-12 w-12 shrink-0">
+            <Link href={paths.activityEdit(missionId)} aria-label="Ubah aktivitas">
+              <Pencil className="h-4 w-4" />
+            </Link>
+          </Button>
+        )}
+      </div>
+  )
+
   // "Tambah ke kalender": Google's template link opens a pre-filled event;
   // the .ics is for the iPhone Calendar and Outlook. Only a scheduled,
   // uncancelled visit has anything to add.
@@ -605,6 +651,12 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
           </p>
         ) : report ? (
           <div className="space-y-5 px-5 py-5">
+            {shareOffer && <ShareOfferCard offer={shareOffer} />}
+            {report.whatsappSharedAt && (
+              <p className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+                <Share className="h-3.5 w-3.5" /> Dibagikan ke WhatsApp{report.whatsappSharedByName ? ` oleh ${report.whatsappSharedByName}` : ""} · {stamp(report.whatsappSharedAt)}
+              </p>
+            )}
             {report.status === "NEEDS_CLARIFICATION" && report.clarificationNote && (
               <div className="flex items-start gap-2.5 rounded-xl border border-[var(--warning-foreground)]/20 bg-[var(--warning)] px-4 py-3 text-sm text-[var(--warning-foreground)]">
                 <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
@@ -813,42 +865,11 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
       </article>
       </section>
 
-      {compactAction && (
-        <FormActionBar until="lg">
-          <div className="flex items-center gap-2">
-            {compactAction === "answer" && (
-              <>
-                <AssignmentOverflowMenu missionId={missionId} />
-                <AcceptAssignmentButton missionId={missionId} size="default" className="h-12 flex-1" />
-              </>
-            )}
-            {compactAction === "report" && (
-              <Button asChild className="h-12 flex-1">
-                <Link href={paths.activityReport(missionId)}>
-                  <ClipboardList className="h-4 w-4" /> {report ? "Lanjutkan laporan" : "Isi laporan kunjungan"}
-                </Link>
-              </Button>
-            )}
-            {compactAction === "join" && (
-              <JoinButton missionId={missionId} status={joinStatus} maxSupporting={settings.maxSupporting} clientName={mission.clientCompanyName} emphasis="filled" size="default" className="h-12 flex-1" />
-            )}
-            {compactAction === "edit" && (
-              <Button asChild variant="outline" className="h-12 flex-1">
-                <Link href={paths.activityEdit(missionId)}>
-                  <Pencil className="h-4 w-4" /> Ubah aktivitas
-                </Link>
-              </Button>
-            )}
-            {canEdit && compactAction !== "edit" && compactAction !== "answer" && (
-              <Button asChild variant="outline" size="icon" className="h-12 w-12 shrink-0">
-                <Link href={paths.activityEdit(missionId)} aria-label="Ubah aktivitas">
-                  <Pencil className="h-4 w-4" />
-                </Link>
-              </Button>
-            )}
-          </div>
-        </FormActionBar>
-      )}
+      {compactAction === "share" && shareOffer ? (
+        <ShareOfferBar offer={shareOffer} fallback={baseAction ? <FormActionBar until="lg">{bar(baseAction)}</FormActionBar> : null} />
+      ) : compactAction && compactAction !== "share" ? (
+        <FormActionBar until="lg">{bar(compactAction)}</FormActionBar>
+      ) : null}
     </WorkspacePage>
   )
 }

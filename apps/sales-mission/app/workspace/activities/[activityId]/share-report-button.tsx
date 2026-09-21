@@ -1,9 +1,12 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
+import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { Loader2, Share } from "@/components/icons"
+import { markReportShared } from "@/app/actions/visit-report-actions"
 import { Button } from "@/components/ui/button"
+import { cn } from "@/lib/utils"
 
 /**
  * "Bagikan ke WhatsApp" on a sent report.
@@ -15,10 +18,32 @@ import { Button } from "@/components/ui/button"
  * would spend it. Where there is no share sheet (a desk browser), the text
  * is copied and WhatsApp's share URL opened with it; a photo cannot ride
  * along that way, and the toast says so.
+ *
+ * A completed share (the sheet resolved) is recorded on the report, so the
+ * offer after sending ends and the team can see the report reached the
+ * group. The desk path cannot know whether anything was sent, so it records
+ * nothing.
  */
-export function ShareReportButton({ text, photo }: { text: string; photo: { url: string; name: string } | null }) {
+export function ShareReportButton({
+  missionId,
+  text,
+  photo,
+  variant = "outline",
+  size = "sm",
+  className,
+  onShared,
+}: {
+  missionId: string
+  text: string
+  photo: { url: string; name: string } | null
+  variant?: "outline" | "default"
+  size?: "sm" | "default"
+  className?: string
+  onShared?: () => void
+}) {
   const [busy, setBusy] = useState(false)
   const file = useRef<File | null>(null)
+  const router = useRouter()
 
   useEffect(() => {
     file.current = null
@@ -46,6 +71,11 @@ export function ShareReportButton({ text, photo }: { text: string; photo: { url:
         const data: ShareData = file.current ? { text, files: [file.current] } : { text }
         try {
           await navigator.share(data)
+          const result = await markReportShared(missionId)
+          if (result.success) {
+            onShared?.()
+            router.refresh()
+          }
           return
         } catch (error) {
           if ((error as Error).name === "AbortError") return
@@ -65,7 +95,7 @@ export function ShareReportButton({ text, photo }: { text: string; photo: { url:
   }
 
   return (
-    <Button variant="outline" size="sm" onClick={share} disabled={busy}>
+    <Button variant={variant} size={size} className={cn(className)} onClick={share} disabled={busy}>
       {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Share className="h-4 w-4" />} Bagikan ke WhatsApp
     </Button>
   )

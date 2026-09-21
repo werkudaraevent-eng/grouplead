@@ -286,6 +286,15 @@ export function MissionSettingsForm({ initial, companyName }: { initial: Mission
           <h2 className="text-base font-semibold text-foreground">Laporan kunjungan</h2>
           <p className="mt-0.5 text-sm text-muted-foreground">Apa yang dibagikan ke grup WhatsApp setelah laporan dikirim.</p>
         </header>
+        <div className="border-b">
+          <SwitchRow
+            id="report-share-prompt"
+            label="Tawarkan Bagikan ke WhatsApp setelah laporan dikirim"
+            hint="Begitu laporan terkirim, penulisnya melihat kartu “Laporan terkirim” dengan tombol Bagikan ke WhatsApp, dan di ponsel tombol itu jadi langkah berikutnya di bilah bawah, sampai dibagikan atau ditunda. Mati: tombol Bagikan tetap ada di kartu laporan, tanpa tawaran."
+            checked={form.reportSharePrompt}
+            onChange={(next) => setForm({ ...form, reportSharePrompt: next })}
+          />
+        </div>
         <div className="space-y-3 px-5 py-4">
           <div>
             <Label htmlFor="report-share-template" className="text-sm font-semibold text-foreground">Format Bagikan ke WhatsApp</Label>
