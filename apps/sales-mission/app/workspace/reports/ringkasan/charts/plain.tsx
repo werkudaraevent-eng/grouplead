@@ -160,8 +160,11 @@ function BarRow({ row, max, unit, href, linked }: { row: ListRow; max: number; u
 }
 
 export function NumberTile({ value, unit, hint, spark }: { value: number; unit: "count" | "currency"; hint?: string; spark?: number[] }) {
+  // The value sits right under the title, the way a scorecard reads (GA4,
+  // Looker Studio, Metabase, Grafana Stat); a taller card leaves the room
+  // below, never a gap above the number.
   return (
-    <div className="flex h-full flex-col justify-end">
+    <div className="flex h-full flex-col justify-start">
       <p className="text-3xl font-semibold tracking-tight text-foreground tabular-nums @[200px]:text-4xl">{formatValue(value, unit)}</p>
       {hint && <p className="mt-1 text-xs text-muted-foreground">{hint}</p>}
       {spark && spark.length > 1 && <Sparkline values={spark} />}

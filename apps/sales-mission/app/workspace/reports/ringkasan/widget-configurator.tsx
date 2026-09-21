@@ -19,6 +19,8 @@ import {
   SIZE_LABELS,
   WIDGET_SIZES,
   chartsFor,
+  minSizeFor,
+  sizeFits,
   defaultTitle,
   groupsFor,
   listDrill,
@@ -206,7 +208,16 @@ export function WidgetConfigurator({
             <Label className={labelClass}>Bentuk</Label>
             <ChipRow>
               {charts.map((chart) => (
-                <ChoiceChip key={chart} selected={draft.chart === chart} onClick={() => setDraft({ ...draft, chart })}>
+                <ChoiceChip
+                  key={chart}
+                  selected={draft.chart === chart}
+                  // One number wants the compact card; a shape that needs room leaves it.
+                  onClick={() => {
+                    const numberShape = chart === "number" || chart === "trend"
+                    const wasNumber = draft.chart === "number" || draft.chart === "trend"
+                    setDraft({ ...draft, chart, size: numberShape && !wasNumber ? "compact" : !numberShape && draft.size === "compact" ? "wide" : draft.size })
+                  }}
+                >
                   {CHART_LABELS[chart]}
                 </ChoiceChip>
               ))}
@@ -222,7 +233,7 @@ export function WidgetConfigurator({
             <Label className={labelClass}>Ukuran kartu</Label>
             <ChipRow>
               {WIDGET_SIZES.map((size) => (
-                <ChoiceChip key={size} selected={draft.size === size} onClick={() => setDraft({ ...draft, size })}>
+                <ChoiceChip key={size} selected={draft.size === size} disabled={!sizeFits(size, minSizeFor(candidate))} onClick={() => setDraft({ ...draft, size })}>
                   {SIZE_LABELS[size]}
                 </ChoiceChip>
               ))}

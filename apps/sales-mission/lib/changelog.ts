@@ -28,6 +28,15 @@ export const CHANGE_KIND_LABELS: Record<ChangeKind, string> = {
 export const CHANGELOG: ChangeEntry[] = [
   {
     date: "2026-09-21",
+    title: "Ringkasan: kartu angka lebih ringkas, dan cara mengubah ukurannya terlihat",
+    items: [
+      { kind: "lebih-baik", text: "Kartu angka (Laporan, Peluang, Nilai estimasi, Lead ke CRM) menaruh angkanya tepat di bawah judul, bukan di dasar kartu, dan saat ditambahkan langsung berukuran Ringkas: seperempat lebar, setinggi sekitar setengah kartu Kecil." },
+      { kind: "baru", text: "Ukuran cepat di menu ⋮ kartu punya pilihan Ringkas untuk kartu yang muat: angka, angka bertren, donat, dan daftar batang. Pilihan yang tidak muat untuk bentuk kartu itu dinonaktifkan, di menu maupun di formulir widget sendiri." },
+      { kind: "diperbaiki", text: "Saat Atur widget aktif, pegangan ubah ukuran di sudut kanan bawah setiap kartu selalu terlihat, tidak lagi menunggu kursor lewat, dan ada satu kalimat petunjuk di atas papan: seret judul untuk memindah, seret sudut untuk mengubah ukuran. Kartu angka polos bisa diperpendek sampai tiga baris." },
+    ],
+  },
+  {
+    date: "2026-09-21",
     title: "Aktivitas yang sudah selesai masih bisa dirapikan keterangannya",
     items: [
       { kind: "lebih-baik", text: "Setelah laporan dikirim, Ubah aktivitas tetap tersedia untuk merapikan keterangan kunjungan: nama, jabatan, dan nomor kontak janji temu, alamat, industri, tujuan, dan isian tambahan. Tidak perlu lagi menarik laporan hanya untuk membetulkan nama." },

@@ -473,6 +473,10 @@ html.sidebar-dark-mode {
   height: 28px;
   cursor: nwse-resize;
 }
+/* While arranging, the handle is an affordance, not a hover secret: a touch screen has no hover. */
+.dashboard-grid.editing .react-grid-item > .react-resizable-handle {
+  opacity: 1;
+}
 .dashboard-grid .react-grid-item > .react-resizable-handle::after {
   right: 7px;
   bottom: 7px;
