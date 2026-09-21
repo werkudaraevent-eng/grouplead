@@ -50,9 +50,18 @@ export interface BoardTeamNext {
   isToday: boolean
 }
 
+/** The visit a person is in at `now`: started, not over, not yet marked done. */
+export interface BoardTeamNow {
+  time: string
+  client: string
+  location: string | null
+}
+
 export interface BoardTeamMember {
   name: string
   missionCount: number
+  /** Where the person is right now, or null when between visits. */
+  now: BoardTeamNow | null
   /** The member's next visit at or after `now`, or null once their day (or week) is done. */
   next: BoardTeamNext | null
 }
@@ -248,19 +257,26 @@ export function buildBoardSnapshot(
     if (days.length > 7) break
   }
 
-  // Who is out, busiest first. Counts every role: a supporting sales is out
-  // of the office just as much as the primary. "Next" is their first visit
-  // that has not started yet, so the panel reads as where everyone is headed.
+  // Who is out, and where. Counts every role: a supporting sales is out of
+  // the office just as much as the primary. "Now" is the visit a person is
+  // in at this minute; "next" is their first visit that has not started yet.
+  // The order answers the office's question in that order: who is with a
+  // client right now, then who is about to be, then who is done.
   const nowMinute = minuteOfDay(now)
   const counts = new Map<string, number>()
+  const current = new Map<string, BoardTeamNow>()
   const next = new Map<string, BoardTeamNext>()
   for (const mission of boardMissions) {
     const people = [mission.primarySalesName, ...mission.supportingSalesNames].filter(
       (name): name is string => Boolean(name)
     )
     const upcoming = mission.day > today || (mission.day === today && mission.startMinute >= nowMinute)
+    const ongoing = mission.day === today && mission.startMinute <= nowMinute && nowMinute < mission.endMinute && mission.status !== "COMPLETED"
     for (const name of new Set(people)) {
       counts.set(name, (counts.get(name) ?? 0) + 1)
+      if (ongoing && !current.has(name) && mission.time) {
+        current.set(name, { time: mission.time, client: mission.clientLabel, location: mission.location })
+      }
       if (upcoming && !next.has(name) && mission.time) {
         next.set(name, {
           day: range === "week" && mission.day !== today ? dayLabel(mission.day) : null,
@@ -272,9 +288,19 @@ export function buildBoardSnapshot(
     }
   }
 
-  const team = [...counts.entries()]
-    .map(([name, missionCount]) => ({ name, missionCount, next: next.get(name) ?? null }))
-    .sort((a, b) => b.missionCount - a.missionCount || a.name.localeCompare(b.name))
+  const rank = (member: BoardTeamMember) => (member.now ? 0 : member.next ? 1 : 2)
+  const team: BoardTeamMember[] = [...counts.entries()]
+    .map(([name, missionCount]) => ({ name, missionCount, now: current.get(name) ?? null, next: next.get(name) ?? null }))
+    .sort((a, b) => {
+      const byState = rank(a) - rank(b)
+      if (byState !== 0) return byState
+      if (a.now && b.now) return a.now.time.localeCompare(b.now.time) || a.name.localeCompare(b.name)
+      if (a.next && b.next) {
+        const today = Number(b.next.isToday) - Number(a.next.isToday)
+        return today || a.next.time.localeCompare(b.next.time) || a.name.localeCompare(b.name)
+      }
+      return b.missionCount - a.missionCount || a.name.localeCompare(b.name)
+    })
 
   return {
     today,
