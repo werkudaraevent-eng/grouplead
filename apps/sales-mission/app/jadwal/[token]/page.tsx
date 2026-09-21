@@ -2,7 +2,7 @@ import type { Metadata } from "next"
 import { resolveBoardToken } from "@/lib/board/board-access"
 import { listBoardPeople, listMissionsForCompany } from "@/lib/board/board-queries"
 import { parsePublicView, publicCalendarHref, publicCalendarMissions } from "@/lib/board/public-calendar"
-import { calendarFacetValues, type CalendarGroup } from "@/lib/missions/calendar-filter"
+import { CALENDAR_GROUPS, calendarFacetValues, type CalendarGroup } from "@/lib/missions/calendar-filter"
 import { hasServiceClientConfig } from "@/utils/supabase/service"
 import { MISSION_TIME_ZONE } from "@/lib/missions/mission-schema"
 import {
@@ -87,6 +87,8 @@ export default async function PublicSchedulePage({
   const requestedDay = query.day && query.day.startsWith(month) ? query.day : null
   const selectedDay = requestedDay ?? (today.startsWith(month) ? today : `${month}-01`)
   const dayMissions = missionsOnDay(missions, selectedDay)
+  // Built here: the grouping menu is a client component and may only be handed data, never a function.
+  const groupHrefs = Object.fromEntries(CALENDAR_GROUPS.map((group) => [group, publicCalendarHref(token, { month, day: selectedDay, ...view, group })])) as Record<CalendarGroup, string>
 
   const dayLabel = new Intl.DateTimeFormat("id-ID", {
     timeZone: MISSION_TIME_ZONE,
@@ -95,8 +97,7 @@ export default async function PublicSchedulePage({
     month: "long",
   }).format(new Date(`${selectedDay}T00:00:00+07:00`))
 
-  const href = (next: { month: string; day?: string | null; group?: CalendarGroup }) =>
-    publicCalendarHref(token, { month: next.month, day: next.day, ...view, ...(next.group ? { group: next.group } : {}) })
+  const href = (next: { month: string; day?: string | null }) => publicCalendarHref(token, { month: next.month, day: next.day, ...view })
 
   return (
     <PublicShell label={resolved.label}>
@@ -136,7 +137,7 @@ export default async function PublicSchedulePage({
             now={now}
             people={people}
             group={view.group}
-            tools={<DayGroupMenu value={view.group} hrefFor={(group) => href({ month, day: selectedDay, group })} />}
+            tools={<DayGroupMenu value={view.group} hrefs={groupHrefs} />}
           />
         </section>
       </div>

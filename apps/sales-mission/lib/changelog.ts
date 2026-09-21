@@ -28,6 +28,13 @@ export const CHANGE_KIND_LABELS: Record<ChangeKind, string> = {
 export const CHANGELOG: ChangeEntry[] = [
   {
     date: "2026-09-21",
+    title: "Kalender bisa dibuka lagi",
+    items: [
+      { kind: "diperbaiki", text: "Halaman Kalender dan Jadwal tim gagal dimuat sesaat setelah pembaruan pengelompokan; tombol kelompokkan menerima data yang tidak boleh dikirim ke komponen klien. Sudah diperbaiki." },
+    ],
+  },
+  {
+    date: "2026-09-21",
     title: "Jawaban Tanya AI rapi, Pemakaian AI di halaman sendiri",
     items: [
       { kind: "diperbaiki", text: "Jawaban Tanya AI tidak lagi memperlihatkan tanda ** mentah: bagian yang ditebalkan model tampil tebal, daftar tampil sebagai daftar. Poin Insight hari ini juga dibersihkan dari tanda itu." },
