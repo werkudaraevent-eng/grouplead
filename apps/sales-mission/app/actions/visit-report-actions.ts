@@ -31,6 +31,7 @@ import {
   type VisitReportDraft,
 } from "@/lib/missions/visit-report-schema"
 import { listFormFields } from "@/lib/missions/form-field-queries"
+import { cancelReportFollowUps, syncReportFollowUp } from "@/lib/missions/follow-up-sync"
 import { getReportOptions } from "@/lib/missions/report-options"
 import { isAllowedChoice, isAttachmentType, validateFieldAnswers, type FieldAnswer, type FormField } from "@/lib/missions/form-fields"
 import type { ActionResult } from "@/types/action-result"
@@ -523,6 +524,19 @@ export async function submitVisitReport(
   if (contactError) return { success: false, error: "Kontak gagal disimpan." }
   await replaceCustomValues(missions, reportId, access.companyId, fields, parsed.data.custom)
 
+  // The next action written here becomes the follow-up the office works
+  // from; an edit moves the report's own follow-up while it is still open.
+  if (rules.followUpEnabled) {
+    await syncReportFollowUp(access, {
+      missionId,
+      reportId,
+      nextActionType: parsed.data.nextActionType,
+      ownerId: parsed.data.nextActionOwner ?? null,
+      dueDate: parsed.data.followUpDate ?? null,
+      clientName: guard.mission.clientCompanyName,
+    })
+  }
+
   // The visit is done and recorded; move the mission on. An edit changes
   // the record, not the fact that the visit happened, so it leaves the
   // mission, its history and the team's inbox alone.
@@ -813,6 +827,8 @@ export async function withdrawVisitReport(missionId: string, reason: string): Pr
     .eq("id", reportId)
     .eq("company_id", access.companyId)
   if (error) return { success: false, error: "Laporan gagal ditarik kembali." }
+  // Its open follow-ups go with it; whatever was already done stays as history.
+  await cancelReportFollowUps(access, reportId, "Laporan ditarik kembali")
 
   // The mission goes back to where the send took it from.
   const { data: history } = await missions

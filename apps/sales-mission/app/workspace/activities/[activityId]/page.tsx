@@ -12,6 +12,10 @@ import { parseAudioAnswer } from "@/lib/audio/audio-answer"
 import { isAttachmentType } from "@/lib/missions/form-fields"
 import { ReportActions } from "./report-actions"
 import { ShareOfferBar, ShareOfferCard, type ShareOffer } from "./share-offer"
+import { DeskShareNotice } from "./desk-share-notice"
+import { FollowUpPanel } from "./follow-up-panel"
+import { listMissionFollowUps } from "@/lib/missions/follow-up-queries"
+import { choicesFor, kindOf } from "@/lib/missions/report-choices"
 import { renderReportShare, reportShareValues } from "@/lib/missions/report-share"
 import { signPhotoUrls } from "@/lib/photos/photo-storage"
 import { canPerform, getSalesMissionAccess } from "@/lib/sales-mission-access"
@@ -152,6 +156,8 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
   ])
   const reportFields = report ? await listFormFields(access, "visit_report") : []
   const choices = report ? await listReportChoices(access) : null
+  // The follow-ups this visit spawned, when the unit tracks them.
+  const followUps = report && settings.followUpEnabled ? await listMissionFollowUps(access, missionId, choices) : []
   const customAnswers = report
     ? reportFields
         .filter((field) => (!field.isCore || field.fieldType === "PHOTO") && field.isActive)
@@ -164,6 +170,10 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
   const photoAnswers = customAnswers.filter(({ field }) => field.fieldType === "PHOTO").map(({ field, value }) => ({ key: field.reportingKey, photos: parsePhotoAnswer(value) }))
   const firstPhoto = share?.withPhoto ? (photoAnswers.find((item) => item.key === "visit_photos" && item.photos.length > 0) ?? photoAnswers.find((item) => item.photos.length > 0))?.photos[0] ?? null : null
   const sharePhotoUrl = firstPhoto ? ((await signPhotoUrls(access, [firstPhoto.path])).get(firstPhoto.path) ?? null) : null
+  // The photo travels under a name that says what it is, not the camera's number.
+  const sharePhotoName = firstPhoto
+    ? `${mission.clientCompanyName.normalize("NFKD").replace(/[^\w\s-]/g, "").trim().replace(/\s+/g, "-").slice(0, 60) || "kunjungan"}-${mission.scheduledStart ? missionDayKey(new Date(mission.scheduledStart)) : "laporan"}.${(firstPhoto.name.split(".").pop() || "jpg").toLowerCase()}`
+    : null
   const stamp = (iso: string) =>
     new Intl.DateTimeFormat("id-ID", { timeZone: MISSION_TIME_ZONE, weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }).format(new Date(iso))
   const leadEngineUrl = process.env.NEXT_PUBLIC_LEADENGINE_URL?.trim() || null
@@ -250,7 +260,7 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
   // put off. The unit can turn the offer off; the header button stays.
   const shareOffer: ShareOffer | null =
     share && report && isAuthor && settings.reportSharePrompt && !report.whatsappSharedAt && !isCancelled
-      ? { missionId, text: share.text, photo: firstPhoto && sharePhotoUrl ? { url: sharePhotoUrl, name: firstPhoto.name } : null }
+      ? { missionId, text: share.text, photo: firstPhoto && sharePhotoUrl && sharePhotoName ? { url: sharePhotoUrl, name: sharePhotoName } : null }
       : null
   const compactAction: "answer" | "report" | "join" | "edit" | "share" | null =
     shareOffer && baseAction !== "answer" && baseAction !== "report" ? "share" : baseAction
@@ -637,7 +647,7 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
               missionId={missionId}
               authorName={primaryName}
               leadPushed={Boolean(leadPush)}
-              share={share ? { text: share.text, photo: firstPhoto && sharePhotoUrl ? { url: sharePhotoUrl, name: firstPhoto.name } : null } : null}
+              share={share ? { text: share.text, photo: firstPhoto && sharePhotoUrl && sharePhotoName ? { url: sharePhotoUrl, name: sharePhotoName } : null } : null}
               editHref={reportSubmitted && editVerdict?.allowed && !isCancelled ? paths.activityReport(missionId, { edit: true }) : null}
               canClarify={reportSubmitted && supervisesReport && !isAuthor && !isCancelled}
               canWithdraw={reportSubmitted && Boolean(editVerdict?.allowed) && !isCancelled}
@@ -651,6 +661,7 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
           </p>
         ) : report ? (
           <div className="space-y-5 px-5 py-5">
+            {share && <DeskShareNotice />}
             {shareOffer && <ShareOfferCard offer={shareOffer} />}
             {report.whatsappSharedAt && (
               <p className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
@@ -696,9 +707,30 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
                 />
               )}
               <ReportField label="Tingkat minat" value={report.interestLevel ? labelOf(choices, "interest_level", report.interestLevel) : "—"} />
-              <ReportField label="Next action" value={labelOf(choices, "next_action_type", report.nextActionType)} />
-              <ReportField label="Follow-up" value={report.followUpDate ?? "—"} />
+              {!settings.followUpEnabled && (
+                <>
+                  <ReportField label="Next action" value={labelOf(choices, "next_action_type", report.nextActionType)} />
+                  <ReportField label="Follow-up" value={report.followUpDate ?? "—"} />
+                </>
+              )}
             </div>
+
+            {/* The next action as a task that lives: the chain, the open one to log, the next step. */}
+            {settings.followUpEnabled && reportSubmitted && (
+              <FollowUpPanel
+                missionId={missionId}
+                followUps={followUps}
+                channels={choicesFor(choices, "follow_up_channel").map((choice) => ({ code: choice.code, label: choice.label, kind: choice.kind }))}
+                outcomes={choicesFor(choices, "follow_up_outcome").map((choice) => ({ code: choice.code, label: choice.label, kind: choice.kind }))}
+                actionTypes={choicesFor(choices, "next_action_type")
+                  .filter((choice) => kindOf(choices, "next_action_type", choice.code) !== "none")
+                  .map((choice) => ({ code: choice.code, label: choice.label, kind: choice.kind }))}
+                people={salesOptions.map((person) => ({ id: person.id, name: person.name }))}
+                viewerId={access.userId}
+                canManage={isAuthor || supervisesReport}
+                today={missionDayKey(new Date())}
+              />
+            )}
 
             {report.meetingSummary && (
               <div>

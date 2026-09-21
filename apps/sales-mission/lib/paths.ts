@@ -67,6 +67,7 @@ export const paths = {
     ai: "/workspace/settings/ai",
     aiUsage: "/workspace/settings/ai/pemakaian",
     board: "/workspace/settings/board",
+    followUp: "/workspace/settings/follow-up",
     history: "/workspace/settings/history",
   },
 } as const

@@ -202,6 +202,8 @@ export interface MissionSettings {
   reportShareTemplate: string | null
   /** Offer the WhatsApp share to the author right after sending. The button on the report stays either way. */
   reportSharePrompt: boolean
+  /** Track the report's next action as a follow-up task (Hari ini, the report card, the list). */
+  followUpEnabled: boolean
   /** Whether the report offers DISC chips on each contact met. Off until the unit trained on it. */
   contactDiscEnabled: boolean
   /** Whether the AI writes a daily insight for the unit (Ringkasan). */
@@ -226,7 +228,7 @@ export async function getMissionSettings(access: SalesMissionAccess): Promise<Mi
   const { data } = await supabase
     .schema("sales_mission")
     .from("mission_settings")
-    .select("conflict_check_enabled, default_travel_buffer_minutes, allow_same_location_back_to_back, max_supporting_per_mission, require_assignment_confirmation, primary_can_reschedule, report_edit_window_days, report_after_visit_only, whatsapp_greeting, contact_disc_enabled, ai_insights_enabled, ai_insights_hour, ai_ask_enabled, report_share_template, report_share_prompt")
+    .select("conflict_check_enabled, default_travel_buffer_minutes, allow_same_location_back_to_back, max_supporting_per_mission, require_assignment_confirmation, primary_can_reschedule, report_edit_window_days, report_after_visit_only, whatsapp_greeting, contact_disc_enabled, ai_insights_enabled, ai_insights_hour, ai_ask_enabled, report_share_template, report_share_prompt, follow_up_enabled")
     .eq("company_id", access.companyId)
     .maybeSingle()
 
@@ -242,6 +244,7 @@ export async function getMissionSettings(access: SalesMissionAccess): Promise<Mi
     whatsappGreeting: (data?.whatsapp_greeting as string | null | undefined)?.trim() || null,
     reportShareTemplate: (data?.report_share_template as string | null | undefined)?.trim() || null,
     reportSharePrompt: data?.report_share_prompt ?? true,
+    followUpEnabled: data?.follow_up_enabled ?? true,
     contactDiscEnabled: Boolean(data?.contact_disc_enabled),
     aiInsightsEnabled: Boolean(data?.ai_insights_enabled),
     aiInsightsHour: typeof data?.ai_insights_hour === "number" ? data.ai_insights_hour : 6,

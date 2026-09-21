@@ -10,23 +10,31 @@
  * the same rules.
  */
 
-export const CHOICE_FIELDS = ["visit_outcome", "interest_level", "next_action_type"] as const
+export const CHOICE_FIELDS = ["visit_outcome", "interest_level", "next_action_type", "follow_up_channel", "follow_up_outcome"] as const
 export type ChoiceField = (typeof CHOICE_FIELDS)[number]
 
 export const OUTCOME_KINDS = ["met_decision_maker", "met_staff", "rescheduled", "absent", "cancelled"] as const
 export const INTEREST_KINDS = ["hql", "hot", "warm", "cold", "none"] as const
 export const NEXT_ACTION_KINDS = ["action", "none"] as const
+/** How a follow-up was done. No behaviour hangs on these yet; the kind keeps the list honest for later. */
+export const FOLLOW_UP_CHANNEL_KINDS = ["in_person", "call", "message", "email", "other"] as const
+/** How a follow-up went: "dropped" is the one the code acts on, it expects no next step. */
+export const FOLLOW_UP_OUTCOME_KINDS = ["advanced", "no_change", "not_reached", "dropped"] as const
 
 export const KINDS_BY_FIELD: Record<ChoiceField, readonly string[]> = {
   visit_outcome: OUTCOME_KINDS,
   interest_level: INTEREST_KINDS,
   next_action_type: NEXT_ACTION_KINDS,
+  follow_up_channel: FOLLOW_UP_CHANNEL_KINDS,
+  follow_up_outcome: FOLLOW_UP_OUTCOME_KINDS,
 }
 
 export const FIELD_LABELS: Record<ChoiceField, string> = {
   visit_outcome: "Hasil kunjungan",
   interest_level: "Tingkat minat",
   next_action_type: "Next action",
+  follow_up_channel: "Cara tindak lanjut",
+  follow_up_outcome: "Hasil tindak lanjut",
 }
 
 /** What each kind makes the system do. Shown beside the lock in the editor. */
@@ -40,6 +48,8 @@ export const KIND_LABELS: Record<ChoiceField, Record<string, string>> = {
   },
   interest_level: { hql: "HQL (lead berkualitas tinggi)", hot: "Panas", warm: "Hangat", cold: "Dingin", none: "Tidak berminat" },
   next_action_type: { action: "Ada tindak lanjut", none: "Tidak ada tindak lanjut" },
+  follow_up_channel: { in_person: "Bertemu langsung", call: "Telepon", message: "Pesan (WhatsApp, SMS)", email: "Email", other: "Lainnya" },
+  follow_up_outcome: { advanced: "Ada kemajuan", no_change: "Belum ada kemajuan", not_reached: "Tidak terhubung", dropped: "Tidak dilanjutkan" },
 }
 
 export const KIND_HINTS: Record<ChoiceField, Record<string, string>> = {
@@ -60,6 +70,19 @@ export const KIND_HINTS: Record<ChoiceField, Record<string, string>> = {
   next_action_type: {
     action: "Butuh penanggung jawab dan tanggal. Masuk hitungan next action terbuka.",
     none: "Tanpa penanggung jawab dan tanggal.",
+  },
+  follow_up_channel: {
+    in_person: "Dicatat sebagai pertemuan.",
+    call: "Dicatat sebagai telepon.",
+    message: "Dicatat sebagai pesan.",
+    email: "Dicatat sebagai email.",
+    other: "Dicatat tanpa jenis khusus.",
+  },
+  follow_up_outcome: {
+    advanced: "Langkah berikutnya disarankan.",
+    no_change: "Langkah berikutnya disarankan.",
+    not_reached: "Langkah berikutnya disarankan, biasanya mencoba lagi.",
+    dropped: "Tidak ada langkah berikutnya; rangkaian tindak lanjut ditutup.",
   },
 }
 
@@ -93,10 +116,19 @@ export const DEFAULT_REPORT_CHOICES: ReadonlyArray<Pick<ReportChoice, "fieldKey"
   { fieldKey: "next_action_type", code: "FOLLOW_UP_CALL", label: "Telepon lanjutan", kind: "action", displayOrder: 30 },
   { fieldKey: "next_action_type", code: "WAITING_CLIENT", label: "Menunggu klien", kind: "action", displayOrder: 40 },
   { fieldKey: "next_action_type", code: "NONE", label: "Tidak ada", kind: "none", displayOrder: 50 },
+  { fieldKey: "follow_up_channel", code: "IN_PERSON", label: "Bertemu langsung", kind: "in_person", displayOrder: 10 },
+  { fieldKey: "follow_up_channel", code: "PHONE", label: "Telepon", kind: "call", displayOrder: 20 },
+  { fieldKey: "follow_up_channel", code: "WHATSAPP", label: "WhatsApp", kind: "message", displayOrder: 30 },
+  { fieldKey: "follow_up_channel", code: "EMAIL", label: "Email", kind: "email", displayOrder: 40 },
+  { fieldKey: "follow_up_channel", code: "OTHER", label: "Lainnya", kind: "other", displayOrder: 50 },
+  { fieldKey: "follow_up_outcome", code: "ADVANCED", label: "Ada kemajuan", kind: "advanced", displayOrder: 10 },
+  { fieldKey: "follow_up_outcome", code: "NO_CHANGE", label: "Belum ada kemajuan", kind: "no_change", displayOrder: 20 },
+  { fieldKey: "follow_up_outcome", code: "NOT_REACHED", label: "Tidak terhubung", kind: "not_reached", displayOrder: 30 },
+  { fieldKey: "follow_up_outcome", code: "DROPPED", label: "Tidak dilanjutkan", kind: "dropped", displayOrder: 40 },
 ]
 
 export function emptyChoiceSet(): ChoiceSet {
-  return { visit_outcome: [], interest_level: [], next_action_type: [] }
+  return { visit_outcome: [], interest_level: [], next_action_type: [], follow_up_channel: [], follow_up_outcome: [] }
 }
 
 /** The defaults as a set, for callers with no tenant at hand (tests, schema fallbacks). */
@@ -113,6 +145,8 @@ const FALLBACK_KIND: Record<ChoiceField, string> = {
   visit_outcome: "met_staff",
   interest_level: "warm",
   next_action_type: "action",
+  follow_up_channel: "other",
+  follow_up_outcome: "no_change",
 }
 
 function find(choices: ChoiceSet | null | undefined, field: ChoiceField, code: string | null | undefined): ReportChoice | undefined {

@@ -2,7 +2,7 @@ import Link from "next/link"
 import { redirect } from "next/navigation"
 import { getSalesMissionAccess } from "@/lib/sales-mission-access"
 import { requireModule } from "@/lib/missions/nav-access"
-import { ArrowUpRight, Bell, Building2, Database, History, ListChecks, MonitorPlay, ShieldCheck, Sparkles, Trash2, UserSearch } from "@/components/icons"
+import { ArrowUpRight, Bell, Building2, ClipboardList, Database, History, ListChecks, MonitorPlay, ShieldCheck, Sparkles, Trash2, UserSearch } from "@/components/icons"
 import { WorkspacePage } from "@/app/workspace/workspace-page"
 import { paths } from "@/lib/paths"
 
@@ -55,6 +55,13 @@ const SETTING_CARDS = [
     title: "Riwayat perubahan",
     description: "Siapa membuat, mengubah, dan menghapus apa, dengan isi perubahannya. Dicatat otomatis untuk setiap perubahan.",
     href: paths.settings.history,
+  },
+  {
+    icon: ClipboardList,
+    tone: "bg-primary/10 text-primary",
+    title: "Tindak lanjut",
+    description: "Pilihan cara dan hasil saat sales mencatat tindak lanjut dari laporan. Jenis di baliknya tetap.",
+    href: "/workspace/settings/follow-up",
   },
   {
     icon: UserSearch,

@@ -286,7 +286,14 @@ export function MissionSettingsForm({ initial, companyName }: { initial: Mission
           <h2 className="text-base font-semibold text-foreground">Laporan kunjungan</h2>
           <p className="mt-0.5 text-sm text-muted-foreground">Apa yang dibagikan ke grup WhatsApp setelah laporan dikirim.</p>
         </header>
-        <div className="border-b">
+        <div className="divide-y border-b">
+          <SwitchRow
+            id="follow-up-enabled"
+            label="Lacak tindak lanjut dari laporan"
+            hint="Next action di laporan menjadi tindak lanjut yang hidup: muncul di Hari ini pemiliknya sampai dicatat hasilnya, dengan langkah berikutnya yang bisa dirantai. Cara dan hasil tindak lanjut diatur di Pengaturan → Tindak lanjut. Mati: next action tetap tercatat di laporan tanpa dilacak."
+            checked={form.followUpEnabled}
+            onChange={(next) => setForm({ ...form, followUpEnabled: next })}
+          />
           <SwitchRow
             id="report-share-prompt"
             label="Tawarkan Bagikan ke WhatsApp setelah laporan dikirim"

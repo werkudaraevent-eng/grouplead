@@ -22,6 +22,7 @@ export const NOTIFICATION_EVENTS = [
   "RESULT_WITHDRAWN",
   "NEEDS_CLARIFICATION",
   "LEAD_PUSHED",
+  "FOLLOW_UP_ASSIGNED",
 ] as const
 
 export type NotificationEvent = (typeof NOTIFICATION_EVENTS)[number]
@@ -74,6 +75,8 @@ export function describeEvent(event: NotificationEvent, context: NotificationCon
       return { title: "Laporan perlu klarifikasi", body: `${client} — diminta oleh ${context.actorName}` }
     case "LEAD_PUSHED":
       return { title: "Lead baru dari Sales Activity", body: `${client} — dikirim oleh ${context.actorName}` }
+    case "FOLLOW_UP_ASSIGNED":
+      return { title: "Kamu diberi tindak lanjut", body: `${client} — oleh ${context.actorName}` }
   }
 }
 
