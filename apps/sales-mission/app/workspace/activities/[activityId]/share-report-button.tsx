@@ -91,37 +91,37 @@ export function ShareReportButton({
 
   const shareDesk = async () => {
     // Inside the click, before anything waits: Safari refuses a clipboard
-    // write or a download that comes later.
+    // write that comes later. Nothing here may steal the window's focus
+    // before the probe, or the probe would read that as the app opening.
     let copied = true
     try {
       await navigator.clipboard.writeText(text)
     } catch {
       copied = false
     }
-    const downloaded = file.current ? downloadFile(file.current) : false
-    const photoHint = photo ? (downloaded ? " Seret foto yang baru diunduh ke chat." : " Foto: unduh dari galeri di bawah.") : ""
+    const photoHint = (downloaded: boolean) => (photo ? (downloaded ? " Seret foto yang baru diunduh ke chat." : " Foto: unduh dari galeri di bawah.") : "")
 
     const remembered = readDeskRoad()
-    if (remembered === "web") {
-      openWeb(text)
-      toast.success(`WhatsApp Web dibuka dengan teks laporan terisi.${photoHint}`, { duration: 8000 })
-      return
+    if (remembered !== "web") {
+      const opened = await probeDesktopApp(text)
+      if (opened) {
+        rememberDeskRoad("app")
+        const downloaded = file.current ? downloadFile(file.current) : false
+        toast.success(`WhatsApp di komputer ini dibuka dengan teks laporan terisi.${photoHint(downloaded)}`, { duration: 8000 })
+        return
+      }
     }
 
-    // A blank tab is opened now, inside the click, so that the fallback two
-    // seconds later cannot be stopped by the popup blocker. It closes unused.
-    const spare = remembered === "app" ? null : window.open("", "_blank")
-    const opened = await probeDesktopApp(text)
-    if (opened) {
-      spare?.close()
-      rememberDeskRoad("app")
-      toast.success(`WhatsApp di komputer ini dibuka dengan teks laporan terisi.${photoHint}`, { duration: 8000 })
-      return
-    }
+    // No desktop app: WhatsApp Web, and say so. The tab is opened after the
+    // probe, still inside the click's activation window on Chrome, Edge and
+    // Brave; where a browser blocks it anyway, the toast carries the button.
     rememberDeskRoad("web")
-    if (spare && !spare.closed) spare.location.href = webUrl(text)
-    else openWeb(text)
-    toast.info(`WhatsApp desktop tidak terpasang di komputer ini, jadi dibuka WhatsApp Web. Teks laporan sudah terisi${copied ? " dan tersalin" : ""}.${photoHint}`, { duration: 10000 })
+    const tab = window.open(webUrl(text), "_blank", "noopener")
+    const downloaded = file.current ? downloadFile(file.current) : false
+    const why = remembered === "web" ? "WhatsApp Web dibuka" : "WhatsApp desktop tidak terpasang di komputer ini, jadi dibuka WhatsApp Web"
+    const body = `${why}. Teks laporan sudah terisi${copied ? " dan tersalin" : ""}.${photoHint(downloaded)}`
+    if (tab) toast.info(body, { duration: 10000 })
+    else toast.info(`${body} Browser menahan tab barunya; tekan tombol ini.`, { duration: 20000, action: { label: "Buka WhatsApp Web", onClick: () => openWeb(text) } })
   }
 
   const share = async () => {
@@ -180,6 +180,12 @@ function openWeb(text: string) {
  */
 function probeDesktopApp(text: string): Promise<boolean> {
   return new Promise((resolve) => {
+    if (!document.hasFocus()) {
+      // The page is not the front window (a download shelf, another app);
+      // a blur could not be read as the app opening, so do not guess.
+      resolve(false)
+      return
+    }
     let settled = false
     const finish = (opened: boolean) => {
       if (settled) return
