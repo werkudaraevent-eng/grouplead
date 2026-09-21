@@ -174,8 +174,11 @@ describe("sizes", () => {
     expect(sizeFits("tall", "wide")).toBe(false)
     expect(sizeFits("lg", "wide")).toBe(true)
     expect(minSizeFor(builtinWidget("visits_per_day")!)).toBe("wide")
-    expect(minSizeFor(builtinWidget("interest_mix")!)).toBe("sm")
-    expect(minSizeFor(builtinWidget("visits_by_industry")!)).toBe("sm")
+    expect(minSizeFor(builtinWidget("interest_mix")!)).toBe("compact")
+    expect(minSizeFor(builtinWidget("visits_by_industry")!)).toBe("compact")
+    expect(minSizeFor(builtinWidget("number_estimated_value")!)).toBe("compact")
+    expect(sizeFits("sm", "compact")).toBe(true)
+    expect(sizeFits("compact", "sm")).toBe(false)
     expect(minSizeFor(builtinWidget("daily_reports")!)).toBe("wide")
   })
 

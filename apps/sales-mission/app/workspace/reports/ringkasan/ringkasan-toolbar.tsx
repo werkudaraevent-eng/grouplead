@@ -60,7 +60,8 @@ export function RingkasanToolbar({
   }
 
   return (
-    <div className={cn("mb-4 flex flex-wrap items-center gap-2", pending && "opacity-70")}>
+    <>
+    <div className={cn("flex flex-wrap items-center gap-2", editing ? "mb-2" : "mb-4", pending && "opacity-70")}>
       <Segmented
         label="Periode"
         value={query.date}
@@ -153,5 +154,12 @@ export function RingkasanToolbar({
         )}
       </div>
     </div>
+    {/* The two gestures named once, where the mode begins; the ⋮ on each card holds the presets. */}
+    {editing && (
+      <p className="mb-4 text-xs text-muted-foreground">
+        Seret judul kartu untuk memindahkannya, seret sudut kanan bawah untuk mengubah ukurannya; ⋮ di kartu berisi ukuran cepat, tampilan, dan sembunyikan.
+      </p>
+    )}
+    </>
   )
 }

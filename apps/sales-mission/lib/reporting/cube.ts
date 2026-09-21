@@ -110,13 +110,16 @@ export const CHART_LABELS: Record<ChartKind, string> = {
   trend: "Angka + tren",
 }
 
-/** The grid's four shapes: 1×1, 2×1, 1×2, 2×2 cells. */
-export const WIDGET_SIZES = ["sm", "wide", "tall", "lg"] as const
+/**
+ * The grid's presets: compact (a half-height cell for one number), then the
+ * four shapes 1×1, 2×1, 1×2, 2×2 cells.
+ */
+export const WIDGET_SIZES = ["compact", "sm", "wide", "tall", "lg"] as const
 export type WidgetSize = (typeof WIDGET_SIZES)[number]
-export const SIZE_LABELS: Record<WidgetSize, string> = { sm: "Kecil", wide: "Lebar", tall: "Tinggi", lg: "Besar" }
+export const SIZE_LABELS: Record<WidgetSize, string> = { compact: "Ringkas", sm: "Kecil", wide: "Lebar", tall: "Tinggi", lg: "Besar" }
 
-/** Cells a size spans: [columns, rows], on the coarse 2×2 scale the presets are named in. */
-export const SIZE_CELLS: Record<WidgetSize, [number, number]> = { sm: [1, 1], wide: [2, 1], tall: [1, 2], lg: [2, 2] }
+/** Cells a size spans: [columns, rows], on the coarse 2×2 scale the presets are named in; compact is half a row. */
+export const SIZE_CELLS: Record<WidgetSize, [number, number]> = { compact: [1, 0.5], sm: [1, 1], wide: [2, 1], tall: [1, 2], lg: [2, 2] }
 
 /** The board: twelve columns, rows of 40px, 16px between cards. */
 export const GRID_COLS = 12
@@ -128,11 +131,14 @@ export interface Box {
   h: number
 }
 
-/** A preset as a box in grid units: a quarter of the width by ~320px, and so on. */
-export const SIZE_BOX: Record<WidgetSize, Box> = { sm: { w: 3, h: 7 }, wide: { w: 6, h: 7 }, tall: { w: 3, h: 14 }, lg: { w: 6, h: 14 } }
+/** A preset as a box in grid units: a quarter of the width by ~320px, and so on; compact is that width by ~208px. */
+export const SIZE_BOX: Record<WidgetSize, Box> = { compact: { w: 3, h: 4 }, sm: { w: 3, h: 7 }, wide: { w: 6, h: 7 }, tall: { w: 3, h: 14 }, lg: { w: 6, h: 14 } }
 
 /** The smallest box for a minimum size: a chart or a table needs width to read; a number or a list does not. */
-export const MIN_BOX: Record<WidgetSize, Box> = { sm: { w: 2, h: 4 }, wide: { w: 4, h: 5 }, tall: { w: 2, h: 8 }, lg: { w: 4, h: 8 } }
+export const MIN_BOX: Record<WidgetSize, Box> = { compact: { w: 2, h: 4 }, sm: { w: 2, h: 4 }, wide: { w: 4, h: 5 }, tall: { w: 2, h: 8 }, lg: { w: 4, h: 8 } }
+
+/** A plain number needs only its title, the value and a hint: three rows (~152px). A trend adds its sparkline. */
+export const NUMBER_MIN_BOX: Box = { w: 2, h: 3 }
 
 export function sizeFromCells(columns: number, rows: number): WidgetSize {
   if (columns >= 2 && rows >= 2) return "lg"
@@ -306,10 +312,10 @@ export const BUILTIN_WIDGETS: readonly BuiltinWidget[] = [
     defaultHidden: false,
     description: "Daftar laporan kunjungan pada satu hari, dengan tautan ke aktivitasnya.",
   },
-  cube("number_visits", "Laporan", ["visits"], "none", "trend", "sm", { defaultHidden: true, description: "Satu angka dengan tren harian: laporan pada periode ini." }),
-  cube("number_opportunities", "Peluang", ["opportunities"], "none", "number", "sm", { defaultHidden: true, description: "Satu angka: laporan yang menandai peluang." }),
-  cube("number_estimated_value", "Nilai estimasi", ["estimated_value"], "none", "number", "sm", { defaultHidden: true, description: "Satu angka: jumlah nilai estimasi peluang." }),
-  cube("number_leads_pushed", "Lead ke CRM", ["leads_pushed"], "none", "number", "sm", { defaultHidden: true, description: "Satu angka: lead yang dikirim ke LeadEngine." }),
+  cube("number_visits", "Laporan", ["visits"], "none", "trend", "compact", { defaultHidden: true, description: "Satu angka dengan tren harian: laporan pada periode ini." }),
+  cube("number_opportunities", "Peluang", ["opportunities"], "none", "number", "compact", { defaultHidden: true, description: "Satu angka: laporan yang menandai peluang." }),
+  cube("number_estimated_value", "Nilai estimasi", ["estimated_value"], "none", "number", "compact", { defaultHidden: true, description: "Satu angka: jumlah nilai estimasi peluang." }),
+  cube("number_leads_pushed", "Lead ke CRM", ["leads_pushed"], "none", "number", "compact", { defaultHidden: true, description: "Satu angka: lead yang dikirim ke LeadEngine." }),
   {
     id: "kpi_strip",
     kind: "builtin",
@@ -340,19 +346,21 @@ export const DEFAULT_HIDDEN: readonly string[] = BUILTIN_WIDGETS.filter((widget)
 /**
  * The smallest cell a card still reads in (Android home-screen widgets
  * declare the same): an axis chart or a table needs two columns; a
- * number, a donut, a list or the funnel manage in one.
+ * number, a donut or a bar list manage in a compact one; the funnel needs
+ * a full small cell for its rows.
  */
 export function minSizeFor(config: WidgetConfig): WidgetSize {
   if (config.source === "daily_reports" || config.source === "kpi_strip" || config.source === "ai_insight") return "wide"
   if (config.source === "funnel") return "sm"
   if (config.source !== "cube") return "wide"
-  if (config.group === "none") return "sm"
-  if (config.chart === "donut" || config.chart === "pie") return "sm"
-  if (config.chart === "hbars" && !(config.series && config.series !== "none")) return "sm"
+  if (config.group === "none") return "compact"
+  if (config.chart === "donut" || config.chart === "pie") return "compact"
+  if (config.chart === "hbars" && !(config.series && config.series !== "none")) return "compact"
   return "wide"
 }
 
 export function minBoxFor(config: WidgetConfig): Box {
+  if (config.source === "cube" && config.chart === "number") return NUMBER_MIN_BOX
   return MIN_BOX[minSizeFor(config)]
 }
 
