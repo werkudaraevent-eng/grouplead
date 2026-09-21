@@ -9,7 +9,9 @@ import { Button } from "@/components/ui/button"
  *
  * A snackbar is one or two lines that vanish; what happened here needs a
  * sentence of explanation and a button that waits, so it is a banner (M3):
- * in the report card, under its header, until the person closes it. The
+ * in the report card, under its header, until the person closes it, with
+ * text buttons for its two actions so the card's own filled action keeps
+ * the page's hierarchy. The
  * share button announces the road through a window event and this notice
  * listens, so the two can sit in different parts of the card.
  */
@@ -45,7 +47,8 @@ export function DeskShareNotice() {
         <Button variant="ghost" size="sm" className="text-[var(--tonal-foreground)] hover:bg-[var(--tonal-foreground)]/10" onClick={() => setDetail(null)}>
           <X className="h-4 w-4" /> Tutup
         </Button>
-        <Button size="sm" onClick={() => window.open(detail.url, "_blank", "noopener")}>
+        {/* A text button, as M3 banners have: the card's filled action stays the loudest thing on the page. */}
+        <Button variant="ghost" size="sm" className="font-semibold text-[var(--tonal-foreground)] hover:bg-[var(--tonal-foreground)]/10" onClick={() => window.open(detail.url, "_blank", "noopener")}>
           <Share className="h-4 w-4" /> Buka WhatsApp Web
         </Button>
       </div>
