@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, useTransition } from "react"
 import Link from "next/link"
 import { toast } from "sonner"
-import { AlertCircle, FileText, Info, Loader2, RefreshCw, TrendingDown, TrendingUp } from "@/components/icons"
+import { AlertCircle, FileText, Info, Loader2, RefreshCw, TrendingDown, TrendingUp, ListChecks } from "@/components/icons"
 import { ensureTodayInsight, regenerateTodayInsight } from "@/app/actions/ai-insight-actions"
 import { briefSections, briefShareText } from "@/lib/ai/insight-brief"
 import type { InsightView, InsightViewItem } from "@/lib/ai/insight-view"
@@ -99,8 +99,8 @@ export function BriefView({
         ) : view?.status === "ready" && sections.length > 0 ? (
           sections.map((group) => (
             <div key={group.section}>
-              {/* M3 label-medium: the section is a label over its list, not a heading competing with the page title. */}
-              <h3 className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">{group.label}</h3>
+              {/* M3 label-medium in sentence case, the same label the report card uses over its bands; capitals are the eyebrow's. */}
+              <h3 className="mb-2 text-xs font-semibold text-muted-foreground">{group.label}</h3>
               <ol className="space-y-2.5">
                 {group.items.map((item, index) => (
                   <li key={index}>
@@ -117,9 +117,9 @@ export function BriefView({
         )}
       </div>
 
-      {/* M3 card foot: provenance at the start, the actions at the end. The model's id stays in the audit table. */}
-      <footer className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t px-4 py-3 text-xs text-muted-foreground sm:px-6">
-        <span className="min-w-0 flex-1">
+      {/* M3 card foot: provenance at the start, the actions at the end; on a phone the two stack, never squeeze. The model's id stays in the audit table. */}
+      <footer className="flex flex-col gap-3 border-t px-4 py-3 text-xs text-muted-foreground sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-4 sm:px-6">
+        <span className="min-w-0 sm:flex-1">
           {view?.generatedAt ? (
             <>
               {describeWhen(view.generatedAt)}
@@ -159,17 +159,15 @@ function BriefLine({ item }: { item: InsightViewItem }) {
     <div className="flex items-start gap-2.5">
       <Icon className={cn("mt-0.5 h-4 w-4 shrink-0", style.className)} aria-label={style.label} />
       <div className="min-w-0">
-        <p className="text-sm leading-relaxed text-foreground">
-          {item.href ? (
-            <Link href={item.href} className="underline decoration-dotted underline-offset-4 hover:decoration-solid" title="Buka daftarnya">
-              {item.text}
-            </Link>
-          ) : (
-            item.text
-          )}
-        </p>
-        {item.evidence.length > 0 && (
+        {/* Plain prose; the ways out of a point (the list that answers it, the reports it rests on) are small links under it, never the sentence itself dressed as a link. */}
+        <p className="text-sm leading-relaxed text-foreground">{item.text}</p>
+        {(item.href || item.evidence.length > 0) && (
           <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
+            {item.href && (
+              <Link href={item.href} className="inline-flex min-h-[32px] items-center gap-1.5 text-xs text-primary hover:underline" title="Buka daftarnya">
+                <ListChecks className="h-3.5 w-3.5 shrink-0" /> Buka daftarnya
+              </Link>
+            )}
             {item.evidence.map((evidence) => (
               <Link
                 key={evidence.missionId}

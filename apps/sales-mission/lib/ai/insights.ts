@@ -18,7 +18,7 @@ import { chatCompleteDetailed, describeAiError } from "./ai-proxy"
 import { resolveAiConfig } from "./ai-settings"
 import { recordAiUsage } from "./ai-usage"
 import { parseInsightItems, storedInsightItems, type InsightItem } from "./insight-brief"
-import { loadInsightFacts, shiftDay, wibDayOf, wibHourOf, type InsightFacts } from "./insight-facts"
+import { loadInsightFacts, shiftDay, wibDayOf, wibHourOf, type InsightFacts, serializeFactsForModel } from "./insight-facts"
 
 export {
   INSIGHT_KINDS,
@@ -219,7 +219,7 @@ export async function generateInsight(service: SupabaseClient, options: Generate
       maxTokens: 4000,
       messages: [
         { role: "system", content: SYSTEM_PROMPT },
-        { role: "user", content: `FAKTA:\n${JSON.stringify(facts)}` },
+        { role: "user", content: `FAKTA:\n${serializeFactsForModel(facts)}` },
       ],
     })
     void recordAiUsage({ feature: "insight", model: config.modelReasoning, promptTokens: result.promptTokens, completionTokens: result.completionTokens, ok: true, companyId, userId: userId ?? null })

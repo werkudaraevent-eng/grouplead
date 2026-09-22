@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { assembleFacts, dayGap, rupiah, shiftDay, wibDayOf, wibHourOf, type ContactRow, type FollowUpRow, type HistoryRow, type ReportRow } from "./insight-facts"
+import { assembleFacts, dayGap, rupiah, shiftDay, wibDayOf, wibHourOf, type ContactRow, type FollowUpRow, type HistoryRow, type ReportRow, serializeFactsForModel } from "./insight-facts"
 import { briefSections, briefShareText, insightDayName, storedInsightItems, teaserInsightItems } from "./insight-brief"
 import { dueTrigger, insightHref, parseInsightItems, type InsightRecord } from "./insights"
 
@@ -98,6 +98,13 @@ describe("assembleFacts", () => {
     { client: "PT Andalan", day: "2026-09-20", outcome: "MET_DM", interest: "HOT", opportunity: true },
   ]
   const input = { day, now, names, labels, actionLabels, kinds, discEnabled: true, salesIds: null, missions, reports, contacts, followUps, prospects, history }
+
+  it("the model never sees a raw money number, only the formatted text", () => {
+    const serialized = serializeFactsForModel(assembleFacts(input))
+    expect(serialized).toContain("Rp 5.000.000")
+    expect(serialized).not.toContain('"estimatedValue":')
+    expect(serialized).not.toContain("5000000")
+  })
 
   it("counts today, pending, overdue and the two weeks for the unit", () => {
     const facts = assembleFacts(input)
@@ -300,4 +307,5 @@ describe("dueTrigger", () => {
     expect(dueTrigger({ ...base, trigger: "view" }, { hour: 6 }, 2, at(7))).toBe("schedule")
     expect(dueTrigger({ ...base, status: "pending", generatedAt: null }, { hour: 6 }, 5, at(9))).toBeNull()
   })
+
 })

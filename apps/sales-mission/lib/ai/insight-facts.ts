@@ -19,6 +19,16 @@ import type { SupabaseClient } from "@supabase/supabase-js"
 import { formatNumber } from "@/lib/format/number"
 import { discCode, normalizeDisc } from "@/lib/contacts/disc"
 
+/**
+ * The facts as the model sees them. Money exists there only in its
+ * formatted form (`estimatedValueText`): the raw number is kept in the
+ * facts for the app, but a model handed both will sooner or later write
+ * the digits, and "4050000000" is not a sentence a manager reads.
+ */
+export function serializeFactsForModel(facts: InsightFacts): string {
+  return JSON.stringify(facts, (key, value) => (key === "estimatedValue" ? undefined : value))
+}
+
 export interface PersonCount {
   name: string
   count: number
