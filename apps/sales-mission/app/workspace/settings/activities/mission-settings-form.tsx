@@ -6,6 +6,7 @@ import { toast } from "sonner"
 import { Loader2, Save } from "@/components/icons"
 import { updateMissionSettings, type MissionSettingsInput } from "@/app/actions/mission-settings-actions"
 import type { MissionSettings } from "@/lib/missions/mission-queries"
+import { AutoTextarea } from "@/components/ui/auto-textarea"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -257,14 +258,14 @@ export function MissionSettingsForm({ initial, companyName }: { initial: Mission
               Terisi otomatis saat sales menekan Hubungi → WhatsApp; sales tetap bisa mengubahnya sebelum mengirim. Kosongkan untuk memakai kalimat bawaan.
             </p>
           </div>
-          <textarea
+          <AutoTextarea
             id="whatsapp-greeting"
             value={form.whatsappGreeting}
             onChange={(event) => setForm({ ...form, whatsappGreeting: event.target.value })}
-            rows={3}
+            minRows={2}
             maxLength={500}
             placeholder={DEFAULT_WHATSAPP_GREETING}
-            className="w-full rounded-md border border-input bg-field px-3 py-2 text-sm outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+            lists={false}
           />
           <dl className="grid grid-cols-1 gap-x-4 gap-y-1 text-xs text-muted-foreground sm:grid-cols-2">
             {GREETING_PLACEHOLDERS.map((item) => (
@@ -309,16 +310,17 @@ export function MissionSettingsForm({ initial, companyName }: { initial: Mission
               Di laporan yang sudah dikirim ada tombol Bagikan ke WhatsApp; teksnya disusun dari format ini, lalu sales memilih grupnya di ponsel. Baris yang semua isiannya kosong tidak ikut. Kosongkan untuk memakai format bawaan.
             </p>
           </div>
-          <textarea
+          <AutoTextarea
             ref={shareTemplateRef}
             id="report-share-template"
             value={form.reportShareTemplate}
             onChange={(event) => setForm({ ...form, reportShareTemplate: event.target.value })}
-            rows={8}
+            minRows={8}
             maxLength={2000}
             placeholder={DEFAULT_REPORT_SHARE_TEMPLATE}
             spellCheck={false}
-            className="w-full rounded-md border border-input bg-field px-3 py-2 font-mono text-sm outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+            lists={false}
+            className="font-mono"
           />
           <div>
             <p className="text-xs font-semibold text-muted-foreground">Isian yang bisa dipakai · ketuk untuk menyisipkan</p>

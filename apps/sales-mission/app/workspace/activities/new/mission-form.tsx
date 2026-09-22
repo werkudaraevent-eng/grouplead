@@ -13,6 +13,7 @@ import {
   DEFAULT_INDUSTRIES,
 } from "@/lib/missions/form-fields"
 import type { TenantSalesOption } from "@/lib/missions/mission-queries"
+import { AutoTextarea } from "@/components/ui/auto-textarea"
 import { Button } from "@/components/ui/button"
 import { FormActionBar } from "@/components/form-action-bar"
 import { SectionChips } from "@/components/section-chips"
@@ -54,9 +55,6 @@ import { scrollInPanel } from "@/lib/ui/scroll-in-panel"
 
 const SELECT_CLASS =
   "h-12 w-full rounded-md border border-input bg-field px-3 text-sm text-foreground shadow-xs outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
-
-const TEXTAREA_CLASS =
-  "w-full rounded-md border border-input bg-field px-3 py-2.5 text-sm text-foreground shadow-xs outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
 
 const PLACEHOLDER_JOBTITLE = "GM, Direktur, dan sebagainya"
 const PLACEHOLDER_PHONE = "08…"
@@ -271,15 +269,14 @@ function CustomField({ field, initial }: { field: FormField; initial?: unknown }
   if (field.fieldType === "LONG_TEXT") {
     return (
       <FieldShell field={field}>
-        <textarea
+        <AutoTextarea
           id={id}
           name={name}
           required={field.isRequired}
-          rows={3}
+          minRows={3}
           maxLength={4000}
           defaultValue={initialText}
           placeholder={field.placeholder ?? ""}
-          className={TEXTAREA_CLASS}
         />
       </FieldShell>
     )
@@ -705,15 +702,14 @@ export function MissionForm({
       case "appointment_notes":
         return (
           <FieldShell field={field} key={field.id}>
-            <textarea
+            <AutoTextarea
               id="field-appointment_notes"
               name="appointmentNotes"
               defaultValue={prefill?.appointmentNotes}
-              rows={4}
+              minRows={3}
               maxLength={4000}
               required={field.isRequired}
               placeholder={field.placeholder ?? "Apa yang sudah dibicarakan saat membuat janji: permintaan klien, materi yang diminta, siapa lagi yang akan hadir."}
-              className={TEXTAREA_CLASS}
             />
           </FieldShell>
         )

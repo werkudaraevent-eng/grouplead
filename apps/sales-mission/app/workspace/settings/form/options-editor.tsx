@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { ArrowDown, ArrowUp, ClipboardPaste, CornerUpLeft, DeleteSweep, Plus, Trash2 } from "@/components/icons"
 import { parseOptionList } from "@/lib/missions/form-fields"
+import { AutoTextarea } from "@/components/ui/auto-textarea"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 
@@ -271,15 +272,16 @@ export function OptionsEditor({
       {pasteOpen ? (
         <div className="space-y-2 rounded-lg border bg-muted/30 p-3">
           <label htmlFor="options-paste" className="text-sm font-medium text-foreground">Tempel daftar opsi</label>
-          <textarea
+          <AutoTextarea
             id="options-paste"
             value={pasteText}
             disabled={disabled}
             autoFocus
-            rows={8}
+            minRows={8}
             onChange={(e) => setPasteText(e.target.value)}
             placeholder={"Farmasi\nPerbankan\nAsuransi"}
-            className="w-full rounded-md border border-input bg-field px-3 py-2.5 font-mono text-sm text-foreground shadow-xs outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+            lists={false}
+            className="font-mono"
           />
           <p className="text-xs text-muted-foreground">{PASTE_HINT}</p>
           <div className="flex flex-wrap items-center gap-2">

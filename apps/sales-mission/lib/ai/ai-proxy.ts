@@ -129,11 +129,18 @@ function describeErrorPage(text: string): string {
   return title ? title[1].trim() : ""
 }
 
-const TIMEOUT_MS = 20_000
+/**
+ * How long a call may take. Listing models and the settings page's probe
+ * are quick and get the short limit; a chat completion gets a long one,
+ * because a brief written from forty reports by a reasoning model takes
+ * well over twenty seconds, and the caller may ask for more still.
+ */
+const PROBE_TIMEOUT_MS = 20_000
+const CHAT_TIMEOUT_MS = 60_000
 
-async function call(connection: AiConnection, path: string, init: RequestInit = {}): Promise<unknown> {
+async function call(connection: AiConnection, path: string, init: RequestInit = {}, timeoutMs = PROBE_TIMEOUT_MS): Promise<unknown> {
   const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS)
+  const timer = setTimeout(() => controller.abort(), timeoutMs)
   try {
     const response = await fetch(`${connection.endpoint}${path}`, {
       ...init,
@@ -175,6 +182,8 @@ export interface ChatRequest {
   messages: Array<{ role: "system" | "user" | "assistant"; content: string }>
   temperature?: number
   maxTokens?: number
+  /** How long to wait for the answer; the default suits a short reply, a long brief asks for more. */
+  timeoutMs?: number
 }
 
 export interface ChatResult {
@@ -193,7 +202,7 @@ export async function chatCompleteDetailed(connection: AiConnection, request: Ch
       temperature: request.temperature ?? 0.3,
       ...(request.maxTokens ? { max_tokens: request.maxTokens } : {}),
     }),
-  })
+  }, request.timeoutMs ?? CHAT_TIMEOUT_MS)
   const parsed = parseCompletionDetailed(body)
   if (!parsed.text) throw emptyAnswer(request.model, body, parsed.finishReason)
   const text = parsed.text
@@ -212,7 +221,7 @@ export async function chatComplete(connection: AiConnection, request: ChatReques
       temperature: request.temperature ?? 0.3,
       ...(request.maxTokens ? { max_tokens: request.maxTokens } : {}),
     }),
-  })
+  }, request.timeoutMs ?? CHAT_TIMEOUT_MS)
   const parsed = parseCompletionDetailed(body)
   if (!parsed.text) throw emptyAnswer(request.model, body, parsed.finishReason)
   return parsed.text
@@ -221,7 +230,7 @@ export async function chatComplete(connection: AiConnection, request: ChatReques
 /** A readable sentence for the settings page, from whatever fetch threw. */
 export function describeAiError(error: unknown): string {
   if (error instanceof Error) {
-    if (error.name === "AbortError") return "Endpoint tidak menjawab dalam 20 detik."
+    if (error.name === "AbortError") return "Endpoint tidak menjawab tepat waktu. Coba lagi; kalau terus terjadi, model yang dipilih mungkin terlalu lambat untuk proxy ini."
     if (/HTTP 401|HTTP 403/.test(error.message)) return "Endpoint menolak kunci API (401/403)."
     if (/HTTP 404/.test(error.message)) return "Endpoint ditemukan tapi tidak punya /models. Periksa apakah alamatnya perlu diakhiri /v1."
     if (/fetch failed|ENOTFOUND|ECONNREFUSED/.test(error.message)) return "Endpoint tidak bisa dihubungi. Periksa alamatnya."

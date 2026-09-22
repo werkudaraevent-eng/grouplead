@@ -8,6 +8,7 @@ import { cancelFollowUp, createFollowUp, logFollowUp } from "@/app/actions/follo
 import { FOLLOW_UP_STATE_LABELS, followUpState, type FollowUp } from "@/lib/missions/follow-ups"
 import { MISSION_TIME_ZONE } from "@/lib/missions/mission-schema"
 import { describeDueDate } from "@/lib/prospects/prospect-schema"
+import { AutoTextarea } from "@/components/ui/auto-textarea"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -35,7 +36,6 @@ export interface Person {
 
 const FIELD_CLASS =
   "flex h-12 w-full rounded-md border border-input bg-field px-3 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
-const TEXTAREA_CLASS = `${FIELD_CLASS} h-auto min-h-24 py-2.5`
 
 function stamp(iso: string) {
   return new Intl.DateTimeFormat("id-ID", { timeZone: MISSION_TIME_ZONE, weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }).format(new Date(iso))
@@ -317,7 +317,7 @@ function LogDialog({
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="follow-up-note" className="text-foreground">Catatan <span className="font-normal text-muted-foreground">(opsional)</span></Label>
-            <textarea id="follow-up-note" value={note} onChange={(event) => setNote(event.target.value)} rows={3} maxLength={1000} placeholder="Apa yang dibicarakan, apa yang diminta klien…" className={TEXTAREA_CLASS} />
+            <AutoTextarea id="follow-up-note" value={note} onChange={(event) => setNote(event.target.value)} minRows={2} maxLength={1000} placeholder="Apa yang dibicarakan, apa yang diminta klien…" />
           </div>
           {/* The next step, optional by the unit's choice: a chain, not a dead end, when there is one. */}
           <div className="space-y-3 rounded-lg border px-4 py-3">
@@ -370,7 +370,7 @@ function CancelDialog({ item, onClose }: { item: FollowUp; onClose: () => void }
         </DialogHeader>
         <DialogBody className="space-y-1.5">
           <Label htmlFor="follow-up-cancel-note" className="text-foreground">Alasan <span className="font-normal text-muted-foreground">(opsional)</span></Label>
-          <textarea id="follow-up-cancel-note" value={note} onChange={(event) => setNote(event.target.value)} rows={2} maxLength={500} className={TEXTAREA_CLASS} />
+          <AutoTextarea id="follow-up-cancel-note" value={note} onChange={(event) => setNote(event.target.value)} minRows={2} maxLength={500} />
         </DialogBody>
         <DialogFooter>
           <Button variant="outline" onClick={onClose} disabled={pending}>Kembali</Button>

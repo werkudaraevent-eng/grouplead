@@ -7,6 +7,7 @@ import { CalendarClock, Loader2 } from "@/components/icons"
 import { rescheduleMission, requestReschedule } from "@/app/actions/assignment-actions"
 import type { ConflictSettings } from "@/lib/missions/mission-join"
 import type { PersonSchedule } from "@/lib/missions/schedule-availability"
+import { AutoTextarea } from "@/components/ui/auto-textarea"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { SchedulePicker, type ScheduleValue } from "@/app/workspace/activities/new/schedule-picker"
@@ -76,14 +77,13 @@ export function ReschedulePanel({
         <Label htmlFor="rs-reason" className="text-foreground">
           Alasan<span className="ml-0.5 text-[var(--danger-foreground)]" aria-hidden="true">*</span>
         </Label>
-        <textarea
+        <AutoTextarea
           id="rs-reason"
-          rows={2}
+          minRows={2}
           maxLength={1000}
           value={reason}
           onChange={(event) => setReason(event.target.value)}
           placeholder={mode === "move" ? "Kenapa jadwalnya dipindah? Tim akan membacanya." : "Kenapa jadwalnya perlu diubah?"}
-          className="w-full rounded-md border border-input bg-field px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
         />
       </div>
 

@@ -213,3 +213,45 @@ export function briefShareText({
   lines.push("", "Ditulis AI dari data Sales Activity. AI bisa keliru; angkanya berasal dari data aplikasi.")
   return lines.join("\n")
 }
+
+/**
+ * A claim is a lease, not a lock.
+ *
+ * `generateInsight` marks the row "pending" before it calls the model, so a
+ * second caller a second later reads the winner's result instead of paying
+ * for a call of its own. If the server that made the claim dies halfway
+ * (function limit, crash, deploy), nothing ever clears it, and without a
+ * lease the row stays "pending" for the rest of the day: every later call,
+ * Buat ulang included, hands back the stuck claim. So a claim is honoured
+ * only while it is fresh — three minutes, comfortably more than the 90
+ * second budget one generation has — and after that the next caller takes
+ * it over.
+ */
+export const STALE_CLAIM_MS = 3 * 60 * 1000
+
+/** What the rules below need of a row: its status and when it was last written. */
+export interface ClaimLike {
+  status: string
+  updatedAt: string | null
+}
+
+/** A claim whose holder is gone: pending, and last written longer ago than the lease. */
+export function isStaleClaim(record: ClaimLike | null | undefined, now: Date): boolean {
+  if (!record || record.status !== "pending") return false
+  const updated = record.updatedAt ? Date.parse(record.updatedAt) : NaN
+  // A claim nobody can date is a claim nobody can trust.
+  if (Number.isNaN(updated)) return true
+  return now.getTime() - updated >= STALE_CLAIM_MS
+}
+
+/** A claim still being worked on: waiting for it is cheaper than a second model call. */
+export function isLiveClaim(record: ClaimLike | null | undefined, now: Date): boolean {
+  return !!record && record.status === "pending" && !isStaleClaim(record, now)
+}
+
+/** How often a page that is waiting for a brief asks the server again. */
+export const INSIGHT_POLL_MS = 5_000
+/** How long it keeps asking before it stops and says so; the person's waiting time, not the clock's. */
+export const INSIGHT_POLL_LIMIT_MS = 4 * 60 * 1000
+/** What a page says when the wait ran out and the row is still a claim. */
+export const INSIGHT_UNFINISHED_MESSAGE = "Brief belum selesai dibuat; coba Buat ulang."

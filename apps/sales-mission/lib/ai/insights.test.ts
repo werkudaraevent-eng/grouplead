@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 import { assembleFacts, dayGap, rupiah, shiftDay, wibDayOf, wibHourOf, type ContactRow, type FollowUpRow, type HistoryRow, type ReportRow, serializeFactsForModel } from "./insight-facts"
 import { briefSections, briefShareText, insightDayName, storedInsightItems, teaserInsightItems } from "./insight-brief"
-import { dueTrigger, insightHref, parseInsightItems, type InsightRecord } from "./insights"
+import { STALE_CLAIM_MS, dueTrigger, insightHref, isLiveClaim, isStaleClaim, parseInsightItems, type InsightRecord } from "./insights"
 
 describe("wib helpers", () => {
   it("names the WIB day and hour of an instant", () => {
@@ -290,7 +290,7 @@ describe("insightHref", () => {
 })
 
 describe("dueTrigger", () => {
-  const base: InsightRecord = { id: "x", scope: "unit", userId: null, day: "2026-09-20", status: "ready", items: [], model: null, error: null, trigger: "schedule", reportsSeen: 2, regenerations: 0, generatedAt: "2026-09-19T23:05:00Z" }
+  const base: InsightRecord = { id: "x", scope: "unit", userId: null, day: "2026-09-20", status: "ready", items: [], model: null, error: null, trigger: "schedule", reportsSeen: 2, regenerations: 0, generatedAt: "2026-09-19T23:05:00Z", updatedAt: "2026-09-19T23:05:00Z" }
   // An instant on 2026-09-20 at the given WIB clock time.
   const at = (wibHour: number, minute = 0) => new Date(Date.UTC(2026, 8, 20, wibHour - 7, minute))
   it("runs the morning insight once the hour has come and nothing exists", () => {
@@ -303,9 +303,40 @@ describe("dueTrigger", () => {
     expect(dueTrigger(base, { hour: 6 }, 3, at(9))).toBe("report")
     expect(dueTrigger({ ...base, regenerations: 12 }, { hour: 6 }, 9, at(9))).toBeNull()
   })
-  it("lets the morning run replace a row made on open earlier, and leaves a pending claim alone", () => {
+  it("lets the morning run replace a row made on open earlier, and leaves a live claim alone", () => {
     expect(dueTrigger({ ...base, trigger: "view" }, { hour: 6 }, 2, at(7))).toBe("schedule")
-    expect(dueTrigger({ ...base, status: "pending", generatedAt: null }, { hour: 6 }, 5, at(9))).toBeNull()
+    // Claimed a minute ago: someone's model call is still running.
+    expect(dueTrigger({ ...base, status: "pending", generatedAt: null, updatedAt: "2026-09-20T01:59:00Z" }, { hour: 6 }, 5, at(9))).toBeNull()
+  })
+  it("writes again over a claim whose server died, up to the day's cap", () => {
+    const stale = { ...base, status: "pending" as const, generatedAt: null, updatedAt: "2026-09-20T01:50:00Z" }
+    expect(dueTrigger(stale, { hour: 6 }, 5, at(9))).toBe("schedule")
+    expect(dueTrigger({ ...stale, trigger: "view" }, { hour: 6 }, 5, at(9))).toBe("report")
+    expect(dueTrigger({ ...stale, regenerations: 12 }, { hour: 6 }, 5, at(9))).toBeNull()
   })
 
+})
+
+describe("claim lease", () => {
+  const now = new Date("2026-09-20T02:00:00Z")
+  const claim = (updatedAt: string | null, status = "pending") => ({ status, updatedAt })
+  it("honours a claim while it is fresh", () => {
+    expect(isLiveClaim(claim("2026-09-20T01:58:00Z"), now)).toBe(true)
+    expect(isStaleClaim(claim("2026-09-20T01:58:00Z"), now)).toBe(false)
+  })
+  it("drops a claim older than the lease", () => {
+    const old = new Date(now.getTime() - STALE_CLAIM_MS).toISOString()
+    expect(isStaleClaim(claim(old), now)).toBe(true)
+    expect(isLiveClaim(claim(old), now)).toBe(false)
+  })
+  it("is about pending rows only", () => {
+    expect(isStaleClaim(claim("2026-09-19T23:00:00Z", "ready"), now)).toBe(false)
+    expect(isLiveClaim(claim("2026-09-20T01:58:00Z", "failed"), now)).toBe(false)
+    expect(isStaleClaim(null, now)).toBe(false)
+    expect(isLiveClaim(undefined, now)).toBe(false)
+  })
+  it("does not trust a claim it cannot date", () => {
+    expect(isStaleClaim(claim(null), now)).toBe(true)
+    expect(isStaleClaim(claim("bukan tanggal"), now)).toBe(true)
+  })
 })

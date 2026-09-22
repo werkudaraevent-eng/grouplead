@@ -2,6 +2,7 @@
 
 import { z } from "zod"
 import { createServiceClient, hasServiceClientConfig } from "@/utils/supabase/service"
+import { createClient } from "@/utils/supabase/server"
 import { canPerform, getSalesMissionAccess } from "@/lib/sales-mission-access"
 import { getMissionSettings, listTenantSales } from "@/lib/missions/mission-queries"
 import { listReportChoices } from "@/lib/missions/report-choice-queries"
@@ -9,6 +10,7 @@ import { resolveAiConfig } from "@/lib/ai/ai-settings"
 import { chatCompleteDetailed, describeAiError } from "@/lib/ai/ai-proxy"
 import { buildAskContext } from "@/lib/ai/ask-context"
 import { recordAiUsage } from "@/lib/ai/ai-usage"
+import { appendTurn, conversationTitle, historyTurns, parseTurns, type AskTurn } from "@/lib/ai/ask-conversations"
 import type { ActionResult } from "@/types/action-result"
 import { NO_ACCESS_MESSAGE } from "@/lib/brand"
 
@@ -16,13 +18,17 @@ const askSchema = z.object({
   question: z.string().trim().min(3, "Tulis pertanyaannya dulu.").max(300, "Maksimal 300 karakter."),
   range: z.object({ from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/) }),
   sales: z.array(z.string().uuid()).max(50).default([]),
-  /** Earlier turns of this sitting, newest last, so a follow-up question reads in context. */
+  /** Earlier turns of this sitting, newest last, so a follow-up question reads in context. Ignored once the thread is a kept conversation. */
   history: z.array(z.object({ question: z.string().max(300), answer: z.string().max(2000) })).max(6).default([]),
+  /** The kept conversation this question continues; absent starts a new one. */
+  conversationId: z.string().uuid().optional(),
 })
 
 export interface AskAnswer {
   answer: string
   model: string
+  /** The conversation this turn was written to, so the panel keeps asking into the same thread. */
+  conversationId: string | null
 }
 
 const SYSTEM_PROMPT = `Anda asisten data untuk tim sales lapangan di Indonesia (aplikasi Sales Activity).
@@ -47,6 +53,14 @@ Aturan:
  * The context is built through the person's session, so it holds exactly
  * what the board would show them; the answer is logged with the model and
  * the token counts for the cost view later.
+ *
+ * The thread itself is kept: with a `conversationId` the server reads the
+ * conversation and takes the context from it (never from what the client
+ * sent, which is the same rule as everywhere else — the stored row is the
+ * truth), then appends this turn to it; without one it starts a
+ * conversation named after the question. The `ai_questions` log is
+ * untouched: it is the unit's cost and quality record, not the person's
+ * chat.
  */
 export async function askSalesData(input: unknown): Promise<ActionResult<AskAnswer>> {
   const access = await getSalesMissionAccess()
@@ -57,11 +71,20 @@ export async function askSalesData(input: unknown): Promise<ActionResult<AskAnsw
 
   const parsed = askSchema.safeParse(input)
   if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message ?? "Pertanyaan tidak valid." }
-  const { question, range, sales, history } = parsed.data
+  const { question, range, sales, history, conversationId } = parsed.data
   if (range.from > range.to) return { success: false, error: "Periode tidak valid." }
 
   const config = await resolveAiConfig()
   if (!config) return { success: false, error: "Koneksi AI belum diatur di Pengaturan → AI." }
+
+  // The kept thread, if this question continues one. RLS makes "mine" the only readable row.
+  const supabase = await createClient()
+  let thread: { id: string; turns: AskTurn[] } | null = null
+  if (conversationId) {
+    const { data } = await supabase.schema("sales_mission").from("ai_conversations").select("id, turns").eq("id", conversationId).maybeSingle()
+    if (data) thread = { id: data.id as string, turns: parseTurns(data.turns) }
+  }
+  const earlier = thread ? historyTurns(thread.turns) : history.slice(-3)
 
   const [people, choices, canSeeProspects] = await Promise.all([
     listTenantSales(access),
@@ -76,7 +99,7 @@ export async function askSalesData(input: unknown): Promise<ActionResult<AskAnsw
   const messages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
     { role: "system", content: `${SYSTEM_PROMPT}\n\nDATA:\n${JSON.stringify(context)}` },
   ]
-  for (const turn of history) {
+  for (const turn of earlier) {
     messages.push({ role: "user", content: turn.question })
     messages.push({ role: "assistant", content: turn.answer })
   }
@@ -87,7 +110,7 @@ export async function askSalesData(input: unknown): Promise<ActionResult<AskAnsw
     // No max_tokens, like LeadEngine's Ask AI on the same proxy: there the
     // budget covers the model's thinking too, and a small cap came back as
     // an empty answer. The prompt keeps the answer short.
-    const result = await chatCompleteDetailed(config, { model: config.modelFast, temperature: 0.2, messages })
+    const result = await chatCompleteDetailed(config, { model: config.modelFast, temperature: 0.2, messages, timeoutMs: 45_000 })
     void recordAiUsage({ feature: "tanya_ai", model: config.modelFast, promptTokens: result.promptTokens, completionTokens: result.completionTokens, ok: true, companyId: access.companyId, userId: access.userId })
     if (log) {
       await log.schema("sales_mission").from("ai_questions").insert({
@@ -102,7 +125,14 @@ export async function askSalesData(input: unknown): Promise<ActionResult<AskAnsw
         range_to: range.to,
       })
     }
-    return { success: true, data: { answer: result.text.trim(), model: config.modelFast } }
+    const answer = result.text.trim()
+    const keptIn = await keepTurn(supabase, {
+      thread,
+      companyId: access.companyId,
+      userId: access.userId,
+      turn: { question, answer, askedAt: new Date().toISOString() },
+    })
+    return { success: true, data: { answer, model: config.modelFast, conversationId: keptIn } }
   } catch (error) {
     const message = describeAiError(error)
     void recordAiUsage({ feature: "tanya_ai", model: config.modelFast, promptTokens: null, completionTokens: null, ok: false, companyId: access.companyId, userId: access.userId })
@@ -118,5 +148,32 @@ export async function askSalesData(input: unknown): Promise<ActionResult<AskAnsw
       })
     }
     return { success: false, error: message }
+  }
+}
+
+/**
+ * The turn written to the thread it belongs to: an existing conversation
+ * grows, a first question starts one named after itself. A deployment whose
+ * migration has not run yet must still answer questions — it simply does not
+ * remember them — so a failure here is swallowed and the panel is told there
+ * is no conversation.
+ */
+async function keepTurn(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  { thread, companyId, userId, turn }: { thread: { id: string; turns: AskTurn[] } | null; companyId: string; userId: string; turn: AskTurn }
+): Promise<string | null> {
+  const conversations = supabase.schema("sales_mission").from("ai_conversations")
+  try {
+    if (thread) {
+      const { error } = await conversations.update({ turns: appendTurn(thread.turns, turn), updated_at: turn.askedAt }).eq("id", thread.id)
+      return error ? null : thread.id
+    }
+    const { data, error } = await conversations
+      .insert({ company_id: companyId, user_id: userId, title: conversationTitle(turn.question), turns: [turn], updated_at: turn.askedAt })
+      .select("id")
+      .single()
+    return error || !data ? null : (data.id as string)
+  } catch {
+    return null
   }
 }

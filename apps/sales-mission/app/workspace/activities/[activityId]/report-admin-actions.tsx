@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { Loader2, MessageCircle, Undo2 } from "@/components/icons"
 import { requestReportClarification, withdrawVisitReport } from "@/app/actions/visit-report-actions"
+import { AutoTextarea } from "@/components/ui/auto-textarea"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -69,15 +70,14 @@ export function RequestClarificationButton({
           </DialogHeader>
           <DialogBody className="space-y-1.5">
             <Label htmlFor="clarification-note" className="text-foreground">Apa yang perlu diperbaiki</Label>
-            <textarea
+            <AutoTextarea
               id="clarification-note"
               value={note}
               onChange={(event) => setNote(event.target.value)}
-              rows={4}
+              minRows={3}
               maxLength={500}
               autoFocus
               placeholder="Contoh: nilai estimasi sepertinya kurang satu nol, dan kontak yang ditemui belum ada jabatannya."
-              className="w-full rounded-md border border-input bg-field px-3 py-2.5 text-sm text-foreground shadow-xs outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
             />
           </DialogBody>
           <DialogFooter>
@@ -153,15 +153,14 @@ export function WithdrawReportButton({
           </DialogHeader>
           <DialogBody className="space-y-1.5">
             <Label htmlFor="withdraw-reason" className="text-foreground">Alasan</Label>
-            <textarea
+            <AutoTextarea
               id="withdraw-reason"
               value={reason}
               onChange={(event) => setReason(event.target.value)}
-              rows={3}
+              minRows={2}
               maxLength={500}
               autoFocus
               placeholder="Contoh: laporan uji coba, atau terkirim untuk kunjungan yang salah."
-              className="w-full rounded-md border border-input bg-field px-3 py-2.5 text-sm text-foreground shadow-xs outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
             />
           </DialogBody>
           <DialogFooter>

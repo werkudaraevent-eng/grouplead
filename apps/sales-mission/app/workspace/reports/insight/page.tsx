@@ -13,6 +13,8 @@ import { ReportTabs } from "../report-tabs"
 import { BriefView } from "./brief-view"
 
 export const dynamic = "force-dynamic"
+// The brief is written by a server action invoked from this page, and a reasoning model needs more than the default function budget.
+export const maxDuration = 120
 
 const DAY_PATTERN = /^\d{4}-\d{2}-\d{2}$/
 

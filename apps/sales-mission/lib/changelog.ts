@@ -46,6 +46,31 @@ export const CHANGE_KIND_LABELS: Record<ChangeKind, string> = {
 export const CHANGELOG: ChangeEntry[] = [
   {
     date: "2026-09-22",
+    title: "Kolom tulisan panjang ikut tumbuh, dan daftar bernomor berlanjut sendiri",
+    items: [
+      { kind: "lebih-baik", text: "Semua kolom tulisan panjang — Ringkasan pertemuan, Catatan janji temu, alasan batal atau pindah jadwal, catatan tindak lanjut, catatan prospek, catatan pendukung — sekarang tingginya mengikuti apa yang kamu tulis. Tidak ada lagi kotak kecil yang membuat kalimat pertama hilang ke atas saat mengetik di HP, dan tidak ada lagi sudut yang harus diseret untuk memperbesar. Setelah sekitar 14 baris kotaknya berhenti tumbuh dan isinya yang bergulir di dalam, supaya tombol Kirim tetap terlihat." },
+      { kind: "baru", text: "Daftar berlanjut sendiri. Ketik “1. ” lalu Enter dan baris berikutnya sudah dimulai “2. ”; ketik “- ” dan Enter meneruskan tanda yang sama. Enter sekali lagi pada butir yang masih kosong mengakhiri daftarnya. Kalau hanya butuh pindah baris tanpa tanda daftar, tekan Shift+Enter." },
+      { kind: "lebih-baik", text: "Catatan “Cara menghadapi orang ini” pada gaya komunikasi (DISC) tadinya kolom satu baris, jadi tulisan yang agak panjang bergeser ke samping dan awalnya tidak terlihat lagi. Sekarang kolom biasa yang ikut tumbuh seperti yang lain." },
+    ],
+  },
+  {
+    date: "2026-09-22",
+    title: "Brief AI selesai sendiri walau kamu pindah halaman, dan Tanya AI menyimpan percakapan",
+    items: [
+      { kind: "lebih-baik", text: "Menyusun brief butuh waktu, jadi halamannya kini menunggu sendiri: selama brief sedang dibuat, kartu Insight dan tab Insight memeriksa ulang tiap beberapa detik sampai brief-nya muncul, tanpa perlu memuat ulang halaman. Boleh pindah halaman sementara; brief tetap disusun di server. Kalau lebih dari empat menit belum selesai juga, halamannya berhenti menunggu dan mengatakannya, bukan berputar terus." },
+      { kind: "diperbaiki", text: "Kalau server terputus di tengah pembuatan brief, tulisan “Menyusun brief…” bisa menetap sepanjang hari dan Buat ulang pun tidak membuahkan apa-apa. Sekarang pembuatan yang menggantung lebih dari tiga menit dianggap gagal, lalu brief-nya dibuat ulang otomatis pada pembukaan berikutnya, pada jadwal sepuluh menitan, atau saat kamu menekan Buat ulang." },
+      { kind: "baru", text: "Tanya AI menyimpan percakapan untuk akunmu sendiri. Tutup panelnya atau pindah halaman, percakapannya tetap ada; saat panel dibuka lagi, percakapan terakhir hari ini otomatis dilanjutkan. Riwayat menampilkan percakapan tersimpan dengan judul dari pertanyaan pertama, kapan terakhir dipakai, dan jumlah pertanyaannya — ketuk untuk melanjutkan, Hapus untuk membuangnya, Percakapan baru untuk mulai dari awal. Percakapan hanya bisa dibaca olehmu dan dihapus otomatis setelah 90 hari." },
+    ],
+  },
+  {
+    date: "2026-09-22",
+    title: "Brief AI tidak lagi gagal karena batas waktu 20 detik",
+    items: [
+      { kind: "diperbaiki", text: "Brief yang dibuat dari banyak laporan butuh lebih dari 20 detik, dan aplikasi memutusnya lalu menampilkan “Endpoint tidak menjawab dalam 20 detik”. Batas waktunya kini 90 detik untuk brief dan 45 detik untuk Tanya AI; Uji koneksi di Pengaturan tetap 20 detik." },
+    ],
+  },
+  {
+    date: "2026-09-22",
     title: "Insight harian jadi brief: perlu ditindak, yang terdengar di lapangan, dan rekomendasi",
     items: [
       { kind: "lebih-baik", text: "Insight harian tidak lagi sekadar membacakan angka. AI sekarang ikut membaca isi laporan (ringkasan pertemuan, kebutuhan klien, produk yang diminati, kompetitor yang disebut, siapa yang ditemui dan catatan DISC-nya bila dipakai), lalu menyusunnya jadi tiga bagian: Perlu ditindak, Yang terdengar di lapangan, dan Rekomendasi. Angka tetap dihitung aplikasi, bukan oleh AI, jadi masih bisa dicek di kartu lain." },
