@@ -1,11 +1,12 @@
 "use client"
 
-import { useEffect, useMemo, useState, useTransition } from "react"
+import { useMemo, useTransition } from "react"
 import Link from "next/link"
 import { toast } from "sonner"
 import { AlertCircle, Info, Loader2, RefreshCw, TrendingDown, TrendingUp } from "@/components/icons"
-import { ensureTodayInsight, regenerateTodayInsight } from "@/app/actions/ai-insight-actions"
+import { regenerateTodayInsight } from "@/app/actions/ai-insight-actions"
 import { TEASER_ITEMS, teaserInsightItems } from "@/lib/ai/insight-brief"
+import { useTodayInsight } from "@/hooks/use-today-insight"
 import type { InsightView } from "@/lib/ai/insight-view"
 import { Button } from "@/components/ui/button"
 import { MISSION_TIME_ZONE } from "@/lib/missions/mission-schema"
@@ -29,38 +30,20 @@ import { cn } from "@/lib/utils"
  * timestamp, not a figure, so the foot says when it was written and from
  * what, and that it can be wrong. If nothing exists yet the card asks for
  * one after the page has painted and shows what it is doing, so the board
- * never waits on the model. Failure is a sentence and, for admins, a Buat
- * ulang.
+ * never waits on the model, and it keeps asking while the brief is being
+ * written (see `useTodayInsight`), so the board settles itself without a
+ * refresh. Failure is a sentence and, for admins, a Buat ulang.
  */
 export function InsightWidget({ initial, canRegenerate, scopeNote }: { initial: InsightView | null; canRegenerate: boolean; scopeNote: string | null }) {
-  const [view, setView] = useState<InsightView | null>(initial)
-  const [loading, setLoading] = useState(!initial || initial.status === "pending")
+  const { view, loading, apply } = useTodayInsight({ initial })
   const [regenerating, startRegenerate] = useTransition()
-
-  useEffect(() => {
-    if (initial && initial.status !== "pending") {
-      setView(initial)
-      setLoading(false)
-      return
-    }
-    let cancelled = false
-    ensureTodayInsight().then((result) => {
-      if (cancelled) return
-      if (result.success && result.data) setView(result.data)
-      else setView({ status: "failed", items: [], generatedAt: null, model: null, error: result.error ?? "Insight gagal dibuat.", trigger: "view", reportsSeen: 0, scope: "unit", day: "" })
-      setLoading(false)
-    })
-    return () => {
-      cancelled = true
-    }
-  }, [initial])
 
   const regenerate = () => {
     startRegenerate(async () => {
       const result = await regenerateTodayInsight()
       if (result.success && result.data) {
-        setView(result.data)
-        toast.success("Insight dibuat ulang.")
+        apply(result.data)
+        toast.success(result.data.status === "pending" ? "Brief sedang disusun." : "Insight dibuat ulang.")
       } else {
         toast.error(result.error ?? "Insight gagal dibuat ulang.")
       }
@@ -74,9 +57,13 @@ export function InsightWidget({ initial, canRegenerate, scopeNote }: { initial: 
       {/* The 8px the hover backgrounds bleed into is carried here, so nothing inside is wider than the card (a negative margin on a line would grow a horizontal scrollbar). */}
       <div className="-mx-2 min-h-0 flex-1 overflow-hidden px-2">
         {loading || regenerating ? (
-          <p className="flex items-center gap-2 py-1 text-sm text-muted-foreground" role="status">
-            <Loader2 className="h-4 w-4 animate-spin" /> Menyusun brief dari data hari ini…
-          </p>
+          /* M3 progress indicator with supporting text: a wait the person may walk away from is worth saying out loud. */
+          <div role="status" className="space-y-0.5 py-1">
+            <p className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" /> Menyusun brief dari data hari ini…
+            </p>
+            <p className="pl-6 text-xs text-muted-foreground">Boleh pindah halaman; brief tetap disusun di server.</p>
+          </div>
         ) : view?.status === "ready" ? (
           <ol className="space-y-1">
             {teaser.map((item, index) => (

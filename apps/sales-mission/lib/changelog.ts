@@ -46,6 +46,15 @@ export const CHANGE_KIND_LABELS: Record<ChangeKind, string> = {
 export const CHANGELOG: ChangeEntry[] = [
   {
     date: "2026-09-22",
+    title: "Brief AI selesai sendiri walau kamu pindah halaman, dan Tanya AI menyimpan percakapan",
+    items: [
+      { kind: "lebih-baik", text: "Menyusun brief butuh waktu, jadi halamannya kini menunggu sendiri: selama brief sedang dibuat, kartu Insight dan tab Insight memeriksa ulang tiap beberapa detik sampai brief-nya muncul, tanpa perlu memuat ulang halaman. Boleh pindah halaman sementara; brief tetap disusun di server. Kalau lebih dari empat menit belum selesai juga, halamannya berhenti menunggu dan mengatakannya, bukan berputar terus." },
+      { kind: "diperbaiki", text: "Kalau server terputus di tengah pembuatan brief, tulisan “Menyusun brief…” bisa menetap sepanjang hari dan Buat ulang pun tidak membuahkan apa-apa. Sekarang pembuatan yang menggantung lebih dari tiga menit dianggap gagal, lalu brief-nya dibuat ulang otomatis pada pembukaan berikutnya, pada jadwal sepuluh menitan, atau saat kamu menekan Buat ulang." },
+      { kind: "baru", text: "Tanya AI menyimpan percakapan untuk akunmu sendiri. Tutup panelnya atau pindah halaman, percakapannya tetap ada; saat panel dibuka lagi, percakapan terakhir hari ini otomatis dilanjutkan. Riwayat menampilkan percakapan tersimpan dengan judul dari pertanyaan pertama, kapan terakhir dipakai, dan jumlah pertanyaannya — ketuk untuk melanjutkan, Hapus untuk membuangnya, Percakapan baru untuk mulai dari awal. Percakapan hanya bisa dibaca olehmu dan dihapus otomatis setelah 90 hari." },
+    ],
+  },
+  {
+    date: "2026-09-22",
     title: "Brief AI tidak lagi gagal karena batas waktu 20 detik",
     items: [
       { kind: "diperbaiki", text: "Brief yang dibuat dari banyak laporan butuh lebih dari 20 detik, dan aplikasi memutusnya lalu menampilkan “Endpoint tidak menjawab dalam 20 detik”. Batas waktunya kini 90 detik untuk brief dan 45 detik untuk Tanya AI; Uji koneksi di Pengaturan tetap 20 detik." },

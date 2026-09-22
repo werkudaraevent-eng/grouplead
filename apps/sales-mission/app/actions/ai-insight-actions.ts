@@ -4,7 +4,7 @@ import { createServiceClient, hasServiceClientConfig } from "@/utils/supabase/se
 import { canPerform, getSalesMissionAccess } from "@/lib/sales-mission-access"
 import { getMissionSettings } from "@/lib/missions/mission-queries"
 import { wibDayOf, wibHourOf } from "@/lib/ai/insight-facts"
-import { MAX_REGENERATIONS_PER_DAY, REGENERATION_GAP_MS, countReportsSubmittedOn, generateInsight, readInsight } from "@/lib/ai/insights"
+import { MAX_REGENERATIONS_PER_DAY, REGENERATION_GAP_MS, countReportsSubmittedOn, generateInsight, isLiveClaim, isStaleClaim, readInsight } from "@/lib/ai/insights"
 import { buildInsightView, resolveInsightScope, type InsightView } from "@/lib/ai/insight-view"
 import type { ActionResult } from "@/types/action-result"
 import { NO_ACCESS_MESSAGE } from "@/lib/brand"
@@ -22,7 +22,9 @@ async function gate() {
 /**
  * Today's insight for the signed-in person, made now if there is none yet
  * (or if reports came in since the last one and the gap has passed). The
- * card calls this on open, so the page itself never waits for a model.
+ * card calls this on open, so the page itself never waits for a model, and
+ * calls it again every few seconds while the row is still a claim — which
+ * costs one read, because a live claim is handed straight back.
  */
 export async function ensureTodayInsight(): Promise<ActionResult<InsightView>> {
   const g = await gate()
@@ -34,11 +36,29 @@ export async function ensureTodayInsight(): Promise<ActionResult<InsightView>> {
   const { scope, userId, salesIds } = await resolveInsightScope(access)
 
   const existing = await readInsight(service, access.companyId, day, scope, userId)
+
+  // Someone's model call is in flight: the pending row is the answer, and
+  // the caller asks again in a few seconds.
+  if (isLiveClaim(existing, now)) return { success: true, data: await buildInsightView(access, existing!) }
+  // A claim whose server died is not honoured; generateInsight takes it over.
+  if (existing && isStaleClaim(existing, now)) {
+    const retried = await generateInsight(service, {
+      companyId: access.companyId,
+      day,
+      scope,
+      userId,
+      salesIds,
+      trigger: existing.trigger === "schedule" ? "schedule" : "view",
+      now,
+    })
+    return { success: true, data: await buildInsightView(access, retried) }
+  }
+
   if (existing && existing.status !== "failed") {
     const reportsToday = await countReportsSubmittedOn(service, access.companyId, day)
     const generatedAt = existing.generatedAt ? new Date(existing.generatedAt).getTime() : now.getTime()
     const behind = reportsToday > existing.reportsSeen && now.getTime() - generatedAt >= REGENERATION_GAP_MS && existing.regenerations < MAX_REGENERATIONS_PER_DAY
-    if (!behind || existing.status === "pending") return { success: true, data: await buildInsightView(access, existing) }
+    if (!behind) return { success: true, data: await buildInsightView(access, existing) }
     const refreshed = await generateInsight(service, { companyId: access.companyId, day, scope, userId, salesIds, trigger: "report", now })
     return { success: true, data: await buildInsightView(access, refreshed) }
   }

@@ -17,7 +17,7 @@ import type { SupabaseClient } from "@supabase/supabase-js"
 import { chatCompleteDetailed, describeAiError } from "./ai-proxy"
 import { resolveAiConfig } from "./ai-settings"
 import { recordAiUsage } from "./ai-usage"
-import { parseInsightItems, storedInsightItems, type InsightItem } from "./insight-brief"
+import { isLiveClaim, isStaleClaim, parseInsightItems, storedInsightItems, type InsightItem } from "./insight-brief"
 import { loadInsightFacts, shiftDay, wibDayOf, wibHourOf, type InsightFacts, serializeFactsForModel } from "./insight-facts"
 
 export {
@@ -33,6 +33,12 @@ export {
   briefShareText,
   insightDayLabel,
   insightDayName,
+  isLiveClaim,
+  isStaleClaim,
+  STALE_CLAIM_MS,
+  INSIGHT_POLL_MS,
+  INSIGHT_POLL_LIMIT_MS,
+  INSIGHT_UNFINISHED_MESSAGE,
 } from "./insight-brief"
 export type { InsightItem, InsightKind, InsightLink, InsightSection } from "./insight-brief"
 
@@ -53,6 +59,8 @@ export interface InsightRecord {
   reportsSeen: number
   regenerations: number
   generatedAt: string | null
+  /** When the row was last written. The claim's lease is measured from it. */
+  updatedAt: string | null
 }
 
 const SYSTEM_PROMPT = `Anda analis sales untuk sebuah unit sales lapangan di Indonesia. Anda menulis brief harian untuk atasan dan tim.
@@ -91,10 +99,11 @@ function toRecord(row: Record<string, unknown>): InsightRecord {
     reportsSeen: Number(row.reports_seen ?? 0),
     regenerations: Number(row.regenerations ?? 0),
     generatedAt: (row.generated_at as string | null) ?? null,
+    updatedAt: (row.updated_at as string | null) ?? null,
   }
 }
 
-const COLUMNS = "id, scope, user_id, day, status, items, model, error, trigger, reports_seen, regenerations, generated_at"
+const COLUMNS = "id, scope, user_id, day, status, items, model, error, trigger, reports_seen, regenerations, generated_at, updated_at"
 
 /** The stored insight, through whichever client the caller has (RLS applies to a session client). */
 export async function readInsight(
@@ -158,16 +167,20 @@ export interface GenerateOptions {
 /**
  * Write (or rewrite) the insight for one scope and day. The row is claimed
  * as "pending" first so two callers a second apart do not both pay for a
- * model call; the loser reads the winner's result.
+ * model call; the loser reads the winner's result. The claim is a lease:
+ * once it is older than `STALE_CLAIM_MS` the holder is assumed gone and the
+ * next caller takes the row over, so a server that died halfway cannot leave
+ * the day stuck on "Menyusun brief…".
  */
 export async function generateInsight(service: SupabaseClient, options: GenerateOptions): Promise<InsightRecord> {
   const { companyId, day, scope, userId, salesIds, trigger, now } = options
   const missions = service.schema("sales_mission")
   const existing = await readInsight(service, companyId, day, scope, userId)
 
-  // Claim.
-  if (existing?.status === "pending" && existing.generatedAt === null) {
-    return existing
+  // Claim. A live one is someone else's model call, already paid for; a
+  // stale one is a server that died holding it, and is taken over here.
+  if (isLiveClaim(existing, now)) {
+    return existing!
   }
   const claim = {
     company_id: companyId,
@@ -271,7 +284,9 @@ export const REGENERATION_GAP_MS = 10 * 60 * 1000
 /**
  * What the ten-minute schedule should do for one unit right now: the
  * morning run once its hour has come, a rewrite when reports arrived after
- * the last one and the gap has passed, otherwise nothing.
+ * the last one and the gap has passed, otherwise nothing. A claim someone
+ * is still working on is left alone; a claim left behind by a server that
+ * died is written again, because nothing else ever clears it.
  */
 export function dueTrigger(
   existing: InsightRecord | null,
@@ -281,7 +296,10 @@ export function dueTrigger(
 ): InsightTrigger | null {
   const hour = wibHourOf(now)
   if (!existing) return hour >= settings.hour ? "schedule" : null
-  if (existing.status === "pending" && existing.generatedAt === null) return null
+  if (isLiveClaim(existing, now)) return null
+  if (isStaleClaim(existing, now)) {
+    return existing.regenerations >= MAX_REGENERATIONS_PER_DAY ? null : existing.trigger === "schedule" ? "schedule" : "report"
+  }
   if (existing.trigger !== "schedule" && existing.status !== "failed" && hour >= settings.hour && existing.trigger === "view") {
     // A row made on open before the morning hour: the morning run still owns the day.
     return "schedule"

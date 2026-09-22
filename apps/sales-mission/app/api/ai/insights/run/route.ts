@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { createServiceClient, hasServiceClientConfig } from "@/utils/supabase/service"
 import { wibDayOf } from "@/lib/ai/insight-facts"
 import { countReportsSubmittedOn, dueTrigger, generateInsight, readInsight } from "@/lib/ai/insights"
+import { CONVERSATION_RETENTION_DAYS, retentionCutoff } from "@/lib/ai/ask-conversations"
 
 export const dynamic = "force-dynamic"
 export const maxDuration = 120
@@ -13,6 +14,11 @@ export const maxDuration = 120
  * and writes what is due: the morning insight once the unit's hour has come,
  * a rewrite when reports came in after the last one. Idle ticks cost one
  * query per unit and no model call.
+ *
+ * The same tick sweeps Tanya AI conversations older than 90 days. It is the
+ * one query in the app made with the service client and no company filter,
+ * because retention is not a tenant's question: it deletes by age alone, and
+ * it runs last, so a failure there can never cost anybody their brief.
  */
 export async function POST(request: Request) {
   if (!hasServiceClientConfig()) return NextResponse.json({ error: "service_key_missing" }, { status: 503 })
@@ -52,5 +58,19 @@ export async function POST(request: Request) {
     }
   }
 
-  return NextResponse.json({ day, ran: results })
+  // Retention, after the briefs: one delete by age, whatever the unit.
+  let swept: string | number = 0
+  try {
+    const { count, error } = await service
+      .schema("sales_mission")
+      .from("ai_conversations")
+      .delete({ count: "exact" })
+      .lt("updated_at", retentionCutoff(now))
+    swept = error ? "error" : (count ?? 0)
+  } catch (error) {
+    console.error("[ai-insights/run] sweep", error)
+    swept = "error"
+  }
+
+  return NextResponse.json({ day, ran: results, conversationsSwept: swept, retentionDays: CONVERSATION_RETENTION_DAYS })
 }

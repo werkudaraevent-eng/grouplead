@@ -1,11 +1,12 @@
 "use client"
 
-import { useEffect, useMemo, useState, useTransition } from "react"
+import { useMemo, useTransition } from "react"
 import Link from "next/link"
 import { toast } from "sonner"
 import { AlertCircle, FileText, Info, Loader2, RefreshCw, TrendingDown, TrendingUp, ListChecks } from "@/components/icons"
-import { ensureTodayInsight, regenerateTodayInsight } from "@/app/actions/ai-insight-actions"
+import { regenerateTodayInsight } from "@/app/actions/ai-insight-actions"
 import { briefSections, briefShareText } from "@/lib/ai/insight-brief"
+import { useTodayInsight } from "@/hooks/use-today-insight"
 import type { InsightView, InsightViewItem } from "@/lib/ai/insight-view"
 import { Button } from "@/components/ui/button"
 import { WhatsAppShareButton } from "@/components/whatsapp-share-button"
@@ -25,7 +26,10 @@ import { cn } from "@/lib/utils"
  * brief, and hand it to a WhatsApp group as plain text.
  *
  * Today with nothing stored asks for one after paint, the way the card
- * does, so a working day never opens on an empty page.
+ * does, so a working day never opens on an empty page, and while the brief
+ * is still being written the page keeps asking (see `useTodayInsight`), so
+ * leaving for another page and coming back never lands on a spinner nobody
+ * will clear.
  */
 export function BriefView({
   initial,
@@ -40,46 +44,15 @@ export function BriefView({
   canRegenerate: boolean
   scopeNote: string | null
 }) {
-  const [view, setView] = useState<InsightView | null>(initial)
-  const [loading, setLoading] = useState(isToday && (!initial || initial.status === "pending"))
+  const { view, loading, apply } = useTodayInsight({ initial, enabled: isToday, day })
   const [regenerating, startRegenerate] = useTransition()
-
-  useEffect(() => {
-    setView(initial)
-    if (!isToday || (initial && initial.status !== "pending")) {
-      setLoading(false)
-      return
-    }
-    setLoading(true)
-    let cancelled = false
-    ensureTodayInsight().then((result) => {
-      if (cancelled) return
-      if (result.success && result.data) setView(result.data)
-      else
-        setView({
-          status: "failed",
-          items: [],
-          generatedAt: null,
-          model: null,
-          error: result.error ?? "Brief gagal dibuat.",
-          trigger: "view",
-          reportsSeen: 0,
-          scope: "unit",
-          day,
-        })
-      setLoading(false)
-    })
-    return () => {
-      cancelled = true
-    }
-  }, [initial, isToday, day])
 
   const regenerate = () => {
     startRegenerate(async () => {
       const result = await regenerateTodayInsight()
       if (result.success && result.data) {
-        setView(result.data)
-        toast.success("Brief dibuat ulang.")
+        apply(result.data)
+        toast.success(result.data.status === "pending" ? "Brief sedang disusun." : "Brief dibuat ulang.")
       } else {
         toast.error(result.error ?? "Brief gagal dibuat ulang.")
       }
@@ -93,9 +66,13 @@ export function BriefView({
     <section className="rounded-xl border bg-card" aria-busy={loading || regenerating} aria-live="polite">
       <div className="space-y-6 px-4 py-4 sm:px-6 sm:py-5">
         {loading || regenerating ? (
-          <p className="flex items-center gap-2 text-sm text-muted-foreground" role="status">
-            <Loader2 className="h-4 w-4 animate-spin" /> Menyusun brief dari laporan hari ini…
-          </p>
+          /* M3 progress indicator with supporting text: what is happening, then what the person may do meanwhile. */
+          <div role="status" className="space-y-1">
+            <p className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" /> Menyusun brief dari laporan hari ini…
+            </p>
+            <p className="pl-6 text-xs text-muted-foreground">Boleh pindah halaman; brief tetap disusun di server.</p>
+          </div>
         ) : view?.status === "ready" && sections.length > 0 ? (
           sections.map((group) => (
             <div key={group.section}>
