@@ -38,6 +38,8 @@ export const paths = {
   prospectList: (query?: Query) => withQuery("/workspace/prospects", query),
   reportList: (query?: Query) => withQuery("/workspace/reports", query),
   reportSummary: (query?: Query) => withQuery("/workspace/reports/ringkasan", query),
+  /** The AI brief for one day (`day=YYYY-MM-DD`); today without one. */
+  reportInsight: (query?: Query) => withQuery("/workspace/reports/insight", query),
   guide: "/workspace/panduan",
   guideSection: (id: "hari-ini" | "aktivitas" | "laporan" | "prospek" | "izin" | "pasang") => `/workspace/panduan#${id}`,
   install: "/workspace/pasang",

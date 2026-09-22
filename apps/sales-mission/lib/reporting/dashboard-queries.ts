@@ -10,7 +10,7 @@ import { listReportRecords } from "@/lib/reporting/report-queries"
 import { buildKpiReport, type KpiSummary } from "@/lib/reporting/kpi"
 import { readInsight } from "@/lib/ai/insights"
 import { wibDayOf } from "@/lib/ai/insight-facts"
-import { resolveInsightScope, toInsightView, type InsightView } from "@/lib/ai/insight-view"
+import { buildInsightView, insightScopeNote, resolveInsightScope, type InsightView } from "@/lib/ai/insight-view"
 import { type CubeRow, type Dimension, type LabelContext, type Measure, type WidgetConfig } from "./cube"
 
 /**
@@ -127,7 +127,7 @@ export async function loadWidgetData(access: SalesMissionAccess, config: WidgetC
       // there is none.
       const { scope, userId } = await resolveInsightScope(access)
       const stored = await readInsight(await createClient(), access.companyId, wibDayOf(ctx.now), scope, userId)
-      return { source: "ai_insight", insight: stored ? toInsightView(stored) : null, scopeNote: scope === "person" ? "tentang orang dalam cakupan Anda" : null }
+      return { source: "ai_insight", insight: stored ? await buildInsightView(access, stored) : null, scopeNote: insightScopeNote(scope) }
     }
   }
 }

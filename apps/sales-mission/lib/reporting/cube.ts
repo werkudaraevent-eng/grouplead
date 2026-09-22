@@ -277,7 +277,7 @@ export const BUILTIN_WIDGETS: readonly BuiltinWidget[] = [
     defaultHidden: false,
     needsInsight: true,
     first: true,
-    description: "3 sampai 5 kalimat yang ditulis AI dari angka hari ini; selalu hari ini, tidak mengikuti periode di atas.",
+    description: "Tiga poin teratas dari brief AI hari ini; brief lengkapnya ada di tab Insight. Selalu hari ini, tidak mengikuti periode di atas.",
   },
   cube("visits_per_day", "Laporan per hari", ["visits"], "day", "bars", "wide", {
     modes: ["umum", "sales"],
