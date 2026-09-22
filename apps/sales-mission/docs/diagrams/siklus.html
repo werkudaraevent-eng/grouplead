@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Siklus Hidup Aktivitas</title>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Plus+Jakarta+Sans:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#F6F8FB; --paper-2:#FFFFFF; --paper-3:rgba(41,45,48,0.03);
+  --ink:#292D30; --muted:#5F6B76; --soft:#8A94A0;
+  --rule:rgba(41,45,48,0.12); --rule-strong:rgba(41,45,48,0.26); --dots:rgba(41,45,48,0.10);
+  --accent:#02378D; --accent-tint:rgba(2,55,141,0.08);
+  --font-sans:'Plus Jakarta Sans',system-ui,sans-serif;
+  --font-serif:'Instrument Serif',Georgia,serif;
+  --font-mono:'Geist Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#14181D; --paper-2:#1C2128; --paper-3:rgba(233,237,242,0.04);
+    --ink:#E9EDF2; --muted:#A9B3BF; --soft:#7C8792;
+    --rule:rgba(233,237,242,0.14); --rule-strong:rgba(233,237,242,0.30); --dots:rgba(233,237,242,0.10);
+    --accent:#8FB4F5; --accent-tint:rgba(143,180,245,0.14);
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#14181D; --paper-2:#1C2128; --paper-3:rgba(233,237,242,0.04);
+  --ink:#E9EDF2; --muted:#A9B3BF; --soft:#7C8792;
+  --rule:rgba(233,237,242,0.14); --rule-strong:rgba(233,237,242,0.30); --dots:rgba(233,237,242,0.10);
+  --accent:#8FB4F5; --accent-tint:rgba(143,180,245,0.14);
+}
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--font-sans);padding-block:40px;padding-inline:20px}
+.frame{max-width:1120px;margin:0 auto}
+.eyebrow{font-family:var(--font-mono);font-size:11px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);margin:0 0 8px}
+h1{font-family:var(--font-serif);font-weight:400;font-size:clamp(1.6rem,2.4vw + .8rem,2.1rem);letter-spacing:-.02em;line-height:1.15;margin:0 0 8px;text-wrap:balance}
+.lede{max-width:64ch;font-size:14px;line-height:1.55;color:var(--muted);margin:0 0 24px}
+.scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+figure{margin:0}
+svg{display:block;width:100%;min-width:880px;height:auto}
+figcaption{font-size:13px;line-height:1.5;color:var(--muted);margin-top:16px;max-width:72ch}
+.paper{fill:var(--paper)} .dot{fill:var(--dots)}
+.lane{stroke:var(--rule);stroke-width:1} .lane-strong{stroke:var(--rule-strong);stroke-width:1}
+.node{fill:var(--paper-2);stroke:var(--ink);stroke-width:1}
+.oval{fill:var(--paper-3);stroke:var(--rule-strong);stroke-width:1}
+.focal{fill:var(--accent-tint);stroke:var(--accent);stroke-width:1}
+.name{fill:var(--ink);font-family:var(--font-sans);font-size:12px;font-weight:600}
+.sub{fill:var(--muted);font-family:var(--font-mono);font-size:9px}
+.eb{fill:var(--muted);font-family:var(--font-mono);font-size:9px;letter-spacing:.18em}
+.lbl{fill:var(--muted);font-family:var(--font-mono);font-size:8px;letter-spacing:.12em}
+.lbl-accent{fill:var(--accent);font-family:var(--font-mono);font-size:8px;letter-spacing:.12em}
+.mask{fill:var(--paper)}
+.edge{fill:none;stroke:var(--muted);stroke-width:1.2}
+.edge-dash{fill:none;stroke:var(--muted);stroke-width:1.2;stroke-dasharray:5 4}
+.edge-accent{fill:none;stroke:var(--accent);stroke-width:1.4}
+.mk{fill:var(--muted)} .mk-accent{fill:var(--accent)}
+.legend{fill:var(--muted);font-family:var(--font-sans);font-size:9px}
+</style>
+</head>
+<body>
+<div class="frame">
+  <p class="eyebrow">Peta fase · Sales Activity</p>
+  <h1>Siklus hidup aktivitas</h1>
+  <p class="lede">Status yang benar-benar dipakai aplikasi, dalam urutan terjadinya, dan apa yang terjadi saat kunjungan tidak berjalan sesuai rencana.</p>
+  <figure>
+    <div class="scroll"><svg viewBox="0 0 1000 432" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="siklus-title siklus-desc">
+<title id="siklus-title">Siklus hidup aktivitas</title>
+<desc id="siklus-desc">Peta fase: aktivitas dibuat, ditugaskan, diterima, lalu selesai saat laporan dikirim; di bawahnya pita gangguan berisi permintaan jadwal ulang, penolakan, dan pembatalan beserta jalan kembalinya.</desc>
+<defs>
+  <pattern id="siklus-dots" width="22" height="22" patternUnits="userSpaceOnUse"><circle cx="1" cy="1" r="0.9" class="dot"/></pattern>
+  <marker id="siklus-arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" class="mk"/></marker>
+  <marker id="siklus-arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" class="mk-accent"/></marker>
+</defs>
+<rect width="100%" height="100%" class="paper"/>
+<rect width="100%" height="100%" fill="url(#siklus-dots)" opacity="0.55"/>
+<text x="40" y="48" class="eb">REL UTAMA</text>
+<line x1="40" y1="56" x2="960" y2="56" class="lane"/>
+<text x="40" y="232" class="eb">GANGGUAN &amp; PEMULIHAN</text>
+<line x1="40" y1="240" x2="960" y2="240" class="lane"/>
+<line x1="168" y1="120" x2="248" y2="120" class="edge" marker-end="url(#siklus-arrow)"/>
+<path d="M108,96 V80 Q108,72 116,72 H536 Q544,72 544,80 V96" class="edge" marker-end="url(#siklus-arrow)"/>
+<line x1="392" y1="120" x2="472" y2="120" class="edge" marker-end="url(#siklus-arrow)"/>
+<line x1="616" y1="120" x2="736" y2="120" class="edge-accent" marker-end="url(#siklus-arrow-accent)"/>
+<line x1="280" y1="144" x2="280" y2="280" class="edge" marker-end="url(#siklus-arrow)"/>
+<line x1="312" y1="280" x2="312" y2="144" class="edge-dash" marker-end="url(#siklus-arrow)"/>
+<path d="M376,144 V208 Q376,216 384,216 H540 Q548,216 548,224 V280" class="edge" marker-end="url(#siklus-arrow)"/>
+<path d="M508,280 V208 Q508,200 500,200 H412 Q404,200 404,192 V140 Q404,132 396,132 H392" class="edge-dash" marker-end="url(#siklus-arrow)"/>
+<path d="M600,144 V256 Q600,264 608,264 H800 Q808,264 808,272 V280" class="edge" marker-end="url(#siklus-arrow)"/>
+<rect x="174.0" y="114" width="68" height="12" rx="2" class="mask"/><text x="208" y="123" class="lbl" text-anchor="middle">KONFIRMASI</text>
+<rect x="208.0" y="66" width="236" height="12" rx="2" class="mask"/><text x="326" y="75" class="lbl" text-anchor="middle">TANPA KONFIRMASI · ATAU JADWAL SENDIRI</text>
+<rect x="401.0" y="114" width="62" height="12" rx="2" class="mask"/><text x="432" y="123" class="lbl" text-anchor="middle">MENERIMA</text>
+<rect x="626.0" y="114" width="100" height="12" rx="2" class="mask"/><text x="676" y="123" class="lbl-accent" text-anchor="middle">LAPORAN DIKIRIM</text>
+<rect x="176" y="206" width="100" height="12" rx="2" class="mask"/><text x="272" y="215" class="lbl" text-anchor="end">USUL WAKTU LAIN</text>
+<rect x="316" y="246" width="74" height="12" rx="2" class="mask"/><text x="320" y="255" class="lbl" text-anchor="start">DIPUTUSKAN</text>
+<rect x="432.0" y="210" width="56" height="12" rx="2" class="mask"/><text x="460" y="219" class="lbl" text-anchor="middle">MENOLAK</text>
+<rect x="419.0" y="194" width="74" height="12" rx="2" class="mask"/><text x="456" y="203" class="lbl" text-anchor="middle">GANTI SALES</text>
+<rect x="682.0" y="258" width="44" height="12" rx="2" class="mask"/><text x="704" y="267" class="lbl" text-anchor="middle">BATAL</text>
+<rect x="48" y="96" width="120" height="48" rx="24" class="oval"/><text x="108.0" y="118" class="name" text-anchor="middle">Dibuat</text><text x="108.0" y="132" class="sub" text-anchor="middle">aktivitas baru</text>
+<rect x="248" y="96" width="144" height="48" rx="6" class="node"/><text x="320.0" y="118" class="name" text-anchor="middle">Ditugaskan</text><text x="320.0" y="132" class="sub" text-anchor="middle">menunggu sales utama</text>
+<rect x="472" y="96" width="144" height="48" rx="6" class="node"/><text x="544.0" y="118" class="name" text-anchor="middle">Diterima</text><text x="544.0" y="132" class="sub" text-anchor="middle">siap dikunjungi</text>
+<rect x="736" y="96" width="144" height="48" rx="6" class="focal"/><text x="808.0" y="118" class="name" text-anchor="middle">Selesai</text><text x="808.0" y="132" class="sub" text-anchor="middle">laporan terkirim</text>
+<rect x="248" y="280" width="144" height="48" rx="6" class="node"/><text x="320.0" y="302" class="name" text-anchor="middle">Minta jadwal ulang</text><text x="320.0" y="316" class="sub" text-anchor="middle">menunggu keputusan</text>
+<rect x="472" y="280" width="144" height="48" rx="6" class="node"/><text x="544.0" y="302" class="name" text-anchor="middle">Ditolak</text><text x="544.0" y="316" class="sub" text-anchor="middle">sales utama menolak</text>
+<rect x="736" y="280" width="144" height="48" rx="24" class="oval"/><text x="808.0" y="302" class="name" text-anchor="middle">Dibatalkan</text><text x="808.0" y="316" class="sub" text-anchor="middle">boleh dibuat ulang nanti</text>
+<line x1="40" y1="368" x2="960" y2="368" class="lane"/>
+<text x="40" y="384" class="eb">LEGENDA</text>
+<rect x="40" y="400" width="20" height="10" rx="5" class="oval"/>
+<text x="64" y="408" class="legend">Awal / akhir</text>
+<rect x="144" y="400" width="16" height="10" rx="2" class="node"/>
+<text x="168" y="408" class="legend">Status</text>
+<rect x="224" y="400" width="16" height="10" rx="2" class="focal"/>
+<text x="248" y="408" class="legend">Status tujuan</text>
+<line x1="344" y1="405" x2="368" y2="405" class="edge" marker-end="url(#siklus-arrow)"/>
+<text x="372" y="408" class="legend">Perubahan status</text>
+<line x1="480" y1="405" x2="504" y2="405" class="edge-dash" marker-end="url(#siklus-arrow)"/>
+<text x="508" y="408" class="legend">Pemulihan</text>
+<line x1="584" y1="405" x2="608" y2="405" class="edge-accent" marker-end="url(#siklus-arrow-accent)"/>
+<text x="612" y="408" class="legend">Jalur utama</text>
+</svg></div>
+    <figcaption>Status ditentukan dari jawaban tim, bukan diubah tangan: jawaban sales utama yang menggerakkan aktivitas, sales pendukung boleh menolak tanpa menghentikannya. Bila unit tidak mewajibkan konfirmasi, atau sales menjadwalkan dirinya sendiri, aktivitas langsung Diterima. Pembatalan bisa dari status terbuka mana pun dan boleh menyimpan tanggal untuk membuat aktivitas baru.</figcaption>
+  </figure>
+</div>
+</body>
+</html>

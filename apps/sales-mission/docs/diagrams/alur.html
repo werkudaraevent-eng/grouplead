@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Alur Kerja Sales Activity</title>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Plus+Jakarta+Sans:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#F6F8FB; --paper-2:#FFFFFF; --paper-3:rgba(41,45,48,0.03);
+  --ink:#292D30; --muted:#5F6B76; --soft:#8A94A0;
+  --rule:rgba(41,45,48,0.12); --rule-strong:rgba(41,45,48,0.26); --dots:rgba(41,45,48,0.10);
+  --accent:#02378D; --accent-tint:rgba(2,55,141,0.08);
+  --font-sans:'Plus Jakarta Sans',system-ui,sans-serif;
+  --font-serif:'Instrument Serif',Georgia,serif;
+  --font-mono:'Geist Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#14181D; --paper-2:#1C2128; --paper-3:rgba(233,237,242,0.04);
+    --ink:#E9EDF2; --muted:#A9B3BF; --soft:#7C8792;
+    --rule:rgba(233,237,242,0.14); --rule-strong:rgba(233,237,242,0.30); --dots:rgba(233,237,242,0.10);
+    --accent:#8FB4F5; --accent-tint:rgba(143,180,245,0.14);
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#14181D; --paper-2:#1C2128; --paper-3:rgba(233,237,242,0.04);
+  --ink:#E9EDF2; --muted:#A9B3BF; --soft:#7C8792;
+  --rule:rgba(233,237,242,0.14); --rule-strong:rgba(233,237,242,0.30); --dots:rgba(233,237,242,0.10);
+  --accent:#8FB4F5; --accent-tint:rgba(143,180,245,0.14);
+}
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--font-sans);padding-block:40px;padding-inline:20px}
+.frame{max-width:1120px;margin:0 auto}
+.eyebrow{font-family:var(--font-mono);font-size:11px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);margin:0 0 8px}
+h1{font-family:var(--font-serif);font-weight:400;font-size:clamp(1.6rem,2.4vw + .8rem,2.1rem);letter-spacing:-.02em;line-height:1.15;margin:0 0 8px;text-wrap:balance}
+.lede{max-width:64ch;font-size:14px;line-height:1.55;color:var(--muted);margin:0 0 24px}
+.scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+figure{margin:0}
+svg{display:block;width:100%;min-width:880px;height:auto}
+figcaption{font-size:13px;line-height:1.5;color:var(--muted);margin-top:16px;max-width:72ch}
+.paper{fill:var(--paper)} .dot{fill:var(--dots)}
+.lane{stroke:var(--rule);stroke-width:1} .lane-strong{stroke:var(--rule-strong);stroke-width:1}
+.node{fill:var(--paper-2);stroke:var(--ink);stroke-width:1}
+.oval{fill:var(--paper-3);stroke:var(--rule-strong);stroke-width:1}
+.focal{fill:var(--accent-tint);stroke:var(--accent);stroke-width:1}
+.name{fill:var(--ink);font-family:var(--font-sans);font-size:12px;font-weight:600}
+.sub{fill:var(--muted);font-family:var(--font-mono);font-size:9px}
+.eb{fill:var(--muted);font-family:var(--font-mono);font-size:9px;letter-spacing:.18em}
+.lbl{fill:var(--muted);font-family:var(--font-mono);font-size:8px;letter-spacing:.12em}
+.lbl-accent{fill:var(--accent);font-family:var(--font-mono);font-size:8px;letter-spacing:.12em}
+.mask{fill:var(--paper)}
+.edge{fill:none;stroke:var(--muted);stroke-width:1.2}
+.edge-dash{fill:none;stroke:var(--muted);stroke-width:1.2;stroke-dasharray:5 4}
+.edge-accent{fill:none;stroke:var(--accent);stroke-width:1.4}
+.mk{fill:var(--muted)} .mk-accent{fill:var(--accent)}
+.legend{fill:var(--muted);font-family:var(--font-sans);font-size:9px}
+</style>
+</head>
+<body>
+<div class="frame">
+  <p class="eyebrow">Swimlane · Sales Activity</p>
+  <h1>Alur kerja Sales Activity</h1>
+  <p class="lede">Satu kunjungan dari prospek sampai lead di LeadEngine, dibaca per pelaku: siapa yang mencatat, siapa yang berkunjung, siapa yang menulis, dan apa yang dikerjakan sistem sendiri.</p>
+  <figure>
+    <div class="scroll"><svg viewBox="0 0 1000 536" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="alur-title alur-desc">
+<title id="alur-title">Alur kerja Sales Activity</title>
+<desc id="alur-desc">Swimlane: dari prospek yang dicatat admin, aktivitas dibuat dan ditugaskan, sales utama menerima, berkunjung dan mengirim laporan, sistem mencatat kunjungan di CRM, lalu tindak lanjut dan, bila ada peluang, lead dikirim ke LeadEngine.</desc>
+<defs>
+  <pattern id="alur-dots" width="22" height="22" patternUnits="userSpaceOnUse"><circle cx="1" cy="1" r="0.9" class="dot"/></pattern>
+  <marker id="alur-arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" class="mk"/></marker>
+  <marker id="alur-arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" class="mk-accent"/></marker>
+</defs>
+<rect width="100%" height="100%" class="paper"/>
+<rect width="100%" height="100%" fill="url(#alur-dots)" opacity="0.55"/>
+<line x1="40" y1="64" x2="984" y2="64" class="lane-strong"/>
+<line x1="40" y1="160" x2="984" y2="160" class="lane"/>
+<line x1="40" y1="256" x2="984" y2="256" class="lane"/>
+<line x1="40" y1="352" x2="984" y2="352" class="lane"/>
+<line x1="40" y1="448" x2="984" y2="448" class="lane-strong"/>
+<line x1="176" y1="64" x2="176" y2="448" class="lane-strong"/>
+<text x="56" y="116" class="eb">ADMIN / LEAD</text>
+<text x="56" y="212" class="eb">SALES UTAMA</text>
+<text x="56" y="308" class="eb">PENDUKUNG</text>
+<text x="56" y="404" class="eb">SISTEM</text>
+<line x1="328" y1="112" x2="352" y2="112" class="edge" marker-end="url(#alur-arrow)"/>
+<line x1="436" y1="136" x2="436" y2="184" class="edge" marker-end="url(#alur-arrow)"/>
+<line x1="404" y1="184" x2="404" y2="136" class="edge-dash" marker-end="url(#alur-arrow)"/>
+<line x1="488" y1="208" x2="512" y2="208" class="edge" marker-end="url(#alur-arrow)"/>
+<line x1="648" y1="208" x2="672" y2="208" class="edge" marker-end="url(#alur-arrow)"/>
+<path d="M580,280 V256 Q580,248 588,248 H700 Q708,248 708,240 V232" class="edge-dash" marker-end="url(#alur-arrow)"/>
+<line x1="740" y1="232" x2="740" y2="376" class="edge" marker-end="url(#alur-arrow)"/>
+<line x1="808" y1="208" x2="832" y2="208" class="edge" marker-end="url(#alur-arrow)"/>
+<line x1="900" y1="184" x2="900" y2="136" class="edge-accent" marker-end="url(#alur-arrow-accent)"/>
+<rect x="444" y="154" width="64" height="12" rx="2" class="mask"/><text x="448" y="163" class="lbl" text-anchor="start">PENUGASAN</text>
+<rect x="312" y="154" width="84" height="12" rx="2" class="mask"/><text x="392" y="163" class="lbl" text-anchor="end">JADWAL ULANG</text>
+<rect x="616.0" y="242" width="56" height="12" rx="2" class="mask"/><text x="644" y="251" class="lbl" text-anchor="middle">CATATAN</text>
+<rect x="710.0" y="298" width="60" height="12" rx="2" class="mask"/><text x="740" y="307" class="lbl" text-anchor="middle">OTOMATIS</text>
+<rect x="818" y="154" width="78" height="12" rx="2" class="mask"/><text x="892" y="163" class="lbl-accent" text-anchor="end">ADA PELUANG</text>
+<rect x="192" y="88" width="136" height="48" rx="6" class="node"/><text x="260.0" y="110" class="name" text-anchor="middle">Catat prospek</text><text x="260.0" y="124" class="sub" text-anchor="middle">perusahaan · kontak</text>
+<rect x="352" y="88" width="136" height="48" rx="6" class="node"/><text x="420.0" y="110" class="name" text-anchor="middle">Buat aktivitas</text><text x="420.0" y="124" class="sub" text-anchor="middle">jadwal · tim · kontak</text>
+<rect x="832" y="88" width="136" height="48" rx="6" class="node"/><text x="900.0" y="110" class="name" text-anchor="middle">Kirim lead</text><text x="900.0" y="124" class="sub" text-anchor="middle">kategori · pemilik</text>
+<rect x="352" y="184" width="136" height="48" rx="6" class="node"/><text x="420.0" y="206" class="name" text-anchor="middle">Terima penugasan</text><text x="420.0" y="220" class="sub" text-anchor="middle">atau usul waktu lain</text>
+<rect x="512" y="184" width="136" height="48" rx="6" class="node"/><text x="580.0" y="206" class="name" text-anchor="middle">Kunjungan</text><text x="580.0" y="220" class="sub" text-anchor="middle">kalender · WhatsApp</text>
+<rect x="672" y="184" width="136" height="48" rx="6" class="focal"/><text x="740.0" y="206" class="name" text-anchor="middle">Kirim laporan</text><text x="740.0" y="220" class="sub" text-anchor="middle">hasil · kontak · foto</text>
+<rect x="832" y="184" width="136" height="48" rx="6" class="node"/><text x="900.0" y="206" class="name" text-anchor="middle">Tindak lanjut</text><text x="900.0" y="220" class="sub" text-anchor="middle">next action · tanggal</text>
+<rect x="512" y="280" width="136" height="48" rx="6" class="node"/><text x="580.0" y="302" class="name" text-anchor="middle">Catatan pendukung</text><text x="580.0" y="316" class="sub" text-anchor="middle">dari halaman aktivitas</text>
+<rect x="672" y="376" width="136" height="48" rx="6" class="node"/><text x="740.0" y="398" class="name" text-anchor="middle">Tercatat di CRM</text><text x="740.0" y="412" class="sub" text-anchor="middle">perusahaan · kontak</text>
+<line x1="40" y1="472" x2="960" y2="472" class="lane"/>
+<text x="40" y="488" class="eb">LEGENDA</text>
+<rect x="40" y="504" width="16" height="10" rx="2" class="node"/>
+<text x="64" y="512" class="legend">Langkah</text>
+<rect x="136" y="504" width="16" height="10" rx="2" class="focal"/>
+<text x="160" y="512" class="legend">Langkah fokus</text>
+<line x1="264" y1="509" x2="288" y2="509" class="edge" marker-end="url(#alur-arrow)"/>
+<text x="292" y="512" class="legend">Urutan</text>
+<line x1="360" y1="509" x2="384" y2="509" class="edge-dash" marker-end="url(#alur-arrow)"/>
+<text x="388" y="512" class="legend">Balik / pelengkap</text>
+<line x1="512" y1="509" x2="536" y2="509" class="edge-accent" marker-end="url(#alur-arrow-accent)"/>
+<text x="540" y="512" class="legend">Peluang ke LeadEngine</text>
+</svg></div>
+    <figcaption>Kirim laporan adalah titik fokus: dari sanalah kunjungan tercatat di CRM secara otomatis, tindak lanjut lahir, dan lead dikirim bila ada peluang. Brief AI harian, papan TV, dan kalender publik membaca hasil yang sama dan sengaja tidak digambar di sini.</figcaption>
+  </figure>
+</div>
+</body>
+</html>
