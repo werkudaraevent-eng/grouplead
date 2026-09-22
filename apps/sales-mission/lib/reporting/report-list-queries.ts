@@ -4,7 +4,6 @@ import { summarizeFollowUpsByReport, type FollowUpSummary } from "@/lib/missions
 import { labelOf, type ChoiceSet } from "@/lib/missions/report-choices"
 import { dateRangeFor } from "@/lib/missions/mission-filter"
 import type { ReportStatus } from "@/lib/missions/visit-report-schema"
-import type { ReportRecord } from "./kpi"
 import { UNASSIGNED_SALES, ZERO_UUID, type ReportQuery } from "./report-filter"
 import type { ReportSort } from "./report-paging"
 
@@ -215,27 +214,4 @@ export async function countReports(access: SalesMissionAccess, request: Omit<Rep
 /** Every matching id, for the export. Capped so a broad filter cannot pull a decade. */
 export async function listMatchingReportIds(access: SalesMissionAccess, request: Omit<ReportPageRequest, "page" | "size">, cap = 5000): Promise<{ ids: string[]; total: number }> {
   return listReportIdsPage(access, { ...request, page: 0, size: cap })
-}
-
-/** A list row as the KPI/CSV record shape, so both exports share toCsvRows. */
-export function toReportRecord(item: ReportListItem): ReportRecord {
-  return {
-    missionId: item.missionId,
-    missionType: item.missionType,
-    clientCompanyName: item.clientCompanyName,
-    primarySalesName: item.primarySalesName,
-    reportStatus: item.status,
-    visitOutcome: item.visitOutcome,
-    interestLevel: item.interestLevel,
-    opportunityExists: item.opportunityExists,
-    estimatedValue: item.estimatedValue,
-    nextActionType: item.nextActionType,
-    followUpDate: item.followUpDate,
-    submittedAt: item.submittedAt,
-    contactCount: item.contactCount,
-    pushedLeadId: item.pushedLeadId,
-    scheduledStart: item.scheduledStart,
-    actualStart: item.actualStart,
-    actualEnd: item.actualEnd,
-  }
 }

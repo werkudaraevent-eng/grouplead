@@ -5,7 +5,6 @@ import {
   currentMonthRange,
   filterByRange,
   toCsv,
-  toCsvRows,
   type ReportRecord,
 } from "./kpi"
 
@@ -192,26 +191,17 @@ describe("currentMonthRange", () => {
   })
 })
 
-describe("toCsv", () => {
-  it("emits a header followed by one row per record", () => {
-    const rows = toCsvRows([record({ missionId: "m1" })])
-    expect(rows).toHaveLength(2)
-    expect(rows[0][0]).toBe("mission_id")
-    expect(rows[1][0]).toBe("m1")
-  })
 
+describe("toCsv", () => {
   it("survives a company name containing a comma", () => {
-    const rows = toCsvRows([record({ missionId: "m1", clientCompanyName: "PT Maju, Jaya" })])
-    expect(toCsv(rows)).toContain('"PT Maju, Jaya"')
+    expect(toCsv([["client_company"], ["PT Maju, Jaya"]])).toContain('"PT Maju, Jaya"')
   })
 
   it("escapes embedded quotes by doubling them", () => {
-    const rows = toCsvRows([record({ missionId: 'm"1' })])
-    expect(toCsv(rows)).toContain('"m""1"')
+    expect(toCsv([["mission_id"], ['m"1']])).toContain('"m""1"')
   })
 
-  it("writes an empty cell for a null rather than the word null", () => {
-    const rows = toCsvRows([record({ missionId: "m1", estimatedValue: null, followUpDate: null })])
-    expect(toCsv(rows)).not.toContain("null")
+  it("keeps a cell that carries several lines inside its quotes", () => {
+    expect(toCsv([["Ketemu siapa"], ["Nofri\nSari"]])).toBe('"Ketemu siapa"\r\n"Nofri\nSari"')
   })
 })

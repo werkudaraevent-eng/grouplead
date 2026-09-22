@@ -8,15 +8,27 @@ import { AUDIO_BUCKET, isCompanyAudio, parseAudioAnswer, type AudioAnswer } from
  * path is checked against the caller's company here as well.
  */
 
-/** Signed read URLs, an hour long, keyed by path. Paths outside the company are skipped. */
-export async function signAudioUrls(access: SalesMissionAccess, paths: string[]): Promise<Map<string, string>> {
+/**
+ * Signed read URLs, keyed by path. Paths outside the company are skipped.
+ *
+ * An hour by default; the visit-report export asks for a week, because the
+ * link it writes into the file has to still work when somebody opens the file.
+ * Batched 100 paths at a time, like the photos.
+ */
+export async function signAudioUrls(
+  access: SalesMissionAccess,
+  paths: string[],
+  expiresIn = 3600
+): Promise<Map<string, string>> {
   const own = [...new Set(paths.filter((path) => isCompanyAudio(path, access.companyId)))]
   const result = new Map<string, string>()
   if (own.length === 0) return result
   const supabase = await createClient()
-  const { data } = await supabase.storage.from(AUDIO_BUCKET).createSignedUrls(own, 3600)
-  for (const item of data ?? []) {
-    if (item.path && item.signedUrl && !item.error) result.set(item.path, item.signedUrl)
+  for (let start = 0; start < own.length; start += 100) {
+    const { data } = await supabase.storage.from(AUDIO_BUCKET).createSignedUrls(own.slice(start, start + 100), expiresIn)
+    for (const item of data ?? []) {
+      if (item.path && item.signedUrl && !item.error) result.set(item.path, item.signedUrl)
+    }
   }
   return result
 }

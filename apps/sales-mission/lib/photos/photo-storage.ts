@@ -9,15 +9,30 @@ import { PHOTO_BUCKET, isCompanyPhoto, parsePhotoAnswer } from "./photo-answer"
  * company here, so a crafted path never reaches storage.
  */
 
-/** Signed read URLs, an hour long, keyed by path. Paths outside the company are skipped. */
-export async function signPhotoUrls(access: SalesMissionAccess, paths: string[]): Promise<Map<string, string>> {
+/**
+ * Signed read URLs, keyed by path. Paths outside the company are skipped.
+ *
+ * An hour by default, which is a screen's lifetime. A caller that writes the
+ * link into a file somebody keeps — the visit-report export — asks for longer,
+ * because a link that has already expired when the file is opened is worse
+ * than no link. Batched: `createSignedUrls` takes an array, and an export of a
+ * quarter carries thousands of files, so the paths go 100 at a time rather
+ * than one request per photo.
+ */
+export async function signPhotoUrls(
+  access: SalesMissionAccess,
+  paths: string[],
+  expiresIn = 3600
+): Promise<Map<string, string>> {
   const own = [...new Set(paths.filter((path) => isCompanyPhoto(path, access.companyId)))]
   const result = new Map<string, string>()
   if (own.length === 0) return result
   const supabase = await createClient()
-  const { data } = await supabase.storage.from(PHOTO_BUCKET).createSignedUrls(own, 3600)
-  for (const item of data ?? []) {
-    if (item.path && item.signedUrl && !item.error) result.set(item.path, item.signedUrl)
+  for (let start = 0; start < own.length; start += 100) {
+    const { data } = await supabase.storage.from(PHOTO_BUCKET).createSignedUrls(own.slice(start, start + 100), expiresIn)
+    for (const item of data ?? []) {
+      if (item.path && item.signedUrl && !item.error) result.set(item.path, item.signedUrl)
+    }
   }
   return result
 }

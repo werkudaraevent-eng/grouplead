@@ -46,6 +46,16 @@ export const CHANGE_KIND_LABELS: Record<ChangeKind, string> = {
 export const CHANGELOG: ChangeEntry[] = [
   {
     date: "2026-09-22",
+    title: "Ekspor laporan sekarang berisi seluruh isi laporan, bukan ringkasannya",
+    items: [
+      { kind: "lebih-baik", text: "Tombol Ekspor di Laporan tadinya hanya memberi 17 kolom ringkas berisi kode seperti MET_DECISION_MAKER dan jumlah orang yang ditemui. Sekarang berkasnya berisi apa yang benar-benar kamu tulis: ringkasan pertemuan, kebutuhan klien, produk yang diminati, tingkat minat, estimasi nilai, kompetitor yang disebut, next action dan penanggung jawabnya, catatan klarifikasi, catatan pendukung, status kirim ke LeadEngine beserta kategori leadnya, dan tindak lanjutnya. Judul kolomnya mengikuti nama kolom di Form laporan unitmu — kalau admin mengganti nama sebuah kolom, judul di berkasnya ikut berganti — termasuk semua kolom tambahan yang dibuat admin, dalam urutan yang sama seperti di form. Isinya pakai kata yang sama dengan di layar, bukan kodenya." },
+      { kind: "baru", text: "Orang yang ditemui ikut lengkap: satu baris per orang di dalam selnya (nama, jabatan, telepon, email, pengambil keputusan, dan tipe DISC kalau ada), ditambah sheet Kontak tersendiri yang memberi satu baris per orang dengan catatan DISC, penilainya, dan tanggal penilaiannya. Kalau ada catatan pendukung dari rekan yang ikut, ada sheet Catatan pendukung berisi penulis, catatan, dan kapan ditulis." },
+      { kind: "baru", text: "Foto dan rekaman pertemuan ikut sebagai tautan: nama berkasnya diikuti tautan yang bisa langsung dibuka, berlaku 7 hari sejak berkasnya diunduh. Lewat dari itu, ekspor lagi. Tiap baris juga punya Tautan laporan yang membuka laporannya di aplikasi — tautan ini tidak kedaluwarsa, tapi tetap minta login, jadi aman dibagikan ke sesama anggota unit." },
+      { kind: "lebih-baik", text: "Semua jam dan tanggal ditulis dalam WIB dan dipisah jadi kolom tanggal dan kolom jam, jadi bisa diurutkan dan dihitung di Excel. Estimasi nilai dan kolom angka tambahan tersimpan sebagai angka, bukan teks, jadi bisa langsung dijumlahkan. Ekspor CSV tetap ada dan berisi sheet Laporan saja." },
+    ],
+  },
+  {
+    date: "2026-09-22",
     title: "Keterangan di kaki kartu Insight tidak lagi terjepit di samping tombol",
     items: [
       { kind: "diperbaiki", text: "Pada kartu Insight di Ringkasan, keterangan “Dibuat … · dari N laporan hari ini · AI bisa keliru” terjepit jadi kolom sempit di samping tombol Baca brief lengkap dan Buat ulang, sehingga terbaca sebagai lima baris pendek. Kalau kartunya sempit, keterangannya sekarang di atas dan tombolnya di bawah; pada kartu lebar keduanya tetap satu baris." },
