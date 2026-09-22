@@ -9,6 +9,7 @@ import { missionDayKey } from "@/lib/missions/mission-calendar"
 import { isEmptyReportQuery, parseReportQuery, serializeReportQuery } from "@/lib/reporting/report-filter"
 import { parseReportPageParams } from "@/lib/reporting/report-paging"
 import { listReportsPage } from "@/lib/reporting/report-list-queries"
+import { canSeeInsight } from "@/lib/ai/insight-view"
 import { WorkspacePage } from "@/app/workspace/workspace-page"
 import { PageChrome } from "@/components/page-chrome"
 import { RememberView } from "@/components/remember-view"
@@ -51,7 +52,7 @@ export default async function ReportListPage({
   const query = parseReportQuery(params)
   const { page, size, sort } = parseReportPageParams(params)
 
-  const [choices, salesOptions] = await Promise.all([listReportChoices(access), listTenantSales(access)])
+  const [choices, salesOptions, insightTab] = await Promise.all([listReportChoices(access), listTenantSales(access), canSeeInsight(access)])
   const { items, total } = await listReportsPage(access, { query, sort, page, size, now }, choices)
 
   const exportParams = serializeReportQuery(query)
@@ -78,7 +79,7 @@ export default async function ReportListPage({
       }
     >
       <PageChrome menu={[{ label: exportLabel, href: exportHref }]} />
-      <ReportTabs />
+      <ReportTabs showInsight={insightTab} />
       <RememberView list="reports" />
       <ReportFilterBar query={query} choices={choices} people={people} total={total} shown={items.length} />
       <ReportTable reports={items} pagination={{ page, size, total, sort }} filtered={!isEmptyReportQuery(query)} today={missionDayKey(now)} />

@@ -45,6 +45,16 @@ export const CHANGE_KIND_LABELS: Record<ChangeKind, string> = {
 
 export const CHANGELOG: ChangeEntry[] = [
   {
+    date: "2026-09-22",
+    title: "Insight harian jadi brief: perlu ditindak, yang terdengar di lapangan, dan rekomendasi",
+    items: [
+      { kind: "lebih-baik", text: "Insight harian tidak lagi sekadar membacakan angka. AI sekarang ikut membaca isi laporan (ringkasan pertemuan, kebutuhan klien, produk yang diminati, kompetitor yang disebut, siapa yang ditemui dan catatan DISC-nya bila dipakai), lalu menyusunnya jadi tiga bagian: Perlu ditindak, Yang terdengar di lapangan, dan Rekomendasi. Angka tetap dihitung aplikasi, bukan oleh AI, jadi masih bisa dicek di kartu lain." },
+      { kind: "baru", text: "Ada tab baru Insight di Laporan, di samping Daftar dan Ringkasan, berisi brief lengkapnya. Daftar hari di sebelahnya menyimpan brief 30 hari terakhir, jadi brief kemarin masih bisa dibaca. Poin yang ditulis dari laporan tertentu punya tautan Lihat laporan langsung ke laporannya." },
+      { kind: "baru", text: "Tombol Bagikan ke WhatsApp di tab Insight mengirim brief hari itu sebagai teks ke grup: share sheet di HP, WhatsApp desktop atau WhatsApp Web di komputer." },
+      { kind: "lebih-baik", text: "Kartu Insight di papan Ringkasan kini hanya menggoda: maksimal tiga poin, yang perlu ditindak lebih dulu, tanpa scroll di dalam kartu, plus tombol Baca brief lengkap ke tab Insight. Buat ulang dan keterangan Dibuat AI tetap ada." },
+    ],
+  },
+  {
     date: "2026-09-21",
     title: "Fitur baru diumumkan saat membuka Hari ini; admin yang memilih",
     items: [

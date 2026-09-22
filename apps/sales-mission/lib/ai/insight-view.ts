@@ -1,12 +1,22 @@
 import { createClient } from "@/utils/supabase/server"
 import { canPerform, getReadScope, type SalesMissionAccess } from "@/lib/sales-mission-access"
 import { getMissionSettings } from "@/lib/missions/mission-queries"
+import { paths } from "@/lib/paths"
 import { insightHref, type InsightItem, type InsightRecord, type InsightScope } from "./insights"
 
-/** What the card shows: the record with each item's link resolved. */
+/** One piece of evidence behind an item: the activity whose report it came from. */
+export interface InsightEvidence {
+  missionId: string
+  client: string
+  href: string
+}
+
+export type InsightViewItem = InsightItem & { href: string | null; evidence: InsightEvidence[] }
+
+/** What the card and the brief show: the record with each item's links resolved. */
 export interface InsightView {
   status: InsightRecord["status"]
-  items: Array<InsightItem & { href: string | null }>
+  items: InsightViewItem[]
   generatedAt: string | null
   model: string | null
   error: string | null
@@ -16,10 +26,22 @@ export interface InsightView {
   day: string
 }
 
-export function toInsightView(record: InsightRecord): InsightView {
+/**
+ * The record as the view, with the link keys turned into URLs. Evidence
+ * needs the clients' names, which only a query can give, so the pure form
+ * leaves it empty and `buildInsightView` fills it.
+ */
+export function toInsightView(record: InsightRecord, clients?: ReadonlyMap<string, string>): InsightView {
   return {
     status: record.status,
-    items: record.items.map((item) => ({ ...item, href: insightHref(item.link, record.day) })),
+    items: record.items.map((item) => ({
+      ...item,
+      href: insightHref(item.link, record.day),
+      evidence: (item.missionIds ?? []).flatMap((missionId) => {
+        const client = clients?.get(missionId)
+        return client ? [{ missionId, client, href: paths.activity(missionId, { fokus: "laporan" }) }] : []
+      }),
+    })),
     generatedAt: record.generatedAt,
     model: record.model,
     error: record.error,
@@ -28,6 +50,26 @@ export function toInsightView(record: InsightRecord): InsightView {
     scope: record.scope,
     day: record.day,
   }
+}
+
+/**
+ * The view with its evidence links named. The client names come from the
+ * person's own session, so an item may never label a link with a record
+ * that person cannot open; an id RLS hides simply loses its link.
+ */
+export async function buildInsightView(access: SalesMissionAccess, record: InsightRecord): Promise<InsightView> {
+  const ids = [...new Set(record.items.flatMap((item) => item.missionIds ?? []))]
+  if (ids.length === 0) return toInsightView(record)
+  const supabase = await createClient()
+  const { data } = await supabase
+    .schema("sales_mission")
+    .from("missions")
+    .select("id, client_company_name_snapshot")
+    .eq("company_id", access.companyId)
+    .in("id", ids)
+  const clients = new Map<string, string>()
+  for (const row of data ?? []) clients.set(row.id as string, (row.client_company_name_snapshot as string | null) ?? "Klien")
+  return toInsightView(record, clients)
 }
 
 /**
@@ -50,6 +92,10 @@ export async function resolveInsightScope(access: SalesMissionAccess): Promise<{
   return { scope: "person", userId: access.userId, salesIds: ids }
 }
 
+/** The line that says whose numbers these are, on the card and on the brief. */
+export function insightScopeNote(scope: InsightScope): string | null {
+  return scope === "person" ? "tentang orang dalam cakupan Anda" : null
+}
 
 /** Whether the insight card exists for this person: the unit's switch is on and they may read Insight AI. */
 export async function canSeeInsight(access: SalesMissionAccess): Promise<boolean> {

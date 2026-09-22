@@ -99,7 +99,7 @@ export default async function ReportSummaryPage({ searchParams }: { searchParams
         </>
       }
     >
-      <ReportTabs />
+      <ReportTabs showInsight={settings.aiInsightsEnabled && canSeeInsight} />
       <RememberView list="ringkasan" />
       <DashboardEditor
         query={query}

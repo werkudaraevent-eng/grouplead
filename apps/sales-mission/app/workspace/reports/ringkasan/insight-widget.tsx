@@ -1,27 +1,36 @@
 "use client"
 
-import { useEffect, useState, useTransition } from "react"
+import { useEffect, useMemo, useState, useTransition } from "react"
 import Link from "next/link"
 import { toast } from "sonner"
 import { AlertCircle, Info, Loader2, RefreshCw, TrendingDown, TrendingUp } from "@/components/icons"
 import { ensureTodayInsight, regenerateTodayInsight } from "@/app/actions/ai-insight-actions"
+import { TEASER_ITEMS, teaserInsightItems } from "@/lib/ai/insight-brief"
 import type { InsightView } from "@/lib/ai/insight-view"
 import { Button } from "@/components/ui/button"
 import { MISSION_TIME_ZONE } from "@/lib/missions/mission-schema"
+import { paths } from "@/lib/paths"
 import { cn } from "@/lib/utils"
 
 /**
- * The day's AI-written insight: the body of one card in the grid, whose
- * shell (title, "Dibuat AI" chip, drag handle, size menu) is the same as
- * every other widget's, so the board's owner arranges, shrinks or hides
- * it like any card (Google Analytics Insights). A sentence from a model
- * is an estimate with a timestamp, not a figure, so the foot says when it
- * was written and from what, and that it can be wrong. Each point is a
- * list item with a kind icon; a point that a list can answer is a link
- * into that list, the same drill-down the widgets use. If nothing exists
- * yet the card asks for one after the page has painted and shows what it
- * is doing, so the board never waits on the model. Failure is a sentence
- * and, for admins, a Buat ulang.
+ * The day's AI brief, as the card on the board: the door, not the content.
+ *
+ * The brief itself is three sections on its own tab; a card in a grid can
+ * only honestly hold a teaser, so it shows at most three points — what has
+ * to be acted on first, then what management is asked to decide, then the
+ * field — and one text button into the page (Google Analytics' "View all
+ * insights"). No scroller inside: a card that scrolls hides how much it
+ * holds and fights the board's own scrolling, so a point that does not fit
+ * clamps and the page is where it is read whole.
+ *
+ * The shell (title, "Dibuat AI" chip, drag handle, size menu) is the same
+ * as every other widget's, so the board's owner arranges, shrinks or hides
+ * it like any card. A sentence from a model is an estimate with a
+ * timestamp, not a figure, so the foot says when it was written and from
+ * what, and that it can be wrong. If nothing exists yet the card asks for
+ * one after the page has painted and shows what it is doing, so the board
+ * never waits on the model. Failure is a sentence and, for admins, a Buat
+ * ulang.
  */
 export function InsightWidget({ initial, canRegenerate, scopeNote }: { initial: InsightView | null; canRegenerate: boolean; scopeNote: string | null }) {
   const [view, setView] = useState<InsightView | null>(initial)
@@ -58,17 +67,19 @@ export function InsightWidget({ initial, canRegenerate, scopeNote }: { initial: 
     })
   }
 
+  const teaser = useMemo(() => teaserInsightItems(view?.items ?? [], TEASER_ITEMS), [view])
+
   return (
     <div className="flex h-full flex-col" aria-busy={loading || regenerating}>
-      {/* The scroller carries the 8px the hover backgrounds bleed into, so nothing inside is wider than it (a negative margin on a line would grow a horizontal scrollbar). */}
-      <div className="thin-scrollbar -mx-2 min-h-0 flex-1 overflow-x-hidden overflow-y-auto px-2">
+      {/* The 8px the hover backgrounds bleed into is carried here, so nothing inside is wider than the card (a negative margin on a line would grow a horizontal scrollbar). */}
+      <div className="-mx-2 min-h-0 flex-1 overflow-hidden px-2">
         {loading || regenerating ? (
           <p className="flex items-center gap-2 py-1 text-sm text-muted-foreground" role="status">
-            <Loader2 className="h-4 w-4 animate-spin" /> Menyusun insight dari data hari ini…
+            <Loader2 className="h-4 w-4 animate-spin" /> Menyusun brief dari data hari ini…
           </p>
         ) : view?.status === "ready" ? (
           <ol className="space-y-1">
-            {view.items.map((item, index) => (
+            {teaser.map((item, index) => (
               <li key={index}>
                 <InsightLine item={item} />
               </li>
@@ -79,7 +90,7 @@ export function InsightWidget({ initial, canRegenerate, scopeNote }: { initial: 
         )}
       </div>
 
-      {/* M3 card foot: supporting text at the start, the one action at the end. The model's id stays in the audit table, not on the card. */}
+      {/* M3 card foot: supporting text at the start, the actions at the end. The model's id stays in the audit table, not on the card. */}
       <footer className="mt-2 flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1 border-t pt-2 text-xs text-muted-foreground">
         <span className="min-w-0 flex-1">
           {view?.generatedAt ? (
@@ -93,12 +104,17 @@ export function InsightWidget({ initial, canRegenerate, scopeNote }: { initial: 
           {scopeNote ? ` · ${scopeNote}` : ""}
           {" · AI bisa keliru; angkanya berasal dari data aplikasi."}
         </span>
-        {canRegenerate && (
-          <Button type="button" variant="ghost" size="sm" className="-mr-2 h-9 shrink-0 md:h-8" onClick={regenerate} disabled={loading || regenerating}>
-            {regenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-            Buat ulang
+        <span className="flex shrink-0 items-center">
+          <Button asChild type="button" variant="ghost" size="sm" className="h-9 shrink-0 md:h-8">
+            <Link href={paths.reportInsight()}>Baca brief lengkap</Link>
           </Button>
-        )}
+          {canRegenerate && (
+            <Button type="button" variant="ghost" size="sm" className="-mr-2 h-9 shrink-0 md:h-8" onClick={regenerate} disabled={loading || regenerating}>
+              {regenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+              Buat ulang
+            </Button>
+          )}
+        </span>
       </footer>
     </div>
   )
@@ -117,7 +133,8 @@ function InsightLine({ item }: { item: InsightView["items"][number] }) {
   const body = (
     <>
       <Icon className={cn("mt-0.5 h-4 w-4 shrink-0", style.className)} aria-label={style.label} />
-      <span className="text-sm leading-relaxed text-foreground">{item.text}</span>
+      {/* Three lines is where a teaser stops; the rest of the sentence is on the brief. */}
+      <span className="line-clamp-3 text-sm leading-relaxed text-foreground">{item.text}</span>
     </>
   )
   return item.href ? (
