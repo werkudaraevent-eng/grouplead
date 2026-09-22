@@ -46,6 +46,13 @@ export const CHANGE_KIND_LABELS: Record<ChangeKind, string> = {
 export const CHANGELOG: ChangeEntry[] = [
   {
     date: "2026-09-22",
+    title: "Keterangan di kaki kartu Insight tidak lagi terjepit di samping tombol",
+    items: [
+      { kind: "diperbaiki", text: "Pada kartu Insight di Ringkasan, keterangan “Dibuat … · dari N laporan hari ini · AI bisa keliru” terjepit jadi kolom sempit di samping tombol Baca brief lengkap dan Buat ulang, sehingga terbaca sebagai lima baris pendek. Kalau kartunya sempit, keterangannya sekarang di atas dan tombolnya di bawah; pada kartu lebar keduanya tetap satu baris." },
+    ],
+  },
+  {
+    date: "2026-09-22",
     title: "Kolom tulisan panjang ikut tumbuh, dan daftar bernomor berlanjut sendiri",
     items: [
       { kind: "lebih-baik", text: "Semua kolom tulisan panjang — Ringkasan pertemuan, Catatan janji temu, alasan batal atau pindah jadwal, catatan tindak lanjut, catatan prospek, catatan pendukung — sekarang tingginya mengikuti apa yang kamu tulis. Tidak ada lagi kotak kecil yang membuat kalimat pertama hilang ke atas saat mengetik di HP, dan tidak ada lagi sudut yang harus diseret untuk memperbesar. Setelah sekitar 14 baris kotaknya berhenti tumbuh dan isinya yang bergulir di dalam, supaya tombol Kirim tetap terlihat." },

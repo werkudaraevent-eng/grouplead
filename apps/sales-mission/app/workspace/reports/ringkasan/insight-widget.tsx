@@ -77,9 +77,9 @@ export function InsightWidget({ initial, canRegenerate, scopeNote }: { initial: 
         )}
       </div>
 
-      {/* M3 card foot: supporting text at the start, the actions at the end. The model's id stays in the audit table, not on the card. */}
-      <footer className="mt-2 flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1 border-t pt-2 text-xs text-muted-foreground">
-        <span className="min-w-0 flex-1">
+      {/* M3 card foot: supporting text at the start, the actions at the end. On a card too narrow for both on one line the text sits above the buttons rather than being squeezed into a column beside them; the shell is a container, so the card's own width decides. The model's id stays in the audit table, not on the card. */}
+      <footer className="mt-2 flex shrink-0 flex-col gap-2 border-t pt-2 text-xs text-muted-foreground @[440px]:flex-row @[440px]:items-center @[440px]:gap-x-3 @[440px]:gap-y-1">
+        <span className="min-w-0 @[440px]:flex-1">
           {view?.generatedAt ? (
             <>
               {describeWhen(view.generatedAt)}
