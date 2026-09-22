@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { AlertCircle, Loader2, Plus } from "@/components/icons"
 import { addSupportingNote } from "@/app/actions/visit-report-actions"
 import type { SupportingNoteRecord } from "@/lib/missions/mission-queries"
+import { AutoTextarea } from "@/components/ui/auto-textarea"
 import { Button } from "@/components/ui/button"
 import { MISSION_TIME_ZONE } from "@/lib/missions/mission-schema"
 
@@ -35,7 +36,7 @@ export function SupportingNotes({
     const trimmed = note.trim()
     if (!trimmed) {
       setError("Tulis pengamatan dulu.")
-      field.current?.focus()
+      field.current?.focus({ preventScroll: true })
       return
     }
 
@@ -80,14 +81,13 @@ export function SupportingNotes({
 
       {canAdd && (
         <div className="border-t px-5 py-4">
-          <textarea
+          <AutoTextarea
             ref={field}
             value={note}
             onChange={(event) => { setNote(event.target.value); if (error) setError(null) }}
-            rows={3}
+            minRows={3}
             maxLength={5000}
             placeholder="Tambahkan pengamatan Anda…"
-            className="w-full rounded-md border border-input bg-field px-3 py-2 text-sm shadow-xs outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
           />
 
           {error && (

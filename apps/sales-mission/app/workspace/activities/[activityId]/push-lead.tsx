@@ -8,6 +8,7 @@ import { getPushPrecheck, pushMissionToLeadEngine, type PushPrecheck } from "@/a
 import type { TenantSalesOption } from "@/lib/missions/mission-queries"
 import { optionLabel } from "@/lib/missions/lead-category"
 import { jumpToField } from "@/lib/ui/scroll-in-panel"
+import { AutoTextarea } from "@/components/ui/auto-textarea"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { ChoiceChip } from "@/components/ui/choice-chip"
@@ -446,14 +447,13 @@ export function PushLeadPanel({
 
         <div className="space-y-1.5 sm:col-span-2">
           <Label htmlFor="push-remark">Catatan untuk CRM</Label>
-          <textarea
+          <AutoTextarea
             id="push-remark"
-            rows={3}
+            minRows={3}
             maxLength={4000}
             value={form.remark}
             onChange={(e) => setForm({ ...form, remark: e.target.value })}
             placeholder="Kosongkan untuk memakai ringkasan pertemuan"
-            className="w-full rounded-md border border-input bg-field px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
           />
         </div>
       </div>

@@ -27,6 +27,7 @@ import type { DiscAssessment, KnownDisc, VisitReportRecord } from "@/lib/mission
 import { DISC_LETTERS, DISC_PROFILES, describeAssessment, describeDisc, discCode } from "@/lib/contacts/disc"
 import type { TenantSalesOption } from "@/lib/missions/mission-queries"
 import type { ReportOptions } from "@/lib/missions/report-options"
+import { AutoTextarea } from "@/components/ui/auto-textarea"
 import { Button } from "@/components/ui/button"
 import { ChipRow, ChoiceChip } from "@/components/ui/choice-chip"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -281,9 +282,10 @@ function DiscBlock({
           </p>
           <div className="space-y-1.5">
             <Label htmlFor={`contact-disc-note-${index}`}>Cara menghadapi orang ini <span className="font-normal text-muted-foreground">(opsional)</span></Label>
-            <Input
+            <AutoTextarea
               id={`contact-disc-note-${index}`}
-              className="h-12 bg-card"
+              className="bg-card"
+              minRows={2}
               maxLength={300}
               value={contact.discNote ?? ""}
               onChange={(e) => onChange({ discNote: e.target.value })}
@@ -415,7 +417,7 @@ function CustomControl({ field, value, onChange, scope }: { field: FormField; va
     return <SingleChip options={field.options} value={typeof value === "string" ? value : null} onChange={(next) => onChange(next)} allowCustom={field.allowOther} />
   }
   if (field.fieldType === "LONG_TEXT") {
-    return <textarea id={id} value={typeof value === "string" ? value : ""} onChange={(event) => onChange(event.target.value)} rows={4} maxLength={4000} placeholder={field.placeholder ?? ""} className={cn(FIELD_CLASS, "py-2.5")} />
+    return <AutoTextarea id={id} value={typeof value === "string" ? value : ""} onChange={(event) => onChange(event.target.value)} minRows={3} maxLength={4000} placeholder={field.placeholder ?? ""} />
   }
   if (field.fieldType === "NUMBER" || field.fieldType === "CURRENCY") {
     return (
@@ -734,7 +736,7 @@ export function VisitReportForm({
       case "meeting_summary":
         return (
           <FieldShell key={field.id} field={field}>
-            <textarea value={draft.meetingSummary} onChange={(event) => update("meetingSummary", event.target.value)} rows={5} maxLength={5000} placeholder={field.placeholder ?? "Ceritakan singkat jalannya pertemuan…"} className={cn(FIELD_CLASS, "py-2.5")} />
+            <AutoTextarea value={draft.meetingSummary} onChange={(event) => update("meetingSummary", event.target.value)} minRows={3} maxLength={5000} placeholder={field.placeholder ?? "Ceritakan singkat jalannya pertemuan…"} />
           </FieldShell>
         )
       case "client_needs":

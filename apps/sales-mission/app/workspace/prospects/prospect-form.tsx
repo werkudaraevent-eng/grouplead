@@ -10,6 +10,7 @@ import { DEFAULT_INDUSTRIES, configuredOptions, type FormField } from "@/lib/mis
 import type { ProspectDetail } from "@/lib/prospects/prospect-schema"
 import { PROSPECT_SECTION_HINTS, prospectBlocks } from "@/lib/prospects/prospect-form-fields"
 import { parseNumber } from "@/lib/format/number"
+import { AutoTextarea } from "@/components/ui/auto-textarea"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { MultiChoiceWithOther, SelectWithOther } from "@/components/ui/choice-with-other"
@@ -39,8 +40,6 @@ import { PersonPicker } from "@/app/workspace/activities/new/people-picker"
 
 const SELECT_CLASS =
   "flex h-12 w-full rounded-md border border-input bg-field px-3 text-sm text-foreground shadow-xs outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
-const TEXTAREA_CLASS =
-  "w-full rounded-md border border-input bg-field px-3 py-2.5 text-sm text-foreground shadow-xs outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
 
 type Span = "full" | "wide" | "half" | "third"
 const SPAN_CLASS: Record<Span, string> = { full: "sm:col-span-6", wide: "sm:col-span-4", half: "sm:col-span-3", third: "sm:col-span-2" }
@@ -139,7 +138,7 @@ function CustomField({ field, initial }: { field: FormField; initial?: unknown }
   if (field.fieldType === "LONG_TEXT") {
     return (
       <FieldShell field={field}>
-        <textarea id={id} name={name} required={field.isRequired} rows={3} maxLength={4000} defaultValue={initialText} placeholder={field.placeholder ?? ""} className={TEXTAREA_CLASS} />
+        <AutoTextarea id={id} name={name} required={field.isRequired} minRows={3} maxLength={4000} defaultValue={initialText} placeholder={field.placeholder ?? ""} />
       </FieldShell>
     )
   }
@@ -278,7 +277,7 @@ export function ProspectForm({
       case "notes":
         return (
           <FieldShell field={field} key={field.id}>
-            <textarea id="field-notes" name="notes" rows={3} maxLength={4000} required={field.isRequired} defaultValue={prospect?.notes ?? ""} placeholder={field.placeholder ?? "Dapat dari pameran, referensi klien lama, dan sebagainya."} className={TEXTAREA_CLASS} />
+            <AutoTextarea id="field-notes" name="notes" minRows={3} maxLength={4000} required={field.isRequired} defaultValue={prospect?.notes ?? ""} placeholder={field.placeholder ?? "Dapat dari pameran, referensi klien lama, dan sebagainya."} />
           </FieldShell>
         )
       case "owner":

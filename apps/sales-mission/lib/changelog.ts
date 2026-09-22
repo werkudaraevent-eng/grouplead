@@ -46,6 +46,15 @@ export const CHANGE_KIND_LABELS: Record<ChangeKind, string> = {
 export const CHANGELOG: ChangeEntry[] = [
   {
     date: "2026-09-22",
+    title: "Kolom tulisan panjang ikut tumbuh, dan daftar bernomor berlanjut sendiri",
+    items: [
+      { kind: "lebih-baik", text: "Semua kolom tulisan panjang — Ringkasan pertemuan, Catatan janji temu, alasan batal atau pindah jadwal, catatan tindak lanjut, catatan prospek, catatan pendukung — sekarang tingginya mengikuti apa yang kamu tulis. Tidak ada lagi kotak kecil yang membuat kalimat pertama hilang ke atas saat mengetik di HP, dan tidak ada lagi sudut yang harus diseret untuk memperbesar. Setelah sekitar 14 baris kotaknya berhenti tumbuh dan isinya yang bergulir di dalam, supaya tombol Kirim tetap terlihat." },
+      { kind: "baru", text: "Daftar berlanjut sendiri. Ketik “1. ” lalu Enter dan baris berikutnya sudah dimulai “2. ”; ketik “- ” dan Enter meneruskan tanda yang sama. Enter sekali lagi pada butir yang masih kosong mengakhiri daftarnya. Kalau hanya butuh pindah baris tanpa tanda daftar, tekan Shift+Enter." },
+      { kind: "lebih-baik", text: "Catatan “Cara menghadapi orang ini” pada gaya komunikasi (DISC) tadinya kolom satu baris, jadi tulisan yang agak panjang bergeser ke samping dan awalnya tidak terlihat lagi. Sekarang kolom biasa yang ikut tumbuh seperti yang lain." },
+    ],
+  },
+  {
+    date: "2026-09-22",
     title: "Brief AI selesai sendiri walau kamu pindah halaman, dan Tanya AI menyimpan percakapan",
     items: [
       { kind: "lebih-baik", text: "Menyusun brief butuh waktu, jadi halamannya kini menunggu sendiri: selama brief sedang dibuat, kartu Insight dan tab Insight memeriksa ulang tiap beberapa detik sampai brief-nya muncul, tanpa perlu memuat ulang halaman. Boleh pindah halaman sementara; brief tetap disusun di server. Kalau lebih dari empat menit belum selesai juga, halamannya berhenti menunggu dan mengatakannya, bukan berputar terus." },

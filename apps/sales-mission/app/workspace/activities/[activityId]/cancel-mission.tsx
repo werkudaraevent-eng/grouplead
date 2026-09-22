@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { Ban, Loader2 } from "@/components/icons"
 import { cancelMission } from "@/app/actions/mission-actions"
+import { AutoTextarea } from "@/components/ui/auto-textarea"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -162,14 +163,13 @@ export function CancelMissionButton({
             <Label htmlFor="cancel-reason" className="text-foreground">
               Alasan<span className="ml-0.5 text-[var(--danger-foreground)]" aria-hidden="true">*</span>
             </Label>
-            <textarea
+            <AutoTextarea
               id="cancel-reason"
-              rows={3}
+              minRows={2}
               maxLength={1000}
               value={reason}
               onChange={(event) => setReason(event.target.value)}
               placeholder="Klien minta ditunda, sales berhalangan, dan sebagainya."
-              className="w-full rounded-md border border-input bg-field px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
             />
             <p className="text-xs text-muted-foreground">
               Dicatat di riwayat aktivitas dan di CRM, supaya tim appointment tahu apa yang terjadi.
