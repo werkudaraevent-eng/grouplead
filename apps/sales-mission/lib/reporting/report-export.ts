@@ -22,9 +22,12 @@ import { parsePhotoAnswer } from "@/lib/photos/photo-answer"
  * written is decided by functions a test can hold still: the query layer
  * fetches, this builds.
  *
- * Two things a single row cannot hold get their own sheet: the people met and
- * the supporting notes are lists per report, and flattening a list into a
- * column either truncates it or turns the file into a ragged grid.
+ * The people met are numbered column groups on the report's own row — "Kontak
+ * 1 · Nama", "Kontak 1 · Telepon", then "Kontak 2 · …" — as many groups as the
+ * widest report in the export, so the row stays one row and every fact is a
+ * cell that can be filtered and sorted. The lists that cannot be spread that
+ * way keep their own sheet: Kontak for one row per person met, Catatan
+ * pendukung for what the rest of the team wrote.
  */
 
 /** How long an attachment link in an export stays valid: a working week plus the weekend. */
@@ -32,6 +35,26 @@ export const EXPORT_LINK_SECONDS = 7 * 24 * 60 * 60
 
 /** The visit-report form field whose answer the actual-time columns already carry. */
 const TIME_FIELD_KEY = "visit_time"
+
+/** The visit-report form field that answers with people rather than a value. */
+const CONTACTS_FIELD_KEY = "contacts_met"
+
+/**
+ * What is written about one person met, one fact per column.
+ *
+ * Fixed Indonesian rather than the field's label: these are not the field's
+ * answer, they are the columns that answer stands for, so renaming "Ketemu
+ * siapa" leaves them alone.
+ */
+const CONTACT_GROUP_COLUMNS = [
+  "Nama",
+  "Jabatan",
+  "Telepon",
+  "Email",
+  "Pengambil keputusan",
+  "DISC",
+  "Catatan DISC",
+]
 
 export interface ExportContact {
   fullName: string
@@ -219,27 +242,38 @@ const joined = (values: string[] | null | undefined): string => (values ?? []).f
 const numberCell = (value: number | null | undefined): string =>
   value === null || value === undefined || !Number.isFinite(value) ? "" : String(value)
 
-/**
- * One person met, on one line.
- *
- * Everything the rep recorded about them, in the order a human reads it, with
- * the empty parts left out rather than printed as separators with nothing
- * between them. A DISC reading is a judgement, so it only appears when there
- * is one and it stays behind the word DISC.
- */
-export function contactLine(contact: ExportContact): string {
-  const name = contact.fullName.trim()
-  const jobTitle = contact.jobTitle?.trim()
-  const parts = [jobTitle ? `${name} — ${jobTitle}` : name]
-  const phone = contact.phone?.trim()
-  const email = contact.email?.trim()
-  if (phone) parts.push(phone)
-  if (email) parts.push(email)
-  if (contact.isDecisionMaker) parts.push("Pengambil keputusan")
-  if (contact.discPrimary) {
-    parts.push(`DISC ${contact.discPrimary}${contact.discSecondary ? `/${contact.discSecondary}` : ""}`)
+/** The headers of `count` numbered groups: "Kontak 1 · Nama" … "Kontak 3 · Catatan DISC". */
+export function contactGroupHeaders(count: number): string[] {
+  const headers: string[] = []
+  for (let number = 1; number <= count; number += 1) {
+    for (const column of CONTACT_GROUP_COLUMNS) headers.push(`Kontak ${number} · ${column}`)
   }
-  return parts.join(" · ")
+  return headers
+}
+
+/** A DISC reading in one cell: the primary letter, the secondary behind a slash. */
+function discCell(contact: ExportContact): string {
+  if (!contact.discPrimary) return ""
+  return contact.discSecondary ? `${contact.discPrimary}/${contact.discSecondary}` : contact.discPrimary
+}
+
+/**
+ * One person's cells, in the group's order.
+ *
+ * A slot nobody stood in is written as empty cells rather than skipped: the
+ * grid stays rectangular, which is what lets the column be sorted at all.
+ */
+export function contactCells(contact: ExportContact | undefined): string[] {
+  if (!contact) return CONTACT_GROUP_COLUMNS.map(() => "")
+  return [
+    contact.fullName,
+    text(contact.jobTitle),
+    text(contact.phone),
+    text(contact.email),
+    yesNo(contact.isDecisionMaker),
+    discCell(contact),
+    text(contact.discNote),
+  ]
 }
 
 /** The files of one attachment answer, one per line: the name, and the link while it lasts. */
@@ -327,8 +361,6 @@ function coreCell(
   switch (field.reportingKey) {
     case "visit_outcome":
       return labelOf(choices, "visit_outcome", row.visitOutcome)
-    case "contacts_met":
-      return row.contacts.map(contactLine).join("\n")
     case "meeting_summary":
       return text(row.meetingSummary)
     case "client_needs":
@@ -375,7 +407,9 @@ function followUpCell(followUp: ExportFollowUp | null, today: string): string {
  * arranged it, then what became of the report. "Waktu kunjungan" is dropped
  * from the middle because the activity block already carries the reported
  * start and end as their own day and clock columns, and a second rendering of
- * the same answer is a column people reconcile instead of read.
+ * the same answer is a column people reconcile instead of read. "Ketemu
+ * siapa" becomes the numbered contact groups, in the place the admin gave the
+ * field, so reordering the field moves the whole block of columns with it.
  */
 export function buildReportExport(
   rows: ReportExportRow[],
@@ -386,12 +420,28 @@ export function buildReportExport(
   const shown = visibleFields(fields).filter((field) => field.reportingKey !== TIME_FIELD_KEY)
   const today = options.today ?? ""
 
+  // As many groups as the widest report, and never fewer than one: a header
+  // that appears only when somebody was met is a file whose shape moves.
+  let contactGroups = 1
+  for (const row of rows) contactGroups = Math.max(contactGroups, row.contacts.length)
+  const contactHeaders = shown.some((field) => field.reportingKey === CONTACTS_FIELD_KEY)
+    ? contactGroupHeaders(contactGroups)
+    : []
+  const contactHeaderNames = new Set(contactHeaders)
+
   const numericColumns = new Set<string>()
   for (const field of shown) {
+    // Typing is by header name, so a field renamed onto a contact header would
+    // turn that person's phone number into a number and eat its leading zero.
+    if (contactHeaderNames.has(field.label)) continue
     if (field.fieldType === "NUMBER" || field.fieldType === "CURRENCY") numericColumns.add(field.label)
   }
 
-  const header = [...ACTIVITY_COLUMNS, ...shown.map((field) => field.label), ...TRAIL_COLUMNS]
+  const header = [
+    ...ACTIVITY_COLUMNS,
+    ...shown.flatMap((field) => (field.reportingKey === CONTACTS_FIELD_KEY ? contactHeaders : [field.label])),
+    ...TRAIL_COLUMNS,
+  ]
 
   const laporan: string[][] = [header]
   const kontak: string[][] = [CONTACT_COLUMNS]
@@ -400,9 +450,14 @@ export function buildReportExport(
   for (const row of rows) {
     const visitDay = wibDay(row.actualStart)
 
-    const answers = shown.map((field) => {
+    const answers = shown.flatMap((field) => {
+      // The people met are not one answer but one group of columns per person,
+      // written where the admin put the field.
+      if (field.reportingKey === CONTACTS_FIELD_KEY) {
+        return Array.from({ length: contactGroups }, (_, index) => contactCells(row.contacts[index])).flat()
+      }
       const core = field.isCore ? coreCell(field, row, choices, options.signedUrls) : null
-      return core ?? customCell(field, row.custom[field.reportingKey], options.signedUrls)
+      return [core ?? customCell(field, row.custom[field.reportingKey], options.signedUrls)]
     })
 
     laporan.push([

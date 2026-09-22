@@ -4,7 +4,6 @@ import { defaultChoiceSet } from "@/lib/missions/report-choices"
 import {
   buildReportExport,
   collectAttachmentPaths,
-  contactLine,
   wibDay,
   wibTime,
   type ExportContact,
@@ -231,44 +230,123 @@ describe("buildReportExport cells", () => {
 })
 
 describe("people met", () => {
-  it("writes name, job, phone, email, decision maker and DISC on one line", () => {
-    expect(
-      contactLine(
-        contact({
-          fullName: "Nofri Ardian",
-          jobTitle: "GM Procurement",
-          phone: "081234567890",
-          email: "nofri@arunika.co.id",
-          isDecisionMaker: true,
-          discPrimary: "D",
-          discSecondary: "I",
-        })
-      )
-    ).toBe("Nofri Ardian — GM Procurement · 081234567890 · nofri@arunika.co.id · Pengambil keputusan · DISC D/I")
+  const nofri = contact({
+    fullName: "Nofri Ardian",
+    jobTitle: "GM Procurement",
+    phone: "081234567890",
+    email: "nofri@arunika.co.id",
+    isDecisionMaker: true,
+    discPrimary: "D",
+    discSecondary: "I",
+    discNote: "Langsung ke angka",
+  })
+  const sari = contact({
+    fullName: "Sari",
+    discPrimary: "S",
+    discNote: "Minta angka tertulis",
+    discAssessedByName: "Yulia",
+    discAssessedAt: "2026-09-15T10:05:00.000Z",
   })
 
-  it("leaves out the parts nobody filled in, and the DISC part when there is no reading", () => {
-    expect(contactLine(contact({ fullName: "Sari", email: "sari@arunika.co.id" }))).toBe("Sari · sari@arunika.co.id")
-    expect(contactLine(contact({ fullName: "Sari", discSecondary: "C" }))).toBe("Sari")
+  /** The form columns of the Laporan sheet, between the activity block and the trail. */
+  function formColumns(laporan: string[][]): string[] {
+    return laporan[0].slice(laporan[0].indexOf("Status laporan") + 1, laporan[0].indexOf("Catatan klarifikasi"))
+  }
+
+  function group(number: number): string[] {
+    return [
+      `Kontak ${number} · Nama`,
+      `Kontak ${number} · Jabatan`,
+      `Kontak ${number} · Telepon`,
+      `Kontak ${number} · Email`,
+      `Kontak ${number} · Pengambil keputusan`,
+      `Kontak ${number} · DISC`,
+      `Kontak ${number} · Catatan DISC`,
+    ]
+  }
+
+  it("gives each person their own columns, one fact per cell", () => {
+    const { laporan } = build([row({ contacts: [nofri] })])
+    expect(cell(laporan, "Kontak 1 · Nama")).toBe("Nofri Ardian")
+    expect(cell(laporan, "Kontak 1 · Jabatan")).toBe("GM Procurement")
+    expect(cell(laporan, "Kontak 1 · Telepon")).toBe("081234567890")
+    expect(cell(laporan, "Kontak 1 · Email")).toBe("nofri@arunika.co.id")
+    expect(cell(laporan, "Kontak 1 · Pengambil keputusan")).toBe("Ya")
+    expect(cell(laporan, "Kontak 1 · DISC")).toBe("D/I")
+    expect(cell(laporan, "Kontak 1 · Catatan DISC")).toBe("Langsung ke angka")
+    expect(laporan[0]).not.toContain("Ketemu siapa")
   })
 
-  it("puts one person per line in the report's cell and one person per row on Kontak", () => {
-    const { laporan, kontak } = build([
-      row({
-        contacts: [
-          contact({ fullName: "Nofri Ardian", jobTitle: "GM", isDecisionMaker: true }),
-          contact({
-            fullName: "Sari",
-            discPrimary: "S",
-            discNote: "Minta angka tertulis",
-            discAssessedByName: "Yulia",
-            discAssessedAt: "2026-09-15T10:05:00.000Z",
-          }),
-        ],
-      }),
+  it("writes one group per person and the same seven columns in order", () => {
+    const { laporan } = build([row({ contacts: [nofri, sari] })])
+    const headers = formColumns(laporan)
+    const start = headers.indexOf("Kontak 1 · Nama")
+    expect(headers.slice(start, start + 14)).toEqual([...group(1), ...group(2)])
+    expect(cell(laporan, "Kontak 2 · Nama")).toBe("Sari")
+    expect(cell(laporan, "Kontak 2 · DISC")).toBe("S")
+    expect(cell(laporan, "Kontak 2 · Pengambil keputusan")).toBe("Tidak")
+  })
+
+  it("keeps one group even when nobody was met, with its cells empty", () => {
+    const { laporan } = build([row()])
+    const headers = formColumns(laporan)
+    expect(headers.filter((name) => name.startsWith("Kontak "))).toEqual(group(1))
+    expect(cell(laporan, "Kontak 1 · Nama")).toBe("")
+    expect(cell(laporan, "Kontak 1 · Pengambil keputusan")).toBe("")
+    expect(cell(laporan, "Kontak 1 · DISC")).toBe("")
+  })
+
+  it("counts the groups from the widest report and leaves the rest of a shorter row empty", () => {
+    const { laporan } = build([
+      row({ reportId: "a", contacts: [nofri] }),
+      row({ reportId: "b", contacts: [nofri, sari, contact({ fullName: "Rangga" })] }),
     ])
+    const headers = formColumns(laporan)
+    expect(headers.filter((name) => name.startsWith("Kontak "))).toEqual([...group(1), ...group(2), ...group(3)])
+    expect(cell(laporan, "Kontak 3 · Nama", 2)).toBe("Rangga")
+    expect(cell(laporan, "Kontak 2 · Nama", 1)).toBe("")
+    expect(cell(laporan, "Kontak 3 · Pengambil keputusan", 1)).toBe("")
+    expect(laporan[1]).toHaveLength(laporan[0].length)
+    expect(laporan[2]).toHaveLength(laporan[0].length)
+  })
 
-    expect(cell(laporan, "Ketemu siapa")).toBe("Nofri Ardian — GM · Pengambil keputusan\nSari · DISC S")
+  it("leaves the DISC cell empty unless there is a reading, and hides a lone secondary letter", () => {
+    const { laporan } = build([
+      row({ reportId: "a", contacts: [contact({ fullName: "Sari" })] }),
+      row({ reportId: "b", contacts: [contact({ fullName: "Sari", discSecondary: "C" })] }),
+      row({ reportId: "c", contacts: [contact({ fullName: "Sari", discPrimary: "S" })] }),
+    ])
+    expect(cell(laporan, "Kontak 1 · DISC", 1)).toBe("")
+    expect(cell(laporan, "Kontak 1 · DISC", 2)).toBe("")
+    expect(cell(laporan, "Kontak 1 · DISC", 3)).toBe("S")
+  })
+
+  it("puts the groups where the admin put the field, and never renames them", () => {
+    const fields = [
+      field({ reportingKey: "contacts_met", label: "Siapa yang ditemui", fieldType: "CONTACTS", isCore: true, displayOrder: 30 }),
+      field({ reportingKey: "meeting_summary", label: "Ringkasan pertemuan", fieldType: "LONG_TEXT", isCore: true, displayOrder: 20 }),
+      field({ reportingKey: "catatan_lapangan", label: "Catatan lapangan", fieldType: "TEXT", displayOrder: 40 }),
+    ]
+    const { laporan } = build([row({ contacts: [nofri] })], fields)
+    expect(formColumns(laporan)).toEqual(["Ringkasan pertemuan", ...group(1), "Catatan lapangan"])
+    expect(laporan[0]).not.toContain("Siapa yang ditemui")
+  })
+
+  it("leaves the groups out when the admin archived the field", () => {
+    const fields = coreFields().map((entry) =>
+      entry.reportingKey === "contacts_met" ? { ...entry, isActive: false } : entry
+    )
+    const { laporan } = build([row({ contacts: [nofri] })], fields)
+    expect(laporan[0].filter((name) => name.startsWith("Kontak "))).toEqual([])
+  })
+
+  it("never types a contact column as a number, so a phone keeps its leading zero", () => {
+    const { numericColumns } = build([row({ contacts: [nofri, sari] })])
+    expect([...numericColumns].filter((name) => name.startsWith("Kontak "))).toEqual([])
+  })
+
+  it("still gives one row per person on Kontak, with who read the DISC and when", () => {
+    const { kontak } = build([row({ contacts: [nofri, sari] })])
     expect(kontak).toHaveLength(3)
     expect(cell(kontak, "Nama", 1)).toBe("Nofri Ardian")
     expect(cell(kontak, "Pengambil keputusan", 1)).toBe("Ya")
