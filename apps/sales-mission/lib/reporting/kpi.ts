@@ -213,51 +213,6 @@ export function currentMonthRange(now: Date): { from: string; to: string } {
   }
 }
 
-/** Rows for a CSV export, header first. Values are already stringified. */
-export function toCsvRows(records: ReportRecord[]): string[][] {
-  const header = [
-    "mission_id",
-    "mission_type",
-    "client_company",
-    "primary_sales",
-    "report_status",
-    "visit_outcome",
-    "interest_level",
-    "opportunity",
-    "estimated_value",
-    "next_action",
-    "follow_up_date",
-    "scheduled_start",
-    "actual_start",
-    "actual_end",
-    "contacts_met",
-    "lead_id",
-    "submitted_at",
-  ]
-
-  const rows = records.map((record) => [
-    record.missionId,
-    record.missionType,
-    record.clientCompanyName,
-    record.primarySalesName ?? "",
-    record.reportStatus,
-    record.visitOutcome ?? "",
-    record.interestLevel ?? "",
-    record.opportunityExists ? "yes" : "no",
-    record.estimatedValue === null ? "" : String(record.estimatedValue),
-    record.nextActionType,
-    record.followUpDate ?? "",
-    record.scheduledStart ?? "",
-    record.actualStart ?? "",
-    record.actualEnd ?? "",
-    String(record.contactCount),
-    record.pushedLeadId ?? "",
-    record.submittedAt ?? "",
-  ])
-
-  return [header, ...rows]
-}
-
 /**
  * Serialise rows to CSV.
  *
