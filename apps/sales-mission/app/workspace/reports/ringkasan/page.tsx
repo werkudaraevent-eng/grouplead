@@ -22,6 +22,8 @@ import { DashboardEditor, type CardData } from "./dashboard-editor"
 import type { WidgetMode } from "@/lib/reporting/cube"
 
 export const dynamic = "force-dynamic"
+// The brief is written by a server action invoked from this page, and a reasoning model needs more than the default function budget.
+export const maxDuration = 120
 
 /**
  * Ringkasan: the summary as a board of cards over one period and one set

@@ -87,7 +87,7 @@ export async function askSalesData(input: unknown): Promise<ActionResult<AskAnsw
     // No max_tokens, like LeadEngine's Ask AI on the same proxy: there the
     // budget covers the model's thinking too, and a small cap came back as
     // an empty answer. The prompt keeps the answer short.
-    const result = await chatCompleteDetailed(config, { model: config.modelFast, temperature: 0.2, messages })
+    const result = await chatCompleteDetailed(config, { model: config.modelFast, temperature: 0.2, messages, timeoutMs: 45_000 })
     void recordAiUsage({ feature: "tanya_ai", model: config.modelFast, promptTokens: result.promptTokens, completionTokens: result.completionTokens, ok: true, companyId: access.companyId, userId: access.userId })
     if (log) {
       await log.schema("sales_mission").from("ai_questions").insert({

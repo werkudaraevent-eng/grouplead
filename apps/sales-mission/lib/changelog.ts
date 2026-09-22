@@ -46,6 +46,13 @@ export const CHANGE_KIND_LABELS: Record<ChangeKind, string> = {
 export const CHANGELOG: ChangeEntry[] = [
   {
     date: "2026-09-22",
+    title: "Brief AI tidak lagi gagal karena batas waktu 20 detik",
+    items: [
+      { kind: "diperbaiki", text: "Brief yang dibuat dari banyak laporan butuh lebih dari 20 detik, dan aplikasi memutusnya lalu menampilkan “Endpoint tidak menjawab dalam 20 detik”. Batas waktunya kini 90 detik untuk brief dan 45 detik untuk Tanya AI; Uji koneksi di Pengaturan tetap 20 detik." },
+    ],
+  },
+  {
+    date: "2026-09-22",
     title: "Insight harian jadi brief: perlu ditindak, yang terdengar di lapangan, dan rekomendasi",
     items: [
       { kind: "lebih-baik", text: "Insight harian tidak lagi sekadar membacakan angka. AI sekarang ikut membaca isi laporan (ringkasan pertemuan, kebutuhan klien, produk yang diminati, kompetitor yang disebut, siapa yang ditemui dan catatan DISC-nya bila dipakai), lalu menyusunnya jadi tiga bagian: Perlu ditindak, Yang terdengar di lapangan, dan Rekomendasi. Angka tetap dihitung aplikasi, bukan oleh AI, jadi masih bisa dicek di kartu lain." },

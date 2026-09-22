@@ -217,6 +217,8 @@ export async function generateInsight(service: SupabaseClient, options: Generate
       // itself is at most nine two-sentence items of JSON, and the brief
       // reasons over the day's report texts before writing them.
       maxTokens: 4000,
+      // Forty reports through a reasoning model: well past the probe's twenty seconds.
+      timeoutMs: 90_000,
       messages: [
         { role: "system", content: SYSTEM_PROMPT },
         { role: "user", content: `FAKTA:\n${serializeFactsForModel(facts)}` },
