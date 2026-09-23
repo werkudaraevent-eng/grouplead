@@ -22,10 +22,34 @@ export interface ChangelogItem {
     text: string
 }
 
+/**
+ * A release worth a dialog. Written with the feature, like the entry; an
+ * admin decides in Settings → Announcements whether it shows. The dialog
+ * ("What's new in LeadEngine") appears once per person on the dashboard.
+ */
+export interface Announcement {
+    /**
+     * Stable slug (`^[a-z0-9][a-z0-9_-]{0,59}$`, 40 characters at most so the
+     * person's seen mark `announce-<key>-<stamp>` still fits): the settings
+     * row and the seen marks hang off it, so never rename it.
+     */
+    key: string
+    title: string
+    /** One sentence, for the people who use the feature. */
+    body: string
+    /** Where "Try it now" goes. */
+    href?: string
+    hrefLabel?: string
+    /** Off until an admin switches it on; for a change that is not everyone's business. Defaults to on. */
+    defaultOn?: boolean
+}
+
 export interface ChangelogEntry {
     date: string
     title: string
     items: ChangelogItem[]
+    /** Makes the release announceable (Settings → Announcements). */
+    announcement?: Announcement
 }
 
 export const CHANGE_TYPE_META: Record<
@@ -50,6 +74,15 @@ export const CHANGE_TYPE_META: Record<
 }
 
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        date: "2026-09-23",
+        title: "Usage, Announcements, and a tidier Settings page",
+        items: [
+            { type: "feature", text: "Settings → Usage shows who actually opens LeadEngine: how many people were active today, in the last 7 and in the last 30 days out of everyone with access; a bar per day of active users, with weekends in grey; a line per person with when they were last here, days active, pages opened and an eight-week trend; and the pages opened most. Only admins can see it. All that is recorded is which page someone opened and when, one row per person per day. Nothing typed, nothing shown on a page and no location is recorded. The numbers start from the day this update arrives." },
+            { type: "feature", text: "Settings → Announcements: choose which new features LeadEngine announces. When one is switched on, everyone sees a short \"What's new in LeadEngine\" window once, on the dashboard, with up to three highlights, each with a link straight to the feature, and Later or Got it to close it; on a phone it slides up from the bottom. Closing it counts on every device that person uses. Switching an announcement off hides it from everyone; switching it back on does not show it again to people who already closed it. Announce again, after a confirmation, shows it once more to every account, for example after a training. The first two, communication style on the contact page and leads from visits arriving classified, start switched off." },
+            { type: "improvement", text: "Settings is easier to scan: a new Adoption group holds Announcements and Usage, each row's description now shows two lines instead of being cut after a few words on a phone, and the Settings page now fits a phone's width instead of scrolling sideways. The subtitle under a Settings page title is no longer clipped at the bottom." },
+        ],
+    },
     {
         date: "2026-09-21",
         title: "AI usage on its own page",
@@ -88,6 +121,14 @@ export const CHANGELOG: ChangelogEntry[] = [
     {
         date: "2026-09-19",
         title: "Communication style from the field on the contact page",
+        announcement: {
+            key: "contact-disc",
+            title: "Communication style on the contact page",
+            body: "When a Sales Activity rep records how someone communicates (their DISC style) at a visit, it now shows on that contact's page, with who assessed it and when.",
+            href: "/contacts",
+            hrefLabel: "Open contacts",
+            defaultOn: false,
+        },
         items: [
             { type: "feature", text: "When a Sales Activity rep records a DISC reading for someone they met (which letter dominates, an optional secondary letter, and how to approach them), it now appears on that contact's page under Contact Information as a Communication style (DISC) badge, with who assessed it and when. A newer reading from a later visit replaces the earlier one." },
         ],
@@ -120,6 +161,14 @@ export const CHANGELOG: ChangelogEntry[] = [
     {
         date: "2026-09-16",
         title: "Leads from Sales Activity arrive classified",
+        announcement: {
+            key: "visit-leads-classified",
+            title: "Leads from visits arrive classified",
+            body: "A lead sent from a Sales Activity visit report now carries its Category and Grade lead, and a company registered from a visit carries its industry.",
+            href: "/leads",
+            hrefLabel: "Open leads",
+            defaultOn: false,
+        },
         items: [
             { type: "feature", text: "A lead sent from a Sales Activity visit report now carries a Category (HQL, Hot, Warm, Cold) and a Grade lead, chosen from this app's Master Options at the moment of sending. Leads from visits used to arrive with no category." },
             { type: "feature", text: "A company registered from a visit carries its industry (the Sector list). An existing company with no sector is filled in; one that already has a sector is never overwritten." },

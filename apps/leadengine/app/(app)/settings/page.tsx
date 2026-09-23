@@ -12,6 +12,8 @@ import {
     ShieldAlert,
     Sparkles,
     Trash2,
+    Megaphone,
+    Activity,
 } from "@/components/icons"
 import { SettingsPageHeader } from "@/components/layout/settings-page-header"
 import { CurrencySettingsRow } from "@/features/settings/components/currency-settings-card"
@@ -84,6 +86,26 @@ const sections: ModuleSection[] = [
         ],
     },
     {
+        label: "Adoption",
+        description: "What is announced to the team, and who actually uses the app.",
+        items: [
+            {
+                title: "Announcements",
+                description: "Which releases the What's new dialog announces on the dashboard, and announcing one again after a training.",
+                href: "/settings/announcements",
+                icon: Megaphone,
+                permission: { module: "settings", action: "update" },
+            },
+            {
+                title: "Usage",
+                description: "Who opens LeadEngine and when they last did, days active, and the pages opened most. Admins only.",
+                href: "/settings/usage",
+                icon: Activity,
+                permission: { module: "settings", action: "read" },
+            },
+        ],
+    },
+    {
         label: "Administration",
         description: "Access control and global display preferences.",
         items: [
@@ -95,7 +117,7 @@ const sections: ModuleSection[] = [
                 permission: { module: "permissions", action: "read" },
             },
             {
-                title: "Recycle Bin",
+                title: "Recycle bin",
                 description: "Restore or permanently remove deleted leads, companies, and contacts.",
                 href: "/settings/recycle-bin",
                 icon: Trash2,
@@ -112,7 +134,9 @@ const sections: ModuleSection[] = [
     },
 ]
 
-const CONTAINER = "w-full max-w-[1200px]"
+// A list of destinations reads best at a readable line length, not the
+// full width a data table needs.
+const CONTAINER = "w-full max-w-4xl"
 
 export default function SettingsPage() {
     const { can, loading } = usePermissions()
@@ -127,7 +151,9 @@ export default function SettingsPage() {
         .filter((section) => section.items.length > 0 || (section.label === "Administration" && canSeeCurrency))
 
     return (
-        <div className="min-h-[100dvh] bg-background">
+        // A list of destinations fits a phone, so it opts out of the shell's
+        // 900px canvas (see main-layout.tsx) and gets the real width.
+        <div data-fluid-page className="min-h-[100dvh] bg-background">
             <SettingsPageHeader
                 title="Settings"
                 subtitle="Manage your workspace configuration, team, and access control."
@@ -200,8 +226,8 @@ function SettingsAccessSkeleton() {
             <div className="h-3 w-24 rounded bg-muted animate-pulse" />
             <div className="rounded-xl border border-border bg-card divide-y divide-border overflow-hidden">
                 {Array.from({ length: 3 }).map((_, i) => (
-                    <div key={i} className="flex items-center gap-4 px-4 py-3.5">
-                        <div className="h-9 w-9 rounded-md bg-muted animate-pulse" />
+                    <div key={i} className="flex min-h-[72px] items-center gap-4 px-4 py-3">
+                        <div className="h-10 w-10 rounded-lg bg-muted animate-pulse" />
                         <div className="flex-1 space-y-2">
                             <div className="h-3.5 w-40 rounded bg-muted animate-pulse" />
                             <div className="h-3 w-72 max-w-full rounded bg-muted/70 animate-pulse" />
@@ -232,16 +258,18 @@ function SettingsRow({ item }: { item: ModuleItem }) {
         <li>
             <Link
                 href={item.href}
-                className="group flex items-center gap-4 px-4 py-3.5 transition-colors hover:bg-muted/40 focus-visible:bg-muted/50 focus-visible:outline-none"
+                className="group flex min-h-[72px] items-center gap-4 px-4 py-3 transition-colors hover:bg-muted/40 focus-visible:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring active:bg-muted/60"
             >
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground transition-colors group-hover:bg-primary/10 group-hover:text-primary">
-                    <Icon className="h-4 w-4" aria-hidden="true" strokeWidth={1.75} />
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground transition-colors group-hover:bg-primary/10 group-hover:text-primary">
+                    <Icon className="h-5 w-5" aria-hidden="true" strokeWidth={1.75} />
                 </span>
                 <div className="min-w-0 flex-1">
                     <div className="text-[13.5px] font-semibold tracking-tight text-foreground">
                         {item.title}
                     </div>
-                    <p className="mt-0.5 line-clamp-1 text-[12px] text-muted-foreground">
+                    {/* Two lines, not one: on a phone a one-line clamp cut
+                        every description down to its first few words. */}
+                    <p className="mt-0.5 line-clamp-2 text-[12.5px] leading-snug text-muted-foreground">
                         {item.description}
                     </p>
                 </div>

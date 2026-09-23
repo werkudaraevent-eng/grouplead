@@ -68,16 +68,16 @@ export function CurrencySettingsRow({ icon: Icon = DollarSign }: CurrencySetting
                 type="button"
                 onClick={() => setOpen((v) => !v)}
                 aria-expanded={open}
-                className="group flex w-full items-center gap-4 px-4 py-3.5 text-left transition-colors hover:bg-muted/50 focus-visible:bg-muted/60 focus-visible:outline-none"
+                className="group flex min-h-[72px] w-full items-center gap-4 px-4 py-3 text-left transition-colors hover:bg-muted/40 focus-visible:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring active:bg-muted/60"
             >
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
-                    <Icon className="h-4 w-4" aria-hidden="true" />
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground transition-colors group-hover:bg-primary/10 group-hover:text-primary">
+                    <Icon className="h-5 w-5" aria-hidden="true" strokeWidth={1.75} />
                 </span>
                 <div className="min-w-0 flex-1">
-                    <div className="text-sm font-semibold tracking-tight text-foreground">
+                    <div className="text-[13.5px] font-semibold tracking-tight text-foreground">
                         Currency display
                     </div>
-                    <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">
+                    <p className="mt-0.5 line-clamp-2 text-[12.5px] leading-snug text-muted-foreground">
                         How monetary values appear across the system · {summary}
                     </p>
                 </div>

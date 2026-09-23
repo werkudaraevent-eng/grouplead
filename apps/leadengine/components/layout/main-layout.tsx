@@ -26,6 +26,7 @@ const TopLoader = dynamic(
 )
 import { CompanySwitchLoader } from "@/components/layout/company-switch-loader"
 import { SessionGuard } from "@/components/layout/session-guard"
+import { UsageBeacon } from "@/components/layout/usage-beacon"
 import { MaintenanceWatcher } from "@/features/settings/components/maintenance-watcher"
 import { Sheet, SheetContent, SheetTitle, SheetDescription } from "@/components/ui/sheet"
 import { Button } from "@/components/ui/button"
@@ -67,6 +68,8 @@ export function MainLayout({ children, initialCompany, companies, currencySettin
                 <CurrencyProvider settings={currencySettings}>
                     <SidebarThemeProvider>
                         <SessionGuard />
+                        {/* Settings → Usage: which page, when; draws nothing, fails silently. */}
+                        <UsageBeacon />
                         <MaintenanceWatcher />
                         <TopLoader />
                         <MainLayoutInner initialCollapsed={initialCollapsed} initialWidth={initialWidth} mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} userProfile={userProfile}>
@@ -169,7 +172,12 @@ function MainLayoutInner({
                         <span className="font-bold text-sm">Werkudara Group</span>
                     </div>
                 </div>
-                <main id="main-content" className={`flex-1 overflow-y-auto overflow-x-auto bg-background thin-scrollbar min-w-[900px] transition-opacity duration-200 ${isSwitching ? "opacity-60 pointer-events-none" : "opacity-100"}`}>{children}</main>
+                {/* The content keeps a 900px floor so the CRM's wide tables scroll
+                    sideways instead of squeezing. A page built to reflow down
+                    to a phone opts out by carrying `data-fluid-page` on its
+                    root (Settings → Usage), so it gets the real width and no
+                    sideways page scroll; every other page is unchanged. */}
+                <main id="main-content" className={`flex-1 overflow-y-auto overflow-x-auto bg-background thin-scrollbar min-w-[900px] has-[[data-fluid-page]]:min-w-0 transition-opacity duration-200 ${isSwitching ? "opacity-60 pointer-events-none" : "opacity-100"}`}>{children}</main>
             </div>
         </div>
     )

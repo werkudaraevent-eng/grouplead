@@ -49,24 +49,31 @@ export function SettingsPageHeader({ title, subtitle, breadcrumbs, actions }: Se
                     scrolled ? "py-3 border-b border-border shadow-sm" : "pt-6 pb-3 border-b border-transparent",
                 )}
             >
-                <div className="flex items-center justify-between">
-                    <div>
+                <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
                         <h1 className={cn(
                             "font-extrabold text-foreground tracking-tight transition-all duration-200 m-0",
                             scrolled ? "text-[17px]" : "text-2xl",
                         )}>
                             {title}
                         </h1>
-                        <div className={cn(
-                            "overflow-hidden transition-all duration-200",
-                            scrolled ? "h-0 opacity-0 -translate-y-1" : "h-5 opacity-100 translate-y-0",
-                        )}>
-                            {subtitle && (
-                                <p className="text-sm text-muted-foreground mt-1">{subtitle}</p>
-                            )}
-                        </div>
+                        {/* Collapses on scroll by animating the grid row from
+                            its content height to 0, never to a fixed height: a
+                            fixed 20px box clipped the descenders under the 4px
+                            top margin and cut a subtitle that wraps on a phone
+                            down to its first line. */}
+                        {subtitle && (
+                            <div className={cn(
+                                "grid transition-[grid-template-rows,opacity] duration-200",
+                                scrolled ? "grid-rows-[0fr] opacity-0" : "grid-rows-[1fr] opacity-100",
+                            )}>
+                                <div className="min-h-0 overflow-hidden">
+                                    <p className="pt-1 text-sm leading-5 text-muted-foreground">{subtitle}</p>
+                                </div>
+                            </div>
+                        )}
                     </div>
-                    {actions && <div className="flex items-center gap-2">{actions}</div>}
+                    {actions && <div className="flex shrink-0 items-center gap-2">{actions}</div>}
                 </div>
             </div>
 

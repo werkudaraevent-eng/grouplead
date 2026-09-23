@@ -6,6 +6,8 @@ import { requirePermission } from "@/lib/require-permission"
 import type { Lead, PipelineStage } from "@/types"
 import type { GoalV2, GoalNode, GoalUserTarget, GoalSettingsV2 } from "@/types/goals"
 import type { CustomWidget } from "@/types/custom-widget"
+import { pendingAnnouncementsFor } from "@/lib/announcements/announcement-queries"
+import { AnnouncementDialog } from "@/features/announcements/components/announcement-dialog"
 
 type SalesProfile = { id: string; full_name: string | null; avatar_url?: string | null }
 
@@ -24,8 +26,12 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
     ])
 
     const user = authResult.data?.user
+    // What's new: started now so it runs beside the dashboard's own queries;
+    // it never rejects, and degrades to "nothing to announce".
+    const announcementsPromise = pendingAnnouncementsFor(user?.id)
     const dashboardGuard = await requirePermission('dashboard', 'read', activeCompany?.id)
     if (!dashboardGuard.allowed) {
+        const announcements = await announcementsPromise
         return (
             <div className="flex min-h-[60vh] items-center justify-center px-6">
                 <div className="max-w-md rounded-xl border border-border bg-card p-8 text-center">
@@ -34,6 +40,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
                         Your role does not have permission to view the main dashboard.
                     </p>
                 </div>
+                <AnnouncementDialog items={announcements} />
             </div>
         )
     }
@@ -228,6 +235,8 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
         }
     }
 
+    const announcements = await announcementsPromise
+
     return (
         <>
             {leads.length >= DASHBOARD_LEADS_LIMIT && (
@@ -252,6 +261,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
                 customWidgets={customWidgets ?? []}
                 salesProfiles={salesProfiles}
             />
+            <AnnouncementDialog items={announcements} />
         </>
     )
 }
