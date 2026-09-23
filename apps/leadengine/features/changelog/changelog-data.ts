@@ -83,6 +83,7 @@ export const CHANGELOG: ChangelogEntry[] = [
             { type: "improvement", text: "Sort arrows show only on the column you sorted by, and on another when you point at it, so the header is no longer a row of arrows." },
             { type: "improvement", text: "Needs details is a small warning icon next to the name (point at it for the explanation) instead of a label that cut long names short. The Needs details filter still lists them all." },
             { type: "improvement", text: "Rows per page is a simple dropdown." },
+            { type: "improvement", text: "Clicking a column header now goes A to Z, then Z to A, then back to the normal order (by name), so a sort can be undone without reloading the page. Point at a header to see what the next click does." },
         ],
     },
     {

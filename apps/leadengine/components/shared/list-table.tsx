@@ -46,6 +46,8 @@ export function frozenCell(index: number, columns: FrozenColumn[]): { className:
   }
 }
 
+export { nextSort, type SortState } from "@/lib/list-sort"
+
 export function SortableHead({
   label,
   active,
@@ -67,7 +69,12 @@ export function SortableHead({
       {/* The arrow shows on the sorted column, and on another only while it
           is hovered or focused (M3 data table sort), so a header row is not
           a row of arrows. */}
-      <button type="button" onClick={onSort} className={cn("group/sort flex h-full items-center gap-1.5 transition-colors", active ? "text-foreground" : "hover:text-foreground")}>
+      <button
+        type="button"
+        onClick={onSort}
+        title={!active ? `Sort by ${label}, A to Z` : direction === "asc" ? `Sort by ${label}, Z to A` : "Back to the default order"}
+        className={cn("group/sort flex h-full items-center gap-1.5 transition-colors", active ? "text-foreground" : "hover:text-foreground")}
+      >
         {label}
         <Icon
           className={cn(

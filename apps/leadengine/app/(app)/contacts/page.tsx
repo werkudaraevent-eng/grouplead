@@ -59,7 +59,7 @@ import { ColumnsMenu } from "@/components/shared/columns-menu"
 import { ListFooter } from "@/components/shared/list-footer"
 import { InitialsAvatar } from "@/components/shared/initials-avatar"
 import { NeedsDetailsMark } from "@/components/shared/status-badge"
-import { ListEmpty, MENU_COL, RowMenu, SELECT_COL, SortableHead, frozenCell } from "@/components/shared/list-table"
+import { ListEmpty, MENU_COL, RowMenu, SELECT_COL, SortableHead, frozenCell, nextSort } from "@/components/shared/list-table"
 import { useListViews } from "@/hooks/use-list-views"
 import { formatPhoneDisplay } from "@/lib/phone-normalize"
 import { cn } from "@/lib/utils"
@@ -350,10 +350,7 @@ export default function ContactsPage() {
     // never reaches rows the person cannot see.
     React.useEffect(() => { setSelectedIds(new Set()) }, [currentPage])
 
-    const handleSort = (key: string) => {
-        const nextDirection: "asc" | "desc" = sortConfig?.key === key && sortConfig.direction === "asc" ? "desc" : "asc"
-        setSortConfig({ key, direction: nextDirection })
-    }
+    const handleSort = (key: string) => setSortConfig(nextSort(sortConfig, key))
 
     // The header box reads this page's rows, never the size of the set.
     const pageSelected = paginatedData.filter((c) => selectedIds.has(c.id)).length
