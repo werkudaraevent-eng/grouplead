@@ -52,18 +52,12 @@ interface FilterBuilderProps {
     value: FilterValue[]
     onChange: (filters: FilterValue[]) => void
     className?: string
-    /**
-     * `wrap` lets the chips take as many rows as they need. `rail` keeps
-     * them on one row that scrolls sideways when there is no room, so a
-     * toolbar stays one row tall and the table below never moves.
-     */
-    layout?: "wrap" | "rail"
 }
 
 const resolveOptions = (def: FilterDefinition): FilterOption[] =>
     typeof def.options === "function" ? def.options() : def.options ?? []
 
-export function FilterBuilder({ definitions, value, onChange, className, layout = "wrap" }: FilterBuilderProps) {
+export function FilterBuilder({ definitions, value, onChange, className }: FilterBuilderProps) {
     const filtersByField = React.useMemo(() => {
         const m = new Map<string, FilterValue>()
         for (const f of value) m.set(f.field, f)
@@ -100,32 +94,11 @@ export function FilterBuilder({ definitions, value, onChange, className, layout 
         .map(field => definitions.find(d => d.field === field))
         .filter((d): d is FilterDefinition => Boolean(d) && !filtersByField.has(d!.field))
 
-    // The rail fades its right edge only while there is more to scroll to;
-    // a fade over chips that fit hid "Add filter" for no reason.
-    const railRef = React.useRef<HTMLDivElement>(null)
-    const [overflowing, setOverflowing] = React.useState(false)
-    React.useEffect(() => {
-        if (layout !== "rail") return
-        const node = railRef.current
-        if (!node) return
-        const measure = () => setOverflowing(node.scrollWidth > node.clientWidth + 2)
-        measure()
-        const observer = new ResizeObserver(measure)
-        observer.observe(node)
-        return () => observer.disconnect()
-    }, [layout, value, drafts, definitions])
-
+    // Chips wrap onto the next line when they do not fit; an applied filter
+    // is never scrolled out of sight (M3 chip sets wrap on wide screens;
+    // Linear, Notion, HubSpot; Sales Activity's filter bar).
     return (
-        <div className={cn("flex min-w-0 items-center gap-2", className)}>
-        <div
-            ref={railRef}
-            className={cn(
-                "flex items-center gap-2",
-                layout === "rail" && "no-scrollbar min-w-0 flex-1 flex-nowrap overflow-x-auto",
-                layout === "rail" && overflowing && "[mask-image:linear-gradient(to_right,black_calc(100%-2rem),transparent)] pr-8",
-                layout !== "rail" && "flex-wrap",
-            )}
-        >
+        <div className={cn("flex min-w-0 flex-wrap items-center gap-2", className)}>
             {/* Pinned filters — always shown */}
             {pinned.map((def) => {
                 const active = filtersByField.get(def.field)
@@ -178,7 +151,6 @@ export function FilterBuilder({ definitions, value, onChange, className, layout 
                     else setDrafts(prev => (prev.includes(def.field) ? prev : [...prev, def.field]))
                 }}
             />
-        </div>
 
             {hasActive && (
                 <button

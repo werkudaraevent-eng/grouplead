@@ -9,15 +9,16 @@ import { FilterBuilder } from "./filter-builder"
 import type { FilterDefinition, FilterValue } from "./filter-builder-types"
 
 /**
- * One toolbar row for a list page (Material: the page's primary action
- * lives in the header; the toolbar holds search, filters and secondary
- * actions as icon buttons).
+ * The toolbar of a list page (Material: the page's primary action lives in
+ * the header; the toolbar holds search, filters and secondary actions as
+ * icon buttons).
  *
- * The row is exactly one row tall on every width. The search bar keeps its
- * size, the filter chips ride in a rail that scrolls sideways when there
- * is no room (never wrapping, never pushing the table down), and the
- * actions on the right are 40dp icon buttons with tooltips instead of
- * three labelled buttons competing for the same line.
+ * One row while everything fits. Search and the filter chips flow in one
+ * group that wraps onto a second line when there are more filters than
+ * room, so an applied filter is always in sight and never cut at an edge
+ * (M3 chip sets wrap on wide screens; Linear, Notion, HubSpot; the same
+ * behaviour as Sales Activity's filter bar). The icon actions stay at the
+ * top right of the first line.
  */
 export function ListToolbar({
   search,
@@ -32,10 +33,12 @@ export function ListToolbar({
   className?: string
 }) {
   return (
-    <div className={cn("flex h-10 items-center gap-3", className)}>
-      <SearchField value={search.value} onChange={search.onChange} placeholder={search.placeholder} aria-label={search["aria-label"]} />
-      <FilterBuilder layout="rail" definitions={filters.definitions} value={filters.value} onChange={filters.onChange} className="min-w-0 flex-[2]" />
-      {actions && <div className="ml-auto flex shrink-0 items-center gap-1">{actions}</div>}
+    <div className={cn("flex items-start gap-3", className)}>
+      <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+        <SearchField value={search.value} onChange={search.onChange} placeholder={search.placeholder} aria-label={search["aria-label"]} className="mr-1" />
+        <FilterBuilder definitions={filters.definitions} value={filters.value} onChange={filters.onChange} className="contents" />
+      </div>
+      {actions && <div className="flex h-10 shrink-0 items-center gap-1">{actions}</div>}
     </div>
   )
 }
