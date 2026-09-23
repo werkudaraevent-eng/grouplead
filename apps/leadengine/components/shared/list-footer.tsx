@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { SearchableSelect } from "./searchable-select"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Pagination } from "./pagination"
 
 /**
@@ -36,17 +36,22 @@ export function ListFooter({
         <span className="font-semibold text-foreground tabular-nums">{total}</span> {noun}
       </p>
       <div className="flex items-center gap-4">
-        <label className="flex items-center gap-2 text-[13px] text-muted-foreground">
-          Rows per page
-          <SearchableSelect
-            value={String(perPage)}
-            onChange={(value) => value && onPerPageChange(Number(value))}
-            options={perPageOptions.map((n) => ({ value: String(n), label: String(n) }))}
-            clearable={false}
-            contentWidth="auto"
-            className="h-9 w-[76px]"
-          />
-        </label>
+        {/* A plain dropdown of the few sizes on offer (M3 menu, as Gmail and
+            Sales Activity do it), not a searchable combobox whose stacked
+            arrows read as a number stepper. */}
+        <div className="flex items-center gap-2 text-[13px] text-muted-foreground">
+          <span id="rows-per-page-label">Rows per page</span>
+          <Select value={String(perPage)} onValueChange={(value) => onPerPageChange(Number(value))}>
+            <SelectTrigger size="sm" className="w-[76px]" aria-labelledby="rows-per-page-label">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent align="end">
+              {perPageOptions.map((n) => (
+                <SelectItem key={n} value={String(n)}>{n}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
         <Pagination currentPage={page} totalPages={totalPages} onPageChange={onPageChange} size="sm" />
       </div>
     </div>

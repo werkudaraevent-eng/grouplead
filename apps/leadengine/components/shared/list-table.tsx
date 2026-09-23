@@ -13,9 +13,13 @@ import { cn } from "@/lib/utils"
  * The two list pages used to carry their own copies of each.
  */
 
-/** Widths of the two leading fixed columns: select, then the row number. */
+/**
+ * Width of the leading fixed select column. There is no row-number column:
+ * a row's number changes with every sort and filter and names nothing, and
+ * HubSpot, Salesforce, Pipedrive and Attio leave it out; the footer says
+ * "1–20 of 1196".
+ */
 export const SELECT_COL = 44
-export const INDEX_COL = 44
 export const MENU_COL = 56
 
 export interface FrozenColumn {
@@ -33,7 +37,7 @@ export function frozenCell(index: number, columns: FrozenColumn[]): { className:
   const column = columns[index]
   const isSticky = index < 2
   const isLastSticky = index === Math.min(1, columns.length - 1)
-  const left = index === 0 ? SELECT_COL + INDEX_COL : SELECT_COL + INDEX_COL + (columns[0]?.width ?? 0)
+  const left = index === 0 ? SELECT_COL : SELECT_COL + (columns[0]?.width ?? 0)
   return {
     className: cn(isSticky && "sticky z-10", isSticky && isLastSticky && "shadow-[inset_-1px_0_0_var(--border),4px_0_8px_-6px_rgba(0,0,0,0.18)]"),
     style: isSticky
@@ -60,9 +64,18 @@ export function SortableHead({
   const Icon = active ? (direction === "asc" ? ArrowUp : ArrowDown) : ArrowUpDown
   return (
     <TableHead className={className} style={style} aria-sort={active ? (direction === "asc" ? "ascending" : "descending") : "none"}>
-      <button type="button" onClick={onSort} className={cn("flex h-full items-center gap-1.5 transition-colors", active ? "text-foreground" : "hover:text-foreground")}>
+      {/* The arrow shows on the sorted column, and on another only while it
+          is hovered or focused (M3 data table sort), so a header row is not
+          a row of arrows. */}
+      <button type="button" onClick={onSort} className={cn("group/sort flex h-full items-center gap-1.5 transition-colors", active ? "text-foreground" : "hover:text-foreground")}>
         {label}
-        <Icon className={cn("h-3.5 w-3.5 shrink-0", active ? "text-primary" : "opacity-40")} aria-hidden="true" />
+        <Icon
+          className={cn(
+            "h-3.5 w-3.5 shrink-0 transition-opacity",
+            active ? "text-primary" : "opacity-0 group-hover/sort:opacity-60 group-focus-visible/sort:opacity-60",
+          )}
+          aria-hidden="true"
+        />
       </button>
     </TableHead>
   )

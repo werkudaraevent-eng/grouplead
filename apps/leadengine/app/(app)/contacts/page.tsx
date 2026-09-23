@@ -58,8 +58,8 @@ import { ListToolbar } from "@/components/shared/list-toolbar"
 import { ColumnsMenu } from "@/components/shared/columns-menu"
 import { ListFooter } from "@/components/shared/list-footer"
 import { InitialsAvatar } from "@/components/shared/initials-avatar"
-import { NeedsDetailsBadge } from "@/components/shared/status-badge"
-import { INDEX_COL, ListEmpty, MENU_COL, RowMenu, SELECT_COL, SortableHead, frozenCell } from "@/components/shared/list-table"
+import { NeedsDetailsMark } from "@/components/shared/status-badge"
+import { ListEmpty, MENU_COL, RowMenu, SELECT_COL, SortableHead, frozenCell } from "@/components/shared/list-table"
 import { useListViews } from "@/hooks/use-list-views"
 import { formatPhoneDisplay } from "@/lib/phone-normalize"
 import { cn } from "@/lib/utils"
@@ -459,7 +459,7 @@ export default function ContactsPage() {
                     <div className="flex items-center gap-3 min-w-0">
                         <InitialsAvatar name={contact.full_name} size="sm" />
                         <span className="font-medium text-foreground group-hover:text-primary transition-colors truncate">{nameDisplay}</span>
-                        {contact.needs_enrichment && <NeedsDetailsBadge />}
+                        {contact.needs_enrichment && <NeedsDetailsMark />}
                     </div>
                 )
             }
@@ -581,7 +581,6 @@ export default function ContactsPage() {
                                 <TableHead className="sticky left-0 z-10 px-3 text-center" style={{ width: SELECT_COL, minWidth: SELECT_COL, maxWidth: SELECT_COL }}>
                                     <Checkbox checked={headerChecked} onCheckedChange={toggleSelectAll} aria-label="Select all on this page" />
                                 </TableHead>
-                                <TableHead className="sticky z-10 px-2 text-center" style={{ left: SELECT_COL, width: INDEX_COL, minWidth: INDEX_COL, maxWidth: INDEX_COL }}>No.</TableHead>
                                 {activeCols.map((col, index) => {
                                     const frozen = frozenCell(index, activeCols)
                                     const sortKey = col.id === "company" ? "client_company" : col.id
@@ -605,29 +604,26 @@ export default function ContactsPage() {
                         </TableHeader>
                         <TableBody>
                             {loading ? (
-                                <TableSkeleton rows={10} columns={activeCols.length + 3} />
+                                <TableSkeleton rows={10} columns={activeCols.length + 2} />
                             ) : contacts.length === 0 ? (
                                 <TableRow>
-                                    <TableCell colSpan={activeCols.length + 3} className="h-auto">
+                                    <TableCell colSpan={activeCols.length + 2} className="h-auto">
                                         <ListEmpty icon={Users} title="No contacts yet" description="Create your first contact and link them to a client company." action={<PermissionGate resource="contacts" action="create"><Button onClick={() => setAddContactOpen(true)}><Plus className="mr-2 h-4 w-4" /> Add contact</Button></PermissionGate>} />
                                     </TableCell>
                                 </TableRow>
                             ) : paginatedData.length === 0 ? (
                                 <TableRow>
-                                    <TableCell colSpan={activeCols.length + 3} className="h-auto">
+                                    <TableCell colSpan={activeCols.length + 2} className="h-auto">
                                         <ListEmpty icon={Users} title="No contacts match your filters" description="Try changing your search or clearing filters." action={<Button variant="outline" onClick={() => { setSearchQuery(""); setFilters([]) }}>Clear filters</Button>} />
                                     </TableCell>
                                 </TableRow>
                             ) : (
-                                paginatedData.map((contact, idx) => {
+                                paginatedData.map((contact) => {
                                     const isSelected = selectedIds.has(contact.id)
                                     return (
                                         <TableRow key={contact.id} data-state={isSelected ? "selected" : undefined} onClick={() => router.push(`/contacts/${contact.id}`)} className="cursor-pointer">
                                             <TableCell className="sticky left-0 z-10 px-3 text-center" onClick={(e) => e.stopPropagation()}>
                                                 <Checkbox checked={isSelected} onCheckedChange={() => toggleSelect(contact.id)} aria-label={`Select ${contact.full_name}`} />
-                                            </TableCell>
-                                            <TableCell className="sticky z-10 px-2 text-center text-xs text-muted-foreground tabular-nums" style={{ left: SELECT_COL }}>
-                                                {(currentPage - 1) * itemsPerPage + idx + 1}
                                             </TableCell>
                                             {activeCols.map((col, index) => {
                                                 const frozen = frozenCell(index, activeCols)

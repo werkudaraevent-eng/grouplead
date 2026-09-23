@@ -50,8 +50,8 @@ import { ListToolbar } from "@/components/shared/list-toolbar"
 import { ColumnsMenu } from "@/components/shared/columns-menu"
 import { ListFooter } from "@/components/shared/list-footer"
 import { InitialsAvatar } from "@/components/shared/initials-avatar"
-import { NeedsDetailsBadge } from "@/components/shared/status-badge"
-import { INDEX_COL, ListEmpty, MENU_COL, RowMenu, SELECT_COL, SortableHead, frozenCell } from "@/components/shared/list-table"
+import { NeedsDetailsMark } from "@/components/shared/status-badge"
+import { ListEmpty, MENU_COL, RowMenu, SELECT_COL, SortableHead, frozenCell } from "@/components/shared/list-table"
 import { useListViews } from "@/hooks/use-list-views"
 import { formatPhoneDisplay } from "@/lib/phone-normalize"
 import { cn } from "@/lib/utils"
@@ -274,7 +274,7 @@ export default function CompaniesPage() {
                     <div className="min-w-0">
                         <span className="flex items-center gap-2 truncate font-medium text-foreground transition-colors group-hover:text-primary">
                             <span className="truncate">{company.name}</span>
-                            {company.needs_enrichment && <NeedsDetailsBadge />}
+                            {company.needs_enrichment && <NeedsDetailsMark />}
                         </span>
                         {company.parent?.name && <p className="truncate text-[11px] text-muted-foreground">{company.parent.name}</p>}
                     </div>
@@ -380,7 +380,6 @@ function DataTable({ loading, companies, paginatedData, activeCols, selectedIds,
                             <TableHead className="sticky left-0 z-10 px-3 text-center" style={{ width: SELECT_COL, minWidth: SELECT_COL, maxWidth: SELECT_COL }}>
                                 <Checkbox checked={headerChecked} onCheckedChange={toggleSelectAll} aria-label="Select all on this page" />
                             </TableHead>
-                            <TableHead className="sticky z-10 px-2 text-center" style={{ left: SELECT_COL, width: INDEX_COL, minWidth: INDEX_COL, maxWidth: INDEX_COL }}>No.</TableHead>
                             {activeCols.map((col, index) => {
                                 const frozen = frozenCell(index, activeCols)
                                 const activeSort = sortConfig?.key === col.id
@@ -393,29 +392,26 @@ function DataTable({ loading, companies, paginatedData, activeCols, selectedIds,
                     </TableHeader>
                     <TableBody>
                         {loading ? (
-                            <TableSkeleton rows={10} columns={activeCols.length + 3} />
+                            <TableSkeleton rows={10} columns={activeCols.length + 2} />
                         ) : companies.length === 0 ? (
                             <TableRow>
-                                <TableCell colSpan={activeCols.length + 3} className="h-auto">
+                                <TableCell colSpan={activeCols.length + 2} className="h-auto">
                                     <ListEmpty icon={Building2} title="No companies yet" description="Create your first company and begin tracking opportunities." action={<PermissionGate resource="companies" action="create"><Button onClick={() => { setSelectedCompany(null); setAddOpen(true) }}><Plus className="mr-2 h-4 w-4" /> Add company</Button></PermissionGate>} />
                                 </TableCell>
                             </TableRow>
                         ) : paginatedData.length === 0 ? (
                             <TableRow>
-                                <TableCell colSpan={activeCols.length + 3} className="h-auto">
+                                <TableCell colSpan={activeCols.length + 2} className="h-auto">
                                     <ListEmpty icon={Building2} title="No companies match your filters" description="Try changing your search or clearing filters." action={<Button variant="outline" onClick={onClearFilters}>Clear filters</Button>} />
                                 </TableCell>
                             </TableRow>
                         ) : (
-                            paginatedData.map((company, idx) => {
+                            paginatedData.map((company) => {
                                 const isSelected = selectedIds.has(company.id)
                                 return (
                                     <TableRow key={company.id} data-state={isSelected ? "selected" : undefined} onClick={() => router.push(`/companies/${company.id}`)} className="cursor-pointer">
                                         <TableCell className="sticky left-0 z-10 px-3 text-center" onClick={(e) => e.stopPropagation()}>
                                             <Checkbox checked={isSelected} onCheckedChange={() => toggleSelect(company.id)} aria-label={`Select ${company.name}`} />
-                                        </TableCell>
-                                        <TableCell className="sticky z-10 px-2 text-center text-xs text-muted-foreground tabular-nums" style={{ left: SELECT_COL }}>
-                                            {(currentPage - 1) * itemsPerPage + idx + 1}
                                         </TableCell>
                                         {activeCols.map((col, index) => {
                                             const frozen = frozenCell(index, activeCols)

@@ -76,6 +76,17 @@ export const CHANGE_TYPE_META: Record<
 export const CHANGELOG: ChangelogEntry[] = [
     {
         date: "2026-09-23",
+        title: "Calmer tables on Contacts and Companies",
+        items: [
+            { type: "improvement", text: "Table headers are written normally (\"Contact name\") in the same size as the rows, instead of small spaced-out capitals that looked like a different font." },
+            { type: "improvement", text: "The No. column is gone: the number changed with every sort and filter, and the footer already says which rows you are looking at (1–20 of 1196)." },
+            { type: "improvement", text: "Sort arrows show only on the column you sorted by, and on another when you point at it, so the header is no longer a row of arrows." },
+            { type: "improvement", text: "Needs details is a small warning icon next to the name (point at it for the explanation) instead of a label that cut long names short. The Needs details filter still lists them all." },
+            { type: "improvement", text: "Rows per page is a simple dropdown." },
+        ],
+    },
+    {
+        date: "2026-09-23",
         title: "Contacts and Companies: selection, sorting and filter fixes",
         items: [
             { type: "fix", text: "Ticking the header checkbox on page 2 no longer reads page 1's picks as its own. A selection now belongs to the page it was made on and clears when you change page, so a bulk delete never reaches rows you cannot see; the header box shows a dash when only part of the page is ticked." },
