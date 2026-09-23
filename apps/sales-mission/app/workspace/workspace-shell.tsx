@@ -55,6 +55,7 @@ import { HintsProvider } from "@/components/coach-mark"
 import { AnnouncementDialog, WhatsNewDot } from "@/components/announcements/announcement-dialog"
 import type { AnnouncementState } from "@/lib/announcements/announcements"
 import { MobileNavBar } from "@/components/mobile-nav-bar"
+import { UsageBeacon } from "@/components/usage-beacon"
 import { ResponsiveMenu } from "@/components/responsive-menu"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { createClient } from "@/utils/supabase/client"
@@ -502,6 +503,8 @@ export function WorkspaceShell({
       </div>
       <MobileNavBar navAccess={navAccess} unreadCount={unreadCount} displayName={displayName} avatarUrl={avatarUrl} announcements={announcements} />
       <AnnouncementDialog announcements={announcements} />
+      {/* Pengaturan → Pemakaian: which kind of page, and when; draws nothing. */}
+      <UsageBeacon />
     </div>
     </HintsProvider>
     </PageChromeProvider>

@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Perjalanan Laporan Kunjungan</title>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Plus+Jakarta+Sans:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#F6F8FB; --paper-2:#FFFFFF; --paper-3:rgba(41,45,48,0.03);
+  --ink:#292D30; --muted:#5F6B76; --soft:#8A94A0;
+  --rule:rgba(41,45,48,0.12); --rule-strong:rgba(41,45,48,0.26); --dots:rgba(41,45,48,0.10);
+  --accent:#02378D; --accent-tint:rgba(2,55,141,0.08);
+  --font-sans:'Plus Jakarta Sans',system-ui,sans-serif;
+  --font-serif:'Instrument Serif',Georgia,serif;
+  --font-mono:'Geist Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#14181D; --paper-2:#1C2128; --paper-3:rgba(233,237,242,0.04);
+    --ink:#E9EDF2; --muted:#A9B3BF; --soft:#7C8792;
+    --rule:rgba(233,237,242,0.14); --rule-strong:rgba(233,237,242,0.30); --dots:rgba(233,237,242,0.10);
+    --accent:#8FB4F5; --accent-tint:rgba(143,180,245,0.14);
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#14181D; --paper-2:#1C2128; --paper-3:rgba(233,237,242,0.04);
+  --ink:#E9EDF2; --muted:#A9B3BF; --soft:#7C8792;
+  --rule:rgba(233,237,242,0.14); --rule-strong:rgba(233,237,242,0.30); --dots:rgba(233,237,242,0.10);
+  --accent:#8FB4F5; --accent-tint:rgba(143,180,245,0.14);
+}
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--font-sans);padding-block:40px;padding-inline:20px}
+.frame{max-width:1120px;margin:0 auto}
+.eyebrow{font-family:var(--font-mono);font-size:11px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);margin:0 0 8px}
+h1{font-family:var(--font-serif);font-weight:400;font-size:clamp(1.6rem,2.4vw + .8rem,2.1rem);letter-spacing:-.02em;line-height:1.15;margin:0 0 8px;text-wrap:balance}
+.lede{max-width:64ch;font-size:14px;line-height:1.55;color:var(--muted);margin:0 0 24px}
+.scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+figure{margin:0}
+svg{display:block;width:100%;min-width:880px;height:auto}
+figcaption{font-size:13px;line-height:1.5;color:var(--muted);margin-top:16px;max-width:72ch}
+.paper{fill:var(--paper)} .dot{fill:var(--dots)}
+.lane{stroke:var(--rule);stroke-width:1} .lane-strong{stroke:var(--rule-strong);stroke-width:1}
+.node{fill:var(--paper-2);stroke:var(--ink);stroke-width:1}
+.oval{fill:var(--paper-3);stroke:var(--rule-strong);stroke-width:1}
+.focal{fill:var(--accent-tint);stroke:var(--accent);stroke-width:1}
+.name{fill:var(--ink);font-family:var(--font-sans);font-size:12px;font-weight:600}
+.sub{fill:var(--muted);font-family:var(--font-mono);font-size:9px}
+.eb{fill:var(--muted);font-family:var(--font-mono);font-size:9px;letter-spacing:.18em}
+.lbl{fill:var(--muted);font-family:var(--font-mono);font-size:8px;letter-spacing:.12em}
+.lbl-accent{fill:var(--accent);font-family:var(--font-mono);font-size:8px;letter-spacing:.12em}
+.mask{fill:var(--paper)}
+.edge{fill:none;stroke:var(--muted);stroke-width:1.2}
+.edge-dash{fill:none;stroke:var(--muted);stroke-width:1.2;stroke-dasharray:5 4}
+.edge-accent{fill:none;stroke:var(--accent);stroke-width:1.4}
+.mk{fill:var(--muted)} .mk-accent{fill:var(--accent)}
+.legend{fill:var(--muted);font-family:var(--font-sans);font-size:9px}
+</style>
+</head>
+<body>
+<div class="frame">
+  <p class="eyebrow">Flowchart · Sales Activity</p>
+  <h1>Perjalanan laporan kunjungan</h1>
+  <p class="lede">Apa yang terjadi pada satu laporan setelah sales menekan Kirim: siapa yang bisa mengembalikannya, ke mana isinya mengalir, dan kapan ia menjadi lead.</p>
+  <figure>
+    <div class="scroll"><svg viewBox="0 0 1000 728" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="laporan-title laporan-desc">
+<title id="laporan-title">Perjalanan laporan kunjungan</title>
+<desc id="laporan-desc">Flowchart: laporan diisi dan dikirim, admin boleh meminta klarifikasi yang dijawab dengan kirim ulang, laporan terkirim tercatat di CRM, lalu bila ada peluang lead dikirim ke LeadEngine, bila tidak tindak lanjut berjalan sesuai next action.</desc>
+<defs>
+  <pattern id="laporan-dots" width="22" height="22" patternUnits="userSpaceOnUse"><circle cx="1" cy="1" r="0.9" class="dot"/></pattern>
+  <marker id="laporan-arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" class="mk"/></marker>
+  <marker id="laporan-arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" class="mk-accent"/></marker>
+</defs>
+<rect width="100%" height="100%" class="paper"/>
+<rect width="100%" height="100%" fill="url(#laporan-dots)" opacity="0.55"/>
+<line x1="420" y1="88" x2="420" y2="120" class="edge" marker-end="url(#laporan-arrow)"/>
+<line x1="420" y1="168" x2="420" y2="192" class="edge" marker-end="url(#laporan-arrow)"/>
+<line x1="420" y1="240" x2="420" y2="264" class="edge" marker-end="url(#laporan-arrow)"/>
+<line x1="520" y1="312" x2="664" y2="312" class="edge" marker-end="url(#laporan-arrow)"/>
+<line x1="420" y1="360" x2="420" y2="392" class="edge" marker-end="url(#laporan-arrow)"/>
+<path d="M760,288 V224 Q760,216 752,216 H516" class="edge-dash" marker-end="url(#laporan-arrow)"/>
+<line x1="420" y1="440" x2="420" y2="464" class="edge" marker-end="url(#laporan-arrow)"/>
+<line x1="520" y1="512" x2="664" y2="512" class="edge-accent" marker-end="url(#laporan-arrow-accent)"/>
+<line x1="420" y1="560" x2="420" y2="592" class="edge" marker-end="url(#laporan-arrow)"/>
+<rect x="580.0" y="306" width="24" height="12" rx="2" class="mask"/><text x="592" y="315" class="lbl" text-anchor="middle">YA</text>
+<rect x="400.0" y="370" width="40" height="12" rx="2" class="mask"/><text x="420" y="379" class="lbl" text-anchor="middle">TIDAK</text>
+<rect x="598.0" y="210" width="80" height="12" rx="2" class="mask"/><text x="638" y="219" class="lbl" text-anchor="middle">KIRIM ULANG</text>
+<rect x="580.0" y="506" width="24" height="12" rx="2" class="mask"/><text x="592" y="515" class="lbl-accent" text-anchor="middle">YA</text>
+<rect x="400.0" y="570" width="40" height="12" rx="2" class="mask"/><text x="420" y="579" class="lbl" text-anchor="middle">TIDAK</text>
+<rect x="324" y="40" width="192" height="48" rx="24" class="oval"/><text x="420.0" y="62" class="name" text-anchor="middle">Kunjungan selesai</text><text x="420.0" y="76" class="sub" text-anchor="middle">form dibuka mulai hari kunjungan</text>
+<rect x="324" y="120" width="192" height="48" rx="6" class="node"/><text x="420.0" y="142" class="name" text-anchor="middle">Isi laporan</text><text x="420.0" y="156" class="sub" text-anchor="middle">draf tersimpan otomatis</text>
+<rect x="324" y="192" width="192" height="48" rx="6" class="node"/><text x="420.0" y="214" class="name" text-anchor="middle">Kirim laporan</text><text x="420.0" y="228" class="sub" text-anchor="middle">aktivitas jadi Selesai</text>
+<polygon points="420,264 520,312 420,360 320,312" class="node"/>
+<text x="420" y="308" class="name" text-anchor="middle">Admin minta</text><text x="420" y="322" class="name" text-anchor="middle">klarifikasi?</text>
+<rect x="664" y="288" width="192" height="48" rx="6" class="node"/><text x="760.0" y="310" class="name" text-anchor="middle">Perbaiki laporan</text><text x="760.0" y="324" class="sub" text-anchor="middle">jawab catatan admin</text>
+<rect x="324" y="392" width="192" height="48" rx="6" class="node"/><text x="420.0" y="414" class="name" text-anchor="middle">Terkirim</text><text x="420.0" y="428" class="sub" text-anchor="middle">tercatat di CRM · bisa diubah 7 hari</text>
+<polygon points="420,464 520,512 420,560 320,512" class="node"/>
+<text x="420" y="516" class="name" text-anchor="middle">Ada peluang?</text>
+<rect x="664" y="488" width="192" height="48" rx="24" class="focal"/><text x="760.0" y="510" class="name" text-anchor="middle">Kirim lead ke LeadEngine</text><text x="760.0" y="524" class="sub" text-anchor="middle">kategori · pemilik lead</text>
+<rect x="324" y="592" width="192" height="48" rx="24" class="oval"/><text x="420.0" y="614" class="name" text-anchor="middle">Tindak lanjut</text><text x="420.0" y="628" class="sub" text-anchor="middle">sesuai next action</text>
+<line x1="40" y1="664" x2="960" y2="664" class="lane"/>
+<text x="40" y="680" class="eb">LEGENDA</text>
+<rect x="40" y="696" width="20" height="10" rx="5" class="oval"/>
+<text x="64" y="704" class="legend">Awal / akhir</text>
+<rect x="144" y="696" width="16" height="10" rx="2" class="node"/>
+<text x="168" y="704" class="legend">Langkah</text>
+<polygon points="240,695 248,701 240,707 232,701" class="node"/>
+<text x="256" y="704" class="legend">Keputusan</text>
+<rect x="336" y="696" width="16" height="10" rx="2" class="focal"/>
+<text x="360" y="704" class="legend">Hasil fokus</text>
+<line x1="440" y1="701" x2="464" y2="701" class="edge-dash" marker-end="url(#laporan-arrow)"/>
+<text x="468" y="704" class="legend">Perbaikan</text>
+<line x1="544" y1="701" x2="568" y2="701" class="edge-accent" marker-end="url(#laporan-arrow-accent)"/>
+<text x="572" y="704" class="legend">Jalur peluang</text>
+</svg></div>
+    <figcaption>Dua keputusan menentukan jalannya: klarifikasi dari admin mengembalikan laporan ke penulisnya tanpa menghapus isinya, dan peluang yang dicatat membuka pengiriman lead. Pencatatan di CRM (perusahaan, orang yang ditemui, kunjungan) berjalan sendiri pada setiap laporan terkirim, ada peluang atau tidak.</figcaption>
+  </figure>
+</div>
+</body>
+</html>

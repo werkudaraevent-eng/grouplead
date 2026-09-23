@@ -100,6 +100,7 @@ const PARTS: Part[] = [
       "Cakupan lihat menentukan catatan siapa yang muncul di daftar: milik sendiri, tim (bawahan langsung menurut Atasan), atau semua.",
       "Cakupan ubah menentukan catatan siapa yang boleh diubah, dan tidak pernah lebih lebar dari cakupan lihat.",
       "Bila sebuah tombol tidak ada atau ditolak, pesannya menyebut cakupan yang membatasinya. Minta admin bila memang perlu dilebarkan.",
+      "Membuka aplikasi dicatat per orang untuk admin unit di Pengaturan → Pemakaian: halaman mana yang dibuka dan kapan, satu catatan per hari, bukan isi yang kamu ketik, data yang kamu lihat, atau lokasimu.",
     ],
   },
 ]
