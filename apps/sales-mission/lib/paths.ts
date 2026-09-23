@@ -72,5 +72,7 @@ export const paths = {
     board: "/workspace/settings/board",
     followUp: "/workspace/settings/follow-up",
     history: "/workspace/settings/history",
+    /** Pemakaian: who opens the app and which pages; `period` is 7, 30 or 90 days. */
+    usage: (query?: Query) => withQuery("/workspace/settings/usage", query),
   },
 } as const

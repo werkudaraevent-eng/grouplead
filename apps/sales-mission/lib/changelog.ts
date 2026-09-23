@@ -45,6 +45,15 @@ export const CHANGE_KIND_LABELS: Record<ChangeKind, string> = {
 
 export const CHANGELOG: ChangeEntry[] = [
   {
+    date: "2026-09-23",
+    title: "Pemakaian: admin bisa melihat siapa yang membuka aplikasi, kapan, dan halaman mana",
+    items: [
+      { kind: "baru", text: "Pengaturan → Pemakaian menunjukkan berapa orang yang membuka Sales Activity hari ini, dalam 7 hari, dan dalam 30 hari, dibanding jumlah orang yang punya akses. Di bawahnya satu baris per orang: kapan terakhir aktif (misalnya “2 jam lalu”; arahkan kursor untuk jam persisnya), berapa hari aktif dalam 30 hari, berapa halaman dibuka dalam 7 hari, garis tren hari aktif per minggu selama 8 minggu, dan halaman terakhir yang dibuka. Semua orang dengan akses tampil, termasuk yang belum pernah membuka; yang 7 hari tidak membuka aplikasi diberi tanda Tidak aktif 7 hari. Berguna untuk melihat siapa yang perlu dibantu memakai aplikasinya, bukan hanya siapa yang mengisi laporan." },
+      { kind: "baru", text: "Halaman paling dibuka, untuk 7, 30, atau 90 hari: mana yang benar-benar dipakai tim, misalnya Hari ini, Detail aktivitas, atau Laporan · Ringkasan." },
+      { kind: "baru", text: "Yang dicatat hanya halaman yang dibuka dan kapan, satu catatan per orang per hari. Yang tidak dicatat: isi yang diketik, data yang dilihat, dan lokasi; membuka sebuah aktivitas tercatat sebagai Detail aktivitas, bukan aktivitas yang mana. Hanya admin yang bisa membuka halaman ini. Pencatatan mulai hari ini, jadi angkanya terisi dari sekarang." },
+    ],
+  },
+  {
     date: "2026-09-22",
     title: "Ekspor laporan sekarang berisi seluruh isi laporan, bukan ringkasannya",
     items: [
