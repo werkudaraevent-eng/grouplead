@@ -13,14 +13,18 @@ import { usagePageLabel } from "./usage-path"
  * before it, the way Microsoft 365's active-users report counts a period.
  */
 
-/** The periods the page offers for "Halaman paling dibuka". */
+/** The periods the page offers, for "Pengguna aktif per hari" and "Halaman paling dibuka" alike. */
 export const USAGE_PERIODS = [7, 30, 90] as const
 export type UsagePeriod = (typeof USAGE_PERIODS)[number]
 export const DEFAULT_USAGE_PERIOD: UsagePeriod = 30
 
 /** Weeks in a person's trend line. */
 export const TREND_WEEKS = 8
-/** Days of day rows the page reads for the people table: the trend's reach. */
+/**
+ * Days of day rows the page reads for the people table: the trend's reach.
+ * The daily chart needs the period's, so the page reads whichever is longer
+ * (`usageDayWindow`).
+ */
 export const USAGE_DAY_WINDOW = TREND_WEEKS * 7
 /** Pages kept on the bar list before the rest fold into "Lainnya". */
 export const TOP_PAGES = 12
@@ -28,6 +32,11 @@ export const TOP_PAGES = 12
 export function parseUsagePeriod(raw: string | undefined | null): UsagePeriod {
   const value = Number(raw)
   return (USAGE_PERIODS as readonly number[]).includes(value) ? (value as UsagePeriod) : DEFAULT_USAGE_PERIOD
+}
+
+/** Days of day rows to read: eight weeks for the people table, or the period when it is longer (90). */
+export function usageDayWindow(period: UsagePeriod): number {
+  return Math.max(USAGE_DAY_WINDOW, period)
 }
 
 const DAY_MS = 86_400_000
@@ -116,6 +125,63 @@ export function weeklyActiveDays(days: string[], today: string, weeks = TREND_WE
     buckets[weeks - 1 - Math.floor(ago / 7)].add(day)
   }
   return buckets.map((set) => set.size)
+}
+
+/** Saturday or Sunday, for a WIB day key. */
+export function isWeekendDay(day: string): boolean {
+  const weekday = new Date(`${day}T00:00:00Z`).getUTCDay()
+  return weekday === 0 || weekday === 6
+}
+
+export interface DailyActive {
+  /** WIB day, YYYY-MM-DD. */
+  day: string
+  /** Distinct people seen that day. */
+  active: number
+  /** Saturday or Sunday: drawn in the muted ink so the weekly rhythm shows. */
+  weekend: boolean
+}
+
+/**
+ * People active on each WIB day from `fromDay` to `toDay`, both included,
+ * oldest first: the "Pengguna aktif per hari" chart. Every day of the range
+ * is there and a day nobody came is 0, so a quiet Sunday is a gap between
+ * bars rather than a missing bar. People, not rows or opens: a heartbeat
+ * row (no page opened) still means the person was here, as in
+ * `summarizeUsage`. Rows outside the range are ignored.
+ */
+export function dailyActiveSeries(rows: UsageDayRow[], fromDay: string, toDay: string): DailyActive[] {
+  if (!fromDay || !toDay || fromDay > toDay) return []
+  const people = new Map<string, Set<string>>()
+  for (const row of rows) {
+    if (row.day < fromDay || row.day > toDay) continue
+    const seen = people.get(row.day)
+    if (seen) seen.add(row.userId)
+    else people.set(row.day, new Set([row.userId]))
+  }
+  const series: DailyActive[] = []
+  for (let day = fromDay; day <= toDay; day = shiftDay(day, 1)) {
+    series.push({ day, active: people.get(day)?.size ?? 0, weekend: isWeekendDay(day) })
+  }
+  return series
+}
+
+// The board's own day labels (`bucketLabel` in lib/reporting/cube.ts): the
+// key is already a WIB calendar day, so it is read at UTC midnight.
+const DAY_SHORT = new Intl.DateTimeFormat("id-ID", { timeZone: "UTC", day: "numeric", month: "short" })
+const DAY_LONG = new Intl.DateTimeFormat("id-ID", { timeZone: "UTC", weekday: "short", day: "numeric", month: "short" })
+
+/** A day under a bar: "22 Sep". */
+export function usageDayLabel(day: string): string {
+  return DAY_SHORT.format(new Date(`${day}T00:00:00Z`))
+}
+
+/** The same day with its weekday, for the tooltip: "Sel 22 Sep" (no comma, a "·" follows it). */
+export function usageDayLongLabel(day: string): string {
+  return DAY_LONG.formatToParts(new Date(`${day}T00:00:00Z`))
+    .filter((part) => part.type !== "literal")
+    .map((part) => part.value)
+    .join(" ")
 }
 
 export type UsageState = "active" | "idle" | "never"

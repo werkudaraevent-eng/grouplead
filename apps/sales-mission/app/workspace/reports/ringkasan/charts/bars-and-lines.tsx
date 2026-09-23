@@ -28,6 +28,13 @@ interface AxisChartProps {
   horizontal?: boolean
   /** Lines with the space under them washed in the series colour. */
   area?: boolean
+  /**
+   * One line in place of a row per series, "Sel 22 Sep · 5 orang", given
+   * the category's long label and the bar's total. For a chart whose series
+   * only colour the bars (Pemakaian's weekday and weekend), where a row per
+   * series would print "Akhir pekan 0" under a Tuesday.
+   */
+  tooltipLine?: (label: string, total: number) => string
 }
 
 const LABEL_CHARS = 16
@@ -54,9 +61,29 @@ function toRows({ categories, series, values }: AxisChartProps) {
   })
 }
 
-function ChartTooltip({ active, payload, series, unit }: { active?: boolean; payload?: Array<{ dataKey?: string | number; value?: number | string; payload?: Record<string, string | number> }>; series: Series[]; unit: Unit }) {
+function ChartTooltip({
+  active,
+  payload,
+  series,
+  unit,
+  line,
+}: {
+  active?: boolean
+  payload?: Array<{ dataKey?: string | number; value?: number | string; payload?: Record<string, string | number> }>
+  series: Series[]
+  unit: Unit
+  line?: AxisChartProps["tooltipLine"]
+}) {
   if (!active || !payload?.length) return null
   const row = payload[0]?.payload
+  if (line) {
+    const total = payload.reduce((sum, entry) => sum + (Number(entry.value) || 0), 0)
+    return (
+      <div className="rounded-lg border bg-popover px-3 py-2 text-xs shadow-md">
+        <p className="font-medium tabular-nums text-foreground">{line(String(row?.long ?? row?.name ?? ""), total)}</p>
+      </div>
+    )
+  }
   return (
     <div className="rounded-lg border bg-popover px-3 py-2 text-xs shadow-md">
       <p className="mb-1 font-medium text-foreground">{row?.long ?? row?.name}</p>
@@ -97,7 +124,13 @@ export function DayBars(props: AxisChartProps) {
   // share of the category band came out as hairlines on a month of days.
   const { width, containerRef } = useContainerWidth()
   const plot = Math.max(0, width - 56)
-  const barSize = Math.max(4, Math.min(28, Math.floor(((plot / Math.max(1, props.categories.length)) * 0.72) / Math.max(1, props.series.length))))
+  const slot = plot / Math.max(1, props.categories.length)
+  const lanes = Math.max(1, props.series.length)
+  // Four pixels at least where a day's slot has room for them, never wider
+  // than the slot: ninety days on a phone are three pixels apart, and a
+  // fixed four-pixel floor laid every bar over its neighbour.
+  const least = Math.max(1, Math.min(4, Math.floor((slot * 0.9) / lanes)))
+  const barSize = Math.max(least, Math.min(28, Math.floor((slot * 0.72) / lanes)))
   if (props.horizontal) {
     // Rows: one per name, the label on the left, the bar to its right.
     const rowSize = Math.max(4, Math.min(22, Math.floor(22 / Math.max(1, props.stacked ? 1 : props.series.length))))
@@ -109,7 +142,7 @@ export function DayBars(props: AxisChartProps) {
               <CartesianGrid horizontal={false} stroke="var(--border)" strokeDasharray="3 3" />
               <XAxis type="number" tick={axisStyle} tickLine={false} axisLine={false} allowDecimals={false} tickFormatter={(value: number) => formatCompact(value, props.unit)} />
               <YAxis type="category" dataKey="name" width={96} tickLine={false} axisLine={false} interval={0} tick={<NameTick />} />
-              <Tooltip cursor={{ fill: "var(--muted)" }} content={<ChartTooltip series={props.series} unit={props.unit} />} />
+              <Tooltip cursor={{ fill: "var(--muted)" }} content={<ChartTooltip series={props.series} unit={props.unit} line={props.tooltipLine} />} />
               {props.series.map((item) => (
                 <Bar key={item.key} dataKey={item.key} fill={item.color} stackId={props.stacked ? "all" : undefined} radius={props.stacked ? 0 : [0, 3, 3, 0]} isAnimationActive={false} barSize={rowSize} />
               ))}
@@ -129,7 +162,7 @@ export function DayBars(props: AxisChartProps) {
             <CartesianGrid vertical={false} stroke="var(--border)" strokeDasharray="3 3" />
             <XAxis dataKey="name" tick={axisStyle} tickLine={false} axisLine={false} interval={dense ? "preserveStartEnd" : 0} minTickGap={12} />
             <YAxis tick={axisStyle} tickLine={false} axisLine={false} allowDecimals={false} tickFormatter={(value: number) => formatCompact(value, props.unit)} width={46} />
-            <Tooltip cursor={{ fill: "var(--muted)" }} content={<ChartTooltip series={props.series} unit={props.unit} />} />
+            <Tooltip cursor={{ fill: "var(--muted)" }} content={<ChartTooltip series={props.series} unit={props.unit} line={props.tooltipLine} />} />
             {props.series.map((item) => (
               <Bar key={item.key} dataKey={item.key} fill={item.color} stackId={props.stacked ? "all" : undefined} radius={props.stacked ? 0 : [3, 3, 0, 0]} isAnimationActive={false} barSize={props.stacked ? Math.min(28, barSize * props.series.length) : barSize} />
             ))}
@@ -149,7 +182,7 @@ export function Lines(props: AxisChartProps) {
       <CartesianGrid vertical={false} stroke="var(--border)" strokeDasharray="3 3" />
       <XAxis dataKey="name" tick={axisStyle} tickLine={false} axisLine={false} interval={dense ? "preserveStartEnd" : 0} minTickGap={12} />
       <YAxis tick={axisStyle} tickLine={false} axisLine={false} allowDecimals={false} tickFormatter={(value: number) => formatCompact(value, props.unit)} width={46} />
-      <Tooltip cursor={{ stroke: "var(--border)" }} content={<ChartTooltip series={props.series} unit={props.unit} />} />
+      <Tooltip cursor={{ stroke: "var(--border)" }} content={<ChartTooltip series={props.series} unit={props.unit} line={props.tooltipLine} />} />
     </>
   )
   return (

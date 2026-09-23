@@ -46,9 +46,18 @@ export const CHANGE_KIND_LABELS: Record<ChangeKind, string> = {
 export const CHANGELOG: ChangeEntry[] = [
   {
     date: "2026-09-23",
+    title: "Layar error berbahasa Inggris setelah pembaruan aplikasi diganti muat ulang otomatis",
+    items: [
+      { kind: "diperbaiki", text: "Tepat setelah aplikasi diperbarui, tab yang masih terbuka kadang menampilkan “Application error: a client-side exception has occurred” dan baru pulih setelah dimuat ulang berkali-kali. Sekarang halamannya memuat ulang sendiri satu kali; kalau masih gagal juga, yang tampil layar “Halaman ini gagal dimuat” berbahasa Indonesia dengan tombol Muat ulang dan Kembali ke dashboard." },
+      { kind: "diperbaiki", text: "Ikon aplikasi untuk dipasang di layar utama dan pekerja latar (service worker) tadinya ikut dialihkan ke halaman login, sehingga pemasangan ke layar utama tidak berjalan dan console browser penuh peringatan. Keduanya kini diambil langsung." },
+    ],
+  },
+  {
+    date: "2026-09-23",
     title: "Pemakaian: admin bisa melihat siapa yang membuka aplikasi, kapan, dan halaman mana",
     items: [
       { kind: "baru", text: "Pengaturan → Pemakaian menunjukkan berapa orang yang membuka Sales Activity hari ini, dalam 7 hari, dan dalam 30 hari, dibanding jumlah orang yang punya akses. Di bawahnya satu baris per orang: kapan terakhir aktif (misalnya “2 jam lalu”; arahkan kursor untuk jam persisnya), berapa hari aktif dalam 30 hari, berapa halaman dibuka dalam 7 hari, garis tren hari aktif per minggu selama 8 minggu, dan halaman terakhir yang dibuka. Semua orang dengan akses tampil, termasuk yang belum pernah membuka; yang 7 hari tidak membuka aplikasi diberi tanda Tidak aktif 7 hari. Berguna untuk melihat siapa yang perlu dibantu memakai aplikasinya, bukan hanya siapa yang mengisi laporan." },
+      { kind: "baru", text: "Grafik Pengguna aktif per hari, tepat di bawah angka ringkasan: satu batang per hari untuk 7, 30, atau 90 hari terakhir, berapa orang yang membuka aplikasi hari itu, supaya naik-turunnya pemakaian terlihat sekilas dan tidak hanya dari tiga angka. Sabtu dan Minggu berwarna abu-abu supaya pola mingguan tim langsung terbaca; arahkan kursor ke sebuah batang untuk hari dan jumlah orangnya. Periode yang dipilih di grafik ini juga berlaku untuk Halaman paling dibuka, dan sebaliknya." },
       { kind: "baru", text: "Halaman paling dibuka, untuk 7, 30, atau 90 hari: mana yang benar-benar dipakai tim, misalnya Hari ini, Detail aktivitas, atau Laporan · Ringkasan." },
       { kind: "baru", text: "Yang dicatat hanya halaman yang dibuka dan kapan, satu catatan per orang per hari. Yang tidak dicatat: isi yang diketik, data yang dilihat, dan lokasi; membuka sebuah aktivitas tercatat sebagai Detail aktivitas, bukan aktivitas yang mana. Hanya admin yang bisa membuka halaman ini. Pencatatan mulai hari ini, jadi angkanya terisi dari sekarang." },
     ],

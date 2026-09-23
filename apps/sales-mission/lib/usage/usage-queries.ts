@@ -10,7 +10,7 @@ import type { UsageDayRow, UsageLastSeen, UsagePageRow } from "./usage-stats"
 
 /** PostgREST returns at most this many rows per request, so windows are read in pages. */
 const PAGE_SIZE = 1000
-/** Enough for a hundred people over the eight-week window, several times over. */
+/** Enough for a hundred people over the longest window (90 days, the chart's), twice over. */
 const MAX_PAGES = 20
 
 type Client = Awaited<ReturnType<typeof createClient>>

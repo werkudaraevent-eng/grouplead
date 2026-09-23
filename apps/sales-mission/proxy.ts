@@ -59,5 +59,10 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)"],
+  // The web manifest, the service worker and the icons are fetched by the
+  // browser itself, often without cookies (a manifest request carries none
+  // unless the link says use-credentials). Sent through the session check
+  // they were redirected to /login, so the manifest arrived as HTML and the
+  // worker never installed. They hold nothing private; the proxy skips them.
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|sw.js|icons/|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)"],
 }
