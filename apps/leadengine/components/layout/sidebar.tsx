@@ -5,7 +5,7 @@ import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import {
     LayoutDashboard, KanbanSquare, Building2, Users,
-    LogOut, ChevronLeft, ChevronsLeft, Settings, Loader2, Moon, Sun, History, ScrollText, MoreVertical, UserCircle,
+    LogOut, ChevronLeft, ChevronsLeft, Settings, Loader2, Moon, Sun, ScrollText, MoreVertical, UserCircle,
 } from "@/components/icons"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
@@ -44,7 +44,6 @@ const mainNav = [
     { href: "/leads", label: "Pipeline", icon: KanbanSquare, module: "leads" },
     { href: "/companies", label: "Companies", icon: Building2, module: "companies" },
     { href: "/contacts", label: "Contacts", icon: Users, module: "contacts" },
-    { href: "/history", label: "History", icon: History, module: null },
 ]
 
 // Administration is administration. Supporting pages (the changelog, the
@@ -123,7 +122,6 @@ export function Sidebar({ onCollapse, isSheet = false, collapsed = false, onTogg
                 case 'Pipeline':   return can('leads', 'read')
                 case 'Companies':  return can('companies', 'read')
                 case 'Contacts':   return can('contacts', 'read')
-                case 'History':    return true
                 default:           return false
             }
         })

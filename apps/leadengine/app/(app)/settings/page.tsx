@@ -14,6 +14,7 @@ import {
     Trash2,
     Megaphone,
     Activity,
+    History,
 } from "@/components/icons"
 import { SettingsPageHeader } from "@/components/layout/settings-page-header"
 import { CurrencySettingsRow } from "@/features/settings/components/currency-settings-card"
@@ -86,8 +87,8 @@ const sections: ModuleSection[] = [
         ],
     },
     {
-        label: "Adoption",
-        description: "What is announced to the team, and who actually uses the app.",
+        label: "Communication",
+        description: "What is announced to the team.",
         items: [
             {
                 title: "Announcements",
@@ -95,6 +96,19 @@ const sections: ModuleSection[] = [
                 href: "/settings/announcements",
                 icon: Megaphone,
                 permission: { module: "settings", action: "update" },
+            },
+        ],
+    },
+    {
+        label: "Monitoring",
+        description: "Who changed what, and who actually uses the app.",
+        items: [
+            {
+                title: "Change history",
+                description: "Who created, changed and deleted what across LeadEngine, with filters by person, action and record. Recorded automatically.",
+                href: "/settings/history",
+                icon: History,
+                permission: { module: "settings", action: "read" },
             },
             {
                 title: "Usage",

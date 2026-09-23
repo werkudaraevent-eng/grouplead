@@ -35,7 +35,6 @@ import { CompanyProvider } from "@/contexts/company-context"
 import { PermissionsProvider } from "@/contexts/permissions-context"
 import { SidebarThemeProvider } from "@/contexts/sidebar-theme-context"
 import { CurrencyProvider } from "@/contexts/currency-context"
-import { useResizablePanel } from "@/hooks/use-resizable-panel"
 import { hasPreferenceCookie, writePreferenceCookie } from "@/lib/preference-cookie"
 import type { CompanyContext } from "@/types/company"
 import type { CurrencySettings } from "@/types/currency"
@@ -55,10 +54,9 @@ interface MainLayoutProps {
     userProfile?: UserProfile | null
     /** From the parent-domain cookies, so the first HTML is already at this size. */
     initialCollapsed?: boolean
-    initialWidth?: number
 }
 
-export function MainLayout({ children, initialCompany, companies, currencySettings = DEFAULT_CURRENCY_SETTINGS, userProfile = null, initialCollapsed = false, initialWidth }: MainLayoutProps) {
+export function MainLayout({ children, initialCompany, companies, currencySettings = DEFAULT_CURRENCY_SETTINGS, userProfile = null, initialCollapsed = false }: MainLayoutProps) {
     const [mobileOpen, setMobileOpen] = useState(false)
 
     return (
@@ -72,7 +70,7 @@ export function MainLayout({ children, initialCompany, companies, currencySettin
                         <UsageBeacon />
                         <MaintenanceWatcher />
                         <TopLoader />
-                        <MainLayoutInner initialCollapsed={initialCollapsed} initialWidth={initialWidth} mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} userProfile={userProfile}>
+                        <MainLayoutInner initialCollapsed={initialCollapsed} mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} userProfile={userProfile}>
                             {children}
                         </MainLayoutInner>
                     </SidebarThemeProvider>
@@ -92,28 +90,17 @@ function MainLayoutInner({
     setMobileOpen,
     userProfile,
     initialCollapsed = false,
-    initialWidth,
 }: {
     children: React.ReactNode
     mobileOpen: boolean
     setMobileOpen: (v: boolean) => void
     userProfile?: UserProfile | null
     initialCollapsed?: boolean
-    initialWidth?: number
 }) {
     const { isDarkPanel } = useSidebarTheme()
     const { isSwitching } = useCompany()
     const darkClass = isDarkPanel ? "sidebar-dark" : ""
     const [collapsed, setCollapsed] = useState(initialCollapsed)
-
-    const { width: sidebarWidth, isResizing: isSidebarResizing, handleMouseDown: handleSidebarResize } = useResizablePanel({
-        storageKey: "sidebar-width",
-        defaultWidth: 220,
-        initialWidth,
-        minWidth: 180,
-        maxWidth: 320,
-        syncCookie: true,
-    })
 
     // A person from before the cookie existed still has the choice in
     // localStorage; honour it once and move it into the cookie.
@@ -138,20 +125,9 @@ function MainLayoutInner({
         <div className="shell-in flex h-screen overflow-hidden">
             <aside
                 data-sidebar
-                className={`hidden lg:flex lg:flex-col shrink-0 flex-none overflow-hidden bg-sidebar relative ${darkClass} ${isSidebarResizing ? "" : "transition-[width] duration-200 ease-out"} ${collapsed ? "lg:w-[60px]" : ""}`}
-                style={collapsed ? undefined : { width: `${sidebarWidth}px` }}
+                className={`hidden lg:flex lg:flex-col shrink-0 flex-none overflow-hidden bg-sidebar relative ${darkClass} transition-[width] duration-200 ease-out ${collapsed ? "lg:w-[60px]" : "lg:w-[220px]"}`}
             >
                 <Sidebar serverProfile={userProfile} collapsed={collapsed} onToggleCollapse={toggleCollapse} />
-                {/* Resize handle */}
-                {!collapsed && (
-                    <div
-                        onMouseDown={handleSidebarResize}
-                        className="absolute top-0 right-0 w-[3px] h-full cursor-col-resize z-40 group/resize hover:bg-primary/20 active:bg-primary/30 transition-colors"
-                        title="Drag to resize"
-                    >
-                        <div className="absolute top-1/2 -translate-y-1/2 left-1/2 -translate-x-1/2 w-[3px] h-8 rounded-full bg-transparent group-hover/resize:bg-primary/40 group-active/resize:bg-primary/60 transition-colors" />
-                    </div>
-                )}
             </aside>
             <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
                 <SheetContent side="left" className={`w-72 p-0 border-r-0 ${darkClass}`}>

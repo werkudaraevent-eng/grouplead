@@ -2,7 +2,7 @@
 
 import { createClient } from "@/utils/supabase/server"
 import { createServiceClient } from "@/utils/supabase/service"
-import { revalidatePath } from "next/cache"
+import { requirePermission } from "@/lib/require-permission"
 
 export interface AuditLogEntry {
     action: string
@@ -76,6 +76,11 @@ export async function fetchAuditLogs(opts: {
     user_id?: string
     search?: string
 }): Promise<FetchAuditLogsResult> {
+    // The trail names people and shows what they did, so it is read behind
+    // the Settings grant, the same gate as the page under /settings.
+    const guard = await requirePermission("settings", "read")
+    if (!guard.allowed) return { data: [], total: 0 }
+
     const supabase = await createClient()
     const page = opts.page || 1
     const pageSize = opts.pageSize || 50
@@ -101,34 +106,4 @@ export async function fetchAuditLogs(opts: {
     }
 
     return { data: (data as AuditLogRow[]) || [], total: count || 0 }
-}
-
-/**
- * Get audit log visibility setting.
- */
-export async function getAuditVisibility(): Promise<"all_users" | "admin_only"> {
-    const supabase = await createClient()
-    const { data } = await supabase
-        .from("master_options")
-        .select("value")
-        .eq("option_type", "system_settings")
-        .eq("label", "audit_log_visibility")
-        .single()
-
-    return (data?.value as "all_users" | "admin_only") || "all_users"
-}
-
-/**
- * Update audit log visibility setting (admin only).
- */
-export async function updateAuditVisibility(value: "all_users" | "admin_only") {
-    const supabase = await createClient()
-    const { error } = await supabase
-        .from("master_options")
-        .update({ value })
-        .eq("option_type", "system_settings")
-        .eq("label", "audit_log_visibility")
-
-    if (error) throw new Error(error.message)
-    revalidatePath("/settings")
 }

@@ -76,6 +76,14 @@ export const CHANGE_TYPE_META: Record<
 export const CHANGELOG: ChangelogEntry[] = [
     {
         date: "2026-09-23",
+        title: "History moves to Settings; the sidebar keeps one width",
+        items: [
+            { type: "improvement", text: "History left the sidebar and is now Settings → Monitoring → Change history, next to Usage, the way Sales Activity keeps Riwayat perubahan in Pengaturan. It is for people with access to Settings; everyone else follows a lead through its Timeline tab. Old links to /history open the new page." },
+            { type: "improvement", text: "The sidebar no longer resizes by dragging its edge. It is either expanded or folded to icons with the panel toggle, at the same widths as Sales Activity, so switching between the two apps no longer makes it jump. The Pipeline's filter panel can still be dragged wider." },
+        ],
+    },
+    {
+        date: "2026-09-23",
         title: "Usage, Announcements, and a tidier Settings page",
         items: [
             { type: "feature", text: "Settings → Usage shows who actually opens LeadEngine: how many people were active today, in the last 7 and in the last 30 days out of everyone with access; a bar per day of active users, with weekends in grey; a line per person with when they were last here, days active, pages opened and an eight-week trend; and the pages opened most. Only admins can see it. All that is recorded is which page someone opened and when, one row per person per day. Nothing typed, nothing shown on a page and no location is recorded. The numbers start from the day this update arrives." },

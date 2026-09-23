@@ -97,6 +97,7 @@ const PAGE_LABELS: Record<string, string> = {
 /** Settings' pages by what follows /settings/, named as their rows on the Settings page are. */
 const SETTINGS_LABELS: Record<string, string> = {
   ai: "AI",
+  history: "Change history",
   "ai/usage": "AI usage",
   announcements: "Announcements",
   companies: "Companies",

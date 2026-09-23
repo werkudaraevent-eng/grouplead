@@ -54,13 +54,11 @@ export default async function AppLayout({
     console.warn("[AppLayout] Failed to load company context:", err);
   }
 
-  // The sidebar's fold and width are cookies on the parent domain, so the
+  // The sidebar's fold is a cookie on the parent domain, so the
   // first HTML is already at the size the person left it, here and in
   // Sales Mission.
   const cookieStore = await cookies();
   const initialCollapsed = cookieStore.get("sidebar-collapsed")?.value === "true";
-  const storedWidth = Number.parseInt(cookieStore.get("sidebar-width")?.value ?? "", 10);
-  const initialWidth = Number.isFinite(storedWidth) && storedWidth >= 180 && storedWidth <= 320 ? storedWidth : undefined;
 
   return (
     <MainLayout
@@ -69,7 +67,6 @@ export default async function AppLayout({
       currencySettings={currencySettings}
       userProfile={userProfile}
       initialCollapsed={initialCollapsed}
-      initialWidth={initialWidth}
     >
       {children}
     </MainLayout>
