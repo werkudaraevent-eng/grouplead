@@ -254,16 +254,16 @@ export default function ContactsPage() {
             label: "Has email",
             type: "boolean",
             pinned: true,
-            defaultOperator: "is_not_empty",
-            accessor: (row) => (row as ContactRow).email,
+            defaultOperator: "is_true",
+            accessor: (row) => Boolean((row as ContactRow).email?.trim()),
         },
         {
             field: "phone",
             label: "Has phone",
             type: "boolean",
             pinned: false,
-            defaultOperator: "is_not_empty",
-            accessor: (row) => (row as ContactRow).phone,
+            defaultOperator: "is_true",
+            accessor: (row) => Boolean((row as ContactRow).phone?.trim()),
         },
         { field: "job_title", label: "Job title", type: "text", accessor: (row) => (row as ContactRow).job_title ?? "" },
         { field: "needs_enrichment", label: "Needs details", type: "boolean", defaultOperator: "is_true", accessor: (row) => (row as ContactRow).needs_enrichment ?? false },
@@ -325,8 +325,12 @@ export default function ContactsPage() {
         return [...filteredData].sort((a, b) => {
             if (!sortConfig) return 0
             const { key, direction } = sortConfig
-            const valA = key === "client_company" ? a.client_company?.name || "" : (a as any)[key] || ""
-            const valB = key === "client_company" ? b.client_company?.name || "" : (b as any)[key] || ""
+            const valueOf = (row: ContactRow) =>
+                key === "client_company" ? row.client_company?.name || ""
+                    : key === "owner" ? row.owner?.full_name || ""
+                        : (row as any)[key] || ""
+            const valA = valueOf(a)
+            const valB = valueOf(b)
             if (valA < valB) return direction === "asc" ? -1 : 1
             if (valA > valB) return direction === "asc" ? 1 : -1
             return 0
@@ -342,15 +346,26 @@ export default function ContactsPage() {
         setCurrentPage(1)
         setSelectedIds(new Set())
     }, [searchQuery, filters, itemsPerPage])
+    // A selection belongs to the page it was made on (Gmail): a bulk delete
+    // never reaches rows the person cannot see.
+    React.useEffect(() => { setSelectedIds(new Set()) }, [currentPage])
 
     const handleSort = (key: string) => {
         const nextDirection: "asc" | "desc" = sortConfig?.key === key && sortConfig.direction === "asc" ? "desc" : "asc"
         setSortConfig({ key, direction: nextDirection })
     }
 
+    // The header box reads this page's rows, never the size of the set.
+    const pageSelected = paginatedData.filter((c) => selectedIds.has(c.id)).length
+    const headerChecked: boolean | "indeterminate" =
+        paginatedData.length > 0 && pageSelected === paginatedData.length ? true : pageSelected > 0 ? "indeterminate" : false
     const toggleSelectAll = () => {
-        if (selectedIds.size === paginatedData.length && paginatedData.length > 0) setSelectedIds(new Set())
-        else setSelectedIds(new Set(paginatedData.map((c) => c.id)))
+        setSelectedIds((prev) => {
+            const next = new Set(prev)
+            if (headerChecked === true) paginatedData.forEach((c) => next.delete(c.id))
+            else paginatedData.forEach((c) => next.add(c.id))
+            return next
+        })
     }
 
     const toggleSelect = (id: string) => {
@@ -560,7 +575,7 @@ export default function ContactsPage() {
                         <TableHeader>
                             <TableRow className="hover:[&_td]:bg-transparent">
                                 <TableHead className="sticky left-0 z-10 px-3 text-center" style={{ width: SELECT_COL, minWidth: SELECT_COL, maxWidth: SELECT_COL }}>
-                                    <Checkbox checked={paginatedData.length > 0 && selectedIds.size === paginatedData.length} onCheckedChange={toggleSelectAll} aria-label="Select all on this page" />
+                                    <Checkbox checked={headerChecked} onCheckedChange={toggleSelectAll} aria-label="Select all on this page" />
                                 </TableHead>
                                 <TableHead className="sticky z-10 px-2 text-center" style={{ left: SELECT_COL, width: INDEX_COL, minWidth: INDEX_COL, maxWidth: INDEX_COL }}>No.</TableHead>
                                 {activeCols.map((col, index) => {

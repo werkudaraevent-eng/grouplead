@@ -79,10 +79,12 @@ export function ReportFilterBar({
 
   const push = (next: ReportQuery) => {
     const params = serializeReportQuery(next)
-    const sort = searchParams.get("sort")
-    if (sort) params.set("sort", sort)
-    const size = searchParams.get("size")
-    if (size) params.set("size", size)
+    // A filter change keeps the sort and the page size and starts again from
+    // the first page, the same on Aktivitas, Prospek and Laporan.
+    for (const key of ["sort", "size"]) {
+      const value = searchParams.get(key)
+      if (value) params.set(key, value)
+    }
     const qs = params.toString()
     rememberView("reports", qs)
     startTransition(() => router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false }))

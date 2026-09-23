@@ -6,9 +6,9 @@ import { requireModule } from "@/lib/missions/nav-access"
 import { listTenantSales } from "@/lib/missions/mission-queries"
 import { listReportChoices } from "@/lib/missions/report-choice-queries"
 import { missionDayKey } from "@/lib/missions/mission-calendar"
-import { isEmptyReportQuery, parseReportQuery, serializeReportQuery } from "@/lib/reporting/report-filter"
+import { EMPTY_REPORT_QUERY, isEmptyReportQuery, parseReportQuery, serializeReportQuery } from "@/lib/reporting/report-filter"
 import { parseReportPageParams } from "@/lib/reporting/report-paging"
-import { listReportsPage } from "@/lib/reporting/report-list-queries"
+import { countReports, listReportsPage } from "@/lib/reporting/report-list-queries"
 import { canSeeInsight } from "@/lib/ai/insight-view"
 import { WorkspacePage } from "@/app/workspace/workspace-page"
 import { PageChrome } from "@/components/page-chrome"
@@ -53,7 +53,11 @@ export default async function ReportListPage({
   const { page, size, sort } = parseReportPageParams(params)
 
   const [choices, salesOptions, insightTab] = await Promise.all([listReportChoices(access), listTenantSales(access), canSeeInsight(access)])
-  const { items, total } = await listReportsPage(access, { query, sort, page, size, now }, choices)
+  const [{ items, total }, unfilteredCount] = await Promise.all([
+    listReportsPage(access, { query, sort, page, size, now }, choices),
+    // "X dari Y": X is every match, not this page's rows; Y is the list with no facets.
+    isEmptyReportQuery(query) ? Promise.resolve(null) : countReports(access, { query: EMPTY_REPORT_QUERY, sort, now }),
+  ])
 
   const exportParams = serializeReportQuery(query)
   exportParams.set("sort", sort)
@@ -81,7 +85,7 @@ export default async function ReportListPage({
       <PageChrome menu={[{ label: exportLabel, href: exportHref }]} />
       <ReportTabs showInsight={insightTab} />
       <RememberView list="reports" />
-      <ReportFilterBar query={query} choices={choices} people={people} total={total} shown={items.length} />
+      <ReportFilterBar query={query} choices={choices} people={people} total={unfilteredCount ?? total} shown={total} />
       <ReportTable reports={items} pagination={{ page, size, total, sort }} filtered={!isEmptyReportQuery(query)} today={missionDayKey(now)} />
     </WorkspacePage>
   )

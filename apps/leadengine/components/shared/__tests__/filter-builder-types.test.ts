@@ -52,4 +52,20 @@ describe("applyFilters", () => {
   it("ignores a filter whose definition is unknown", () => {
     expect(applyFilters(rows, [{ field: "nope", operator: "eq", value: "x" }], defs)).toHaveLength(3)
   })
+
+  it("a Has-* filter is a real boolean read with the boolean type's own operators", () => {
+    const hasEmail: FilterDefinition[] = [
+      { field: "email", label: "Has email", type: "boolean", accessor: (row) => Boolean((row as { email: string }).email?.trim()) },
+    ]
+    expect(applyFilters(rows, [{ field: "email", operator: "is_true", value: null }], hasEmail).map((r) => r.id)).toEqual([1, 3])
+    expect(applyFilters(rows, [{ field: "email", operator: "is_false", value: null }], hasEmail).map((r) => r.id)).toEqual([2])
+  })
+
+  it("a view saved with is_not_empty on a boolean still means 'has one'", () => {
+    const hasEmail: FilterDefinition[] = [
+      { field: "email", label: "Has email", type: "boolean", accessor: (row) => Boolean((row as { email: string }).email?.trim()) },
+    ]
+    expect(applyFilters(rows, [{ field: "email", operator: "is_not_empty", value: null }], hasEmail).map((r) => r.id)).toEqual([1, 3])
+    expect(applyFilters(rows, [{ field: "email", operator: "is_empty", value: null }], hasEmail).map((r) => r.id)).toEqual([2])
+  })
 })

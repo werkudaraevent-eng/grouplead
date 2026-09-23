@@ -76,6 +76,16 @@ export const CHANGE_TYPE_META: Record<
 export const CHANGELOG: ChangelogEntry[] = [
     {
         date: "2026-09-23",
+        title: "Contacts and Companies: selection, sorting and filter fixes",
+        items: [
+            { type: "fix", text: "Ticking the header checkbox on page 2 no longer reads page 1's picks as its own. A selection now belongs to the page it was made on and clears when you change page, so a bulk delete never reaches rows you cannot see; the header box shows a dash when only part of the page is ticked." },
+            { type: "fix", text: "Contacts: sorting by Owner now sorts by the owner's name. It did nothing before." },
+            { type: "fix", text: "The Has email, Has phone and Has website filters open on a choice that is in their list (is true / is false) instead of a blank one. Saved views that used them keep working." },
+            { type: "fix", text: "Companies: when a search or filter finds nothing, the empty list offers Clear filters, as Contacts already did." },
+        ],
+    },
+    {
+        date: "2026-09-23",
         title: "History moves to Settings; the sidebar keeps one width",
         items: [
             { type: "improvement", text: "History left the sidebar and is now Settings → Monitoring → Change history, next to Usage, the way Sales Activity keeps Riwayat perubahan in Pengaturan. It is for people with access to Settings; everyone else follows a lead through its Timeline tab. Old links to /history open the new page." },

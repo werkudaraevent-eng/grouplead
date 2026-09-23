@@ -123,12 +123,18 @@ export function applyFilters<T>(rows: T[], filters: FilterValue[], defs: FilterD
     })
 }
 
+function isEmptyValue(value: unknown): boolean {
+    return value == null || value === "" || value === false || (Array.isArray(value) && value.length === 0)
+}
+
 function matchOne(rowValue: unknown, f: FilterValue): boolean {
     switch (f.operator) {
+        // `false` reads as empty so a boolean filter saved with the old
+        // is_not_empty operator ("Has email") still means what it did.
         case "is_empty":
-            return rowValue == null || rowValue === "" || (Array.isArray(rowValue) && rowValue.length === 0)
+            return isEmptyValue(rowValue)
         case "is_not_empty":
-            return !(rowValue == null || rowValue === "" || (Array.isArray(rowValue) && rowValue.length === 0))
+            return !isEmptyValue(rowValue)
         case "is_true":
             return rowValue === true
         case "is_false":

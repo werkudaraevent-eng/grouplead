@@ -162,8 +162,8 @@ export default function CompaniesPage() {
         { field: "industry", label: "Sector", type: "select", pinned: true, options: uniqueSectors.map(v => ({ value: v, label: v })), accessor: row => (row as CompanyRow).industry ?? "" },
         { field: "line_industry", label: "Line industry", type: "select", pinned: true, options: uniqueLines.map(v => ({ value: v, label: v })), accessor: row => (row as CompanyRow).line_industry ?? "" },
         { field: "owner.full_name", label: "Owner", type: "select", pinned: true, options: uniqueOwners.map(v => ({ value: v, label: v })), accessor: row => (row as CompanyRow).owner?.full_name ?? "" },
-        { field: "phone", label: "Has phone", type: "boolean", defaultOperator: "is_not_empty", accessor: row => (row as CompanyRow).phone },
-        { field: "website", label: "Has website", type: "boolean", defaultOperator: "is_not_empty", accessor: row => (row as CompanyRow).website },
+        { field: "phone", label: "Has phone", type: "boolean", defaultOperator: "is_true", accessor: row => Boolean((row as CompanyRow).phone?.trim()) },
+        { field: "website", label: "Has website", type: "boolean", defaultOperator: "is_true", accessor: row => Boolean((row as CompanyRow).website?.trim()) },
         { field: "country", label: "Country", type: "select", options: uniqueCountries.map(v => ({ value: v, label: v })), accessor: row => (row as CompanyRow).country ?? "" },
         { field: "needs_enrichment", label: "Needs details", type: "boolean", defaultOperator: "is_true", accessor: row => (row as CompanyRow).needs_enrichment ?? false },
         { field: "created_at", label: "Created date", type: "date-range", accessor: row => (row as CompanyRow).created_at },
@@ -198,9 +198,23 @@ export default function CompaniesPage() {
     const totalPages = Math.max(1, Math.ceil(sortedData.length / itemsPerPage))
     const paginatedData = React.useMemo(() => sortedData.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage), [sortedData, currentPage, itemsPerPage])
     React.useEffect(() => { setCurrentPage(1); setSelectedIds(new Set()) }, [searchQuery, filters, itemsPerPage])
+    // A selection belongs to the page it was made on (Gmail): a bulk delete
+    // never reaches rows the person cannot see.
+    React.useEffect(() => { setSelectedIds(new Set()) }, [currentPage])
 
     const handleSort = (key: string) => setSortConfig({ key, direction: sortConfig?.key === key && sortConfig.direction === "asc" ? "desc" : "asc" })
-    const toggleSelectAll = () => selectedIds.size === paginatedData.length && paginatedData.length > 0 ? setSelectedIds(new Set()) : setSelectedIds(new Set(paginatedData.map(c => c.id)))
+    // The header box reads this page's rows, never the size of the set.
+    const pageSelected = paginatedData.filter((c) => selectedIds.has(c.id)).length
+    const headerChecked: boolean | "indeterminate" =
+        paginatedData.length > 0 && pageSelected === paginatedData.length ? true : pageSelected > 0 ? "indeterminate" : false
+    const toggleSelectAll = () => {
+        setSelectedIds((prev) => {
+            const next = new Set(prev)
+            if (headerChecked === true) paginatedData.forEach((c) => next.delete(c.id))
+            else paginatedData.forEach((c) => next.add(c.id))
+            return next
+        })
+    }
     const toggleSelect = (id: string) => setSelectedIds(prev => { const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next })
     const resetColumns = () => { setColumns(DEFAULT_COLUMNS); localStorage.removeItem("companies_cols_order") }
     const toggleColumn = (id: ColId, visible: boolean) => { const next = columns.map(c => c.id === id ? { ...c, visible } : c); setColumns(next); localStorage.setItem("companies_cols_order", JSON.stringify(next)) }
@@ -310,7 +324,7 @@ export default function CompaniesPage() {
                 />
             </div>
 
-            <DataTable loading={loading} companies={companies} paginatedData={paginatedData} activeCols={activeCols} selectedIds={selectedIds} currentPage={currentPage} itemsPerPage={itemsPerPage} sortConfig={sortConfig} toggleSelectAll={toggleSelectAll} toggleSelect={toggleSelect} handleSort={handleSort} renderCellContent={renderCellContent} router={router} handleDelete={handleDelete} setSelectedCompany={setSelectedCompany} setAddOpen={setAddOpen} handleAddContact={handleAddContact} />
+            <DataTable loading={loading} companies={companies} paginatedData={paginatedData} activeCols={activeCols} selectedIds={selectedIds} currentPage={currentPage} itemsPerPage={itemsPerPage} sortConfig={sortConfig} headerChecked={headerChecked} onClearFilters={() => { setSearchQuery(""); setFilters([]) }} toggleSelectAll={toggleSelectAll} toggleSelect={toggleSelect} handleSort={handleSort} renderCellContent={renderCellContent} router={router} handleDelete={handleDelete} setSelectedCompany={setSelectedCompany} setAddOpen={setAddOpen} handleAddContact={handleAddContact} />
 
             <ListFooter total={filteredData.length} page={currentPage} perPage={itemsPerPage} onPageChange={setCurrentPage} onPerPageChange={setItemsPerPage} noun="companies" />
 
@@ -327,7 +341,7 @@ export default function CompaniesPage() {
     )
 }
 
-function DataTable({ loading, companies, paginatedData, activeCols, selectedIds, currentPage, itemsPerPage, sortConfig, toggleSelectAll, toggleSelect, handleSort, renderCellContent, router, handleDelete, setSelectedCompany, setAddOpen, handleAddContact }: {
+function DataTable({ loading, companies, paginatedData, activeCols, selectedIds, currentPage, itemsPerPage, sortConfig, headerChecked, onClearFilters, toggleSelectAll, toggleSelect, handleSort, renderCellContent, router, handleDelete, setSelectedCompany, setAddOpen, handleAddContact }: {
     loading: boolean
     companies: CompanyRow[]
     paginatedData: CompanyRow[]
@@ -336,6 +350,8 @@ function DataTable({ loading, companies, paginatedData, activeCols, selectedIds,
     currentPage: number
     itemsPerPage: number
     sortConfig: { key: string; direction: "asc" | "desc" } | null
+    headerChecked: boolean | "indeterminate"
+    onClearFilters: () => void
     toggleSelectAll: () => void
     toggleSelect: (id: string) => void
     handleSort: (key: string) => void
@@ -353,7 +369,7 @@ function DataTable({ loading, companies, paginatedData, activeCols, selectedIds,
                     <TableHeader>
                         <TableRow className="hover:[&_td]:bg-transparent">
                             <TableHead className="sticky left-0 z-10 px-3 text-center" style={{ width: SELECT_COL, minWidth: SELECT_COL, maxWidth: SELECT_COL }}>
-                                <Checkbox checked={paginatedData.length > 0 && selectedIds.size === paginatedData.length} onCheckedChange={toggleSelectAll} aria-label="Select all on this page" />
+                                <Checkbox checked={headerChecked} onCheckedChange={toggleSelectAll} aria-label="Select all on this page" />
                             </TableHead>
                             <TableHead className="sticky z-10 px-2 text-center" style={{ left: SELECT_COL, width: INDEX_COL, minWidth: INDEX_COL, maxWidth: INDEX_COL }}>No.</TableHead>
                             {activeCols.map((col, index) => {
@@ -378,7 +394,7 @@ function DataTable({ loading, companies, paginatedData, activeCols, selectedIds,
                         ) : paginatedData.length === 0 ? (
                             <TableRow>
                                 <TableCell colSpan={activeCols.length + 3} className="h-auto">
-                                    <ListEmpty icon={Building2} title="No companies match your filters" description="Try changing your search or clearing filters." />
+                                    <ListEmpty icon={Building2} title="No companies match your filters" description="Try changing your search or clearing filters." action={<Button variant="outline" onClick={onClearFilters}>Clear filters</Button>} />
                                 </TableCell>
                             </TableRow>
                         ) : (

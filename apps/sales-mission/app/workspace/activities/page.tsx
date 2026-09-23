@@ -6,7 +6,7 @@ import { getMissionSettings, listTenantSales, listViewerCalendar } from "@/lib/m
 import { annotateReportRights } from "@/lib/missions/mission-rights"
 import { countMissions, listMissionFacets, listMissionsPage, parsePageParams } from "@/lib/missions/mission-page-queries"
 import { annotateJoinStatus } from "@/lib/missions/mission-join"
-import { isEmptyQuery, parseMissionQuery, resolveMissionFilter, serializeMissionQuery, type MissionFilter } from "@/lib/missions/mission-filter"
+import { EMPTY_QUERY, isEmptyQuery, parseMissionQuery, resolveMissionFilter, serializeMissionQuery, type MissionFilter } from "@/lib/missions/mission-filter"
 import { QuickFilterChips, WorkspacePage } from "@/app/workspace/workspace-page"
 import { RememberView } from "@/components/remember-view"
 import { rememberedView } from "@/lib/remembered-view"
@@ -61,6 +61,9 @@ export default async function MissionsPage({
     settings.requireAssignmentConfirmation ? countMissions(access, { ...base, lens: "team" }) : Promise.resolve(0),
   ])
   const allCount = filter === "all" ? pageResult.total : await countMissions(access, { ...base, lens: "all" })
+  // "X dari Y" in the filter bar: Y is the same lens with no facets, the
+  // meaning Prospek and Laporan give it, so the pair never reads "N dari N".
+  const unfilteredCount = isEmptyQuery(query) ? pageResult.total : await countMissions(access, { query: EMPTY_QUERY, sort, now, lens: filter })
 
   // Join eligibility is judged against the viewer's own calendar, which is
   // loaded once rather than derived from whichever rows made this page.
@@ -108,7 +111,7 @@ export default async function MissionsPage({
         types={facets.types}
         locations={facets.locations}
         industries={facets.industries}
-        total={allCount}
+        total={unfilteredCount}
         shown={pageResult.total}
       />
       <MissionTable

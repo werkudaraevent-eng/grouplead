@@ -46,6 +46,14 @@ export const CHANGE_KIND_LABELS: Record<ChangeKind, string> = {
 export const CHANGELOG: ChangeEntry[] = [
   {
     date: "2026-09-23",
+    title: "Angka hasil filter dan urutan tetap sama di semua daftar",
+    items: [
+      { kind: "diperbaiki", text: "Angka “X dari Y” di atas daftar sekarang artinya sama di Aktivitas, Prospek, dan Laporan: X semua yang cocok dengan filter (bukan hanya yang tampil di halaman ini), Y semua tanpa filter. Di Laporan tadinya X hanya isi satu halaman, dan di Aktivitas kadang terbaca “N dari N”." },
+      { kind: "diperbaiki", text: "Mengubah filter tidak lagi mengembalikan urutan dan jumlah baris per halaman ke bawaan. Di ketiga daftar, urutan dan ukuran halaman yang kamu pilih tetap, dan daftar kembali ke halaman pertama." },
+    ],
+  },
+  {
+    date: "2026-09-23",
     title: "Mematikan lalu menyalakan pengumuman tidak lagi memunculkannya ulang",
     items: [
       { kind: "diperbaiki", text: "Di Pengaturan → Pengumuman, menggeser saklar sebuah pengumuman (mati lalu nyala lagi) membuat dialog Yang baru muncul lagi untuk orang yang sudah menutupnya, padahal halaman itu menjanjikan tidak. Sekarang saklar hanya menentukan tampil atau tidak; yang memunculkan dialog lagi untuk semua akun hanya tombol Umumkan ulang. Keterangan “terakhir diumumkan” juga hanya muncul setelah Umumkan ulang dipakai." },

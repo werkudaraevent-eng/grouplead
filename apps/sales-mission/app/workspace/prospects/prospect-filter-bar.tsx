@@ -77,8 +77,12 @@ export function ProspectFilterBar({
 
   const push = (next: ProspectQuery) => {
     const params = serializeProspectQuery(next)
-    const sort = searchParams.get("sort")
-    if (sort) params.set("sort", sort)
+    // A filter change keeps the sort and the page size and starts again from
+    // the first page, the same on Aktivitas, Prospek and Laporan.
+    for (const key of ["sort", "size"]) {
+      const value = searchParams.get(key)
+      if (value) params.set(key, value)
+    }
     const qs = params.toString()
     rememberView("prospects", qs)
     startTransition(() => router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false }))

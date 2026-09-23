@@ -201,6 +201,12 @@ export function MissionFilterBar({
     // The answer lens lives beside the query and is kept as is.
     const lens = searchParams.get("filter")
     if (lens) params.set("filter", lens)
+    // A filter change keeps the sort and the page size and starts again from
+    // the first page, the same on Aktivitas, Prospek and Laporan.
+    for (const key of ["sort", "size"]) {
+      const value = searchParams.get(key)
+      if (value) params.set(key, value)
+    }
     const qs = params.toString()
     rememberView("activities", qs)
     startTransition(() => router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false }))
