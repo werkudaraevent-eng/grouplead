@@ -17,7 +17,7 @@ import { cn } from "@/lib/utils"
  * Width of the leading fixed select column. There is no row-number column:
  * a row's number changes with every sort and filter and names nothing, and
  * HubSpot, Salesforce, Pipedrive and Attio leave it out; the footer says
- * "1–20 of 1196".
+ * "1–25 of 1,196".
  */
 export const SELECT_COL = 44
 export const MENU_COL = 56
@@ -132,5 +132,23 @@ export function ListEmpty({
       <p className="mt-1 text-sm text-muted-foreground">{description}</p>
       {action && <div className="mt-5">{action}</div>}
     </div>
+  )
+}
+
+/** Placeholder cards for a list's first load on a phone, shaped like the cards that replace them. */
+export function ListCardSkeleton({ count = 6 }: { count?: number }) {
+  return (
+    <ul className="space-y-2" aria-hidden="true">
+      {Array.from({ length: count }).map((_, i) => (
+        <li key={i} className="flex items-start gap-3 rounded-xl border border-border bg-card p-3">
+          <span className="h-8 w-8 shrink-0 animate-pulse rounded-full bg-muted" />
+          <span className="flex-1 space-y-2 pt-0.5">
+            <span className="block h-3.5 animate-pulse rounded bg-muted" style={{ width: `${55 + ((i * 13) % 30)}%` }} />
+            <span className="block h-3 animate-pulse rounded bg-muted/70" style={{ width: `${40 + ((i * 17) % 35)}%` }} />
+            <span className="block h-3 animate-pulse rounded bg-muted/70" style={{ width: `${50 + ((i * 11) % 30)}%` }} />
+          </span>
+        </li>
+      ))}
+    </ul>
   )
 }

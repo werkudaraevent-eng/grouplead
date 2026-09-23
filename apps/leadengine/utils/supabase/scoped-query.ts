@@ -24,3 +24,19 @@ export function scopedQuery<T extends { eq: (col: string, val: string) => any }>
   }
   return query
 }
+
+/**
+ * The same scope for records a business unit shares with the whole group:
+ * the active unit's rows plus the unassigned ones (`company_id` null), which
+ * row security shows to everyone. Contacts and client companies are such
+ * records: one created from the Add dialog carries no unit, and a strict
+ * `company_id = unit` would hide it from the very list it was added to.
+ * Returned as a PostgREST logic term, so a list can AND it with its own
+ * filters in one `or=(and(…))` parameter; null in the holding view, where
+ * row security alone decides. The same rule as `.or("company_id.eq.X,
+ * company_id.is.null")` in config/dimension-registry.ts and the goal actions.
+ */
+export function sharedScopeTerm(companyId: string | null): string | null {
+  if (companyId === null) return null
+  return `or(company_id.eq.${companyId},company_id.is.null)`
+}

@@ -189,6 +189,27 @@
 }
 
 
+/* A chip row that scrolls sideways on a phone (the applied filters under a
+   list's search) fades at its right edge, so a chip cut by the edge reads
+   as "more this way"; the fade lifts once the end is reached. Same rule as
+   Sales Activity's `.chip-scroll`. */
+.chip-scroll {
+  mask-image: linear-gradient(to right, black calc(100% - 2.5rem), transparent 100%);
+}
+@supports (animation-timeline: scroll()) {
+  .chip-scroll {
+    animation: chip-scroll-edge linear both;
+    animation-timeline: scroll(self x);
+  }
+  @keyframes chip-scroll-edge {
+    0%, 85% { mask-image: linear-gradient(to right, black calc(100% - 2.5rem), transparent 100%); }
+    100% { mask-image: linear-gradient(to right, black 100%, transparent 100%); }
+  }
+}
+@media (min-width: 640px) {
+  .chip-scroll { mask-image: none; animation: none; }
+}
+
 /* Hide scrollbar while preserving scroll */
 .no-scrollbar::-webkit-scrollbar {
   display: none;

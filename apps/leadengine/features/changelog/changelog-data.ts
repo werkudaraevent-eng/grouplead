@@ -76,6 +76,23 @@ export const CHANGE_TYPE_META: Record<
 export const CHANGELOG: ChangelogEntry[] = [
     {
         date: "2026-09-23",
+        title: "Contacts and Companies: faster, remembered, linkable, and made for a phone",
+        items: [
+            { type: "improvement", text: "Contacts and Companies load one page at a time instead of every record at once, so they open quickly however many records there are. Search, filters and sorting still cover the whole list, and the footer says how many match (1–25 of 1,196 contacts)." },
+            { type: "improvement", text: "Paging is Previous and Next, with 25, 50 or 100 rows per page, the same as the lists in Sales Activity." },
+            { type: "feature", text: "Your search, filters, sort and page are in the address bar, so you can send a colleague the exact list you are looking at, and refreshing the page keeps it." },
+            { type: "feature", text: "Each list reopens the way you left it: open a contact, go elsewhere, come back to Contacts, and your search, filters and sort are still there. Clear all starts again from the full list (it now clears the search as well)." },
+            { type: "improvement", text: "Saved views work the same way: choosing one sets its search, filters, sort and columns, and Save view saves what you see. The list you left always comes back first; a default view is used when you open the list for the first time in a browser." },
+            { type: "improvement", text: "Every column can be sorted, including a contact's company and owner and a company's owner and parent company. Empty values go to the end. Social links cannot be sorted." },
+            { type: "improvement", text: "Export writes every contact or company that matches your search and filters (up to 5,000), not only the page on screen, and the button shows how many it will write. Exporting ticked rows works as before." },
+            { type: "improvement", text: "The name in each row is a real link: Ctrl-click or Cmd-click opens the record in a new tab, and clicking anywhere else on the row still opens it." },
+            { type: "feature", text: "On a phone, Contacts and Companies fit the screen: one card per record with its name, company or sector, and email or phone; filters behind a Filter button, with the ones you applied shown under the search; Load more at the bottom. Add stays at the top, Export and Import are in the ⋮ menu. Ticking several records to delete, export or merge them is done on a computer." },
+            { type: "improvement", text: "When you work in one business unit, the lists show that unit's contacts and companies plus the ones not assigned to any unit. The holding view shows everything, as before." },
+            { type: "fix", text: "A filter set to \"is not\" now says so on its chip (Sector: not Hotel), and the Created date filter's \"before\" and \"after\" options now find records; they found none before." },
+        ],
+    },
+    {
+        date: "2026-09-23",
         title: "Calmer tables on Contacts and Companies",
         items: [
             { type: "improvement", text: "Table headers are written normally (\"Contact name\") in the same size as the rows, instead of small spaced-out capitals that looked like a different font." },

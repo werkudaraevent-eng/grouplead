@@ -196,6 +196,44 @@ function matchOne(rowValue: unknown, f: FilterValue): boolean {
     }
 }
 
+/** A filter's options, whether given as a list or resolved lazily. */
+export function resolveFilterOptions(def: FilterDefinition): FilterOption[] {
+    return typeof def.options === "function" ? def.options() : def.options ?? []
+}
+
+/**
+ * What an applied filter reads as after its label ("Sector: Hotel", "Has
+ * email: yes", "Created date: 2026-01-01 → 2026-03-31"): the chip on a
+ * desk and the applied-filter chip on a phone say the same thing.
+ */
+export function filterValueLabel(def: FilterDefinition, f: FilterValue): string {
+    if (f.operator === "is_empty") return def.type === "boolean" ? "no" : "is empty"
+    if (f.operator === "is_not_empty") return def.type === "boolean" ? "yes" : "is set"
+    if (f.operator === "is_true") return "yes"
+    if (f.operator === "is_false") return "no"
+    const prefix = f.operator === "neq" || f.operator === "not_in" ? "not " : f.operator === "not_contains" ? "without " : f.operator === "starts_with" ? "starts with " : ""
+    if (def.type === "select" || def.type === "multi-select") {
+        const opts = resolveFilterOptions(def)
+        if (Array.isArray(f.value)) {
+            const labels = (f.value as string[]).map(v => opts.find(o => o.value === v)?.label ?? v)
+            return prefix + (labels.length <= 2 ? labels.join(", ") : `${labels.length} selected`)
+        }
+        const opt = opts.find(o => o.value === f.value)
+        return prefix + (opt?.label ?? String(f.value))
+    }
+    if (def.type === "date-range") {
+        const raw = f.value
+        const [from, to] = Array.isArray(raw) ? (raw as [string | null, string | null]) : [typeof raw === "string" ? raw : null, null]
+        if (f.operator === "before") return `before ${to ?? from ?? ""}`.trim()
+        if (f.operator === "after") return `after ${from ?? to ?? ""}`.trim()
+        if (from && to) return `${from} → ${to}`
+        if (from) return `from ${from}`
+        if (to) return `until ${to}`
+        return "any date"
+    }
+    return prefix + String(f.value ?? "")
+}
+
 /**
  * Default operator for a filter type when user adds one via UI.
  */

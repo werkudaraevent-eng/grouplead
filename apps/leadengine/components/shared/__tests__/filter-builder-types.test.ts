@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { applyFilters, isEffectiveFilter, type FilterDefinition } from "../filter-builder-types"
+import { applyFilters, filterValueLabel, isEffectiveFilter, type FilterDefinition } from "../filter-builder-types"
 
 const rows = [
   { id: 1, name: "Alpha", email: "a@x.id", tags: ["vip"], owner: { full_name: "Ana" }, created_at: "2026-09-01" },
@@ -67,5 +67,30 @@ describe("applyFilters", () => {
     ]
     expect(applyFilters(rows, [{ field: "email", operator: "is_not_empty", value: null }], hasEmail).map((r) => r.id)).toEqual([1, 3])
     expect(applyFilters(rows, [{ field: "email", operator: "is_empty", value: null }], hasEmail).map((r) => r.id)).toEqual([2])
+  })
+})
+
+describe("filterValueLabel", () => {
+  const sector: FilterDefinition = { field: "industry", label: "Sector", type: "select", options: [{ value: "hotel", label: "Hotel" }] }
+  const hasEmail: FilterDefinition = { field: "email", label: "Has email", type: "boolean" }
+  const created: FilterDefinition = { field: "created_at", label: "Created date", type: "date-range" }
+
+  it("names the chosen option, and says so when it is a negation", () => {
+    expect(filterValueLabel(sector, { field: "industry", operator: "eq", value: "hotel" })).toBe("Hotel")
+    expect(filterValueLabel(sector, { field: "industry", operator: "neq", value: "hotel" })).toBe("not Hotel")
+    expect(filterValueLabel(sector, { field: "industry", operator: "eq", value: "Bank" })).toBe("Bank")
+    expect(filterValueLabel(sector, { field: "industry", operator: "is_empty", value: null })).toBe("is empty")
+  })
+
+  it("reads a true/false filter as yes or no, old operators included", () => {
+    expect(filterValueLabel(hasEmail, { field: "email", operator: "is_true", value: null })).toBe("yes")
+    expect(filterValueLabel(hasEmail, { field: "email", operator: "is_false", value: null })).toBe("no")
+    expect(filterValueLabel(hasEmail, { field: "email", operator: "is_not_empty", value: null })).toBe("yes")
+  })
+
+  it("reads dates by their operator", () => {
+    expect(filterValueLabel(created, { field: "created_at", operator: "between", value: ["2026-01-01", "2026-03-31"] })).toBe("2026-01-01 → 2026-03-31")
+    expect(filterValueLabel(created, { field: "created_at", operator: "before", value: [null, "2026-03-01"] })).toBe("before 2026-03-01")
+    expect(filterValueLabel(created, { field: "created_at", operator: "after", value: ["2026-03-01", null] })).toBe("after 2026-03-01")
   })
 })

@@ -6,13 +6,21 @@
  *
  * Responsibilities:
  *   • Fetch the user's views for the page key on mount.
- *   • Track `activeViewId` (default: server's default view, then first).
+ *   • Track `activeViewId`: the view last chosen, while the screen still
+ *     is (or was changed from) that view.
  *   • Compare current config snapshot against saved config → `isDirty`.
  *   • Expose CRUD callbacks that hit server actions and refresh state.
  *
- * The actual filter / sort / column state lives in the page; the hook
- * only stores a pointer to the active view and the tools to compare
- * snapshots.
+ * The actual filter / sort / column state lives in the page (on the list
+ * pages, in the URL); the hook only stores a pointer to the active view and
+ * the tools to compare snapshots.
+ *
+ * A saved view never overrides what the page was opened with. On load the
+ * hook only marks the saved view that matches what is already on screen
+ * (a link, the remembered view, or the plain list); it applies a view by
+ * itself only when `applyDefaultOnLoad` says the page has nothing to show
+ * yet (a list's first open on this browser), and then only the default
+ * view. The remembered view of the list pages always wins on a bare open.
  */
 
 import * as React from "react"
@@ -32,8 +40,15 @@ interface UseListViewsOptions<T> {
     snapshot: () => T
     /** Apply a saved config back into local state. */
     applySnapshot: (config: T) => void
-    /** localStorage key for "last opened view" memory (per browser). */
+    /** localStorage key for "last chosen view" memory (per browser). */
     storageKey?: string
+    /**
+     * A comparable form of a config, so two configs that show the same
+     * list compare equal (filter order, legacy sizes). JSON by default.
+     */
+    canonical?: (config: T) => string
+    /** Apply the default view once the views arrive: the page has no view of its own yet. */
+    applyDefaultOnLoad?: boolean
 }
 
 export function useListViews<T extends object>({
@@ -41,6 +56,8 @@ export function useListViews<T extends object>({
     snapshot,
     applySnapshot,
     storageKey,
+    canonical = (config: T) => JSON.stringify(config),
+    applyDefaultOnLoad = false,
 }: UseListViewsOptions<T>) {
     const [views, setViews] = React.useState<SavedListViewRow[]>([])
     const [activeViewId, setActiveViewId] = React.useState<string | null>(null)
@@ -73,26 +90,23 @@ export function useListViews<T extends object>({
         if (loading) return
         initRef.current = true
 
-        // Priority: localStorage → default view → first → none
-        const stored = typeof window !== "undefined" ? localStorage.getItem(lsKey) : null
-        const exists = stored && views.some(v => v.id === stored)
-        if (exists) {
-            setActiveViewId(stored)
-            const v = views.find(x => x.id === stored)
-            if (v) applySnapshot(v.config as T)
-            return
+        const stored = readStored(lsKey)
+        if (applyDefaultOnLoad) {
+            // Nothing on screen yet (a first open on this browser): the
+            // default view, if the person has one, chooses the view.
+            const defView = views.find(v => v.is_default)
+            if (defView) {
+                setActiveViewId(defView.id)
+                applySnapshot(defView.config as T)
+                return
+            }
         }
-        const defView = views.find(v => v.is_default)
-        if (defView) {
-            setActiveViewId(defView.id)
-            applySnapshot(defView.config as T)
-            return
-        }
-        if (views.length > 0) {
-            setActiveViewId(views[0].id)
-            applySnapshot(views[0].config as T)
-        }
-        // No views: leave state alone, user can save current as new view.
+        // Otherwise the page keeps what it opened with; a saved view is only
+        // marked when it is exactly what shows (the last chosen one first).
+        const current = canonical(snapshot())
+        const matches = (v: SavedListViewRow) => canonical(v.config as T) === current
+        const match = views.find(v => v.id === stored && matches(v)) ?? views.find(matches)
+        if (match) setActiveViewId(match.id)
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [loading, views])
 
@@ -103,10 +117,11 @@ export function useListViews<T extends object>({
     )
 
     const currentSnapshot = snapshot()
+    const currentKey = canonical(currentSnapshot)
     const isDirty = React.useMemo(() => {
         if (!activeView) return false
-        return JSON.stringify(activeView.config) !== JSON.stringify(currentSnapshot)
-    }, [activeView, currentSnapshot])
+        return canonical(activeView.config as T) !== currentKey
+    }, [activeView, currentKey, canonical])
 
     /* ───── Actions ───── */
     const selectView = React.useCallback(
@@ -114,7 +129,7 @@ export function useListViews<T extends object>({
             const v = views.find(x => x.id === id)
             if (!v) return
             setActiveViewId(id)
-            if (typeof window !== "undefined") localStorage.setItem(lsKey, id)
+            writeStored(lsKey, id)
             applySnapshot(v.config as T)
         },
         [views, lsKey, applySnapshot],
@@ -141,7 +156,7 @@ export function useListViews<T extends object>({
             toast.success(`View "${name}" saved`)
             const newId = res.data?.id
             if (newId) {
-                if (typeof window !== "undefined") localStorage.setItem(lsKey, newId)
+                writeStored(lsKey, newId)
                 setActiveViewId(newId)
             }
             await refetch()
@@ -171,7 +186,7 @@ export function useListViews<T extends object>({
             }
             if (id === activeViewId) {
                 setActiveViewId(null)
-                if (typeof window !== "undefined") localStorage.removeItem(lsKey)
+                writeStored(lsKey, null)
             }
             toast.success("View deleted")
             await refetch()
@@ -204,5 +219,22 @@ export function useListViews<T extends object>({
         renameView,
         deleteView,
         makeDefault,
+    }
+}
+
+function readStored(key: string): string | null {
+    try {
+        return typeof window !== "undefined" ? localStorage.getItem(key) : null
+    } catch {
+        return null
+    }
+}
+
+function writeStored(key: string, value: string | null) {
+    try {
+        if (value === null) localStorage.removeItem(key)
+        else localStorage.setItem(key, value)
+    } catch {
+        // Storage unavailable: the pointer lives for this visit only.
     }
 }

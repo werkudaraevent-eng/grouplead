@@ -10,9 +10,10 @@ import { cn } from "@/lib/utils"
  * as Sales Activity's list search. Self-contained and fixed-height, so the icon is centred
  * on the field itself, never on whatever the surrounding row stretched to.
  *
- * Typing is debounced before it reaches the page: every keystroke used to
- * re-filter a thousand rows synchronously. The field stays controlled; a
- * value pushed from outside (a saved view, "Clear all") is shown at once.
+ * Typing is debounced before it reaches the page, which sends it to the
+ * database as one query. The field stays controlled; a value pushed from
+ * outside (a saved view, "Clear all", the phone's search chip) is shown at
+ * once.
  */
 export function SearchField({
   value,
@@ -32,8 +33,11 @@ export function SearchField({
   const [text, setText] = React.useState(value)
   const emitted = React.useRef(value)
 
+  // A value pushed from outside replaces the text; the page's own echo of
+  // what was typed does not. The URL keeps the search trimmed, so "PT " comes
+  // back as "PT": comparing untrimmed would eat the space mid-word.
   React.useEffect(() => {
-    if (value !== emitted.current) {
+    if (value.trim() !== emitted.current.trim()) {
       emitted.current = value
       setText(value)
     }

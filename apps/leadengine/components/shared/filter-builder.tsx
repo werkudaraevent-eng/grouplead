@@ -42,22 +42,28 @@ import {
     DEFAULT_OPERATOR,
     ALLOWED_OPERATORS,
     OPERATOR_LABELS,
+    filterValueLabel,
     isEmptyFilterValue,
     isEffectiveFilter,
     operatorNeedsValue,
+    resolveFilterOptions,
 } from "./filter-builder-types"
 
 interface FilterBuilderProps {
     definitions: FilterDefinition[]
     value: FilterValue[]
     onChange: (filters: FilterValue[]) => void
+    /**
+     * "Clear all" for the whole list view, when the page narrows it by more
+     * than these filters (a search): shown while `extraActive` is set too,
+     * and called instead of emptying the filters alone.
+     */
+    onClearAll?: () => void
+    extraActive?: boolean
     className?: string
 }
 
-const resolveOptions = (def: FilterDefinition): FilterOption[] =>
-    typeof def.options === "function" ? def.options() : def.options ?? []
-
-export function FilterBuilder({ definitions, value, onChange, className }: FilterBuilderProps) {
+export function FilterBuilder({ definitions, value, onChange, onClearAll, extraActive = false, className }: FilterBuilderProps) {
     const filtersByField = React.useMemo(() => {
         const m = new Map<string, FilterValue>()
         for (const f of value) m.set(f.field, f)
@@ -65,7 +71,7 @@ export function FilterBuilder({ definitions, value, onChange, className }: Filte
     }, [value])
 
     const pinned = definitions.filter(d => d.pinned)
-    const hasActive = value.some(isEffectiveFilter)
+    const hasActive = value.some(isEffectiveFilter) || extraActive
 
     // A non-pinned filter picked from "Add filter" is a draft until it has
     // a value: its chip appears with the editor open, and goes away again
@@ -155,7 +161,7 @@ export function FilterBuilder({ definitions, value, onChange, className }: Filte
             {hasActive && (
                 <button
                     type="button"
-                    onClick={() => { onChange([]); setDrafts([]) }}
+                    onClick={() => { if (onClearAll) onClearAll(); else onChange([]); setDrafts([]) }}
                     className="shrink-0 whitespace-nowrap px-1 text-xs font-semibold text-primary hover:underline"
                 >
                     Clear all
@@ -194,7 +200,7 @@ function FilterPill({ def, active, onApply, onClear, initialOpen = false, onDism
     const applied = React.useRef(false)
 
     const isActive = active != null && isEffectiveFilter(active)
-    const labelValue = isActive ? renderActiveLabel(def, active!) : null
+    const labelValue = isActive ? filterValueLabel(def, active!) : null
 
     return (
         <Popover
@@ -252,30 +258,6 @@ function FilterPill({ def, active, onApply, onClear, initialOpen = false, onDism
     )
 }
 
-function renderActiveLabel(def: FilterDefinition, f: FilterValue): string {
-    if (f.operator === "is_empty") return "is empty"
-    if (f.operator === "is_not_empty") return "is set"
-    if (f.operator === "is_true") return "yes"
-    if (f.operator === "is_false") return "no"
-    if (def.type === "select" || def.type === "multi-select") {
-        const opts = resolveOptions(def)
-        if (Array.isArray(f.value)) {
-            const labels = (f.value as string[]).map(v => opts.find(o => o.value === v)?.label ?? v)
-            return labels.length <= 2 ? labels.join(", ") : `${labels.length} selected`
-        }
-        const opt = opts.find(o => o.value === f.value)
-        return opt?.label ?? String(f.value)
-    }
-    if (def.type === "date-range") {
-        const [from, to] = (f.value as [string | null, string | null]) ?? [null, null]
-        if (from && to) return `${from} → ${to}`
-        if (from) return `from ${from}`
-        if (to) return `until ${to}`
-        return "any date"
-    }
-    return String(f.value ?? "")
-}
-
 /* ────────────────────────────────────────────────────────────────── */
 /* FilterEditor — popover content                                      */
 /* ────────────────────────────────────────────────────────────────── */
@@ -324,14 +306,14 @@ function FilterEditor({ def, current, onApply, onClear }: FilterEditorProps) {
                 <SearchableSelect
                     value={(val as string) || null}
                     onChange={(v) => setVal(v ?? "")}
-                    options={resolveOptions(def)}
+                    options={resolveFilterOptions(def)}
                     placeholder="Choose…"
                 />
             )}
 
             {requiresValue && def.type === "multi-select" && (
                 <MultiSelectChips
-                    options={resolveOptions(def)}
+                    options={resolveFilterOptions(def)}
                     value={(val as string[]) ?? []}
                     onChange={(v) => setVal(v)}
                 />
