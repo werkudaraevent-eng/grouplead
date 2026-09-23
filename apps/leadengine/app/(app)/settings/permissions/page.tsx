@@ -21,6 +21,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { cn } from "@/lib/utils"
+import { newSubsidiaryRow, planSubsidiaryUpdates, type SubsidiaryRow } from "@/lib/permissions/subsidiary-writes"
 import type { RolePermission, AppModule, Role, RecordScope } from "@/types/company"
 
 /* ─── Icon mapping for known system roles; custom roles get a generic Shield ──── */
@@ -699,7 +700,7 @@ export default function GlobalPermissionsPage() {
 
     const { data: existing, error: lookupError } = await supabase
       .from("role_permissions")
-      .select("id, company_id, module_id")
+      .select("id, company_id, module_id, can_read")
       .eq("role_id", selectedRole.id)
       .in("company_id", targetCompanyIds)
       .in("module_id", modules)
@@ -709,36 +710,37 @@ export default function GlobalPermissionsPage() {
       return
     }
 
-    const seen = new Set((existing ?? []).map((row) => `${row.company_id}:${row.module_id}`))
-    const existingIds = (existing ?? []).map((row) => row.id as string)
+    // A sub-module whose Lihat is off takes the implied Lihat with a write,
+    // or write-requires-read refuses the whole batch (see subsidiary-writes).
+    const rows = (existing ?? []) as SubsidiaryRow[]
+    const seen = new Set(rows.map((row) => `${row.company_id}:${row.module_id}`))
+    const plan = planSubsidiaryUpdates(rows, effective as Record<string, unknown>)
 
     const missing = targetCompanyIds.flatMap((cid) =>
       modules
         .filter((moduleId) => !seen.has(`${cid}:${moduleId}`))
-        .map((moduleId) => ({
-          company_id: cid,
-          role_id: selectedRole.id,
-          module_id: moduleId,
-          can_create: false,
-          can_read: "none" as const,
-          can_update: false,
-          can_delete: false,
-          record_scope: "own" as const,
-          read_scope: "all" as const,
-          ...effective,
-        }))
+        .map((moduleId) =>
+          newSubsidiaryRow(
+            { company_id: cid, role_id: selectedRole.id, module_id: moduleId, record_scope: "own", read_scope: "all" },
+            effective as Record<string, unknown>
+          )
+        )
     )
 
-    const [updateResult, insertResult] = await Promise.all([
-      existingIds.length > 0
-        ? supabase.from("role_permissions").update(effective).in("id", existingIds)
-        : Promise.resolve({ error: null }),
+    const none = Promise.resolve({ error: null })
+    const results = await Promise.all([
+      plan.plainIds.length > 0
+        ? supabase.from("role_permissions").update(effective).in("id", plan.plainIds)
+        : none,
+      plan.impliedReadIds.length > 0
+        ? supabase.from("role_permissions").update(plan.impliedReadUpdates).in("id", plan.impliedReadIds)
+        : none,
       missing.length > 0
         ? supabase.from("role_permissions").insert(missing)
-        : Promise.resolve({ error: null }),
+        : none,
     ])
 
-    if (updateResult.error || insertResult.error) {
+    if (results.some((result) => result.error)) {
       toast.error("Sebagian modul Sales Activity gagal diperbarui")
       await fetchPermissions(false)
       return
@@ -782,7 +784,7 @@ export default function GlobalPermissionsPage() {
 
     const { data: existing, error: lookupError } = await supabase
       .from("role_permissions")
-      .select("id, company_id")
+      .select("id, company_id, can_read")
       .eq("role_id", selectedRole.id)
       .eq("module_id", moduleId)
       .in("company_id", subsidiaryIds)
@@ -792,40 +794,39 @@ export default function GlobalPermissionsPage() {
       return false
     }
 
-    const covered = new Set((existing ?? []).map((row) => row.company_id as string))
-    const existingIds = (existing ?? []).map((row) => row.id as string)
+    // A subsidiary whose Lihat is off takes the implied Lihat with a write,
+    // the same rule the holding's own switch follows; written as one batch
+    // with the rest it broke write-requires-read and failed every unit.
+    const rows = (existing ?? []) as SubsidiaryRow[]
+    const covered = new Set(rows.map((row) => row.company_id))
+    const plan = planSubsidiaryUpdates(rows, updates)
     const missing = subsidiaryIds
       .filter((id) => !covered.has(id))
-      .map((id) => ({
-        company_id: id,
-        role_id: selectedRole.id,
-        module_id: moduleId,
-        can_create: false,
-        can_read: "none",
-        can_update: false,
-        can_delete: false,
-        record_scope: "own",
-        read_scope: "all",
-        ...updates,
-      }))
+      .map((id) =>
+        newSubsidiaryRow(
+          { company_id: id, role_id: selectedRole.id, module_id: moduleId, record_scope: "own", read_scope: "all" },
+          updates
+        )
+      )
 
-    const [updateResult, insertResult] = await Promise.all([
-      existingIds.length > 0
-        ? supabase.from("role_permissions").update(updates).in("id", existingIds).select("id")
-        : Promise.resolve({ data: [], error: null }),
+    const none = Promise.resolve({ data: [] as { id: string }[], error: null })
+    const results = await Promise.all([
+      plan.plainIds.length > 0
+        ? supabase.from("role_permissions").update(updates).in("id", plan.plainIds).select("id")
+        : none,
+      plan.impliedReadIds.length > 0
+        ? supabase.from("role_permissions").update(plan.impliedReadUpdates).in("id", plan.impliedReadIds).select("id")
+        : none,
       missing.length > 0
         ? supabase.from("role_permissions").insert(missing).select("id")
-        : Promise.resolve({ data: [], error: null }),
+        : none,
     ])
 
-    const written = (updateResult.data?.length ?? 0) + (insertResult.data?.length ?? 0)
-    if (updateResult.error || insertResult.error || written < subsidiaryIds.length) {
+    const written = results.reduce((sum, result) => sum + (result.data?.length ?? 0), 0)
+    const failure = results.find((result) => result.error)?.error
+    if (failure || written < subsidiaryIds.length) {
       const names = subsidiaries.map((c) => c.name).join(", ")
-      setError(
-        updateResult.error?.message ??
-          insertResult.error?.message ??
-          `Hanya ${written} dari ${subsidiaryIds.length} anak perusahaan yang tersimpan.`
-      )
+      setError(failure?.message ?? `Hanya ${written} dari ${subsidiaryIds.length} anak perusahaan yang tersimpan.`)
       toast.error(`Perubahan tidak sampai ke semua anak perusahaan (${names}). Periksa lagi per perusahaan.`)
       return false
     }
