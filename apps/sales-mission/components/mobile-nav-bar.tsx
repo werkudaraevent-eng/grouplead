@@ -88,11 +88,14 @@ export function MobileNavBar({
     router.refresh()
   }
 
+  // Every hook above this line, whatever the page announces: a hook after
+  // the early return would run on some renders and not others.
+  const menuHintSeen = useHintSeen("nav-lainnya")
+
   if (hideNav) return null
 
   const destinations = DESTINATIONS.filter((item) => !item.requires || navAccess[item.requires])
   const moreActive = !destinations.some((item) => isActive(pathname, item.href))
-  const menuHintSeen = useHintSeen("nav-lainnya")
   const go = (href: string) => {
     setMoreOpen(false)
     router.push(href)
