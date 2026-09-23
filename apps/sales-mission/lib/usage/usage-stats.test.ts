@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest"
 import {
+  dailyActiveSeries,
   daysAgo,
+  isWeekendDay,
   lastSeenLabel,
   lastSeenStamp,
   parseUsagePeriod,
@@ -9,6 +11,9 @@ import {
   shiftDay,
   summarizeUsage,
   unlistedUserIds,
+  usageDayLabel,
+  usageDayLongLabel,
+  usageDayWindow,
   weeklyActiveDays,
   windowStart,
   type UsageDayRow,
@@ -53,6 +58,14 @@ describe("parseUsagePeriod", () => {
   })
 })
 
+describe("usageDayWindow", () => {
+  it("reads eight weeks for the people table, or the period when it reaches further", () => {
+    expect(usageDayWindow(7)).toBe(56)
+    expect(usageDayWindow(30)).toBe(56)
+    expect(usageDayWindow(90)).toBe(90)
+  })
+})
+
 describe("summarizeUsage", () => {
   it("counts people, not rows, per window, and sums 30 days of opens", () => {
     const rows = [
@@ -81,6 +94,60 @@ describe("weeklyActiveDays", () => {
   it("ignores days beyond the reach and in the future", () => {
     expect(weeklyActiveDays([shiftDay(TODAY, -56), shiftDay(TODAY, 1)], TODAY)).toEqual([0, 0, 0, 0, 0, 0, 0, 0])
     expect(weeklyActiveDays([shiftDay(TODAY, -55)], TODAY)[0]).toBe(1)
+  })
+})
+
+describe("dailyActiveSeries", () => {
+  it("has every day of the range, both ends included, oldest first", () => {
+    const series = dailyActiveSeries([], windowStart(TODAY, 7), TODAY)
+    expect(series.map((entry) => entry.day)).toEqual(["2026-09-17", "2026-09-18", "2026-09-19", "2026-09-20", "2026-09-21", "2026-09-22", TODAY])
+    expect(series.every((entry) => entry.active === 0)).toBe(true)
+  })
+
+  it("fills 90 days across a month boundary", () => {
+    const series = dailyActiveSeries([], windowStart(TODAY, 90), TODAY)
+    expect(series).toHaveLength(90)
+    expect(series[0].day).toBe("2026-06-26")
+    expect(series[89].day).toBe(TODAY)
+  })
+
+  it("counts distinct people per day, and a day nobody came is 0, not missing", () => {
+    const rows = [
+      day("a", TODAY, 5),
+      day("b", TODAY, 1),
+      day("a", TODAY, 2), // the same person twice is one person
+      day("c", "2026-09-21", 0), // a heartbeat alone still means here
+    ]
+    const series = dailyActiveSeries(rows, "2026-09-21", TODAY)
+    expect(series).toEqual([
+      { day: "2026-09-21", active: 1, weekend: false },
+      { day: "2026-09-22", active: 0, weekend: false },
+      { day: TODAY, active: 2, weekend: false },
+    ])
+  })
+
+  it("flags Saturday and Sunday as weekend", () => {
+    const series = dailyActiveSeries([], "2026-09-18", "2026-09-21") // Fri, Sat, Sun, Mon
+    expect(series.map((entry) => entry.weekend)).toEqual([false, true, true, false])
+    expect(isWeekendDay("2026-09-26")).toBe(true)
+    expect(isWeekendDay(TODAY)).toBe(false)
+  })
+
+  it("ignores rows outside the range", () => {
+    const rows = [day("a", "2026-09-16", 3), day("b", "2026-09-24", 1), day("c", "2026-09-17", 1)]
+    const series = dailyActiveSeries(rows, "2026-09-17", TODAY)
+    expect(series.reduce((sum, entry) => sum + entry.active, 0)).toBe(1)
+    expect(series[0]).toEqual({ day: "2026-09-17", active: 1, weekend: false })
+  })
+
+  it("is empty for a range that ends before it starts", () => {
+    expect(dailyActiveSeries([day("a", TODAY)], TODAY, "2026-09-22")).toEqual([])
+  })
+
+  it("labels a day the way the board does, and with its weekday for the tooltip", () => {
+    expect(usageDayLabel("2026-09-22")).toBe("22 Sep")
+    expect(usageDayLongLabel("2026-09-21")).toBe("Sen 21 Sep")
+    expect(usageDayLongLabel("2026-08-02")).toBe("Min 2 Agu")
   })
 })
 
