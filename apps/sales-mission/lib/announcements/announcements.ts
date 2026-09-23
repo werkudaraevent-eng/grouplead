@@ -15,21 +15,22 @@ import { CHANGELOG, type Announcement } from "@/lib/changelog"
 export interface AnnouncementRow {
   key: string
   enabled: boolean
-  announced_at: string
+  /** Set only by Umumkan ulang; null while the release date is the stamp. */
+  announced_at: string | null
 }
 
 export interface AnnouncementState extends Announcement {
   /** The release date, from the changelog. */
   date: string
   enabled: boolean
-  /** ISO instant of the last (re)announcement; the release date when never touched. */
+  /** ISO instant of the last Umumkan ulang; the release date when never re-announced. */
   announcedAt: string
   /** user_hints key written when the person closes the dialog. */
   seenKey: string
   /** user_hints key written when the person opens Yang baru afterwards. */
   readKey: string
-  /** Whether an admin has ever saved a row for it. */
-  configured: boolean
+  /** Whether an admin has ever used Umumkan ulang on it. A switch alone does not count. */
+  reannounced: boolean
 }
 
 /** At most this many items in one dialog: the newest, the rest wait in Yang baru. */
@@ -55,7 +56,7 @@ export function announcementStates(rows: readonly AnnouncementRow[]): Announceme
         announcedAt,
         seenKey: `announce-${announcement.key}-${at}`,
         readKey: `read-${announcement.key}-${at}`,
-        configured: Boolean(row),
+        reannounced: Boolean(row?.announced_at),
       },
     ]
   })

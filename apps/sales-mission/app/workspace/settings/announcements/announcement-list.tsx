@@ -44,7 +44,7 @@ export function AnnouncementList({ items }: { items: AnnouncementState[] }) {
         return
       }
       const now = new Date().toISOString()
-      setRows((prev) => prev.map((row) => (row.key === item.key ? { ...row, enabled: true, announcedAt: now, configured: true } : row)))
+      setRows((prev) => prev.map((row) => (row.key === item.key ? { ...row, enabled: true, announcedAt: now, reannounced: true } : row)))
       setConfirming(null)
       toast.success(`"${item.title}" diumumkan ulang ke semua akun.`)
     })
@@ -65,7 +65,7 @@ export function AnnouncementList({ items }: { items: AnnouncementState[] }) {
                 <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{item.body}</p>
                 <p className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
                   <span>Rilis {day(`${item.date}T00:00:00+07:00`)}</span>
-                  {item.configured && <span>· terakhir diumumkan {stamp(item.announcedAt)}</span>}
+                  {item.reannounced && <span>· terakhir diumumkan {stamp(item.announcedAt)}</span>}
                   <button type="button" onClick={() => setConfirming(item)} disabled={pending} className="inline-flex min-h-8 items-center gap-1 font-semibold text-primary hover:underline disabled:opacity-50">
                     <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" /> Umumkan ulang
                   </button>

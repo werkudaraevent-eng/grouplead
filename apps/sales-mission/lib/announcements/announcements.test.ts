@@ -9,7 +9,7 @@ describe("announcements", () => {
     expect(share.enabled).toBe(true)
     expect(edit.enabled).toBe(false)
     expect(share.seenKey).toMatch(/^announce-share-whatsapp-\d+$/)
-    expect(share.configured).toBe(false)
+    expect(share.reannounced).toBe(false)
   })
 
   it("the admin's row wins, and re-announcing changes the seen key", () => {
@@ -21,7 +21,7 @@ describe("announcements", () => {
     const share = states.find((state) => state.key === "share-whatsapp")!
     const edit = states.find((state) => state.key === "edit-completed")!
     expect(share.seenKey).not.toBe(before.seenKey)
-    expect(share.configured).toBe(true)
+    expect(share.reannounced).toBe(true)
     expect(edit.enabled).toBe(true)
   })
 
@@ -33,5 +33,17 @@ describe("announcements", () => {
     expect(pendingAnnouncements(states, seen).some((state) => state.key === on[0].key)).toBe(false)
     expect(unreadAnnouncements(states, seen).some((state) => state.key === on[0].key)).toBe(true)
     expect(unreadAnnouncements(states, new Set([on[0].readKey])).some((state) => state.key === on[0].key)).toBe(false)
+  })
+
+  it("a switch never changes the seen key; only Umumkan ulang does", () => {
+    const before = announcementStates([]).find((state) => state.key === "share-whatsapp")!
+    const off = announcementStates([{ key: "share-whatsapp", enabled: false, announced_at: null }]).find((state) => state.key === "share-whatsapp")!
+    const backOn = announcementStates([{ key: "share-whatsapp", enabled: true, announced_at: null }]).find((state) => state.key === "share-whatsapp")!
+    expect(off.enabled).toBe(false)
+    expect(backOn.seenKey).toBe(before.seenKey)
+    expect(backOn.readKey).toBe(before.readKey)
+    expect(backOn.reannounced).toBe(false)
+    // Someone who closed it before the switch moved does not see it again.
+    expect(pendingAnnouncements([backOn], new Set([before.seenKey]))).toEqual([])
   })
 })

@@ -46,6 +46,13 @@ export const CHANGE_KIND_LABELS: Record<ChangeKind, string> = {
 export const CHANGELOG: ChangeEntry[] = [
   {
     date: "2026-09-23",
+    title: "Mematikan lalu menyalakan pengumuman tidak lagi memunculkannya ulang",
+    items: [
+      { kind: "diperbaiki", text: "Di Pengaturan → Pengumuman, menggeser saklar sebuah pengumuman (mati lalu nyala lagi) membuat dialog Yang baru muncul lagi untuk orang yang sudah menutupnya, padahal halaman itu menjanjikan tidak. Sekarang saklar hanya menentukan tampil atau tidak; yang memunculkan dialog lagi untuk semua akun hanya tombol Umumkan ulang. Keterangan “terakhir diumumkan” juga hanya muncul setelah Umumkan ulang dipakai." },
+    ],
+  },
+  {
+    date: "2026-09-23",
     title: "Halaman Pengaturan jadi daftar berkelompok",
     items: [
       { kind: "lebih-baik", text: "Pengaturan tidak lagi berupa 15 kartu dalam tiga kolom. Sekarang satu daftar yang dibaca dari atas ke bawah, dikelompokkan menjadi Form, Alur kerja, Komunikasi, Pemantauan, dan Sistem, supaya yang dicari lebih cepat ketemu, di layar lebar maupun di HP. Tiap baris punya ikonnya sendiri dan penjelasan singkat yang tidak lagi terpotong di HP." },
