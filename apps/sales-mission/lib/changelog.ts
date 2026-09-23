@@ -49,6 +49,7 @@ export const CHANGELOG: ChangeEntry[] = [
     title: "Angka hasil filter dan urutan tetap sama di semua daftar",
     items: [
       { kind: "diperbaiki", text: "Angka “X dari Y” di atas daftar sekarang artinya sama di Aktivitas, Prospek, dan Laporan: X semua yang cocok dengan filter (bukan hanya yang tampil di halaman ini), Y semua tanpa filter. Di Laporan tadinya X hanya isi satu halaman, dan di Aktivitas kadang terbaca “N dari N”." },
+      { kind: "lebih-baik", text: "Filter yang sedang aktif kini diberi tanda centang selain warnanya, termasuk tombol Butuh follow-up di Prospek, jadi sekilas terlihat mana yang sedang menyaring. Chip filter di HP juga bersudut, tidak lagi bulat penuh, sama seperti chip lain di aplikasi." },
       { kind: "diperbaiki", text: "Mengubah filter tidak lagi mengembalikan urutan dan jumlah baris per halaman ke bawaan. Di ketiga daftar, urutan dan ukuran halaman yang kamu pilih tetap, dan daftar kembali ke halaman pertama." },
     ],
   },

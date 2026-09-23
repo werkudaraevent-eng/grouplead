@@ -1,8 +1,9 @@
 "use client"
 
+import { FilterChip } from "@/components/filter-chip"
 import { useEffect, useRef, useState, useTransition } from "react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
-import { CalendarClock, Search, X } from "@/components/icons"
+import { CalendarClock, Check, Search } from "@/components/icons"
 import { FilterBarFrame } from "@/components/filter-bar-frame"
 import { rememberView } from "@/components/remember-view"
 import { FacetSelect } from "@/components/facet-select"
@@ -35,16 +36,6 @@ export interface FilterPerson {
   avatarUrl: string | null
 }
 
-function Chip({ label, onRemove }: { label: string; onRemove: () => void }) {
-  return (
-    <span className="inline-flex h-8 shrink-0 items-center gap-1 whitespace-nowrap rounded-full border bg-card pl-3 pr-1 text-xs font-medium text-foreground">
-      {label}
-      <button type="button" onClick={onRemove} aria-label={`Hapus filter ${label}`} className="relative grid h-7 w-7 place-items-center rounded-full text-muted-foreground after:absolute after:-inset-2 after:content-[''] hover:bg-muted hover:text-foreground">
-        <X className="h-3 w-3" />
-      </button>
-    </span>
-  )
-}
 
 const batchLabel = (batch: ImportBatchOption) => {
   const when = new Intl.DateTimeFormat("id-ID", { timeZone: MISSION_TIME_ZONE, day: "numeric", month: "short" }).format(new Date(batch.createdAt))
@@ -172,11 +163,12 @@ export function ProspectFilterBar({
           aria-pressed={query.due}
           onClick={() => push({ ...query, due: !query.due })}
           className={cn(
-            "inline-flex h-9 items-center gap-1.5 rounded-lg border px-3 text-sm font-medium transition-colors md:h-8",
-            query.due ? "border-primary bg-primary/10 text-primary" : "bg-card text-foreground hover:bg-muted"
+            "inline-flex h-10 items-center gap-1.5 rounded-md border px-3 text-sm font-medium text-foreground transition-colors md:h-9",
+            query.due ? "border-primary/50 bg-primary/5" : "bg-card hover:bg-muted"
           )}
         >
-          <CalendarClock className="h-3.5 w-3.5" />
+          {/* On: the same check and tint as a facet with a value (M3 filter chip). */}
+          {query.due ? <Check className="h-4 w-4 text-primary" aria-hidden="true" /> : <CalendarClock className="h-3.5 w-3.5" />}
           Butuh follow-up
           {dueCount > 0 && (
             <span className={cn("grid h-5 min-w-5 place-items-center rounded-full px-1 text-[11px] font-bold", query.due ? "bg-primary text-primary-foreground" : "bg-[var(--warning-foreground)] text-white")}>
@@ -194,17 +186,17 @@ export function ProspectFilterBar({
       }
       chips={active > 0 ? (
         <>
-          {query.q && <Chip label={`“${query.q}”`} onRemove={() => { setText(""); push({ ...query, q: "" }) }} />}
+          {query.q && <FilterChip label={`“${query.q}”`} onRemove={() => { setText(""); push({ ...query, q: "" }) }} />}
           {query.status.map((status) => (
-            <Chip key={status} label={statusLabel(status)} onRemove={() => push({ ...query, status: query.status.filter((s) => s !== status) })} />
+            <FilterChip key={status} label={statusLabel(status)} onRemove={() => push({ ...query, status: query.status.filter((s) => s !== status) })} />
           ))}
           {query.owner.map((id) => (
-            <Chip key={id} label={personName(id)} onRemove={() => push({ ...query, owner: query.owner.filter((o) => o !== id) })} />
+            <FilterChip key={id} label={personName(id)} onRemove={() => push({ ...query, owner: query.owner.filter((o) => o !== id) })} />
           ))}
           {query.batch.map((id) => (
-            <Chip key={id} label={batchName(id)} onRemove={() => push({ ...query, batch: query.batch.filter((b) => b !== id) })} />
+            <FilterChip key={id} label={batchName(id)} onRemove={() => push({ ...query, batch: query.batch.filter((b) => b !== id) })} />
           ))}
-          {query.due && <Chip label="Butuh follow-up" onRemove={() => push({ ...query, due: false })} />}
+          {query.due && <FilterChip label="Butuh follow-up" onRemove={() => push({ ...query, due: false })} />}
           <button type="button" onClick={() => { setText(""); push(EMPTY_PROSPECT_QUERY) }} className="ml-1 text-xs font-semibold text-primary hover:underline">
             Bersihkan semua
           </button>

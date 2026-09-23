@@ -1,5 +1,6 @@
 "use client"
 
+import { FilterChip } from "@/components/filter-chip"
 import { useEffect, useRef, useState, useTransition } from "react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { Search, X } from "@/components/icons"
@@ -46,16 +47,6 @@ const triFrom = (values: string[], previous: TriState): TriState => {
   return next === TRI_OPTIONS.yes
 }
 
-function Chip({ label, onRemove }: { label: string; onRemove: () => void }) {
-  return (
-    <span className="inline-flex h-8 shrink-0 items-center gap-1 whitespace-nowrap rounded-full border bg-card pl-3 pr-1 text-xs font-medium text-foreground">
-      {label}
-      <button type="button" onClick={onRemove} aria-label={`Hapus filter ${label}`} className="relative grid h-7 w-7 place-items-center rounded-full text-muted-foreground after:absolute after:-inset-2 after:content-[''] hover:bg-muted hover:text-foreground">
-        <X className="h-3 w-3" />
-      </button>
-    </span>
-  )
-}
 
 export function ReportFilterBar({
   query,
@@ -217,16 +208,16 @@ export function ReportFilterBar({
       }
       chips={active > 0 ? (
         <>
-          {query.q && <Chip label={`“${query.q}”`} onRemove={() => { setText(""); push({ ...query, q: "" }) }} />}
-          {query.status.map((status) => <Chip key={status} label={REPORT_STATUS_LABELS[status]} onRemove={() => push({ ...query, status: query.status.filter((item) => item !== status) })} />)}
-          {query.outcome.map((code) => <Chip key={code} label={labelIn(outcomeOptions, code)} onRemove={() => push({ ...query, outcome: query.outcome.filter((item) => item !== code) })} />)}
-          {query.interest.map((code) => <Chip key={code} label={labelIn(interestOptions, code)} onRemove={() => push({ ...query, interest: query.interest.filter((item) => item !== code) })} />)}
-          {query.nextAction.map((code) => <Chip key={code} label={labelIn(actionOptions, code)} onRemove={() => push({ ...query, nextAction: query.nextAction.filter((item) => item !== code) })} />)}
-          {query.sales.map((id) => <Chip key={id} label={personName(id)} onRemove={() => push({ ...query, sales: query.sales.filter((item) => item !== id) })} />)}
-          {query.opportunity !== null && <Chip label={query.opportunity ? "Ada peluang" : "Tanpa peluang"} onRemove={() => push({ ...query, opportunity: null })} />}
-          {query.pushed !== null && <Chip label={query.pushed ? "Sudah dikirim ke CRM" : "Belum dikirim"} onRemove={() => push({ ...query, pushed: null })} />}
+          {query.q && <FilterChip label={`“${query.q}”`} onRemove={() => { setText(""); push({ ...query, q: "" }) }} />}
+          {query.status.map((status) => <FilterChip key={status} label={REPORT_STATUS_LABELS[status]} onRemove={() => push({ ...query, status: query.status.filter((item) => item !== status) })} />)}
+          {query.outcome.map((code) => <FilterChip key={code} label={labelIn(outcomeOptions, code)} onRemove={() => push({ ...query, outcome: query.outcome.filter((item) => item !== code) })} />)}
+          {query.interest.map((code) => <FilterChip key={code} label={labelIn(interestOptions, code)} onRemove={() => push({ ...query, interest: query.interest.filter((item) => item !== code) })} />)}
+          {query.nextAction.map((code) => <FilterChip key={code} label={labelIn(actionOptions, code)} onRemove={() => push({ ...query, nextAction: query.nextAction.filter((item) => item !== code) })} />)}
+          {query.sales.map((id) => <FilterChip key={id} label={personName(id)} onRemove={() => push({ ...query, sales: query.sales.filter((item) => item !== id) })} />)}
+          {query.opportunity !== null && <FilterChip label={query.opportunity ? "Ada peluang" : "Tanpa peluang"} onRemove={() => push({ ...query, opportunity: null })} />}
+          {query.pushed !== null && <FilterChip label={query.pushed ? "Sudah dikirim ke CRM" : "Belum dikirim"} onRemove={() => push({ ...query, pushed: null })} />}
           {query.date && (
-            <Chip
+            <FilterChip
               label={query.date === "custom" ? [query.from, query.to].filter(Boolean).join(" – ") || DATE_PRESET_LABELS.custom : DATE_PRESET_LABELS[query.date]}
               onRemove={() => push({ ...query, date: null, from: null, to: null })}
             />

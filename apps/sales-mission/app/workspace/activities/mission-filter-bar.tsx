@@ -1,5 +1,6 @@
 "use client"
 
+import { FilterChip } from "@/components/filter-chip"
 import { useEffect, useRef, useState, useTransition } from "react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { Search, X } from "@/components/icons"
@@ -152,21 +153,6 @@ export function DateFacet({
   )
 }
 
-function Chip({ label, onRemove }: { label: string; onRemove: () => void }) {
-  return (
-    <span className="inline-flex h-8 shrink-0 items-center gap-1 whitespace-nowrap rounded-full border bg-card pl-3 pr-1 text-xs font-medium text-foreground">
-      {label}
-      <button
-        type="button"
-        onClick={onRemove}
-        aria-label={`Hapus filter ${label}`}
-        className="relative grid h-7 w-7 place-items-center rounded-full text-muted-foreground after:absolute after:-inset-2 after:content-[''] hover:bg-muted hover:text-foreground"
-      >
-        <X className="h-3 w-3" />
-      </button>
-    </span>
-  )
-}
 
 export function MissionFilterBar({
   quick,
@@ -361,34 +347,34 @@ export function MissionFilterBar({
       }
       chips={active > 0 ? (
         <>
-          {query.q && <Chip label={`“${query.q}”`} onRemove={() => { setText(""); push({ ...query, q: "" }) }} />}
+          {query.q && <FilterChip label={`“${query.q}”`} onRemove={() => { setText(""); push({ ...query, q: "" }) }} />}
           {query.status.map((status) => (
-            <Chip key={status} label={STATUS_LABELS[status as MissionStatus] ?? status} onRemove={() => push({ ...query, status: query.status.filter((s) => s !== status) })} />
+            <FilterChip key={status} label={STATUS_LABELS[status as MissionStatus] ?? status} onRemove={() => push({ ...query, status: query.status.filter((s) => s !== status) })} />
           ))}
           {query.sales.map((id) => (
-            <Chip key={id} label={personName(id)} onRemove={() => push({ ...query, sales: query.sales.filter((s) => s !== id) })} />
+            <FilterChip key={id} label={personName(id)} onRemove={() => push({ ...query, sales: query.sales.filter((s) => s !== id) })} />
           ))}
           {query.report.map((state) => (
-            <Chip key={`report-${state}`} label={VISIT_STATE_LABELS[state]} onRemove={() => push({ ...query, report: query.report.filter((r) => r !== state) })} />
+            <FilterChip key={`report-${state}`} label={VISIT_STATE_LABELS[state]} onRemove={() => push({ ...query, report: query.report.filter((r) => r !== state) })} />
           ))}
           {query.creator.map((id) => (
-            <Chip key={`creator-${id}`} label={`Dibuat oleh ${personName(id)}`} onRemove={() => push({ ...query, creator: query.creator.filter((c) => c !== id) })} />
+            <FilterChip key={`creator-${id}`} label={`Dibuat oleh ${personName(id)}`} onRemove={() => push({ ...query, creator: query.creator.filter((c) => c !== id) })} />
           ))}
           {query.location.map((location) => (
-            <Chip key={location} label={location} onRemove={() => push({ ...query, location: query.location.filter((l) => l !== location) })} />
+            <FilterChip key={location} label={location} onRemove={() => push({ ...query, location: query.location.filter((l) => l !== location) })} />
           ))}
           {query.industry.map((industry) => (
-            <Chip
+            <FilterChip
               key={`industry-${industry}`}
               label={industry === INDUSTRY_NONE ? `Industri ${INDUSTRY_NONE_LABEL.toLowerCase()}` : industry}
               onRemove={() => push({ ...query, industry: query.industry.filter((i) => i !== industry) })}
             />
           ))}
           {query.type.map((type) => (
-            <Chip key={type} label={type} onRemove={() => push({ ...query, type: query.type.filter((t) => t !== type) })} />
+            <FilterChip key={type} label={type} onRemove={() => push({ ...query, type: query.type.filter((t) => t !== type) })} />
           ))}
           {query.date && (
-            <Chip
+            <FilterChip
               label={
                 query.date === "custom"
                   ? [query.from, query.to].filter(Boolean).join(" – ") || DATE_PRESET_LABELS.custom

@@ -38,7 +38,7 @@ export function ListToolbar({
         <SearchField value={search.value} onChange={search.onChange} placeholder={search.placeholder} aria-label={search["aria-label"]} className="mr-1" />
         <FilterBuilder definitions={filters.definitions} value={filters.value} onChange={filters.onChange} className="contents" />
       </div>
-      {actions && <div className="flex h-10 shrink-0 items-center gap-1">{actions}</div>}
+      {actions && <div className="-my-0.5 flex h-10 shrink-0 items-center gap-1">{actions}</div>}
     </div>
   )
 }

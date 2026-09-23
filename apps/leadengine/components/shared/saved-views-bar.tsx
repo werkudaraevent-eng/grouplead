@@ -93,7 +93,7 @@ export function SavedViewsBar({
                             onClick={() => onSelectView(v.id)}
                             aria-pressed={isActive}
                             className={cn(
-                                "inline-flex h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-3 text-xs font-medium transition-colors",
+                                "inline-flex h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md border px-3 text-sm font-medium transition-colors",
                                 isActive
                                     ? "border-transparent bg-primary/12 text-primary"
                                     : "border-border bg-card text-foreground hover:bg-muted",

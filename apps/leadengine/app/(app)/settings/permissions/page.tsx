@@ -1173,7 +1173,7 @@ export default function GlobalPermissionsPage() {
                     onClick={() => setSelectedRole(role)}
                     aria-pressed={isActive}
                     className={cn(
-                      "inline-flex h-9 items-center gap-2 rounded-full border px-3.5 text-sm font-medium transition-colors",
+                      "inline-flex h-9 items-center gap-2 rounded-md border px-3.5 text-sm font-medium transition-colors",
                       isActive
                         ? "border-transparent bg-primary/12 text-primary"
                         : "border-border bg-card text-foreground hover:bg-muted"
@@ -1187,7 +1187,7 @@ export default function GlobalPermissionsPage() {
               <Button
                 size="sm"
                 variant="ghost"
-                className="h-9 rounded-full px-3"
+                className="h-9 px-3"
                 onClick={() => openRoleModal()}
                 disabled={!canManagePermissions}
               >

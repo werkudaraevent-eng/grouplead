@@ -156,7 +156,7 @@ export function FilterBuilder({ definitions, value, onChange, className }: Filte
                 <button
                     type="button"
                     onClick={() => { onChange([]); setDrafts([]) }}
-                    className="h-8 shrink-0 whitespace-nowrap rounded-full px-2.5 text-xs font-medium text-primary transition-colors hover:bg-primary/8"
+                    className="shrink-0 whitespace-nowrap px-1 text-xs font-semibold text-primary hover:underline"
                 >
                     Clear all
                 </button>
@@ -211,31 +211,33 @@ function FilterPill({ def, active, onApply, onClear, initialOpen = false, onDism
                     type="button"
                     aria-pressed={isActive}
                     className={cn(
-                        // M3 filter chip: 32dp pill; tonal when it narrows the list, outlined when it does not.
-                        "inline-flex h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3 text-xs font-medium transition-colors",
+                        // M3 filter chip: 8dp corners (never a pill), outlined while it
+                        // does nothing, tinted with a leading check once it narrows the
+                        // list. The same chip as Sales Activity's facets.
+                        "inline-flex h-9 max-w-72 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md border px-3 text-sm font-medium text-foreground transition-colors",
                         isActive
-                            ? "border border-transparent bg-primary/12 text-primary hover:bg-primary/18"
-                            : "border border-border bg-card text-foreground hover:bg-muted",
+                            ? "border-primary/50 bg-primary/5 hover:bg-primary/10"
+                            : "border-border bg-card hover:bg-muted",
                     )}
                 >
-                    {isActive && <Check className="h-3.5 w-3.5" />}
-                    <span>
+                    {isActive && <Check className="h-4 w-4 text-primary" />}
+                    <span className="truncate">
                         {def.label}
-                        {isActive && <span className="text-foreground/70 font-normal">: </span>}
-                        {isActive && <span className="text-foreground font-semibold">{labelValue}</span>}
+                        {isActive && <span className="font-normal text-muted-foreground">: </span>}
+                        {isActive && <span>{labelValue}</span>}
                     </span>
                     {isActive && (
                         <span
                             role="button"
                             tabIndex={-1}
                             onClick={(e) => { e.preventDefault(); e.stopPropagation(); onClear() }}
-                            className="ml-0.5 inline-flex items-center justify-center rounded-full p-0.5 hover:bg-primary/20 transition-colors"
+                            className="ml-0.5 inline-flex items-center justify-center rounded-sm p-0.5 text-muted-foreground transition-colors hover:bg-primary/15 hover:text-foreground"
                             aria-label={`Remove ${def.label} filter`}
                         >
-                            <X className="h-3 w-3" />
+                            <X className="h-3.5 w-3.5" />
                         </span>
                     )}
-                    {!isActive && <ChevronDown className="h-3 w-3 opacity-60" />}
+                    {!isActive && <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />}
                 </button>
             </PopoverTrigger>
             <PopoverContent className="w-72 p-3" align="start">
@@ -452,10 +454,10 @@ function AddFilterPicker({ definitions, excludeFields, onPick }: AddFilterPicker
                 <Button
                     variant="ghost"
                     size="sm"
-                    className="h-8 shrink-0 gap-1.5 whitespace-nowrap rounded-full border border-border bg-card px-3 text-xs font-medium text-foreground hover:bg-muted"
+                    className="h-9 shrink-0 gap-1.5 whitespace-nowrap px-3 text-sm text-muted-foreground hover:text-foreground"
                 >
-                    <Plus className="h-3.5 w-3.5" />
-                    Add filter
+                    <Plus className="h-4 w-4" />
+                    Filter
                 </Button>
             </PopoverTrigger>
             <PopoverContent className="w-60 p-0" align="start">

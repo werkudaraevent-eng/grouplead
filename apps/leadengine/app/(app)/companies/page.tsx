@@ -46,7 +46,7 @@ import { applyFilters, type FilterDefinition, type FilterValue } from "@/compone
 import { ListPageHeader } from "@/components/shared/list-page-header"
 import { SavedViewsBar, SaveViewButton } from "@/components/shared/saved-views-bar"
 import { TableSkeleton } from "@/components/shared/table-skeleton"
-import { ListToolbar, ToolbarIconButton } from "@/components/shared/list-toolbar"
+import { ListToolbar } from "@/components/shared/list-toolbar"
 import { ColumnsMenu } from "@/components/shared/columns-menu"
 import { ListFooter } from "@/components/shared/list-footer"
 import { InitialsAvatar } from "@/components/shared/initials-avatar"
@@ -298,7 +298,24 @@ export default function CompaniesPage() {
     return (
         <div className="w-full h-[calc(100vh-64px)] sm:h-full flex flex-col overflow-hidden bg-background">
             <div className="shrink-0 px-4 sm:px-6 lg:px-8 pt-6 pb-4">
-                <ListPageHeader title="Companies" subtitle="Manage client organisations, accounts, and company-level context." actions={<PermissionGate resource="companies" action="create"><Button onClick={() => { setSelectedCompany(null); setAddOpen(true) }} className="h-9 px-4 text-[13px]"><Plus className="w-4 h-4 mr-1.5" /> Add company</Button></PermissionGate>} />
+                <ListPageHeader title="Companies" subtitle="Manage client organisations, accounts, and company-level context." actions={
+                    <>
+                        {/* Secondary actions beside the primary one, as in Sales Activity. */}
+                        <Button variant="outline" size="sm" onClick={() => handleExport(false)} title={`Export ${sortedData.length} companies that match the filters`}>
+                            <Download className="h-4 w-4" /> Export{sortedData.length > 0 ? ` (${sortedData.length})` : ""}
+                        </Button>
+                        <PermissionGate resource="companies" action="create">
+                            <Button variant="outline" size="sm" onClick={() => setImportOpen(true)}>
+                                <Upload className="h-4 w-4" /> Import
+                            </Button>
+                        </PermissionGate>
+                        <PermissionGate resource="companies" action="create">
+                            <Button size="sm" onClick={() => { setSelectedCompany(null); setAddOpen(true) }}>
+                                <Plus className="h-4 w-4" /> Add company
+                            </Button>
+                        </PermissionGate>
+                    </>
+                } />
             </div>
 
             <div className="shrink-0 px-4 sm:px-6 lg:px-8 empty:hidden"><SavedViewsBar views={listViews.views.map(v => ({ id: v.id, name: v.name, is_default: v.is_default }))} activeViewId={listViews.activeViewId} onSelectView={listViews.selectView} isDirty={listViews.isDirty} onSaveCurrent={listViews.saveCurrent} onSaveAs={listViews.saveAs} onRename={listViews.renameView} onDelete={listViews.deleteView} onMakeDefault={listViews.makeDefault} className="mb-2" /></div>
@@ -311,14 +328,6 @@ export default function CompaniesPage() {
                         <>
                             {(filters.length > 0 || sortConfig !== null || searchQuery.trim() !== "") && <SaveViewButton onSaveAs={listViews.saveAs} />}
                             <ColumnsMenu columns={columns} onChange={setColumns} onReset={resetColumns} storageKey="companies_cols_order" />
-                            <ToolbarIconButton label="Export to Excel" onClick={() => handleExport(false)}>
-                                <Download className="h-5 w-5" />
-                            </ToolbarIconButton>
-                            <PermissionGate resource="companies" action="create">
-                                <ToolbarIconButton label="Import from Excel" onClick={() => setImportOpen(true)}>
-                                    <Upload className="h-5 w-5" />
-                                </ToolbarIconButton>
-                            </PermissionGate>
                         </>
                     }
                 />

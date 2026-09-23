@@ -82,6 +82,7 @@ export const CHANGELOG: ChangelogEntry[] = [
             { type: "fix", text: "Contacts: sorting by Owner now sorts by the owner's name. It did nothing before." },
             { type: "fix", text: "The Has email, Has phone and Has website filters open on a choice that is in their list (is true / is false) instead of a blank one. Saved views that used them keep working." },
             { type: "fix", text: "Companies: when a search or filter finds nothing, the empty list offers Clear filters, as Contacts already did." },
+            { type: "improvement", text: "Contacts and Companies look like the lists in Sales Activity: filters, saved views and the search box have square-ish corners instead of round pills, an applied filter shows a check and a light tint, and Export (with how many rows it will write) and Import are labelled buttons next to Add contact / Add company instead of icons in the toolbar. The role chips in Roles & permissions got the same corners." },
             { type: "improvement", text: "Contacts and Companies: when there are more filters than fit on one line, they now continue on a second line instead of scrolling sideways out of sight, so every applied filter stays visible and none is cut off at the edge. Same as the filter bar in Sales Activity." },
         ],
     },

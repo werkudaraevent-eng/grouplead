@@ -54,7 +54,7 @@ import {
 import { ListPageHeader } from "@/components/shared/list-page-header"
 import { SavedViewsBar, SaveViewButton } from "@/components/shared/saved-views-bar"
 import { TableSkeleton } from "@/components/shared/table-skeleton"
-import { ListToolbar, ToolbarIconButton } from "@/components/shared/list-toolbar"
+import { ListToolbar } from "@/components/shared/list-toolbar"
 import { ColumnsMenu } from "@/components/shared/columns-menu"
 import { ListFooter } from "@/components/shared/list-footer"
 import { InitialsAvatar } from "@/components/shared/initials-avatar"
@@ -524,11 +524,23 @@ export default function ContactsPage() {
                     title="Contacts"
                     subtitle="Manage client contacts, vendors, and associates."
                     actions={
-                        <PermissionGate resource="contacts" action="create">
-                            <Button onClick={() => setAddContactOpen(true)} className="h-9 px-4 text-[13px]">
-                                <Plus className="w-4 h-4 mr-1.5" /> Add contact
+                        <>
+                            {/* Secondary actions as labelled outlined buttons beside the
+                                primary one, the way Sales Activity's lists carry them. */}
+                            <Button variant="outline" size="sm" onClick={() => handleExport(false)} title={`Export ${sortedData.length} contacts that match the filters`}>
+                                <Download className="h-4 w-4" /> Export{sortedData.length > 0 ? ` (${sortedData.length})` : ""}
                             </Button>
-                        </PermissionGate>
+                            <PermissionGate resource="contacts" action="create">
+                                <Button variant="outline" size="sm" onClick={() => setImportOpen(true)}>
+                                    <Upload className="h-4 w-4" /> Import
+                                </Button>
+                            </PermissionGate>
+                            <PermissionGate resource="contacts" action="create">
+                                <Button size="sm" onClick={() => setAddContactOpen(true)}>
+                                    <Plus className="h-4 w-4" /> Add contact
+                                </Button>
+                            </PermissionGate>
+                        </>
                     }
                 />
             </div>
@@ -556,14 +568,6 @@ export default function ContactsPage() {
                         <>
                             {customised && <SaveViewButton onSaveAs={listViews.saveAs} />}
                             <ColumnsMenu columns={columns} onChange={setColumns} onReset={resetColumns} storageKey="contacts_cols_order" />
-                            <ToolbarIconButton label="Export to Excel" onClick={() => handleExport(false)}>
-                                <Download className="h-5 w-5" />
-                            </ToolbarIconButton>
-                            <PermissionGate resource="contacts" action="create">
-                                <ToolbarIconButton label="Import from Excel" onClick={() => setImportOpen(true)}>
-                                    <Upload className="h-5 w-5" />
-                                </ToolbarIconButton>
-                            </PermissionGate>
                         </>
                     }
                 />

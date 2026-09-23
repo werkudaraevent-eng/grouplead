@@ -33,6 +33,7 @@ export function FacetButton({ label, value, count, open }: { label: string; valu
       aria-expanded={open}
       className={cn("h-10 max-w-64 gap-1.5 md:h-9", count > 0 && "border-primary/50 bg-primary/5 text-foreground")}
     >
+      {count > 0 && <Check className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />}
       <span className="truncate">
         {label}
         {value && <span className="font-normal text-muted-foreground">: </span>}
