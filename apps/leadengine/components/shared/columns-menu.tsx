@@ -1,7 +1,8 @@
 "use client"
 
 import * as React from "react"
-import { Columns, Eye, EyeOff, GripVertical, RotateCcw } from "@/components/icons"
+import { Columns, GripVertical, RotateCcw } from "@/components/icons"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { cn } from "@/lib/utils"
 import { ToolbarIconButton } from "./list-toolbar"
@@ -13,9 +14,16 @@ export interface ColumnLike {
 }
 
 /**
- * The columns popover shared by the list pages: drag to reorder, eye to
- * toggle, Reset to the page's default. The trigger is a toolbar icon
- * button carrying "shown/total" as a small badge. Persistence is the
+ * The columns popover shared by the list pages: drag to reorder, a
+ * checkbox per column to show or hide it, Reset to the page's default.
+ *
+ * The trigger is a plain icon button with a tooltip. It used to carry a
+ * "5/13" badge, but an M3 badge marks something new or needing attention
+ * (unread mail, a notification count), not a setting; a count that never
+ * changes unless the person changes it reads as an alert. How many columns
+ * are shown is said inside the menu instead, and show/hide is a checkbox
+ * list (M3 menu with checkboxes; Gmail, HubSpot and Airtable column
+ * pickers), not an eye icon with struck-through text. Persistence is the
  * caller's (`onChange` receives the next list; pass `storageKey` to have
  * it written to localStorage as before).
  */
@@ -46,23 +54,26 @@ export function ColumnsMenu<T extends ColumnLike>({
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <ToolbarIconButton label={`Columns (${shown} of ${columns.length} shown)`} badge={`${shown}/${columns.length}`}>
+        <ToolbarIconButton label="Columns">
           <Columns className="h-5 w-5" />
         </ToolbarIconButton>
       </PopoverTrigger>
       <PopoverContent align="end" className="w-72 p-0">
         <div className="flex items-center justify-between border-b border-border px-4 py-3">
-          <p className="text-sm font-semibold text-foreground">Columns</p>
+          <div>
+            <p className="text-sm font-semibold text-foreground">Columns</p>
+            <p className="text-xs text-muted-foreground">{shown} of {columns.length} shown</p>
+          </div>
           <button type="button" onClick={onReset} className="flex items-center gap-1 text-xs font-medium text-primary hover:text-primary/80">
             <RotateCcw className="h-3 w-3" /> Reset
           </button>
         </div>
-        <p className="px-4 pb-1 pt-2 text-[11px] text-muted-foreground">Drag to reorder · click the eye to show or hide</p>
+        <p className="px-4 pb-1 pt-2 text-[11px] text-muted-foreground">Tick to show · drag to reorder</p>
         <div className="custom-scrollbar flex max-h-[360px] flex-col gap-0.5 overflow-y-auto px-2 pb-2">
           {columns.map((column, index) => (
             <div
               key={column.id}
-              className="group flex cursor-grab items-center justify-between rounded-md py-2 pl-1 pr-1 hover:bg-muted active:cursor-grabbing"
+              className="group flex cursor-grab items-center justify-between gap-2 rounded-md py-2 pl-2 pr-1 hover:bg-muted active:cursor-grabbing"
               draggable
               onDragStart={(event) => {
                 event.dataTransfer.setData("colIdx", String(index))
@@ -82,22 +93,15 @@ export function ColumnsMenu<T extends ColumnLike>({
                 commit(next)
               }}
             >
-              <div className="flex min-w-0 items-center gap-2">
-                <GripVertical className="h-4 w-4 shrink-0 text-muted-foreground/50" />
-                <span className={cn("truncate text-[13px]", column.visible ? "font-medium text-foreground" : "text-muted-foreground line-through")}>{column.label}</span>
-              </div>
-              <button
-                type="button"
-                onClick={(event) => {
-                  event.stopPropagation()
-                  toggle(column.id, !column.visible)
-                }}
-                aria-label={column.visible ? `Hide ${column.label}` : `Show ${column.label}`}
-                aria-pressed={column.visible}
-                className="grid h-8 w-8 shrink-0 place-items-center rounded-full transition-colors hover:bg-background"
-              >
-                {column.visible ? <Eye className="h-4 w-4 text-primary" /> : <EyeOff className="h-4 w-4 text-muted-foreground/60" />}
-              </button>
+              <label className="flex min-w-0 flex-1 cursor-pointer items-center gap-3 py-0.5">
+                <Checkbox
+                  checked={column.visible}
+                  onCheckedChange={(checked) => toggle(column.id, checked === true)}
+                  aria-label={`Show ${column.label}`}
+                />
+                <span className={cn("truncate text-[13px]", column.visible ? "font-medium text-foreground" : "text-muted-foreground")}>{column.label}</span>
+              </label>
+              <GripVertical className="h-4 w-4 shrink-0 text-muted-foreground/50" aria-hidden="true" />
             </div>
           ))}
         </div>

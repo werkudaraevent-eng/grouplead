@@ -63,7 +63,7 @@ export function SearchField({
         onChange={(event) => setText(event.target.value)}
         placeholder={placeholder}
         aria-label={ariaLabel ?? placeholder ?? "Search"}
-        className="h-full w-full rounded-md border border-input bg-card pl-9 pr-9 text-sm text-foreground shadow-xs outline-none transition-[border-color,box-shadow] placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 [&::-webkit-search-cancel-button]:hidden"
+        className="h-full w-full rounded-md border border-input bg-field pl-9 pr-9 text-sm text-foreground shadow-xs outline-none transition-[border-color,box-shadow] placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 [&::-webkit-search-cancel-button]:hidden"
       />
       {text && (
         <button

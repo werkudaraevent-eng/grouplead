@@ -24,6 +24,7 @@
   --color-chart-1: var(--chart-1);
   --color-ring: var(--ring);
   --color-input: var(--input);
+  --color-field: var(--field);
   --color-border: var(--border);
   --color-destructive: var(--destructive);
   --color-accent-foreground: var(--accent-foreground);
@@ -85,7 +86,14 @@
   --accent-foreground: #3b2b00;
   --destructive: #ED6F22;
   --border: #D9E0E8;
-  --input: #ffffff;
+  /* Form fields, as in Sales Activity: --input is the outline role that
+     shadcn's `border-input` reads. It was #ffffff, so every text field,
+     select and search box drew a white edge on a white card. M3's outlined
+     field puts the outline at 3:1 against the surface (WCAG 1.4.11):
+     #7F8993 is 3.56:1 on the card. --field is the resting fill, one step
+     off the card, so a group of fields reads as a form. */
+  --input: #7F8993;
+  --field: #F3F5F8;
   /* The off half of a Switch. --input is #ffffff and switches sit on white
      cards, so the unchecked track measured 1.00:1 against its own background:
      on the permissions matrix that is roughly sixty controls a reader has to
@@ -147,6 +155,7 @@
   --destructive: oklch(0.704 0.191 22.216);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
+  --field: oklch(1 0 0 / 5%);
   --switch-off: oklch(0.6 0 0);
   --ring: oklch(0.556 0 0);
   --chart-1: oklch(0.488 0.243 264.376);
