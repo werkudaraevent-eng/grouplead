@@ -144,7 +144,7 @@ export function Sidebar({ onCollapse, isSheet = false, collapsed = false, onTogg
 
     return (
         <div className="group/sidebar flex flex-col h-full transition-colors duration-300 bg-sidebar text-sidebar-foreground relative">
-            <div className={`relative min-h-14 shrink-0 border-b border-sidebar-border ${collapsed ? "flex flex-col items-center gap-2 px-2 py-2" : "flex items-center gap-2 py-2 pl-3 pr-0"}`}>
+            <div className={`relative min-h-14 shrink-0 border-b border-sidebar-border ${collapsed ? "flex flex-col items-center gap-2 px-2 py-2" : "flex h-14 items-center gap-2 pl-3 pr-0"}`}>
                 {/* Header: Logo + Company Switcher integrated (Notion/Linear style) */}
                 {!collapsed ? (
                     <div className="min-w-0 flex-1 overflow-hidden">
@@ -179,7 +179,7 @@ export function Sidebar({ onCollapse, isSheet = false, collapsed = false, onTogg
                 {!collapsed && onToggleCollapse && !isSheet && (
                     <button
                         onClick={onToggleCollapse}
-                        className="-mr-px flex h-14 w-8 shrink-0 items-center justify-center rounded-l-lg text-sidebar-foreground/50 transition-colors duration-150 hover:bg-sidebar-accent hover:text-sidebar-foreground"
+                        className="-mr-px flex w-8 shrink-0 self-stretch items-center justify-center rounded-l-lg text-sidebar-foreground/50 transition-colors duration-150 hover:bg-sidebar-accent hover:text-sidebar-foreground"
                         title="Collapse sidebar"
                     >
                         <ChevronsLeft className="h-[16px] w-[16px]" />

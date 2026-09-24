@@ -54,6 +54,7 @@ export const CHANGELOG: ChangeEntry[] = [
       { kind: "lebih-baik", text: "Di Kalender, chip Semua sudah tidak ada dan Saya menjadi chip nyala/mati seperti di Aktivitas. Kalender menampilkan seluruh tim selama tidak ada saringan; untuk kembali ke sana, tekan Bersihkan semua. Kalender publik untuk manajemen ikut sama." },
       { kind: "diperbaiki", text: "Di Hari ini, status kunjungan tidak lagi terpotong (“Diteri…”) saat nama perusahaannya panjang: kini nama perusahaan yang dipotong, statusnya selalu terbaca utuh." },
       { kind: "lebih-baik", text: "Jam di daftar Kalender, Papan live, Notifikasi, dan catatan pendukung kini memakai huruf yang sama dengan tulisan lain, tetap rata satu sama lain." },
+      { kind: "diperbaiki", text: "Di komputer, bagian atas menu samping kini sama tinggi dengan baris judul halaman, jadi logo, judul, dan tombol di atas berada di satu garis." },
     ],
   },
   {

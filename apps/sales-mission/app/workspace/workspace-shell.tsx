@@ -267,7 +267,7 @@ function SidebarBody({
 
   return (
     <div className="group/sidebar relative flex h-full flex-col bg-sidebar text-sidebar-foreground transition-colors duration-300">
-      <div className={`relative min-h-14 shrink-0 border-b border-sidebar-border ${collapsed ? "flex flex-col items-center gap-2 px-2 py-2" : "flex items-center gap-2 py-2 pl-3 pr-0"}`}>
+      <div className={`relative min-h-14 shrink-0 border-b border-sidebar-border ${collapsed ? "flex flex-col items-center gap-2 px-2 py-2" : "flex h-14 items-center gap-2 pl-3 pr-0"}`}>
         {!collapsed ? (
           <div className="flex min-w-0 flex-1 items-center gap-2.5 overflow-hidden">
             <Link href="/workspace" className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-primary text-primary-foreground" onClick={onNavigate} aria-label="Beranda Sales Activity">
@@ -314,7 +314,7 @@ function SidebarBody({
         {onToggleCollapse && !isSheet && !collapsed && (
           <button
             onClick={onToggleCollapse}
-            className="-mr-px flex h-14 w-8 shrink-0 items-center justify-center rounded-l-lg text-sidebar-foreground transition-colors duration-150 hover:bg-sidebar-accent hover:text-sidebar-foreground"
+            className="-mr-px flex w-8 shrink-0 self-stretch items-center justify-center rounded-l-lg text-sidebar-foreground transition-colors duration-150 hover:bg-sidebar-accent hover:text-sidebar-foreground"
             title="Ciutkan sidebar"
           >
             <ChevronsLeft className="h-[16px] w-[16px]" />

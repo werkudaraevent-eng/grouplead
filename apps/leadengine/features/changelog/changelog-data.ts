@@ -82,6 +82,7 @@ export const CHANGELOG: ChangelogEntry[] = [
             { type: "improvement", text: "The sentence under a page's title that explains what the page is for can be closed with ✕. Once closed, it stays closed on every device you use. Lines that tell you something current, such as when the dashboard was last updated, always show." },
             { type: "improvement", text: "Pages under Settings show \"Settings\" (and, where there is one, the page above, such as \"Settings / AI\") just above the title. Click it to go back." },
             { type: "improvement", text: "Change history shows how many events match your filters at the bottom of the list, even when they fit on one page." },
+            { type: "fix", text: "The top of the side menu is now exactly as tall as the page's title row, so the logo, the title and the buttons at the top sit on one line." },
         ],
     },
     {
