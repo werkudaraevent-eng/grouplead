@@ -20,10 +20,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { cn } from "@/lib/utils"
 import { formatMissionSchedule, type MissionListItem } from "@/lib/missions/mission-schema"
-import type { JoinStatus } from "@/lib/missions/mission-join"
+import { JOIN_STATUS_LABELS, type JoinStatus } from "@/lib/missions/mission-join"
 import { isAwaitingTeam, needsMyAnswer, type MissionFilter } from "@/lib/missions/mission-filter"
 import type { ConfirmationPolicy } from "@/lib/missions/assignment-workflow"
 import { EmptyState, JoinStatusLine, NewMissionAction, StatusBadge } from "@/app/workspace/workspace-page"
@@ -35,6 +35,10 @@ import { useSelectionMode } from "@/components/selection-mode"
 import { SelectableCardBody } from "@/components/selectable-card-body"
 import { TeamFacepile, type FacepilePerson } from "@/components/team-facepile"
 import { useRowLink } from "@/components/row-link"
+import { CellText, LIST_CELL, ListTableFrame, edgeProps, frozen } from "@/components/list-table"
+import { useDrawnColumns } from "@/components/list-view/list-view-provider"
+import { ACTION_COLUMN_WIDTH } from "@/lib/lists/list-column-specs"
+import type { SortColumn } from "@/lib/missions/mission-paging"
 import { paths } from "@/lib/paths"
 
 type Row = MissionListItem & { joinStatus?: JoinStatus; canReport?: boolean }
@@ -89,11 +93,44 @@ function VisitStatus({ mission, now }: { mission: Row; now: Date }) {
   return <StatusBadge status={mission.status} />
 }
 
-/** The lifecycle, once it has become secondary to the report. */
-function LifecycleLine({ mission, now }: { mission: Row; now: Date }) {
+/** The status as one line on the desk's 52dp row: the dot and the label, nothing under it. */
+function StatusCell({ mission, now }: { mission: Row; now: Date }) {
   const state = visitState(mission, now)
-  if (state !== "needs_report" && state !== "draft") return null
-  return <span className="block text-xs text-muted-foreground">{statusLabel(mission.status)} · jadwal sudah lewat</span>
+  if (state === "needs_report" || state === "draft") {
+    return (
+      <span className="flex min-w-0 items-center gap-2 text-sm text-foreground">
+        <span aria-hidden="true" className="h-2 w-2 shrink-0 rounded-full bg-[var(--warning-foreground)]" />
+        <span className="truncate">{VISIT_STATE_LABELS[state]}</span>
+      </span>
+    )
+  }
+  return <StatusBadge status={state === "reported" ? "COMPLETED" : mission.status} />
+}
+
+/**
+ * Where the viewer and the team stand, in words: the join line and the
+ * answers line the status used to carry under it. The desk shows it in the
+ * Penugasan column and in the status's title; the card keeps its lines.
+ */
+function assignmentParts(mission: Row, policy: ConfirmationPolicy): { text: string; tone: "warning" | "danger" | "muted" }[] {
+  const parts: { text: string; tone: "warning" | "danger" | "muted" }[] = []
+  if (mission.joinStatus && mission.joinStatus !== "JOINABLE" && mission.joinStatus !== "OVER") {
+    parts.push({ text: JOIN_STATUS_LABELS[mission.joinStatus], tone: mission.joinStatus === "CONFLICT" ? "danger" : "muted" })
+  }
+  if (policy.requireAssignmentConfirmation) {
+    if (needsMyAnswer(mission, policy)) parts.push({ text: "Menunggu jawabanmu", tone: "warning" })
+    else if (isAwaitingTeam(mission, policy)) parts.push({ text: `${mission.pendingResponses} belum jawab`, tone: "muted" })
+  }
+  return parts
+}
+
+/** Everything the status stood for on two lines, for the one-line cell's title. */
+function statusTitle(mission: Row, now: Date, policy: ConfirmationPolicy): string {
+  const state = visitState(mission, now)
+  const lead = state === "needs_report" || state === "draft" ? VISIT_STATE_LABELS[state] : state === "reported" ? statusLabel("COMPLETED") : statusLabel(mission.status)
+  const lifecycle = state === "needs_report" || state === "draft" ? `${statusLabel(mission.status)}, jadwal sudah lewat` : null
+  const outcome = state === "reported" ? (mission.visitOutcomeLabel ?? mission.visitOutcome) : null
+  return [lead, lifecycle, outcome, ...assignmentParts(mission, policy).map((part) => part.text)].filter(Boolean).join(" · ")
 }
 
 /**
@@ -349,6 +386,97 @@ function MobileMissionCard({
   )
 }
 
+/** One desk cell of an activity row, by column (see ACTIVITY_COLUMNS). */
+function ActivityCell({
+  column,
+  mission,
+  now,
+  policy,
+  people,
+}: {
+  column: string
+  mission: Row
+  now: Date
+  policy: ConfirmationPolicy
+  people: Map<string, FacepilePerson>
+}) {
+  const none = <span className="text-muted-foreground">—</span>
+  switch (column) {
+    case "client":
+      return (
+        <Link href={paths.activity(mission.id)} className="block truncate font-semibold text-foreground hover:underline">
+          {mission.clientCompanyName}
+        </Link>
+      )
+    case "type":
+      return <CellText>{mission.missionType || none}</CellText>
+    case "schedule":
+      return <CellText>{formatMissionSchedule(mission.scheduledStart, now)}</CellText>
+    case "location":
+      return <CellText className={mission.location ? undefined : "text-muted-foreground"}>{mission.location ?? "Belum diisi"}</CellText>
+    case "sales":
+      // The same faces as the phone's card: the lead first, then the team.
+      return <TeamFacepile people={teamOf(mission, people)} />
+    case "status":
+      return <StatusCell mission={mission} now={now} />
+    case "outcome":
+      return visitState(mission, now) === "reported" && (mission.visitOutcomeLabel ?? mission.visitOutcome) ? <CellText>{mission.visitOutcomeLabel ?? mission.visitOutcome}</CellText> : none
+    case "assignment": {
+      const parts = assignmentParts(mission, policy)
+      if (parts.length === 0) return none
+      return (
+        <CellText>
+          {parts.map((part, index) => (
+            <span
+              key={part.text}
+              className={cn(
+                part.tone === "warning" && "font-medium text-[var(--warning-foreground)]",
+                part.tone === "danger" && "text-[var(--danger-foreground)]",
+                part.tone === "muted" && "text-muted-foreground",
+              )}
+            >
+              {index > 0 && <span className="text-muted-foreground"> · </span>}
+              {part.text}
+            </span>
+          ))}
+        </CellText>
+      )
+    }
+    case "industry":
+      return mission.industry ? <CellText>{mission.industry}</CellText> : none
+    case "creator":
+      return mission.createdByName ? <CellText>{mission.createdByName}</CellText> : none
+    default:
+      return null
+  }
+}
+
+/** The full text of a one-line cell, on hover; the name's carries the kind of visit too. */
+function activityCellTitle(column: string, mission: Row, now: Date, policy: ConfirmationPolicy): string | undefined {
+  switch (column) {
+    case "client":
+      return [mission.clientCompanyName, mission.missionType].filter(Boolean).join(" · ")
+    case "type":
+      return mission.missionType || undefined
+    case "schedule":
+      return formatMissionSchedule(mission.scheduledStart, now)
+    case "location":
+      return mission.location ?? undefined
+    case "status":
+      return statusTitle(mission, now, policy)
+    case "outcome":
+      return mission.visitOutcomeLabel ?? mission.visitOutcome ?? undefined
+    case "assignment":
+      return assignmentParts(mission, policy).map((part) => part.text).join(" · ") || undefined
+    case "industry":
+      return mission.industry ?? undefined
+    case "creator":
+      return mission.createdByName ?? undefined
+    default:
+      return undefined
+  }
+}
+
 export function MissionTable({
   missions,
   now,
@@ -391,6 +519,7 @@ export function MissionTable({
   const router = useRouter()
   const rowLink = useRowLink()
   const searchParams = useSearchParams()
+  const drawn = useDrawnColumns("activities")
 
   const visibleIds = useMemo(() => new Set(missions.map((mission) => mission.id)), [missions])
   const peopleById = useMemo(() => new Map(people.map((person) => [person.id, { name: person.name, avatarUrl: person.avatarUrl }])), [people])
@@ -537,24 +666,21 @@ export function MissionTable({
         ))}
       </ul>
 
-      {/*
-        The scroll lives on an inner element so the rounded border stays put.
-        The row itself is not a link, so the "Buka" arrow is the only way into
-        a mission from this table; clipping it would hide the affordance.
-      */}
-      <div className="hidden rounded-xl border bg-card md:block">
-      <div className="data-table-scroll overflow-x-auto rounded-xl">
-      {/* Same rule as the prospect table: fixed layout, the mission column
-          takes what is left, the rest are sized to what they actually hold
-          (a date, a facepile, a status with a second line, one button), and
-          the location and sales columns leave at narrower widths before
-          anything scrolls. Generous widths here are not free: on a 1280px
-          laptop the mission column is what pays for them. */}
-      <Table className="min-w-[960px] table-fixed">
+      {/* The desk's table: the selection box and the activity frozen at the
+          leading edge, the row's action at the trailing edge, the columns the
+          person chose from the columns menu scrolling between them. One line
+          per cell on a 52dp row; what used to sit on a second line is a
+          column of its own (Jenis, Hasil, Penugasan) and the cell's title. */}
+      <ListTableFrame
+        columns={drawn}
+        hasSelect={canDelete}
+        trailingWidth={ACTION_COLUMN_WIDTH}
+        footer={pagination && <MissionPagination page={pagination.page} size={pagination.size} total={pagination.total} />}
+      >
         <TableHeader>
           <TableRow className="hover:bg-transparent">
             {canDelete && (
-              <TableHead className="w-10">
+              <TableHead className={cn(frozen("select", true).className, "px-3")}>
                 <Checkbox
                   checked={allChosen ? true : chosen.length > 0 ? "indeterminate" : false}
                   onCheckedChange={(value) => toggleAll(value === true)}
@@ -562,12 +688,16 @@ export function MissionTable({
                 />
               </TableHead>
             )}
-            <TableHead>{pagination ? <SortHeader column="client" label="Aktivitas" sort={pagination.sort} /> : "Aktivitas"}</TableHead>
-            <TableHead className="w-[130px]">{pagination ? <SortHeader column="schedule" label="Jadwal" sort={pagination.sort} /> : "Jadwal"}</TableHead>
-            <TableHead className="hidden w-[150px] 2xl:table-cell">{pagination ? <SortHeader column="location" label="Lokasi" sort={pagination.sort} /> : "Lokasi"}</TableHead>
-            <TableHead className="hidden w-[210px] xl:table-cell">{pagination ? <SortHeader column="sales" label="Sales utama" sort={pagination.sort} /> : "Sales utama"}</TableHead>
-            <TableHead className="w-[200px]">{pagination ? <SortHeader column="status" label="Status" sort={pagination.sort} /> : "Status"}</TableHead>
-            <TableHead className="w-[170px] text-right">Aksi</TableHead>
+            {drawn.map((column) => {
+              const lead = column.locked ? frozen("name", canDelete) : null
+              const sortColumn = column.sort as SortColumn | undefined
+              return (
+                <TableHead key={column.id} className={lead?.className} style={lead?.style} {...edgeProps(lead?.edge)}>
+                  {pagination && sortColumn ? <SortHeader column={sortColumn} label={column.label} sort={pagination.sort} /> : column.label}
+                </TableHead>
+              )
+            })}
+            <TableHead className={cn(frozen("trailing", canDelete).className, "text-right")} {...edgeProps(false, true)}>Aksi</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -579,11 +709,12 @@ export function MissionTable({
               <TableRow
                 key={mission.id}
                 data-state={ticked ? "selected" : undefined}
+                data-attention={asksMe || owesMe ? "" : undefined}
                 onClick={rowLink(paths.activity(mission.id))}
-                className={cn("cursor-pointer", (asksMe || owesMe) && "shadow-[inset_4px_0_0_0_var(--warning-foreground)]", ticked && "bg-primary/5")}
+                className="cursor-pointer"
               >
                 {canDelete && (
-                  <TableCell>
+                  <TableCell className={cn(LIST_CELL, frozen("select", true).className, "px-3")} data-row-link-ignore>
                     <Checkbox
                       checked={ticked}
                       onCheckedChange={(value) => toggle(mission.id, value === true)}
@@ -591,33 +722,28 @@ export function MissionTable({
                     />
                   </TableCell>
                 )}
-                <TableCell>
-                  <Link href={paths.activity(mission.id)} className="block truncate font-semibold text-foreground hover:underline" title={mission.clientCompanyName}>{mission.clientCompanyName}</Link>
-                  <span className="block truncate text-xs text-muted-foreground">{mission.missionType}</span>
-                </TableCell>
-                <TableCell className="text-sm">{formatMissionSchedule(mission.scheduledStart, now)}</TableCell>
-                <TableCell className="hidden truncate text-sm text-muted-foreground 2xl:table-cell" title={mission.location ?? undefined}>{mission.location ?? "Belum diisi"}</TableCell>
-                <TableCell className="hidden xl:table-cell">
-                  {/* The same faces as the phone's card: the lead first, then the team. */}
-                  <TeamFacepile people={teamOf(mission, peopleById)} />
-                </TableCell>
-                <TableCell>
-                  <VisitStatus mission={mission} now={now} />
-                  <LifecycleLine mission={mission} now={now} />
-                  {mission.joinStatus && <JoinStatusLine status={mission.joinStatus} />}
-                  <TeamAnswersLine mission={mission} policy={policy} />
-                </TableCell>
-                <TableCell className="whitespace-nowrap">
+                {drawn.map((column) => {
+                  const lead = column.locked ? frozen("name", canDelete) : null
+                  return (
+                    <TableCell
+                      key={column.id}
+                      className={cn(LIST_CELL, lead?.className)}
+                      style={lead?.style}
+                      title={activityCellTitle(column.id, mission, now, policy)}
+                      {...edgeProps(lead?.edge)}
+                    >
+                      <ActivityCell column={column.id} mission={mission} now={now} policy={policy} people={peopleById} />
+                    </TableCell>
+                  )
+                })}
+                <TableCell className={cn(LIST_CELL, frozen("trailing", canDelete).className, "px-3")} {...edgeProps(false, true)}>
                   <ActionCell mission={mission} policy={policy} maxSupporting={maxSupporting} now={now} />
                 </TableCell>
               </TableRow>
             )
           })}
         </TableBody>
-      </Table>
-      </div>
-      {pagination && <MissionPagination page={pagination.page} size={pagination.size} total={pagination.total} />}
-      </div>
+      </ListTableFrame>
       {pagination && (
         <div className="mt-3 overflow-hidden rounded-xl border bg-card md:hidden">
           <MissionPagination page={pagination.page} size={pagination.size} total={pagination.total} />

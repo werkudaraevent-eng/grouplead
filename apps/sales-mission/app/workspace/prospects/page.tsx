@@ -12,7 +12,9 @@ import { EMPTY_PROSPECT_QUERY, isEmptyProspectQuery, parseProspectQuery } from "
 import { parseProspectPageParams } from "@/lib/prospects/prospect-paging"
 import { WorkspacePage } from "@/app/workspace/workspace-page"
 import { RememberView } from "@/components/remember-view"
-import { rememberedView } from "@/lib/remembered-view"
+import { openListView } from "@/lib/remembered-view"
+import { listSavedViews } from "@/lib/lists/list-view-queries"
+import { ListViewProvider } from "@/components/list-view/list-view-provider"
 import { paths } from "@/lib/paths"
 import { ProspectFilterBar } from "./prospect-filter-bar"
 import { ProspectTable } from "./prospect-table"
@@ -32,14 +34,14 @@ export default async function ProspectsPage({
   await requireModule(access, "sales_mission_prospect")
 
   const params = await searchParams
-  const remembered = await rememberedView("prospects", params)
-  if (remembered) redirect(paths.prospectList(remembered))
+  const opened = await openListView("prospects", params)
+  if (opened.query) redirect(paths.prospectList(opened.query))
   const now = new Date()
   const today = new Intl.DateTimeFormat("en-CA", { timeZone: MISSION_TIME_ZONE }).format(now)
   const query = parseProspectQuery(params)
   const { page, size, sort } = parseProspectPageParams(params)
 
-  const [statuses, people, batches, canCreate, canUpdate, canDelete, canCreateMission, scope, settings] = await Promise.all([
+  const [statuses, people, batches, canCreate, canUpdate, canDelete, canCreateMission, scope, settings, saved] = await Promise.all([
     listProspectStatuses(access, { includeArchived: true }),
     listTenantSales(access),
     listImportBatches(access),
@@ -49,6 +51,7 @@ export default async function ProspectsPage({
     canPerform(access, "sales_mission_mission", "create"),
     resolveScope(access, "sales_mission_prospect"),
     getMissionSettings(access),
+    listSavedViews(access, "prospects"),
   ])
   // Whose prospects this viewer reaches, and whom they may hand one to.
   const viewer = toProspectViewer(scope)
@@ -78,6 +81,7 @@ export default async function ProspectsPage({
       primaryAction={canCreate ? { href: "/workspace/prospects/new", label: "Prospek baru" } : undefined}
     >
       <RememberView list="prospects" />
+      <ListViewProvider list="prospects" views={saved.views} available={saved.available} fresh={opened.fresh}>
       <SelectionModeProvider>
       <ProspectsPhoneMenu canCreate={canCreate} canSelect={canUpdate || canDelete} people={assignable} canAssignOthers={canAssignOthers(viewer)} viewerId={access.userId} />
       <ProspectFilterBar
@@ -106,6 +110,7 @@ export default async function ProspectsPage({
         whatsappGreeting={settings.whatsappGreeting}
       />
       </SelectionModeProvider>
+      </ListViewProvider>
     </WorkspacePage>
   )
 }

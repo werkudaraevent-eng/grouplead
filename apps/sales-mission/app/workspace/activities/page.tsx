@@ -9,7 +9,9 @@ import { annotateJoinStatus } from "@/lib/missions/mission-join"
 import { EMPTY_QUERY, isEmptyQuery, parseMissionQuery, resolveMissionFilter, serializeMissionQuery, type MissionFilter } from "@/lib/missions/mission-filter"
 import { QuickFilterChips, WorkspacePage } from "@/app/workspace/workspace-page"
 import { RememberView } from "@/components/remember-view"
-import { rememberedView } from "@/lib/remembered-view"
+import { openListView } from "@/lib/remembered-view"
+import { listSavedViews } from "@/lib/lists/list-view-queries"
+import { ListViewProvider } from "@/components/list-view/list-view-provider"
 import { MissionTable } from "./mission-table"
 import { MissionFilterBar } from "./mission-filter-bar"
 import { Button } from "@/components/ui/button"
@@ -31,20 +33,22 @@ export default async function MissionsPage({
   await requireModule(access, "sales_mission_mission")
 
   const params = await searchParams
-  // A bare open of the list reopens the view this person left it in.
-  const remembered = await rememberedView("activities", params)
-  if (remembered) redirect(paths.activities(remembered))
+  // A bare open of the list reopens the view this person left it in; the
+  // very first open in a browser may take their default saved view instead.
+  const opened = await openListView("activities", params)
+  if (opened.query) redirect(paths.activities(opened.query))
   const now = new Date()
   const query = parseMissionQuery(params)
   const { page, size, sort } = parsePageParams(params)
 
-  const [settings, canCreate, canDelete, people, facets, ownCalendar] = await Promise.all([
+  const [settings, canCreate, canDelete, people, facets, ownCalendar, saved] = await Promise.all([
     getMissionSettings(access),
     canPerform(access, "sales_mission_mission", "create"),
     canPerform(access, "sales_mission_mission", "delete"),
     listTenantSales(access),
     listMissionFacets(access),
     listViewerCalendar(access),
+    listSavedViews(access, "activities"),
   ])
 
   // The lens picks whose answer; the panel picks which missions. A lens the
@@ -102,6 +106,7 @@ export default async function MissionsPage({
       primaryAction={canCreate ? { href: paths.newActivity(), label: "Aktivitas baru", hint: { key: "fab-activity", title: "Jadwalkan kunjungan", body: "Aktivitas baru: pilih klien, jadwal, lokasi, dan sales utama. Kalender tim tampil supaya jamnya tidak bentrok.", learnHref: paths.guideSection("aktivitas") } } : undefined}
     >
       <RememberView list="activities" />
+      <ListViewProvider list="activities" views={saved.views} available={saved.available} fresh={opened.fresh}>
       <SelectionModeProvider>
       <ActivitiesPhoneMenu exportHref={exportHref} exportCount={pageResult.total} canCreate={canCreate} canDelete={canDelete} />
       <MissionFilterBar
@@ -127,6 +132,7 @@ export default async function MissionsPage({
         people={people.map((person) => ({ id: person.id, name: person.name, avatarUrl: person.avatarUrl }))}
       />
       </SelectionModeProvider>
+      </ListViewProvider>
     </WorkspacePage>
   )
 }

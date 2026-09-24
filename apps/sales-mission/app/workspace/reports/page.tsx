@@ -13,7 +13,9 @@ import { canSeeInsight } from "@/lib/ai/insight-view"
 import { WorkspacePage } from "@/app/workspace/workspace-page"
 import { PageChrome } from "@/components/page-chrome"
 import { RememberView } from "@/components/remember-view"
-import { rememberedView } from "@/lib/remembered-view"
+import { openListView } from "@/lib/remembered-view"
+import { listSavedViews } from "@/lib/lists/list-view-queries"
+import { ListViewProvider } from "@/components/list-view/list-view-provider"
 import { paths } from "@/lib/paths"
 import { Button } from "@/components/ui/button"
 import { ReportTabs } from "./report-tabs"
@@ -46,13 +48,18 @@ export default async function ReportListPage({
     redirect(`/workspace/reports/ringkasan?${legacy.toString()}`)
   }
 
-  const remembered = await rememberedView("reports", params)
-  if (remembered) redirect(paths.reportList(remembered))
+  const opened = await openListView("reports", params)
+  if (opened.query) redirect(paths.reportList(opened.query))
   const now = new Date()
   const query = parseReportQuery(params)
   const { page, size, sort } = parseReportPageParams(params)
 
-  const [choices, salesOptions, insightTab] = await Promise.all([listReportChoices(access), listTenantSales(access), canSeeInsight(access)])
+  const [choices, salesOptions, insightTab, saved] = await Promise.all([
+    listReportChoices(access),
+    listTenantSales(access),
+    canSeeInsight(access),
+    listSavedViews(access, "reports"),
+  ])
   const [{ items, total }, unfilteredCount] = await Promise.all([
     listReportsPage(access, { query, sort, page, size, now }, choices),
     // "X dari Y": X is every match, not this page's rows; Y is the list with no facets.
@@ -85,8 +92,10 @@ export default async function ReportListPage({
       <PageChrome menu={[{ label: exportLabel, href: exportHref }]} />
       <ReportTabs showInsight={insightTab} />
       <RememberView list="reports" />
-      <ReportFilterBar query={query} choices={choices} people={people} total={unfilteredCount ?? total} shown={total} />
-      <ReportTable reports={items} pagination={{ page, size, total, sort }} filtered={!isEmptyReportQuery(query)} today={missionDayKey(now)} />
+      <ListViewProvider list="reports" views={saved.views} available={saved.available} fresh={opened.fresh}>
+        <ReportFilterBar query={query} choices={choices} people={people} total={unfilteredCount ?? total} shown={total} />
+        <ReportTable reports={items} pagination={{ page, size, total, sort }} filtered={!isEmptyReportQuery(query)} today={missionDayKey(now)} />
+      </ListViewProvider>
     </WorkspacePage>
   )
 }

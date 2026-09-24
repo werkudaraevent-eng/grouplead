@@ -3,14 +3,14 @@ import { redirect } from "next/navigation"
 import { getSalesMissionAccess } from "@/lib/sales-mission-access"
 import { resolveNavAccess } from "@/lib/missions/nav-access"
 import { WorkspacePage } from "@/app/workspace/workspace-page"
-import { BarChart3, CalendarDays, ClipboardList, Download, LayoutDashboard, ShieldCheck, UserSearch } from "@/components/icons"
+import { BarChart3, Bookmark, CalendarDays, ClipboardList, Download, LayoutDashboard, ShieldCheck, UserSearch } from "@/components/icons"
 import { paths } from "@/lib/paths"
 import { PRODUCT_NAME } from "@/lib/brand"
 
 export const dynamic = "force-dynamic"
 
 /**
- * The guide: five short parts, one per thing a person does here, each
+ * The guide: a few short parts, one per thing a person does here, each
  * ending in the link that does it. Not a tour and not a manual: the
  * empty states and coach marks teach at the moment of need, and this is
  * where their "Pelajari" links land. Static, so it costs nothing and
@@ -92,6 +92,20 @@ const PARTS: Part[] = [
     link: { href: paths.prospects, label: "Buka Prospek" },
   },
   {
+    id: "daftar",
+    icon: Bookmark,
+    title: "Daftar dan tampilan",
+    lead: "Aktivitas, Prospek, dan Laporan mengingat cara kamu melihatnya: pencarian, filter, urutan, jumlah baris, dan kolom.",
+    points: [
+      "Semua yang menyaring daftar tersimpan di alamatnya. Buka daftar lagi dan ia kembali seperti terakhir kamu tinggalkan; kirim tautannya dan rekanmu melihat daftar yang sama.",
+      "Simpan tampilan (di komputer): setelah mengatur daftar, klik ikon Simpan tampilan di ujung kanan baris filter dan beri nama. Tampilan tersimpan muncul sebagai chip di atas daftar; yang sedang tampil diberi centang, dan satu klik membukanya lagi. Tampilanmu hanya terlihat olehmu.",
+      "Ubah daftar setelah memilih sebuah tampilan, lalu klik Simpan perubahan untuk memperbaruinya. ⋮ di samping chip menyimpan salinan, mengubah nama, menjadikan tampilan itu bawaan, atau menghapusnya (Batalkan di notifikasi mengembalikannya). Tampilan bawaan hanya dipakai saat daftar pertama kali dibuka di sebuah browser; tautan dan daftar yang diingat selalu didahulukan.",
+      "Kolom: tombol Kolom memilih kolom yang tampil dan urutannya (centang, seret, atau Susunan awal); nama perusahaan selalu tampil. Setiap sel satu baris, dan teks yang terpotong tampil utuh saat kursor diarahkan ke atasnya. Tabel yang lebih lebar dari layar digeser ke samping, sementara nama dan tombol Aksi tetap di tempat.",
+      "Di HP daftar tampil sebagai kartu; tampilan tersimpan dipilih di bagian atas lembar Filter. Menyimpan tampilan dan memilih kolom dilakukan di komputer.",
+    ],
+    link: { href: paths.activities(), label: "Buka daftar aktivitas" },
+  },
+  {
     id: "izin",
     icon: ShieldCheck,
     title: "Siapa boleh apa",
@@ -113,6 +127,7 @@ export default async function GuidePage() {
     if (part.id === "aktivitas") return navAccess.missions
     if (part.id === "laporan") return navAccess.reports
     if (part.id === "prospek") return navAccess.prospects
+    if (part.id === "daftar") return navAccess.missions || navAccess.prospects || navAccess.reports
     return true
   })
 

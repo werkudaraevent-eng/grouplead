@@ -78,3 +78,25 @@ export function sanitizeViewString(list: ListKey, raw: string): string {
 export function isBareRequest(params: Params): boolean {
   return Object.values(params).every((value) => value === undefined || value === "" || (Array.isArray(value) && value.length === 0))
 }
+
+/**
+ * What a request for a list should do with its memory: go to the
+ * remembered query (a bare open with something remembered), or render.
+ * `fresh` is a bare open with no memory at all, the list's first open in
+ * this browser: the one moment a saved default view may choose the view
+ * (LeadEngine's `resolveRememberedView`). An empty cookie is a memory too,
+ * of the plain list, written by "Bersihkan semua" or by the list's first
+ * visit, so it is never fresh.
+ */
+export function resolveRememberedView(list: ListKey, params: Params, cookie: string | undefined): { query: string | null; fresh: boolean } {
+  if (!isBareRequest(params)) return { query: null, fresh: false }
+  if (cookie === undefined) return { query: null, fresh: true }
+  let decoded = cookie
+  try {
+    decoded = decodeURIComponent(cookie)
+  } catch {
+    // Left as is; the parser drops what it cannot read.
+  }
+  const qs = sanitizeViewString(list, decoded)
+  return { query: qs || null, fresh: false }
+}

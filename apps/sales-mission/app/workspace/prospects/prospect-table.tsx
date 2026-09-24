@@ -28,7 +28,10 @@ import { ContactMenu } from "./contact-menu"
 import { FollowUpPrompt } from "./follow-up-prompt"
 import { addressContact, renderWhatsAppGreeting } from "@/lib/prospects/whatsapp-greeting"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { CellText, LIST_CELL, ListTableFrame, edgeProps, frozen } from "@/components/list-table"
+import { useDrawnColumns } from "@/components/list-view/list-view-provider"
+import { ACTION_COLUMN_WIDTH } from "@/lib/lists/list-column-specs"
 import { cn } from "@/lib/utils"
 import { AssignDialog, ChangeStatusDialog, LogAttemptDialog, type DialogTarget } from "./prospect-dialogs"
 import type { Person } from "@/app/workspace/activities/new/people-picker"
@@ -44,30 +47,138 @@ import { paths } from "@/lib/paths"
 export function ProspectStatusLabel({ prospect }: { prospect: Pick<ProspectListItem, "statusLabel" | "statusColor" | "statusKind" | "displayState"> }) {
   const shown = displayStatus({ label: prospect.statusLabel, color: prospect.statusColor, kind: prospect.statusKind }, prospect.displayState)
   return (
-    <span className="inline-flex items-center gap-2 text-sm text-foreground">
+    <span className="inline-flex min-w-0 max-w-full items-center gap-2 text-sm text-foreground">
       <span aria-hidden="true" className={cn("h-2 w-2 shrink-0 rounded-full", COLOR_DOT[shown.color])} />
-      {shown.label}
+      <span className="truncate">{shown.label}</span>
     </span>
   )
 }
 
-/** The second line under the status: what the contact history says. */
-function ContactLine({ prospect, today }: { prospect: ProspectListItem; today: string }) {
+const shortDay = (iso: string) => new Intl.DateTimeFormat("id-ID", { timeZone: MISSION_TIME_ZONE, day: "numeric", month: "short" }).format(new Date(iso))
+
+/** What the contact history says, as the card's second line and the desk status's title. */
+function contactLine(prospect: ProspectListItem, today: string): { text: string; due: boolean } | null {
   if (prospect.missionId) return null
   if (prospect.nextContactAt && (prospect.statusKind === "open" || prospect.statusKind === "in_progress")) {
     const due = describeDueDate(prospect.nextContactAt, today)
-    return <span className={cn("block text-xs", due.due ? "font-medium text-[var(--warning-foreground)]" : "text-muted-foreground")}>Hubungi lagi {due.text}</span>
+    return { text: `Hubungi lagi ${due.text}`, due: due.due }
   }
   if (prospect.attemptCount > 0 && prospect.lastContactedAt) {
-    const when = new Intl.DateTimeFormat("id-ID", { timeZone: MISSION_TIME_ZONE, day: "numeric", month: "short" }).format(new Date(prospect.lastContactedAt))
-    return <span className="block text-xs text-muted-foreground">{prospect.attemptCount}× dihubungi · terakhir {when}</span>
+    return { text: `${prospect.attemptCount}× dihubungi · terakhir ${shortDay(prospect.lastContactedAt)}`, due: false }
   }
-  if (prospect.statusKind === "lost" && prospect.lostReason) {
-    return <span className="block text-xs text-muted-foreground">{prospect.lostReason}</span>
-  }
+  if (prospect.statusKind === "lost" && prospect.lostReason) return { text: prospect.lostReason, due: false }
   // An open status with no attempts already says it in its label.
   if (prospect.statusKind === "open") return null
-  return <span className="block text-xs text-muted-foreground">Belum pernah dihubungi</span>
+  return { text: "Belum pernah dihubungi", due: false }
+}
+
+/** The second line under the status on a card. */
+function ContactLine({ prospect, today }: { prospect: ProspectListItem; today: string }) {
+  const line = contactLine(prospect, today)
+  if (!line) return null
+  return <span className={cn("block text-xs", line.due ? "font-medium text-[var(--warning-foreground)]" : "text-muted-foreground")}>{line.text}</span>
+}
+
+/** When to call again, for a prospect still being worked: "Hari ini", "Terlambat 3 hari", "Rab, 17 Sep". */
+function nextContact(prospect: ProspectListItem, today: string): { text: string; due: boolean } | null {
+  if (prospect.missionId || !prospect.nextContactAt) return null
+  if (prospect.statusKind !== "open" && prospect.statusKind !== "in_progress") return null
+  const due = describeDueDate(prospect.nextContactAt, today)
+  return { text: due.text.charAt(0).toUpperCase() + due.text.slice(1), due: due.due }
+}
+
+const contactName = (prospect: ProspectListItem) => [prospect.contactSalutation, prospect.contactName].filter(Boolean).join(" ")
+const orNone = (value: string | null | undefined) => (value ? <CellText>{value}</CellText> : <span className="text-muted-foreground">—</span>)
+
+/** One desk cell of a prospect row, by column (see PROSPECT_COLUMNS). */
+function ProspectCell({ column, prospect, today }: { column: string; prospect: ProspectListItem; today: string }) {
+  switch (column) {
+    case "company":
+      return (
+        <Link href={`/workspace/prospects/${prospect.id}`} className="block truncate font-semibold text-foreground hover:underline">
+          {prospect.clientCompanyName}
+        </Link>
+      )
+    case "contact":
+      return contactName(prospect) ? <CellText>{contactName(prospect)}</CellText> : <CellText className="text-muted-foreground">Belum ada kontak</CellText>
+    case "phone":
+      return orNone(prospect.contactPhone ? formatPhone(prospect.contactPhone) : null)
+    case "email":
+      return orNone(prospect.contactEmail)
+    case "job_title":
+      return orNone(prospect.contactJobTitle)
+    case "status":
+      return <ProspectStatusLabel prospect={prospect} />
+    case "next_contact": {
+      const next = nextContact(prospect, today)
+      if (!next) return orNone(null)
+      return <CellText className={next.due ? "font-medium text-[var(--warning-foreground)]" : undefined}>{next.text}</CellText>
+    }
+    case "last_contact":
+      return prospect.attemptCount > 0 && prospect.lastContactedAt ? (
+        <CellText>
+          {shortDay(prospect.lastContactedAt)}
+          <span className="text-muted-foreground"> · {prospect.attemptCount}×</span>
+        </CellText>
+      ) : (
+        <CellText className="text-muted-foreground">Belum pernah</CellText>
+      )
+    case "owner":
+      return prospect.ownerName ? (
+        <span className="flex min-w-0 items-center gap-2">
+          <PersonAvatar name={prospect.ownerName} avatarUrl={prospect.ownerAvatarUrl} size="sm" />
+          <span className="truncate">{prospect.ownerName}</span>
+        </span>
+      ) : (
+        <CellText className="text-muted-foreground">Belum ada</CellText>
+      )
+    case "industry":
+      return orNone(prospect.industry)
+    case "location":
+      return orNone(prospect.location)
+    case "created":
+      return (
+        <CellText className="text-muted-foreground">
+          {shortDay(prospect.createdAt)}
+          {prospect.source === "import" && " · impor"}
+        </CellText>
+      )
+    default:
+      return null
+  }
+}
+
+/** The full text of a one-line cell, on hover; the company's carries its industry and city too. */
+function prospectCellTitle(column: string, prospect: ProspectListItem, today: string): string | undefined {
+  const join = (...parts: (string | null | undefined)[]) => parts.filter(Boolean).join(" · ") || undefined
+  switch (column) {
+    case "company":
+      return join(prospect.clientCompanyName, prospect.industry, prospect.location)
+    case "contact":
+      return join(contactName(prospect), prospect.contactJobTitle, prospect.contactPhone ? formatPhone(prospect.contactPhone) : null, prospect.contactEmail)
+    case "phone":
+      return prospect.contactPhone ? formatPhone(prospect.contactPhone) : undefined
+    case "email":
+      return prospect.contactEmail ?? undefined
+    case "job_title":
+      return prospect.contactJobTitle ?? undefined
+    case "status":
+      return join(displayStatus({ label: prospect.statusLabel, color: prospect.statusColor, kind: prospect.statusKind }, prospect.displayState).label, contactLine(prospect, today)?.text)
+    case "next_contact":
+      return nextContact(prospect, today)?.text
+    case "last_contact":
+      return prospect.attemptCount > 0 && prospect.lastContactedAt ? `${prospect.attemptCount}× dihubungi · terakhir ${shortDay(prospect.lastContactedAt)}` : "Belum pernah dihubungi"
+    case "owner":
+      return prospect.ownerName ?? undefined
+    case "industry":
+      return prospect.industry ?? undefined
+    case "location":
+      return prospect.location ?? undefined
+    case "created":
+      return join(shortDay(prospect.createdAt), prospect.source === "import" ? "impor" : null)
+    default:
+      return undefined
+  }
 }
 
 function SelectionBar({
@@ -162,6 +273,7 @@ export function ProspectTable({
   const router = useRouter()
   const rowLink = useRowLink()
   const searchParams = useSearchParams()
+  const drawn = useDrawnColumns("prospects")
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [beyondPage, setBeyondPage] = useState<Set<string>>(new Set())
   // The phone's cards show their checkboxes only in this mode; the desk's
@@ -351,77 +463,73 @@ export function ProspectTable({
         })}
       </ul>
 
-      <div className="hidden rounded-xl border bg-card md:block">
-        <div className="data-table-scroll overflow-x-auto rounded-xl">
-          {/*
-            Fixed layout, so the width of a column is decided here and not by
-            whichever cell happens to hold the longest unbreakable string. The
-            two identifier columns (company, contact) take whatever is left;
-            the rest have a set width sized to their content. Lower-priority
-            columns leave at narrower widths before anything scrolls: the
-            owner below xl, the created date below 2xl. Long text truncates
-            with the full value on hover; the detail page has the rest.
-          */}
-          <Table className="min-w-[960px] table-fixed">
-            <TableHeader>
-              <TableRow className="hover:bg-transparent">
+      {/* The desk's table: the selection box and the company frozen at the
+          leading edge, the row's action at the trailing edge, the columns the
+          person chose from the columns menu scrolling between them (see the
+          mission table). One line per cell on a 52dp row. */}
+      <ListTableFrame
+        columns={drawn}
+        hasSelect={selectable}
+        trailingWidth={ACTION_COLUMN_WIDTH}
+        footer={<MissionPagination page={pagination.page} size={pagination.size} total={pagination.total} />}
+      >
+        <TableHeader>
+          <TableRow className="hover:bg-transparent">
+            {selectable && (
+              <TableHead className={cn(frozen("select", true).className, "px-3")}>
+                <Checkbox checked={allChosen ? true : chosen.length > 0 ? "indeterminate" : false} onCheckedChange={(value) => toggleAll(value === true)} aria-label="Pilih semua prospek di halaman ini" />
+              </TableHead>
+            )}
+            {drawn.map((column) => {
+              const lead = column.locked ? frozen("name", selectable) : null
+              const sortColumn = column.sort as ProspectSortColumn | undefined
+              return (
+                <TableHead key={column.id} className={lead?.className} style={lead?.style} {...edgeProps(lead?.edge)}>
+                  {sortColumn ? <Sort column={sortColumn} label={column.label} sort={pagination.sort} /> : column.label}
+                </TableHead>
+              )
+            })}
+            <TableHead className={cn(frozen("trailing", selectable).className, "text-right")} {...edgeProps(false, true)}>Aksi</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {prospects.map((prospect) => {
+            const ticked = selected.has(prospect.id)
+            return (
+              <TableRow
+                key={prospect.id}
+                data-state={ticked ? "selected" : undefined}
+                data-attention={isDue(prospect) ? "" : undefined}
+                onClick={rowLink(`/workspace/prospects/${prospect.id}`)}
+                className="cursor-pointer"
+              >
                 {selectable && (
-                  <TableHead className="w-10">
-                    <Checkbox checked={allChosen ? true : chosen.length > 0 ? "indeterminate" : false} onCheckedChange={(value) => toggleAll(value === true)} aria-label="Pilih semua prospek di halaman ini" />
-                  </TableHead>
+                  <TableCell className={cn(LIST_CELL, frozen("select", true).className, "px-3")} data-row-link-ignore>
+                    <Checkbox checked={ticked} onCheckedChange={(value) => toggle(prospect.id, value === true)} aria-label={`Pilih ${prospect.clientCompanyName}`} />
+                  </TableCell>
                 )}
-                <TableHead><Sort column="company" label="Perusahaan" sort={pagination.sort} /></TableHead>
-                <TableHead><Sort column="contact" label="Kontak" sort={pagination.sort} /></TableHead>
-                {/* Widths sized to what the cells hold; the company column
-                    takes what is left (see the mission table). */}
-                <TableHead className="w-[200px]"><Sort column="status" label="Status" sort={pagination.sort} /></TableHead>
-                <TableHead className="hidden w-[190px] xl:table-cell"><Sort column="owner" label="Pemegang" sort={pagination.sort} /></TableHead>
-                <TableHead className="hidden w-[88px] 2xl:table-cell"><Sort column="created" label="Dibuat" sort={pagination.sort} /></TableHead>
-                <TableHead className="w-[170px] text-right">Aksi</TableHead>
+                {drawn.map((column) => {
+                  const lead = column.locked ? frozen("name", selectable) : null
+                  return (
+                    <TableCell
+                      key={column.id}
+                      className={cn(LIST_CELL, lead?.className)}
+                      style={lead?.style}
+                      title={prospectCellTitle(column.id, prospect, today)}
+                      {...edgeProps(lead?.edge)}
+                    >
+                      <ProspectCell column={column.id} prospect={prospect} today={today} />
+                    </TableCell>
+                  )
+                })}
+                <TableCell className={cn(LIST_CELL, frozen("trailing", selectable).className, "px-3")} {...edgeProps(false, true)}>
+                  <Actions prospect={prospect} />
+                </TableCell>
               </TableRow>
-            </TableHeader>
-            <TableBody>
-              {prospects.map((prospect) => {
-                const ticked = selected.has(prospect.id)
-                return (
-                  <TableRow key={prospect.id} data-state={ticked ? "selected" : undefined} onClick={rowLink(`/workspace/prospects/${prospect.id}`)} className={cn("cursor-pointer", isDue(prospect) && "shadow-[inset_4px_0_0_0_var(--warning-foreground)]", ticked && "bg-primary/5")}>
-                    {selectable && (
-                      <TableCell>
-                        <Checkbox checked={ticked} onCheckedChange={(value) => toggle(prospect.id, value === true)} aria-label={`Pilih ${prospect.clientCompanyName}`} />
-                      </TableCell>
-                    )}
-                    <TableCell>
-                      <Link href={`/workspace/prospects/${prospect.id}`} className="block truncate font-semibold text-foreground hover:underline" title={prospect.clientCompanyName}>{prospect.clientCompanyName}</Link>
-                      <span className="block truncate text-xs text-muted-foreground" title={[prospect.industry, prospect.location].filter(Boolean).join(" · ") || undefined}>{[prospect.industry, prospect.location].filter(Boolean).join(" · ") || "—"}</span>
-                    </TableCell>
-                    <TableCell className="text-sm">
-                      <span className="block truncate text-foreground">{[prospect.contactSalutation, prospect.contactName].filter(Boolean).join(" ") || <span className="text-muted-foreground">Belum ada kontak</span>}</span>
-                      <span className="block truncate text-xs text-muted-foreground" title={[prospect.contactPhone ? formatPhone(prospect.contactPhone) : null, prospect.contactEmail].filter(Boolean).join(" · ") || undefined}>{[prospect.contactPhone ? formatPhone(prospect.contactPhone) : null, prospect.contactEmail].filter(Boolean).join(" · ") || prospect.contactJobTitle || ""}</span>
-                    </TableCell>
-                    <TableCell>
-                      <ProspectStatusLabel prospect={prospect} />
-                      <ContactLine prospect={prospect} today={today} />
-                    </TableCell>
-                    <TableCell className="hidden text-sm xl:table-cell">
-                      {prospect.ownerName ? (
-                        <span className="flex items-center gap-2"><PersonAvatar name={prospect.ownerName} avatarUrl={prospect.ownerAvatarUrl} size="sm" /><span className="truncate" title={prospect.ownerName}>{prospect.ownerName}</span></span>
-                      ) : (
-                        <span className="text-muted-foreground">Belum ada</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="hidden text-sm text-muted-foreground 2xl:table-cell">
-                      {new Intl.DateTimeFormat("id-ID", { timeZone: MISSION_TIME_ZONE, day: "numeric", month: "short" }).format(new Date(prospect.createdAt))}
-                      {prospect.source === "import" && <span className="block text-xs">impor</span>}
-                    </TableCell>
-                    <TableCell className="whitespace-nowrap"><Actions prospect={prospect} /></TableCell>
-                  </TableRow>
-                )
-              })}
-            </TableBody>
-          </Table>
-        </div>
-        <MissionPagination page={pagination.page} size={pagination.size} total={pagination.total} />
-      </div>
+            )
+          })}
+        </TableBody>
+      </ListTableFrame>
       <div className="mt-3 overflow-hidden rounded-xl border bg-card md:hidden">
         <MissionPagination page={pagination.page} size={pagination.size} total={pagination.total} />
       </div>
@@ -458,7 +566,7 @@ function Sort({ column, label, sort }: { column: ProspectSortColumn; label: stri
       parts={prospectSortParts}
       next={nextProspectSort}
       defaultSort="due"
-      defaultHint={{ column: "status", text: "jatuh tempo dulu" }}
+      defaultHint={{ column: "next_contact", text: "jatuh tempo dulu" }}
     />
   )
 }

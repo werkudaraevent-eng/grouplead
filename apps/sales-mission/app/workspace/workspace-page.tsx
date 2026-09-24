@@ -177,12 +177,12 @@ const STATUS_DOT: Record<string, string> = {
 
 export function StatusBadge({ status }: { status: string }) {
   return (
-    <span className="inline-flex items-center gap-2 text-sm text-foreground">
+    <span className="inline-flex min-w-0 max-w-full items-center gap-2 text-sm text-foreground">
       <span
         aria-hidden="true"
         className={cn("h-2 w-2 shrink-0 rounded-full", STATUS_DOT[status] ?? "bg-muted-foreground")}
       />
-      {statusLabel(status)}
+      <span className="truncate">{statusLabel(status)}</span>
     </span>
   )
 }

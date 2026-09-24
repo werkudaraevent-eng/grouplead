@@ -8,6 +8,9 @@ import { Button } from "@/components/ui/button"
 import { BottomSheet } from "@/components/ui/bottom-sheet"
 import { useCompact } from "@/hooks/use-compact"
 import { cn } from "@/lib/utils"
+import { SavedViewsBar, SavedViewsSheetSection } from "@/components/list-view/saved-views-bar"
+import { ViewTools } from "@/components/list-view/view-tools"
+import { useListView } from "@/components/list-view/list-view-provider"
 
 /**
  * The frame every filterable list shares: search, facets, a count, and a
@@ -25,6 +28,14 @@ import { cn } from "@/lib/utils"
  * the search on a phone: search is the first control of every list a
  * person carries in a pocket (Gmail, Google Maps, Linear), and the chips
  * narrow what it found.
+ *
+ * Inside a `ListViewProvider` the frame also carries the list's view: the
+ * saved views as a chip row above everything on a desk (only once one
+ * exists) and at the top of the Filter sheet on a phone, and the view
+ * tools ("Simpan tampilan", the columns menu) at the trailing edge of the
+ * bar's first line, on a desk only. Search, facets and "Bersihkan semua"
+ * flow in one group that wraps onto a second line when there is more than
+ * fits, so an applied filter is always in sight.
  */
 export function FilterBarFrame({
   activeCount,
@@ -50,6 +61,7 @@ export function FilterBarFrame({
   chips: React.ReactNode
 }) {
   const compact = useCompact()
+  const listView = useListView()
   const [open, setOpen] = useState(false)
   // A facet picked from "+ Filter" stays in the bar while empty until its list closes.
   const [revealed, setRevealed] = useState<string | null>(null)
@@ -59,27 +71,35 @@ export function FilterBarFrame({
     const hidden = more.filter((spec) => !spec.active && spec.key !== revealed)
     return (
       <>
+      <SavedViewsBar />
       {quick}
-      <div className="mb-4 flex flex-wrap items-center gap-2">
-        {search}
-        {facets}
-        {shown.map((spec) => (
-          <span key={spec.key} className="contents">
-            {spec.render({
-              initiallyOpen: spec.key === revealed,
-              onOpenChange: (isOpen) => {
-                if (!isOpen && spec.key === revealed) setRevealed(null)
-              },
-            })}
-          </span>
-        ))}
-        <AddFilter specs={hidden} onPick={setRevealed} />
-        {activeCount > 0 && (
-          <button type="button" onClick={onClearAll} className="text-xs font-semibold text-primary hover:underline">
-            Bersihkan semua
-          </button>
+      <div className="mb-4 flex items-start gap-3">
+        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+          {search}
+          {facets}
+          {shown.map((spec) => (
+            <span key={spec.key} className="contents">
+              {spec.render({
+                initiallyOpen: spec.key === revealed,
+                onOpenChange: (isOpen) => {
+                  if (!isOpen && spec.key === revealed) setRevealed(null)
+                },
+              })}
+            </span>
+          ))}
+          <AddFilter specs={hidden} onPick={setRevealed} />
+          {activeCount > 0 && (
+            <button type="button" onClick={onClearAll} className="text-xs font-semibold text-primary hover:underline">
+              Bersihkan semua
+            </button>
+          )}
+          {summary}
+        </div>
+        {listView && (
+          <div className="-my-0.5 flex h-10 shrink-0 items-center gap-1">
+            <ViewTools />
+          </div>
         )}
-        {summary}
       </div>
       </>
     )
@@ -120,6 +140,7 @@ export function FilterBarFrame({
           </Button>
         }
       >
+        <SavedViewsSheetSection onChosen={() => setOpen(false)} />
         <div className="flex flex-wrap items-center gap-2 px-2 pb-2">
           {facets}
           {more.map((spec) => (

@@ -45,6 +45,28 @@ export const CHANGE_KIND_LABELS: Record<ChangeKind, string> = {
 
 export const CHANGELOG: ChangeEntry[] = [
   {
+    date: "2026-09-24",
+    title: "Tampilan tersimpan dan pilihan kolom di Aktivitas, Prospek, dan Laporan",
+    // Desk work for whoever reads lists all day; the admin switches it on after training.
+    announcement: {
+      key: "saved-views",
+      title: "Simpan tampilan daftar",
+      body: "Atur filter, urutan, dan kolom sekali, beri nama, lalu buka lagi dengan satu klik di atas daftar Aktivitas, Prospek, atau Laporan.",
+      href: "/workspace/activities",
+      hrefLabel: "Buka daftar aktivitas",
+      defaultOn: false,
+    },
+    items: [
+      { kind: "baru", text: "Simpan tampilan: di komputer, atur pencarian, filter, urutan, jumlah baris per halaman, dan kolom di Aktivitas, Prospek, atau Laporan, lalu klik ikon Simpan tampilan di ujung kanan baris filter dan beri nama, misalnya “Tim Jakarta minggu ini”. Tampilan tersimpan muncul sebagai chip di atas daftar; satu klik membukanya lagi persis seperti saat disimpan. Tampilanmu hanya terlihat olehmu." },
+      { kind: "baru", text: "Di samping chip ada ⋮ untuk menyimpan salinan, mengubah nama, menjadikan tampilan itu bawaan, atau menghapusnya. Hapus tidak perlu konfirmasi: klik Batalkan di notifikasinya untuk mengembalikan. Kalau tampilan yang terakhir kamu pilih diubah, muncul Simpan perubahan untuk memperbaruinya." },
+      { kind: "baru", text: "Tampilan bawaan dipakai saat daftar itu pertama kali dibuka di sebuah browser (misalnya laptop baru). Selebihnya daftar tetap terbuka seperti terakhir kamu tinggalkan, dan tautan yang dikirim rekan tetap membuka apa yang dia kirim." },
+      { kind: "baru", text: "Tombol Kolom di samping Simpan tampilan memilih kolom mana yang tampil dan urutannya: centang untuk menampilkan, seret untuk memindah, Susunan awal untuk kembali. Ada kolom baru yang bisa ditambahkan, antara lain Lokasi, Hasil, dan Penugasan di Aktivitas; Telepon, Email, dan Terakhir dihubungi di Prospek; Minat, Peluang, dan Tindak lanjut di Laporan. Pilihannya diingat per daftar di browser ini dan ikut tersimpan di tampilan." },
+      { kind: "lebih-baik", text: "Tabel di komputer kini satu baris per aktivitas, prospek, atau laporan, sehingga lebih banyak yang terlihat sekaligus. Keterangan yang dulu ada di baris kedua pindah ke kolomnya sendiri (misalnya Jenis di Aktivitas dan Hubungi lagi di Prospek), dan teks yang terpotong tampil utuh saat kursor diarahkan ke atasnya." },
+      { kind: "lebih-baik", text: "Kalau kolom yang dipilih lebih lebar dari layar, tabel digeser ke samping di dalam kartunya, sementara kotak centang dan nama perusahaan tetap di tempat, begitu juga tombol di kolom Aksi. Kolom Lokasi dan Dibuat tidak lagi hilang sendiri di layar laptop; tampilkan lewat Kolom kalau perlu." },
+      { kind: "lebih-baik", text: "Di HP daftar kartunya tidak berubah; tampilan tersimpan bisa dipilih di bagian atas lembar Filter." },
+    ],
+  },
+  {
     date: "2026-09-23",
     title: "Angka hasil filter dan urutan tetap sama di semua daftar",
     items: [

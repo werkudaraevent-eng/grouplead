@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 import { EMPTY_QUERY, parseMissionQuery, serializeMissionQuery } from "./mission-filter"
 import { hasMe, isPlainView, plainView, resolveSales, SALES_ME, toggleDate, toggleLens, toggleMe, viewParams, type QuickView } from "./quick-filters"
-import { isBareRequest, sanitizeView, sanitizeViewString } from "@/lib/view-cookies"
+import { isBareRequest, resolveRememberedView, sanitizeView, sanitizeViewString } from "@/lib/view-cookies"
 
 const view: QuickView = { query: { ...EMPTY_QUERY, q: "aruna", status: ["ACCEPTED"] }, lens: "all", sort: "upcoming" }
 
@@ -70,5 +70,16 @@ describe("remembered view", () => {
     expect(isBareRequest({})).toBe(true)
     expect(isBareRequest({ q: "" , page: undefined })).toBe(true)
     expect(isBareRequest({ page: "2" })).toBe(false)
+  })
+
+  it("a bare open goes to the remembered view, and only a browser with no memory at all is fresh", () => {
+    expect(resolveRememberedView("activities", {}, "date%3Dweek%26page%3D2")).toEqual({ query: "date=week", fresh: false })
+    // "Bersihkan semua" and the list's first visit leave an empty memory: the plain list, not a first open.
+    expect(resolveRememberedView("activities", {}, "")).toEqual({ query: null, fresh: false })
+    expect(resolveRememberedView("activities", {}, undefined)).toEqual({ query: null, fresh: true })
+    // A link or any query wins over both the memory and a default view.
+    expect(resolveRememberedView("activities", { date: "today" }, "date=week")).toEqual({ query: null, fresh: false })
+    expect(resolveRememberedView("activities", { date: "today" }, undefined)).toEqual({ query: null, fresh: false })
+    expect(resolveRememberedView("prospects", {}, "%E0%A4%A")).toEqual({ query: null, fresh: false })
   })
 })

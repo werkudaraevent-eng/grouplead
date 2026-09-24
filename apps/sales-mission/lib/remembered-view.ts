@@ -1,5 +1,5 @@
 import { cookies } from "next/headers"
-import { isBareRequest, sanitizeViewString, VIEW_COOKIES, type ListKey } from "@/lib/view-cookies"
+import { resolveRememberedView, VIEW_COOKIES, type ListKey } from "@/lib/view-cookies"
 
 /**
  * Server side of the remembered view: the query string to redirect a bare
@@ -7,16 +7,17 @@ import { isBareRequest, sanitizeViewString, VIEW_COOKIES, type ListKey } from "@
  * request already has a query, or the cookie is empty or unreadable).
  */
 export async function rememberedView(list: ListKey, params: Record<string, string | string[] | undefined>): Promise<string | null> {
-  if (!isBareRequest(params)) return null
+  return (await openListView(list, params)).query
+}
+
+/**
+ * The same, and whether this is the list's first open in this browser
+ * (`fresh`), which is when a saved default view may choose the view.
+ */
+export async function openListView(
+  list: ListKey,
+  params: Record<string, string | string[] | undefined>,
+): Promise<{ query: string | null; fresh: boolean }> {
   const store = await cookies()
-  const raw = store.get(VIEW_COOKIES[list])?.value
-  if (!raw) return null
-  let decoded = raw
-  try {
-    decoded = decodeURIComponent(raw)
-  } catch {
-    // Left as is; the parser drops what it cannot read.
-  }
-  const qs = sanitizeViewString(list, decoded)
-  return qs || null
+  return resolveRememberedView(list, params, store.get(VIEW_COOKIES[list])?.value)
 }

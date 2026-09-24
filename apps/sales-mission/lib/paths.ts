@@ -41,7 +41,7 @@ export const paths = {
   /** The AI brief for one day (`day=YYYY-MM-DD`); today without one. */
   reportInsight: (query?: Query) => withQuery("/workspace/reports/insight", query),
   guide: "/workspace/panduan",
-  guideSection: (id: "hari-ini" | "aktivitas" | "laporan" | "prospek" | "izin" | "pasang") => `/workspace/panduan#${id}`,
+  guideSection: (id: "hari-ini" | "aktivitas" | "laporan" | "prospek" | "daftar" | "izin" | "pasang") => `/workspace/panduan#${id}`,
   install: "/workspace/pasang",
   whatsNew: "/workspace/yang-baru",
   myCalendar: "/workspace/kalender-saya",

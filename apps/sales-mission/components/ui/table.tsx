@@ -52,12 +52,17 @@ function TableFooter({ className, ...props }: React.ComponentProps<"tfoot">) {
   )
 }
 
+/**
+ * Hover and selection tint the cells with opaque mixes over the card, not
+ * with alphas: a list table's frozen columns sit over the cells that
+ * scroll under them, and a see-through fill would show them through.
+ */
 function TableRow({ className, ...props }: React.ComponentProps<"tr">) {
   return (
     <tr
       data-slot="table-row"
       className={cn(
-        "transition-colors duration-100 hover:[&_td]:bg-secondary/25 data-[state=selected]:[&_td]:bg-secondary/50",
+        "transition-colors duration-100 hover:[&_td]:bg-[color-mix(in_oklab,var(--secondary)_25%,var(--card))] data-[state=selected]:[&_td]:bg-[color-mix(in_oklab,var(--secondary)_50%,var(--card))]",
         className
       )}
       {...props}
