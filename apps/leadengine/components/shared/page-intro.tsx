@@ -2,7 +2,6 @@
 
 import * as React from "react"
 import { X } from "@/components/icons"
-import { Tooltip } from "@/components/ui/tooltip"
 import { markHintsSeen } from "@/app/actions/hint-actions"
 import { useIntroSeen, useMarkIntroSeen } from "@/components/shared/intro-seen-provider"
 import { cn } from "@/lib/utils"
@@ -32,7 +31,7 @@ function subscribeStorage(onChange: () => void): () => void {
  * A sentence under a page's title that teaches (what the page is for, how it
  * works) is needed once by a newcomer; on every later visit it is a line
  * between the title and the work. M3 keeps supporting text that has done its
- * job out of the way, so the description carries a ✕ (tooltip "Dismiss")
+ * job out of the way, so the description carries a ✕ (titled "Dismiss") after its last word
  * and, once closed, stays closed for that person on every device: the key
  * goes to public.user_hints through `markHintsSeen`, the store the What's new
  * dialog uses, with localStorage for a close that never reaches the server.
@@ -66,20 +65,25 @@ export function PageIntro({ hintKey, seen, children, className }: { hintKey: str
     }
 
     return (
-        <div className={cn("flex w-fit max-w-3xl items-start gap-1", className)}>
-            <p className="min-w-0 flex-1 text-sm text-muted-foreground">{children}</p>
-            <Tooltip content="Dismiss">
+        // The ✕ is part of the sentence's last line, held to its last word by
+        // a no-break space, so it always sits right after the text however
+        // the sentence wraps, never at a column edge.
+        <div className={cn("flex max-w-3xl", className)}>
+            <p className="min-w-0 text-sm text-muted-foreground">
+                {children}
+                {"\u00a0"}
                 <button
                     type="button"
                     onClick={dismiss}
                     aria-label="Dismiss description"
-                    // Centred on the first line without making the line taller;
-                    // 40px to a finger on a phone, 32px to a pointer.
-                    className="-my-2.5 grid h-10 w-10 shrink-0 cursor-pointer place-items-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground md:-my-1.5 md:h-8 md:w-8"
+                    title="Dismiss"
+                    // Sits on the line without making it taller: its margin box is
+                    // the line's 20px; 40px to a finger on a phone, 32px to a pointer.
+                    className="-my-2.5 inline-grid h-10 w-10 cursor-pointer place-items-center rounded-full align-middle text-muted-foreground transition-colors hover:bg-muted hover:text-foreground md:-my-1.5 md:h-8 md:w-8"
                 >
                     <X className="h-4 w-4" />
                 </button>
-            </Tooltip>
+            </p>
         </div>
     )
 }

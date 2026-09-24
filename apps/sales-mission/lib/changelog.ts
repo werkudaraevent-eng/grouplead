@@ -55,7 +55,7 @@ export const CHANGELOG: ChangeEntry[] = [
       { kind: "diperbaiki", text: "Di Hari ini, status kunjungan tidak lagi terpotong (“Diteri…”) saat nama perusahaannya panjang: kini nama perusahaan yang dipotong, statusnya selalu terbaca utuh." },
       { kind: "lebih-baik", text: "Jam di daftar Kalender, Papan live, Notifikasi, dan catatan pendukung kini memakai huruf yang sama dengan tulisan lain, tetap rata satu sama lain." },
       { kind: "diperbaiki", text: "Di komputer, bagian atas menu samping kini sama tinggi dengan baris judul halaman, jadi logo, judul, dan tombol di atas berada di satu garis." },
-      { kind: "diperbaiki", text: "Tanda ✕ untuk menutup kalimat penjelasan kini ada tepat di ujung kalimatnya, tidak lagi jauh di kanan." },
+      { kind: "diperbaiki", text: "Tanda ✕ untuk menutup kalimat penjelasan kini ada tepat setelah kata terakhirnya, juga saat kalimatnya turun ke baris kedua, tidak lagi jauh di kanan." },
     ],
   },
   {

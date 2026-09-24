@@ -83,7 +83,7 @@ export const CHANGELOG: ChangelogEntry[] = [
             { type: "improvement", text: "Pages under Settings show \"Settings\" (and, where there is one, the page above, such as \"Settings / AI\") just above the title. Click it to go back." },
             { type: "improvement", text: "Change history shows how many events match your filters at the bottom of the list, even when they fit on one page." },
             { type: "fix", text: "The top of the side menu is now exactly as tall as the page's title row, so the logo, the title and the buttons at the top sit on one line." },
-            { type: "fix", text: "The ✕ that closes a page's description now sits right at the end of the sentence instead of far off to the right." },
+            { type: "fix", text: "The ✕ that closes a page's description now sits right after its last word, even when the sentence runs onto a second line, instead of far off to the right." },
         ],
     },
     {
