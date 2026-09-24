@@ -233,9 +233,24 @@
 .custom-scrollbar:hover::-webkit-scrollbar-thumb {
   background-color: var(--muted-foreground);
 }
-.custom-scrollbar {
-  scrollbar-width: thin;
-  scrollbar-color: var(--border) transparent;
+/* Where the -webkit- pseudo-elements exist they alone style the bar: the
+   standard properties would make Chromium draw the platform's arrow
+   buttons (Windows), which poked into rounded corners. Firefox keeps the
+   standard thin bar. */
+@supports not selector(::-webkit-scrollbar) {
+  .custom-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+}
+.custom-scrollbar::-webkit-scrollbar {
+  height: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-button {
+  display: none;
+}
+.custom-scrollbar::-webkit-scrollbar-corner {
+  background: transparent;
 }
 
 /* Sidebar slim scrollbar — blends with dark panel */

@@ -75,6 +75,14 @@ export const CHANGE_TYPE_META: Record<
 
 export const CHANGELOG: ChangelogEntry[] = [
     {
+        date: "2026-09-24",
+        title: "The app's typeface now actually loads",
+        items: [
+            { type: "fix", text: "LeadEngine now really uses Plus Jakarta Sans. Until now the setting never reached the page, so text showed in the device's default font." },
+            { type: "improvement", text: "Scrollbars in tables and lists are the slim kind without arrow buttons on Windows." },
+        ],
+    },
+    {
         date: "2026-09-23",
         title: "Contacts and Companies: faster, remembered, linkable, and made for a phone",
         items: [

@@ -43,7 +43,7 @@ export default async function RootLayout({
     // The page colour is on the element itself, not only in the stylesheet:
     // the first paint must already be the background, or a switch between
     // apps flashes white before the CSS arrives.
-    <html lang="en" suppressHydrationWarning className="bg-background" style={{ backgroundColor: "#F6F8FB", colorScheme: "light" }}>
+    <html lang="en" suppressHydrationWarning className={`${jakartaSans.variable} ${geistMono.variable} bg-background`} style={{ backgroundColor: "#F6F8FB", colorScheme: "light" }}>
       <head>
         {salesMissionOrigin && (
           <>
@@ -75,7 +75,7 @@ export default async function RootLayout({
           }
         ` }} />
       </head>
-      <body className={`${jakartaSans.variable} ${geistMono.variable} bg-background antialiased`} suppressHydrationWarning>
+      <body className="bg-background font-sans antialiased" suppressHydrationWarning>
         <a href="#main-content" className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[100] focus:px-4 focus:py-2 focus:bg-primary focus:text-primary-foreground focus:rounded-lg focus:text-sm focus:font-semibold focus:shadow-lg">
           Skip to content
         </a>

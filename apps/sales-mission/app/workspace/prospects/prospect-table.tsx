@@ -491,7 +491,7 @@ export function ProspectTable({
                 <TableHead key={column.id} {...head}>{column.label}</TableHead>
               )
             })}
-            <TableHead className={cn(frozen("trailing", selectable).className, "px-3 text-right")} {...edgeProps(false, true)}>Aksi</TableHead>
+            <TableHead className={cn(frozen("trailing", selectable).className, "px-3 text-left")} {...edgeProps(false, true)}>Aksi</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>

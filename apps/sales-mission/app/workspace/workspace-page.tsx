@@ -104,7 +104,8 @@ export function WorkspacePage({
         className={cn(
           "custom-scrollbar flex-1 overflow-y-auto px-4 pb-[calc(6rem+env(safe-area-inset-bottom))] sm:px-6 lg:px-8 lg:pb-8",
           !phoneHeader && "max-lg:pt-3",
-          fill && "md:flex md:flex-col md:*:shrink-0",
+          // The list ends a small gutter above the window's foot, not 32px up.
+          fill && "md:flex md:flex-col md:*:shrink-0 lg:pb-4",
           // A filled list ends at the window's foot, where its footer would
           // sit under the FAB between `md` and `lg`; stop above the FAB.
           fill && primaryAction && "md:max-lg:pb-[calc(10.5rem+env(safe-area-inset-bottom))]"

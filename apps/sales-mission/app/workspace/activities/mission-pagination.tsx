@@ -71,13 +71,13 @@ export function MissionPagination({ page, size, total }: { page: number; size: n
   }
 
   return (
-    <div className="flex flex-wrap items-center justify-end gap-x-6 gap-y-2 border-t bg-card px-4 py-2 text-sm text-muted-foreground">
+    <div className="flex min-h-12 flex-wrap items-center justify-end gap-x-6 gap-y-1 border-t bg-card px-4 py-1 text-sm text-muted-foreground">
       <label className="flex items-center gap-2">
         <span>Baris per halaman</span>
         <select
           value={size}
           onChange={(event) => set({ size: event.target.value === "25" ? null : event.target.value, page: null })}
-          className="h-11 rounded-md border border-input bg-field px-2 text-sm md:h-9 text-foreground outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+          className="h-11 rounded-md border border-input bg-field px-2 text-sm md:h-8 text-foreground outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
           aria-label="Baris per halaman"
         >
           {PAGE_SIZES.map((option) => <option key={option} value={option}>{option}</option>)}
@@ -87,10 +87,10 @@ export function MissionPagination({ page, size, total }: { page: number; size: n
         {pending ? <Loader2 className="inline h-3.5 w-3.5 animate-spin" /> : `${first}–${last} dari ${total}`}
       </span>
       <span className="flex items-center gap-1">
-        <Button variant="ghost" size="icon" className="h-11 w-11 md:h-9 md:w-9" disabled={page <= 0 || pending} onClick={() => set({ page: page - 1 <= 0 ? null : String(page - 1) })} aria-label="Halaman sebelumnya">
+        <Button variant="ghost" size="icon" className="h-11 w-11 md:h-8 md:w-8" disabled={page <= 0 || pending} onClick={() => set({ page: page - 1 <= 0 ? null : String(page - 1) })} aria-label="Halaman sebelumnya">
           <ChevronLeft className="h-4 w-4" />
         </Button>
-        <Button variant="ghost" size="icon" className="h-11 w-11 md:h-9 md:w-9" disabled={page >= lastPage || pending} onClick={() => set({ page: String(page + 1) })} aria-label="Halaman berikutnya">
+        <Button variant="ghost" size="icon" className="h-11 w-11 md:h-8 md:w-8" disabled={page >= lastPage || pending} onClick={() => set({ page: String(page + 1) })} aria-label="Halaman berikutnya">
           <ChevronRight className="h-4 w-4" />
         </Button>
       </span>

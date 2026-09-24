@@ -699,7 +699,7 @@ export function MissionTable({
                 <TableHead key={column.id} {...head}>{column.label}</TableHead>
               )
             })}
-            <TableHead className={cn(frozen("trailing", canDelete).className, "px-3 text-right")} {...edgeProps(false, true)}>Aksi</TableHead>
+            <TableHead className={cn(frozen("trailing", canDelete).className, "px-3 text-left")} {...edgeProps(false, true)}>Aksi</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>

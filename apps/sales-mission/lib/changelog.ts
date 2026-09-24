@@ -46,6 +46,14 @@ export const CHANGE_KIND_LABELS: Record<ChangeKind, string> = {
 export const CHANGELOG: ChangeEntry[] = [
   {
     date: "2026-09-24",
+    title: "Huruf aplikasi dan tabel yang lebih lapang",
+    items: [
+      { kind: "diperbaiki", text: "Aplikasi kini benar-benar memakai huruf Plus Jakarta Sans. Selama ini yang tampil huruf bawaan perangkat karena pengaturannya tidak terbaca." },
+      { kind: "lebih-baik", text: "Tabel Aktivitas, Prospek, dan Laporan mendapat ruang lebih: bagian bawah halaman dan baris halaman di bawah tabel dibuat lebih ramping, batang geser tidak lagi menampilkan panah yang menabrak sudut kartu dan dimulai di bawah judul kolom, dan judul kolom Aksi kini rata kiri seperti tombolnya." },
+    ],
+  },
+  {
+    date: "2026-09-24",
     title: "Tabel daftar memenuhi layar, judul kolom selalu terlihat",
     items: [
       { kind: "lebih-baik", text: "Di komputer, tabel Aktivitas, Prospek, dan Laporan kini memenuhi layar di bawah baris filter dan bergulir di dalam kartunya sendiri. Judul kolom tetap di atas saat daftar digulir ke bawah, penggeser ke samping selalu ada di dasar kartu (tidak perlu lagi menggulir sampai baris terakhir untuk menemukannya), dan Baris per halaman serta tombol halaman berikutnya selalu tampil di bawahnya." },
