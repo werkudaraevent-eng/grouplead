@@ -9,9 +9,11 @@ import {
   isPlainView,
   markedView,
   normalizeViewConfig,
+  PLAIN_VIEW_ID,
   viewConfigKey,
   viewConfigSchema,
   viewHref,
+  viewMenuModel,
   viewNameSchema,
   viewSearch,
   type ListViewConfig,
@@ -159,5 +161,30 @@ describe("names and validation", () => {
     expect(viewConfigSchema.safeParse({ query: "", size: 25, columns: [] }).success).toBe(true)
     expect(viewConfigSchema.safeParse({ query: "", size: 30, columns: [] }).success).toBe(false)
     expect(viewConfigSchema.safeParse({ query: "", size: 25, columns: [{ id: "", visible: true }] }).success).toBe(false)
+  })
+})
+
+describe("viewMenuModel", () => {
+  const saved = view("a", { query: "status=ASSIGNED" })
+
+  it("checks Tampilan awal and offers nothing to save on the plain list", () => {
+    expect(viewMenuModel({ marked: null, target: null, dirty: false, customised: false })).toEqual({ shown: PLAIN_VIEW_ID, save: false, saveChanges: false, manage: null })
+  })
+
+  it("offers Simpan tampilan once the list differs from how it first opens and no view is in hand", () => {
+    expect(viewMenuModel({ marked: null, target: null, dirty: false, customised: true })).toEqual({ shown: null, save: true, saveChanges: false, manage: null })
+  })
+
+  it("checks the view the screen shows and manages it, with nothing new to save", () => {
+    expect(viewMenuModel({ marked: saved, target: saved, dirty: false, customised: true })).toEqual({ shown: "a", save: false, saveChanges: false, manage: saved })
+  })
+
+  it("checks nothing once the chosen view is changed, and offers to save the change into it or as a new view", () => {
+    expect(viewMenuModel({ marked: null, target: saved, dirty: true, customised: true })).toEqual({ shown: null, save: false, saveChanges: true, manage: saved })
+  })
+
+  it("checks a view that is the plain list rather than Tampilan awal", () => {
+    const plain = view("p", {})
+    expect(viewMenuModel({ marked: plain, target: plain, dirty: false, customised: false }).shown).toBe("p")
   })
 })

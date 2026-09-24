@@ -6,6 +6,7 @@ import { ChevronLeft, ChevronRight, Loader2 } from "@/components/icons"
 import { Button } from "@/components/ui/button"
 import { useCompact } from "@/hooks/use-compact"
 import { SortHeader as GenericSortHeader } from "@/components/sort-header"
+import { ListCount } from "@/components/list-view/list-count"
 import { nextSort, PAGE_SIZES, sortParts, type MissionSort, type SortColumn } from "@/lib/missions/mission-paging"
 
 /**
@@ -13,6 +14,12 @@ import { nextSort, PAGE_SIZES, sortParts, type MissionSort, type SortColumn } fr
  * the range and total, previous and next, all at the trailing edge. State
  * lives in the URL beside the filters, so page 3 of a filtered view is a
  * link that can be sent and returned to.
+ *
+ * On a desk the leading end holds the list's count while a filter narrows
+ * it ("12 dari 170 aktivitas", "Menyaring…" while it loads; `ListCount`),
+ * level with the paging in the one 48px row, cut with an ellipsis before
+ * the paging ever wraps; unfiltered it is empty, because the range already
+ * says the total. A phone keeps its count above the cards.
  */
 export function MissionPagination({ page, size, total }: { page: number; size: number; total: number }) {
   const router = useRouter()
@@ -72,6 +79,7 @@ export function MissionPagination({ page, size, total }: { page: number; size: n
 
   return (
     <div className="flex min-h-12 flex-wrap items-center justify-end gap-x-6 gap-y-1 border-t bg-card px-4 py-1 text-sm text-muted-foreground">
+      <ListCount place="footer" className="min-w-0 flex-1 truncate tabular-nums" />
       <label className="flex items-center gap-2">
         <span>Baris per halaman</span>
         <select

@@ -7,7 +7,7 @@ import { requireModule } from "@/lib/missions/nav-access"
 import { listTenantSales } from "@/lib/missions/mission-queries"
 import { listReportChoices } from "@/lib/missions/report-choice-queries"
 import { missionDayKey } from "@/lib/missions/mission-calendar"
-import { EMPTY_REPORT_QUERY, isEmptyReportQuery, parseReportQuery, serializeReportQuery } from "@/lib/reporting/report-filter"
+import { EMPTY_REPORT_QUERY, countActiveReportFacets, isEmptyReportQuery, parseReportQuery, serializeReportQuery } from "@/lib/reporting/report-filter"
 import { parseReportPageParams } from "@/lib/reporting/report-paging"
 import { countReports, listReportsPage } from "@/lib/reporting/report-list-queries"
 import { canSeeInsight } from "@/lib/ai/insight-view"
@@ -66,6 +66,7 @@ export default async function ReportListPage({
     // "X dari Y": X is every match, not this page's rows; Y is the list with no facets.
     isEmptyReportQuery(query) ? Promise.resolve(null) : countReports(access, { query: EMPTY_REPORT_QUERY, sort, now }),
   ])
+  const count = { shown: total, total: unfilteredCount ?? total, narrowed: countActiveReportFacets(query) > 0 }
 
   const exportParams = serializeReportQuery(query)
   exportParams.set("sort", sort)
@@ -95,8 +96,8 @@ export default async function ReportListPage({
       <PageChrome menu={[{ label: exportLabel, href: exportHref }]} />
       <ReportTabs showInsight={insightTab} />
       <RememberView list="reports" />
-      <ListViewProvider list="reports" views={saved.views} available={saved.available} fresh={opened.fresh}>
-        <ReportFilterBar query={query} choices={choices} people={people} total={unfilteredCount ?? total} shown={total} />
+      <ListViewProvider list="reports" views={saved.views} available={saved.available} fresh={opened.fresh} count={count}>
+        <ReportFilterBar query={query} choices={choices} people={people} />
         <ReportTable reports={items} pagination={{ page, size, total, sort }} filtered={!isEmptyReportQuery(query)} today={missionDayKey(now)} />
       </ListViewProvider>
     </WorkspacePage>

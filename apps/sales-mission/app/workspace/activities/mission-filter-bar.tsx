@@ -1,11 +1,12 @@
 "use client"
 
 import { FilterChip } from "@/components/filter-chip"
-import { useEffect, useRef, useState, useTransition } from "react"
-import { usePathname, useRouter, useSearchParams } from "next/navigation"
+import { useEffect, useRef, useState } from "react"
+import { usePathname, useSearchParams } from "next/navigation"
 import { Search, X } from "@/components/icons"
 import { ResponsivePopover } from "@/components/responsive-popover"
 import { FilterBarFrame } from "@/components/filter-bar-frame"
+import { useListNavigate } from "@/components/list-view/list-view-provider"
 import { rememberView } from "@/components/remember-view"
 import { FacetButton, FacetSelect, type FacetOpenProps, type FacetSpec } from "@/components/facet-select"
 import { ToggleChip } from "@/components/toggle-chip"
@@ -180,8 +181,6 @@ export function MissionFilterBar({
   types,
   locations,
   industries,
-  total,
-  shown,
 }: {
   query: MissionQuery
   /** The answer lens in force ("all" when none, or when the unit asks for no answers). */
@@ -194,14 +193,11 @@ export function MissionFilterBar({
   types: string[]
   locations: string[]
   industries: string[]
-  /** Unfiltered and filtered counts, so the bar can say "12 dari 40". */
-  total: number
-  shown: number
 }) {
-  const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
-  const [pending, startTransition] = useTransition()
+  // Through the list's one transition, so its count says "Menyaring…" until the list lands.
+  const navigate = useListNavigate()
   const [text, setText] = useState(query.q)
   const skipFirst = useRef(true)
 
@@ -213,7 +209,7 @@ export function MissionFilterBar({
     const params = activityListParams(next, nextLens, { sort: searchParams.get("sort"), size: searchParams.get("size") })
     const qs = params.toString()
     rememberView("activities", qs)
-    startTransition(() => router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false }))
+    navigate(qs ? `${pathname}?${qs}` : pathname)
   }
 
   // Debounced search. The facets push immediately; typing does not.
@@ -374,11 +370,6 @@ export function MissionFilterBar({
       }
       onClearAll={clearAll}
       more={more}
-      summary={
-        <span className="ml-auto flex items-center gap-2 text-xs text-muted-foreground" aria-live="polite">
-          {pending ? "Menyaring…" : active > 0 ? `${shown} dari ${total} aktivitas` : `${total} aktivitas`}
-        </span>
-      }
       // Saya, the date and the lenses are in the phone's row of their own
       // (`quick`), so they are not repeated here.
       chips={countNarrowing({ ...query, sales: others, date: null }, "all") > 0 ? (

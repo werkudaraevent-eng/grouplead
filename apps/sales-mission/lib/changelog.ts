@@ -48,6 +48,8 @@ export const CHANGELOG: ChangeEntry[] = [
     date: "2026-09-24",
     title: "Judul yang sama di setiap halaman",
     items: [
+      { kind: "lebih-baik", text: "Di komputer, tampilan tersimpan di Aktivitas, Prospek, dan Laporan kini ada di satu tombol Tampilan di kanan baris filter, di samping tombol Kolom. Tombol itu menyebut nama tampilan yang sedang tampil; buka untuk memilih tampilan lain, kembali ke Tampilan awal, menyimpan, mengubah nama, menjadikan bawaan, atau menghapus. Baris chip di atas daftar sudah tidak ada, jadi tabel tidak lagi turun saat kamu menyimpan tampilan." },
+      { kind: "lebih-baik", text: "Di komputer, jumlah hasil (misalnya “12 dari 170 aktivitas”) kini ada di kiri bawah tabel, sebaris dengan tombol halaman, dan hanya muncul saat ada filter yang menyala. Tanpa filter, “1–25 dari 170” di bawah tabel sudah menyebut totalnya. Di HP jumlahnya tetap di atas daftar." },
       { kind: "lebih-baik", text: "Di komputer, semua halaman kini memakai judul satu baris ramping seperti Aktivitas, Prospek, dan Laporan: Hari ini, Kalender, Papan live, Pengaturan, Notifikasi, Panduan, Yang baru, dan lainnya. Tulisan kecil “SALES ACTIVITY / …” di atas judul sudah hilang." },
       { kind: "lebih-baik", text: "Halaman di dalam Pengaturan, halaman aktivitas, dan halaman prospek kini hanya menyebut induknya di atas judul (misalnya Pengaturan atau Aktivitas), supaya jelas kamu sedang di bagian mana." },
       { kind: "lebih-baik", text: "Kalimat penjelasan di bawah judul halaman mana pun kini bisa ditutup dengan ✕, dan tetap tertutup di komputer atau HP mana pun yang kamu pakai. Keterangan yang berisi fakta, seperti tanggal di Hari ini atau kontak di halaman prospek, tetap tampil." },

@@ -1,10 +1,11 @@
 "use client"
 
 import { FilterChip } from "@/components/filter-chip"
-import { useEffect, useRef, useState, useTransition } from "react"
-import { usePathname, useRouter, useSearchParams } from "next/navigation"
+import { useEffect, useRef, useState } from "react"
+import { usePathname, useSearchParams } from "next/navigation"
 import { Search, X } from "@/components/icons"
 import { FilterBarFrame } from "@/components/filter-bar-frame"
+import { useListNavigate } from "@/components/list-view/list-view-provider"
 import { rememberView } from "@/components/remember-view"
 import { FacetSelect, type FacetSpec } from "@/components/facet-select"
 import { DateFacet, type FilterPerson } from "@/app/workspace/activities/mission-filter-bar"
@@ -52,19 +53,15 @@ export function ReportFilterBar({
   query,
   choices,
   people,
-  total,
-  shown,
 }: {
   query: ReportQuery
   choices: ChoiceSet
   people: FilterPerson[]
-  total: number
-  shown: number
 }) {
-  const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
-  const [pending, startTransition] = useTransition()
+  // Through the list's one transition, so its count says "Menyaring…" until the list lands.
+  const navigate = useListNavigate()
   const [text, setText] = useState(query.q)
   const skipFirst = useRef(true)
 
@@ -78,7 +75,7 @@ export function ReportFilterBar({
     }
     const qs = params.toString()
     rememberView("reports", qs)
-    startTransition(() => router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false }))
+    navigate(qs ? `${pathname}?${qs}` : pathname)
   }
 
   useEffect(() => {
@@ -201,11 +198,6 @@ export function ReportFilterBar({
       }
       onClearAll={() => { setText(""); push(EMPTY_REPORT_QUERY) }}
       more={more}
-      summary={
-        <span className="ml-auto flex items-center gap-2 text-xs text-muted-foreground" aria-live="polite">
-          {pending ? "Menyaring…" : active > 0 ? `${shown} dari ${total} laporan` : `${total} laporan`}
-        </span>
-      }
       chips={active > 0 ? (
         <>
           {query.q && <FilterChip label={`“${query.q}”`} onRemove={() => { setText(""); push({ ...query, q: "" }) }} />}

@@ -178,3 +178,30 @@ export function freeViewName(base: string, views: readonly Pick<SavedListView, "
   }
   return trimmed
 }
+
+/** "Tampilan awal" in the view menu: the list as it first opens, with no saved view. Never a saved view's id (those are uuids). */
+export const PLAIN_VIEW_ID = "awal"
+
+export interface ViewMenuModel {
+  /** The item carrying the check: a view's id, `PLAIN_VIEW_ID`, or null when the screen is neither. */
+  shown: string | null
+  /** "Simpan tampilan": the list differs from how it first opens and no view is in hand. */
+  save: boolean
+  /** "Simpan perubahan" and "Simpan sebagai tampilan baru": the view last chosen has been changed. */
+  saveChanges: boolean
+  /** The view "Ubah nama", "Jadikan bawaan" and "Hapus" act on: the one shown, else the one last chosen. */
+  manage: SavedListView | null
+}
+
+/**
+ * What the "Tampilan" menu offers, from the list's view state
+ * (`ListViewState`): which item is checked, and which actions show.
+ */
+export function viewMenuModel(state: { marked: SavedListView | null; target: SavedListView | null; dirty: boolean; customised: boolean }): ViewMenuModel {
+  return {
+    shown: state.marked?.id ?? (state.customised ? null : PLAIN_VIEW_ID),
+    save: state.customised && !state.target,
+    saveChanges: state.dirty && state.target !== null,
+    manage: state.target,
+  }
+}

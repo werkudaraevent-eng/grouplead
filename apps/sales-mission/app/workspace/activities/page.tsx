@@ -8,7 +8,7 @@ import { annotateReportRights } from "@/lib/missions/mission-rights"
 import { countMissions, listMissionFacets, listMissionsPage, parsePageParams } from "@/lib/missions/mission-page-queries"
 import { annotateJoinStatus } from "@/lib/missions/mission-join"
 import { EMPTY_QUERY, availableMissionFilters, isEmptyQuery, parseMissionQuery, resolveMissionFilter, serializeMissionQuery, type MissionFilter } from "@/lib/missions/mission-filter"
-import type { AnswerLens } from "@/lib/missions/quick-filters"
+import { countNarrowing, type AnswerLens } from "@/lib/missions/quick-filters"
 import { WorkspacePage } from "@/app/workspace/workspace-page"
 import { RememberView } from "@/components/remember-view"
 import { openListView } from "@/lib/remembered-view"
@@ -66,9 +66,11 @@ export default async function MissionsPage({
     settings.requireAssignmentConfirmation ? countMissions(access, { ...base, lens: "mine" }) : Promise.resolve(0),
     settings.requireAssignmentConfirmation ? countMissions(access, { ...base, lens: "team" }) : Promise.resolve(0),
   ])
-  // "X dari Y" in the filter bar: Y is the same lens with no facets, the
-  // meaning Prospek and Laporan give it, so the pair never reads "N dari N".
+  // "X dari Y" in the list's count (the table's footer on a desk, above the
+  // cards on a phone): Y is the same lens with no facets, the meaning
+  // Prospek and Laporan give it, so the pair never reads "N dari N".
   const unfilteredCount = isEmptyQuery(query) ? pageResult.total : await countMissions(access, { query: EMPTY_QUERY, sort, now, lens: filter })
+  const count = { shown: pageResult.total, total: unfilteredCount, narrowed: countNarrowing(query, filter) > 0 }
 
   // Join eligibility is judged against the viewer's own calendar, which is
   // loaded once rather than derived from whichever rows made this page.
@@ -109,7 +111,7 @@ export default async function MissionsPage({
       primaryAction={canCreate ? { href: paths.newActivity(), label: "Aktivitas baru", hint: { key: "fab-activity", title: "Jadwalkan kunjungan", body: "Aktivitas baru: pilih klien, jadwal, lokasi, dan sales utama. Kalender tim tampil supaya jamnya tidak bentrok.", learnHref: paths.guideSection("aktivitas") } } : undefined}
     >
       <RememberView list="activities" />
-      <ListViewProvider list="activities" views={saved.views} available={saved.available} fresh={opened.fresh}>
+      <ListViewProvider list="activities" views={saved.views} available={saved.available} fresh={opened.fresh} count={count}>
       <SelectionModeProvider>
       <ActivitiesPhoneMenu exportHref={exportHref} exportCount={pageResult.total} canCreate={canCreate} canDelete={canDelete} />
       <MissionFilterBar
@@ -121,8 +123,6 @@ export default async function MissionsPage({
         types={facets.types}
         locations={facets.locations}
         industries={facets.industries}
-        total={unfilteredCount}
-        shown={pageResult.total}
       />
       <MissionTable
         missions={await annotateReportRights(access, visible)}

@@ -9,7 +9,7 @@ import { MISSION_TIME_ZONE } from "@/lib/missions/mission-schema"
 import { listProspectStatuses } from "@/lib/prospects/prospect-status-queries"
 import { listImportBatches } from "@/lib/prospects/prospect-queries"
 import { countProspects, listProspectsPage } from "@/lib/prospects/prospect-page-queries"
-import { EMPTY_PROSPECT_QUERY, isEmptyProspectQuery, parseProspectQuery } from "@/lib/prospects/prospect-filter"
+import { EMPTY_PROSPECT_QUERY, countActiveProspectFacets, isEmptyProspectQuery, parseProspectQuery } from "@/lib/prospects/prospect-filter"
 import { parseProspectPageParams } from "@/lib/prospects/prospect-paging"
 import { WorkspacePage } from "@/app/workspace/workspace-page"
 import { RememberView } from "@/components/remember-view"
@@ -64,6 +64,8 @@ export default async function ProspectsPage({
     isEmptyProspectQuery(query) ? Promise.resolve(null) : countProspects(access, { query: EMPTY_PROSPECT_QUERY, sort, today }),
     countProspects(access, { query: { ...EMPTY_PROSPECT_QUERY, due: true }, sort, today }),
   ])
+  // "X dari Y": X is every match, not this page's rows; Y is the list with no facets.
+  const count = { shown: pageResult.total, total: allCount ?? pageResult.total, narrowed: countActiveProspectFacets(query) > 0 }
 
   return (
     <WorkspacePage
@@ -84,7 +86,7 @@ export default async function ProspectsPage({
       primaryAction={canCreate ? { href: "/workspace/prospects/new", label: "Prospek baru" } : undefined}
     >
       <RememberView list="prospects" />
-      <ListViewProvider list="prospects" views={saved.views} available={saved.available} fresh={opened.fresh}>
+      <ListViewProvider list="prospects" views={saved.views} available={saved.available} fresh={opened.fresh} count={count}>
       <SelectionModeProvider>
       <ProspectsPhoneMenu canCreate={canCreate} canSelect={canUpdate || canDelete} people={assignable} canAssignOthers={canAssignOthers(viewer)} viewerId={access.userId} />
       <ProspectFilterBar
@@ -92,8 +94,6 @@ export default async function ProspectsPage({
         statuses={statuses}
         people={people.map((person) => ({ id: person.id, name: person.name, avatarUrl: person.avatarUrl }))}
         batches={batches}
-        total={allCount ?? pageResult.total}
-        shown={pageResult.total}
         dueCount={dueCount}
       />
       <ProspectTable

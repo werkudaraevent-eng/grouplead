@@ -1,54 +1,35 @@
 "use client"
 
 import { useEffect, useRef, useState, type DragEvent, type KeyboardEvent } from "react"
-import { Bookmark, Columns, GripVertical, Lock, RotateCcw } from "@/components/icons"
+import { Columns, GripVertical, Lock, RotateCcw } from "@/components/icons"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { moveColumn, shownCount, toggleColumn } from "@/lib/lists/list-columns"
 import { cn } from "@/lib/utils"
 import { useListView } from "./list-view-provider"
-import { ViewNameDialog } from "./view-name-dialog"
+import { ViewMenu } from "./view-menu"
 
 /**
  * The view tools at the trailing edge of a list's filter bar, on a desk:
- * "Simpan tampilan" once the list differs from how it first opens, then
- * the columns menu. Both are 40dp icon buttons with their name as the
- * accessible label and the hover title (LeadEngine's `ToolbarIconButton`).
- * A phone shows cards, not columns, and saving a view is desk work.
+ * the "Tampilan" menu (choose, save and manage the saved views; drawn once
+ * the views table exists), then the columns menu, a 40dp icon button with
+ * its name as the accessible label and the hover title (LeadEngine's
+ * `ToolbarIconButton`). A phone shows cards, not columns, and saving a
+ * view is desk work; it chooses views in the Filter sheet.
  */
 export function ViewTools() {
   const view = useListView()
   if (!view) return null
   return (
     <>
-      {view.available && view.customised && <SaveViewButton />}
+      <ViewMenu />
       <ColumnsMenu />
     </>
   )
 }
 
 const iconButton = "h-10 w-10 rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
-
-function SaveViewButton() {
-  const view = useListView()
-  const [open, setOpen] = useState(false)
-  if (!view) return null
-  return (
-    <>
-      <Button type="button" variant="ghost" size="icon-lg" className={iconButton} aria-label="Simpan tampilan" title="Simpan tampilan" onClick={() => setOpen(true)}>
-        <Bookmark className="h-5 w-5" />
-      </Button>
-      <ViewNameDialog
-        open={open}
-        onOpenChange={setOpen}
-        title="Simpan tampilan"
-        description="Pencarian, filter, urutan, jumlah baris, dan kolom yang tampil sekarang disimpan dengan satu nama, lalu bisa dibuka lagi dengan satu ketukan di atas daftar."
-        onSubmit={view.saveAs}
-      />
-    </>
-  )
-}
 
 /**
  * Which optional columns show, in which order: a checkbox per column and

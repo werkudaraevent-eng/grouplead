@@ -8,13 +8,14 @@ import { Button } from "@/components/ui/button"
 import { BottomSheet } from "@/components/ui/bottom-sheet"
 import { useCompact } from "@/hooks/use-compact"
 import { cn } from "@/lib/utils"
-import { SavedViewsBar, SavedViewsSheetSection } from "@/components/list-view/saved-views-bar"
+import { SavedViewsSheetSection } from "@/components/list-view/saved-views-sheet"
 import { ViewTools } from "@/components/list-view/view-tools"
+import { ListCount } from "@/components/list-view/list-count"
 import { useListView } from "@/components/list-view/list-view-provider"
 
 /**
- * The frame every filterable list shares: search, facets, a count, and a
- * way to clear everything.
+ * The frame every filterable list shares: search, facets, and a way to
+ * clear everything.
  *
  * On a desk the bar is one row: the everyday facets always in view, then
  * every facet from `more` that is in use, then "+ Filter" for the rest
@@ -33,13 +34,19 @@ import { useListView } from "@/components/list-view/list-view-provider"
  * sheet: search is the first control of every list a person carries in a
  * pocket (Gmail, Google Maps, Linear), and these narrow what it found.
  *
- * Inside a `ListViewProvider` the frame also carries the list's view: the
- * saved views as a chip row above everything on a desk (only once one
- * exists) and at the top of the Filter sheet on a phone, and the view
- * tools ("Simpan tampilan", the columns menu) at the trailing edge of the
- * bar's first line, on a desk only. Search, facets and "Bersihkan semua"
- * flow in one group that wraps onto a second line when there is more than
- * fits, so an applied filter is always in sight.
+ * Inside a `ListViewProvider` the frame also carries the list's view. On a
+ * desk the view tools (the "Tampilan" menu, which chooses and manages the
+ * saved views, and the columns menu) sit at the trailing edge of the bar's
+ * first line, and nothing is drawn above the bar, so saving a view never
+ * moves the table. On a phone the saved views are at the top of the Filter
+ * sheet. Search, facets and "Bersihkan semua" flow in one group that wraps
+ * onto a second line when there is more than fits, so an applied filter is
+ * always in sight.
+ *
+ * The count ("X dari Y", "Menyaring…") is not part of the bar on a desk:
+ * it sits at the leading end of the table's footer, level with the paging
+ * (`MissionPagination`), and the bar holds controls only. On a phone it
+ * stays under the search and chips, above the cards (`ListCount`).
  */
 export function FilterBarFrame({
   activeCount,
@@ -48,7 +55,6 @@ export function FilterBarFrame({
   facets,
   more = [],
   onClearAll,
-  summary,
   chips,
 }: {
   activeCount: number
@@ -64,7 +70,6 @@ export function FilterBarFrame({
   /** Facets shown on a desk only while in use, added from "+ Filter". */
   more?: FacetSpec[]
   onClearAll: () => void
-  summary: React.ReactNode
   /**
    * The active-filter chips (already including "Bersihkan semua"), or null
    * when none; shown on a phone. What `quick` already shows is left out.
@@ -81,8 +86,6 @@ export function FilterBarFrame({
     const shown = more.filter((spec) => spec.active || spec.key === revealed)
     const hidden = more.filter((spec) => !spec.active && spec.key !== revealed)
     return (
-      <>
-      <SavedViewsBar />
       <div className="mb-4 flex items-start gap-3">
         <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
           {search}
@@ -104,7 +107,6 @@ export function FilterBarFrame({
               Bersihkan semua
             </button>
           )}
-          {summary}
         </div>
         {listView && (
           <div className="-my-0.5 flex h-10 shrink-0 items-center gap-1">
@@ -112,7 +114,6 @@ export function FilterBarFrame({
           </div>
         )}
       </div>
-      </>
     )
   }
 
@@ -143,7 +144,9 @@ export function FilterBarFrame({
           <div className="flex shrink-0 items-center gap-1.5">{chips}</div>
         </div>
       )}
-      <div className="text-xs text-muted-foreground">{summary}</div>
+      <div className="text-xs text-muted-foreground">
+        <ListCount place="phone" className="ml-auto flex items-center gap-2 text-xs text-muted-foreground" />
+      </div>
       <BottomSheet
         open={open}
         onOpenChange={setOpen}
