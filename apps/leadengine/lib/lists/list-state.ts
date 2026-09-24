@@ -272,6 +272,42 @@ export function countActive(state: ListState): number {
     return (state.q.trim() ? 1 : 0) + state.filters.filter(isEffectiveFilter).length
 }
 
+/**
+ * The list's query is as it first opens: nothing narrows it, the default
+ * order, the default size (`EMPTY_LIST_STATE`, which the Views menu's
+ * "Default view" writes). With the default columns (`columnsKey`), the
+ * screen is the plain list: nothing worth saving as a view.
+ */
+export function isPlainState(state: ListState): boolean {
+    return countActive(state) === 0 && state.sort === null && state.size === DEFAULT_PAGE_SIZE
+}
+
+/**
+ * What the leading end of a list's footer says on a desk: nothing while
+ * nothing narrows the list (the range beside the paging already gives the
+ * total), "Filtering…" while a narrowed list loads, else how many of the
+ * list's rows match ("170 of 1,196 contacts"). `unfiltered` is the count
+ * before the search and filters; without it only the matches are said.
+ */
+export function matchCountLabel({
+    narrowed,
+    pending,
+    total,
+    unfiltered,
+    noun,
+}: {
+    narrowed: boolean
+    pending: boolean
+    total: number
+    unfiltered: number | null
+    noun: string
+}): string | null {
+    if (!narrowed) return null
+    if (pending) return "Filtering…"
+    const fmt = (n: number) => n.toLocaleString("en-US")
+    return unfiltered === null ? `${fmt(total)} ${noun}` : `${fmt(total)} of ${fmt(unfiltered)} ${noun}`
+}
+
 /* ── Paging arithmetic ───────────────────────────────────────────────────── */
 
 export function lastPage(total: number, size: number): number {
@@ -336,8 +372,31 @@ export function viewConfigKey(config: ListViewConfig<{ id: string; visible: bool
     const sorted = { ...state, filters: [...state.filters].sort((a, b) => a.field.localeCompare(b.field)) }
     const params = serializeListState(sorted, spec, { paging: false })
     params.set("size", String(state.size))
-    const columns = Array.isArray(config.columns)
-        ? config.columns.filter((c) => c && typeof c.id === "string").map((c) => `${c.id}${c.visible ? "" : "-"}`).join(",")
-        : ""
-    return `${params.toString()}|${columns}`
+    return `${params.toString()}|${Array.isArray(config.columns) ? columnsKey(config.columns) : ""}`
+}
+
+/** Which columns show in which order, comparable: "full_name,owner-" (a trailing "-" is hidden). */
+export function columnsKey(columns: readonly { id: string; visible: boolean }[]): string {
+    return columns.filter((c) => c && typeof c.id === "string").map((c) => `${c.id}${c.visible ? "" : "-"}`).join(",")
+}
+
+/**
+ * The saved view the screen shows exactly (`keyOf(view) === current`, keys
+ * from `viewConfigKey`), preferring the ids in `prefer` (the view last
+ * chosen) when two views are the same list; null when none is. This is the
+ * view the Views menu names and checks; a view last chosen and changed
+ * since is not it.
+ */
+export function markedView<V extends { id: string }>(
+    views: readonly V[],
+    keyOf: (view: V) => string,
+    current: string,
+    prefer: readonly (string | null | undefined)[] = [],
+): V | null {
+    const matching = views.filter((view) => keyOf(view) === current)
+    for (const id of prefer) {
+        const hit = id ? matching.find((view) => view.id === id) : undefined
+        if (hit) return hit
+    }
+    return matching[0] ?? null
 }

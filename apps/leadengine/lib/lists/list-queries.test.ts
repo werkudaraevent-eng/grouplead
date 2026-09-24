@@ -52,15 +52,38 @@ beforeEach(() => forgetMissingViews())
 describe("runListPage", () => {
     it("reads one page from the view with an exact count", async () => {
         const { client, calls } = fakeClient(() => ({ data: [{ id: "1", full_name: "Ana", company_name: "Acme", owner_name: null }], count: 1196 }))
-        const result = await runListPage(client, CONTACT_LIST, contactsState("q=an&page=2"), null)
-        expect(result).toMatchObject({ total: 1196, source: "view" })
+        const result = await runListPage(client, CONTACT_LIST, contactsState("page=2"), null)
+        expect(result).toEqual({ rows: [expect.objectContaining({ id: "1" })], total: 1196, unfiltered: null, source: "view" })
         expect(result.rows[0].client_company).toEqual({ name: "Acme" })
         expect(calls).toHaveLength(1)
         expect(calls[0].table).toBe("contact_list_rows")
         expect(step(calls[0], "select")[0][1]).toEqual({ count: "exact" })
         expect(step(calls[0], "is")[0]).toEqual(["deleted_at", null])
         expect(step(calls[0], "range")[0]).toEqual([50, 74])
-        expect(String(step(calls[0], "or")[0][0])).toContain('company_name.ilike."*an*"')
+    })
+
+    it("while a search or filter narrows the list, also counts the list before them", async () => {
+        const unit = "11111111-2222-3333-4444-555555555555"
+        const { client, calls } = fakeClient((call) => (step(call, "or").some(([term]) => String(term).includes("ilike")) ? { data: [{ id: "1", full_name: "Ana" }], count: 170 } : { data: [{ id: "9", full_name: "Zed" }], count: 1196 }))
+        const result = await runListPage(client, CONTACT_LIST, contactsState("q=an&page=2&sort=owner:desc"), unit)
+        expect(result).toMatchObject({ total: 170, unfiltered: 1196 })
+        expect(result.rows.map((row) => row.id)).toEqual(["1"])
+        expect(calls).toHaveLength(2)
+        const page = calls.find((c) => String(step(c, "or")[0]?.[0]).includes('company_name.ilike."*an*"'))!
+        expect(step(page, "range")[0]).toEqual([50, 74])
+        expect(step(page, "order").map((args) => args[0])).toContain("owner_name")
+        const all = calls.find((c) => c !== page)!
+        // The same unit, no search, no filter, no related order, one row at most.
+        expect(step(all, "or")[0][0]).toBe(`and(or(company_id.eq.${unit},company_id.is.null))`)
+        expect(step(all, "select")[0][1]).toEqual({ count: "exact" })
+        expect(step(all, "range")[0]).toEqual([0, 0])
+        expect(step(all, "order").map((args) => args[0])).not.toContain("owner_name")
+    })
+
+    it("a failed count before the filters leaves the page as it is", async () => {
+        const { client } = fakeClient((call) => (step(call, "or").length > 0 ? { data: [], count: 3 } : { error: { code: "57014", message: "canceling statement due to statement timeout" } }))
+        const result = await runListPage(client, CONTACT_LIST, contactsState("q=an"), null)
+        expect(result).toMatchObject({ total: 3, unfiltered: null })
     })
 
     it("narrows to the unit plus unassigned rows in the same filter", async () => {
@@ -94,7 +117,7 @@ describe("runListPage", () => {
         const lookup = calls.find((c) => c.table === "profiles")!
         expect(step(lookup, "or")[0][0]).toBe('and(full_name.ilike."Budi")')
         expect(step(lookup, "limit")[0][0]).toBe(100)
-        const main = calls.filter((c) => c.table === "client_companies").at(-1)!
+        const main = calls.filter((c) => c.table === "client_companies").find((c) => step(c, "or").length > 0)!
         expect(step(main, "or")[0][0]).toBe("and(owner_id.in.(p1))")
     })
 
@@ -114,7 +137,7 @@ describe("runListPage", () => {
     it("a page past the end answers with the count and no rows", async () => {
         const { client } = fakeClient((call) => (call.steps.some(([n, args]) => n === "select" && (args[1] as { head?: boolean })?.head) ? { count: 30 } : { error: { code: "PGRST103", message: "Requested range not satisfiable" } }))
         const result = await runListPage(client, CONTACT_LIST, contactsState("page=9"), null)
-        expect(result).toEqual({ rows: [], total: 30, source: "view" })
+        expect(result).toEqual({ rows: [], total: 30, unfiltered: null, source: "view" })
     })
 
     it("surfaces any other error", async () => {

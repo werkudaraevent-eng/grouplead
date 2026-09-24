@@ -2,12 +2,16 @@ import { describe, expect, it } from "vitest"
 import {
     EMPTY_LIST_STATE,
     clearedState,
+    columnsKey,
     countActive,
     decodeFilterValue,
     encodeFilterValue,
     isBareRequest,
+    isPlainState,
     lastPage,
     loadMoreStep,
+    markedView,
+    matchCountLabel,
     pageRange,
     parseListState,
     rememberedQuery,
@@ -172,6 +176,52 @@ describe("paging arithmetic", () => {
     })
 })
 
+describe("the footer's count of matches", () => {
+    const base = { pending: false, total: 170, unfiltered: 1196, noun: "contacts" }
+
+    it("says nothing while nothing narrows the list: the range already gives the total", () => {
+        expect(matchCountLabel({ ...base, narrowed: false })).toBeNull()
+        expect(matchCountLabel({ ...base, narrowed: false, pending: true })).toBeNull()
+    })
+
+    it("says how many of the list match while a filter narrows it", () => {
+        expect(matchCountLabel({ ...base, narrowed: true })).toBe("170 of 1,196 contacts")
+        expect(matchCountLabel({ ...base, narrowed: true, total: 0, noun: "companies" })).toBe("0 of 1,196 companies")
+    })
+
+    it("says Filtering… while a narrowed list loads", () => {
+        expect(matchCountLabel({ ...base, narrowed: true, pending: true })).toBe("Filtering…")
+    })
+
+    it("gives the matches alone when the unfiltered count is unknown", () => {
+        expect(matchCountLabel({ ...base, narrowed: true, unfiltered: null })).toBe("170 contacts")
+    })
+})
+
+describe("the plain list", () => {
+    it("is the list as it first opens: no search, no filters, no sort, the default size", () => {
+        expect(isPlainState(EMPTY_LIST_STATE)).toBe(true)
+        // Paging through it changes nothing worth saving.
+        expect(isPlainState(state({ page: 2 }))).toBe(true)
+        // A filter chip opened but not yet given a value narrows nothing.
+        expect(isPlainState(state({ filters: [{ field: "job_title", operator: "contains", value: "" }] }))).toBe(true)
+    })
+
+    it("stops being plain once anything narrows, orders or resizes it", () => {
+        expect(isPlainState(state({ q: "acme" }))).toBe(false)
+        expect(isPlainState(state({ sort: { key: "owner", direction: "asc" } }))).toBe(false)
+        expect(isPlainState(state({ filters: [{ field: "email", operator: "is_true", value: null }] }))).toBe(false)
+        expect(isPlainState(state({ size: 100 }))).toBe(false)
+    })
+
+    it("compares columns by which show, in which order", () => {
+        const a = [{ id: "full_name", visible: true }, { id: "owner", visible: false }]
+        expect(columnsKey(a)).toBe("full_name,owner-")
+        expect(columnsKey(a)).not.toBe(columnsKey([...a].reverse()))
+        expect(columnsKey(a)).not.toBe(columnsKey([a[0], { ...a[1], visible: true }]))
+    })
+})
+
 describe("saved views", () => {
     const columns = [{ id: "full_name", visible: true }, { id: "owner", visible: false }]
 
@@ -192,5 +242,29 @@ describe("saved views", () => {
         expect(viewConfigKey(a, spec)).toBe(viewConfigKey(b, spec))
         expect(viewConfigKey(a, spec)).not.toBe(viewConfigKey({ ...a, columns: [...columns].reverse() }, spec))
         expect(viewConfigKey(a, spec)).not.toBe(viewConfigKey({ ...a, itemsPerPage: 50 }, spec))
+    })
+})
+
+describe("the marked view", () => {
+    const views = [
+        { id: "a", key: "q=acme" },
+        { id: "b", key: "q=hotel" },
+        { id: "c", key: "q=hotel" },
+    ]
+    const keyOf = (view: { key: string }) => view.key
+
+    it("is the view the screen shows exactly", () => {
+        expect(markedView(views, keyOf, "q=acme")?.id).toBe("a")
+        expect(markedView(views, keyOf, "q=hotel")?.id).toBe("b")
+    })
+
+    it("prefers the view last chosen when two views are the same list", () => {
+        expect(markedView(views, keyOf, "q=hotel", ["c"])?.id).toBe("c")
+        expect(markedView(views, keyOf, "q=hotel", [null, "c"])?.id).toBe("c")
+    })
+
+    it("is none when the view last chosen was changed and nothing else matches", () => {
+        expect(markedView(views, keyOf, "q=acme&sort=owner:asc", ["a"])).toBeNull()
+        expect(markedView([], keyOf, "")).toBeNull()
     })
 })

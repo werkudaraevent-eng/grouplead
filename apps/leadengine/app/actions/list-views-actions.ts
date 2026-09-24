@@ -167,6 +167,27 @@ export async function setUserListViewDefaultAction(
 
 /* ────────────────────────────────────────────────────────────────── */
 
+/**
+ * "Remove default": the view stays, and the list has no default view any
+ * more, so its first open in a browser is the plain list. RLS limits the
+ * update to the calling user's own row.
+ */
+export async function clearUserListViewDefaultAction(id: string): Promise<ActionResult<true>> {
+    try {
+        const supabase = await createClient()
+        const { error } = await supabase
+            .from("user_list_views")
+            .update({ is_default: false })
+            .eq("id", id)
+        if (error) return { success: false, error: error.message }
+        return { success: true, data: true }
+    } catch (e) {
+        return { success: false, error: e instanceof Error ? e.message : "Unknown error" }
+    }
+}
+
+/* ────────────────────────────────────────────────────────────────── */
+
 export async function deleteUserListViewAction(id: string): Promise<ActionResult<true>> {
     try {
         const supabase = await createClient()

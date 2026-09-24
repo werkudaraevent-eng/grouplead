@@ -35,16 +35,19 @@ interface ToolbarFilters {
  * chips flow in one group that wraps onto a second line when there are
  * more filters than room, so an applied filter is always in sight and never
  * cut at an edge (M3 chip sets wrap on wide screens; Linear, Notion,
- * HubSpot; the same behaviour as Sales Activity's filter bar). The icon
- * actions stay at the top right of the first line.
+ * HubSpot; the same behaviour as Sales Activity's filter bar). The view
+ * tools (the Views menu, then the columns button) stay at the top right of
+ * the first line. The toolbar holds controls only: the count of matches is
+ * in the table's footer (`ListFooter`).
  *
  * On a phone, search stays and the filter chips move behind one "Filter"
  * button carrying the count of what narrows the list, which opens them in
  * a bottom sheet; what is applied is repeated under the search as one
  * sideways-scrolling row of chips, each with an ✕, then "Clear all"
  * (Sales Activity's `FilterBarFrame`; M3 filter chips in a modal bottom
- * sheet). The view tools (save view, columns) are desk tools and stay
- * there: the phone shows cards, not columns.
+ * sheet). The view tools (the Views menu, columns) are desk tools and stay
+ * there: the phone shows cards, not columns, and chooses a saved view from
+ * the chips the page draws above the search (`SavedViewsBar`).
  */
 export function ListToolbar({
   search,
@@ -54,7 +57,7 @@ export function ListToolbar({
 }: {
   search: ToolbarSearch
   filters: ToolbarFilters
-  /** Right-hand icon actions (`ToolbarIconButton`s), from `md` up. */
+  /** Right-hand view tools (`ViewsMenu`, `ColumnsMenu`), from `md` up. */
   actions?: React.ReactNode
   className?: string
 }) {
@@ -73,7 +76,7 @@ export function ListToolbar({
             className="contents"
           />
         </div>
-        {actions && <div className="-my-0.5 flex h-10 shrink-0 items-center gap-1">{actions}</div>}
+        {actions && <div className="-my-0.5 flex h-10 shrink-0 items-center gap-2">{actions}</div>}
       </div>
       <PhoneFilterBar search={search} filters={filters} className={cn("md:hidden", className)} />
     </>
@@ -163,11 +166,14 @@ function PhoneFilterBar({ search, filters, className }: { search: ToolbarSearch;
   )
 }
 
-/** A 40dp round icon button with a tooltip and an accessible name; optional small count badge. */
+/**
+ * A 40dp round icon button with a tooltip and an accessible name. No badge:
+ * an M3 badge flags something new or waiting, never a setting.
+ */
 export const ToolbarIconButton = React.forwardRef<
   HTMLButtonElement,
-  React.ComponentProps<typeof Button> & { label: string; badge?: string }
->(function ToolbarIconButton({ label, badge, className, children, ...props }, ref) {
+  React.ComponentProps<typeof Button> & { label: string }
+>(function ToolbarIconButton({ label, className, children, ...props }, ref) {
   return (
     <Tooltip content={label}>
       <Button
@@ -176,15 +182,10 @@ export const ToolbarIconButton = React.forwardRef<
         variant="ghost"
         size="icon-lg"
         aria-label={label}
-        className={cn("relative h-10 w-10 rounded-full text-muted-foreground hover:bg-muted hover:text-foreground", className)}
+        className={cn("h-10 w-10 rounded-full text-muted-foreground hover:bg-muted hover:text-foreground", className)}
         {...props}
       >
         {children}
-        {badge && (
-          <span className="absolute -right-0.5 -top-0.5 rounded-full bg-primary px-1.5 py-px text-[10px] font-semibold leading-tight text-primary-foreground tabular-nums">
-            {badge}
-          </span>
-        )}
       </Button>
     </Tooltip>
   )

@@ -7,6 +7,8 @@ import type { ActionResult } from "@/types/action-result"
 interface PageData<Row> {
     rows: Row[]
     total: number
+    /** The count before the search and filters, while they narrow the list (see `ListPageResult`). */
+    unfiltered?: number | null
 }
 
 /**
@@ -36,7 +38,7 @@ export function useListPage<Row>(
             .then((result) => {
                 if (key !== latest.current) return
                 if (result.success && result.data) {
-                    setData({ rows: result.data.rows, total: result.data.total })
+                    setData({ rows: result.data.rows, total: result.data.total, unfiltered: result.data.unfiltered ?? null })
                     setFailed(false)
                 } else {
                     setFailed(true)
@@ -60,6 +62,8 @@ export function useListPage<Row>(
     return {
         rows: data?.rows ?? [],
         total: data?.total ?? 0,
+        /** The rows before the search and filters; null while nothing narrows the list. */
+        unfiltered: data?.unfiltered ?? null,
         /** False until the first answer arrives. */
         loaded: data !== null,
         /** The latest request failed (the rows shown, if any, are the previous answer). */

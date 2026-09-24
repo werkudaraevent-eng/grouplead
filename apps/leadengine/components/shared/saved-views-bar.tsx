@@ -1,26 +1,33 @@
 "use client"
 
 /**
- * Saved-Views Bar — tab-like row above filters that lists the user's
- * saved list views for a given page. Click a tab to apply that view's
- * filters/sort/columns. Modify any of those and a "Save" affordance
- * appears so the user can persist the change.
+ * A person's saved views of a list, in two shapes.
  *
- *   Visual:
- *     [ All contacts ]  [ My active ]  [ + ]              ⋯  Save · Save as
+ * On a desk, `ViewsMenu`: one outlined button at the trailing edge of the
+ * toolbar's first line, before the columns button, named after the view
+ * the screen shows exactly (else "Views"), opening an M3 menu with
+ * "Default view" and each view (a check on the one shown, a star on the
+ * default), then the actions (Linear's and Notion's view switcher). A row
+ * of chips above the toolbar was the earlier way and was dropped: it cost
+ * a whole row for one or two chips and moved the table down the moment the
+ * first view was saved.
  *
- * Stateless — parent owns the view list + active id. Parent calls a
- * server action to persist.
+ * On a phone, `SavedViewsBar`: the chips above the search, with ⋮ for the
+ * view last chosen, as before (saving a first view is desk work there).
+ *
+ * Stateless — the page owns the views through `useListViews`, which calls
+ * the server actions.
  */
 
 import * as React from "react"
-import { Check, MoreHorizontal, Save, Pencil, Trash2, Star } from "@/components/icons"
-import { ToolbarIconButton } from "./list-toolbar"
+import { Check, ChevronDown, MoreHorizontal, Save, Pencil, Trash2, Star, StarOff } from "@/components/icons"
 import { Button } from "@/components/ui/button"
 import {
     DropdownMenu,
     DropdownMenuContent,
+    DropdownMenuGroup,
     DropdownMenuItem,
+    DropdownMenuLabel,
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
@@ -33,6 +40,7 @@ import {
     DialogDescription,
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
+import type { ListViewsApi } from "@/hooks/use-list-views"
 import { cn } from "@/lib/utils"
 
 export interface SavedView {
@@ -55,6 +63,12 @@ interface SavedViewsBarProps {
     className?: string
 }
 
+/**
+ * The phone's saved views: chips above the search, drawn by the page below
+ * `md` only. The chip of the view last chosen stays marked while it is
+ * changed, with "Save changes" beside it; deleting asks first, and the
+ * snackbar then offers Undo as it does on a desk (`useListViews`).
+ */
 export function SavedViewsBar({
     views,
     activeViewId,
@@ -75,9 +89,8 @@ export function SavedViewsBar({
     const activeView = views.find(v => v.id === activeViewId) ?? null
 
     // No views, no bar: a lone "+" above a rule was the whole feature's
-    // footprint for most people. Saving the first view lives on the
-    // toolbar (SaveViewButton); the bar appears once there is something
-    // to switch between.
+    // footprint for most people. Views are saved on a desk (the Views
+    // menu); the bar appears once there is something to switch between.
     if (views.length === 0) return null
 
     return (
@@ -194,34 +207,184 @@ export function SavedViewsBar({
     )
 }
 
+type NameDialog = { kind: "save" | "copy" | "rename"; id: string | null }
+
+const DIALOG_TEXT: Record<NameDialog["kind"], { title: string; description: string; action: string }> = {
+    save: { title: "Save view", description: "Give this view a name. You'll be able to switch to it later.", action: "Save" },
+    copy: { title: "Save view", description: "Give this view a name. You'll be able to switch to it later.", action: "Save" },
+    rename: { title: "Rename view", description: "Choose a new name for this view.", action: "Rename" },
+}
+
 /**
- * "Save view" on the toolbar: names the current search, filters, sort and
- * columns as a view. This is where a person's first view is made.
+ * The desk's one "Views" button and its menu (M3 menu; Linear's and
+ * Notion's view switcher), at the trailing edge of the toolbar's first
+ * line. The button is outlined with 8dp corners at the filter chips'
+ * height and names the view the screen shows exactly, else "Views".
+ *
+ * The menu lists "Default view" (the list as it first opens: no search,
+ * filters or sort, 25 rows, the default columns) and each saved view, a
+ * check on the one shown and a star on the default; then what can be done
+ * now: "Save view" once the list differs from how it first opens and no
+ * view is chosen, "Save changes" once the view last chosen has been
+ * changed, and for the view in hand (the one shown, else the one last
+ * chosen) save as new, rename, set or remove the default, and delete,
+ * which asks nothing and whose snackbar undoes it. Drawn only where the
+ * views can be read.
  */
-export function SaveViewButton({ onSaveAs }: { onSaveAs: (name: string) => Promise<void> | void }) {
-    const [open, setOpen] = React.useState(false)
+export function ViewsMenu({
+    views,
+    customised,
+    onChooseDefault,
+}: {
+    views: ListViewsApi
+    /** The screen differs from how the list first opens (query, size or columns): worth saving. */
+    customised: boolean
+    /** "Default view": the page resets the list (URL and columns) and forgets the view last chosen. */
+    onChooseDefault: () => void
+}) {
+    // The dialog's content outlives its opening, so its title does not change while it closes.
+    const [dialog, setDialog] = React.useState<NameDialog>({ kind: "save", id: null })
+    const [dialogOpen, setDialogOpen] = React.useState(false)
     const [name, setName] = React.useState("")
+
+    if (!views.available) return null
+
+    const { marked, target, dirty } = views
+    const plainShown = !marked && !customised
+    const openDialog = (kind: NameDialog["kind"], initialName: string, id: string | null = null) => {
+        setDialog({ kind, id })
+        setName(initialName)
+        setDialogOpen(true)
+    }
+    const submit = async () => {
+        const trimmed = name.trim()
+        if (!trimmed) return
+        if (dialog.kind === "rename") {
+            if (!dialog.id) return
+            await views.renameView(dialog.id, trimmed)
+        } else {
+            await views.saveAs(trimmed)
+        }
+        setDialogOpen(false)
+    }
+    const text = DIALOG_TEXT[dialog.kind]
+    const canSave = customised && !target
+
     return (
         <>
-            <ToolbarIconButton label="Save this view" onClick={() => { setName(""); setOpen(true) }}>
-                <Save className="h-5 w-5" />
-            </ToolbarIconButton>
+            <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        className="h-9 gap-1.5 border-border bg-card px-3 shadow-none hover:bg-muted data-[state=open]:bg-muted"
+                    >
+                        {marked && <span className="sr-only">Saved view: </span>}
+                        <span className="max-w-48 truncate">{marked?.name ?? "Views"}</span>
+                        <ChevronDown className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                    </Button>
+                </DropdownMenuTrigger>
+                {/* M3 menu: never past the window (16px clear of it) and at most 32rem
+                    tall; the whole menu scrolls when the views outgrow it. */}
+                <DropdownMenuContent
+                    align="end"
+                    collisionPadding={16}
+                    className="w-64 max-h-[min(var(--radix-dropdown-menu-content-available-height),32rem)]"
+                >
+                    <DropdownMenuGroup aria-label="Views">
+                        <ViewItem label="Default view" checked={plainShown} onSelect={onChooseDefault} />
+                        {views.views.map((v) => (
+                            <ViewItem
+                                key={v.id}
+                                label={v.name}
+                                checked={marked?.id === v.id}
+                                isDefault={v.is_default}
+                                onSelect={() => views.selectView(v.id)}
+                            />
+                        ))}
+                    </DropdownMenuGroup>
+
+                    {(canSave || target) && <DropdownMenuSeparator />}
+                    {canSave && (
+                        <DropdownMenuItem onSelect={() => openDialog("save", "")}>
+                            <Save /> Save view
+                        </DropdownMenuItem>
+                    )}
+                    {target && (
+                        <>
+                            {/* The view in hand is not the one shown: say which view these act on. */}
+                            {!marked && (
+                                <DropdownMenuLabel className="truncate text-xs font-normal text-muted-foreground">
+                                    Changed from “{target.name}”
+                                </DropdownMenuLabel>
+                            )}
+                            {dirty && (
+                                <DropdownMenuItem onSelect={() => void views.saveCurrent()}>
+                                    <Save /> Save changes
+                                </DropdownMenuItem>
+                            )}
+                            <DropdownMenuItem onSelect={() => openDialog("copy", `${target.name} (copy)`)}>
+                                <Save /> Save as new view
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onSelect={() => openDialog("rename", target.name, target.id)}>
+                                <Pencil /> Rename
+                            </DropdownMenuItem>
+                            {target.is_default ? (
+                                <DropdownMenuItem onSelect={() => void views.unsetDefault(target.id)}>
+                                    <StarOff /> Remove default
+                                </DropdownMenuItem>
+                            ) : (
+                                <DropdownMenuItem onSelect={() => void views.makeDefault(target.id)}>
+                                    <Star /> Set as default
+                                </DropdownMenuItem>
+                            )}
+                            <DropdownMenuItem variant="destructive" onSelect={() => void views.deleteView(target.id)}>
+                                <Trash2 /> Delete
+                            </DropdownMenuItem>
+                        </>
+                    )}
+                </DropdownMenuContent>
+            </DropdownMenu>
+
             <SaveAsDialog
-                open={open}
-                onOpenChange={setOpen}
+                open={dialogOpen}
+                onOpenChange={setDialogOpen}
                 value={name}
                 onChange={setName}
-                onSubmit={async () => {
-                    const trimmed = name.trim()
-                    if (!trimmed) return
-                    await onSaveAs(trimmed)
-                    setOpen(false)
-                }}
-                title="Save view"
-                description="Give this view a name. You'll be able to switch to it later."
-                action="Save"
+                onSubmit={submit}
+                title={text.title}
+                description={text.description}
+                action={text.action}
             />
         </>
+    )
+}
+
+/** One choosable view: a leading check when it is the one shown, a star when it is the default. */
+function ViewItem({
+    label,
+    checked,
+    isDefault = false,
+    onSelect,
+}: {
+    label: string
+    checked: boolean
+    isDefault?: boolean
+    onSelect: () => void
+}) {
+    return (
+        <DropdownMenuItem role="menuitemradio" aria-checked={checked} onSelect={onSelect} className="pl-8">
+            <span className="pointer-events-none absolute left-2 flex size-4 items-center justify-center">
+                {checked && <Check className="size-4 text-primary" aria-hidden="true" />}
+            </span>
+            <span className={cn("min-w-0 flex-1 truncate", checked && "font-medium")}>{label}</span>
+            {isDefault && (
+                <>
+                    <Star className="size-3.5 text-muted-foreground" aria-hidden="true" />
+                    <span className="sr-only"> (default)</span>
+                </>
+            )}
+        </DropdownMenuItem>
     )
 }
 

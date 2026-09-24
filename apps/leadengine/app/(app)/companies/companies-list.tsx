@@ -45,7 +45,7 @@ import { BulkActionBar } from "@/components/shared/bulk-action-bar"
 import type { FilterDefinition, FilterValue } from "@/components/shared/filter-builder-types"
 import { HeaderOverflowMenu, ListPageHeader } from "@/components/shared/list-page-header"
 import { listIntroKey } from "@/lib/hints/hint-key"
-import { SavedViewsBar, SaveViewButton } from "@/components/shared/saved-views-bar"
+import { SavedViewsBar, ViewsMenu } from "@/components/shared/saved-views-bar"
 import { TableSkeleton } from "@/components/shared/table-skeleton"
 import { ListToolbar } from "@/components/shared/list-toolbar"
 import { ColumnsMenu } from "@/components/shared/columns-menu"
@@ -61,8 +61,11 @@ import { useRowLink } from "@/hooks/use-row-link"
 import { COMPANY_LIST, type CompanyListRow } from "@/lib/lists/company-list"
 import { urlSpecOf } from "@/lib/lists/list-plan"
 import {
+    EMPTY_LIST_STATE,
     clearedState,
+    columnsKey,
     countActive,
+    isPlainState,
     lastPage,
     stateFromViewConfig,
     viewConfigKey,
@@ -250,7 +253,7 @@ export function CompaniesList({ fresh, introSeen }: { fresh: boolean; /** Whethe
         applySnapshot,
         storageKey: "companies_active_view_id",
         canonical,
-        applyDefaultOnLoad: fresh && countActive(state) === 0 && state.sort === null,
+        applyDefaultOnLoad: fresh && isPlainState(state),
     })
 
     /* ── Selection ── */
@@ -282,6 +285,14 @@ export function CompaniesList({ fresh, introSeen }: { fresh: boolean; /** Whethe
         } catch {
             // Nothing stored to forget.
         }
+    }
+
+    // The Views menu's "Default view": the list as it first opens (no search,
+    // filters or sort, 25 rows, the default columns), no saved view chosen.
+    const showDefaultView = () => {
+        listViews.clearView()
+        update(EMPTY_LIST_STATE)
+        resetColumns()
     }
 
     /* ── Writes ── */
@@ -397,8 +408,8 @@ export function CompaniesList({ fresh, introSeen }: { fresh: boolean; /** Whethe
     )
 
     const filtered = countActive(state) > 0
-    // Worth saving as a view once the list is no longer the default one.
-    const customised = filtered || state.sort !== null
+    // Worth saving as a view once the list differs from how it first opens.
+    const customised = !isPlainState(state) || columnsKey(columns) !== columnsKey(DEFAULT_COLUMNS)
     const exportCount = list.loaded && list.total > 0 ? ` (${fmt(list.total)})` : ""
     const addButton = (className?: string) => (
         <PermissionGate resource="companies" action="create">
@@ -456,7 +467,10 @@ export function CompaniesList({ fresh, introSeen }: { fresh: boolean; /** Whethe
                 } />
             </div>
 
-            <div className="shrink-0 px-4 sm:px-6 lg:px-8 empty:hidden">
+            {/* Phone: the saved views as chips above the search. On a desk they are
+                chosen from the Views menu in the toolbar, so the table never moves
+                down when a view is saved. */}
+            <div className="shrink-0 px-4 sm:px-6 empty:hidden md:hidden">
                 <SavedViewsBar views={listViews.views.map((v) => ({ id: v.id, name: v.name, is_default: v.is_default }))} activeViewId={listViews.activeViewId} onSelectView={listViews.selectView} isDirty={listViews.isDirty} onSaveCurrent={listViews.saveCurrent} onSaveAs={listViews.saveAs} onRename={listViews.renameView} onDelete={listViews.deleteView} onMakeDefault={listViews.makeDefault} className="mb-2" />
             </div>
 
@@ -466,7 +480,7 @@ export function CompaniesList({ fresh, introSeen }: { fresh: boolean; /** Whethe
                     filters={{ definitions: filterDefinitions, value: state.filters, onChange: setFilters, onClearAll: clearAll }}
                     actions={
                         <>
-                            {customised && <SaveViewButton onSaveAs={listViews.saveAs} />}
+                            <ViewsMenu views={listViews} customised={customised} onChooseDefault={showDefaultView} />
                             <ColumnsMenu columns={columns} onChange={setColumns} onReset={resetColumns} storageKey={COLUMNS_KEY} />
                         </>
                     }
@@ -558,7 +572,7 @@ export function CompaniesList({ fresh, introSeen }: { fresh: boolean; /** Whethe
             </div>
 
             {list.loaded && (
-                <ListFooter total={list.total} page={state.page} size={state.size} onPageChange={setPage} onSizeChange={setSize} noun="companies" pending={list.pending} />
+                <ListFooter total={list.total} page={state.page} size={state.size} onPageChange={setPage} onSizeChange={setSize} noun="companies" pending={list.pending} narrowed={filtered} unfiltered={list.unfiltered} />
             )}
 
             <BulkActionBar count={selectedIds.size} onClear={clearSelection}>

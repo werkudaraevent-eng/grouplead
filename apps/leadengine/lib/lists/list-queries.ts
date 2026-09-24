@@ -11,7 +11,7 @@ import {
     type Lookup,
     type OrderPlan,
 } from "./list-plan"
-import type { ListState } from "./list-state"
+import { EMPTY_LIST_STATE, countActive, type ListState } from "./list-state"
 import { combineTerms } from "./postgrest-filters"
 
 /**
@@ -25,6 +25,12 @@ import { combineTerms } from "./postgrest-filters"
 export interface ListPageResult<Row> {
     rows: Row[]
     total: number
+    /**
+     * The rows the list holds before its search and filters narrow it (the
+     * same unit, the same row security), for the footer's "170 of 1,196";
+     * null while nothing narrows the list, when `total` already is that.
+     */
+    unfiltered: number | null
     source: ListMode
 }
 
@@ -136,12 +142,34 @@ function openList<Row>(supabase: Client, spec: ListSpec<Row>, state: ListState, 
     return { read, source: () => source }
 }
 
-/** One page of a list, with the number of rows that match across every page. */
+/**
+ * How many rows the list holds before its search and filters: the plain
+ * list's own count, through the same reader (view or table). A failure is
+ * not the page's: the footer then gives the matches alone.
+ */
+async function countUnfiltered<Row>(supabase: Client, spec: ListSpec<Row>, scopeCompanyId: string | null): Promise<number | null> {
+    try {
+        const { rows, total } = await openList(supabase, spec, EMPTY_LIST_STATE, scopeCompanyId).read(0, 0, true)
+        return total ?? rows.length
+    } catch (error) {
+        console.warn(`[lists] ${spec.table}: the unfiltered count failed`, error)
+        return null
+    }
+}
+
+/**
+ * One page of a list, with the number of rows that match across every
+ * page and, while a search or filter narrows it, the number before them
+ * (asked beside the page, not after it).
+ */
 export async function runListPage<Row>(supabase: Client, spec: ListSpec<Row>, state: ListState, scopeCompanyId: string | null): Promise<ListPageResult<Row>> {
     const list = openList(supabase, spec, state, scopeCompanyId)
     const { from, to } = rangeOf(state.page, state.size)
-    const { rows, total } = await list.read(from, to, true)
-    return { rows, total: total ?? rows.length, source: list.source() }
+    const [{ rows, total }, unfiltered] = await Promise.all([
+        list.read(from, to, true),
+        countActive(state) > 0 ? countUnfiltered(supabase, spec, scopeCompanyId) : Promise.resolve(null),
+    ])
+    return { rows, total: total ?? rows.length, unfiltered, source: list.source() }
 }
 
 /** Every row that matches, in the list's order, up to `cap`; `total` is the full match count. */

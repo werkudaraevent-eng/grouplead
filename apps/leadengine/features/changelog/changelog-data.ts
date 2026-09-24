@@ -84,6 +84,9 @@ export const CHANGELOG: ChangelogEntry[] = [
             { type: "improvement", text: "Change history shows how many events match your filters at the bottom of the list, even when they fit on one page." },
             { type: "fix", text: "The top of the side menu is now exactly as tall as the page's title row, so the logo, the title and the buttons at the top sit on one line." },
             { type: "fix", text: "The ✕ that closes a page's description now sits right after its last word, even when the sentence runs onto a second line, instead of far off to the right." },
+            { type: "improvement", text: "On Contacts and Companies, saved views now live in one Views button at the right of the search and filters, beside the Columns button. It shows the name of the view you are looking at; open it to switch to another view or back to the Default view (the list as it first opens), or to save, rename, set as default or delete a view. The row of view buttons above the search is gone on a computer, so the table no longer moves down when you save a view. On a phone, saved views stay above the search." },
+            { type: "improvement", text: "Deleting a view from the Views button no longer asks you to confirm: the message that follows has an Undo button that brings the view back. A view can now also stop being your default (Remove default)." },
+            { type: "improvement", text: "While a search or filter is on, the bottom left of the Contacts and Companies tables says how many of the list match (\"170 of 1,196 contacts\"). Without a filter it stays empty: the bottom right already says how many there are." },
         ],
     },
     {
