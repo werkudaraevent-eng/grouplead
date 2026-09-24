@@ -19,3 +19,22 @@ export async function listSeenHints(userId: string): Promise<string[]> {
     return []
   }
 }
+
+/**
+ * Whether the signed-in person has left the seen mark `key` (a list's
+ * dismissed description). Read on the server so the page's first render is
+ * already right; any failure means "not seen", which at worst shows one
+ * sentence again.
+ */
+export async function hasSeenHint(key: string): Promise<boolean> {
+  try {
+    const supabase = await createClient()
+    const { data } = await supabase.auth.getUser()
+    const userId = data?.user?.id
+    if (!userId) return false
+    const { data: row, error } = await supabase.from("user_hints").select("key").eq("user_id", userId).eq("key", key).maybeSingle()
+    return !error && Boolean(row)
+  } catch {
+    return false
+  }
+}

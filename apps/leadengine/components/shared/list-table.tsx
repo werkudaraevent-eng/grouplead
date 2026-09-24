@@ -22,6 +22,17 @@ import { cn } from "@/lib/utils"
 export const SELECT_COL = 44
 export const MENU_COL = 56
 
+/** The leading frozen edge: a hairline and a soft shadow over what scrolls under it. */
+const LEADING_EDGE = "shadow-[inset_-1px_0_0_var(--border),4px_0_8px_-6px_rgba(0,0,0,0.18)]"
+
+/**
+ * The trailing row-menu column, header and body cells: sticky at the right
+ * with the mirror of the leading edge (hairline and shadow on its left), so
+ * a column sliding under it reads as passing beneath rather than as a word
+ * cut off. The backgrounds come from the primitives, as for `frozenCell`.
+ */
+export const MENU_CELL = "sticky right-0 z-10 shadow-[inset_1px_0_0_var(--border),-4px_0_8px_-6px_rgba(0,0,0,0.18)]"
+
 export interface FrozenColumn {
   id: string
   width: number
@@ -39,7 +50,7 @@ export function frozenCell(index: number, columns: FrozenColumn[]): { className:
   const isLastSticky = index === Math.min(1, columns.length - 1)
   const left = index === 0 ? SELECT_COL : SELECT_COL + (columns[0]?.width ?? 0)
   return {
-    className: cn(isSticky && "sticky z-10", isSticky && isLastSticky && "shadow-[inset_-1px_0_0_var(--border),4px_0_8px_-6px_rgba(0,0,0,0.18)]"),
+    className: cn(isSticky && "sticky z-10", isSticky && isLastSticky && LEADING_EDGE),
     style: isSticky
       ? { left, minWidth: column.width, maxWidth: column.width, width: column.width }
       : { minWidth: column.width, maxWidth: column.width, width: column.width },

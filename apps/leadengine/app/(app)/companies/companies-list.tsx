@@ -44,6 +44,7 @@ import { PermissionMenuItem } from "@/components/shared/permission-menu-item"
 import { BulkActionBar } from "@/components/shared/bulk-action-bar"
 import type { FilterDefinition, FilterValue } from "@/components/shared/filter-builder-types"
 import { HeaderOverflowMenu, ListPageHeader } from "@/components/shared/list-page-header"
+import { listIntroKey } from "@/lib/hints/hint-key"
 import { SavedViewsBar, SaveViewButton } from "@/components/shared/saved-views-bar"
 import { TableSkeleton } from "@/components/shared/table-skeleton"
 import { ListToolbar } from "@/components/shared/list-toolbar"
@@ -51,7 +52,7 @@ import { ColumnsMenu } from "@/components/shared/columns-menu"
 import { ListFooter } from "@/components/shared/list-footer"
 import { InitialsAvatar } from "@/components/shared/initials-avatar"
 import { NeedsDetailsMark } from "@/components/shared/status-badge"
-import { ListCardSkeleton, ListEmpty, MENU_COL, RowMenu, SELECT_COL, SortableHead, frozenCell, nextSort } from "@/components/shared/list-table"
+import { ListCardSkeleton, ListEmpty, MENU_CELL, MENU_COL, RowMenu, SELECT_COL, SortableHead, frozenCell, nextSort } from "@/components/shared/list-table"
 import { useCompany } from "@/contexts/company-context"
 import { useListOptions, useListPage } from "@/hooks/use-list-page"
 import { useListUrl } from "@/hooks/use-list-url"
@@ -137,7 +138,7 @@ interface CompaniesViewConfig {
     searchQuery: string
 }
 
-export function CompaniesList({ fresh }: { fresh: boolean }) {
+export function CompaniesList({ fresh, introSeen }: { fresh: boolean; /** Whether this person has dismissed the list's description. */ introSeen: boolean }) {
     const rowLink = useRowLink()
     const supabase = React.useMemo(() => createClient(), [])
     const { activeCompany } = useCompany()
@@ -421,8 +422,9 @@ export function CompaniesList({ fresh }: { fresh: boolean }) {
         // Opts out of the shell's 900px floor: built for a phone's own width
         // (cards below md, the table scrolls inside its own box above it).
         <div data-fluid-page className="flex w-full flex-col bg-background md:h-full md:overflow-hidden">
-            <div className="shrink-0 px-4 sm:px-6 lg:px-8 pt-6 pb-4">
-                <ListPageHeader title="Companies" subtitle="Manage client organisations, accounts, and company-level context." actions={
+            {/* One compact row; the description under it only until dismissed. */}
+            <div className="shrink-0 px-4 pb-2 sm:px-6 md:pb-0 md:has-[p]:pb-3 lg:px-8">
+                <ListPageHeader title="Companies" subtitle="Manage client organisations, accounts, and company-level context." intro={{ key: listIntroKey("companies"), seen: introSeen }} actions={
                     <>
                         {/* Secondary actions beside the primary one, as in Sales Activity. */}
                         <div className="hidden items-center gap-2 md:flex">
@@ -485,7 +487,7 @@ export function CompaniesList({ fresh }: { fresh: boolean }) {
                                     const activeSort = state.sort?.key === col.id
                                     return <SortableHead key={col.id} label={col.label} active={activeSort} direction={activeSort ? state.sort?.direction : undefined} onSort={() => handleSort(col.id)} className={frozen.className} style={frozen.style} />
                                 })}
-                                <TableHead className="sticky right-0 z-10" style={{ width: MENU_COL, minWidth: MENU_COL, maxWidth: MENU_COL }}>
+                                <TableHead className={MENU_CELL} style={{ width: MENU_COL, minWidth: MENU_COL, maxWidth: MENU_COL }}>
                                     <span className="sr-only">Actions</span>
                                 </TableHead>
                             </TableRow>
@@ -513,7 +515,7 @@ export function CompaniesList({ fresh }: { fresh: boolean }) {
                                                     </TableCell>
                                                 )
                                             })}
-                                            <TableCell className="sticky right-0 z-10 px-2 text-right" onClick={(e) => e.stopPropagation()}>
+                                            <TableCell className={cn(MENU_CELL, "px-2 text-right")} onClick={(e) => e.stopPropagation()}>
                                                 <RowMenu label={`Actions for ${company.name}`}>{rowMenuItems(company)}</RowMenu>
                                             </TableCell>
                                         </TableRow>

@@ -98,6 +98,8 @@ const PARTS: Part[] = [
     lead: "Aktivitas, Prospek, dan Laporan mengingat cara kamu melihatnya: pencarian, filter, urutan, jumlah baris, dan kolom.",
     points: [
       "Semua yang menyaring daftar tersimpan di alamatnya. Buka daftar lagi dan ia kembali seperti terakhir kamu tinggalkan; kirim tautannya dan rekanmu melihat daftar yang sama.",
+      "Di Aktivitas, saringan harian ada di baris filter itu sendiri: Saya menyaring aktivitasmu dengan satu ketukan (ketuk lagi untuk mematikannya), Tanggal memilih Hari ini, Minggu ini, Mendatang, atau rentang tanggal, dan bila unitmu meminta jawaban penugasan, Butuh jawaban dan Menunggu tim menyaring yang menunggu jawabanmu atau jawaban tim, lengkap dengan jumlahnya. Untuk melihat semua lagi, tekan Bersihkan semua. Di HP keempatnya ada di satu baris di bawah kolom cari.",
+      "Kalimat penjelasan di bawah judul daftar bisa ditutup dengan ✕. Setelah ditutup, kalimat itu tidak muncul lagi di daftar tersebut, di perangkat mana pun.",
       "Simpan tampilan (di komputer): setelah mengatur daftar, klik ikon Simpan tampilan di ujung kanan baris filter dan beri nama. Tampilan tersimpan muncul sebagai chip di atas daftar; yang sedang tampil diberi centang, dan satu klik membukanya lagi. Tampilanmu hanya terlihat olehmu.",
       "Ubah daftar setelah memilih sebuah tampilan, lalu klik Simpan perubahan untuk memperbaruinya. ⋮ di samping chip menyimpan salinan, mengubah nama, menjadikan tampilan itu bawaan, atau menghapusnya (Batalkan di notifikasi mengembalikannya). Tampilan bawaan hanya dipakai saat daftar pertama kali dibuka di sebuah browser; tautan dan daftar yang diingat selalu didahulukan.",
       "Kolom: tombol Kolom memilih kolom yang tampil dan urutannya (centang, seret, atau Susunan awal); nama perusahaan selalu tampil. Setiap sel satu baris, dan teks yang terpotong tampil utuh saat kursor diarahkan ke atasnya. Di komputer tabel memenuhi layar dan bergulir di dalam kartunya: judul kolom tetap di atas, tombol halaman tetap di bawah. Tabel yang lebih lebar dari layar digeser ke samping dengan penggeser di dasar kartu, sementara nama dan tombol Aksi tetap di tempat.",
@@ -202,7 +204,7 @@ export default async function GuidePage() {
             </li>
             <li className="flex items-start gap-3 text-sm leading-relaxed text-foreground">
               <span className="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full bg-muted text-xs font-bold text-muted-foreground">2</span>
-              <span>Di daftar Aktivitas, chip <strong>Hari ini</strong>, <strong>Minggu ini</strong>, dan <strong>Saya</strong> menyaring satu ketukan, dan pilihan terakhir diingat sampai Anda mengubahnya.</span>
+              <span>Di daftar Aktivitas, <strong>Saya</strong> dan <strong>Tanggal</strong> (Hari ini, Minggu ini, Mendatang) ada tepat di bawah kolom cari, dan pilihan terakhir diingat sampai Anda mengubahnya.</span>
             </li>
           </ul>
           <div className="flex flex-wrap gap-x-5 gap-y-1 border-t bg-muted/30 px-5 py-3 sm:px-6">

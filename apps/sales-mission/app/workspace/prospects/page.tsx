@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation"
+import { listIntroKey } from "@/lib/hints/hint-key"
 import { canPerform, getReadScope, getSalesMissionAccess, resolveScope } from "@/lib/sales-mission-access"
 import { describeReadScope } from "@/lib/access/record-scope"
 import { canAssignOthers, canAssignTo, toProspectViewer } from "@/lib/prospects/prospect-access"
@@ -67,11 +68,12 @@ export default async function ProspectsPage({
   return (
     <WorkspacePage
       fill
-      eyebrow="Sales Activity / Prospek"
+      introKey={listIntroKey("prospects")}
       title="Prospek"
       description={[describeReadScope(await getReadScope(access, "sales_mission_prospect"), "prospek"), "Calon klien yang belum jadi kunjungan. Catat setiap kontak; begitu janji temu disepakati, jadwalkan kunjungannya dari sini."].filter(Boolean).join(" ")}
       // The empty state teaches what this sentence says; on a phone the
       // list opens on its records, and Import waits in the overflow menu.
+      // On a desk it shows until the person closes it (`introKey`).
       phoneDescription={false}
       phoneAction={false}
       action={

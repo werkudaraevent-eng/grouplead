@@ -10,7 +10,9 @@ import { cn } from "@/lib/utils"
  * LeadEngine's `list-table.tsx` draws: the selection box and the record's
  * name are frozen at the leading edge, with one edge shadow on the name,
  * while the other columns scroll sideways inside the card; the row's own
- * action column, where a list has one, stays put at the trailing edge.
+ * action column, where a list has one, stays put at the trailing edge
+ * with the mirror of that edge (hairline and shadow on its left), so a
+ * column sliding under it reads as passing beneath, not as cut off.
  * Every row is 52dp and every cell one line, cut with an ellipsis and
  * carrying its full text in its title (M3 data table; Gmail, HubSpot,
  * Linear).
@@ -120,7 +122,7 @@ export function SelectBox({ children }: { children: ReactNode }) {
   )
 }
 
-/** The `data-*` props that let `.list-table` draw a frozen cell's edge. */
+/** The `data-*` props that let `.list-table` draw a frozen cell's edge: the leading name's on its right, the trailing action's on its left. */
 export function edgeProps(edge: boolean | undefined, trailing = false): Record<string, string> {
   if (trailing) return { "data-frozen-trailing": "" }
   return edge ? { "data-frozen-edge": "" } : {}

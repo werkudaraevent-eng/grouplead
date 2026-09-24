@@ -1,21 +1,13 @@
 import Link from "next/link"
-import { ArrowLeft, Check, ClipboardList, HelpCircle, Plus } from "@/components/icons"
+import { ArrowLeft, ClipboardList, HelpCircle, Plus } from "@/components/icons"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { JOIN_STATUS_LABELS, type JoinStatus } from "@/lib/missions/mission-join"
-import {
-  DATE_PRESET_LABELS,
-  availableMissionFilters,
-  type MissionFilter,
-} from "@/lib/missions/mission-filter"
-import type { ConfirmationPolicy } from "@/lib/missions/assignment-workflow"
 import { statusLabel } from "@/lib/missions/status-labels"
 import { paths } from "@/lib/paths"
 import { PageChrome } from "@/components/page-chrome"
 import { Fab, type FabHint } from "@/components/fab"
-import { ViewLink } from "@/components/remember-view"
-import { hasMe, isPlainView, plainView, QUICK_DATES, toggleDate, toggleLens, toggleMe, viewParams, type QuickView } from "@/lib/missions/quick-filters"
-import type { MissionSort } from "@/lib/missions/mission-paging"
+import { ListIntro } from "@/components/list-intro"
 
 /**
  * Shared page furniture, matching LeadEngine's list-page language: same
@@ -26,11 +18,19 @@ import type { MissionSort } from "@/lib/missions/mission-paging"
  * On a phone the title lives in the top app bar (announced through
  * PageChrome), the one primary action is an extended FAB, and the rest of
  * the header row wraps. From `lg` up the header is the page's own.
+ *
+ * A list page (`fill`) has the compact header of LeadEngine's lists too:
+ * one 56dp row, level with the drawer's header, holding the 20px title and
+ * the page's actions centred on it, no eyebrow above it (the drawer and the
+ * title already say where you are), and the description under it only
+ * until the person closes it (`introKey`). Every pixel above the table is
+ * a row of records fewer.
  */
 export function WorkspacePage({
   eyebrow,
   title,
   description,
+  introKey,
   phoneDescription = true,
   action,
   phoneAction = true,
@@ -41,6 +41,11 @@ export function WorkspacePage({
   eyebrow?: string
   title: string
   description?: string
+  /**
+   * The description only teaches: show it until the person closes it, and
+   * remember that on their account under this key (`list-intro-<list>`).
+   */
+  introKey?: string
   /**
    * Whether the description also shows on a phone. A sentence that only
    * teaches what a coach mark already teaches costs two lines on every
@@ -73,32 +78,54 @@ export function WorkspacePage({
   // Whether anything in the header reaches a phone; if not, the block is
   // desk-only rather than an empty band of padding above the list.
   const phoneHeader = Boolean((description && phoneDescription) || (action && phoneAction))
+  const actions = (action || primaryAction) && (
+    <div className={cn("flex shrink-0 flex-wrap items-center gap-2", !phoneAction && "max-lg:hidden")}>
+      {action}
+      {primaryAction && (
+        <Button asChild size="sm" className="hidden lg:inline-flex">
+          <Link href={primaryAction.href}>
+            <Plus className="h-4 w-4" /> {primaryAction.label}
+          </Link>
+        </Button>
+      )}
+    </div>
+  )
+  const text =
+    description &&
+    (introKey ? (
+      <ListIntro hintKey={introKey} className={cn(!phoneDescription && "max-lg:hidden")}>
+        {description}
+      </ListIntro>
+    ) : (
+      <p className={cn("text-sm text-muted-foreground lg:mt-1", !phoneDescription && "max-lg:hidden")}>{description}</p>
+    ))
   return (
     <div className="flex h-full w-full flex-col overflow-clip bg-background">
       <PageChrome title={title} />
-      {(eyebrow || description || action || primaryAction) && (
-        <div className={cn("shrink-0 px-4 pb-3 pt-3 sm:px-6 lg:px-8 lg:pb-4 lg:pt-6", !phoneHeader && "max-lg:hidden")}>
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-            <div className="min-w-0">
-              {eyebrow && <p className="mb-1 hidden text-[11px] font-bold uppercase tracking-widest text-muted-foreground lg:block">{eyebrow}</p>}
-              <h1 className="hidden text-xl font-semibold tracking-tight text-foreground lg:block">{title}</h1>
-              {description && <p className={cn("text-sm text-muted-foreground lg:mt-1", !phoneDescription && "max-lg:hidden")}>{description}</p>}
-            </div>
-            {(action || primaryAction) && (
-              <div className={cn("flex shrink-0 flex-wrap items-center gap-2", !phoneAction && "max-lg:hidden")}>
-                {action}
-                {primaryAction && (
-                  <Button asChild size="sm" className="hidden lg:inline-flex">
-                    <Link href={primaryAction.href}>
-                      <Plus className="h-4 w-4" /> {primaryAction.label}
-                    </Link>
-                  </Button>
-                )}
+      {fill
+        ? (description || action || primaryAction) && (
+            // A list: one row, the title and the actions centred on it; the
+            // description, while it is still wanted, under the row.
+            <div className={cn("shrink-0 px-4 pb-3 pt-3 sm:px-6 lg:px-8 lg:pb-0 lg:pt-0 lg:has-[p]:pb-3", !phoneHeader && "max-lg:hidden")}>
+              <div className="flex flex-col gap-3 lg:min-h-14 lg:flex-row lg:items-center lg:justify-between">
+                <h1 className="hidden min-w-0 truncate text-xl font-semibold tracking-tight text-foreground lg:block">{title}</h1>
+                {actions}
               </div>
-            )}
-          </div>
-        </div>
-      )}
+              {text}
+            </div>
+          )
+        : (eyebrow || description || action || primaryAction) && (
+            <div className={cn("shrink-0 px-4 pb-3 pt-3 sm:px-6 lg:px-8 lg:pb-4 lg:pt-6", !phoneHeader && "max-lg:hidden")}>
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+                <div className="min-w-0">
+                  {eyebrow && <p className="mb-1 hidden text-[11px] font-bold uppercase tracking-widest text-muted-foreground lg:block">{eyebrow}</p>}
+                  <h1 className="hidden text-xl font-semibold tracking-tight text-foreground lg:block">{title}</h1>
+                  {text}
+                </div>
+                {actions}
+              </div>
+            </div>
+          )}
       <div
         id="page-scroll"
         className={cn(
@@ -230,80 +257,6 @@ export function JoinStatusLine({ status }: { status: JoinStatus }) {
     >
       {JOIN_STATUS_LABELS[status]}
     </span>
-  )
-}
-
-/** Short forms of the answer lenses, for a chip beside "Hari ini". */
-const QUICK_LENS_LABELS: Record<Exclude<MissionFilter, "all">, string> = {
-  mine: "Butuh jawaban",
-  team: "Menunggu tim",
-}
-
-/**
- * The chips above the activity list (M3 filter chips): the narrowings a
- * person reaches for every day, one tap each, outside the Filter sheet.
- * Every chip keeps the rest of the query, and every tap is remembered as
- * the list's view (`ViewLink`). One row that scrolls sideways on a phone
- * and wraps from `sm` up.
- */
-export function QuickFilterChips({
-  view,
-  counts,
-  policy,
-  defaultSort,
-}: {
-  view: QuickView
-  counts: Record<MissionFilter, number>
-  policy: ConfirmationPolicy
-  defaultSort: MissionSort
-}) {
-  const lenses = availableMissionFilters(policy).filter((lens): lens is Exclude<MissionFilter, "all"> => lens !== "all")
-  const href = (next: QuickView) => paths.activities(viewParams(next, defaultSort))
-  const chips: { key: string; label: string; active: boolean; href: string; count?: number }[] = [
-    // Whose first, then when: "Saya" sits beside "Semua", and on a phone it is
-    // the chip a rep reaches for most, so it must not be the one past the edge.
-    { key: "all", label: "Semua", active: isPlainView(view), href: href(plainView(view)) },
-    { key: "me", label: "Saya", active: hasMe(view.query), href: href(toggleMe(view)) },
-    ...QUICK_DATES.map((preset) => ({ key: preset, label: DATE_PRESET_LABELS[preset], active: view.query.date === preset, href: href(toggleDate(view, preset)) })),
-    ...lenses.map((lens) => ({ key: lens, label: QUICK_LENS_LABELS[lens], active: view.lens === lens, href: href(toggleLens(view, lens)), count: counts[lens] })),
-  ]
-
-  return (
-    <nav
-      aria-label="Saringan cepat"
-      className="chip-scroll -mx-4 flex gap-2 overflow-x-auto px-4 py-1 sm:mx-0 sm:flex-wrap sm:px-0 md:mb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-    >
-      {chips.map((chip) => (
-        <ViewLink
-          key={chip.key}
-          list="activities"
-          href={chip.href}
-          aria-pressed={chip.active}
-          className={cn(
-            // M3 filter chip: 32dp, 8dp corners, tonal with a leading check
-            // when selected. The 48dp tap target on a phone comes from the
-            // pseudo-element.
-            "relative inline-flex h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg border px-3 text-sm transition-colors after:absolute after:inset-x-0 after:-inset-y-2 after:content-['']",
-            chip.active
-              ? "border-transparent bg-[var(--tonal)] font-medium text-[var(--tonal-foreground)]"
-              : "border-input bg-transparent text-foreground hover:bg-muted"
-          )}
-        >
-          {chip.active && <Check className="h-4 w-4" aria-hidden="true" />}
-          {chip.label}
-          {chip.count !== undefined && (
-            <span
-              className={cn(
-                "rounded-md px-1.5 py-0.5 text-[11px] font-semibold tabular-nums",
-                chip.active ? "bg-[var(--tonal-foreground)]/10" : "bg-muted text-muted-foreground"
-              )}
-            >
-              {chip.count}
-            </span>
-          )}
-        </ViewLink>
-      ))}
-    </nav>
   )
 }
 

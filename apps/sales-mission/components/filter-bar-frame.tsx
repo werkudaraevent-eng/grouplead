@@ -24,10 +24,14 @@ import { useListView } from "@/components/list-view/list-view-provider"
  * active ones are repeated as a sideways-scrolling chip row, because there
  * the facets themselves are out of sight.
  *
- * The quick-filter chips (`quick`) sit above the bar on a desk and under
- * the search on a phone: search is the first control of every list a
- * person carries in a pocket (Gmail, Google Maps, Linear), and the chips
- * narrow what it found.
+ * The list's everyday narrowings (`quick`: toggle chips such as "Saya",
+ * and a facet promoted beside them such as Tanggal) are part of the bar on
+ * a desk, right after the everyday facets, never a row of their own above
+ * it: a row of chips that were values of the bar's own facets showed one
+ * state twice ("Hari ini" and "Tanggal: Hari ini"). On a phone they stay
+ * one tap away, in a sideways-scrolling row under the search, outside the
+ * sheet: search is the first control of every list a person carries in a
+ * pocket (Gmail, Google Maps, Linear), and these narrow what it found.
  *
  * Inside a `ListViewProvider` the frame also carries the list's view: the
  * saved views as a chip row above everything on a desk (only once one
@@ -49,7 +53,11 @@ export function FilterBarFrame({
 }: {
   activeCount: number
   search: React.ReactNode
-  /** The list's one-tap narrowings, when it has them. */
+  /**
+   * The list's everyday one-tap narrowings, when it has them: in the bar
+   * after `facets` on a desk, in a row under the search on a phone (and so
+   * not in the sheet).
+   */
   quick?: React.ReactNode
   /** The facets always in view on a desk. */
   facets: React.ReactNode
@@ -57,7 +65,10 @@ export function FilterBarFrame({
   more?: FacetSpec[]
   onClearAll: () => void
   summary: React.ReactNode
-  /** The active-filter chips (already including "Bersihkan semua"), or null when none; shown on a phone. */
+  /**
+   * The active-filter chips (already including "Bersihkan semua"), or null
+   * when none; shown on a phone. What `quick` already shows is left out.
+   */
   chips: React.ReactNode
 }) {
   const compact = useCompact()
@@ -72,11 +83,11 @@ export function FilterBarFrame({
     return (
       <>
       <SavedViewsBar />
-      {quick}
       <div className="mb-4 flex items-start gap-3">
         <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
           {search}
           {facets}
+          {quick}
           {shown.map((spec) => (
             <span key={spec.key} className="contents">
               {spec.render({
@@ -122,7 +133,11 @@ export function FilterBarFrame({
           {activeCount > 0 && <span className="rounded-full bg-primary px-1.5 text-[11px] font-bold tabular-nums text-primary-foreground">{activeCount}</span>}
         </Button>
       </div>
-      {quick}
+      {quick && (
+        <div className="chip-scroll -mx-4 flex items-center overflow-x-auto px-4 py-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <div className="flex shrink-0 items-center gap-2">{quick}</div>
+        </div>
+      )}
       {chips && (
         <div className="chip-scroll -mx-4 flex items-center gap-1.5 overflow-x-auto px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           <div className="flex shrink-0 items-center gap-1.5">{chips}</div>

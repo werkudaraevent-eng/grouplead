@@ -377,16 +377,19 @@
 }
 
 /* List tables (Aktivitas, Prospek, Laporan; components/list-table.tsx).
-   The last frozen leading column carries the one edge: a hairline and a
-   soft shadow over what scrolls under it (LeadEngine's frozenCell). The
-   frozen trailing action column gets the hairline only. A row that needs
-   the reader keeps its 4px warning edge, drawn on the first cell because a
-   row's own shadow is painted under its cells' opaque backgrounds. */
+   Each frozen edge carries the same mark: a hairline and a soft shadow
+   over what scrolls under it (LeadEngine's frozenCell). The last frozen
+   leading column draws it on its right; the frozen trailing action column
+   draws its mirror on its left, so a column sliding under Aksi reads as
+   passing beneath it rather than as a word cut off ("Indu", "Mec"). A row
+   that needs the reader keeps its 4px warning edge, drawn on the first
+   cell because a row's own shadow is painted under its cells' opaque
+   backgrounds. */
 .list-table [data-frozen-edge] {
   box-shadow: inset -1px 0 0 var(--border), 4px 0 8px -6px rgb(0 0 0 / 0.18);
 }
 .list-table [data-frozen-trailing] {
-  box-shadow: inset 1px 0 0 var(--border);
+  box-shadow: inset 1px 0 0 var(--border), -4px 0 8px -6px rgb(0 0 0 / 0.18);
 }
 .list-table tr[data-attention] > td:first-child {
   box-shadow: inset 4px 0 0 0 var(--warning-foreground);

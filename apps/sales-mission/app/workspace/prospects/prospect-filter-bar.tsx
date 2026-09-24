@@ -3,10 +3,11 @@
 import { FilterChip } from "@/components/filter-chip"
 import { useEffect, useRef, useState, useTransition } from "react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
-import { CalendarClock, Check, Search } from "@/components/icons"
+import { CalendarClock, Search } from "@/components/icons"
 import { FilterBarFrame } from "@/components/filter-bar-frame"
 import { rememberView } from "@/components/remember-view"
 import { FacetSelect } from "@/components/facet-select"
+import { ToggleChip } from "@/components/toggle-chip"
 import { Input } from "@/components/ui/input"
 import { PersonAvatar } from "@/components/person-avatar"
 import { cn } from "@/lib/utils"
@@ -158,24 +159,7 @@ export function ProspectFilterBar({
           />
         )}
         {/* A toggle chip: pressed state, not a checklist, because it is one yes/no. */}
-        <button
-          type="button"
-          aria-pressed={query.due}
-          onClick={() => push({ ...query, due: !query.due })}
-          className={cn(
-            "inline-flex h-10 items-center gap-1.5 rounded-md border px-3 text-sm font-medium text-foreground transition-colors md:h-9",
-            query.due ? "border-primary/50 bg-primary/5" : "bg-card hover:bg-muted"
-          )}
-        >
-          {/* On: the same check and tint as a facet with a value (M3 filter chip). */}
-          {query.due ? <Check className="h-4 w-4 text-primary" aria-hidden="true" /> : <CalendarClock className="h-3.5 w-3.5" />}
-          Butuh follow-up
-          {dueCount > 0 && (
-            <span className={cn("grid h-5 min-w-5 place-items-center rounded-full px-1 text-[11px] font-bold", query.due ? "bg-primary text-primary-foreground" : "bg-[var(--warning-foreground)] text-white")}>
-              {dueCount}
-            </span>
-          )}
-        </button>
+        <ToggleChip label="Butuh follow-up" icon={CalendarClock} pressed={query.due} onToggle={() => push({ ...query, due: !query.due })} count={dueCount} countTone="warning" />
         </>
       }
       onClearAll={() => { setText(""); push(EMPTY_PROSPECT_QUERY) }}

@@ -3,18 +3,19 @@
 import type { ComponentProps } from "react"
 import Link from "next/link"
 import { ViewLink } from "@/components/remember-view"
-import { ClipboardList, Send } from "@/components/icons"
+import { CalendarClock, Check, ClipboardList, Send } from "@/components/icons"
 import { MissionPagination } from "@/app/workspace/activities/mission-pagination"
 import { SortHeader } from "@/components/sort-header"
 import { DEFAULT_REPORT_SORT, nextReportSort, reportSortParts, type ReportSort, type ReportSortColumn } from "@/lib/reporting/report-paging"
 import { REPORT_STATUS_LABELS } from "@/lib/reporting/report-filter"
 import type { ReportListItem } from "@/lib/reporting/report-list-queries"
-import { FOLLOW_UP_STATE_LABELS, followUpState } from "@/lib/missions/follow-ups"
+import { followUpChip, followUpLine, type FollowUpChipTone } from "@/lib/reporting/report-follow-up"
 import { formatVisitWindow } from "@/lib/missions/visit-time"
 import { MISSION_TIME_ZONE } from "@/lib/missions/mission-schema"
 import { formatNumber } from "@/lib/format/number"
 import { EmptyState } from "@/app/workspace/workspace-page"
 import { PersonAvatar } from "@/components/person-avatar"
+import { TeamFacepile } from "@/components/team-facepile"
 import { Button } from "@/components/ui/button"
 import { TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { CellBox, CellText, LIST_CELL, ListTableFrame, edgeProps, frozen } from "@/components/list-table"
@@ -28,7 +29,10 @@ import { useRowLink } from "@/components/row-link"
  * a table whose company column is frozen while the rest scroll sideways,
  * one line per cell), every row opening the mission's detail at its report
  * card, so there is no action column. Status is a dot and a label, never a
- * pill; the one filled thing on the page is "Ekspor" in the header.
+ * pill; the one filled thing on the page is "Ekspor" in the header. The
+ * phone card has the activity and prospect cards' anatomy: name and
+ * status, the visit, what came of it, then a divider and a foot with who
+ * (the sales utama) at the start and the follow-up at the end.
  */
 
 const STATUS_DOT: Record<string, string> = {
@@ -75,7 +79,6 @@ function StatusLabel({ report }: { report: ReportListItem }) {
 }
 
 const day = (iso: string | null) => (iso ? new Intl.DateTimeFormat("id-ID", { timeZone: MISSION_TIME_ZONE, day: "numeric", month: "short" }).format(new Date(iso)) : null)
-const dayOf = (date: string) => new Intl.DateTimeFormat("id-ID", { timeZone: MISSION_TIME_ZONE, weekday: "short", day: "numeric", month: "short" }).format(new Date(`${date}T00:00:00+07:00`))
 
 /** When the visit happened: the reported window, else the appointment. */
 function visitWhen(report: ReportListItem): string {
@@ -84,31 +87,39 @@ function visitWhen(report: ReportListItem): string {
   return "Belum dijadwalkan"
 }
 
-/** Where the next action stands: open or late with its day and owner, or how it ended. */
-function followUpLine(report: ReportListItem, today: string): { text: string; late: boolean } | null {
-  // A tracked follow-up speaks for itself.
-  if (report.followUp) {
-    const item = report.followUp
-    const state = followUpState(item, today)
-    const label = FOLLOW_UP_STATE_LABELS[state]
-    const text =
-      state === "done"
-        ? `${label}${item.outcomeLabel ? ` · ${item.outcomeLabel.toLowerCase()}` : ""}${item.closedAt ? ` · ${day(item.closedAt)}` : ""}`
-        : state === "cancelled"
-          ? label
-          : `${label}${item.dueDate ? ` · ${dayOf(item.dueDate)}` : ""}${item.ownerName ? ` · ${item.ownerName}` : ""}`
-    return { text: `${text}${item.count > 1 ? ` · ${item.count} langkah` : ""}`, late: state === "late" }
-  }
-  if (!report.followUpDate) return null
-  const late = report.followUpDate < today && report.status !== "DRAFT"
-  return { text: `${late ? "Lewat" : "Follow-up"} ${dayOf(report.followUpDate)}${report.nextActionOwnerName ? ` · ${report.nextActionOwnerName}` : ""}`, late }
+const CHIP_TONE: Record<FollowUpChipTone, string> = {
+  open: "bg-muted text-foreground",
+  late: "bg-[var(--warning)] text-[var(--warning-foreground)]",
+  closed: "bg-transparent px-0 text-muted-foreground",
 }
 
-/** The follow-up as the card's line. */
-function FollowUp({ report, today }: { report: ReportListItem; today: string }) {
-  const line = followUpLine(report, today)
-  if (!line) return null
-  return <span className={cn("block text-xs", line.late ? "font-medium text-[var(--warning-foreground)]" : "text-muted-foreground")}>{line.text}</span>
+/**
+ * The follow-up at the card's foot, as a chip: 8dp corners, tonal and with
+ * no outline, because it is a label and not a control (the whole card is
+ * the one link, and an outlined chip would read as the outlined button the
+ * other cards carry there). Late says "Lewat" in the warning tone; a closed
+ * one is quiet text.
+ */
+function FollowUpChip({ report, today }: { report: ReportListItem; today: string }) {
+  const chip = followUpChip(report, today)
+  if (!chip) return null
+  const Icon = chip.tone === "closed" ? Check : CalendarClock
+  return (
+    <span title={chip.title} className={cn("inline-flex h-7 min-w-0 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md px-2 text-xs font-medium", CHIP_TONE[chip.tone])}>
+      <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+      {chip.text}
+    </span>
+  )
+}
+
+/** "Jenis · Rab, 17 Sep · 17.05–18.10": the kind and the time of the visit, each said once. */
+const visitLine = (report: ReportListItem) => [report.missionType.trim(), visitWhen(report)].filter(Boolean).join(" · ")
+
+/** "Bertemu pengambil keputusan · Tinggi": what came of it, once each. */
+const resultLine = (report: ReportListItem) => {
+  const outcome = report.visitOutcomeLabel ?? "Hasil belum diisi"
+  const interest = report.interestLevelLabel && report.interestLevelLabel !== report.visitOutcomeLabel ? report.interestLevelLabel : null
+  return [outcome, interest].filter(Boolean).join(" · ")
 }
 
 const rupiah = (report: ReportListItem) => (report.opportunityExists ? (report.estimatedValue ? `Rp ${formatNumber(report.estimatedValue)}` : "Ada") : null)
@@ -239,22 +250,30 @@ export function ReportTable({
 
   return (
     <>
+      {/* Mobile gets cards with the activity and prospect cards' anatomy.
+          The whole card is the one link (there is nothing to press on it),
+          the foot included: who at the start, the follow-up at the end. */}
       <ul className="space-y-3 md:hidden">
         {reports.map((report) => (
-          <li key={report.reportId} className="rounded-xl border bg-card">
-            <Link href={href(report)} className="block p-4 transition-colors hover:bg-muted/50">
-              <div className="flex items-start justify-between gap-3">
-                <span className="min-w-0">
-                  <span className="block truncate font-semibold text-foreground">{report.clientCompanyName}</span>
-                  <span className="block truncate text-xs text-muted-foreground">{report.missionType} · {visitWhen(report)}</span>
-                </span>
-                <span className="text-right"><StatusLabel report={report} /></span>
+          <li key={report.reportId} className="overflow-hidden rounded-xl border bg-card">
+            <Link href={href(report)} className="block transition-colors hover:bg-muted/50">
+              <div className="p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <span className="min-w-0">
+                    <span className="block truncate font-semibold text-foreground">{report.clientCompanyName}</span>
+                    <span className="block truncate text-xs text-muted-foreground">{visitLine(report)}</span>
+                  </span>
+                  <span className="text-right"><StatusLabel report={report} /></span>
+                </div>
+                <p className="mt-2 truncate text-sm text-foreground">{resultLine(report)}</p>
               </div>
-              <p className="mt-3 text-sm text-foreground">{report.visitOutcomeLabel ?? "Hasil belum diisi"}{report.interestLevelLabel ? ` · ${report.interestLevelLabel}` : ""}</p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                {[report.primarySalesName ?? "Tanpa sales utama", report.opportunityExists ? `Peluang${report.estimatedValue ? ` Rp ${formatNumber(report.estimatedValue)}` : ""}` : null, report.pushedLeadId ? `Lead #${report.pushedLeadId}` : null].filter(Boolean).join(" · ")}
-              </p>
-              <span className="mt-2 block"><FollowUp report={report} today={today} /></span>
+              <div className="flex min-h-11 items-center justify-between gap-3 border-t px-3 py-2">
+                <TeamFacepile
+                  people={report.primarySalesName ? [{ name: report.primarySalesName, avatarUrl: report.primarySalesAvatarUrl }] : []}
+                  empty="Tanpa sales utama"
+                />
+                <FollowUpChip report={report} today={today} />
+              </div>
             </Link>
           </li>
         ))}

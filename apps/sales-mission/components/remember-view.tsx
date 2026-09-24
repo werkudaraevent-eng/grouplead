@@ -12,7 +12,7 @@ import { sanitizeViewString, VIEW_COOKIES, type ListKey } from "@/lib/view-cooki
  * `RememberView` writes the cookie whenever the list's query changes, so
  * a facet, a chip, a sort or a cleared search all leave a trace. The
  * writes happen before navigation where it matters: a link to the bare
- * list from inside the list ("Semua", "Bersihkan semua", "Lihat semua")
+ * list from inside the list ("Bersihkan semua", "Lihat semua")
  * must write an empty memory first, or the server would restore the view
  * the person is trying to leave. `ViewLink` and `rememberView` do that.
  */

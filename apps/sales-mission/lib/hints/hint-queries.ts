@@ -1,8 +1,7 @@
 import { createClient } from "@/utils/supabase/server"
 import type { SalesMissionAccess } from "@/lib/sales-mission-access"
 
-/** Hint keys are short slugs chosen in code; the table's CHECK agrees. */
-export const HINT_KEY = /^[a-z0-9][a-z0-9_-]{0,59}$/
+export { HINT_KEY } from "./hint-key"
 
 /**
  * The hints this person has already dismissed, on any device.

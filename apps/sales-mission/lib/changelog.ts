@@ -46,6 +46,18 @@ export const CHANGE_KIND_LABELS: Record<ChangeKind, string> = {
 export const CHANGELOG: ChangeEntry[] = [
   {
     date: "2026-09-24",
+    title: "Daftar yang lebih ringkas: judul satu baris, filter satu baris",
+    items: [
+      { kind: "lebih-baik", text: "Di komputer, judul Aktivitas, Prospek, dan Laporan kini satu baris ramping bersama tombolnya, tanpa tulisan kecil “SALES ACTIVITY / …” di atasnya, jadi tabel mulai lebih tinggi dan menampilkan lebih banyak baris." },
+      { kind: "lebih-baik", text: "Kalimat penjelasan di bawah judul daftar kini bisa ditutup dengan ✕. Sekali ditutup, kalimat itu tidak muncul lagi di daftar tersebut, di komputer atau HP mana pun yang kamu pakai." },
+      { kind: "lebih-baik", text: "Di Aktivitas, chip Semua · Saya · Hari ini · Minggu ini · Mendatang tidak lagi menjadi baris sendiri di atas filter. Tanggal kini selalu ada di baris filter (Hari ini, Minggu ini, Mendatang, dan lainnya dipilih di dalamnya), dan Saya menjadi chip nyala/mati di baris yang sama, begitu juga Butuh jawaban dan Menunggu tim beserta jumlahnya. Memilih Hari ini tidak lagi tampil dua kali. Untuk kembali melihat semua, tekan Bersihkan semua. Di HP, keempatnya ada di satu baris di bawah kolom cari." },
+      { kind: "lebih-baik", text: "Tautan yang pernah kamu simpan, tampilan tersimpan, dan daftar yang diingat tetap membuka daftar yang sama seperti sebelumnya." },
+      { kind: "lebih-baik", text: "Di HP, kartu Laporan kini berbentuk sama dengan kartu Aktivitas dan Prospek: sales utama dengan fotonya di kiri bawah, dan tindak lanjutnya sebagai chip di kanan bawah (Follow-up dengan harinya, kuning bertuliskan Lewat bila harinya sudah lewat, abu-abu bila sudah selesai). Nama sales tidak lagi ditulis dua kali; peluang dan nomor lead dibaca di laporannya atau di tabel komputer." },
+      { kind: "diperbaiki", text: "Di tabel, kolom Aksi yang tetap di kanan kini punya garis dan bayangan tipis di sisi kirinya, jadi kolom yang digeser ke bawahnya tidak lagi tampak terpotong." },
+    ],
+  },
+  {
+    date: "2026-09-24",
     title: "Huruf aplikasi dan tabel yang lebih lapang",
     items: [
       { kind: "diperbaiki", text: "Aplikasi kini benar-benar memakai huruf Plus Jakarta Sans. Selama ini yang tampil huruf bawaan perangkat karena pengaturannya tidak terbaca." },

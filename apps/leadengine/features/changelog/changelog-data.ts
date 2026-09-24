@@ -76,6 +76,15 @@ export const CHANGE_TYPE_META: Record<
 export const CHANGELOG: ChangelogEntry[] = [
     {
         date: "2026-09-24",
+        title: "Contacts and Companies: a slimmer header",
+        items: [
+            { type: "improvement", text: "The title of Contacts and Companies now sits on one slim row with its buttons, so the table starts higher and shows more rows." },
+            { type: "improvement", text: "The sentence under the title can be dismissed with ✕. Once dismissed, it stays hidden on that list on every device you use." },
+            { type: "fix", text: "The ⋮ column at the right edge of the table now has a thin line and shadow on its left, so columns scrolling under it no longer look cut off." },
+        ],
+    },
+    {
+        date: "2026-09-24",
         title: "The app's typeface now actually loads",
         items: [
             { type: "fix", text: "LeadEngine now really uses Plus Jakarta Sans. Until now the setting never reached the page, so text showed in the device's default font." },

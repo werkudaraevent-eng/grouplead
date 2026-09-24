@@ -8,6 +8,7 @@ import { ResponsivePopover } from "@/components/responsive-popover"
 import { FilterBarFrame } from "@/components/filter-bar-frame"
 import { rememberView } from "@/components/remember-view"
 import { FacetButton, FacetSelect, type FacetOpenProps, type FacetSpec } from "@/components/facet-select"
+import { ToggleChip } from "@/components/toggle-chip"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -19,12 +20,22 @@ import {
   EMPTY_QUERY,
   INDUSTRY_NONE,
   REPORT_FACETS,
-  countActiveFacets,
-  serializeMissionQuery,
   type DatePreset,
+  type MissionFilter,
   type MissionQuery,
   SALES_ME,
 } from "@/lib/missions/mission-filter"
+import {
+  LENS_CHIP_LABELS,
+  activityListParams,
+  countNarrowing,
+  hasMe,
+  salesOthers,
+  toggleLens,
+  toggleMe,
+  withSalesOthers,
+  type AnswerLens,
+} from "@/lib/missions/quick-filters"
 import { STATUS_LABELS } from "@/lib/missions/status-labels"
 import type { MissionStatus } from "@/lib/missions/mission-schema"
 import { VISIT_STATE_LABELS, type VisitState } from "@/lib/missions/visit-state"
@@ -44,6 +55,12 @@ import { VISIT_STATE_LABELS, type VisitState } from "@/lib/missions/visit-state"
  *   - On a desk the bar shows only the facets in use; the rest join it from
  *     "+ Filter" (Linear, Notion). On a phone the active ones are repeated
  *     as removable chips, because the facets sit behind one button there.
+ *   - The everyday narrowings are in the bar itself, each in one place:
+ *     Tanggal (whose values are Hari ini, Minggu ini, Mendatang …) is
+ *     always there, "Saya" is a toggle chip, and while the unit asks for
+ *     answers so are "Butuh jawaban" and "Menunggu tim" with their counts
+ *     (see lib/missions/quick-filters.ts). On a phone these sit in a row
+ *     under the search, one tap each.
  *   - The whole state lives in the URL, so a view can be bookmarked, sent to
  *     a colleague, or exported exactly as seen.
  */
@@ -155,8 +172,10 @@ export function DateFacet({
 
 
 export function MissionFilterBar({
-  quick,
   query,
+  lens,
+  lenses,
+  lensCounts,
   people,
   types,
   locations,
@@ -165,8 +184,12 @@ export function MissionFilterBar({
   shown,
 }: {
   query: MissionQuery
-  /** The quick-filter chip row; the frame decides where it sits. */
-  quick?: React.ReactNode
+  /** The answer lens in force ("all" when none, or when the unit asks for no answers). */
+  lens: MissionFilter
+  /** The answer lenses the unit's policy offers as toggle chips; none when nobody is asked. */
+  lenses: readonly AnswerLens[]
+  /** How many activities each lens would leave, under the rest of the query. */
+  lensCounts: Record<AnswerLens, number>
   people: FilterPerson[]
   types: string[]
   locations: string[]
@@ -182,17 +205,12 @@ export function MissionFilterBar({
   const [text, setText] = useState(query.q)
   const skipFirst = useRef(true)
 
-  const push = (next: MissionQuery) => {
-    const params = serializeMissionQuery(next)
-    // The answer lens lives beside the query and is kept as is.
-    const lens = searchParams.get("filter")
-    if (lens) params.set("filter", lens)
-    // A filter change keeps the sort and the page size and starts again from
-    // the first page, the same on Aktivitas, Prospek and Laporan.
-    for (const key of ["sort", "size"]) {
-      const value = searchParams.get(key)
-      if (value) params.set(key, value)
-    }
+  const push = (next: MissionQuery, nextLens: MissionFilter = lens) => {
+    // The answer lens lives beside the query and is kept unless a lens chip
+    // or "Bersihkan semua" changes it. A filter change keeps the sort and
+    // the page size and starts again from the first page, the same on
+    // Aktivitas, Prospek and Laporan.
+    const params = activityListParams(next, nextLens, { sort: searchParams.get("sort"), size: searchParams.get("size") })
     const qs = params.toString()
     rememberView("activities", qs)
     startTransition(() => router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false }))
@@ -210,16 +228,12 @@ export function MissionFilterBar({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [text])
 
-  const active = countActiveFacets(query)
+  const active = countNarrowing(query, lens)
   const personName = (id: string) => (id === SALES_ME ? "Saya" : (people.find((person) => person.id === id)?.name ?? id))
+  const others = salesOthers(query)
+  const clearAll = () => { setText(""); push(EMPTY_QUERY, "all") }
 
   const more: FacetSpec[] = [
-    {
-      key: "date",
-      label: "Tanggal",
-      active: query.date !== null,
-      render: (props) => <DateFacet {...props} value={query.date} from={query.from} to={query.to} onChange={(next) => push({ ...query, ...next })} />,
-    },
     {
       key: "report",
       label: "Laporan",
@@ -298,7 +312,27 @@ export function MissionFilterBar({
   return (
     <FilterBarFrame
       activeCount={active}
-      quick={quick}
+      quick={
+        <>
+          {/* Whose, then when, then who owes an answer: "Saya" is the chip a
+              rep reaches for most, so on a phone it is never the one past
+              the screen's edge. Text only at rest, as the chips row was: a
+              row of seven controls on a laptop has no width for an icon each. */}
+          <ToggleChip label="Saya" pressed={hasMe(query)} onToggle={() => push(toggleMe(query))} />
+          <DateFacet value={query.date} from={query.from} to={query.to} onChange={(next) => push({ ...query, ...next })} />
+          {lenses.map((item) => (
+            <ToggleChip
+              key={item}
+              label={LENS_CHIP_LABELS[item]}
+              pressed={lens === item}
+              onToggle={() => push(query, toggleLens(lens, item))}
+              count={lensCounts[item]}
+              countTone={item === "mine" ? "warning" : "neutral"}
+              showZero
+            />
+          ))}
+        </>
+      }
       search={
         <div className="relative min-w-0 flex-1 md:max-w-md md:basis-56">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -324,8 +358,8 @@ export function MissionFilterBar({
         <FacetSelect
           label="Sales"
           options={people.map((person) => ({ value: person.id, label: person.name }))}
-          value={query.sales}
-          onChange={(sales) => push({ ...query, sales })}
+          value={others}
+          onChange={(next) => push(withSalesOthers(query, next))}
           renderOption={(option) => {
             const person = people.find((item) => item.id === option.value)
             return (
@@ -338,20 +372,22 @@ export function MissionFilterBar({
         />
         </>
       }
-      onClearAll={() => { setText(""); push(EMPTY_QUERY) }}
+      onClearAll={clearAll}
       more={more}
       summary={
         <span className="ml-auto flex items-center gap-2 text-xs text-muted-foreground" aria-live="polite">
           {pending ? "Menyaring…" : active > 0 ? `${shown} dari ${total} aktivitas` : `${total} aktivitas`}
         </span>
       }
-      chips={active > 0 ? (
+      // Saya, the date and the lenses are in the phone's row of their own
+      // (`quick`), so they are not repeated here.
+      chips={countNarrowing({ ...query, sales: others, date: null }, "all") > 0 ? (
         <>
           {query.q && <FilterChip label={`“${query.q}”`} onRemove={() => { setText(""); push({ ...query, q: "" }) }} />}
           {query.status.map((status) => (
             <FilterChip key={status} label={STATUS_LABELS[status as MissionStatus] ?? status} onRemove={() => push({ ...query, status: query.status.filter((s) => s !== status) })} />
           ))}
-          {query.sales.map((id) => (
+          {others.map((id) => (
             <FilterChip key={id} label={personName(id)} onRemove={() => push({ ...query, sales: query.sales.filter((s) => s !== id) })} />
           ))}
           {query.report.map((state) => (
@@ -373,19 +409,9 @@ export function MissionFilterBar({
           {query.type.map((type) => (
             <FilterChip key={type} label={type} onRemove={() => push({ ...query, type: query.type.filter((t) => t !== type) })} />
           ))}
-          {query.date && (
-            <FilterChip
-              label={
-                query.date === "custom"
-                  ? [query.from, query.to].filter(Boolean).join(" – ") || DATE_PRESET_LABELS.custom
-                  : DATE_PRESET_LABELS[query.date]
-              }
-              onRemove={() => push({ ...query, date: null, from: null, to: null })}
-            />
-          )}
           <button
             type="button"
-            onClick={() => { setText(""); push(EMPTY_QUERY) }}
+            onClick={clearAll}
             className="ml-1 text-xs font-semibold text-primary hover:underline"
           >
             Bersihkan semua

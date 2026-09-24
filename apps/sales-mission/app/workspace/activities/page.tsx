@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation"
+import { listIntroKey } from "@/lib/hints/hint-key"
 import { canPerform, getReadScope, getSalesMissionAccess } from "@/lib/sales-mission-access"
 import { describeReadScope } from "@/lib/access/record-scope"
 import { requireModule } from "@/lib/missions/nav-access"
@@ -6,8 +7,9 @@ import { getMissionSettings, listTenantSales, listViewerCalendar } from "@/lib/m
 import { annotateReportRights } from "@/lib/missions/mission-rights"
 import { countMissions, listMissionFacets, listMissionsPage, parsePageParams } from "@/lib/missions/mission-page-queries"
 import { annotateJoinStatus } from "@/lib/missions/mission-join"
-import { EMPTY_QUERY, isEmptyQuery, parseMissionQuery, resolveMissionFilter, serializeMissionQuery, type MissionFilter } from "@/lib/missions/mission-filter"
-import { QuickFilterChips, WorkspacePage } from "@/app/workspace/workspace-page"
+import { EMPTY_QUERY, availableMissionFilters, isEmptyQuery, parseMissionQuery, resolveMissionFilter, serializeMissionQuery, type MissionFilter } from "@/lib/missions/mission-filter"
+import type { AnswerLens } from "@/lib/missions/quick-filters"
+import { WorkspacePage } from "@/app/workspace/workspace-page"
 import { RememberView } from "@/components/remember-view"
 import { openListView } from "@/lib/remembered-view"
 import { listSavedViews } from "@/lib/lists/list-view-queries"
@@ -64,7 +66,6 @@ export default async function MissionsPage({
     settings.requireAssignmentConfirmation ? countMissions(access, { ...base, lens: "mine" }) : Promise.resolve(0),
     settings.requireAssignmentConfirmation ? countMissions(access, { ...base, lens: "team" }) : Promise.resolve(0),
   ])
-  const allCount = filter === "all" ? pageResult.total : await countMissions(access, { ...base, lens: "all" })
   // "X dari Y" in the filter bar: Y is the same lens with no facets, the
   // meaning Prospek and Laporan give it, so the pair never reads "N dari N".
   const unfilteredCount = isEmptyQuery(query) ? pageResult.total : await countMissions(access, { query: EMPTY_QUERY, sort, now, lens: filter })
@@ -81,8 +82,8 @@ export default async function MissionsPage({
   return (
     <WorkspacePage
       fill
-      eyebrow="Sales Activity / Aktivitas"
       title="Aktivitas"
+      introKey={listIntroKey("activities")}
       description={[
         describeReadScope(await getReadScope(access, "sales_mission_mission"), "mission") ?? "Seluruh aktivitas unit bisnis.",
         settings.requireAssignmentConfirmation
@@ -90,7 +91,8 @@ export default async function MissionsPage({
           : "Aktivitas yang bisa Anda ikuti punya tombol Join di barisnya.",
       ].join(" ")}
       // The coach marks on Join and on the FAB teach what this sentence says;
-      // on a phone it would cost two lines before the first record.
+      // on a phone it would cost two lines before the first record. On a
+      // desk it shows until the person closes it (`introKey`).
       phoneDescription={false}
       phoneAction={false}
       action={
@@ -111,8 +113,10 @@ export default async function MissionsPage({
       <SelectionModeProvider>
       <ActivitiesPhoneMenu exportHref={exportHref} exportCount={pageResult.total} canCreate={canCreate} canDelete={canDelete} />
       <MissionFilterBar
-        quick={<QuickFilterChips view={{ query, lens: filter, sort }} counts={{ all: allCount, mine: mineCount, team: teamCount }} policy={settings} defaultSort="upcoming" />}
         query={query}
+        lens={filter}
+        lenses={availableMissionFilters(settings).filter((lens): lens is AnswerLens => lens !== "all")}
+        lensCounts={{ mine: mineCount, team: teamCount }}
         people={people.map((person) => ({ id: person.id, name: person.name, avatarUrl: person.avatarUrl }))}
         types={facets.types}
         locations={facets.locations}

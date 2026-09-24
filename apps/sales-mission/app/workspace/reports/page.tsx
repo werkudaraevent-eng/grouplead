@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation"
+import { listIntroKey } from "@/lib/hints/hint-key"
 import { Download } from "@/components/icons"
 import { getReadScope, getSalesMissionAccess } from "@/lib/sales-mission-access"
 import { describeReadScope } from "@/lib/access/record-scope"
@@ -75,11 +76,12 @@ export default async function ReportListPage({
   return (
     <WorkspacePage
       fill
-      eyebrow="Sales Activity / Reporting"
+      introKey={listIntroKey("reports")}
       title="Laporan"
       description={[describeReadScope(await getReadScope(access, "sales_mission_result"), "laporan"), "Setiap laporan kunjungan yang ditulis sales, terbaru dulu. Saring, urutkan, lalu buka aktivitasnya."].filter(Boolean).join(" ")}
       // On a phone the tabs sit right under the app bar and Ekspor waits in
-      // its overflow; the empty state teaches what the sentence says.
+      // its overflow; the empty state teaches what the sentence says. On a
+      // desk it shows until the person closes it (`introKey`).
       phoneDescription={false}
       phoneAction={false}
       action={
