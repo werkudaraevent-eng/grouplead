@@ -35,9 +35,8 @@ import { useSelectionMode } from "@/components/selection-mode"
 import { SelectableCardBody } from "@/components/selectable-card-body"
 import { TeamFacepile, type FacepilePerson } from "@/components/team-facepile"
 import { useRowLink } from "@/components/row-link"
-import { CellText, LIST_CELL, ListTableFrame, edgeProps, frozen } from "@/components/list-table"
+import { CellBox, CellText, LIST_CELL, ListTableFrame, SelectBox, edgeProps, frozen } from "@/components/list-table"
 import { useDrawnColumns } from "@/components/list-view/list-view-provider"
-import { ACTION_COLUMN_WIDTH } from "@/lib/lists/list-column-specs"
 import type { SortColumn } from "@/lib/missions/mission-paging"
 import { paths } from "@/lib/paths"
 
@@ -674,30 +673,33 @@ export function MissionTable({
       <ListTableFrame
         columns={drawn}
         hasSelect={canDelete}
-        trailingWidth={ACTION_COLUMN_WIDTH}
+        hasAction
         footer={pagination && <MissionPagination page={pagination.page} size={pagination.size} total={pagination.total} />}
       >
         <TableHeader>
           <TableRow className="hover:bg-transparent">
             {canDelete && (
               <TableHead className={cn(frozen("select", true).className, "px-3")}>
-                <Checkbox
-                  checked={allChosen ? true : chosen.length > 0 ? "indeterminate" : false}
-                  onCheckedChange={(value) => toggleAll(value === true)}
-                  aria-label="Pilih semua aktivitas di halaman ini"
-                />
+                <SelectBox>
+                  <Checkbox
+                    checked={allChosen ? true : chosen.length > 0 ? "indeterminate" : false}
+                    onCheckedChange={(value) => toggleAll(value === true)}
+                    aria-label="Pilih semua aktivitas di halaman ini"
+                  />
+                </SelectBox>
               </TableHead>
             )}
             {drawn.map((column) => {
               const lead = column.locked ? frozen("name", canDelete) : null
               const sortColumn = column.sort as SortColumn | undefined
-              return (
-                <TableHead key={column.id} className={lead?.className} style={lead?.style} {...edgeProps(lead?.edge)}>
-                  {pagination && sortColumn ? <SortHeader column={sortColumn} label={column.label} sort={pagination.sort} /> : column.label}
-                </TableHead>
+              const head = { className: lead?.className, style: lead?.style, ...edgeProps(lead?.edge) }
+              return pagination && sortColumn ? (
+                <SortHeader key={column.id} column={sortColumn} label={column.label} sort={pagination.sort} head={head} />
+              ) : (
+                <TableHead key={column.id} {...head}>{column.label}</TableHead>
               )
             })}
-            <TableHead className={cn(frozen("trailing", canDelete).className, "text-right")} {...edgeProps(false, true)}>Aksi</TableHead>
+            <TableHead className={cn(frozen("trailing", canDelete).className, "px-3 text-right")} {...edgeProps(false, true)}>Aksi</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -715,11 +717,13 @@ export function MissionTable({
               >
                 {canDelete && (
                   <TableCell className={cn(LIST_CELL, frozen("select", true).className, "px-3")} data-row-link-ignore>
-                    <Checkbox
-                      checked={ticked}
-                      onCheckedChange={(value) => toggle(mission.id, value === true)}
-                      aria-label={`Pilih ${mission.clientCompanyName}`}
-                    />
+                    <SelectBox>
+                      <Checkbox
+                        checked={ticked}
+                        onCheckedChange={(value) => toggle(mission.id, value === true)}
+                        aria-label={`Pilih ${mission.clientCompanyName}`}
+                      />
+                    </SelectBox>
                   </TableCell>
                 )}
                 {drawn.map((column) => {
@@ -732,7 +736,9 @@ export function MissionTable({
                       title={activityCellTitle(column.id, mission, now, policy)}
                       {...edgeProps(lead?.edge)}
                     >
-                      <ActivityCell column={column.id} mission={mission} now={now} policy={policy} people={peopleById} />
+                      <CellBox column={column}>
+                        <ActivityCell column={column.id} mission={mission} now={now} policy={policy} people={peopleById} />
+                      </CellBox>
                     </TableCell>
                   )
                 })}

@@ -74,6 +74,7 @@ export default async function ReportListPage({
 
   return (
     <WorkspacePage
+      fill
       eyebrow="Sales Activity / Reporting"
       title="Laporan"
       description={[describeReadScope(await getReadScope(access, "sales_mission_result"), "laporan"), "Setiap laporan kunjungan yang ditulis sales, terbaru dulu. Saring, urutkan, lalu buka aktivitasnya."].filter(Boolean).join(" ")}

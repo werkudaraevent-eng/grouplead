@@ -2,7 +2,7 @@
 
 import type { CSSProperties, ReactNode } from "react"
 import { Table } from "@/components/ui/table"
-import { tableMinWidth, type ColumnSpec } from "@/lib/lists/list-columns"
+import type { ColumnSpec } from "@/lib/lists/list-columns"
 import { cn } from "@/lib/utils"
 
 /**
@@ -15,16 +15,33 @@ import { cn } from "@/lib/utils"
  * carrying its full text in its title (M3 data table; Gmail, HubSpot,
  * Linear).
  *
- * The layout is fixed: each column has its width, the name column has
- * none and takes what the others leave, and the table's minimum width is
- * the sum, so below it the card scrolls and above it the name widens.
- * Frozen cells need opaque backgrounds, which the table primitives give
- * them (hover and selection are mixes, not alphas); the edge and the
- * attention mark are drawn by `.list-table` in globals.css.
+ * The card fills what the page leaves under its toolbar (`WorkspacePage
+ * fill`) and scrolls inside itself in both directions: the header row sticks
+ * to its top, the footer sits under it, and the sideways scrollbar is always
+ * at the card's visible foot rather than after the last row (M3 data table;
+ * Airtable, HubSpot, Sheets; LeadEngine's Contacts).
+ *
+ * A column is as wide as what it holds (M3): the table lays itself out from
+ * its content. Each data column has a floor, its spec width, which its cells
+ * reach through `CellBox` and never pass, so a long value is cut inside its
+ * column instead of widening it; the action column is exactly as wide as the
+ * widest button on the page; the name column takes whatever is left, down to
+ * its own floor. Below the sum of the floors the card scrolls sideways.
+ * Frozen cells need opaque backgrounds, which the table primitives give them
+ * (hover and selection are mixes, not alphas); the edge and the attention
+ * mark are drawn by `.list-table` in globals.css. The header row group is
+ * sticky and layered above the frozen body cells, and its own frozen cells
+ * above the header cells that scroll under them.
  */
 
 /** Width of the leading selection column. */
 export const SELECT_COL = 44
+
+/** A data cell's horizontal padding, both sides together (`px-4`, 16dp each). */
+const CELL_PADDING_X = 32
+
+/** The selection cell's padding: 12dp leading, none trailing beside a checkbox (`px-3`, `pr-0`). */
+const SELECT_PADDING_X = 12
 
 /** One 52dp line per cell; the cell's own content truncates inside it. */
 export const LIST_CELL = "h-13 py-0 whitespace-nowrap"
@@ -39,40 +56,66 @@ export function frozen(part: FrozenPart, hasSelect: boolean): { className: strin
 }
 
 /**
- * The card, its sideways scroller and the table, with a column group that
- * fixes every width but the name's.
+ * The card, its scroller and the table. The column group fixes the
+ * selection column and each data column at its floor, leaves the name
+ * column free to take the rest, and shrinks the action column to its
+ * content (a 1px width that the buttons widen).
  */
 export function ListTableFrame({
   columns,
   hasSelect,
-  trailingWidth,
+  hasAction = false,
   footer,
   children,
 }: {
   /** The drawn columns, the locked name column first. */
   columns: ColumnSpec[]
   hasSelect: boolean
-  /** Width of the frozen trailing action column, when the list has one. */
-  trailingWidth?: number
+  /** Whether the list has the frozen trailing action column. */
+  hasAction?: boolean
   footer?: ReactNode
   children: ReactNode
 }) {
-  const minWidth = tableMinWidth(columns, (hasSelect ? SELECT_COL : 0) + (trailingWidth ?? 0))
   return (
-    <div className="hidden rounded-xl border bg-card md:block">
-      <div className={cn("data-table-scroll list-table overflow-x-auto", footer ? "rounded-t-xl" : "rounded-xl")}>
-        <Table className="table-fixed" style={{ minWidth }}>
+    <div className="hidden min-h-60 flex-1 flex-col overflow-hidden rounded-xl border bg-card md:flex">
+      <div className="data-table-scroll list-table isolate min-h-0 flex-1 overflow-auto">
+        <Table>
           <colgroup>
             {hasSelect && <col style={{ width: SELECT_COL }} />}
             {columns.map((column) => (
               <col key={column.id} style={column.locked ? undefined : { width: column.width }} />
             ))}
-            {trailingWidth !== undefined && <col style={{ width: trailingWidth }} />}
+            {hasAction && <col style={{ width: 1 }} />}
           </colgroup>
           {children}
         </Table>
       </div>
       {footer}
+    </div>
+  )
+}
+
+/**
+ * The box a data cell's content sits in. It tells the table how wide the
+ * column must at least be (the column's spec width, padding included) and
+ * nothing more: its content can be as long as it likes, it is cut with an
+ * ellipsis inside the column rather than widening it. A one-column grid of
+ * `minmax(0, 1fr)` is what makes the content's own width drop out of the
+ * measure while the box still fills the cell.
+ */
+export function CellBox({ column, children }: { column: ColumnSpec; children: ReactNode }) {
+  return (
+    <div className="grid grid-cols-[minmax(0,1fr)]" style={{ minWidth: Math.max(0, column.width - CELL_PADDING_X) }}>
+      {children}
+    </div>
+  )
+}
+
+/** The selection box's cell content, holding its column at exactly `SELECT_COL`, which the frozen name's offset relies on. */
+export function SelectBox({ children }: { children: ReactNode }) {
+  return (
+    <div className="flex items-center" style={{ minWidth: SELECT_COL - SELECT_PADDING_X }}>
+      {children}
     </div>
   )
 }

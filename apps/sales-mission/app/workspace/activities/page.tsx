@@ -80,6 +80,7 @@ export default async function MissionsPage({
 
   return (
     <WorkspacePage
+      fill
       eyebrow="Sales Activity / Aktivitas"
       title="Aktivitas"
       description={[

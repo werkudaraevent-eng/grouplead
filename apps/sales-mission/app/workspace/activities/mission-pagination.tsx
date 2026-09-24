@@ -1,6 +1,6 @@
 "use client"
 
-import { useTransition } from "react"
+import { useTransition, type ComponentProps } from "react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { ChevronLeft, ChevronRight, Loader2 } from "@/components/icons"
 import { Button } from "@/components/ui/button"
@@ -98,9 +98,24 @@ export function MissionPagination({ page, size, total }: { page: number; size: n
   )
 }
 
-/** The Jadwal column header: click to cycle nearest-first, oldest-first, newest-first. */
-/** The mission list's binding of the shared sortable header. */
-export function SortHeader({ column, label, sort, align = "left" }: { column: SortColumn; label: string; sort: MissionSort; align?: "left" | "right" }) {
+/**
+ * The mission list's binding of the shared sortable header. Jadwal holds
+ * the default order, nearest first, and says so in its tooltip; a click
+ * cycles it to oldest first, newest first, then back.
+ */
+export function SortHeader({
+  column,
+  label,
+  sort,
+  align = "left",
+  head,
+}: {
+  column: SortColumn
+  label: string
+  sort: MissionSort
+  align?: "left" | "right"
+  head?: ComponentProps<typeof GenericSortHeader>["head"]
+}) {
   return (
     <GenericSortHeader
       column={column}
@@ -111,6 +126,7 @@ export function SortHeader({ column, label, sort, align = "left" }: { column: So
       defaultSort="upcoming"
       defaultHint={{ column: "schedule", text: "terdekat dulu" }}
       align={align}
+      head={head}
     />
   )
 }

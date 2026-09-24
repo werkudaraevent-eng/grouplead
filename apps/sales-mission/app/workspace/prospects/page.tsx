@@ -66,6 +66,7 @@ export default async function ProspectsPage({
 
   return (
     <WorkspacePage
+      fill
       eyebrow="Sales Activity / Prospek"
       title="Prospek"
       description={[describeReadScope(await getReadScope(access, "sales_mission_prospect"), "prospek"), "Calon klien yang belum jadi kunjungan. Catat setiap kontak; begitu janji temu disepakati, jadwalkan kunjungannya dari sini."].filter(Boolean).join(" ")}

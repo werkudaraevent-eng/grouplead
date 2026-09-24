@@ -35,6 +35,7 @@ export function WorkspacePage({
   action,
   phoneAction = true,
   primaryAction,
+  fill = false,
   children,
 }: {
   eyebrow?: string
@@ -56,6 +57,17 @@ export function WorkspacePage({
   phoneAction?: boolean
   /** The screen's one primary action: a FAB on a phone, a filled button on a desk. */
   primaryAction?: { href: string; label: string; hint?: FabHint }
+  /**
+   * The page is one list whose table fills the window, from `md` up: the
+   * content area becomes a column that ends at the window's foot, its rows
+   * (saved views, chips, filters, the selection bar) keep their height, and
+   * the table's card (`ListTableFrame`) takes the rest and scrolls inside
+   * itself, so its header row, its footer and its sideways scrollbar stay in
+   * view (M3 data table; Airtable, HubSpot, Sheets; LeadEngine's lists). The
+   * area keeps its own scroller only as a fallback for a window too short
+   * for the card's minimum. Below `md` the page scrolls as every page does.
+   */
+  fill?: boolean
   children: React.ReactNode
 }) {
   // Whether anything in the header reaches a phone; if not, the block is
@@ -87,7 +99,17 @@ export function WorkspacePage({
           </div>
         </div>
       )}
-      <div id="page-scroll" className={cn("custom-scrollbar flex-1 overflow-y-auto px-4 pb-[calc(6rem+env(safe-area-inset-bottom))] sm:px-6 lg:px-8 lg:pb-8", !phoneHeader && "max-lg:pt-3")}>
+      <div
+        id="page-scroll"
+        className={cn(
+          "custom-scrollbar flex-1 overflow-y-auto px-4 pb-[calc(6rem+env(safe-area-inset-bottom))] sm:px-6 lg:px-8 lg:pb-8",
+          !phoneHeader && "max-lg:pt-3",
+          fill && "md:flex md:flex-col md:*:shrink-0",
+          // A filled list ends at the window's foot, where its footer would
+          // sit under the FAB between `md` and `lg`; stop above the FAB.
+          fill && primaryAction && "md:max-lg:pb-[calc(10.5rem+env(safe-area-inset-bottom))]"
+        )}
+      >
         {children}
       </div>
       {primaryAction && <Fab href={primaryAction.href} label={primaryAction.label} hint={primaryAction.hint} />}

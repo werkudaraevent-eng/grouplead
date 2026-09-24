@@ -10,13 +10,15 @@ import type { ReportSortColumn } from "@/lib/reporting/report-paging"
  * line under a cell is a column of its own here, offered in the columns
  * menu, and the cell it came from still carries it in its title (hover).
  * The defaults are what fits a 1280px laptop with the drawer open (about
- * 1000px of table): the name, the few columns a person reads every row by,
- * and the action. The rest wait in the menu; turning them on makes the
- * table scroll sideways inside its card while the name stays put.
+ * 984px of table, see the test): the name, the few columns a person reads
+ * every row by, and the action. The rest wait in the menu; turning them on
+ * makes the table scroll sideways inside its card while the name stays put.
  *
  * Widths are sized to what a cell holds ("Besok, 09.00", a facepile, a
- * status label, one button); the locked name column's width is its
- * minimum, since it takes whatever the others leave.
+ * status label) and are each column's floor: the table lays itself out
+ * from its content, so a header wider than its column widens it, and the
+ * locked name column's width is its minimum, since it takes whatever the
+ * others and the action column leave.
  */
 
 type Spec<S extends string> = ColumnSpec & { sort?: S }
@@ -36,7 +38,7 @@ export const ACTIVITY_COLUMNS: Spec<SortColumn>[] = [
 
 export const PROSPECT_COLUMNS: Spec<ProspectSortColumn>[] = [
   { id: "company", label: "Perusahaan", width: 170, locked: true, sort: "company" },
-  { id: "contact", label: "Kontak", width: 140, defaultVisible: true, sort: "contact" },
+  { id: "contact", label: "Kontak", width: 132, defaultVisible: true, sort: "contact" },
   { id: "phone", label: "Telepon", width: 150 },
   { id: "email", label: "Email", width: 190 },
   { id: "job_title", label: "Jabatan", width: 150 },
@@ -65,7 +67,19 @@ export const REPORT_COLUMNS: Spec<ReportSortColumn>[] = [
 
 /**
  * The trailing action column of Aktivitas and Prospek: frozen at the
- * trailing edge, never in the menu. Wide enough for its longest button
- * ("Lanjutkan laporan") inside the cell's padding.
+ * trailing edge, never in the menu, and as wide as the widest button on the
+ * page rather than a fixed width (a page of Join buttons gives the name
+ * about a hundred pixels more than a page with "Lanjutkan laporan").
+ *
+ * These are that column's widths, measured with the app's font at its
+ * sizes: the button and its ⋮ or ⋯ where there is one, plus the cell's 12dp
+ * padding each side. `usual` is the widest of the buttons most rows carry
+ * (Aktivitas: Join, Terima with ⋯, Isi laporan, Lihat laporan; Prospek:
+ * Hubungi or Buka aktivitas with ⋮); `widest` is the longest there is
+ * (Lanjutkan laporan; Catat follow-up with ⋮, for a prospect with neither
+ * phone nor email). The layout never reads them; the budget test does.
  */
-export const ACTION_COLUMN_WIDTH = 180
+export const ACTION_COLUMN_WIDTHS = {
+  activities: { usual: 160, widest: 193 },
+  prospects: { usual: 187, widest: 211 },
+} as const

@@ -18,7 +18,7 @@ export interface ColumnSpec {
   id: string
   /** The header, in the product's words. */
   label: string
-  /** Width in px; the locked column's is its minimum, since it takes what is left. */
+  /** Width in px, the column's floor; the locked column's is its minimum, since it takes what is left. */
   width: number
   /** The name column: always shown, first, frozen, not in the menu's order. */
   locked?: boolean
@@ -102,10 +102,12 @@ export function shownCount(specs: readonly ColumnSpec[], state: readonly ColumnS
 }
 
 /**
- * The width the table needs before it scrolls sideways: every fixed column
- * plus the name column's minimum. Below it the table scrolls inside its
- * card, with the leading columns frozen; above it the name column takes
- * the rest.
+ * The width the table needs before it scrolls sideways: every column's
+ * floor, the name column's minimum included, plus `extra` (the selection
+ * box and the action column's current width). Below it the table scrolls
+ * inside its card, with the leading columns frozen; above it the name
+ * column takes the rest. The table computes this itself from its content
+ * (`ListTableFrame`); this is the same sum for the layout budget test.
  */
 export function tableMinWidth(columns: readonly ColumnSpec[], extra = 0): number {
   return columns.reduce((sum, column) => sum + column.width, extra)

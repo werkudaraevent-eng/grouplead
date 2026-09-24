@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState, useTransition } from "react"
+import { useMemo, useState, useTransition, type ComponentProps } from "react"
 import Link from "next/link"
 import { ViewLink } from "@/components/remember-view"
 import { useRouter, useSearchParams } from "next/navigation"
@@ -29,9 +29,8 @@ import { FollowUpPrompt } from "./follow-up-prompt"
 import { addressContact, renderWhatsAppGreeting } from "@/lib/prospects/whatsapp-greeting"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { CellText, LIST_CELL, ListTableFrame, edgeProps, frozen } from "@/components/list-table"
+import { CellBox, CellText, LIST_CELL, ListTableFrame, SelectBox, edgeProps, frozen } from "@/components/list-table"
 import { useDrawnColumns } from "@/components/list-view/list-view-provider"
-import { ACTION_COLUMN_WIDTH } from "@/lib/lists/list-column-specs"
 import { cn } from "@/lib/utils"
 import { AssignDialog, ChangeStatusDialog, LogAttemptDialog, type DialogTarget } from "./prospect-dialogs"
 import type { Person } from "@/app/workspace/activities/new/people-picker"
@@ -470,26 +469,29 @@ export function ProspectTable({
       <ListTableFrame
         columns={drawn}
         hasSelect={selectable}
-        trailingWidth={ACTION_COLUMN_WIDTH}
+        hasAction
         footer={<MissionPagination page={pagination.page} size={pagination.size} total={pagination.total} />}
       >
         <TableHeader>
           <TableRow className="hover:bg-transparent">
             {selectable && (
               <TableHead className={cn(frozen("select", true).className, "px-3")}>
-                <Checkbox checked={allChosen ? true : chosen.length > 0 ? "indeterminate" : false} onCheckedChange={(value) => toggleAll(value === true)} aria-label="Pilih semua prospek di halaman ini" />
+                <SelectBox>
+                  <Checkbox checked={allChosen ? true : chosen.length > 0 ? "indeterminate" : false} onCheckedChange={(value) => toggleAll(value === true)} aria-label="Pilih semua prospek di halaman ini" />
+                </SelectBox>
               </TableHead>
             )}
             {drawn.map((column) => {
               const lead = column.locked ? frozen("name", selectable) : null
               const sortColumn = column.sort as ProspectSortColumn | undefined
-              return (
-                <TableHead key={column.id} className={lead?.className} style={lead?.style} {...edgeProps(lead?.edge)}>
-                  {sortColumn ? <Sort column={sortColumn} label={column.label} sort={pagination.sort} /> : column.label}
-                </TableHead>
+              const head = { className: lead?.className, style: lead?.style, ...edgeProps(lead?.edge) }
+              return sortColumn ? (
+                <Sort key={column.id} column={sortColumn} label={column.label} sort={pagination.sort} head={head} />
+              ) : (
+                <TableHead key={column.id} {...head}>{column.label}</TableHead>
               )
             })}
-            <TableHead className={cn(frozen("trailing", selectable).className, "text-right")} {...edgeProps(false, true)}>Aksi</TableHead>
+            <TableHead className={cn(frozen("trailing", selectable).className, "px-3 text-right")} {...edgeProps(false, true)}>Aksi</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -505,7 +507,9 @@ export function ProspectTable({
               >
                 {selectable && (
                   <TableCell className={cn(LIST_CELL, frozen("select", true).className, "px-3")} data-row-link-ignore>
-                    <Checkbox checked={ticked} onCheckedChange={(value) => toggle(prospect.id, value === true)} aria-label={`Pilih ${prospect.clientCompanyName}`} />
+                    <SelectBox>
+                      <Checkbox checked={ticked} onCheckedChange={(value) => toggle(prospect.id, value === true)} aria-label={`Pilih ${prospect.clientCompanyName}`} />
+                    </SelectBox>
                   </TableCell>
                 )}
                 {drawn.map((column) => {
@@ -518,7 +522,9 @@ export function ProspectTable({
                       title={prospectCellTitle(column.id, prospect, today)}
                       {...edgeProps(lead?.edge)}
                     >
-                      <ProspectCell column={column.id} prospect={prospect} today={today} />
+                      <CellBox column={column}>
+                        <ProspectCell column={column.id} prospect={prospect} today={today} />
+                      </CellBox>
                     </TableCell>
                   )
                 })}
@@ -557,7 +563,7 @@ export function ProspectTable({
   )
 }
 
-function Sort({ column, label, sort }: { column: ProspectSortColumn; label: string; sort: ProspectSort }) {
+function Sort({ column, label, sort, head }: { column: ProspectSortColumn; label: string; sort: ProspectSort; head?: ComponentProps<typeof SortHeader>["head"] }) {
   return (
     <SortHeader
       column={column}
@@ -567,6 +573,7 @@ function Sort({ column, label, sort }: { column: ProspectSortColumn; label: stri
       next={nextProspectSort}
       defaultSort="due"
       defaultHint={{ column: "next_contact", text: "jatuh tempo dulu" }}
+      head={head}
     />
   )
 }

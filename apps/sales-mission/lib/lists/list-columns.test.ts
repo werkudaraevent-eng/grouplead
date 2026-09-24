@@ -11,7 +11,7 @@ import {
   visibleColumns,
   type ColumnSpec,
 } from "./list-columns"
-import { ACTION_COLUMN_WIDTH, ACTIVITY_COLUMNS, PROSPECT_COLUMNS, REPORT_COLUMNS } from "./list-column-specs"
+import { ACTION_COLUMN_WIDTHS, ACTIVITY_COLUMNS, PROSPECT_COLUMNS, REPORT_COLUMNS } from "./list-column-specs"
 
 const SPECS: ColumnSpec[] = [
   { id: "name", label: "Nama", width: 200, locked: true },
@@ -110,22 +110,38 @@ describe("toggling, moving, counting", () => {
 })
 
 describe("the three lists' columns", () => {
-  for (const [name, specs] of [
-    ["Aktivitas", ACTIVITY_COLUMNS],
-    ["Prospek", PROSPECT_COLUMNS],
-    ["Laporan", REPORT_COLUMNS],
+  // 1280 minus the 220px drawer, the page's 2 × 32px gutters, the card's
+  // border and the table's own vertical scrollbar (10px when thin): the
+  // page no longer scrolls, the card does.
+  const LAPTOP = 1280 - 220 - 64 - 2 - 10
+  // 1366 is the next laptop up; there the widest buttons fit too.
+  const WIDER_LAPTOP = LAPTOP + 86
+  const SELECT = 44
+
+  for (const [name, specs, action] of [
+    ["Aktivitas", ACTIVITY_COLUMNS, ACTION_COLUMN_WIDTHS.activities],
+    ["Prospek", PROSPECT_COLUMNS, ACTION_COLUMN_WIDTHS.prospects],
+    ["Laporan", REPORT_COLUMNS, null],
   ] as const) {
+    const defaults = visibleColumns([...specs], defaultColumnState([...specs]))
+    const select = action ? SELECT : 0
+
     it(`${name} has one locked name column first and unique ids`, () => {
       expect(specs.filter((spec) => spec.locked)).toHaveLength(1)
       expect(specs[0].locked).toBe(true)
       expect(new Set(specs.map((spec) => spec.id)).size).toBe(specs.length)
     })
 
-    it(`${name}'s default columns fit a 1280px laptop with the drawer open`, () => {
-      // 1280 minus the 220px drawer, the page's 2 × 32px gutters, its scrollbar and the card's border.
-      const trailing = name === "Laporan" ? 0 : ACTION_COLUMN_WIDTH
-      const select = name === "Laporan" ? 0 : 44
-      expect(tableMinWidth(visibleColumns([...specs], defaultColumnState([...specs])), select + trailing)).toBeLessThanOrEqual(988)
+    it(`${name}'s default columns fit a 1280px laptop with the drawer open, with the buttons most rows carry`, () => {
+      expect(tableMinWidth(defaults, select + (action?.usual ?? 0))).toBeLessThanOrEqual(LAPTOP)
+    })
+
+    it(`${name}'s default columns fit a 1366px laptop with the drawer open, whatever button a row carries`, () => {
+      expect(tableMinWidth(defaults, select + (action?.widest ?? 0))).toBeLessThanOrEqual(WIDER_LAPTOP)
     })
   }
+
+  it("orders each list's action widths: the usual button is never wider than the widest", () => {
+    for (const widths of Object.values(ACTION_COLUMN_WIDTHS)) expect(widths.usual).toBeLessThanOrEqual(widths.widest)
+  })
 })

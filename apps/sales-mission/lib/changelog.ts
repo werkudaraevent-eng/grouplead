@@ -46,6 +46,16 @@ export const CHANGE_KIND_LABELS: Record<ChangeKind, string> = {
 export const CHANGELOG: ChangeEntry[] = [
   {
     date: "2026-09-24",
+    title: "Tabel daftar memenuhi layar, judul kolom selalu terlihat",
+    items: [
+      { kind: "lebih-baik", text: "Di komputer, tabel Aktivitas, Prospek, dan Laporan kini memenuhi layar di bawah baris filter dan bergulir di dalam kartunya sendiri. Judul kolom tetap di atas saat daftar digulir ke bawah, penggeser ke samping selalu ada di dasar kartu (tidak perlu lagi menggulir sampai baris terakhir untuk menemukannya), dan Baris per halaman serta tombol halaman berikutnya selalu tampil di bawahnya." },
+      { kind: "lebih-baik", text: "Kolom Aksi kini selebar tombol yang ada di halaman itu, tidak lagi selebar tetap. Sisa lebarnya diberikan ke nama aktivitas atau perusahaan, jadi nama yang panjang lebih jarang terpotong dan tidak ada lagi ruang kosong sebelum kolom Aksi." },
+      { kind: "lebih-baik", text: "Keterangan urutan seperti “terdekat dulu” tidak lagi menempel di judul kolom. Kolom yang memegang urutan bawaan (Jadwal di Aktivitas, Hubungi lagi di Prospek, Status di Laporan) ditandai panah abu-abu; arahkan kursor ke judulnya untuk membaca urutannya dan apa yang terjadi kalau diklik." },
+      { kind: "diperbaiki", text: "Di Prospek, tombol Catat follow-up (untuk prospek tanpa telepon dan email) beserta ⋮ di sebelahnya tidak lagi menutupi pinggir kolom di sebelah kirinya." },
+    ],
+  },
+  {
+    date: "2026-09-24",
     title: "Tampilan tersimpan dan pilihan kolom di Aktivitas, Prospek, dan Laporan",
     // Desk work for whoever reads lists all day; the admin switches it on after training.
     announcement: {

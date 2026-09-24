@@ -1,5 +1,6 @@
 "use client"
 
+import type { ComponentProps } from "react"
 import Link from "next/link"
 import { ViewLink } from "@/components/remember-view"
 import { ClipboardList, Send } from "@/components/icons"
@@ -16,7 +17,7 @@ import { EmptyState } from "@/app/workspace/workspace-page"
 import { PersonAvatar } from "@/components/person-avatar"
 import { Button } from "@/components/ui/button"
 import { TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { CellText, LIST_CELL, ListTableFrame, edgeProps, frozen } from "@/components/list-table"
+import { CellBox, CellText, LIST_CELL, ListTableFrame, edgeProps, frozen } from "@/components/list-table"
 import { useDrawnColumns } from "@/components/list-view/list-view-provider"
 import { cn } from "@/lib/utils"
 import { paths } from "@/lib/paths"
@@ -36,7 +37,19 @@ const STATUS_DOT: Record<string, string> = {
   NEEDS_CLARIFICATION: "bg-[var(--warning-foreground)]",
 }
 
-function Sort({ column, label, sort, align }: { column: ReportSortColumn; label: string; sort: ReportSort; align?: "left" | "right" }) {
+function Sort({
+  column,
+  label,
+  sort,
+  align,
+  head,
+}: {
+  column: ReportSortColumn
+  label: string
+  sort: ReportSort
+  align?: "left" | "right"
+  head?: ComponentProps<typeof SortHeader>["head"]
+}) {
   return (
     <SortHeader
       column={column}
@@ -47,6 +60,7 @@ function Sort({ column, label, sort, align }: { column: ReportSortColumn; label:
       defaultSort={DEFAULT_REPORT_SORT}
       defaultHint={{ column: "submitted", text: "terbaru dulu" }}
       align={align}
+      head={head}
     />
   )
 }
@@ -256,10 +270,11 @@ export function ReportTable({
             {drawn.map((column) => {
               const lead = column.locked ? frozen("name", false) : null
               const sortColumn = column.sort as ReportSortColumn | undefined
-              return (
-                <TableHead key={column.id} className={lead?.className} style={lead?.style} {...edgeProps(lead?.edge)}>
-                  {sortColumn ? <Sort column={sortColumn} label={column.label} sort={pagination.sort} /> : column.label}
-                </TableHead>
+              const head = { className: lead?.className, style: lead?.style, ...edgeProps(lead?.edge) }
+              return sortColumn ? (
+                <Sort key={column.id} column={sortColumn} label={column.label} sort={pagination.sort} head={head} />
+              ) : (
+                <TableHead key={column.id} {...head}>{column.label}</TableHead>
               )
             })}
           </TableRow>
@@ -277,7 +292,9 @@ export function ReportTable({
                     title={reportCellTitle(column.id, report, today)}
                     {...edgeProps(lead?.edge)}
                   >
-                    <ReportCell column={column.id} report={report} today={today} href={href(report)} />
+                    <CellBox column={column}>
+                      <ReportCell column={column.id} report={report} today={today} href={href(report)} />
+                    </CellBox>
                   </TableCell>
                 )
               })}
