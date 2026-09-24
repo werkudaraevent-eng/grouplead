@@ -48,6 +48,8 @@ export const CHANGELOG: ChangeEntry[] = [
     date: "2026-09-24",
     title: "Judul yang sama di setiap halaman",
     items: [
+      { kind: "lebih-baik", text: "Di HP, kolom cari dan chip di Aktivitas, Prospek, dan Laporan kini menyingkir saat kamu menggulir daftar ke bawah, jadi layar terisi kartu, dan langsung muncul lagi di bawah bilah atas begitu kamu menggulir sedikit ke atas. Jumlah hasil (misalnya “170 aktivitas”) tetap di atas daftar, dan jarak antara kolom cari, chip, jumlah hasil, dan kartu pertama kini sama rata." },
+      { kind: "diperbaiki", text: "Di HP dan tablet, tab Daftar · Ringkasan · Insight di Laporan kini menempel rapat di bawah bilah atas saat halaman digulir, tanpa celah tipis di atasnya tempat isi halaman terlihat lewat." },
       { kind: "diperbaiki", text: "Di Laporan, tab Daftar · Ringkasan · Insight kini tetap di atas saat Ringkasan atau Insight digulir, jadi pindah tab tidak perlu menggulir kembali ke atas." },
       { kind: "lebih-baik", text: "Di komputer, tampilan tersimpan di Aktivitas, Prospek, dan Laporan kini ada di satu tombol Tampilan di kanan baris filter, di samping tombol Kolom. Tombol itu menyebut nama tampilan yang sedang tampil; buka untuk memilih tampilan lain, kembali ke Tampilan awal, menyimpan, mengubah nama, menjadikan bawaan, atau menghapus. Baris chip di atas daftar sudah tidak ada, jadi tabel tidak lagi turun saat kamu menyimpan tampilan." },
       { kind: "lebih-baik", text: "Di komputer, jumlah hasil (misalnya “12 dari 170 aktivitas”) kini ada di kiri bawah tabel, sebaris dengan tombol halaman, dan hanya muncul saat ada filter yang menyala. Tanpa filter, “1–25 dari 170” di bawah tabel sudah menyebut totalnya. Di HP jumlahnya tetap di atas daftar." },

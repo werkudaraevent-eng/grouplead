@@ -14,7 +14,11 @@ import { cn } from "@/lib/utils"
  * the page's scroller: the tabs say which of the three views this is and
  * are how to reach the others, so they stay in reach under the header while
  * a long Ringkasan or Insight scrolls beneath them (M3 tabs: fixed under the
- * top app bar as content scrolls; Google Analytics, Play Console).
+ * top app bar as content scrolls; Google Analytics, Play Console). Below
+ * `lg` the scroller has 12px of top padding, and a sticky box pins inside
+ * a scroller's padding: `-mt-3` takes it back at rest and `-top-3` once
+ * pinned, so the row sits flush under the app bar with no strip of the
+ * page scrolling past above it.
  *
  * Insight is a tab only where it exists: the unit's switch is on and the
  * person may read Insight AI. A tab that leads to a refusal is worse than
@@ -27,11 +31,17 @@ const TABS = [
 
 const INSIGHT_TAB = { href: "/workspace/reports/insight", label: "Insight" } as const
 
+/**
+ * The row's height, 48dp tabs and the 1px rule under them: what pins under
+ * it on a phone (the Daftar list's search and chips) starts here.
+ */
+export const REPORT_TABS_HEIGHT = "calc(3rem + 1px)"
+
 export function ReportTabs({ showInsight = false }: { showInsight?: boolean }) {
   const pathname = usePathname()
   const tabs = showInsight ? [...TABS, INSIGHT_TAB] : TABS
   return (
-    <nav role="tablist" aria-label="Tampilan laporan" className="sticky top-0 z-20 mb-4 flex border-b bg-background max-lg:-mt-3 max-sm:-mx-4 max-sm:mb-3 sm:max-lg:-mx-6 sm:max-lg:px-2">
+    <nav role="tablist" aria-label="Tampilan laporan" className="sticky top-0 z-20 mb-4 flex border-b bg-background max-lg:-top-3 max-lg:-mt-3 max-sm:-mx-4 max-sm:mb-3 sm:max-lg:-mx-6 sm:max-lg:px-2">
       {tabs.map((tab) => {
         const active = tab.href === "/workspace/reports" ? pathname === tab.href : pathname.startsWith(tab.href)
         return (

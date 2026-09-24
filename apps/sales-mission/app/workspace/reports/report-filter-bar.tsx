@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react"
 import { usePathname, useSearchParams } from "next/navigation"
 import { Search, X } from "@/components/icons"
 import { FilterBarFrame } from "@/components/filter-bar-frame"
+import { REPORT_TABS_HEIGHT } from "@/app/workspace/reports/report-tabs"
 import { useListNavigate } from "@/components/list-view/list-view-provider"
 import { rememberView } from "@/components/remember-view"
 import { FacetSelect, type FacetSpec } from "@/components/facet-select"
@@ -150,6 +151,8 @@ export function ReportFilterBar({
   return (
     <FilterBarFrame
       activeCount={active}
+      // On a phone the search and chips come back under the tabs, which stay pinned.
+      pinBelow={REPORT_TABS_HEIGHT}
       search={
         <div className="relative min-w-0 flex-1 md:max-w-md md:basis-56">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />

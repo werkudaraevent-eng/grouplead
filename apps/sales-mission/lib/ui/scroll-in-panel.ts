@@ -20,7 +20,8 @@
 /** The workspace's scrolling region, rendered once by `WorkspacePage`. */
 const PANEL_ID = "page-scroll"
 
-function panelOf(element: Element): HTMLElement | null {
+/** The page's own scroller around `element`, or null outside the workspace shell. */
+export function panelOf(element: Element): HTMLElement | null {
   return element.closest<HTMLElement>(`#${PANEL_ID}`)
 }
 
