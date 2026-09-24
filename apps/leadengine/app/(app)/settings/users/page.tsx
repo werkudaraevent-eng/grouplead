@@ -23,6 +23,7 @@ import {
 } from "@/components/icons"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { SettingsPageHeader } from "@/components/layout/settings-page-header"
+import { pageIntroKey } from "@/lib/hints/hint-key"
 import { PermissionGate } from "@/features/users/components/permission-gate"
 import { Profile } from "@/types"
 import { EditUserSheet } from "@/features/users/components/edit-user-modal"
@@ -186,10 +187,11 @@ export default function UserManagementPage() {
         <PermissionGate resource="members" action="read" fallback={
             <div className="p-8 text-center text-muted-foreground">You don&apos;t have permission to view users.</div>
         }>
-        <div className="space-y-6 w-full">
+        <div className="w-full">
             <SettingsPageHeader
                 title="User Management"
                 subtitle="Manage team hierarchy, roles, and sales quotas."
+                intro={pageIntroKey("settings-users")}
                 breadcrumbs={[{ label: "Users" }]}
                 actions={
                     <PermissionGate resource="members" action="create">

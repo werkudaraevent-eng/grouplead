@@ -2,11 +2,14 @@ export default function SettingsLoading() {
     const CONTAINER = "w-full max-w-[1200px]"
     return (
         <div className="min-h-[100dvh] bg-background">
-            {/* Header skeleton — matches shared SettingsPageHeader */}
-            <div className="px-4 sm:px-6 lg:px-8 pt-6 pb-3 border-b border-transparent space-y-1.5">
+            {/* Header skeleton, matching SettingsPageHeader: the one 56dp row
+                with the title, then the 16px the header always leaves. No
+                description line, which people close once read (PageIntro),
+                so the page does not jump when it arrives. */}
+            <div className="flex min-h-14 items-center border-b border-transparent px-4 py-1.5 sm:px-6 lg:px-8">
                 <div className="h-7 w-32 bg-muted animate-pulse rounded-md" />
-                <div className="h-4 w-72 max-w-full bg-muted/70 animate-pulse rounded-md" />
             </div>
+            <div className="pb-4" />
 
             <div className="px-4 sm:px-6 lg:px-8 pb-20">
                 <div className={CONTAINER}>
@@ -15,7 +18,7 @@ export default function SettingsLoading() {
                         { rows: 2 },
                         { rows: 2 },
                     ].map((section, i) => (
-                        <section key={i} className="mt-10 first:mt-6">
+                        <section key={i} className="mt-10 first:mt-0">
                             <div className="px-1 space-y-2">
                                 <div className="h-3 w-24 bg-muted animate-pulse rounded" />
                                 <div className="h-3 w-56 max-w-full bg-muted/70 animate-pulse rounded" />

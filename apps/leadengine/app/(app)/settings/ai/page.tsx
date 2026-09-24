@@ -3,6 +3,7 @@ import { readAiSettings } from "@/lib/ai/ai-settings"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { SettingsPageHeader } from "@/components/layout/settings-page-header"
+import { pageIntroKey } from "@/lib/hints/hint-key"
 import { AiSettingsForm } from "@/features/settings/components/ai-settings-form"
 
 export const dynamic = "force-dynamic"
@@ -22,6 +23,7 @@ export default async function AiSettingsPage() {
       <SettingsPageHeader
         title="AI"
         subtitle="The endpoint, API key and models behind Ask AI and Analyze. One connection, shared with Sales Activity."
+        intro={pageIntroKey("settings-ai")}
         breadcrumbs={[{ label: "AI" }]}
         actions={
           <Button asChild variant="outline" size="sm">

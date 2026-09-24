@@ -1,7 +1,34 @@
 "use client"
 
+/**
+ * The header of every page that is not a list (Settings and its pages, My
+ * profile, the changelog): the same anatomy as `ListPageHeader`.
+ *
+ *   ┌──────────────────────────────────────────────────────────┐
+ *   │ Settings / AI                                            │  one 56dp row,
+ *   │ Usage                                          [Action]  │  sticky
+ *   ├──────────────────────────────────────────────────────────┤
+ *   │ description, until dismissed (or a factual line)     ✕   │  scrolls away
+ *   └──────────────────────────────────────────────────────────┘
+ *
+ * One row, level with the drawer's header, holds the 20px title and the
+ * page's actions centred on it; on a derived page (anything under Settings
+ * but Settings itself and My profile) its parent sits above the title inside
+ * the same row as one small line of links, "Settings" or "Settings / AI",
+ * because LeadEngine has no Back button. The page itself is not repeated
+ * there: the title says it. The row stays at the top while the page scrolls
+ * and gains its edge once content passes under it; its height and the
+ * title's size never change. The line under it follows what it says: with
+ * `intro` it teaches and closes for good with ✕ (`PageIntro`); without, it
+ * states facts and always shows. The header block always ends 16px above the
+ * content, whether or not a line shows. On a phone the title and the actions
+ * share the row, the parent line stays (it is the way back) and so does the
+ * description.
+ */
+
 import { useEffect, useRef, useState } from "react"
 import Link from "next/link"
+import { PageIntro } from "@/components/shared/page-intro"
 import { cn } from "@/lib/utils"
 
 interface Breadcrumb {
@@ -12,11 +39,25 @@ interface Breadcrumb {
 interface SettingsPageHeaderProps {
     title: string
     subtitle?: string
+    /**
+     * The subtitle only teaches: a `pageIntroKey(...)`, under which it is
+     * dismissible and remembered per person. Without it the subtitle is
+     * information and always shows.
+     */
+    intro?: string
+    /**
+     * The trail below Settings, the current page last ([{ label: "AI", href:
+     * "/settings/ai" }, { label: "Usage" }]). The parent line is "Settings"
+     * plus every crumb but the last; left out, the page is top-level and has
+     * no parent line.
+     */
     breadcrumbs?: Breadcrumb[]
     actions?: React.ReactNode
 }
 
-export function SettingsPageHeader({ title, subtitle, breadcrumbs, actions }: SettingsPageHeaderProps) {
+const SETTINGS_CRUMB: Breadcrumb = { label: "Settings", href: "/settings" }
+
+export function SettingsPageHeader({ title, subtitle, intro, breadcrumbs, actions }: SettingsPageHeaderProps) {
     const [scrolled, setScrolled] = useState(false)
     const headerRef = useRef<HTMLDivElement>(null)
 
@@ -36,67 +77,51 @@ export function SettingsPageHeader({ title, subtitle, breadcrumbs, actions }: Se
         return () => window.removeEventListener("scroll", handleScroll, true)
     }, [])
 
-    const defaultBreadcrumbs: Breadcrumb[] = [{ label: "Settings", href: "/settings" }]
-    const allCrumbs = breadcrumbs ? [...defaultBreadcrumbs, ...breadcrumbs] : defaultBreadcrumbs
+    const parents = breadcrumbs ? [SETTINGS_CRUMB, ...breadcrumbs.slice(0, -1)] : []
 
     return (
         <>
-            {/* Sticky header */}
+            {/* The sticky part is this one row and nothing else. */}
             <div
                 ref={headerRef}
                 className={cn(
-                    "sticky top-0 z-40 bg-white px-4 sm:px-6 lg:px-8 transition-all duration-200",
-                    scrolled ? "py-3 border-b border-border shadow-sm" : "pt-6 pb-3 border-b border-transparent",
+                    "sticky top-0 z-40 flex min-h-14 items-center justify-between gap-3 border-b bg-background px-4 py-1.5 transition-[border-color,box-shadow] duration-200 sm:px-6 lg:px-8",
+                    scrolled ? "border-border shadow-sm" : "border-transparent",
                 )}
             >
-                <div className="flex items-center justify-between gap-3">
-                    <div className="min-w-0">
-                        <h1 className={cn(
-                            "font-extrabold text-foreground tracking-tight transition-all duration-200 m-0",
-                            scrolled ? "text-[17px]" : "text-2xl",
-                        )}>
-                            {title}
-                        </h1>
-                        {/* Collapses on scroll by animating the grid row from
-                            its content height to 0, never to a fixed height: a
-                            fixed 20px box clipped the descenders under the 4px
-                            top margin and cut a subtitle that wraps on a phone
-                            down to its first line. */}
-                        {subtitle && (
-                            <div className={cn(
-                                "grid transition-[grid-template-rows,opacity] duration-200",
-                                scrolled ? "grid-rows-[0fr] opacity-0" : "grid-rows-[1fr] opacity-100",
-                            )}>
-                                <div className="min-h-0 overflow-hidden">
-                                    <p className="pt-1 text-sm leading-5 text-muted-foreground">{subtitle}</p>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                    {actions && <div className="flex shrink-0 items-center gap-2">{actions}</div>}
+                <div className="min-w-0">
+                    {parents.length > 0 && (
+                        <nav aria-label="Breadcrumb">
+                            <ol className="flex min-w-0 items-center gap-1 text-xs font-medium text-muted-foreground">
+                                {parents.map((crumb, i) => (
+                                    <li key={`${crumb.label}-${i}`} className="flex min-w-0 items-center gap-1">
+                                        {i > 0 && <span aria-hidden>/</span>}
+                                        {crumb.href ? (
+                                            <Link href={crumb.href} className="truncate transition-colors hover:text-primary">
+                                                {crumb.label}
+                                            </Link>
+                                        ) : (
+                                            <span className="truncate">{crumb.label}</span>
+                                        )}
+                                    </li>
+                                ))}
+                            </ol>
+                        </nav>
+                    )}
+                    <h1 className="truncate text-xl font-semibold tracking-tight text-foreground">{title}</h1>
                 </div>
+                {actions && <div className="flex shrink-0 items-center gap-2">{actions}</div>}
             </div>
 
-            {/* Breadcrumb */}
-            {allCrumbs.length > 1 && (
-                <nav className="px-4 sm:px-6 lg:px-8 pt-2 pb-4 flex items-center gap-1.5 text-[11.5px]">
-                    {allCrumbs.map((crumb, i) => (
-                        <span key={i} className="flex items-center gap-1.5">
-                            {i > 0 && <span className="text-slate-300">/</span>}
-                            {crumb.href && i < allCrumbs.length - 1 ? (
-                                <Link
-                                    href={crumb.href}
-                                    className="text-muted-foreground font-medium hover:text-primary transition-colors duration-100"
-                                >
-                                    {crumb.label}
-                                </Link>
-                            ) : (
-                                <span className="text-slate-700 font-semibold">{crumb.label}</span>
-                            )}
-                        </span>
-                    ))}
-                </nav>
-            )}
+            {/* Under the row, so it scrolls away; the 16px under it is always there.
+                The 6px above keeps the ✕'s round target clear of the sticky row. */}
+            <div className="px-4 pb-4 sm:px-6 lg:px-8">
+                {subtitle && (intro ? (
+                    <PageIntro hintKey={intro} className="pt-1.5">{subtitle}</PageIntro>
+                ) : (
+                    <p className="max-w-3xl pt-1.5 text-sm text-muted-foreground">{subtitle}</p>
+                ))}
+            </div>
         </>
     )
 }

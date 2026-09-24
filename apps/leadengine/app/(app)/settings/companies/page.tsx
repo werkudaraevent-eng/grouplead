@@ -17,6 +17,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Building2, Globe, Plus, Loader2, Users, Pencil, Trash2, Search, MoreHorizontal } from "@/components/icons"
 import { SettingsPageHeader } from "@/components/layout/settings-page-header"
+import { pageIntroKey } from "@/lib/hints/hint-key"
 import { toast } from 'sonner'
 import { CompanyForm } from '@/features/companies/components/company-form'
 import { cn } from '@/lib/utils'
@@ -95,10 +96,11 @@ export default function CompanyManagementPage() {
     <PermissionGate resource="companies" action="read" fallback={
       <div className="p-8 text-center text-muted-foreground">You don&apos;t have permission to view company settings.</div>
     }>
-    <div className="space-y-6 w-full">
+    <div className="w-full">
       <SettingsPageHeader
         title="Company Management"
         subtitle="Manage companies, members, and role permissions."
+        intro={pageIntroKey("settings-companies")}
         breadcrumbs={[{ label: "Companies" }]}
         actions={
           <PermissionGate resource="companies" action="create">

@@ -1117,8 +1117,9 @@ export default function GlobalPermissionsPage() {
     <PermissionGate resource="permissions" action="read" fallback={
       <div className="p-8 text-center text-muted-foreground">Anda tidak punya izin mengelola izin.</div>
     }>
-      <div className="space-y-6 w-full">
-        {/* Header */}
+      <div className="w-full">
+        {/* Header. The line under the title names the company whose matrix
+            this is, a fact, so it has no intro key and always shows. */}
         <SettingsPageHeader
           title="Role & Izin"
           subtitle={`Atur matriks kontrol akses per role${companyName ? `: ${companyName}` : ""}`}

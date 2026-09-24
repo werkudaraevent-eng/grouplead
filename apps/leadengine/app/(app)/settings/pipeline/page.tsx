@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Plus, MoreVertical, Pencil, Trash2, CheckCircle2, GripVertical, AlertTriangle, Check, X, Loader2, Star } from "@/components/icons"
 import { SettingsPageHeader } from "@/components/layout/settings-page-header"
+import { pageIntroKey } from "@/lib/hints/hint-key"
 import { usePermissions } from "@/contexts/permissions-context"
 import {
     createStageAction,
@@ -494,10 +495,11 @@ export default function PipelineOverviewPage() {
 
     // ─── Render ───────────────────────────────────────────────
     return (
-        <div className="min-h-screen bg-[#f2f3f6]">
+        <div className="min-h-screen bg-background">
             <SettingsPageHeader
                 title="Pipeline & Stages"
                 subtitle="Manage your sales pipelines, stages, and rules"
+                intro={pageIntroKey("settings-pipeline")}
                 breadcrumbs={[{ label: "Pipeline" }]}
             />
 
@@ -506,7 +508,7 @@ export default function PipelineOverviewPage() {
                 {loading ? (
                     <div className="flex py-20 justify-center"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
                 ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mt-2">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                         {pipelines.map(pipeline => {
                             const pStages = allStages.filter(s => s.pipeline_id === pipeline.id).sort((a, b) => a.sort_order - b.sort_order)
                             const open = pStages.filter(s => s.stage_type === 'open')

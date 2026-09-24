@@ -1,5 +1,8 @@
 import { cookies } from "next/headers";
 import { MainLayout } from "@/components/layout/main-layout";
+import { IntroSeenProvider } from "@/components/shared/intro-seen-provider";
+import { listSeenHints } from "@/lib/hints/hint-queries";
+import { pageIntroKeys } from "@/lib/hints/hint-key";
 import { getActiveCompany, getUserCompanies } from "@/utils/company";
 import { createClient } from "@/utils/supabase/server";
 import type { CurrencySettings } from "@/types/currency";
@@ -19,6 +22,10 @@ export default async function AppLayout({
   let companies: Awaited<ReturnType<typeof getUserCompanies>> = [];
   let currencySettings: CurrencySettings = DEFAULT_CURRENCY_SETTINGS;
   let userProfile: { full_name: string | null; role: string | null; avatar_url: string | null } | null = null;
+  // The page descriptions this person has closed, so each one is already
+  // absent from the first HTML (PageIntro). Empty on any failure: the
+  // descriptions show, never an error.
+  let introSeen: string[] = [];
 
   try {
     const supabase = await createClient();
@@ -31,14 +38,17 @@ export default async function AppLayout({
     companies = companiesResult;
 
     const userId = authResult.data?.user?.id;
-    const [profileResult, settingsResult] = await Promise.all([
+    const [profileResult, settingsResult, seenResult] = await Promise.all([
       userId
         ? supabase.from("profiles").select("full_name, role, avatar_url").eq("id", userId).maybeSingle()
         : Promise.resolve({ data: null }),
       initialCompany?.id
         ? supabase.from("company_settings").select("currency_format, currency_prefix").eq("company_id", initialCompany.id).maybeSingle()
         : Promise.resolve({ data: null }),
+      // Never throws: a failure (or a table not there yet) is "seen nothing".
+      userId ? listSeenHints(userId) : Promise.resolve([] as string[]),
     ]);
+    introSeen = pageIntroKeys(seenResult);
 
     if (profileResult.data) {
       userProfile = profileResult.data as NonNullable<typeof userProfile>;
@@ -68,7 +78,7 @@ export default async function AppLayout({
       userProfile={userProfile}
       initialCollapsed={initialCollapsed}
     >
-      {children}
+      <IntroSeenProvider initialSeen={introSeen}>{children}</IntroSeenProvider>
     </MainLayout>
   );
 }

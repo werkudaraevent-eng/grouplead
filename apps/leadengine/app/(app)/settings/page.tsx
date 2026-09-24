@@ -17,6 +17,7 @@ import {
     History,
 } from "@/components/icons"
 import { SettingsPageHeader } from "@/components/layout/settings-page-header"
+import { pageIntroKey } from "@/lib/hints/hint-key"
 import { CurrencySettingsRow } from "@/features/settings/components/currency-settings-card"
 import { MaintenanceSection } from "@/features/settings/components/maintenance-section"
 import { usePermissions } from "@/contexts/permissions-context"
@@ -171,6 +172,7 @@ export default function SettingsPage() {
             <SettingsPageHeader
                 title="Settings"
                 subtitle="Manage your workspace configuration, team, and access control."
+                intro={pageIntroKey("settings")}
             />
 
             <div className="px-4 sm:px-6 lg:px-8 pb-20">
@@ -182,7 +184,7 @@ export default function SettingsPage() {
                     ) : visibleSections.length === 0 ? (
                         <SettingsEmptyAccess />
                     ) : visibleSections.map((section) => (
-                        <section key={section.label} className="mt-10 first:mt-6">
+                        <section key={section.label} className="mt-10 first:mt-0">
                             <SectionHeader label={section.label} description={section.description} />
 
                             <ul className="mt-3 overflow-hidden rounded-xl border border-border bg-card divide-y divide-border">
@@ -211,7 +213,7 @@ export default function SettingsPage() {
 
 function SettingsAccessDenied() {
     return (
-        <div className="mt-10 rounded-xl border border-border bg-card p-8 text-center">
+        <div className="rounded-xl border border-border bg-card p-8 text-center">
             <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-md bg-muted text-muted-foreground">
                 <ShieldAlert className="h-5 w-5" aria-hidden="true" />
             </div>
@@ -225,7 +227,7 @@ function SettingsAccessDenied() {
 
 function SettingsEmptyAccess() {
     return (
-        <div className="mt-10 rounded-xl border border-border bg-card p-8 text-center">
+        <div className="rounded-xl border border-border bg-card p-8 text-center">
             <h2 className="text-sm font-semibold text-foreground">No settings sections available</h2>
             <p className="mt-1 text-sm text-muted-foreground">
                 You can open Settings, but your role has no section-level access yet.
@@ -236,7 +238,7 @@ function SettingsEmptyAccess() {
 
 function SettingsAccessSkeleton() {
     return (
-        <div className="mt-10 space-y-3">
+        <div className="space-y-3">
             <div className="h-3 w-24 rounded bg-muted animate-pulse" />
             <div className="rounded-xl border border-border bg-card divide-y divide-border overflow-hidden">
                 {Array.from({ length: 3 }).map((_, i) => (

@@ -1,5 +1,6 @@
 import { requirePermission } from "@/lib/require-permission"
 import { SettingsPageHeader } from "@/components/layout/settings-page-header"
+import { pageIntroKey } from "@/lib/hints/hint-key"
 import { createClient } from "@/utils/supabase/server"
 import {
   dailyActiveSeries,
@@ -51,7 +52,7 @@ const SUBTITLE =
 export default async function UsagePage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   const shell = (children: React.ReactNode) => (
     <div data-fluid-page className="min-h-[100dvh] bg-background">
-      <SettingsPageHeader title="Usage" subtitle={SUBTITLE} breadcrumbs={[{ label: "Usage" }]} />
+      <SettingsPageHeader title="Usage" subtitle={SUBTITLE} intro={pageIntroKey("settings-usage")} breadcrumbs={[{ label: "Usage" }]} />
       <div className="px-4 pb-20 sm:px-6 lg:px-8">
         <div className="w-full max-w-[1200px]">{children}</div>
       </div>

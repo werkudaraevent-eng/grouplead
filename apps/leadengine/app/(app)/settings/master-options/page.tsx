@@ -45,6 +45,7 @@ import { FormLayoutBuilder } from "@/features/settings/components/form-layout-bu
 import { SegmentSettings } from "@/features/goals/components/settings/segment-settings"
 import { CascadingTreeManager } from "@/features/settings/components/cascading-tree-manager"
 import { SettingsPageHeader } from "@/components/layout/settings-page-header"
+import { pageIntroKey } from "@/lib/hints/hint-key"
 import { invalidateCascadeCache } from "@/hooks/use-cascade-relations"
 
 const SYSTEM_MANAGED_CATEGORIES = ["status", "bu_revenue"]
@@ -776,6 +777,7 @@ function MasterOptionsContent() {
                 <SettingsPageHeader
                     title="Master Options & Custom Fields"
                     subtitle="Manage dropdown values and dynamic form fields."
+                    intro={pageIntroKey("settings-master-options")}
                     breadcrumbs={[{ label: "Master Options" }]}
                 />
 

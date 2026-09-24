@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Loader2, Save, UserCircle, KeyRound, Shield, Mail, Camera, Settings2, Eye, EyeOff } from "@/components/icons"
 import { SettingsPageHeader } from "@/components/layout/settings-page-header"
+import { pageIntroKey } from "@/lib/hints/hint-key"
 import { PhoneInput } from "@/components/shared/phone-input"
 import { normalizePhoneToE164 } from "@/lib/phone-normalize"
 import { Switch } from "@/components/ui/switch"
@@ -174,11 +175,13 @@ export default function MyProfilePage() {
     }
 
     return (
-        <div className="space-y-6">
+        <div>
+            {/* Top-level: opened from the account menu and open to people
+                without the Settings grant, so no "Settings" parent to bounce them. */}
             <SettingsPageHeader
                 title="Profile Settings"
                 subtitle="Manage your personal information and security settings."
-                breadcrumbs={[{ label: "Profile" }]}
+                intro={pageIntroKey("settings-profile")}
             />
 
             <div className="px-6 lg:px-8 pb-6 max-w-3xl space-y-6">

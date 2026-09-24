@@ -2,6 +2,7 @@ import { requirePermission } from "@/lib/require-permission"
 import { readAiUsage } from "@/lib/ai/ai-usage"
 import { createServiceClient } from "@/utils/supabase/service"
 import { SettingsPageHeader } from "@/components/layout/settings-page-header"
+import { pageIntroKey } from "@/lib/hints/hint-key"
 import { AiUsageCard } from "@/features/settings/components/ai-usage-card"
 
 export const dynamic = "force-dynamic"
@@ -21,6 +22,7 @@ export default async function AiUsagePage() {
       <SettingsPageHeader
         title="AI usage"
         subtitle="Tokens both apps sent through the AI proxy, and what a week and a month need at the current pace."
+        intro={pageIntroKey("settings-ai-usage")}
         breadcrumbs={[{ label: "AI", href: "/settings/ai" }, { label: "Usage" }]}
       />
       <div className="px-6 pb-10 max-w-[800px]">

@@ -1577,11 +1577,14 @@ export function AnalyticsDashboard({
                         and renders only after mount so the relative time never
                         causes a hydration mismatch. */}
                     <div style={{ minWidth: 0, flexShrink: 1, overflow: "hidden" }}>
+                        {/* Every page's title: 20px semibold, tracking-tight,
+                            the same size at rest and scrolled (DESIGN.md "Page
+                            headers"); only the row's height and the factual
+                            subtitle change with the scroll. */}
                         <h1 style={{
-                            fontSize: scrolled ? 17 : 19, fontWeight: 700, color: "#1a2230",
-                            letterSpacing: "-0.4px", lineHeight: 1.15, margin: 0,
+                            fontSize: 20, fontWeight: 600, color: "var(--foreground)",
+                            letterSpacing: "-0.025em", lineHeight: 1.15, margin: 0,
                             whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
-                            transition: "font-size .25s cubic-bezier(0.23,1,0.32,1)",
                         }}>
                             {firstName ? `Halo, ${firstName} 👋` : "Performance Dashboard"}
                         </h1>

@@ -16,6 +16,7 @@ import { useCallback, useEffect, useState, useTransition } from "react"
 import { fetchAuditLogs, type AuditLogRow } from "@/app/actions/audit-actions"
 import { createClient } from "@/utils/supabase/client"
 import { SettingsPageHeader } from "@/components/layout/settings-page-header"
+import { pageIntroKey } from "@/lib/hints/hint-key"
 import {
     Search, ChevronLeft, ChevronRight, Activity,
     Plus, Pencil, Trash2, ArrowRightLeft, Upload, Download,
@@ -107,7 +108,8 @@ export default function ChangeHistoryPage() {
         <div data-fluid-page className="min-h-[100dvh] bg-background">
             <SettingsPageHeader
                 title="Change history"
-                subtitle={`Who created, changed and deleted what across LeadEngine, recorded automatically · ${total} events`}
+                subtitle="Who created, changed and deleted what across LeadEngine, recorded automatically"
+                intro={pageIntroKey("settings-history")}
                 breadcrumbs={[{ label: "Change history" }]}
             />
             <div className="shrink-0">
@@ -219,20 +221,25 @@ export default function ChangeHistoryPage() {
                 )}
             </div>
 
-            {/* Pagination */}
-            {totalPages > 1 && (
+            {/* Pagination. The count is a fact, so it lives here and always
+                shows, even on a single page; the header's line only teaches. */}
+            {total > 0 && (
                 <div className="px-4 sm:px-6 py-3 border-t border-slate-100 bg-white flex items-center justify-between">
                     <span className="text-[11px] text-slate-400">
-                        Page {page} of {totalPages} · {total} total events
+                        {totalPages > 1
+                            ? <>Page {page} of {totalPages} · {total} total events</>
+                            : <>{total} {total === 1 ? "event" : "events"}</>}
                     </span>
-                    <div className="flex items-center gap-1">
-                        <Button variant="ghost" size="sm" disabled={page <= 1} onClick={() => setPage(p => p - 1)} className="h-9 w-9 p-0">
-                            <ChevronLeft className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button variant="ghost" size="sm" disabled={page >= totalPages} onClick={() => setPage(p => p + 1)} className="h-9 w-9 p-0">
-                            <ChevronRight className="h-3.5 w-3.5" />
-                        </Button>
-                    </div>
+                    {totalPages > 1 && (
+                        <div className="flex items-center gap-1">
+                            <Button variant="ghost" size="sm" disabled={page <= 1} onClick={() => setPage(p => p - 1)} className="h-9 w-9 p-0">
+                                <ChevronLeft className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button variant="ghost" size="sm" disabled={page >= totalPages} onClick={() => setPage(p => p + 1)} className="h-9 w-9 p-0">
+                                <ChevronRight className="h-3.5 w-3.5" />
+                            </Button>
+                        </div>
+                    )}
                 </div>
             )}
         </div>

@@ -137,8 +137,12 @@ export default function CompanyDetailPage() {
     const memberCount = 0 // Could fetch from company_members if needed
 
     return (
-        <div className="flex flex-col h-full overflow-hidden">
-            {/* ─── Sticky Header (same as other settings pages) ─── */}
+        // The page scrolls in the shell's <main>, like every settings page, so
+        // the header's row stays at the top and the line under it scrolls away.
+        <div>
+            {/* ─── Sticky Header (same as other settings pages). The line under
+                the title states the record's type, a fact: no intro key, it
+                always shows. ─── */}
             <SettingsPageHeader
                 title={company.name}
                 subtitle={`Manage settings for ${company.is_holding ? "holding company" : "subsidiary"} ${company.name}.`}
@@ -152,9 +156,9 @@ export default function CompanyDetailPage() {
                 }
             />
 
-            {/* ─── Scrollable content ─── */}
-            <div className="flex-1 overflow-y-auto">
-                <div className="max-w-[960px] mx-auto px-8 py-6">
+            {/* ─── Content ─── */}
+            <div>
+                <div className="max-w-[960px] mx-auto px-8 pb-6">
 
                     {/* ─── Hero Card ─── */}
                     <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden mb-5">

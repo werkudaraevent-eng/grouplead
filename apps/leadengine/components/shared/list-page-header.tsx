@@ -14,17 +14,19 @@
  * own, because every pixel above the table is a row of records fewer
  * (Sales Activity's list header is the same row). The description only
  * teaches what the list is, so with `intro` it shows until the person
- * dismisses it, once for all their devices (`ListIntro`). On a phone the
+ * dismisses it, once for all their devices (`PageIntro`). On a phone the
  * title and the actions share the row and the description is left out, so
  * the list opens on its records rather than on its furniture (Sales
- * Activity's "Content before chrome on a phone").
+ * Activity's "Content before chrome on a phone"). Every other page's header
+ * (`SettingsPageHeader`) is the same row, with a parent line above the title
+ * on a page under Settings.
  */
 
 import * as React from "react"
 import { MoreVertical } from "@/components/icons"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { ListIntro } from "./list-intro"
+import { PageIntro } from "./page-intro"
 
 interface ListPageHeaderProps {
     title: string
@@ -44,7 +46,7 @@ export function ListPageHeader({ title, subtitle, intro, actions, className }: L
                 {actions && <div className="flex items-center gap-2 shrink-0">{actions}</div>}
             </div>
             {subtitle && (intro ? (
-                <ListIntro hintKey={intro.key} seen={intro.seen} className="hidden md:flex">{subtitle}</ListIntro>
+                <PageIntro hintKey={intro.key} seen={intro.seen} className="hidden md:flex">{subtitle}</PageIntro>
             ) : (
                 <p className="hidden pb-1 text-sm text-muted-foreground md:block">{subtitle}</p>
             ))}

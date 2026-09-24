@@ -4,8 +4,10 @@ import { useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { usePermissions } from "@/contexts/permissions-context"
 import { CHANGELOG, CHANGE_TYPE_META } from "@/features/changelog/changelog-data"
-import { ScrollText, ShieldAlert, ArrowLeft } from "@/components/icons"
+import { ShieldAlert, ArrowLeft } from "@/components/icons"
 import { Button } from "@/components/ui/button"
+import { SettingsPageHeader } from "@/components/layout/settings-page-header"
+import { pageIntroKey } from "@/lib/hints/hint-key"
 
 function formatDate(iso: string): string {
     const d = new Date(iso)
@@ -48,25 +50,20 @@ export default function ChangelogPage() {
     }
 
     return (
-        <div className="flex flex-col h-full">
-            {/* Sticky header — matches the Activity History page pattern */}
-            <div className="pt-6 shrink-0 sticky top-0 z-10 bg-background/85 backdrop-blur-md">
-                <div className="mb-4 px-4 sm:px-6 lg:px-8 flex items-start gap-3 max-w-4xl mx-auto w-full">
-                    <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center shrink-0">
-                        <ScrollText className="w-5 h-5 text-blue-600" />
-                    </div>
-                    <div className="min-w-0">
-                        <h1 className="text-2xl font-extrabold text-foreground tracking-tight">Changelog</h1>
-                        <p className="text-sm text-muted-foreground mt-1">
-                            The latest updates and improvements to the app.
-                        </p>
-                    </div>
-                </div>
-                <div className="border-b border-border" />
-            </div>
+        // Scrolls in the shell's <main>: the header's row stays at the top
+        // and gains its edge once the entries pass under it, and the
+        // description under it scrolls away.
+        <div>
+            {/* A top-level page (the account menu opens it): the same header
+                as every page, with no parent line above the title. */}
+            <SettingsPageHeader
+                title="Changelog"
+                subtitle="The latest updates and improvements to the app."
+                intro={pageIntroKey("changelog")}
+            />
 
-            {/* Scrollable body — centered content column */}
-            <div className="flex-1 overflow-y-auto px-4 sm:px-6 lg:px-8 py-6">
+            {/* Centered content column */}
+            <div className="px-4 sm:px-6 lg:px-8 pb-6">
                 <div className="max-w-4xl mx-auto">
                     {/* Timeline */}
                     <div className="relative">
@@ -75,7 +72,7 @@ export default function ChangelogPage() {
 
                         <div className="space-y-10">
                             {entries.map((entry) => (
-                                <section key={entry.date} className="relative pl-8">
+                                <section key={`${entry.date}-${entry.title}`} className="relative pl-8">
                                     {/* Timeline dot */}
                                     <span
                                         className="absolute left-0 top-1.5 w-[15px] h-[15px] rounded-full border-2 border-white bg-blue-500 shadow-sm ring-1 ring-blue-100"

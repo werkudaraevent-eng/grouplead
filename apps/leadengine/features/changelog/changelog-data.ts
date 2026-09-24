@@ -76,6 +76,16 @@ export const CHANGE_TYPE_META: Record<
 export const CHANGELOG: ChangelogEntry[] = [
     {
         date: "2026-09-24",
+        title: "One compact header on every page",
+        items: [
+            { type: "improvement", text: "Every page now has the same compact header as Contacts and Companies: the title and its buttons on one slim row at the top. The title keeps its size as you scroll and no longer jumps when you move between pages." },
+            { type: "improvement", text: "The sentence under a page's title that explains what the page is for can be closed with ✕. Once closed, it stays closed on every device you use. Lines that tell you something current, such as when the dashboard was last updated, always show." },
+            { type: "improvement", text: "Pages under Settings show \"Settings\" (and, where there is one, the page above, such as \"Settings / AI\") just above the title. Click it to go back." },
+            { type: "improvement", text: "Change history shows how many events match your filters at the bottom of the list, even when they fit on one page." },
+        ],
+    },
+    {
+        date: "2026-09-24",
         title: "Contacts and Companies: a slimmer header",
         items: [
             { type: "improvement", text: "The title of Contacts and Companies now sits on one slim row with its buttons, so the table starts higher and shows more rows." },

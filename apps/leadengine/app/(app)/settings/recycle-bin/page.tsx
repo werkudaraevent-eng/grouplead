@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { usePermissions } from "@/contexts/permissions-context"
 import { SettingsPageHeader } from "@/components/layout/settings-page-header"
+import { pageIntroKey } from "@/lib/hints/hint-key"
 import { Button } from "@/components/ui/button"
 import {
     AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -133,11 +134,13 @@ export default function RecycleBinPage() {
             <SettingsPageHeader
                 title="Recycle Bin"
                 subtitle="Deleted leads, companies, and contacts. Restore them or remove permanently."
+                intro={pageIntroKey("settings-recycle-bin")}
                 breadcrumbs={[{ label: "Recycle Bin" }]}
             />
 
             <div className="px-4 sm:px-6 lg:px-8 pb-20">
-                <div className="w-full max-w-[1000px]">
+                {/* The header already leaves 16px; the first block's own top margin would double it. */}
+                <div className="w-full max-w-[1000px] [&>:first-child]:mt-0">
                     {isSuperAdmin && retention !== null && (
                         <div className="mt-6 flex flex-wrap items-center gap-3 rounded-xl border border-border bg-card px-4 py-3">
                             <div className="min-w-0 flex-1">

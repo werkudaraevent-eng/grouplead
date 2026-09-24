@@ -2,6 +2,7 @@ import Link from "next/link"
 import { requirePermission } from "@/lib/require-permission"
 import { listAnnouncements } from "@/lib/announcements/announcement-queries"
 import { SettingsPageHeader } from "@/components/layout/settings-page-header"
+import { pageIntroKey } from "@/lib/hints/hint-key"
 import { AnnouncementList } from "@/features/announcements/components/announcement-list"
 
 export const dynamic = "force-dynamic"
@@ -27,6 +28,7 @@ export default async function AnnouncementSettingsPage() {
       <SettingsPageHeader
         title="Announcements"
         subtitle="New features, announced once per person."
+        intro={pageIntroKey("settings-announcements")}
         breadcrumbs={[{ label: "Announcements" }]}
       />
 
@@ -34,7 +36,7 @@ export default async function AnnouncementSettingsPage() {
         <div className={CONTAINER}>
           {announcements ? (
             <>
-              <div className="mt-2 mb-4 space-y-2 rounded-xl border border-dashed border-border bg-muted/40 px-4 py-4 text-sm leading-relaxed text-muted-foreground sm:px-5">
+              <div className="mb-4 space-y-2 rounded-xl border border-dashed border-border bg-muted/40 px-4 py-4 text-sm leading-relaxed text-muted-foreground sm:px-5">
                 <p>
                   Each person sees the What&apos;s new dialog once, when they open the dashboard, and can choose Later. An announcement
                   that is off shows to nobody; turning one back on does not repeat it for people who already closed it.{" "}

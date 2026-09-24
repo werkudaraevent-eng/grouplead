@@ -931,7 +931,7 @@ export function LeadDashboard() {
                                 <PipelineIcon icon={activePipeline.icon} className="h-5 w-5 text-muted-foreground shrink-0" />
                             )}
                             <div className="min-w-0">
-                                <h1 className="text-[18px] font-semibold tracking-tight leading-snug text-foreground truncate">
+                                <h1 className="text-xl font-semibold tracking-tight leading-snug text-foreground truncate">
                                     {activePipeline?.name || "Select a Pipeline"}
                                 </h1>
                             </div>

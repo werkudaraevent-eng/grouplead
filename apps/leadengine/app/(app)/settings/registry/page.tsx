@@ -3,6 +3,7 @@
 import { PermissionGate } from "@/features/users/components/permission-gate"
 import { RegistrySettings } from "@/features/goals/components/settings/registry-settings"
 import { SettingsPageHeader } from "@/components/layout/settings-page-header"
+import { pageIntroKey } from "@/lib/hints/hint-key"
 
 export default function RegistryPage() {
   return (
@@ -15,6 +16,7 @@ export default function RegistryPage() {
         <SettingsPageHeader
           title="Lead Field Registry"
           subtitle="Manage which lead fields are available for analysis across goals, segments, and dashboard widgets."
+          intro={pageIntroKey("settings-registry")}
           breadcrumbs={[{ label: "Registry" }]}
         />
         <div className="px-6 pb-10 max-w-[1200px]">

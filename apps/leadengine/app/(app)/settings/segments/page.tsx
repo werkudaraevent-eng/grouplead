@@ -3,6 +3,7 @@
 import { PermissionGate } from "@/features/users/components/permission-gate"
 import { SegmentSettings } from "@/features/goals/components/settings/segment-settings"
 import { SettingsPageHeader } from "@/components/layout/settings-page-header"
+import { pageIntroKey } from "@/lib/hints/hint-key"
 
 export default function SegmentsPage() {
   return (
@@ -15,6 +16,7 @@ export default function SegmentsPage() {
         <SettingsPageHeader
           title="Segments & Dimensions"
           subtitle="Define custom segments by grouping lead field values together. Segments are reusable across goals, dashboard widgets, and analytics."
+          intro={pageIntroKey("settings-segments")}
           breadcrumbs={[{ label: "Segments" }]}
         />
         <div className="px-6 pb-10 max-w-[1200px]">

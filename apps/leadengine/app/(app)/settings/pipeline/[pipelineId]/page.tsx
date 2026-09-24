@@ -1,10 +1,11 @@
 "use client"
 
 import { useEffect, useState, useCallback, useMemo } from "react"
-import { useRouter, useParams } from "next/navigation"
+import { useParams } from "next/navigation"
 import { createClient } from "@/utils/supabase/client"
 import type { Pipeline, PipelineStage, TransitionRule, ClosureRestriction, FormSchema } from "@/types/index"
-import { ArrowLeft, Check, X, Plus, ListChecks, FileText, Paperclip, Loader2, Star } from "@/components/icons"
+import { ArrowLeft, Check, X, Plus, ListChecks, FileText, Paperclip, Loader2 } from "@/components/icons"
+import { SettingsPageHeader } from "@/components/layout/settings-page-header"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -23,7 +24,6 @@ function getColorHex(color: string) {
 }
 
 export default function PipelineDetailSettingsPage() {
-    const router = useRouter()
     const params = useParams()
     const supabase = createClient()
     const pipelineId = params.pipelineId as string
@@ -36,14 +36,6 @@ export default function PipelineDetailSettingsPage() {
     const [restrictions, setRestrictions] = useState<ClosureRestriction[]>([])
     const [availableFields, setAvailableFields] = useState<{ key: string; label: string }[]>([])
     const [activeTab, setActiveTab] = useState<'rules' | 'restrictions'>('rules')
-    const [scrolled, setScrolled] = useState(false)
-
-    useEffect(() => {
-        const handler = () => setScrolled(window.scrollY > 10)
-        window.addEventListener('scroll', handler, { passive: true })
-        return () => window.removeEventListener('scroll', handler)
-    }, [])
-
     // ─── Load Available Fields from Layout Config ─────────────
     useEffect(() => {
         const fetchFields = async () => {
@@ -203,21 +195,20 @@ export default function PipelineDetailSettingsPage() {
     if (!pipeline) return <div className="p-10 text-center text-[#8892a4]">Pipeline not found.</div>
 
     return (
-        <div className="min-h-screen bg-[#f2f3f6]">
-            {/* Sticky Header */}
-            <div className={`sticky top-0 z-30 bg-[#f2f3f6] transition-shadow duration-200 ${scrolled ? 'shadow-[0_2px_8px_rgba(0,0,0,.06)]' : ''}`}>
-                <div className="px-8 pt-6 pb-4 max-w-[1400px] mx-auto">
-                    <button onClick={() => router.push("/settings/pipeline")} className="text-[12px] font-[500] text-[#8892a4] hover:text-[#4f46e5] flex items-center gap-1.5 mb-3 transition-colors">
-                        <ArrowLeft className="h-3.5 w-3.5" /> Back to Pipeline Configuration
-                    </button>
-                    <div className="flex items-center gap-2 mb-0.5">
-                        {pipeline.is_default && <Star className="h-4 w-4 text-[#f59e0b] fill-[#f59e0b]" />}
-                        <h1 className="text-[17px] font-[800] text-[#0f1729]">{pipeline.name}</h1>
-                    </div>
-                    <p className="text-[12px] text-[#8892a4]">{stages.length} stages{pipeline.is_default ? " · DEFAULT" : ""}</p>
-
+        <div className="min-h-screen bg-background">
+            {/* Every page's header (DESIGN.md "Page headers"): "Settings /
+                Pipeline" above the title is the way back, and the line under
+                it states facts, so it always shows. Only that row is sticky;
+                the flow and the tabs below it scroll with the page. */}
+            <SettingsPageHeader
+                title={pipeline.name}
+                subtitle={`${stages.length} stages${pipeline.is_default ? " · DEFAULT" : ""}`}
+                breadcrumbs={[{ label: "Pipeline", href: "/settings/pipeline" }, { label: pipeline.name }]}
+            />
+            <div>
+                <div className="px-8 pb-4 max-w-[1400px] mx-auto">
                     {/* Flow preview — compact, wrapping */}
-                    <div className="bg-white border border-[#e5e8ed] rounded-[10px] px-4 py-3 mt-4 flex items-center flex-wrap gap-x-1 gap-y-2">
+                    <div className="bg-white border border-[#e5e8ed] rounded-[10px] px-4 py-3 flex items-center flex-wrap gap-x-1 gap-y-2">
                         {openStages.map((s, i) => (
                             <div key={s.id} className="flex items-center shrink-0">
                                 {i > 0 && <span className="text-[#c0c7d2] mr-1.5">→</span>}

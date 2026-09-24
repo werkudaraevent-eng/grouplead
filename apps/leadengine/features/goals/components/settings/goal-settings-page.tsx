@@ -23,6 +23,7 @@ import { createGoalV2Action, updateGoalV2Action, deleteGoalV2Action } from "@/ap
 import { toast } from "sonner"
 import { Plus, Loader2, Pencil, Trash2, Target, ArrowRight, Star, MoreVertical, Calendar, TrendingUp } from "@/components/icons"
 import { SettingsPageHeader } from "@/components/layout/settings-page-header"
+import { pageIntroKey } from "@/lib/hints/hint-key"
 import type { GoalV2 } from "@/types/goals"
 import { useCurrency } from "@/contexts/currency-context"
 
@@ -236,10 +237,11 @@ export function GoalSettingsPage() {
         </div>
       }
     >
-      <div className="min-h-screen bg-[#f2f3f6]">
+      <div className="min-h-screen bg-background">
         <SettingsPageHeader
           title="Goal Settings"
           subtitle="Manage revenue targets and breakdown configurations for your company."
+          intro={pageIntroKey("settings-goals")}
           breadcrumbs={[{ label: "Goals" }]}
           actions={
             <button
@@ -262,7 +264,7 @@ export function GoalSettingsPage() {
         />
 
         {/* Content */}
-        <div className="px-8 pb-10 pt-4 max-w-[1200px] mx-auto">
+        <div className="px-8 pb-10 max-w-[1200px] mx-auto">
           {loading ? (
             <div className="flex flex-col items-center justify-center py-20">
               <Loader2 className="h-8 w-8 animate-spin text-[#8892a4] mb-3" />

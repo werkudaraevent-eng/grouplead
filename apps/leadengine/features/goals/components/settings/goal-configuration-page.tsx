@@ -6,7 +6,8 @@
 import type { GoalV2 } from '@/types/goals';
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import Link from "next/link";
+import { SettingsPageHeader } from "@/components/layout/settings-page-header";
+import { pageIntroKey } from "@/lib/hints/hint-key";
 import { updateGoalV2Action } from "@/app/actions/goal-actions";
 import { createClient } from "@/utils/supabase/client";
 import { toast } from "sonner";
@@ -103,7 +104,6 @@ export function GoalConfigurationPage({ goal, dimensions }: { goal: GoalV2; dime
   const [panelIdx, setPanelIdx] = useState(null);
   const [selectedParentIdx, setSelectedParentIdx] = useState(0);
   const [applyAllMode, setApplyAllMode] = useState(true);
-  const [scrolled, setScrolled] = useState(false);
   const [newNodeName, setNewNodeName] = useState("");
   const [monthlyWeightsOpen, setMonthlyWeightsOpen] = useState(false);
   const [overviewEditing, setOverviewEditing] = useState(false);
@@ -194,29 +194,6 @@ export function GoalConfigurationPage({ goal, dimensions }: { goal: GoalV2; dime
     setTargetAmount(num);
     setTargetDisplay(num > 0 ? fmtNumber(num) : '');
   };
-  const mainRef = useRef<HTMLElement>(null);
-
-  useEffect(() => {
-    const handleScroll = (e: any) => {
-      const target = e.target as Element | Document | null;
-      if (!target) return;
-      
-      // Only react to scroll on the page's scrollable ancestor (layout main) or window
-      // Ignore scroll from child containers like Live Preview
-      if (target !== document && target !== document.documentElement && target !== document.body) {
-        // Check if mainRef is a descendant of the scroll target (= it's a parent scroller, OK)
-        // If mainRef is an ancestor of the scroll target (= it's a child scroller, IGNORE)
-        if (mainRef.current && target !== mainRef.current && !target.contains(mainRef.current)) return;
-      }
-      
-      const top = (target instanceof Element && target !== document.documentElement && target !== document.body)
-        ? target.scrollTop
-        : (window.scrollY || document.documentElement.scrollTop || 0);
-      setScrolled(top > 12);
-    };
-    window.addEventListener("scroll", handleScroll, true);
-    return () => window.removeEventListener("scroll", handleScroll, true);
-  }, []);
 
   
   const [savingGlobal, setSavingGlobal] = useState(false);
@@ -594,7 +571,7 @@ export function GoalConfigurationPage({ goal, dimensions }: { goal: GoalV2; dime
   const panelRemaining = panelParentAmt - panelAllocAmt;
 
   return (
-    <div className="target-config w-full min-h-screen bg-[#f2f3f6]">
+    <div className="target-config w-full min-h-screen bg-background">
       <style>{`
         .target-config input:focus, .target-config select:focus { outline: 2px solid #6366f1; outline-offset: 1px; }
         .target-config input[type=number]::-webkit-inner-spin-button,
@@ -603,59 +580,35 @@ export function GoalConfigurationPage({ goal, dimensions }: { goal: GoalV2; dime
       `}</style>
 
       {/* Main */}
-      <main ref={mainRef} style={{ flex: 1, isolation: "isolate" }}>
-        {/* Sticky Header Section */}
-        <div style={{ 
-          zIndex: 40, display: "flex", justifyContent: "space-between", alignItems: "center", 
-          padding: scrolled ? "12px 24px" : "16px 24px", 
-          background: "#ffffff",
-          borderBottom: scrolled ? "1px solid #e5e8ed" : "1px solid transparent", 
-          boxShadow: scrolled ? "0 1px 3px rgba(0,0,0,.06)" : "none",
-          transition: "padding .2s ease, border-color .2s ease, box-shadow .2s ease", 
-          position: "sticky", top: 0 
-        }}>
-          <div style={{ display: "flex", flexDirection: "column", justifyContent: "center" }}>
-            <h1 style={{ fontSize: scrolled ? 17 : 22, fontWeight: 800, color: "#0f1729", transition: "all .25s cubic-bezier(0.4, 0, 0.2, 1)", letterSpacing: -.3, margin: 0 }}>Goal Configuration</h1>
-            <div style={{
-              height: scrolled ? 0 : 20,
-              opacity: scrolled ? 0 : 1,
-              transform: scrolled ? "translateY(-4px)" : "translateY(0)",
-              overflow: "hidden",
-              transition: "height .25s cubic-bezier(0.4, 0, 0.2, 1), opacity .15s ease, transform .2s ease"
-            }}>
-              <p style={{ 
-                fontSize: 12, color: "#8892a4", margin: 0, 
-                paddingTop: 2, whiteSpace: "nowrap"
-              }}>
-                Design your revenue target breakdown structure
-              </p>
-            </div>
-          </div>
-          <button onClick={saveConfiguration} disabled={savingGlobal} style={{
-            display: "flex", alignItems: "center", gap: 6,
-            background: "linear-gradient(135deg, #6366f1, #4f46e5)",
-            color: "#fff", border: "none", borderRadius: 8,
-            padding: "9px 18px", fontSize: 13, fontWeight: 600,
-            cursor: "pointer", fontFamily: "inherit",
-            boxShadow: "0 2px 8px rgba(99,102,241,.3)",
-            transition: "all .15s",
-          }}
-            onMouseEnter={e => (e.currentTarget.style.transform = "translateY(-1px)")}
-            onMouseLeave={e => (e.currentTarget.style.transform = "translateY(0)")}
-          >
-            {savingGlobal && <Loader2 className="h-3.5 w-3.5 animate-spin" />} Save Configuration
-          </button>
-        </div>
+      <main style={{ flex: 1, isolation: "isolate" }}>
+        {/* Every page's header: "Settings / Goals" above the title, the
+            action on the same 56dp row, the description under it until it
+            is closed (DESIGN.md "Page headers"). The goal's own name is in
+            the overview card below. */}
+        <SettingsPageHeader
+          title="Goal Configuration"
+          subtitle="Design your revenue target breakdown structure"
+          intro={pageIntroKey("settings-goal-configuration")}
+          breadcrumbs={[{ label: "Goals", href: "/settings/goals" }, { label: goal.name }]}
+          actions={
+            <button onClick={saveConfiguration} disabled={savingGlobal} style={{
+              display: "flex", alignItems: "center", gap: 6,
+              background: "linear-gradient(135deg, #6366f1, #4f46e5)",
+              color: "#fff", border: "none", borderRadius: 8,
+              padding: "9px 18px", fontSize: 13, fontWeight: 600,
+              cursor: "pointer", fontFamily: "inherit",
+              boxShadow: "0 2px 8px rgba(99,102,241,.3)",
+              transition: "all .15s",
+            }}
+              onMouseEnter={e => (e.currentTarget.style.transform = "translateY(-1px)")}
+              onMouseLeave={e => (e.currentTarget.style.transform = "translateY(0)")}
+            >
+              {savingGlobal && <Loader2 className="h-3.5 w-3.5 animate-spin" />} Save Configuration
+            </button>
+          }
+        />
 
         <div style={{ padding: "0px 24px 32px", position: "relative", zIndex: 0 }}>
-          {/* Breadcrumb Navigation (Non-sticky, in content area) */}
-          <nav style={{ padding: "8px 0 16px", display: "flex", alignItems: "center", gap: 6, fontSize: 11.5 }}>
-            <Link href="/settings" style={{ color: "#8892a4", textDecoration: "none", fontWeight: 500, transition: "color .12s" }} onMouseEnter={e => (e.currentTarget.style.color = "#4f46e5")} onMouseLeave={e => (e.currentTarget.style.color = "#8892a4")}>Settings</Link>
-            <span style={{ color: "#c0c7d2" }}>/</span>
-            <Link href="/settings/goals" style={{ color: "#8892a4", textDecoration: "none", fontWeight: 500, transition: "color .12s" }} onMouseEnter={e => (e.currentTarget.style.color = "#4f46e5")} onMouseLeave={e => (e.currentTarget.style.color = "#8892a4")}>Goals</Link>
-            <span style={{ color: "#c0c7d2" }}>/</span>
-            <span style={{ color: "#334155", fontWeight: 600 }}>{goal.name}</span>
-          </nav>
 
           {/* Goal Overview — locked by default, edit via button with warning */}
           <div style={{ background: "#fff", border: overviewEditing ? "1.5px solid #f59e0b" : "1px solid #e5e8ed", borderRadius: 10, padding: "14px 20px", marginBottom: 14, boxShadow: "0 1px 2px rgba(0,0,0,.03)", transition: "border .2s" }}>
