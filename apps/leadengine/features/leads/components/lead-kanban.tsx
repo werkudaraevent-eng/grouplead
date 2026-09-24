@@ -22,9 +22,8 @@ import { useCurrency } from "@/contexts/currency-context"
 import { usePermissions } from "@/contexts/permissions-context"
 import { Tooltip } from "@/components/ui/tooltip"
 import { toast } from "sonner"
-import { updatePipelineStageAction } from "@/app/actions/lead-actions"
 import { renameStageAction, cloneStageAction, deleteStageAction } from "@/app/actions/stage-actions"
-import { Building2, CalendarDays, CheckCircle2, ChevronsRight, Copy, Edit2, Globe, Loader2, MoreHorizontal, Pencil, Trash2, User, XCircle, Clock, Check, ThumbsDown, ThumbsUp } from "@/components/icons"
+import { CalendarDays, CheckCircle2, ChevronsRight, Copy, Edit2, Loader2, MoreHorizontal, Pencil, Trash2, XCircle, Clock, Check, ThumbsDown, ThumbsUp } from "@/components/icons"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
 import {
@@ -44,30 +43,17 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { Input } from "@/components/ui/input"
 import {
     Popover,
     PopoverContent,
     PopoverTrigger,
 } from "@/components/ui/popover"
 import { Settings2, Plus } from "@/components/icons"
-import { TransitionPromptModal } from "./transition-prompt-modal"
-import { StageBackwardConfirmModal } from "./stage-backward-confirm-modal"
-import {
-    findMatchingTransitionRule,
-    isBackwardTransition,
-    ruleRequiresPrompt,
-} from "@/features/leads/lib/stage-transitions"
+import { useKanbanCardConfig, type KanbanCardConfig } from "@/features/leads/hooks/use-kanban-card-config"
+import { useStageMove, type LeadStageChange } from "@/features/leads/hooks/use-stage-move"
+import { leadDateFact, localDayKey } from "@/features/leads/lib/pipeline-phone"
 
-export interface KanbanCardConfig {
-    badges: string[]
-    metrics: string[]
-}
-
-const DEFAULT_KANBAN_CONFIG: KanbanCardConfig = {
-    badges: ['grade_lead', 'main_stream', 'event_format'],
-    metrics: ['estimated_value', 'target_close_date', 'pic'],
-}
+export type { KanbanCardConfig }
 
 // Subtle accent colors per stage
 const BG_COLOR_MAP: Record<string, string> = {
@@ -98,7 +84,7 @@ interface LeadKanbanProps {
     pipelineId?: string
     selectedIds: string[]
     onToggleSelect: (leadId: string, checked: boolean) => void
-    onLeadStageChange?: (leadId: number, stageId: string, stageName: string, stageColor: string, updates?: Record<string, any>) => void
+    onLeadStageChange?: LeadStageChange
     onAddLead?: (stageId: string) => void
     /** When false, disables reordering within a column (but stage transitions still work) */
     dndEnabled?: boolean
@@ -134,20 +120,6 @@ export function LeadKanban({
     const [renameValue, setRenameValue] = useState("")
     const [deleteStageTarget, setDeleteStageTarget] = useState<PipelineStage | null>(null)
     const [transitionRules, setTransitionRules] = useState<TransitionRule[]>([])
-    const [transitionPrompt, setTransitionPrompt] = useState<{
-        lead: Lead;
-        oldStageId: string;
-        newStageId: string;
-        rule: TransitionRule;
-        newSortOrder?: number;
-    } | null>(null)
-    const [backwardPrompt, setBackwardPrompt] = useState<{
-        lead: Lead;
-        fromStage: PipelineStage;
-        toStage: PipelineStage;
-        newSortOrder: number;
-    } | null>(null)
-    const [backwardPending, setBackwardPending] = useState(false)
     const supabase = createClient()
 
     const sensors = useSensors(
@@ -156,25 +128,25 @@ export function LeadKanban({
 
     useEffect(() => { setLeads(initialLeads) }, [initialLeads])
 
-    const [config, setConfig] = useState<KanbanCardConfig>(DEFAULT_KANBAN_CONFIG)
-    const [configSaving, setConfigSaving] = useState(false)
+    // Card Settings, shared with the phone's lead cards.
+    const { config, loaded: configLoaded, save: handleSaveConfig } = useKanbanCardConfig()
     const [mounted, setMounted] = useState(false)
+
+    // Moving a lead: the drop below, the card's Move menu and the phone's
+    // "Move to stage…" share one path (rules, warnings, the server action).
+    const { executeStageTransition, promptBeforeMove, moveToStage, dialogs: stageMoveDialogs } = useStageMove({
+        leads,
+        initialLeads,
+        setLeads,
+        stages,
+        transitionRules,
+        canMoveLeads,
+        onLeadStageChange,
+    })
 
     useEffect(() => {
         setMounted(true)
-        const fetchStagesAndConfig = async () => {
-            // Fetch configuration
-            const { data: authData } = await supabase.auth.getUser()
-            if (authData?.user) {
-                const { data: profile } = await supabase.from('profiles').select('ui_preferences').eq('id', authData.user.id).single()
-                if (profile?.ui_preferences && typeof profile.ui_preferences === 'object') {
-                    const uiPrefs = profile.ui_preferences as any
-                    if (uiPrefs.kanban) {
-                        setConfig((prev) => ({ ...prev, ...uiPrefs.kanban }))
-                    }
-                }
-            }
-
+        const fetchStages = async () => {
             let query = supabase
                 .from("pipeline_stages")
                 .select("*")
@@ -200,22 +172,8 @@ export function LeadKanban({
             }
             setLoading(false)
         }
-        fetchStagesAndConfig()
+        fetchStages()
     }, [pipelineId, supabase])
-
-    const handleSaveConfig = async (newConfig: KanbanCardConfig) => {
-        setConfig(newConfig)
-        const { data: authData } = await supabase.auth.getUser()
-        if (!authData?.user) return
-        setConfigSaving(true)
-        const { data: profile } = await supabase.from('profiles').select('ui_preferences').eq('id', authData.user.id).single()
-        const currentPrefs = typeof profile?.ui_preferences === 'object' && profile?.ui_preferences ? profile.ui_preferences : {}
-        await supabase.from('profiles').update({
-            ui_preferences: { ...currentPrefs, kanban: newConfig }
-        }).eq('id', authData.user.id)
-        setConfigSaving(false)
-        toast.success("Kanban card properties saved")
-    }
 
     const toggleBadge = (badge: string) => {
         const selected = config.badges.includes(badge)
@@ -379,62 +337,6 @@ export function LeadKanban({
         })
     }, [stages, canMoveLeads])
 
-    // Persist a stage transition to the server with optimistic-cleanup +
-    // toast feedback. Extracted so both the drag handler and the backward
-    // confirm flow share one execution path.
-    const executeStageTransition = useCallback(
-        async (
-            activeLeadId: number,
-            destinationStageId: string,
-            newSortOrder: number,
-            originalStageId: string,
-        ) => {
-            const destinationStage = stages.find((s) => s.id === destinationStageId)
-
-            // Optimistic feedback: the card already moved on drop, so confirm
-            // immediately rather than waiting for the server round-trip. This
-            // is what makes the board feel instant on global kanban apps. If
-            // the server later rejects, we roll back and show an error.
-            const movedToNewStage = originalStageId !== destinationStageId
-            if (movedToNewStage) {
-                toast.success(`Moved to ${destinationStage?.name || "stage"}`)
-            }
-
-            const result = await updatePipelineStageAction(
-                activeLeadId,
-                destinationStageId,
-                newSortOrder,
-            )
-
-            if (!result.success) {
-                // Map the technical guard message to a friendly one. The
-                // server returns "Forbidden: missing update permission on
-                // leads" when the role lacks leads.update — surface that as a
-                // plain "no permission" message instead of leaking internals.
-                const isPermissionError = /forbidden|permission/i.test(result.error ?? "")
-                toast.error(
-                    isPermissionError
-                        ? "You don't have permission to move leads"
-                        : "Couldn't move the lead. Please try again.",
-                )
-                setLeads(initialLeads)
-                return false
-            }
-
-            if (onLeadStageChange && destinationStage) {
-                onLeadStageChange(
-                    activeLeadId,
-                    destinationStage.id,
-                    destinationStage.name,
-                    destinationStage.color,
-                    { kanban_sort_order: newSortOrder },
-                )
-            }
-            return true
-        },
-        [stages, initialLeads, onLeadStageChange],
-    )
-
     const handleDragEnd = useCallback(async (event: DragEndEvent) => {
         const { active, over } = event
         setActiveId(null)
@@ -473,35 +375,10 @@ export function LeadKanban({
         }
 
         if (originalStageId !== destinationStageId) {
-            const matchedRule = findMatchingTransitionRule(
-                transitionRules,
-                originalStageId,
-                destinationStageId,
-            )
-
-            if (ruleRequiresPrompt(matchedRule)) {
+            // A rule's prompt or the backward warning comes first; the card
+            // goes back to its column while it is open.
+            if (promptBeforeMove(originalLead, originalStageId, destinationStageId, newSortOrder)) {
                 setLeads(initialLeads)
-                setTransitionPrompt({
-                    lead: originalLead,
-                    oldStageId: originalStageId,
-                    newStageId: destinationStageId,
-                    rule: matchedRule!,
-                    newSortOrder
-                })
-                return
-            }
-
-            // Warn before letting the user move a lead backward in the pipeline.
-            const fromStage = stages.find((s) => s.id === originalStageId)
-            const toStage = stages.find((s) => s.id === destinationStageId)
-            if (fromStage && toStage && isBackwardTransition(fromStage, toStage)) {
-                setLeads(initialLeads)
-                setBackwardPrompt({
-                    lead: originalLead,
-                    fromStage,
-                    toStage,
-                    newSortOrder,
-                })
                 return
             }
         } else {
@@ -522,76 +399,14 @@ export function LeadKanban({
             newSortOrder,
             originalStageId,
         )
-    }, [leads, stages, initialLeads, transitionRules, executeStageTransition, canMoveLeads])
+    }, [leads, initialLeads, promptBeforeMove, executeStageTransition, canMoveLeads, dndEnabled])
 
     const handleDragCancel = useCallback(() => {
         setActiveId(null)
         setLeads(initialLeads)
     }, [initialLeads])
 
-    // Quick stage move triggered from a card menu (no drag).
-    // Honors transition rules and backward warnings just like drag.
-    const handleQuickMoveStage = useCallback(
-        (lead: Lead, target: PipelineStage) => {
-            if (!canMoveLeads) return
-            const originalStageId = lead.pipeline_stage_id
-            if (!originalStageId || target.id === originalStageId) return
-
-            // Compute a new sort_order at the top of the destination column so
-            // the moved card surfaces as most recent.
-            const stageLeads = leads.filter(l => l.pipeline_stage_id === target.id)
-            const topOrder = stageLeads.reduce((max, l) => {
-                const v = l.kanban_sort_order
-                return typeof v === "number" && v > max ? v : max
-            }, 0)
-            const newSortOrder = (topOrder || Date.now() / 1000) + 1000
-
-            const matchedRule = findMatchingTransitionRule(
-                transitionRules,
-                originalStageId,
-                target.id,
-            )
-            if (ruleRequiresPrompt(matchedRule)) {
-                setTransitionPrompt({
-                    lead,
-                    oldStageId: originalStageId,
-                    newStageId: target.id,
-                    rule: matchedRule!,
-                    newSortOrder,
-                })
-                return
-            }
-
-            const fromStage = stages.find(s => s.id === originalStageId)
-            if (fromStage && isBackwardTransition(fromStage, target)) {
-                setBackwardPrompt({
-                    lead,
-                    fromStage,
-                    toStage: target,
-                    newSortOrder,
-                })
-                return
-            }
-
-            // Optimistic update so the card moves immediately.
-            setLeads(prev => prev.map(l =>
-                l.id === lead.id
-                    ? {
-                          ...l,
-                          pipeline_stage_id: target.id,
-                          status: target.name,
-                          pipeline_stage: { name: target.name, color: target.color },
-                          kanban_sort_order: newSortOrder,
-                      }
-                    : l,
-            ))
-
-            void executeStageTransition(lead.id, target.id, newSortOrder, originalStageId)
-        },
-        [leads, stages, transitionRules, executeStageTransition, canMoveLeads],
-    )
-
-    if (loading) {
+    if (loading || !configLoaded) {
         return (
             <div className="flex items-center justify-center h-64 text-muted-foreground">
                 <Loader2 className="h-5 w-5 animate-spin mr-2" /> Loading pipeline...
@@ -791,7 +606,7 @@ export function LeadKanban({
                                                 config={config}
                                                 dndEnabled={canMoveLeads}
                                                 stages={stages}
-                                                onQuickMoveStage={canMoveLeads ? (target) => handleQuickMoveStage(lead, target) : undefined}
+                                                onQuickMoveStage={canMoveLeads ? (target) => moveToStage(lead, target) : undefined}
                                             />
                                         ))}
                                     </DroppableColumn>
@@ -850,55 +665,7 @@ export function LeadKanban({
                 </AlertDialogContent>
             </AlertDialog>
 
-            <StageBackwardConfirmModal
-                open={!!backwardPrompt}
-                fromStageName={backwardPrompt?.fromStage.name ?? ""}
-                toStageName={backwardPrompt?.toStage.name ?? ""}
-                leadLabel={
-                    backwardPrompt?.lead.project_name ??
-                    backwardPrompt?.lead.client_company?.name ??
-                    undefined
-                }
-                loading={backwardPending}
-                onCancel={() => setBackwardPrompt(null)}
-                onConfirm={async () => {
-                    if (!backwardPrompt) return
-                    setBackwardPending(true)
-                    const ok = await executeStageTransition(
-                        backwardPrompt.lead.id,
-                        backwardPrompt.toStage.id,
-                        backwardPrompt.newSortOrder,
-                        backwardPrompt.fromStage.id,
-                    )
-                    setBackwardPending(false)
-                    if (ok) setBackwardPrompt(null)
-                }}
-            />
-
-            <TransitionPromptModal 
-                prompt={transitionPrompt}
-                onClose={() => setTransitionPrompt(null)}
-                onSuccess={(leadId, newStageId, updates) => {
-                    const destinationStage = stages.find(s => s.id === newStageId)
-                    // Update local leads list with the new stage + updated form fields
-                    setLeads(prev => prev.map(l => 
-                        l.id === leadId 
-                            ? { ...l, pipeline_stage_id: newStageId, status: destinationStage?.name ?? l.status, ...updates } 
-                            : l
-                    ))
-                    setTransitionPrompt(null)
-                    
-                    if (onLeadStageChange && destinationStage) {
-                        onLeadStageChange(
-                            leadId,
-                            destinationStage.id,
-                            destinationStage.name,
-                            destinationStage.color,
-                            updates
-                        )
-                    }
-                }}
-            />
+            {stageMoveDialogs}
         </div>
     )
 }
@@ -1116,42 +883,23 @@ function KanbanCardBase({
     // Open stages → target_close_date with urgency.
     // Closed-won → closed_won_date (fallback updated_at).
     // Closed-lost / cancelled / postponed / turndown → closed_lost_date (fallback updated_at).
-    type DateState = "closing" | "won" | "lost" | "updated" | "none"
-    let dateState: DateState = "none"
-    let dateValue: string | null = null
-    let dateLabel = ""
-    let dateUrgency: "overdue" | "soon" | "normal" = "normal"
-
-    if (showCloseDate) {
-        const stageName = (lead.pipeline_stage?.name || lead.status || "").toLowerCase()
-        const closedStatus = lead.pipeline_stage?.closed_status
-        const stageType = lead.pipeline_stage?.stage_type
-        const isWon = closedStatus === "won" || stageName.includes("won")
-        const isLost = closedStatus === "lost" ||
-            ["lost", "cancel", "cancelled", "canceled", "postpone", "postponed", "turndown"].some(t => stageName.includes(t))
-        const isClosed = stageType === "closed" || isWon || isLost
-
-        if (isClosed) {
-            if (isWon) {
-                dateValue = lead.closed_won_date ?? lead.updated_at ?? null
-                dateState = lead.closed_won_date ? "won" : (dateValue ? "updated" : "none")
-                dateLabel = dateState === "won" ? "Won Date" : "Updated"
-            } else {
-                dateValue = lead.closed_lost_date ?? lead.updated_at ?? null
-                dateState = lead.closed_lost_date ? "lost" : (dateValue ? "updated" : "none")
-                dateLabel = dateState === "lost" ? "Closed Date" : "Updated"
-            }
-        } else if (lead.target_close_date) {
-            dateValue = lead.target_close_date
-            dateState = "closing"
-            dateLabel = "Closing Date"
-            const today = new Date(); today.setHours(0, 0, 0, 0)
-            const target = new Date(lead.target_close_date); target.setHours(0, 0, 0, 0)
-            const diffDays = Math.ceil((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
-            if (diffDays < 0) dateUrgency = "overdue"
-            else if (diffDays <= 3) dateUrgency = "soon"
-        }
-    }
+    // The same rule as the phone's card (`leadDateFact`, tested there).
+    const dateFact = showCloseDate
+        ? leadDateFact(
+              lead,
+              {
+                  name: lead.pipeline_stage?.name || lead.status || "",
+                  closed_status: lead.pipeline_stage?.closed_status,
+                  stage_type: lead.pipeline_stage?.stage_type,
+              },
+              localDayKey(new Date()),
+          )
+        : null
+    const dateState = dateFact?.kind ?? "none"
+    const dateValue = dateFact?.value ?? null
+    const dateUrgency = dateFact?.urgency ?? "normal"
+    const dateLabel =
+        dateState === "won" ? "Won Date" : dateState === "lost" ? "Closed Date" : dateState === "updated" ? "Updated" : dateState === "closing" ? "Closing Date" : ""
 
     const hasFooterDate = dateState !== "none" && !!dateValue
 

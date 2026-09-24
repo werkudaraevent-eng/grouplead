@@ -1,3 +1,5 @@
+import { ListCardSkeleton } from "@/components/shared/list-table"
+
 /**
  * The loading shape of a list page (Contacts, Companies) while the route
  * resolves: the header's one row, the toolbar and rows on a desk; below
@@ -34,10 +36,9 @@ export function ListPageSkeleton() {
                     <div key={i} className="h-13 animate-pulse border-b border-border/70 bg-card" />
                 ))}
             </div>
-            <div className="space-y-2 px-4 pb-3 md:hidden">
-                {Array.from({ length: 6 }).map((_, i) => (
-                    <div key={i} className="h-[88px] animate-pulse rounded-xl border border-border bg-card" />
-                ))}
+            {/* The phone's cards, drawn by the same skeleton the list shows before its first page. */}
+            <div className="px-4 pb-3 md:hidden">
+                <ListCardSkeleton />
             </div>
         </div>
     )

@@ -3,6 +3,7 @@
 import { resolveStageColor } from "@/features/leads/lib/stage-color"
 import { SectionCard, SectionTitle, SectionSub, CHART_COLORS, formatPct, formatSignedPct, TOOLTIP_STYLE } from "./shared"
 import { useState } from "react"
+import { useDashboardFlow } from "./dashboard-flow-context"
 
 interface PipelineStageData {
     id: string
@@ -40,6 +41,12 @@ function classifyStage(name: string): "active" | "won" | "lost" {
 
 export function PipelineWidget({ data, comparisonLabel, pipelines = [], activePipelineId, onPipelineChange, activeStageId = null, onStageClick }: PipelineWidgetProps) {
     const [hoveredId, setHoveredId] = useState<string | null>(null)
+    // The stage names' column: 140px on a desk, 104px on a phone, where the
+    // card is the screen's width and the bars need the rest. A long name
+    // wraps inside it rather than being cut.
+    const flow = useDashboardFlow()
+    const nameWidth = flow ? 104 : 140
+    const barInset = nameWidth + 8
 
     const totalLeads = data.reduce((s, d) => s + d.count, 0)
     const maxCount = Math.max(...data.map(d => d.count), 1)
@@ -75,7 +82,7 @@ export function PipelineWidget({ data, comparisonLabel, pipelines = [], activePi
             >
                 <div className="flex items-center gap-2 py-[5px]">
                     {/* Stage name */}
-                    <div className="w-[140px] shrink-0 text-right pr-2">
+                    <div className="shrink-0 text-right pr-2" style={{ width: nameWidth }}>
                         <span className="text-[11px] font-medium text-[#292D30] leading-tight" title={stage.name}>
                             {stage.name}
                         </span>
@@ -107,8 +114,16 @@ export function PipelineWidget({ data, comparisonLabel, pipelines = [], activePi
                 {/* Hover tooltip */}
                 {isHovered && (
                     <div
-                        className="absolute left-[148px] -top-1 z-10 pointer-events-none animate-in fade-in duration-150"
-                        style={{ ...TOOLTIP_STYLE, position: "absolute" }}
+                        className="absolute -top-1 z-10 pointer-events-none animate-in fade-in duration-150"
+                        // On a phone, kept inside the card: never wider than
+                        // the room right of the names (the card clips what
+                        // passes its edge).
+                        style={{
+                            ...TOOLTIP_STYLE,
+                            position: "absolute",
+                            left: barInset,
+                            ...(flow ? { maxWidth: `min(${TOOLTIP_STYLE.maxWidth}px, calc(100% - ${barInset}px))` } : {}),
+                        }}
                     >
                         <div style={{ fontWeight: 700, marginBottom: 2 }}>{stage.name}</div>
                         <div>{stage.count} leads ({formatPct(stage.share)})</div>
@@ -171,7 +186,7 @@ export function PipelineWidget({ data, comparisonLabel, pipelines = [], activePi
                 {/* Active Pipeline */}
                 {activeStages.length > 0 && (
                     <div className="mb-3">
-                        <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider mb-1 pl-[148px]">Active pipeline</div>
+                        <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider mb-1" style={{ paddingLeft: barInset }}>Active pipeline</div>
                         {activeStages.map((s, i) => renderRow(s, i, "active"))}
                     </div>
                 )}
@@ -184,7 +199,7 @@ export function PipelineWidget({ data, comparisonLabel, pipelines = [], activePi
                 {/* Closed Outcomes */}
                 {(wonStages.length > 0 || lostStages.length > 0) && (
                     <div>
-                        <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider mb-1 pl-[148px]">Closed outcomes</div>
+                        <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider mb-1" style={{ paddingLeft: barInset }}>Closed outcomes</div>
                         {wonStages.map((s, i) => renderRow(s, i, "won"))}
                         {lostStages.map((s, i) => renderRow(s, i, "lost"))}
                     </div>
@@ -193,7 +208,7 @@ export function PipelineWidget({ data, comparisonLabel, pipelines = [], activePi
                 {/* Won vs Lost summary bar */}
                 {closedTotal > 0 && (
                     <div className="mt-3 pt-2 border-t border-border/40">
-                        <div className="flex items-center gap-2 pl-[148px]">
+                        <div className="flex items-center gap-2" style={{ paddingLeft: barInset }}>
                             <div className="flex-1 h-[6px] bg-[#f4f6f8] rounded-full overflow-hidden flex">
                                 <div
                                     className="h-full rounded-l-full"

@@ -50,6 +50,7 @@ import { ColumnsMenu } from "@/components/shared/columns-menu"
 import { ListFooter } from "@/components/shared/list-footer"
 import { InitialsAvatar } from "@/components/shared/initials-avatar"
 import { NeedsDetailsMark } from "@/components/shared/status-badge"
+import { RecordCard } from "@/components/shared/record-card"
 import { ListCardSkeleton, ListEmpty, MENU_CELL, MENU_COL, RowMenu, SELECT_COL, SortableHead, frozenCell, nextSort } from "@/components/shared/list-table"
 import { useCompany } from "@/contexts/company-context"
 import { useListOptions, useListPage } from "@/hooks/use-list-page"
@@ -632,33 +633,33 @@ export function ContactsList({ fresh, introSeen }: { fresh: boolean; /** Whether
                 </div>
             </div>
 
-            {/* Phone: one card per contact; the card opens the contact, the ⋮ holds Edit and Delete.
-                No top padding: the controls above end 12px over the first card. */}
+            {/* Phone: one card per contact in Sales Activity's anatomy (`RecordCard`):
+                the name, company · job title, email · phone, a hairline, then the owner
+                and the ⋮ (Edit, Delete; the list has no call or WhatsApp action to put
+                there instead). The card opens the contact. No top padding: the
+                controls above end 12px over the first card. */}
             <div className={cn("px-4 pb-3 transition-opacity md:hidden", list.pending && list.loaded && "opacity-60")} aria-busy={list.pending}>
                 {!list.loaded && !list.failed ? (
                     <ListCardSkeleton />
                 ) : empty ? (
                     empty
                 ) : (
-                    <ul className="space-y-2">
-                        {rows.map((contact) => {
-                            const line2 = [contact.client_company?.name, contact.job_title].filter(Boolean).join(" · ")
-                            const line3 = [contact.email, contact.phone ? formatPhoneDisplay(contact.phone) : null].filter(Boolean).join(" · ")
-                            return (
-                                <li key={contact.id} onClick={rowLink(hrefOf(contact))} className="flex cursor-pointer items-start gap-3 rounded-xl border border-border bg-card py-3 pl-3 pr-1 transition-colors hover:bg-muted/50">
-                                    <InitialsAvatar name={contact.full_name} size="md" className="mt-0.5" />
-                                    <div className="min-w-0 flex-1">
-                                        <div className="flex min-w-0 items-center gap-1.5">
-                                            <Link href={hrefOf(contact)} prefetch={false} className="truncate font-semibold text-foreground hover:underline">{nameOf(contact)}</Link>
-                                            {contact.needs_enrichment && <NeedsDetailsMark />}
-                                        </div>
-                                        <p className="truncate text-xs text-muted-foreground">{line2 || "No company"}</p>
-                                        <p className={cn("mt-1 truncate text-sm", line3 ? "text-foreground" : "text-muted-foreground")}>{line3 || "No email or phone"}</p>
-                                    </div>
-                                    <RowMenu label={`Actions for ${contact.full_name}`} className="h-11 w-11 opacity-100">{rowMenuItems(contact)}</RowMenu>
-                                </li>
-                            )
-                        })}
+                    <ul className="space-y-3">
+                        {rows.map((contact) => (
+                            <RecordCard
+                                key={contact.id}
+                                href={hrefOf(contact)}
+                                onOpen={rowLink(hrefOf(contact))}
+                                name={nameOf(contact)}
+                                mark={contact.needs_enrichment && <NeedsDetailsMark />}
+                                supporting={[contact.client_company?.name, contact.job_title].filter(Boolean).join(" · ")}
+                                supportingEmpty="No company"
+                                fact={[contact.email, contact.phone ? formatPhoneDisplay(contact.phone) : null].filter(Boolean).join(" · ")}
+                                factEmpty="No email or phone"
+                                owner={contact.owner}
+                                action={<RowMenu label={`Actions for ${contact.full_name}`} className="h-11 w-11 opacity-100">{rowMenuItems(contact)}</RowMenu>}
+                            />
+                        ))}
                     </ul>
                 )}
             </div>

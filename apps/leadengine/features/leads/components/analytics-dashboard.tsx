@@ -20,7 +20,7 @@ import {
     isAllTimeRange,
     type DashboardPeriod,
 } from "@/features/leads/lib/dashboard-period"
-import { Briefcase, Trophy, RefreshCw, TrendingUp, Calendar, FileDown, Sparkles, MessageCircle, Loader2, MoreHorizontal, Info, XCircle } from "@/components/icons"
+import { Bookmark, Briefcase, Trophy, RefreshCw, TrendingUp, Calendar, FileDown, Sparkles, MessageCircle, Loader2, MoreHorizontal, Info, XCircle } from "@/components/icons"
 import { useCurrency } from "@/contexts/currency-context"
 import { MONTHS_SHORT, getVsLastYearPct } from "./dashboard-widgets/shared"
 import { formatRelativeTime, latestTimestamp } from "@/lib/relative-time"
@@ -112,7 +112,8 @@ import { DashboardViewSwitcher } from "./dashboard-view-switcher"
 import type { DashboardFiltersSnapshot } from "@/types/dashboard-view"
 import type { LayoutItem } from "react-grid-layout"
 import type { WidgetId } from "@/features/leads/lib/dashboard-layout"
-import { PageChrome } from "@/components/layout/page-chrome"
+import { PageChrome, type ChromeMenuItem } from "@/components/layout/page-chrome"
+import { DashboardCountingSheet, DashboardViewsSheet } from "./dashboard-phone-sheets"
 
 const LAUNCH_WIDGET_IDS = WIDGET_IDS.filter(
     id => id !== "goal-forecast" && id !== "goal-variance",
@@ -195,6 +196,10 @@ export function AnalyticsDashboard({
     const [crossFilters, setCrossFilters] = useState<DashboardCrossFilter[]>([])
     const [scrolled, setScrolled] = useState(false)
     const scrollRef = useRef<HTMLElement | null>(null)
+    // The phone's two sheets, opened from the top app bar's ⋮ (below `lg`
+    // the header row with the view switcher and the ⓘ is not drawn).
+    const [viewsSheetOpen, setViewsSheetOpen] = useState(false)
+    const [countingSheetOpen, setCountingSheetOpen] = useState(false)
 
     const toggleCrossFilter = useCallback((filter: DashboardCrossFilter) => {
         setCrossFilters(prev => {
@@ -1533,12 +1538,44 @@ export function AnalyticsDashboard({
     // outside the header so it can position freely.
     const tools = useDashboardTools(aiContextData)
 
+    // Below `lg` the header's first row (greeting, Tools, view switcher, Edit
+    // Dashboard) is not drawn: the top app bar says "Dashboard" and its ⋮
+    // holds the views and the tools. Arranging widgets is desk work, so the
+    // ⋮ offers no Edit; the Views sheet says where it is done. The shell only
+    // draws the ⋮ below `lg`, so announcing it always changes nothing on a desk.
+    const phoneMenu: ChromeMenuItem[] = [
+        { label: "Views", icon: Bookmark, onSelect: () => setViewsSheetOpen(true) },
+        {
+            label: tools.exporting ? "Opening print view…" : "Print / Save PDF",
+            icon: FileDown,
+            onSelect: () => { if (!tools.exporting) void tools.handleExportPDF() },
+        },
+        { label: "AI Analyze", icon: Sparkles, onSelect: () => tools.handleOpenAnalyze() },
+        { label: "Ask AI", icon: MessageCircle, onSelect: () => tools.handleOpenAsk() },
+        { label: "How the numbers are counted", icon: Info, onSelect: () => setCountingSheetOpen(true) },
+    ]
+
+    // The factual line under the title: "Performance Dashboard · pipeline ·
+    // Updated 5m ago". On a desk "Performance Dashboard" leads it only when
+    // the title is the greeting; on a phone the title is the top app bar's
+    // "Dashboard", so it always does. Rendered after mount only, so the
+    // relative time never causes a hydration mismatch.
+    const updatedLabel = hasMounted ? formatRelativeTime(lastUpdatedIso) : null
+    const factualLine = (lead: boolean) =>
+        [lead ? "Performance Dashboard" : null, activePipeline?.name, updatedLabel ? `Updated ${updatedLabel}` : null]
+            .filter(Boolean)
+            .join(" · ")
+
     return (
-        <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
+        // `data-fluid-page`: the page reflows down to a phone, so `<main>`
+        // drops its 900px floor for it (DESIGN.md "A phone gets the real
+        // width"); from `lg` the dashboard keeps that floor itself, so the
+        // desk board is exactly as before.
+        <div data-fluid-page className="lg:min-w-[900px]" style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
             {/* Below `lg` the top app bar says "Dashboard", the destination's
                 name, and the greeting gives way to it (Sales Activity hides
                 its page title there the same way); the factual line stays. */}
-            <PageChrome title="Dashboard" />
+            <PageChrome title="Dashboard" menu={phoneMenu} />
             {/* ─── HEADER (two-row, sticky) ──────────────────────────────────
                 Inspired by Vercel / Stripe / GitHub Actions: separate the
                 identity row (title + global actions) from the filter row
@@ -1562,11 +1599,11 @@ export function AnalyticsDashboard({
                     borderBottom: "1px solid rgba(2,55,141,0.06)",
                 }}
             >
-                {/* ─── Row 1: identity + global actions ─── */}
+                {/* ─── Row 1: identity + global actions (desk only) ─── */}
                 <div
+                    className="flex max-lg:hidden"
                     style={{
                         height: scrolled ? 56 : 68,
-                        display: "flex",
                         alignItems: "center",
                         justifyContent: "space-between",
                         padding: "0 32px",
@@ -1586,27 +1623,22 @@ export function AnalyticsDashboard({
                             the same size at rest and scrolled (DESIGN.md "Page
                             headers"); only the row's height and the factual
                             subtitle change with the scroll. */}
-                        <h1 className="max-lg:hidden" style={{
+                        <h1 style={{
                             fontSize: 20, fontWeight: 600, color: "var(--foreground)",
                             letterSpacing: "-0.025em", lineHeight: 1.15, margin: 0,
                             whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
                         }}>
                             {firstName ? `Halo, ${firstName} 👋` : "Performance Dashboard"}
                         </h1>
-                        {hasMounted && !scrolled && (() => {
-                            const updated = formatRelativeTime(lastUpdatedIso)
-                            const parts = [firstName ? "Performance Dashboard" : null, activePipeline?.name, updated ? `Updated ${updated}` : null].filter(Boolean)
-                            if (parts.length === 0) return null
-                            return (
-                                <p style={{
-                                    fontSize: 10.5, color: "#9AA1B0", fontWeight: 400,
-                                    margin: "6px 0 0", lineHeight: 1.2,
-                                    whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
-                                }}>
-                                    {parts.join(" · ")}
-                                </p>
-                            )
-                        })()}
+                        {hasMounted && !scrolled && factualLine(!!firstName) && (
+                            <p style={{
+                                fontSize: 10.5, color: "#9AA1B0", fontWeight: 400,
+                                margin: "6px 0 0", lineHeight: 1.2,
+                                whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+                            }}>
+                                {factualLine(!!firstName)}
+                            </p>
+                        )}
                     </div>
 
                     <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
@@ -1698,22 +1730,35 @@ export function AnalyticsDashboard({
                     </div>
                 </div>
 
-                {/* ─── Row 2: filter chips ─── */}
+                {/* ─── Phone: the factual line on its own (row 1 is desk-only).
+                    One compact line, cut with an ellipsis; like the desk's it
+                    gives way once the cards are scrolled. ─── */}
+                {hasMounted && !scrolled && (
+                    <p className="truncate px-4 pt-3 text-xs text-muted-foreground sm:px-6 lg:hidden">
+                        {factualLine(true)}
+                    </p>
+                )}
+
+                {/* ─── Row 2: filter chips ───
+                    On a desk they wrap onto a second line when there is more
+                    than fits. Below `lg` they stay on one line that scrolls
+                    sideways under the thumb, bleeds to the screen's edge and
+                    fades at the right until its end (M3 chip carousel; the
+                    lists' applied-filter row, `.chip-scroll`), so the cards
+                    start right under them; every chip keeps its size. */}
                 <div
-                    style={{
-                        display: "flex",
-                        alignItems: "center",
-                        flexWrap: "wrap",
-                        gap: 6,
-                        padding: "5px 32px 14px",
-                    }}
+                    className={
+                        "chip-scroll flex items-center gap-1.5 flex-wrap px-8 pt-[5px] pb-3.5 " +
+                        "max-lg:flex-nowrap max-lg:overflow-x-auto max-lg:px-4 max-lg:py-2.5 sm:max-lg:px-6 " +
+                        "[scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                    }
                 >
                     {pipelines.length > 1 && (
                         <Select
                             value={activePipelineId ?? ""}
                             onValueChange={handlePipelineChange}
                         >
-                            <SelectTrigger size="sm" className="w-auto h-8 px-2.5 text-[12px] font-medium gap-1.5 border-slate-200 bg-white hover:bg-slate-50 shadow-none rounded-lg">
+                            <SelectTrigger size="sm" aria-label="Pipeline" className="w-auto shrink-0 h-8 px-2.5 text-[12px] font-medium gap-1.5 border-slate-200 bg-white hover:bg-slate-50 shadow-none rounded-lg">
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
@@ -1728,7 +1773,8 @@ export function AnalyticsDashboard({
                         <Select value={companyFilter} onValueChange={setCompanyFilter}>
                             <SelectTrigger
                                 size="sm"
-                                className={`w-auto h-8 px-2.5 text-[12px] font-medium gap-1.5 shadow-none rounded-lg ${
+                                aria-label="Company"
+                                className={`w-auto shrink-0 h-8 px-2.5 text-[12px] font-medium gap-1.5 shadow-none rounded-lg ${
                                     companyFilter !== "all"
                                         ? "bg-primary/10 border-primary/30 text-primary hover:bg-primary/15"
                                         : "bg-white border-slate-200 hover:bg-slate-50"
@@ -1758,28 +1804,32 @@ export function AnalyticsDashboard({
                         info icon sits inline with the chips so the user
                         sees it the moment they pick a period. Hovering
                         explains the convention; per-card details live in
-                        the ⓘ next to each card label. */}
-                    <Tooltip
-                        position="bottom"
-                        content="Each card uses the date that fits what it measures (when leads came in, when deals closed, or when revenue is recognized). Hover the ⓘ on a card to see how it works."
-                    >
-                        <span
-                            className="inline-flex items-center justify-center w-6 h-6 rounded-md text-slate-400 hover:text-slate-600 hover:bg-slate-100 cursor-help"
-                            aria-label="How are these numbers calculated?"
+                        the ⓘ next to each card label. A finger cannot hover,
+                        so below `lg` the same text is "How the numbers are
+                        counted" in the top app bar's ⋮. */}
+                    <span className="max-lg:hidden">
+                        <Tooltip
+                            position="bottom"
+                            content="Each card uses the date that fits what it measures (when leads came in, when deals closed, or when revenue is recognized). Hover the ⓘ on a card to see how it works."
                         >
-                            <Info className="w-3.5 h-3.5" />
-                        </span>
-                    </Tooltip>
+                            <span
+                                className="inline-flex items-center justify-center w-6 h-6 rounded-md text-slate-400 hover:text-slate-600 hover:bg-slate-100 cursor-help"
+                                aria-label="How are these numbers calculated?"
+                            >
+                                <Info className="w-3.5 h-3.5" />
+                            </span>
+                        </Tooltip>
+                    </span>
 
                     {crossFilters.length > 0 && (
-                        <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", marginLeft: 4 }}>
-                            <span className="text-[10.5px] font-semibold text-slate-400">Exploring</span>
+                        <div className="ml-1 flex flex-wrap items-center gap-1.5 max-lg:shrink-0 max-lg:flex-nowrap">
+                            <span className="shrink-0 text-[10.5px] font-semibold text-slate-400">Exploring</span>
                             {crossFilters.map(filter => (
                                 <button
                                     key={`${filter.field}:${filter.value}:${filter.revenueBasis}`}
                                     type="button"
                                     onClick={() => toggleCrossFilter(filter)}
-                                    className="inline-flex h-7 items-center gap-1.5 rounded-md border border-[#02378D]/20 bg-[#EEF3FB] px-2.5 text-[11px] font-semibold text-[#02378D] hover:bg-[#E4ECFA]"
+                                    className="inline-flex h-7 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md border border-[#02378D]/20 bg-[#EEF3FB] px-2.5 text-[11px] font-semibold text-[#02378D] hover:bg-[#E4ECFA]"
                                     title="Click to remove this cross-filter"
                                 >
                                     <span>{filter.label}: {filter.displayValue}</span>
@@ -1790,7 +1840,7 @@ export function AnalyticsDashboard({
                                 <button
                                     type="button"
                                     onClick={clearCrossFilters}
-                                    className="h-7 rounded-md px-2 text-[11px] font-semibold text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+                                    className="h-7 shrink-0 whitespace-nowrap rounded-md px-2 text-[11px] font-semibold text-slate-400 hover:bg-slate-100 hover:text-slate-600"
                                 >
                                     Clear all
                                 </button>
@@ -1802,6 +1852,7 @@ export function AnalyticsDashboard({
                         <button
                             type="button"
                             onClick={handleResetPeriod}
+                            className="shrink-0"
                             style={{
                                 background: "transparent", border: "none", cursor: "pointer",
                                 fontSize: 11, fontWeight: 500, color: "#94a3b8",
@@ -1820,7 +1871,8 @@ export function AnalyticsDashboard({
 
             {/* ─── SCROLLABLE CONTENT (scrollbar starts below header) ─── */}
             <div id="dashboard-scroll-area" className="thin-scrollbar" style={{ flex: 1, overflowY: "auto", overflowX: "clip" }}>
-            <div id="dashboard-content" style={{ padding: "28px 32px 40px", background: "#f7f8fa", minHeight: "100%", overflowX: "clip", overflowY: "visible", boxSizing: "border-box", width: "100%", minWidth: 0 }}>
+            {/* 32px sides on a desk; the phone's 16px gutter (24px from `sm`). */}
+            <div id="dashboard-content" className="px-4 pt-4 pb-6 sm:px-6 lg:px-8 lg:pt-7 lg:pb-10" style={{ background: "#f7f8fa", minHeight: "100%", overflowX: "clip", overflowY: "visible", boxSizing: "border-box", width: "100%", minWidth: 0 }}>
                 <DashboardGrid
                     widgetIds={LAUNCH_WIDGET_IDS}
                     customWidgets={customWidgetsList}
@@ -1975,6 +2027,23 @@ export function AnalyticsDashboard({
                 dashboard root so they position freely over the grid and
                 survive scroll. */}
             {tools.Panels}
+
+            {/* The phone's sheets, from the top app bar's ⋮. */}
+            <DashboardViewsSheet
+                open={viewsSheetOpen}
+                onOpenChange={setViewsSheetOpen}
+                views={views.views}
+                activeView={views.activeView}
+                loading={views.loading}
+                hasUnsavedChanges={hasUnsavedFilterChanges}
+                onSelectView={(id) => views.setActiveViewId(id)}
+                onSaveCurrent={handleSaveCurrentView}
+            />
+            <DashboardCountingSheet
+                open={countingSheetOpen}
+                onOpenChange={setCountingSheetOpen}
+                cards={kpis.map(k => ({ label: k.label, info: k.basisInfo }))}
+            />
         </div>
     )
 }

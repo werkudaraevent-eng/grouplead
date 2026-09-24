@@ -147,16 +147,35 @@ export function ListEmpty({
 }
 
 /** Placeholder cards for a list's first load on a phone, shaped like the cards that replace them. */
+/**
+ * The phone's cards while the first page loads, drawn to `RecordCard`'s
+ * measurements (the three lines, the hairline, the owner and the ⋮ in the
+ * footer, 12px apart), so nothing moves when the records arrive.
+ */
 export function ListCardSkeleton({ count = 6 }: { count?: number }) {
   return (
-    <ul className="space-y-2" aria-hidden="true">
+    <ul className="space-y-3" aria-hidden="true">
       {Array.from({ length: count }).map((_, i) => (
-        <li key={i} className="flex items-start gap-3 rounded-xl border border-border bg-card p-3">
-          <span className="h-8 w-8 shrink-0 animate-pulse rounded-full bg-muted" />
-          <span className="flex-1 space-y-2 pt-0.5">
-            <span className="block h-3.5 animate-pulse rounded bg-muted" style={{ width: `${55 + ((i * 13) % 30)}%` }} />
-            <span className="block h-3 animate-pulse rounded bg-muted/70" style={{ width: `${40 + ((i * 17) % 35)}%` }} />
-            <span className="block h-3 animate-pulse rounded bg-muted/70" style={{ width: `${50 + ((i * 11) % 30)}%` }} />
+        <li key={i} className="overflow-hidden rounded-xl border border-border bg-card">
+          <span className="block p-4">
+            <span className="flex h-6 items-center">
+              <span className="block h-3.5 animate-pulse rounded bg-muted" style={{ width: `${55 + ((i * 13) % 30)}%` }} />
+            </span>
+            <span className="flex h-4 items-center">
+              <span className="block h-3 animate-pulse rounded bg-muted/70" style={{ width: `${40 + ((i * 17) % 35)}%` }} />
+            </span>
+            <span className="mt-2 flex h-5 items-center">
+              <span className="block h-3 animate-pulse rounded bg-muted/70" style={{ width: `${50 + ((i * 11) % 30)}%` }} />
+            </span>
+          </span>
+          <span className="flex min-h-11 items-center justify-between gap-3 border-t border-border px-3 py-2">
+            <span className="flex items-center gap-2">
+              <span className="h-7 w-7 shrink-0 animate-pulse rounded-full bg-muted" />
+              <span className="block h-3 w-24 animate-pulse rounded bg-muted/70" />
+            </span>
+            <span className="grid h-11 w-11 place-items-center">
+              <span className="h-1 w-1 rounded-full bg-muted" />
+            </span>
           </span>
         </li>
       ))}

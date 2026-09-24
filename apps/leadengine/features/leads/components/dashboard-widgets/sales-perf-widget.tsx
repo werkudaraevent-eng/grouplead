@@ -6,6 +6,7 @@ import { SectionCard, SectionTitle, SectionSub, InsightCallout, MiniSelect } fro
 import { EmptyState } from "@/components/shared/empty-state"
 import { getInitials, getAvatarColor } from "@/lib/avatar"
 import { Users } from "@/components/icons"
+import { useDashboardFlow } from "./dashboard-flow-context"
 
 // Sort modes offered to the user. Default `achievement_asc` keeps the
 // action-oriented behaviour (worst performers surface at the top), but the
@@ -55,6 +56,8 @@ function getColor(pct: number, hasTarget: boolean): string {
 export function SalesPerfWidget({ data }: SalesPerfWidgetProps) {
     const { fmtAxis } = useCurrency()
     const [sortBy, setSortBy] = useState<SortMode>("achievement_asc")
+    // On a phone the sort picker and the team average wrap under the title.
+    const flow = useDashboardFlow()
 
     if (data.length === 0) {
         return (
@@ -99,7 +102,7 @@ export function SalesPerfWidget({ data }: SalesPerfWidgetProps) {
 
     return (
         <SectionCard>
-            <div className="flex items-start justify-between mb-1 gap-2">
+            <div className={`flex items-start justify-between mb-1 gap-2${flow ? " flex-wrap" : ""}`}>
                 <div className="min-w-0">
                     <SectionTitle>Sales Performance</SectionTitle>
                     <SectionSub>Revenue achievement per sales rep</SectionSub>

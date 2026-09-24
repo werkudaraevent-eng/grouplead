@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils"
 import { Info } from "@/components/icons"
 import { Tooltip as TooltipPrimitive } from "radix-ui"
 import { useEffect, useId, useRef, useState, type ReactNode } from "react"
+import { useDashboardFlow } from "./dashboard-flow-context"
 
 // ─── Density tiers ───────────────────────────────────────────────────────────
 // KPI cards live in a resizable grid where the cell height is fixed per row
@@ -160,7 +161,12 @@ export function SingleKPIWidget({ label, value, prefix = "", suffix = "", vsTarg
     // Height-aware density: observe the card's own box height and drop
     // secondary content as it shrinks so the fixed grid cell never clips.
     const cardRef = useRef<HTMLDivElement>(null)
-    const [tier, setTier] = useState<DensityTier>("full")
+    const [measuredTier, setTier] = useState<DensityTier>("full")
+    // On a phone the card is not squeezed into a grid cell: it is as tall as
+    // its content, so it always has the room of the full tier (the
+    // sparkline still gives way to a narrow card through `@[170px]`).
+    const flow = useDashboardFlow()
+    const tier: DensityTier = flow ? "full" : measuredTier
     useEffect(() => {
         const el = cardRef.current
         if (!el) return
@@ -222,7 +228,10 @@ export function SingleKPIWidget({ label, value, prefix = "", suffix = "", vsTarg
                 identically-named cards truncate differently depending on
                 whether one had a tooltip configured (the card 5 vs 6 anomaly).
                 Absolute = the title always gets the full header width. */}
-            {basisInfo && (
+            {/* A hover tooltip does not exist on a touch screen: on a phone
+                the same explanations are one sheet away, "How the numbers
+                are counted" in the top app bar's ⋮. */}
+            {basisInfo && !flow && (
                 <TooltipPrimitive.Provider delayDuration={150}>
                     <TooltipPrimitive.Root>
                         <TooltipPrimitive.Trigger asChild>
@@ -257,7 +266,7 @@ export function SingleKPIWidget({ label, value, prefix = "", suffix = "", vsTarg
             {/* Row 1 — header: icon tile + label. `headerAction` (custom-widget
                 filter) stays in flow when present; the ⓘ button is absolute so
                 the title width is identical whether or not a tooltip exists. */}
-            <div className={cn("flex gap-[8px]", isMicro ? "items-center mb-[3px]" : "items-start mb-[5px]", basisInfo && !isMicro && "pr-[18px]")}>
+            <div className={cn("flex gap-[8px]", isMicro ? "items-center mb-[3px]" : "items-start mb-[5px]", basisInfo && !isMicro && !flow && "pr-[18px]")}>
                 <div
                     className={cn(
                         "flex items-center justify-center rounded-[8px] shrink-0",
@@ -271,13 +280,17 @@ export function SingleKPIWidget({ label, value, prefix = "", suffix = "", vsTarg
                     className={cn(
                         "flex-1 min-w-0 text-[12.5px] font-semibold text-[#697080] leading-[1.25]",
                         isMicro ? "truncate self-center" : "line-clamp-2",
+                        // On a phone the label wraps between words only
+                        // ("Incoming / Lead", never "Incomi / ng"): the half-
+                        // width card is wide enough for every word.
+                        flow && "break-normal hyphens-none",
                     )}
                     // In full/compact the title may wrap to 2 lines. Reserve
                     // that height on every card so single- and double-line
                     // titles align to the same baseline across a KPI row, and
-                    // allow breaking inside long single words so a narrow card
-                    // (6-up layout) wraps them instead of clipping mid-word.
-                    style={isMicro ? undefined : { overflowWrap: "anywhere", minHeight: "31px" }}
+                    // (on a desk) allow breaking inside long single words so a
+                    // narrow card (6-up layout) wraps them instead of clipping.
+                    style={isMicro ? undefined : flow ? { minHeight: "31px" } : { overflowWrap: "anywhere", minHeight: "31px" }}
                     title={label}
                 >
                     {label}
@@ -343,7 +356,9 @@ export function SingleKPIWidget({ label, value, prefix = "", suffix = "", vsTarg
                             {supporting!.map((s) => (
                                 <div key={s.label} className="flex items-baseline gap-[5px] min-w-0">
                                     <span className="font-bold text-[#10141C] whitespace-nowrap">{s.value}</span>
-                                    <span className="font-normal truncate">{s.label}</span>
+                                    {/* On a phone the label wraps rather than
+                                        being cut ("leads convert…"). */}
+                                    <span className={cn("font-normal", flow ? "min-w-0 break-normal" : "truncate")}>{s.label}</span>
                                 </div>
                             ))}
                         </div>

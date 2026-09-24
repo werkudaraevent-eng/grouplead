@@ -54,6 +54,7 @@ import { ColumnsMenu } from "@/components/shared/columns-menu"
 import { ListFooter } from "@/components/shared/list-footer"
 import { InitialsAvatar } from "@/components/shared/initials-avatar"
 import { NeedsDetailsMark } from "@/components/shared/status-badge"
+import { RecordCard } from "@/components/shared/record-card"
 import { ListCardSkeleton, ListEmpty, MENU_CELL, MENU_COL, RowMenu, SELECT_COL, SortableHead, frozenCell, nextSort } from "@/components/shared/list-table"
 import { useCompany } from "@/contexts/company-context"
 import { useListOptions, useListPage } from "@/hooks/use-list-page"
@@ -537,33 +538,32 @@ export function CompaniesList({ fresh, introSeen }: { fresh: boolean; /** Whethe
                 </div>
             </div>
 
-            {/* Phone: one card per company; the card opens it, the ⋮ holds Edit, Add contact and Delete.
-                No top padding: the controls above end 12px over the first card. */}
+            {/* Phone: one card per company in Sales Activity's anatomy (`RecordCard`):
+                the name, sector · line industry · city, phone · website, a hairline,
+                then the owner and the ⋮ (Edit, Add contact, Delete). The card opens
+                the company. No top padding: the controls above end 12px over the first card. */}
             <div className={cn("px-4 pb-3 transition-opacity md:hidden", list.pending && list.loaded && "opacity-60")} aria-busy={list.pending}>
                 {!list.loaded && !list.failed ? (
                     <ListCardSkeleton />
                 ) : empty ? (
                     empty
                 ) : (
-                    <ul className="space-y-2">
-                        {rows.map((company) => {
-                            const line2 = [company.industry, company.line_industry, company.city].filter(Boolean).join(" · ")
-                            const line3 = [company.phone ? formatPhoneDisplay(company.phone) : null, company.website].filter(Boolean).join(" · ")
-                            return (
-                                <li key={company.id} onClick={rowLink(hrefOf(company))} className="flex cursor-pointer items-start gap-3 rounded-xl border border-border bg-card py-3 pl-3 pr-1 transition-colors hover:bg-muted/50">
-                                    <InitialsAvatar name={company.name} size="md" shape="square" className="mt-0.5" />
-                                    <div className="min-w-0 flex-1">
-                                        <div className="flex min-w-0 items-center gap-1.5">
-                                            <Link href={hrefOf(company)} prefetch={false} className="truncate font-semibold text-foreground hover:underline">{company.name}</Link>
-                                            {company.needs_enrichment && <NeedsDetailsMark />}
-                                        </div>
-                                        <p className="truncate text-xs text-muted-foreground">{line2 || "No sector"}</p>
-                                        <p className={cn("mt-1 truncate text-sm", line3 ? "text-foreground" : "text-muted-foreground")}>{line3 || "No phone or website"}</p>
-                                    </div>
-                                    <RowMenu label={`Actions for ${company.name}`} className="h-11 w-11 opacity-100">{rowMenuItems(company)}</RowMenu>
-                                </li>
-                            )
-                        })}
+                    <ul className="space-y-3">
+                        {rows.map((company) => (
+                            <RecordCard
+                                key={company.id}
+                                href={hrefOf(company)}
+                                onOpen={rowLink(hrefOf(company))}
+                                name={company.name}
+                                mark={company.needs_enrichment && <NeedsDetailsMark />}
+                                supporting={[company.industry, company.line_industry, company.city].filter(Boolean).join(" · ")}
+                                supportingEmpty="No sector"
+                                fact={[company.phone ? formatPhoneDisplay(company.phone) : null, company.website].filter(Boolean).join(" · ")}
+                                factEmpty="No phone or website"
+                                owner={company.owner}
+                                action={<RowMenu label={`Actions for ${company.name}`} className="h-11 w-11 opacity-100">{rowMenuItems(company)}</RowMenu>}
+                            />
+                        ))}
                     </ul>
                 )}
             </div>

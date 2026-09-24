@@ -60,3 +60,23 @@ export function sortStages(stages: PipelineStage[]): PipelineStage[] {
         return a.sort_order - b.sort_order
     })
 }
+
+/**
+ * The kanban order that puts a lead at the top of a stage when it is moved
+ * there from a menu rather than dropped at a place: 1000 above the highest
+ * order already in that stage, or above `now` in seconds when the stage has
+ * none. The kanban card's Move menu and the phone's "Move to stage…" use it.
+ */
+export function topOfStageSortOrder(
+    leads: { pipeline_stage_id: string | null; kanban_sort_order?: number | null }[],
+    stageId: string,
+    now: number = Date.now(),
+): number {
+    const top = leads
+        .filter((lead) => lead.pipeline_stage_id === stageId)
+        .reduce((max, lead) => {
+            const value = lead.kanban_sort_order
+            return typeof value === "number" && value > max ? value : max
+        }, 0)
+    return (top || now / 1000) + 1000
+}

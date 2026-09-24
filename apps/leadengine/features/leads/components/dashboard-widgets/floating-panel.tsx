@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { createPortal } from "react-dom"
 import { Minus, X } from "@/components/icons"
+import { cn } from "@/lib/utils"
 
 interface FloatingPanelProps {
   id: string
@@ -24,6 +25,11 @@ interface FloatingPanelProps {
  * Visibility is controlled via CSS only — children never unmount.
  * This ensures chat history and analysis results persist.
  * Uses Portal to render at document.body level (avoids scroll/sticky issues).
+ *
+ * Below `lg` it sits above the phone shell's navigation bar (80dp plus the
+ * home indicator) and below its top app bar, and below `md` it spans the
+ * screen less an 8px margin each side, since a 400px panel is wider than a
+ * phone. The minimised pills move up past the navigation bar the same way.
  */
 export function FloatingPanel({
   id, title, icon, iconBg, children, onClose,
@@ -40,24 +46,29 @@ export function FloatingPanel({
   return createPortal(
     <>
       {/* Main panel — always in DOM, visibility toggled */}
-      <div style={{
-        position: "fixed",
-        bottom: 16, right: 16,
-        width: 400, maxHeight: "calc(100vh - 90px)",
-        background: "#fff",
-        borderRadius: 12,
-        boxShadow: "0 8px 40px rgba(0,0,0,.12), 0 2px 8px rgba(0,0,0,.06)",
-        border: "1px solid #e5e7eb",
-        zIndex: 50,
-        display: "flex", flexDirection: "column",
-        overflow: "hidden",
-        // Hide without unmounting
-        visibility: isVisible ? "visible" : "hidden",
-        opacity: isVisible ? 1 : 0,
-        pointerEvents: isVisible ? "auto" : "none",
-        transform: isVisible ? "scale(1) translateY(0)" : "scale(0.95) translateY(8px)",
-        transition: "opacity .2s ease, transform .2s ease, visibility 0s linear " + (isVisible ? "0s" : ".2s"),
-      }}>
+      <div
+        className={cn(
+          "fixed bottom-4 right-4 w-[400px] max-h-[calc(100vh-90px)]",
+          "max-lg:bottom-[calc(5.5rem+env(safe-area-inset-bottom))]",
+          "max-lg:max-h-[calc(100dvh-9.5rem-env(safe-area-inset-top)-env(safe-area-inset-bottom))]",
+          "max-md:left-2 max-md:right-2 max-md:w-auto",
+        )}
+        style={{
+          background: "#fff",
+          borderRadius: 12,
+          boxShadow: "0 8px 40px rgba(0,0,0,.12), 0 2px 8px rgba(0,0,0,.06)",
+          border: "1px solid #e5e7eb",
+          zIndex: 50,
+          display: "flex", flexDirection: "column",
+          overflow: "hidden",
+          // Hide without unmounting
+          visibility: isVisible ? "visible" : "hidden",
+          opacity: isVisible ? 1 : 0,
+          pointerEvents: isVisible ? "auto" : "none",
+          transform: isVisible ? "scale(1) translateY(0)" : "scale(0.95) translateY(8px)",
+          transition: "opacity .2s ease, transform .2s ease, visibility 0s linear " + (isVisible ? "0s" : ".2s"),
+        }}
+      >
         {/* Header */}
         <div style={{
           padding: "10px 14px", borderBottom: "1px solid #f0f0f0",
@@ -73,16 +84,18 @@ export function FloatingPanel({
             </div>
             <span style={{ fontSize: 13, fontWeight: 700, color: "#1e293b" }}>{title}</span>
           </div>
-          <div style={{ display: "flex", gap: 2 }}>
-            <button onClick={onMinimize} style={{
+          {/* The two buttons are 22px on a desk and 44px targets on a
+              touch screen (`-my-2.5` keeps the header's height there). */}
+          <div className="max-lg:-my-2.5 max-lg:-mr-2.5" style={{ display: "flex", gap: 2 }}>
+            <button type="button" onClick={onMinimize} aria-label="Minimize" className="p-1 max-lg:p-[15px]" style={{
               background: "none", border: "none", cursor: "pointer",
-              padding: 4, borderRadius: 4, color: "#94a3b8", display: "flex",
+              borderRadius: 4, color: "#94a3b8", display: "flex",
             }} title="Minimize">
               <Minus size={14} />
             </button>
-            <button onClick={onClose} style={{
+            <button type="button" onClick={onClose} aria-label="Close" className="p-1 max-lg:p-[15px]" style={{
               background: "none", border: "none", cursor: "pointer",
-              padding: 4, borderRadius: 4, color: "#94a3b8", display: "flex",
+              borderRadius: 4, color: "#94a3b8", display: "flex",
             }} title="Close">
               <X size={14} />
             </button>
@@ -99,10 +112,13 @@ export function FloatingPanel({
       {minimized && !hidden && (
         <div
           onClick={onRestore}
+          className={cn(
+            "fixed right-5 max-md:right-3",
+            id === "analyze"
+              ? "bottom-[72px] max-lg:bottom-[calc(9rem+env(safe-area-inset-bottom))]"
+              : "bottom-5 max-lg:bottom-[calc(5.75rem+env(safe-area-inset-bottom))]",
+          )}
           style={{
-            position: "fixed",
-            bottom: id === "analyze" ? 72 : 20,
-            right: 20,
             zIndex: 9999, cursor: "pointer",
             display: "flex", alignItems: "center", gap: 10,
             background: id === "analyze"

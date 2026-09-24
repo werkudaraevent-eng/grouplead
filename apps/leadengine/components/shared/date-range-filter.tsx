@@ -14,6 +14,12 @@
  *   - Named presets (This Month/Quarter/Year, All Time) set `periodStr` and
  *     keep the prior-year-pipeline YoY behaviour.
  *   - Date presets + calendar ranges set `periodStr="custom"` + ISO dates.
+ *
+ * Below `md` the popover (presets beside two months, ~680px) is wider than a
+ * phone, so the same choices open in a bottom sheet instead: the presets as
+ * choice chips, then one month with 40px days (M3: a menu or a popover
+ * becomes a modal bottom sheet in a compact window; the Google Analytics app
+ * picks a range the same way).
  */
 
 import * as React from "react"
@@ -21,11 +27,14 @@ import {
     format, parseISO, isValid,
     startOfMonth, endOfMonth, subMonths, subDays, startOfYear,
 } from "date-fns"
-import { CalendarDays, ChevronDown } from "@/components/icons"
+import { CalendarDays, Check, ChevronDown } from "@/components/icons"
 import type { DateRange } from "react-day-picker"
+import { Slot } from "radix-ui"
 
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { BottomSheet } from "@/components/ui/bottom-sheet"
+import { useBelowMd } from "@/hooks/use-compact"
 import { cn } from "@/lib/utils"
 
 interface DateRangeFilterProps {
@@ -90,6 +99,7 @@ export function DateRangeFilter({
     period, customStart, customEnd, onSelect, now = new Date(), muted = false, mutedReason,
 }: DateRangeFilterProps) {
     const [open, setOpen] = React.useState(false)
+    const phone = useBelowMd()
 
     const selectedRange = React.useMemo<DateRange | undefined>(() => {
         if (period !== "custom") return undefined
@@ -144,25 +154,78 @@ export function DateRangeFilter({
         setOpen(false)
     }
 
+    // `shrink-0`: it sits in the dashboard's filter row, which scrolls
+    // sideways on a phone rather than squeezing its chips.
+    const trigger = (
+        <button
+            type="button"
+            aria-label="Select date range"
+            title={muted ? mutedReason : undefined}
+            className={cn(
+                "inline-flex shrink-0 items-center gap-1.5 h-8 px-2.5 rounded-lg border text-[12px] font-medium transition-colors shadow-none",
+                muted && "opacity-45 grayscale",
+                !isDefault
+                    ? "bg-primary/10 border-primary/30 text-primary hover:bg-primary/15"
+                    : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50",
+            )}
+        >
+            <CalendarDays className="h-3.5 w-3.5 shrink-0 opacity-70" />
+            <span className="truncate max-w-[220px]">{label}</span>
+            <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-60" />
+        </button>
+    )
+
+    if (phone) {
+        return (
+            <>
+                <Slot.Root onClick={() => setOpen(true)} aria-haspopup="dialog" aria-expanded={open}>{trigger}</Slot.Root>
+                <BottomSheet open={open} onOpenChange={setOpen} title="Date range">
+                    <div className="px-4">
+                        <div role="radiogroup" aria-label="Quick ranges" className="flex flex-wrap gap-2">
+                            {PRESETS.map((p) => {
+                                const checked = activePresetKey === p.key
+                                return (
+                                    <button
+                                        key={p.key}
+                                        type="button"
+                                        role="radio"
+                                        aria-checked={checked}
+                                        onClick={() => applyPreset(p)}
+                                        className={cn(
+                                            "inline-flex h-9 items-center gap-1.5 rounded-lg border px-3 text-sm font-medium transition-colors",
+                                            checked
+                                                ? "border-transparent bg-[var(--tonal)] text-[var(--tonal-foreground)]"
+                                                : "border-border text-foreground hover:bg-muted",
+                                        )}
+                                    >
+                                        {checked && <Check className="h-4 w-4" aria-hidden="true" />}
+                                        {p.label}
+                                    </button>
+                                )
+                            })}
+                        </div>
+                        <p className="mt-4 text-xs font-medium text-muted-foreground">Or tap a start day, then an end day</p>
+                        <div className="flex justify-center">
+                            <Calendar
+                                mode="range"
+                                numberOfMonths={1}
+                                selected={draft}
+                                onSelect={handleDaySelect}
+                                defaultMonth={selectedRange?.from ?? now}
+                                captionLayout="dropdown"
+                                className="bg-transparent px-0 [--cell-size:--spacing(10)]"
+                            />
+                        </div>
+                    </div>
+                </BottomSheet>
+            </>
+        )
+    }
+
     return (
         <Popover open={open} onOpenChange={setOpen} modal>
             <PopoverTrigger asChild>
-                <button
-                    type="button"
-                    aria-label="Select date range"
-                    title={muted ? mutedReason : undefined}
-                    className={cn(
-                        "inline-flex items-center gap-1.5 h-8 px-2.5 rounded-lg border text-[12px] font-medium transition-colors shadow-none",
-                        muted && "opacity-45 grayscale",
-                        !isDefault
-                            ? "bg-primary/10 border-primary/30 text-primary hover:bg-primary/15"
-                            : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50",
-                    )}
-                >
-                    <CalendarDays className="h-3.5 w-3.5 shrink-0 opacity-70" />
-                    <span className="truncate max-w-[220px]">{label}</span>
-                    <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-60" />
-                </button>
+                {trigger}
             </PopoverTrigger>
             <PopoverContent align="start" sideOffset={8} className="w-auto p-0 overflow-hidden">
                 <div className="flex">

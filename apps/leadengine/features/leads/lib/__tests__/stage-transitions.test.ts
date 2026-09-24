@@ -4,6 +4,7 @@ import {
     isBackwardTransition,
     ruleRequiresPrompt,
     sortStages,
+    topOfStageSortOrder,
 } from "../stage-transitions"
 import type { PipelineStage, TransitionRule } from "@/types"
 
@@ -126,5 +127,23 @@ describe("sortStages", () => {
         const snapshot = stages.map((s) => s.id)
         sortStages(stages)
         expect(stages.map((s) => s.id)).toEqual(snapshot)
+    })
+})
+
+describe("topOfStageSortOrder", () => {
+    const now = 1_700_000_000_000
+
+    it("puts a moved lead 1000 above the highest order in its new stage", () => {
+        const leads = [
+            { pipeline_stage_id: "b", kanban_sort_order: 5000 },
+            { pipeline_stage_id: "b", kanban_sort_order: 7000 },
+            { pipeline_stage_id: "a", kanban_sort_order: 99_000 },
+        ]
+        expect(topOfStageSortOrder(leads, "b", now)).toBe(8000)
+    })
+
+    it("starts from the time in seconds when the stage has no order yet", () => {
+        expect(topOfStageSortOrder([{ pipeline_stage_id: "b", kanban_sort_order: null }], "b", now)).toBe(now / 1000 + 1000)
+        expect(topOfStageSortOrder([], "b", now)).toBe(now / 1000 + 1000)
     })
 })

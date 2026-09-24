@@ -212,7 +212,9 @@ export function SectionCard({ children, className }: { children: React.ReactNode
         <div className={cn(
             "bg-card rounded-[20px] border-0",
             "shadow-[0_1px_3px_rgba(16,24,40,0.03),0_6px_20px_-8px_rgba(16,24,40,0.06)]",
-            "px-6 pt-5 pb-5 h-full flex flex-col",
+            // 16px sides on a phone, where the card is the screen's width
+            // less the page's own 16px gutter (M3 compact window margins).
+            "px-6 pt-5 pb-5 max-md:px-4 max-md:pt-4 max-md:pb-4 h-full flex flex-col",
             "overflow-y-auto overflow-x-hidden thin-scrollbar",
             "animate-in fade-in duration-300 fill-mode-both",
             "transition-shadow duration-200 ease-out",

@@ -6,6 +6,7 @@ import {
 } from "recharts"
 import { useCurrency } from "@/contexts/currency-context"
 import { SectionCard, SectionTitle, SectionSub, DarkTooltip, MiniSelect, WidgetSkeleton } from "./shared"
+import { useDashboardFlow } from "./dashboard-flow-context"
 
 export type RevenueBasis = "revenue_recognition" | "closed_won"
 
@@ -34,16 +35,11 @@ interface RevenueChartWidgetProps {
     onMonthFilterToggle?: (monthIndex: number, monthLabel: string) => void
 }
 
-/** Compact axis formatter without currency prefix — avoids "IDR" repetition on Y-axis */
-function axisOnly(amount: number): string {
-    const abs = Math.abs(amount)
-    const sign = amount < 0 ? '-' : ''
-    if (abs >= 1_000_000_000_000) return `${sign}${(abs / 1_000_000_000_000).toFixed(1)}T`
-    if (abs >= 1_000_000_000) return `${sign}${(abs / 1_000_000_000).toFixed(1)}B`
-    if (abs >= 1_000_000) return `${sign}${(abs / 1_000_000).toFixed(0)}M`
-    if (abs >= 1_000) return `${sign}${(abs / 1_000).toFixed(0)}K`
-    if (abs === 0) return '0'
-    return `${sign}${abs}`
+/** Keeps a compact amount ("Rp 2.2B") on one line: Recharts wraps an axis
+ *  tick or a bar label at its spaces when it is wider than the room it is
+ *  given, and "Rp" alone on a line above "2.2B" reads as two values. */
+function oneLine(label: string): string {
+    return label.replace(/ /g, "\u00A0")
 }
 
 function getChartPayload(event: unknown): RevenueDataPoint | undefined {
@@ -56,6 +52,11 @@ function getChartPayload(event: unknown): RevenueDataPoint | undefined {
 
 export function RevenueChartWidget({ data, currentYear, compareYear, setCompareYear, compareYears, hasMounted, revenueBasis, setRevenueBasis, activeMonthIndex = null, onMonthFilterToggle }: RevenueChartWidgetProps) {
     const { fmt, fmtAxis } = useCurrency()
+    // On a phone the chart is the screen's width: every other month is
+    // labelled (Recharts drops a label that would touch its neighbour), and
+    // the value printed on each bar gives way to the tooltip a tap opens,
+    // since twelve of them collide at that width.
+    const flow = useDashboardFlow()
     const basisLabel = revenueBasis === "revenue_recognition" ? "Revenue Recognition Month" : "Closed Won Date"
     const hasComparison = compareYear !== null
     const hasCompareYears = compareYears.length > 0
@@ -79,7 +80,9 @@ export function RevenueChartWidget({ data, currentYear, compareYear, setCompareY
 
     return (
         <SectionCard className={activeMonthIndex !== null ? "self-stretch ring-2 ring-[#02378D]/35" : "self-stretch"}>
-            <div className="flex justify-between items-start mb-2">
+            {/* On a phone the two pickers wrap under the title when the
+                card is too narrow to hold them beside it. */}
+            <div className={`flex justify-between items-start mb-2${flow ? " flex-wrap gap-2" : ""}`}>
                 <div>
                     <SectionTitle>Monthly Revenue vs Target</SectionTitle>
                     <SectionSub>{currentYear} · By {basisLabel}</SectionSub>
@@ -158,8 +161,19 @@ export function RevenueChartWidget({ data, currentYear, compareYear, setCompareY
                                 </linearGradient>
                             </defs>
                             <CartesianGrid strokeDasharray="2 5" vertical={false} stroke="#e4e9f0" />
-                            <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#64748b', fontWeight: 500 }} dy={8} />
-                            <YAxis yAxisId="left" tickFormatter={axisOnly} axisLine={false} tickLine={false} tick={{ fontSize: 9, fill: '#94a3b8', fontWeight: 500 }} dx={-5} width={42} />
+                            <XAxis
+                                dataKey="month"
+                                axisLine={false}
+                                tickLine={false}
+                                tick={{ fontSize: 10, fill: '#64748b', fontWeight: 500 }}
+                                dy={8}
+                                interval={flow ? "preserveStart" : undefined}
+                                minTickGap={flow ? 12 : undefined}
+                            />
+                            {/* Compact amounts in the person's currency
+                                (`fmtAxis`, AGENTS.md), wide enough for
+                                "IDR 12.5B". */}
+                            <YAxis yAxisId="left" tickFormatter={(v: number) => oneLine(fmtAxis(v))} axisLine={false} tickLine={false} tick={{ fontSize: 9, fill: '#94a3b8', fontWeight: 500 }} dx={-5} width={52} />
                             <RechartsTooltip content={<DarkTooltip fmt={fmt} />} cursor={{ fill: 'rgba(2,55,141,0.04)' }} />
                             <Legend wrapperStyle={{ paddingTop: '8px', fontSize: '10px', fontWeight: 600 }} iconType="circle" iconSize={8} />
                             {/* Target line — linear (not monotone) so it doesn't
@@ -198,7 +212,9 @@ export function RevenueChartWidget({ data, currentYear, compareYear, setCompareY
                                         />
                                     )
                                 })}
-                                <LabelList dataKey="actual" position="top" formatter={((v: unknown) => { const n = Number(v); return n > 0 ? axisOnly(n) : '' }) as (label: unknown) => string} style={{ fontSize: 8, fontWeight: 700, fill: "#475569" }} />
+                                {!flow && (
+                                    <LabelList dataKey="actual" position="top" formatter={((v: unknown) => { const n = Number(v); return n > 0 ? oneLine(fmtAxis(n)) : '' }) as (label: unknown) => string} style={{ fontSize: 8, fontWeight: 700, fill: "#475569" }} />
+                                )}
                             </Bar>
                             {/* Comparison bars — only rendered when the user picks a
                                 historical year. Without a comparison the main bars

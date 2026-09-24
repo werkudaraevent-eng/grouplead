@@ -6,16 +6,15 @@ import { z } from "zod"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { createClient } from "@/utils/supabase/client"
 import { createClientCompanyAction, updateClientCompanyAction } from "@/app/actions/company-actions"
-import {
-    Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription,
-} from "@/components/ui/sheet"
+import { Sheet } from "@/components/ui/sheet"
+import { FormSheetBody, FormSheetContent, FormSheetFooter, FormSheetHeader } from "@/components/shared/form-sheet"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import {
     Form, FormControl, FormField, FormItem, FormMessage
 } from "@/components/ui/form"
-import { Loader2, Check, ChevronsUpDown, Settings2 } from "@/components/icons"
+import { Check, ChevronsUpDown, Settings2 } from "@/components/icons"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import {
     Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList,
@@ -43,6 +42,7 @@ import { getInvalidParentIds } from "@/features/companies/lib/company-hierarchy"
 import { DEFAULT_LAYOUTS, type LayoutItemsMap } from "@/features/settings/components/form-layout-builder"
 import { mergeMissingNativeFields } from "@/features/settings/lib/layout-self-heal"
 import { formatTabLabel, getVisibleTabEntries } from "@/features/settings/lib/form-layout-tabs"
+import { sentenceCaseLabel } from "@/lib/label-case"
 import { useCompany } from "@/contexts/company-context"
 
 interface AddCompanyModalProps {
@@ -411,7 +411,7 @@ export function AddCompanyModal({ open, onOpenChange, onCreated, initialData }: 
             case "native:name":
                 return (
                     <FormField key={fieldId} control={form.control} name="name" render={({ field }) => (
-                        <FormItem className="col-span-2 space-y-1.5">
+                        <FormItem className="space-y-1.5 sm:col-span-2">
                             <FormFieldLabel htmlFor="company-name" required={required}>Company name</FormFieldLabel>
                             <FormControl>
                                 <Input
@@ -502,7 +502,7 @@ export function AddCompanyModal({ open, onOpenChange, onCreated, initialData }: 
             case "native:account_status":
                 return (
                     <FormField key={fieldId} control={form.control} name="account_status" render={({ field }) => (
-                        <FormItem className="col-span-2 space-y-1.5">
+                        <FormItem className="space-y-1.5 sm:col-span-2">
                             <FormFieldLabel required={required} hint={"New = first-time client. Repeater = previously bought once or twice. Contracted = ongoing contract in place."}>Account status</FormFieldLabel>
                             <FormControl>
                                 <SegmentedControl
@@ -523,7 +523,7 @@ export function AddCompanyModal({ open, onOpenChange, onCreated, initialData }: 
             case "native:street_address":
                 return (
                     <FormField key={fieldId} control={form.control} name="street_address" render={({ field }) => (
-                        <FormItem className="col-span-2 space-y-1.5">
+                        <FormItem className="space-y-1.5 sm:col-span-2">
                             <FormFieldLabel required={required}>Address</FormFieldLabel>
                             <FormControl>
                                 <Textarea
@@ -586,7 +586,7 @@ export function AddCompanyModal({ open, onOpenChange, onCreated, initialData }: 
             case "native:country":
                 return (
                     <FormField key={fieldId} control={form.control} name="country" render={({ field }) => (
-                        <FormItem className="col-span-2 space-y-1.5">
+                        <FormItem className="space-y-1.5 sm:col-span-2">
                             <FormFieldLabel required={required}>Country</FormFieldLabel>
                             <CountryCombobox value={field.value || ""} onChange={field.onChange} />
                             <FormMessage className="text-[11px]" />
@@ -631,7 +631,7 @@ export function AddCompanyModal({ open, onOpenChange, onCreated, initialData }: 
             case "native:owner_id":
                 return (
                     <FormField key={fieldId} control={form.control} name="owner_id" render={({ field }) => (
-                        <FormItem className="col-span-2 space-y-1.5">
+                        <FormItem className="space-y-1.5 sm:col-span-2">
                             <FormFieldLabel required={required}>Owner</FormFieldLabel>
                             <FormControl><ProfileCombobox value={field.value || null} onChange={field.onChange} placeholder="Assign…" filterRoles={["sales", "bu_manager"]} /></FormControl>
                             <FormMessage className="text-[11px]" />
@@ -646,38 +646,34 @@ export function AddCompanyModal({ open, onOpenChange, onCreated, initialData }: 
 
     return (
         <Sheet open={open} onOpenChange={onOpenChange}>
-            <SheetContent
-                className="w-full sm:max-w-xl p-0 flex flex-col bg-background border-l border-border"
-                onInteractOutside={(e) => e.preventDefault()}
-            >
+            {/* A full-screen dialog on a phone, the side sheet from md (FormSheetContent). */}
+            <FormSheetContent onInteractOutside={(e) => e.preventDefault()}>
                 <Form {...form}>
-                    <form onSubmit={form.handleSubmit(onSubmit, onError)} className="flex flex-col h-full overflow-hidden">
-                        <SheetHeader className="relative px-6 py-4 bg-card border-b border-border shrink-0">
-                            <div className="flex justify-between items-start gap-3">
-                                <div>
-                                    <SheetTitle className="text-base font-semibold tracking-tight">{isEditMode ? "Edit company" : "Add company"}</SheetTitle>
-                                    <SheetDescription className="text-xs mt-0.5 text-muted-foreground">
-                                        {isEditMode ? "Update company information" : "Add a new client company to your directory"}
-                                    </SheetDescription>
-                                </div>
-                                {canManageLayout && (
-                                    <Button variant="ghost" size="sm" className="h-8 px-2 text-muted-foreground hover:text-foreground hidden sm:flex" onClick={() => onOpenChange(false)} asChild>
-                                        <Link href="/settings/master-options?tab=layout">
-                                            <Settings2 className="w-3.5 h-3.5 mr-1.5" />
-                                            <span className="text-xs">Layout</span>
-                                        </Link>
-                                    </Button>
-                                )}
-                            </div>
-                        </SheetHeader>
+                    <form onSubmit={form.handleSubmit(onSubmit, onError)} className="flex h-full min-h-0 flex-col overflow-hidden">
+                        <FormSheetHeader
+                            title={isEditMode ? "Edit company" : "Add company"}
+                            description={isEditMode ? "Update company information" : "Add a new client company to your directory"}
+                            action={canManageLayout && (
+                                <Button variant="ghost" size="sm" className="h-8 px-2 text-muted-foreground hover:text-foreground hidden sm:flex" onClick={() => onOpenChange(false)} asChild>
+                                    <Link href="/settings/master-options?tab=layout">
+                                        <Settings2 className="w-3.5 h-3.5 mr-1.5" />
+                                        <span className="text-xs">Layout</span>
+                                    </Link>
+                                </Button>
+                            )}
+                        />
 
-                        <div className="flex-1 overflow-y-auto custom-scrollbar px-6 py-5 space-y-5">
+                        <FormSheetBody>
                             {visibleTabs.map(([tab, fields]) => (
                                 <section key={tab} className="space-y-3">
-                                    <h4 className="text-[11px] font-semibold text-muted-foreground tracking-wide">{tabSettings[tab]?.label || formatTabLabel(tab)}</h4>
+                                    <h4 className="text-[11px] font-semibold text-muted-foreground tracking-wide">{sentenceCaseLabel(tabSettings[tab]?.label || formatTabLabel(tab))}</h4>
                                     {fields.length === 0 ? (
                                         <p className="text-sm text-muted-foreground italic">No fields assigned to this tab.</p>
                                     ) : (
+                                        // One column on a phone, two from sm; a field that
+                                        // spans both says `sm:col-span-2`, never a bare
+                                        // `col-span-2`, which gives the one-column grid an
+                                        // implicit second column and sets fields side by side.
                                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-4 rounded-xl border border-border bg-card p-4 [&>*]:min-w-0">
                                             {fields.map(fieldId => {
                                                 if (fieldId.startsWith("custom:")) {
@@ -717,24 +713,16 @@ export function AddCompanyModal({ open, onOpenChange, onCreated, initialData }: 
                                     )}
                                 </section>
                             ))}
-                        </div>
+                        </FormSheetBody>
 
-                        <div className="px-6 py-3.5 bg-card border-t border-border flex items-center justify-between gap-3 shrink-0">
-                            <p className="text-[11px] text-muted-foreground hidden sm:block">
-                                <kbd className="px-1 py-0.5 rounded border border-border bg-muted text-[10px] font-mono">Esc</kbd>
-                                <span className="mx-1">to cancel</span>
-                            </p>
-                            <div className="flex items-center gap-2 ml-auto">
-                                <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
-                                <Button type="submit" disabled={saving}>
-                                    {saving && <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />}
-                                    {saving ? "Saving…" : isEditMode ? "Save changes" : "Create company"}
-                                </Button>
-                            </div>
-                        </div>
+                        <FormSheetFooter
+                            onCancel={() => onOpenChange(false)}
+                            saving={saving}
+                            submitLabel={isEditMode ? "Save changes" : "Create company"}
+                        />
                     </form>
                 </Form>
-            </SheetContent>
+            </FormSheetContent>
         </Sheet>
     )
 }

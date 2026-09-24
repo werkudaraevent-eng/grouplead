@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { useCurrency } from "@/contexts/currency-context"
 import { SectionCard, SectionTitle, SectionSub, InsightCallout, MiniSelect } from "./shared"
+import { useDashboardFlow } from "./dashboard-flow-context"
 
 interface TopCompany {
     name: string
@@ -55,6 +56,8 @@ export function TopRevenueWidget({ data, dataGrouped, activeCompanyName = null, 
     const { fmtAxis } = useCurrency()
     const [showMode, setShowMode] = useState<ShowMode>("top10")
     const [groupMode, setGroupMode] = useState<GroupMode>("company")
+    // On a phone the pickers and the total wrap under the title.
+    const flow = useDashboardFlow()
 
     // Grouping is only offered when a rolled-up set is supplied AND it actually
     // differs from the leaf set (i.e. at least one parent exists). Otherwise the
@@ -77,7 +80,7 @@ export function TopRevenueWidget({ data, dataGrouped, activeCompanyName = null, 
 
     return (
         <SectionCard>
-            <div className="flex items-start justify-between mb-1 gap-2">
+            <div className={`flex items-start justify-between mb-1 gap-2${flow ? " flex-wrap" : ""}`}>
                 <div className="min-w-0">
                     <SectionTitle>Top Revenue Generators</SectionTitle>
                     <SectionSub>{groupMode === "group" ? "By parent / group company" : "Client companies by contribution"}</SectionSub>

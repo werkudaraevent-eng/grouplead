@@ -6,7 +6,7 @@ import { z } from "zod"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { createClient } from "@/utils/supabase/client"
 import { createContactAction, updateContactAction } from "@/app/actions/contact-actions"
-import { Loader2, Plus, Trash2, MapPin, Settings2 } from "@/components/icons"
+import { Plus, Trash2, MapPin, Settings2 } from "@/components/icons"
 import { toast } from "sonner"
 import Link from "next/link"
 import { usePermissions } from "@/contexts/permissions-context"
@@ -14,9 +14,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import {
-    Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription,
-} from "@/components/ui/sheet"
+import { Sheet } from "@/components/ui/sheet"
+import { FormSheetBody, FormSheetContent, FormSheetFooter, FormSheetHeader } from "@/components/shared/form-sheet"
 import {
     AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
     AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -37,6 +36,7 @@ import { DatePickerField } from "@/components/shared/date-picker-field"
 import { DEFAULT_LAYOUTS, type LayoutItemsMap } from "@/features/settings/components/form-layout-builder"
 import { mergeMissingNativeFields } from "@/features/settings/lib/layout-self-heal"
 import { formatTabLabel, getVisibleTabEntries } from "@/features/settings/lib/form-layout-tabs"
+import { sentenceCaseLabel } from "@/lib/label-case"
 import { DynamicField } from "@/features/leads/components/dynamic-field"
 import { useCompany } from "@/contexts/company-context"
 import { useMasterOptions } from "@/hooks/use-master-options"
@@ -662,8 +662,8 @@ export function AddContactModal({ isOpen, onOpenChange, preselectedCompanyId, in
     return (
         <>
             <Sheet open={isOpen} onOpenChange={(open) => { if (!open) handleAttemptClose(); else onOpenChange(true) }}>
-                <SheetContent
-                    className="w-full sm:max-w-xl p-0 flex flex-col bg-background border-l border-border"
+                {/* A full-screen dialog on a phone, the side sheet from md (FormSheetContent). */}
+                <FormSheetContent
                     onInteractOutside={(e) => e.preventDefault()}
                     onEscapeKeyDown={(e) => { e.preventDefault(); handleAttemptClose() }}
                 >
@@ -680,33 +680,28 @@ export function AddContactModal({ isOpen, onOpenChange, preselectedCompanyId, in
                                     if (typeof firstInvalid.focus === "function") firstInvalid.focus({ preventScroll: true })
                                 }
                             })
-                        })} className="flex flex-col h-full overflow-hidden">
-                            <SheetHeader className="relative px-6 py-4 bg-card border-b border-border shrink-0">
-                                <div className="flex justify-between items-start gap-3">
-                                    <div>
-                                        <SheetTitle className="text-base font-semibold tracking-tight">{isEditMode ? "Edit contact" : "Add contact"}</SheetTitle>
-                                        <SheetDescription className="text-xs mt-0.5 text-muted-foreground">
-                                            {isEditMode ? "Update contact information" : "Add a new person to your directory"}
-                                        </SheetDescription>
-                                    </div>
-                                    {canManageLayout && (
-                                        <Button variant="ghost" size="sm" className="h-8 px-2 text-muted-foreground hover:text-foreground hidden sm:flex" onClick={() => handleAttemptClose()} asChild>
-                                            <Link href="/settings/master-options?tab=layout">
-                                                <Settings2 className="w-3.5 h-3.5 mr-1.5" />
-                                                <span className="text-xs">Layout</span>
-                                            </Link>
-                                        </Button>
-                                    )}
-                                </div>
-                            </SheetHeader>
+                        })} className="flex h-full min-h-0 flex-col overflow-hidden">
+                            <FormSheetHeader
+                                title={isEditMode ? "Edit contact" : "Add contact"}
+                                description={isEditMode ? "Update contact information" : "Add a new person to your directory"}
+                                action={canManageLayout && (
+                                    <Button variant="ghost" size="sm" className="h-8 px-2 text-muted-foreground hover:text-foreground hidden sm:flex" onClick={() => handleAttemptClose()} asChild>
+                                        <Link href="/settings/master-options?tab=layout">
+                                            <Settings2 className="w-3.5 h-3.5 mr-1.5" />
+                                            <span className="text-xs">Layout</span>
+                                        </Link>
+                                    </Button>
+                                )}
+                            />
 
-                            <div className="flex-1 overflow-y-auto custom-scrollbar px-6 py-5 space-y-5">
+                            <FormSheetBody>
                                 {visibleTabs.map(([tab, fields]) => (
                                     <section key={tab} className="space-y-3">
-                                        <h4 className="text-[11px] font-semibold text-muted-foreground tracking-wide">{tabSettings[tab]?.label || formatTabLabel(tab)}</h4>
+                                        <h4 className="text-[11px] font-semibold text-muted-foreground tracking-wide">{sentenceCaseLabel(tabSettings[tab]?.label || formatTabLabel(tab))}</h4>
                                         {fields.length === 0 ? (
                                             <p className="text-sm text-muted-foreground italic">No fields assigned to this tab.</p>
                                         ) : (
+                                            // One column on a phone, two from sm (a field spanning both says `sm:col-span-2`).
                                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-4 rounded-xl border border-border bg-card p-4 [&>*]:min-w-0">
                                                 {fields.map(fieldId => {
                                                     if (fieldId.startsWith("custom:")) {
@@ -746,24 +741,16 @@ export function AddContactModal({ isOpen, onOpenChange, preselectedCompanyId, in
                                         )}
                                     </section>
                                 ))}
-                            </div>
+                            </FormSheetBody>
 
-                            <div className="px-6 py-3.5 bg-card border-t border-border flex items-center justify-between gap-3 shrink-0">
-                                <p className="text-[11px] text-muted-foreground hidden sm:block">
-                                    <kbd className="px-1 py-0.5 rounded border border-border bg-muted text-[10px] font-mono">Esc</kbd>
-                                    <span className="mx-1">to cancel</span>
-                                </p>
-                                <div className="flex items-center gap-2 ml-auto">
-                                    <Button type="button" variant="ghost" onClick={handleAttemptClose}>Cancel</Button>
-                                    <Button type="submit" disabled={saving}>
-                                        {saving && <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />}
-                                        {saving ? "Saving…" : isEditMode ? "Save changes" : "Create contact"}
-                                    </Button>
-                                </div>
-                            </div>
+                            <FormSheetFooter
+                                onCancel={handleAttemptClose}
+                                saving={saving}
+                                submitLabel={isEditMode ? "Save changes" : "Create contact"}
+                            />
                         </form>
                     </Form>
-                </SheetContent>
+                </FormSheetContent>
             </Sheet>
 
             <AlertDialog open={showWarning} onOpenChange={setShowWarning}>

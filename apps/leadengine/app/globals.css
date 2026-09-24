@@ -131,6 +131,11 @@
   --success-foreground: #3d7a5c;
   --warning: #fef8ec;
   --warning-foreground: #7a5900;
+  /* The danger pair, Sales Activity's own: --destructive (#ED6F22) is 3:1 on
+     a card, too faint for small text, so text that warns (an overdue
+     closing date) takes --danger-foreground, 7:1 on the card. */
+  --danger: #fdeee6;
+  --danger-foreground: #93400a;
 }
 
 /* ── Dark Sidebar Panel (Bigin-style) ── */

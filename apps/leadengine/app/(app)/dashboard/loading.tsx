@@ -2,7 +2,7 @@ import { Loader2 } from "@/components/icons"
 
 export default function DashboardLoading() {
     return (
-        <div className="px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+        <div data-fluid-page className="px-4 sm:px-6 lg:px-8 py-6 space-y-6">
             <div className="space-y-1">
                 <div className="h-7 w-48 bg-muted animate-pulse rounded-md" />
                 <div className="h-4 w-72 bg-muted animate-pulse rounded-md" />

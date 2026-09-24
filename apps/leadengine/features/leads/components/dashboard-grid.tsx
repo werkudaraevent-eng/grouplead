@@ -8,14 +8,18 @@ import {
     getDefaultLayout,
     DEFAULT_HIDDEN_WIDGETS,
     GRID_COLS,
+    GRID_MARGIN,
     GRID_ROW_HEIGHT,
     WIDGET_LABELS,
     getCustomWidgetSize,
     type WidgetId,
     type CustomWidgetType,
 } from "@/features/leads/lib/dashboard-layout"
+import { flowItems, flowKind } from "@/features/leads/lib/dashboard-flow"
 import type { CustomWidget } from "@/types/custom-widget"
 import { usePermissions } from "@/contexts/permissions-context"
+import { useCompact } from "@/hooks/use-compact"
+import { DashboardFlowProvider } from "./dashboard-widgets/dashboard-flow-context"
 
 import "react-grid-layout/css/styles.css"
 import "react-resizable/css/styles.css"
@@ -81,6 +85,11 @@ export function DashboardGrid({
     addCustomWidgetRef,
 }: DashboardGridProps) {
     const [isEditing, setIsEditing] = useState(false)
+    // Below `lg` (the phone shell) the board is not drawn: its cards stream
+    // down one column (`flowItems`), number cards two to a row, and arranging
+    // is a desk task, so no Edit button either. An edit begun on a desk
+    // survives the window narrowing and is there again when it widens.
+    const compact = useCompact()
     // Dashboard editing (customize layout / add / remove widgets) is gated by
     // the `dashboard` RBAC module. When the role has no create/update/delete
     // grant the Edit button is hidden entirely — matching the permission UI
@@ -433,7 +442,7 @@ export function DashboardGrid({
     const gridOverlayCells = useMemo(() => {
         if (!isEditing || !width) return null
         const cols = 12
-        const margin = 22
+        const margin = GRID_MARGIN
         // react-grid-layout formula: colWidth = (containerWidth - margin * (cols - 1)) / cols
         const colWidth = (width - margin * (cols - 1)) / cols
         const rowHeight = GRID_ROW_HEIGHT
@@ -483,10 +492,24 @@ export function DashboardGrid({
 
     const galleryCount = hiddenWidgets.size + addableCustomWidgets.length
 
+    // The phone's stream: what shows, in the person's order, how wide and
+    // tall. Hidden cards stay hidden even mid-edit (the desk shows them
+    // greyed only so they can be put back, which is desk work).
+    const flow = useMemo(() => {
+        if (!compact) return []
+        return flowItems({
+            ids: allWidgetIds,
+            layout,
+            hidden: hiddenWidgets,
+            kind: (id) => flowKind(id, customTypeById.get(id)),
+        })
+    }, [compact, allWidgetIds, layout, hiddenWidgets, customTypeById])
+
     const isReady = loaded && width > 0 && !viewsLoading
 
-    // Build controls JSX — will be rendered by parent via renderControls callback
-    const controlsJsx = isReady ? (
+    // Build controls JSX — will be rendered by parent via renderControls callback.
+    // None on a phone: arranging is a desk task.
+    const controlsJsx = isReady && !compact ? (
         isEditing ? (
             <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
                 <button
@@ -600,10 +623,12 @@ export function DashboardGrid({
     return (
         <div
             ref={containerRef}
+            // The 900px floor is the desk board's (twelve columns need it);
+            // below `lg` the stream takes the screen's own width.
+            className="lg:min-w-[900px]"
             style={{
                 position: "relative",
                 width: "100%",
-                minWidth: 900,
                 boxSizing: "border-box",
             }}
             onClick={() => {
@@ -619,6 +644,35 @@ export function DashboardGrid({
                     }} />
                     <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
                 </div>
+            ) : compact ? (
+                // The phone's stream (M3 reflow): number cards two to a row
+                // (three from `md`), as tall as their content, the cards of
+                // one row stretched to the tallest; every list or chart full
+                // width, a list as tall as its rows up to a cap past which it
+                // scrolls inside its card, a chart at a fixed height so it has
+                // a box to fill. `min-w-0` keeps a long label or a wide chart
+                // inside its column instead of widening the page.
+                <DashboardFlowProvider value={true}>
+                    <div className="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-4" data-dashboard-flow>
+                        {(() => {
+                            const flatChildren = Children.toArray(children)
+                            const childById = new Map(allWidgetIds.map((id, idx) => [id, flatChildren[idx]]))
+                            return flow.map(item => (
+                                <div
+                                    key={item.id}
+                                    className={item.span === "full" ? "col-span-full min-w-0" : "min-w-0"}
+                                    style={
+                                        item.height !== null ? { height: item.height }
+                                            : item.maxHeight !== null ? { maxHeight: item.maxHeight }
+                                                : undefined
+                                    }
+                                >
+                                    {childById.get(item.id)}
+                                </div>
+                            ))
+                        })()}
+                    </div>
+                </DashboardFlowProvider>
             ) : (
                 <>
                 {/* Portal controls into the sticky header slot, fallback to inline */}
@@ -678,7 +732,7 @@ export function DashboardGrid({
                         gridConfig={{
                             cols: GRID_COLS,
                             rowHeight: GRID_ROW_HEIGHT,
-                            margin: [22, 22] as const,
+                            margin: [GRID_MARGIN, GRID_MARGIN] as const,
                             containerPadding: [0, 0] as const,
                         }}
                         dragConfig={{

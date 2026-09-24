@@ -19,6 +19,13 @@
  *     same shape we store everywhere else.
  *   • Empty national part → empty string returned (caller decides null
  *     vs "").
+ *
+ * Width: the control never grows past its container. The country button
+ * is compact and keeps its size (`shrink-0`), the number takes the rest and
+ * may shrink (`flex-1 min-w-0`), and every wrapper is `min-w-0`, so in a
+ * narrow grid cell the number narrows instead of the whole field running
+ * into the column beside it ("ID +62" over Website on a phone). One fill
+ * (`bg-field`) behind both parts, like every other text field.
  */
 
 import * as React from "react"
@@ -150,10 +157,10 @@ export function PhoneInput({
     const showWarn = !hideWarning && status === "invalid"
 
     return (
-        <div className={cn("space-y-1", wrapperClassName)}>
+        <div className={cn("min-w-0 space-y-1", wrapperClassName)}>
             <div
                 className={cn(
-                    "flex items-stretch rounded-md border border-input bg-background overflow-hidden",
+                    "flex w-full min-w-0 items-stretch rounded-md border border-input bg-field overflow-hidden",
                     "focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/30",
                     "transition-shadow",
                     showWarn &&
@@ -205,13 +212,13 @@ function CountryPicker({
                     role="combobox"
                     aria-expanded={open}
                     aria-label={`Country: ${selected.name}`}
-                    className="h-9 px-2.5 rounded-none rounded-l-md border-r border-input gap-1.5 font-normal text-sm hover:bg-muted/60 shrink-0"
+                    className="h-9 shrink-0 gap-1 rounded-none rounded-l-md border-r border-input px-2 has-[>svg]:px-2 font-normal text-sm hover:bg-muted/60"
                 >
                     <span className="text-base leading-none" aria-hidden>
                         {selected.flag}
                     </span>
                     <span className="text-muted-foreground">+{selected.dialCode}</span>
-                    <ChevronsUpDown className="h-3 w-3 opacity-50 ml-0.5" />
+                    <ChevronsUpDown className="h-3 w-3 shrink-0 opacity-50" />
                 </Button>
             </PopoverTrigger>
             <PopoverContent className="p-0 w-[280px]" align="start">

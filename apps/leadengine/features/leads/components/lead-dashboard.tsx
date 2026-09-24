@@ -6,6 +6,13 @@ import { DataTable } from "@/components/shared/data-table"
 import { getColumns, DEFAULT_HIDDEN_COLUMNS } from "@/features/leads/components/lead-columns"
 import { useCurrency } from "@/contexts/currency-context"
 import { LeadKanban } from "@/features/leads/components/lead-kanban"
+import { PipelinePhoneView } from "@/features/leads/components/pipeline-phone-view"
+import { SheetChoice } from "@/features/leads/components/sheet-choice"
+import { sortStages } from "@/features/leads/lib/stage-transitions"
+import { STAGE_PARAM } from "@/features/leads/lib/pipeline-phone"
+import { BottomSheet, SheetRow } from "@/components/ui/bottom-sheet"
+import { SearchField } from "@/components/shared/search-field"
+import { useBelowMd } from "@/hooks/use-compact"
 import { LeadForm } from "@/features/leads/components/lead-form"
 import { ImportLeadsModal } from "@/features/leads/components/import-leads-modal"
 import { Lead, Pipeline, PipelineStage, TransitionRule } from "@/types/index"
@@ -24,11 +31,11 @@ import {
 } from "@/components/ui/sheet"
 import { 
     Plus, LayoutGrid, Table, Loader2, GitBranch,
-    MoreHorizontal, Trash2, PanelLeftClose, PanelLeft,
+    MoreHorizontal, Trash2,
     Copy, ListTree, ChevronRight, Pencil, X,
-    Search, SlidersHorizontal, ChevronDown, ChevronUp,
+    Search, ChevronDown,
     Archive, RotateCcw, Settings2, ArchiveRestore, Upload, Download,
-    ChevronsLeft, ChevronsRight, TrendingUp, ArrowUpDown,
+    ChevronsLeft, ChevronsRight, ArrowUpDown, ArrowRightLeft,
     Check, Clock, CalendarClock, DollarSign, GripVertical,
 } from "@/components/icons"
 import { PipelineFilters, PipelineFilterState, INITIAL_FILTER_STATE, ActiveFilterPills, applyFilters } from "@/features/leads/components/pipeline-filters"
@@ -95,6 +102,71 @@ function setStoredPipelineId(scope: string, id: string) {
     }
 }
 
+type KanbanSort = 'manual' | 'newest' | 'oldest' | 'close_date' | 'value_desc' | 'updated'
+
+const KANBAN_SORT_LABELS: Record<KanbanSort, string> = {
+    manual: 'Manual',
+    newest: 'Newest',
+    oldest: 'Oldest',
+    close_date: 'Close date',
+    value_desc: 'Value',
+    updated: 'Last updated',
+}
+
+const KANBAN_SORT_OPTIONS = [
+    { key: 'newest', label: 'Newest first', icon: Clock, desc: 'Recently created on top' },
+    { key: 'oldest', label: 'Oldest first', icon: Clock, desc: 'Oldest on top' },
+    { key: 'close_date', label: 'Close date', icon: CalendarClock, desc: 'Earliest due first' },
+    { key: 'value_desc', label: 'Highest value', icon: DollarSign, desc: 'Largest deals first' },
+    { key: 'updated', label: 'Last updated', icon: RotateCcw, desc: 'Recent activity' },
+    { key: 'manual', label: 'Manual order', icon: GripVertical, desc: 'Drag & drop' },
+] as const
+
+/**
+ * The order of the leads in each stage, kept per person: the board's
+ * toolbar on a desk, the end of the count's row on a phone (`phone`: a
+ * 40px button, the thumb's size).
+ */
+function KanbanSortMenu({ value, onChange, phone = false }: { value: KanbanSort; onChange: (next: KanbanSort) => void; phone?: boolean }) {
+    return (
+        <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+                <Button
+                    variant="outline"
+                    size="sm"
+                    className={phone ? "h-10 shrink-0 gap-1.5 px-3 text-sm font-normal" : "h-8 px-2.5 gap-1.5 text-[12px] font-normal border-border/60"}
+                    title="Sort order"
+                    aria-label={`Sort order: ${KANBAN_SORT_LABELS[value]}`}
+                >
+                    <ArrowUpDown className="h-3.5 w-3.5 text-muted-foreground" />
+                    <span className="text-foreground">{KANBAN_SORT_LABELS[value]}</span>
+                </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56" collisionPadding={16}>
+                {KANBAN_SORT_OPTIONS.map((opt) => {
+                    const Icon = opt.icon
+                    const active = value === opt.key
+                    return (
+                        <DropdownMenuItem
+                            key={opt.key}
+                            onClick={() => onChange(opt.key)}
+                            className="flex items-start gap-2.5 py-2"
+                        >
+                            <Icon className="h-3.5 w-3.5 mt-0.5 text-muted-foreground shrink-0" />
+                            <div className="flex-1 min-w-0">
+                                <div className="text-[12px] font-medium text-foreground">{opt.label}</div>
+                                {/* No dragging on a phone: manual order is kept, not made there. */}
+                                <div className="text-[10.5px] text-muted-foreground">{phone && opt.key === 'manual' ? 'As arranged on the board' : opt.desc}</div>
+                            </div>
+                            {active && <Check className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />}
+                        </DropdownMenuItem>
+                    )
+                })}
+            </DropdownMenuContent>
+        </DropdownMenu>
+    )
+}
+
 export function LeadDashboard() {
     const { activeCompany, isHoldingView } = useCompany()
     // Tenant scope for lead queries. When the user is viewing "All units"
@@ -114,6 +186,11 @@ export function LeadDashboard() {
     const canManagePipelines = can("master_options", "update")
     // The New Lead button's gate, as a value for the phone's FAB and menu.
     const canCreateLeads = useCan("leads", "create")
+    // Below `md` the board gives way to stage tabs over a list of cards
+    // (`PipelinePhoneView`); the chrome around it switches in CSS, so the
+    // first paint is already right, and only the content waits for this.
+    const belowMd = useBelowMd()
+    const [switchOpen, setSwitchOpen] = useState(false)
 
     // Pipeline state
     const [pipelines, setPipelines] = useState<Pipeline[]>([])
@@ -150,6 +227,10 @@ export function LeadDashboard() {
     // in the table cell as well as the kanban view.
     const [pipelineStages, setPipelineStages] = useState<PipelineStage[]>([])
     const [transitionRules, setTransitionRules] = useState<TransitionRule[]>([])
+    // Which pipeline the stages above belong to, so the phone's tabs never
+    // show the last pipeline's stages over the next one's leads.
+    const [stagesPipelineId, setStagesPipelineId] = useState<string | null>(null)
+    const orderedStages = useMemo(() => sortStages(pipelineStages), [pipelineStages])
 
     // Columns with currency formatting from context. Defined after state so
     // the closure captures the live stages/rules values.
@@ -204,7 +285,6 @@ export function LeadDashboard() {
     const [filters, setFilters] = useState<PipelineFilterState>(INITIAL_FILTER_STATE)
 
     // ─── Kanban sort preference (persisted per user) ────────────────
-    type KanbanSort = 'manual' | 'newest' | 'oldest' | 'close_date' | 'value_desc' | 'updated'
     const [kanbanSort, setKanbanSort] = useState<KanbanSort>('newest')
 
     // Load sort preference from profile.ui_preferences on mount
@@ -568,7 +648,11 @@ export function LeadDashboard() {
 
         if (typeof window === 'undefined') return
         const params = new URLSearchParams(window.location.search)
-        if (params.get(PIPELINE_QUERY_KEY) !== activePipeline.id) {
+        const current = params.get(PIPELINE_QUERY_KEY)
+        if (current !== activePipeline.id) {
+            // A phone's chosen stage belongs to the pipeline it was chosen
+            // in; switching pipelines lets the next one open on its own.
+            if (current) params.delete(STAGE_PARAM)
             params.set(PIPELINE_QUERY_KEY, activePipeline.id)
             router.replace(`${pathname}?${params.toString()}`, { scroll: false })
         }
@@ -599,6 +683,7 @@ export function LeadDashboard() {
             if (cancelled) return
             setPipelineStages((stagesData ?? []) as PipelineStage[])
             setTransitionRules((rulesData ?? []) as TransitionRule[])
+            setStagesPipelineId(activePipeline.id)
         }
         void load()
         return () => {
@@ -717,6 +802,8 @@ export function LeadDashboard() {
         setAddSheetOpen(true)
     }
     const phoneMenu: ChromeMenuItem[] = [
+        // Below `md` the pipelines' side panel is not drawn; this is its door.
+        ...(belowMd && (pipelines.length > 1 || canManagePipelines) ? [{ label: "Switch pipeline", icon: ArrowRightLeft, onSelect: () => setSwitchOpen(true) }] : []),
         ...(canCreateLeads ? [{ label: "Import leads", icon: Upload, onSelect: () => setImportOpen(true) }] : []),
         ...(canCreateLeads && filteredLeads.length > 0 ? [{ label: "Export to XLSX", icon: Download, onSelect: () => handleBulkExport(filteredLeads) }] : []),
         ...(activePipeline && canManagePipelines
@@ -738,13 +825,16 @@ export function LeadDashboard() {
     ]
 
     return (
-        <div className={`flex h-full overflow-hidden bg-muted/20 ${canCreateLeads && activePipeline ? FAB_CLEARANCE : ""}`}>
+        // Below `md` the page is a column in `<main>`'s own scroll (the stage
+        // tabs pin to its top) at the phone's width: `data-fluid-phone` lifts
+        // the shell's 900px floor there only, where the board would not fit.
+        <div data-fluid-phone className={`flex h-full overflow-hidden bg-muted/20 max-md:block max-md:h-auto max-md:overflow-visible max-md:bg-transparent ${canCreateLeads && activePipeline ? FAB_CLEARANCE : ""}`}>
             <PageChrome title={activePipeline?.name ?? "Pipeline"} menu={phoneMenu} />
             {/* ═══════════════════════════════════════════════════════════
                 LEFT: Collapsible Pipeline Sidebar (Bigin-style)
             ═══════════════════════════════════════════════════════════ */}
             <div
-                className={`group/pipeline flex flex-col border-r border-border bg-background shrink-0 flex-none relative overflow-hidden ${
+                className={`group/pipeline flex flex-col border-r border-border bg-background shrink-0 flex-none relative overflow-hidden max-md:hidden ${
                     isPipelineResizing ? "" : "transition-[width] duration-200 ease-out"
                 } ${!isSidebarOpen ? 'w-[44px]' : ''}`}
                 style={isSidebarOpen ? { width: `${pipelineWidth}px` } : undefined}
@@ -928,11 +1018,11 @@ export function LeadDashboard() {
             {/* ═══════════════════════════════════════════════════════════
                 RIGHT: Main Kanban Board Area
             ═══════════════════════════════════════════════════════════ */}
-            <div className="flex-1 flex flex-col overflow-hidden bg-muted/20 relative">
+            <div className="flex-1 min-w-0 flex flex-col overflow-hidden bg-muted/20 relative max-md:overflow-visible max-md:bg-transparent">
 
                 {/* ─── Bulk Action Bar (overlays header when active) ─── */}
                 {selectedLeadIds.length > 0 && (
-                    <div className="absolute top-0 left-0 right-0 h-14 bg-blue-50 border-b border-blue-200 z-20 flex items-center justify-between px-5 shadow-sm">
+                    <div className="absolute top-0 left-0 right-0 h-14 bg-blue-50 border-b border-blue-200 z-20 flex items-center justify-between px-5 shadow-sm max-md:hidden">
                         <div className="flex items-center gap-4">
                             <button
                                 onClick={handleClearSelection}
@@ -958,7 +1048,7 @@ export function LeadDashboard() {
                 )}
 
                 {/* ─── Page Header (Linear / Attio style two-row layout) ─────────── */}
-                <div className="border-b border-border bg-background shrink-0">
+                <div className="border-b border-border bg-background shrink-0 max-md:hidden">
                     {/* Row 1: Pipeline identity + primary action (from `lg`; below, the phone shell's) */}
                     <div className="flex items-center justify-between gap-4 px-6 pt-4 pb-2 max-lg:hidden">
                         <div className="flex items-center gap-3 min-w-0">
@@ -1082,55 +1172,7 @@ export function LeadDashboard() {
                         </div>
 
                         <div className="flex items-center gap-2 shrink-0">
-                            {viewMode === 'kanban' && (
-                                <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            className="h-8 px-2.5 gap-1.5 text-[12px] font-normal border-border/60"
-                                            title="Sort order"
-                                        >
-                                            <ArrowUpDown className="h-3.5 w-3.5 text-muted-foreground" />
-                                            <span className="text-foreground">
-                                                {kanbanSort === 'manual' && 'Manual'}
-                                                {kanbanSort === 'newest' && 'Newest'}
-                                                {kanbanSort === 'oldest' && 'Oldest'}
-                                                {kanbanSort === 'close_date' && 'Close date'}
-                                                {kanbanSort === 'value_desc' && 'Value'}
-                                                {kanbanSort === 'updated' && 'Last updated'}
-                                            </span>
-                                        </Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end" className="w-56">
-                                        {([
-                                            { key: 'newest', label: 'Newest first', icon: Clock, desc: 'Recently created on top' },
-                                            { key: 'oldest', label: 'Oldest first', icon: Clock, desc: 'Oldest on top' },
-                                            { key: 'close_date', label: 'Close date', icon: CalendarClock, desc: 'Earliest due first' },
-                                            { key: 'value_desc', label: 'Highest value', icon: DollarSign, desc: 'Largest deals first' },
-                                            { key: 'updated', label: 'Last updated', icon: RotateCcw, desc: 'Recent activity' },
-                                            { key: 'manual', label: 'Manual order', icon: GripVertical, desc: 'Drag & drop' },
-                                        ] as const).map((opt) => {
-                                            const Icon = opt.icon
-                                            const active = kanbanSort === opt.key
-                                            return (
-                                                <DropdownMenuItem
-                                                    key={opt.key}
-                                                    onClick={() => handleSortChange(opt.key as KanbanSort)}
-                                                    className="flex items-start gap-2.5 py-2"
-                                                >
-                                                    <Icon className="h-3.5 w-3.5 mt-0.5 text-muted-foreground shrink-0" />
-                                                    <div className="flex-1 min-w-0">
-                                                        <div className="text-[12px] font-medium text-foreground">{opt.label}</div>
-                                                        <div className="text-[10.5px] text-muted-foreground">{opt.desc}</div>
-                                                    </div>
-                                                    {active && <Check className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />}
-                                                </DropdownMenuItem>
-                                            )
-                                        })}
-                                    </DropdownMenuContent>
-                                </DropdownMenu>
-                            )}
+                            {viewMode === 'kanban' && <KanbanSortMenu value={kanbanSort} onChange={handleSortChange} />}
 
                             {/* Portal target for Kanban Card Settings */}
                             {viewMode === 'kanban' && <div id="kanban-settings-portal" className="flex items-center shrink-0" />}
@@ -1167,9 +1209,47 @@ export function LeadDashboard() {
                 </div>
 
                 {/* ─── Active Filter Pills ─────────────────────────────── */}
-                <ActiveFilterPills filters={filters} setFilters={setFilters} />
+                <div className="max-md:hidden">
+                    <ActiveFilterPills filters={filters} setFilters={setFilters} />
+                </div>
 
-                {/* ─── Board / Table Content ───────────────────────────── */}
+                {/* ─── Phone: stage tabs over a list of cards ──────────── */}
+                {belowMd ? (
+                    activePipeline ? (
+                        <PipelinePhoneView
+                            key={activePipeline.id}
+                            leads={filteredLeads}
+                            loading={leadsLoading || stagesPipelineId !== activePipeline.id}
+                            stages={orderedStages}
+                            transitionRules={transitionRules}
+                            narrowed={searchQuery.trim() !== "" || filters.rules.some((rule) => rule.value.length > 0)}
+                            toolbar={
+                                <>
+                                    <div className="flex items-center gap-2 px-4 pt-3">
+                                        <SearchField
+                                            value={searchQuery}
+                                            onChange={setSearchQuery}
+                                            placeholder="Search leads"
+                                            className="h-11 min-w-0 max-w-none flex-1 basis-auto"
+                                        />
+                                        <PipelineFilters leads={leads} filters={filters} setFilters={setFilters} triggerClassName="h-11 px-3 text-sm" />
+                                    </div>
+                                    <div className="mt-3 empty:hidden">
+                                        <ActiveFilterPills filters={filters} setFilters={setFilters} />
+                                    </div>
+                                </>
+                            }
+                            sortControl={<KanbanSortMenu value={kanbanSort} onChange={handleSortChange} phone />}
+                            onQuickEdit={handleQuickEdit}
+                            onDeleteLead={(id) => setDeleteLeadId(id)}
+                            onLeadStageChange={handleLeadStageChange}
+                        />
+                    ) : (
+                        <div className="px-4 py-16 text-center text-sm text-muted-foreground">
+                            {pipelinesLoading ? "Loading pipelines…" : "Select or create a pipeline to begin"}
+                        </div>
+                    )
+                ) : (
                 <div className={`flex-1 overflow-x-auto overflow-y-hidden ${
                     viewMode === 'kanban' ? 'pt-3 px-3 pb-2' : 'pt-1 pb-0 px-0'
                 }`}>
@@ -1227,6 +1307,7 @@ export function LeadDashboard() {
                         </div>
                     )}
                 </div>
+                )}
             </div>
 
             {/* ═══════════════════════════════════════════════════════════
@@ -1284,6 +1365,36 @@ export function LeadDashboard() {
             </Sheet>
 
             {canCreateLeads && activePipeline && <Fab label="New lead" onClick={openNewLead} />}
+
+            {/* Switch pipeline (phone): the side panel's list, as a sheet. */}
+            <BottomSheet open={switchOpen} onOpenChange={setSwitchOpen} title="Pipelines">
+                <div role="radiogroup" aria-label="Pipelines" className="space-y-1 px-2 pb-2">
+                    {pipelines.map((pipeline) => (
+                        <SheetChoice
+                            key={pipeline.id}
+                            label={pipeline.name}
+                            icon={<PipelineIcon icon={pipeline.icon} className="h-5 w-5 text-muted-foreground" />}
+                            checked={activePipeline?.id === pipeline.id}
+                            onChoose={() => {
+                                setSwitchOpen(false)
+                                setActivePipeline(pipeline)
+                            }}
+                        />
+                    ))}
+                </div>
+                {canManagePipelines && (
+                    <div className="border-t border-border px-2 pt-1 pb-2">
+                        <SheetRow
+                            icon={Plus}
+                            label="New pipeline"
+                            onClick={() => {
+                                setSwitchOpen(false)
+                                setCreateOpen(true)
+                            }}
+                        />
+                    </div>
+                )}
+            </BottomSheet>
 
             {/* Import Leads Modal */}
             <ImportLeadsModal

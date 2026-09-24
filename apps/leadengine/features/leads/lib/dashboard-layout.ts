@@ -52,6 +52,8 @@ export const WIDGET_LABELS: Record<WidgetId, string> = {
 // ALWAYS 12 columns, locked. No breakpoint switching.
 export const GRID_COLS = 12
 export const GRID_ROW_HEIGHT = 50
+/** Gap between cells, both ways, in px (react-grid-layout's `margin`). */
+export const GRID_MARGIN = 22
 
 
 

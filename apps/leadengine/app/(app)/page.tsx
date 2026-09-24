@@ -33,7 +33,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
     if (!dashboardGuard.allowed) {
         const announcements = await announcementsPromise
         return (
-            <div className="flex min-h-[60vh] items-center justify-center px-6">
+            <div data-fluid-page className="flex min-h-[60vh] items-center justify-center px-6">
                 <div className="max-w-md rounded-xl border border-border bg-card p-8 text-center">
                     <h1 className="text-base font-semibold text-foreground">Dashboard access restricted</h1>
                     <p className="mt-2 text-sm text-muted-foreground">

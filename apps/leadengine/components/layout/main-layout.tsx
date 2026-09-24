@@ -136,12 +136,15 @@ function MainLayoutInner({
                     sideways instead of squeezing. A page built to reflow down
                     to a phone opts out by carrying `data-fluid-page` on its
                     root (Settings → Usage), so it gets the real width and no
-                    sideways page scroll; every other page is unchanged. The
+                    sideways page scroll; a page that reflows only on a phone
+                    (the Pipeline, whose board keeps the floor from `md`)
+                    carries `data-fluid-phone` instead, which lifts the floor
+                    below `md` only. Every other page is unchanged. The
                     sideways scroll is this box's, between the two bars, so
                     the bars stay on screen while a wide page moves under
                     them. */}
                 <div className="flex min-h-0 flex-1 flex-col overflow-x-auto overflow-y-hidden">
-                    <main id="main-content" className={`flex-1 min-h-0 overflow-y-auto overflow-x-auto bg-background thin-scrollbar min-w-[900px] has-[[data-fluid-page]]:min-w-0 transition-opacity duration-200 ${isSwitching ? "opacity-60 pointer-events-none" : "opacity-100"}`}>{children}</main>
+                    <main id="main-content" className={`flex-1 min-h-0 overflow-y-auto overflow-x-auto bg-background thin-scrollbar min-w-[900px] has-[[data-fluid-page]]:min-w-0 max-md:has-[[data-fluid-phone]]:min-w-0 transition-opacity duration-200 ${isSwitching ? "opacity-60 pointer-events-none" : "opacity-100"}`}>{children}</main>
                 </div>
                 <MobileNavBar profile={userProfile ?? null} />
             </div>

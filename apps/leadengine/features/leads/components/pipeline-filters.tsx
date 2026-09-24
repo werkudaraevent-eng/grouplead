@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useEffect } from "react"
+import { useState, useRef, useEffect } from "react"
 import { createPortal } from "react-dom"
 import {
     Filter, X, Plus, Trash2, Check, ChevronDown,
@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Input } from "@/components/ui/input"
 import { Lead } from "@/types"
+import { cn } from "@/lib/utils"
 
 // ════════════════════════════════════════════════════════════════════
 //  TYPES
@@ -583,7 +584,7 @@ function FilterRow({
     const FieldIcon = fieldConfig.icon
 
     return (
-        <div className="flex items-start gap-1.5 group animate-in fade-in-0 slide-in-from-top-1 duration-200">
+        <div className="flex flex-wrap items-start gap-1.5 group animate-in fade-in-0 slide-in-from-top-1 duration-200">
             {/* Field icon */}
             <div className="flex items-center justify-center h-[28px] w-5 shrink-0">
                 <FieldIcon className="h-3.5 w-3.5 text-slate-400" />
@@ -657,7 +658,8 @@ function FilterRow({
             {/* Remove */}
             <button
                 onClick={onRemove}
-                className="flex items-center justify-center h-[28px] w-6 shrink-0 text-slate-300 hover:text-rose-500 transition-colors opacity-0 group-hover:opacity-100"
+                aria-label="Remove filter"
+                className="flex items-center justify-center h-[28px] w-6 shrink-0 text-slate-300 hover:text-rose-500 transition-colors opacity-0 group-hover:opacity-100 [@media(hover:none)]:opacity-100"
             >
                 <Trash2 className="h-3.5 w-3.5" />
             </button>
@@ -673,9 +675,11 @@ interface PipelineFiltersProps {
     leads: Lead[]
     filters: PipelineFilterState
     setFilters: React.Dispatch<React.SetStateAction<PipelineFilterState>>
+    /** The Filter button's size where it sits beside a taller field (the phone's search). */
+    triggerClassName?: string
 }
 
-export function PipelineFilters({ leads, filters, setFilters }: PipelineFiltersProps) {
+export function PipelineFilters({ leads, filters, setFilters, triggerClassName }: PipelineFiltersProps) {
     const [open, setOpen] = useState(false)
 
     const activeCount = filters.rules.filter(r => r.value.length > 0).length
@@ -718,7 +722,7 @@ export function PipelineFilters({ leads, filters, setFilters }: PipelineFiltersP
                 <Button
                     variant={activeCount > 0 ? "secondary" : "outline"}
                     size="sm"
-                    className="h-8 gap-y-0 gap-x-1.5 px-2.5 font-medium relative text-xs overflow-visible"
+                    className={cn("h-8 gap-y-0 gap-x-1.5 px-2.5 font-medium relative text-xs overflow-visible", triggerClassName)}
                 >
                     <Filter className="h-3.5 w-3.5 text-slate-500" />
                     <span>Filter</span>
@@ -729,7 +733,7 @@ export function PipelineFilters({ leads, filters, setFilters }: PipelineFiltersP
                     )}
                 </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-[480px] p-0" align="end" sideOffset={8}>
+            <PopoverContent className="w-[min(480px,calc(100vw-2rem))] p-0" align="end" sideOffset={8} collisionPadding={16}>
                 {/* Header */}
                 <div className="flex items-center justify-between px-4 py-2.5 border-b border-slate-100 bg-slate-50/60">
                     <div className="flex items-center gap-2">
