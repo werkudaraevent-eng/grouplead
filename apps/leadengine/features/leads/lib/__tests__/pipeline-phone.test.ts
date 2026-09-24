@@ -151,6 +151,23 @@ describe("scrollLeftToCenter", () => {
         expect(scrollLeftToCenter({ itemLeft: 1100, itemWidth: 100, viewWidth: 390, scrollWidth: 1200 })).toBe(810)
     })
 
+    it("keeps a centred tab clear of both 40px edge fades", () => {
+        const left = scrollLeftToCenter({ itemLeft: 500, itemWidth: 224, viewWidth: 390, scrollWidth: 1200, fade: 40 })
+        expect(500 - left).toBeGreaterThanOrEqual(40)
+        expect(500 + 224 - left).toBeLessThanOrEqual(390 - 40)
+    })
+
+    it("keeps a tab near the start clear of the right fade (the left one is off at the start)", () => {
+        const left = scrollLeftToCenter({ itemLeft: 110, itemWidth: 150, viewWidth: 390, scrollWidth: 1200, fade: 40 })
+        expect(left).toBe(0)
+        expect(110 + 150 - left).toBeLessThanOrEqual(390 - 40)
+    })
+
+    it("keeps the start of a tab wider than the clear middle out of the left fade", () => {
+        expect(scrollLeftToCenter({ itemLeft: 500, itemWidth: 330, viewWidth: 390, scrollWidth: 1200, fade: 40 })).toBe(460)
+        expect(scrollLeftToCenter({ itemLeft: 20, itemWidth: 330, viewWidth: 390, scrollWidth: 1200, fade: 40 })).toBe(0)
+    })
+
     it("does not move a row that fits", () => {
         expect(scrollLeftToCenter({ itemLeft: 200, itemWidth: 100, viewWidth: 390, scrollWidth: 390 })).toBe(0)
     })

@@ -14,7 +14,9 @@ import {
 import { InitialsAvatar } from "@/components/shared/initials-avatar"
 import { useCurrency } from "@/contexts/currency-context"
 import { usePermissions } from "@/contexts/permissions-context"
+import { useEdgeFade } from "@/hooks/use-edge-fade"
 import { useRowLink } from "@/hooks/use-row-link"
+import { EDGE_FADE_PX } from "@/lib/ui/edge-fade"
 import { shortPersonName } from "@/lib/person-name"
 import { cn } from "@/lib/utils"
 import type { Lead, PipelineStage, TransitionRule } from "@/types"
@@ -125,7 +127,11 @@ export function PipelinePhoneView({
         setChosen(activeId)
     }, [busy, chosenValid, activeId, chosen])
 
+    // The pinned bar (its height) and, inside it, the row of tabs that
+    // scrolls sideways and fades at each edge it can still scroll toward.
+    const barRef = useRef<HTMLDivElement>(null)
     const rowRef = useRef<HTMLDivElement>(null)
+    const rowFade = useEdgeFade(rowRef)
     const countRef = useRef<HTMLDivElement>(null)
 
     const choose = useCallback((stageId: string) => {
@@ -134,15 +140,16 @@ export function PipelinePhoneView({
         // A new stage's list starts at its top: when the page has been read
         // past the count, bring the count back to just under the tabs.
         const main = document.getElementById("main-content")
-        const row = rowRef.current
+        const bar = barRef.current
         const count = countRef.current
-        if (!main || !row || !count) return
-        const top = count.getBoundingClientRect().top - main.getBoundingClientRect().top + main.scrollTop - row.offsetHeight
+        if (!main || !bar || !count) return
+        const top = count.getBoundingClientRect().top - main.getBoundingClientRect().top + main.scrollTop - bar.offsetHeight
         if (main.scrollTop > top) main.scrollTo({ top })
     }, [])
 
-    // The tab in view stands in the middle of its row. Only the row moves
-    // (its own scrollLeft), never the page: no scrollIntoView.
+    // The tab in view stands in the middle of its row, clear of the edge
+    // fades, with some of its neighbours showing. Only the row moves (its
+    // own scrollLeft), never the page: no scrollIntoView.
     const placed = useRef(false)
     useEffect(() => {
         const row = rowRef.current
@@ -154,6 +161,7 @@ export function PipelinePhoneView({
             itemWidth: tab.offsetWidth,
             viewWidth: row.clientWidth,
             scrollWidth: row.scrollWidth,
+            fade: EDGE_FADE_PX,
         })
         const smooth = placed.current && !window.matchMedia("(prefers-reduced-motion: reduce)").matches
         row.scrollTo({ left, behavior: smooth ? "smooth" : "auto" })
@@ -191,7 +199,10 @@ export function PipelinePhoneView({
         <>
             {/* M3 primary tabs, scrollable, flush under the top app bar and
                 pinned there: they name the stage in view and are the way to
-                the others. Opaque, with the hairline under them. */}
+                the others. Opaque, with the hairline under them; the bar
+                carries both, because the row inside it is masked at its
+                edges (`edge-fade`) and a mask would let the cards show
+                through the surface there. */}
             {busy && !activeId ? (
                 <div className="sticky top-0 z-20 flex h-[49px] items-center gap-6 border-b border-border bg-background px-4" aria-hidden="true">
                     {[88, 112, 96, 80].map((width) => (
@@ -202,41 +213,43 @@ export function PipelinePhoneView({
                     ))}
                 </div>
             ) : stages.length > 0 ? (
-                <div
-                    ref={rowRef}
-                    role="tablist"
-                    aria-label="Stages"
-                    onKeyDown={onTabKey}
-                    className="no-scrollbar sticky top-0 z-20 flex overflow-x-auto border-b border-border bg-background"
-                >
-                    {stages.map((stage) => {
-                        const summary = summaries.get(stage.id) ?? { count: 0, total: 0 }
-                        const active = stage.id === activeId
-                        const facts = `${summary.count.toLocaleString("en-US")}${summary.total > 0 ? ` · ${fmtAxis(summary.total)}` : ""}`
-                        return (
-                            <button
-                                key={stage.id}
-                                id={`stage-tab-${stage.id}`}
-                                type="button"
-                                role="tab"
-                                aria-selected={active}
-                                aria-controls="pipeline-stage-panel"
-                                aria-label={`${stage.name}, ${summary.count} ${summary.count === 1 ? "lead" : "leads"}${summary.total > 0 ? `, ${fmtAxis(summary.total)}` : ""}`}
-                                tabIndex={active ? 0 : -1}
-                                data-stage-id={stage.id}
-                                onClick={() => choose(stage.id)}
-                                className={cn(
-                                    "relative flex h-12 shrink-0 flex-col items-center justify-center px-4 transition-colors",
-                                    active
-                                        ? "text-primary after:absolute after:inset-x-3 after:bottom-0 after:h-[3px] after:rounded-t-full after:bg-primary"
-                                        : "text-muted-foreground hover:bg-muted hover:text-foreground",
-                                )}
-                            >
-                                <span className="max-w-[12rem] truncate text-sm font-medium leading-5">{stage.name}</span>
-                                <span className="text-xs leading-4 tabular-nums">{facts}</span>
-                            </button>
-                        )
-                    })}
+                <div ref={barRef} className="sticky top-0 z-20 border-b border-border bg-background">
+                    <div
+                        ref={rowFade}
+                        role="tablist"
+                        aria-label="Stages"
+                        onKeyDown={onTabKey}
+                        className="edge-fade no-scrollbar relative flex overflow-x-auto"
+                    >
+                        {stages.map((stage) => {
+                            const summary = summaries.get(stage.id) ?? { count: 0, total: 0 }
+                            const active = stage.id === activeId
+                            const facts = `${summary.count.toLocaleString("en-US")}${summary.total > 0 ? ` · ${fmtAxis(summary.total)}` : ""}`
+                            return (
+                                <button
+                                    key={stage.id}
+                                    id={`stage-tab-${stage.id}`}
+                                    type="button"
+                                    role="tab"
+                                    aria-selected={active}
+                                    aria-controls="pipeline-stage-panel"
+                                    aria-label={`${stage.name}, ${summary.count} ${summary.count === 1 ? "lead" : "leads"}${summary.total > 0 ? `, ${fmtAxis(summary.total)}` : ""}`}
+                                    tabIndex={active ? 0 : -1}
+                                    data-stage-id={stage.id}
+                                    onClick={() => choose(stage.id)}
+                                    className={cn(
+                                        "relative flex h-12 shrink-0 flex-col items-center justify-center px-4 transition-colors",
+                                        active
+                                            ? "text-primary after:absolute after:inset-x-3 after:bottom-0 after:h-[3px] after:rounded-t-full after:bg-primary"
+                                            : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                                    )}
+                                >
+                                    <span className="max-w-[12rem] truncate text-sm font-medium leading-5">{stage.name}</span>
+                                    <span className="text-xs leading-4 tabular-nums">{facts}</span>
+                                </button>
+                            )
+                        })}
+                    </div>
                 </div>
             ) : null}
 

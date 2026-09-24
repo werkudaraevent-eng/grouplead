@@ -1,15 +1,14 @@
 "use client"
 
 import * as React from "react"
-import { SlidersHorizontal } from "@/components/icons"
 import { Button } from "@/components/ui/button"
-import { BottomSheet } from "@/components/ui/bottom-sheet"
 import { Tooltip } from "@/components/ui/tooltip"
 import { useQuickReturn } from "@/hooks/use-quick-return"
 import { cn } from "@/lib/utils"
 import { SearchField } from "./search-field"
 import { FilterBuilder } from "./filter-builder"
 import { FilterChip } from "./filter-chip"
+import { PhoneFilterFrame } from "./phone-filter-frame"
 import { filterValueLabel, isEffectiveFilter, type FilterDefinition, type FilterValue } from "./filter-builder-types"
 
 interface ToolbarSearch {
@@ -45,8 +44,9 @@ interface ToolbarFilters {
  * button carrying the count of what narrows the list, which opens them in
  * a bottom sheet; what is applied is repeated under the search as one
  * sideways-scrolling row of chips, each with an ✕, then "Clear all"
- * (Sales Activity's `FilterBarFrame`; M3 filter chips in a modal bottom
- * sheet). The view tools (the Views menu, columns) are desk tools and stay
+ * (`PhoneFilterFrame`, shared with the Pipeline and the Dashboard; Sales
+ * Activity's `FilterBarFrame`; M3 filter chips in a modal bottom sheet),
+ * the row fading at each edge it can still scroll toward. The view tools (the Views menu, columns) are desk tools and stay
  * there: the phone shows cards, not columns, and chooses a saved view from
  * the chips the page draws above the search (`SavedViewsBar`). The search
  * row and the applied chips sit 12px apart; the page wraps them, with the
@@ -87,10 +87,8 @@ export function ListToolbar({
 }
 
 function PhoneFilterBar({ search, filters, className }: { search: ToolbarSearch; filters: ToolbarFilters; className?: string }) {
-  const [open, setOpen] = React.useState(false)
   const q = search.value.trim()
   const applied = filters.value.filter(isEffectiveFilter)
-  const count = applied.length + (q ? 1 : 0)
   const byField = new Map(filters.definitions.map((d) => [d.field, d]))
   const clearAll = () => {
     if (filters.onClearAll) filters.onClearAll()
@@ -99,76 +97,39 @@ function PhoneFilterBar({ search, filters, className }: { search: ToolbarSearch;
       filters.onChange([])
     }
   }
+  const chips: React.ReactNode[] = []
+  if (q) chips.push(<FilterChip key="search" label={`“${q}”`} onRemove={() => search.onChange("")} />)
+  for (const f of applied) {
+    const def = byField.get(f.field)
+    if (!def) continue
+    chips.push(
+      <FilterChip
+        key={f.field}
+        label={`${def.label}: ${filterValueLabel(def, f)}`}
+        onRemove={() => filters.onChange(filters.value.filter((v) => v.field !== f.field))}
+      />,
+    )
+  }
 
   return (
-    <div className={cn("flex flex-col gap-3", className)}>
-      <div className="flex items-center gap-2">
-        <SearchField
-          value={search.value}
-          onChange={search.onChange}
-          placeholder={search.placeholder}
-          aria-label={search["aria-label"]}
-          className="h-11 min-w-0 max-w-none flex-1 basis-auto"
+    <PhoneFilterFrame
+      search={search}
+      count={applied.length + (q ? 1 : 0)}
+      chips={chips}
+      onClearAll={clearAll}
+      description="Pick one or more; the list updates as you go."
+      className={className}
+    >
+      <div className="px-4 pb-2">
+        <FilterBuilder
+          definitions={filters.definitions}
+          value={filters.value}
+          onChange={filters.onChange}
+          onClearAll={filters.onClearAll}
+          extraActive={q !== "" && Boolean(filters.onClearAll)}
         />
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => setOpen(true)}
-          aria-haspopup="dialog"
-          aria-expanded={open}
-          className={cn("h-11 shrink-0 gap-2", count > 0 && "border-primary/50 bg-primary/5")}
-        >
-          <SlidersHorizontal className="h-4 w-4" />
-          Filter
-          {count > 0 && <span className="rounded-full bg-primary px-1.5 text-[11px] font-bold tabular-nums text-primary-foreground">{count}</span>}
-        </Button>
       </div>
-      {count > 0 && (
-        // `-my-1 py-1`: room above and below the chips inside a row that
-        // clips (the ✕'s grown target, a focus ring) without adding to the
-        // 12px between the rows.
-        <div className="chip-scroll -mx-4 -my-1 flex items-center overflow-x-auto px-4 py-1 sm:-mx-6 sm:px-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          <div className="flex shrink-0 items-center gap-1.5">
-            {q && <FilterChip label={`“${q}”`} onRemove={() => search.onChange("")} />}
-            {applied.map((f) => {
-              const def = byField.get(f.field)
-              if (!def) return null
-              return (
-                <FilterChip
-                  key={f.field}
-                  label={`${def.label}: ${filterValueLabel(def, f)}`}
-                  onRemove={() => filters.onChange(filters.value.filter((v) => v.field !== f.field))}
-                />
-              )
-            })}
-            <button type="button" onClick={clearAll} className="ml-1 shrink-0 whitespace-nowrap text-xs font-semibold text-primary hover:underline">
-              Clear all
-            </button>
-          </div>
-        </div>
-      )}
-      <BottomSheet
-        open={open}
-        onOpenChange={setOpen}
-        title="Filter"
-        description="Pick one or more; the list updates as you go."
-        footer={
-          <Button type="button" className="h-12 w-full" onClick={() => setOpen(false)}>
-            Done
-          </Button>
-        }
-      >
-        <div className="px-4 pb-2">
-          <FilterBuilder
-            definitions={filters.definitions}
-            value={filters.value}
-            onChange={filters.onChange}
-            onClearAll={filters.onClearAll}
-            extraActive={q !== "" && Boolean(filters.onClearAll)}
-          />
-        </div>
-      </BottomSheet>
-    </div>
+    </PhoneFilterFrame>
   )
 }
 

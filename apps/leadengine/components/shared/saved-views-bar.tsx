@@ -22,6 +22,7 @@
 import * as React from "react"
 import { Check, ChevronDown, MoreHorizontal, Save, Pencil, Trash2, Star, StarOff } from "@/components/icons"
 import { Button } from "@/components/ui/button"
+import { useEdgeFade } from "@/hooks/use-edge-fade"
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -85,6 +86,7 @@ export function SavedViewsBar({
     const [saveAsName, setSaveAsName] = React.useState("")
     const [renameTarget, setRenameTarget] = React.useState<SavedView | null>(null)
     const [renameName, setRenameName] = React.useState("")
+    const fadeRef = useEdgeFade<HTMLDivElement>()
 
     const activeView = views.find(v => v.id === activeViewId) ?? null
 
@@ -95,8 +97,9 @@ export function SavedViewsBar({
 
     return (
         <div className={cn("flex items-center justify-between gap-3", className)}>
-            {/* M3 choice chips: one selected, all visible, scrolling sideways when long. */}
-            <div className="no-scrollbar flex items-center gap-2 overflow-x-auto" role="group" aria-label="Saved views">
+            {/* M3 choice chips: one selected, all visible, scrolling sideways
+                when long, each edge fading while there is more that way. */}
+            <div ref={fadeRef} className="edge-fade no-scrollbar flex items-center gap-2 overflow-x-auto" role="group" aria-label="Saved views">
                 {views.map((v) => {
                     const isActive = v.id === activeViewId
                     return (

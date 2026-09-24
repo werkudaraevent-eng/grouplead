@@ -19,14 +19,15 @@
  * phone, so the same choices open in a bottom sheet instead: the presets as
  * choice chips, then one month with 40px days (M3: a menu or a popover
  * becomes a modal bottom sheet in a compact window; the Google Analytics app
- * picks a range the same way).
+ * picks a range the same way). That panel is `DateRangeChoices`, which the
+ * dashboard's phone Filter sheet shows as its Date range section, so the
+ * phone picks a range one way wherever it does.
+ *
+ * The quick ranges and the labels are in `lib/date-range-presets.ts`.
  */
 
 import * as React from "react"
-import {
-    format, parseISO, isValid,
-    startOfMonth, endOfMonth, subMonths, subDays, startOfYear,
-} from "date-fns"
+import { format, parseISO, isValid, subMonths } from "date-fns"
 import { CalendarDays, Check, ChevronDown } from "@/components/icons"
 import type { DateRange } from "react-day-picker"
 import { Slot } from "radix-ui"
@@ -36,6 +37,13 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { BottomSheet } from "@/components/ui/bottom-sheet"
 import { useBelowMd } from "@/hooks/use-compact"
 import { cn } from "@/lib/utils"
+import {
+    DATE_RANGE_PRESETS,
+    DEFAULT_DASHBOARD_PERIOD,
+    activeDateRangePreset,
+    dateRangeLabel,
+    type DateRangePreset,
+} from "@/lib/date-range-presets"
 
 interface DateRangeFilterProps {
     /** Current dashboard period string. */
@@ -55,52 +63,22 @@ interface DateRangeFilterProps {
 
 const iso = (d: Date) => format(d, "yyyy-MM-dd")
 
-type Preset = {
-    key: string
-    label: string
-    resolve: (now: Date) => { period: string; start: string; end: string }
-}
-
-// Order matters — this is the visual order in the popover.
-const PRESETS: Preset[] = [
-    { key: "today", label: "Today", resolve: (n) => ({ period: "custom", start: iso(n), end: iso(n) }) },
-    { key: "last7", label: "Last 7 days", resolve: (n) => ({ period: "custom", start: iso(subDays(n, 6)), end: iso(n) }) },
-    { key: "last30", label: "Last 30 days", resolve: (n) => ({ period: "custom", start: iso(subDays(n, 29)), end: iso(n) }) },
-    { key: "this_month", label: "This Month", resolve: () => ({ period: "this_month", start: "", end: "" }) },
-    { key: "last_month", label: "Last Month", resolve: (n) => ({ period: "custom", start: iso(startOfMonth(subMonths(n, 1))), end: iso(endOfMonth(subMonths(n, 1))) }) },
-    { key: "this_quarter", label: "This Quarter", resolve: () => ({ period: "this_quarter", start: "", end: "" }) },
-    { key: "this_year", label: "This Year", resolve: () => ({ period: "this_year", start: "", end: "" }) },
-    { key: "ytd", label: "Year to Date", resolve: (n) => ({ period: "custom", start: iso(startOfYear(n)), end: iso(n) }) },
-    { key: "all_time", label: "All Time", resolve: () => ({ period: "all_time", start: "", end: "" }) },
-]
-
-const NAMED_LABELS: Record<string, string> = {
-    this_month: "This Month",
-    this_quarter: "This Quarter",
-    this_year: "This Year",
-    all_time: "All Time",
-}
-
-function formatActiveLabel(period: string, start: string, end: string): string {
-    if (NAMED_LABELS[period]) return NAMED_LABELS[period]
-    if (period === "custom" && start && end) {
-        const sd = parseISO(start)
-        const ed = parseISO(end)
-        if (isValid(sd) && isValid(ed)) {
-            if (sd.getTime() === ed.getTime()) return format(sd, "d MMM yyyy")
-            const sameYear = sd.getFullYear() === ed.getFullYear()
-            return `${format(sd, sameYear ? "d MMM" : "d MMM yyyy")} – ${format(ed, "d MMM yyyy")}`
-        }
-    }
-    return "Date Range"
-}
-
-export function DateRangeFilter({
-    period, customStart, customEnd, onSelect, now = new Date(), muted = false, mutedReason,
-}: DateRangeFilterProps) {
-    const [open, setOpen] = React.useState(false)
-    const phone = useBelowMd()
-
+/**
+ * The calendar's range as it is being picked. Explicit two-click range
+ * selection: react-day-picker's default range behaviour treats a click as
+ * "complete the range" whenever a `from` already exists, so reopening with
+ * a prior range made the very first click commit against the stale anchor
+ * and close the popover. We take over: click 1 always starts a fresh range,
+ * click 2 sets the end and commits. `resetKey` (the popover's open state)
+ * starts over from the committed range.
+ */
+function useRangeDraft(
+    period: string,
+    customStart: string,
+    customEnd: string,
+    onCommit: (start: string, end: string) => void,
+    resetKey?: unknown,
+) {
     const selectedRange = React.useMemo<DateRange | undefined>(() => {
         if (period !== "custom") return undefined
         const from = customStart ? parseISO(customStart) : undefined
@@ -112,35 +90,9 @@ export function DateRangeFilter({
     // In-progress calendar range so a partial (first-click) selection doesn't
     // commit until both ends are chosen.
     const [draft, setDraft] = React.useState<DateRange | undefined>(selectedRange)
-    React.useEffect(() => { setDraft(selectedRange) }, [selectedRange, open])
+    React.useEffect(() => { setDraft(selectedRange) }, [selectedRange, resetKey])
 
-    const activePresetKey = React.useMemo(() => {
-        for (const p of PRESETS) {
-            const r = p.resolve(now)
-            if (r.period === "custom") {
-                if (period === "custom" && r.start === customStart && r.end === customEnd) return p.key
-            } else if (r.period === period) {
-                return p.key
-            }
-        }
-        return null
-    }, [period, customStart, customEnd, now])
-
-    const label = formatActiveLabel(period, customStart, customEnd)
-    const isDefault = period === "this_quarter"
-
-    const applyPreset = (p: Preset) => {
-        const r = p.resolve(now)
-        onSelect(r.period, r.start, r.end)
-        setOpen(false)
-    }
-
-    // Explicit two-click range selection. react-day-picker's default range
-    // behaviour treats a click as "complete the range" whenever a `from`
-    // already exists — so reopening with a prior range made the very first
-    // click commit against the stale anchor and close the popover. We take
-    // over: click 1 always starts a fresh range, click 2 sets the end + commits.
-    const handleDaySelect = (_range: DateRange | undefined, selectedDay: Date) => {
+    const onDaySelect = (_range: DateRange | undefined, selectedDay: Date) => {
         if (!draft?.from || (draft.from && draft.to)) {
             // No range in progress, or a complete one exists → start over.
             setDraft({ from: selectedDay, to: undefined })
@@ -150,12 +102,111 @@ export function DateRangeFilter({
         const from = draft.from
         const [start, end] = selectedDay < from ? [selectedDay, from] : [from, selectedDay]
         setDraft({ from: start, to: end })
-        onSelect("custom", iso(start), iso(end))
+        onCommit(iso(start), iso(end))
+    }
+
+    return { selectedRange, draft, onDaySelect }
+}
+
+/**
+ * The phone's way to pick a range: the quick ranges as M3 choice chips
+ * (8dp corners, the chosen one tonal with a check), then one month with
+ * 40px days where a start day and an end day make a custom range. Each
+ * pick commits at once through `onSelect`; the caller decides whether that
+ * closes anything (the date sheet closes, the dashboard's Filter sheet
+ * stays open).
+ */
+export function DateRangeChoices({
+    period,
+    customStart,
+    customEnd,
+    onSelect,
+    now = new Date(),
+    className,
+}: {
+    period: string
+    customStart: string
+    customEnd: string
+    onSelect: (period: string, customStart: string, customEnd: string) => void
+    now?: Date
+    className?: string
+}) {
+    const { selectedRange, draft, onDaySelect } = useRangeDraft(period, customStart, customEnd, (start, end) => onSelect("custom", start, end))
+    const activePresetKey = activeDateRangePreset(period, customStart, customEnd, now)
+
+    return (
+        <div className={className}>
+            <div role="radiogroup" aria-label="Quick ranges" className="flex flex-wrap gap-2">
+                {DATE_RANGE_PRESETS.map((p) => {
+                    const checked = activePresetKey === p.key
+                    return (
+                        <button
+                            key={p.key}
+                            type="button"
+                            role="radio"
+                            aria-checked={checked}
+                            onClick={() => {
+                                const r = p.resolve(now)
+                                onSelect(r.period, r.start, r.end)
+                            }}
+                            className={cn(
+                                "inline-flex h-9 items-center gap-1.5 rounded-lg border px-3 text-sm font-medium transition-colors",
+                                checked
+                                    ? "border-transparent bg-[var(--tonal)] text-[var(--tonal-foreground)]"
+                                    : "border-border text-foreground hover:bg-muted",
+                            )}
+                        >
+                            {checked && <Check className="h-4 w-4" aria-hidden="true" />}
+                            {p.label}
+                        </button>
+                    )
+                })}
+            </div>
+            <p className="mt-4 text-xs font-medium text-muted-foreground">Or tap a start day, then an end day</p>
+            <div className="flex justify-center">
+                <Calendar
+                    mode="range"
+                    numberOfMonths={1}
+                    selected={draft}
+                    onSelect={onDaySelect}
+                    defaultMonth={selectedRange?.from ?? now}
+                    captionLayout="dropdown"
+                    className="bg-transparent px-0 [--cell-size:--spacing(10)]"
+                />
+            </div>
+        </div>
+    )
+}
+
+export function DateRangeFilter({
+    period, customStart, customEnd, onSelect, now = new Date(), muted = false, mutedReason,
+}: DateRangeFilterProps) {
+    const [open, setOpen] = React.useState(false)
+    const phone = useBelowMd()
+
+    const { selectedRange, draft, onDaySelect } = useRangeDraft(
+        period,
+        customStart,
+        customEnd,
+        (start, end) => {
+            onSelect("custom", start, end)
+            setOpen(false)
+        },
+        open,
+    )
+    const activePresetKey = activeDateRangePreset(period, customStart, customEnd, now)
+
+    const label = dateRangeLabel(period, customStart, customEnd)
+    const isDefault = period === DEFAULT_DASHBOARD_PERIOD
+
+    const applyPreset = (p: DateRangePreset) => {
+        const r = p.resolve(now)
+        onSelect(r.period, r.start, r.end)
         setOpen(false)
     }
 
-    // `shrink-0`: it sits in the dashboard's filter row, which scrolls
-    // sideways on a phone rather than squeezing its chips.
+    // `shrink-0`: between `md` and `lg` it sits in the dashboard's filter
+    // row, which scrolls sideways rather than squeezing its chips.
     const trigger = (
         <button
             type="button"
@@ -180,43 +231,17 @@ export function DateRangeFilter({
             <>
                 <Slot.Root onClick={() => setOpen(true)} aria-haspopup="dialog" aria-expanded={open}>{trigger}</Slot.Root>
                 <BottomSheet open={open} onOpenChange={setOpen} title="Date range">
-                    <div className="px-4">
-                        <div role="radiogroup" aria-label="Quick ranges" className="flex flex-wrap gap-2">
-                            {PRESETS.map((p) => {
-                                const checked = activePresetKey === p.key
-                                return (
-                                    <button
-                                        key={p.key}
-                                        type="button"
-                                        role="radio"
-                                        aria-checked={checked}
-                                        onClick={() => applyPreset(p)}
-                                        className={cn(
-                                            "inline-flex h-9 items-center gap-1.5 rounded-lg border px-3 text-sm font-medium transition-colors",
-                                            checked
-                                                ? "border-transparent bg-[var(--tonal)] text-[var(--tonal-foreground)]"
-                                                : "border-border text-foreground hover:bg-muted",
-                                        )}
-                                    >
-                                        {checked && <Check className="h-4 w-4" aria-hidden="true" />}
-                                        {p.label}
-                                    </button>
-                                )
-                            })}
-                        </div>
-                        <p className="mt-4 text-xs font-medium text-muted-foreground">Or tap a start day, then an end day</p>
-                        <div className="flex justify-center">
-                            <Calendar
-                                mode="range"
-                                numberOfMonths={1}
-                                selected={draft}
-                                onSelect={handleDaySelect}
-                                defaultMonth={selectedRange?.from ?? now}
-                                captionLayout="dropdown"
-                                className="bg-transparent px-0 [--cell-size:--spacing(10)]"
-                            />
-                        </div>
-                    </div>
+                    <DateRangeChoices
+                        period={period}
+                        customStart={customStart}
+                        customEnd={customEnd}
+                        onSelect={(p, s, e) => {
+                            onSelect(p, s, e)
+                            setOpen(false)
+                        }}
+                        now={now}
+                        className="px-4"
+                    />
                 </BottomSheet>
             </>
         )
@@ -234,7 +259,7 @@ export function DateRangeFilter({
                         <p className="px-2 pt-1 pb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                             Quick ranges
                         </p>
-                        {PRESETS.map((p) => (
+                        {DATE_RANGE_PRESETS.map((p) => (
                             <button
                                 key={p.key}
                                 type="button"
@@ -256,7 +281,7 @@ export function DateRangeFilter({
                             mode="range"
                             numberOfMonths={2}
                             selected={draft}
-                            onSelect={handleDaySelect}
+                            onSelect={onDaySelect}
                             defaultMonth={selectedRange?.from ?? subMonths(now, 1)}
                             captionLayout="dropdown"
                         />

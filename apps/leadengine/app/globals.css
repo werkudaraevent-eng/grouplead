@@ -202,10 +202,11 @@
 }
 
 
-/* A chip row that scrolls sideways on a phone (the applied filters under a
-   list's search) fades at its right edge, so a chip cut by the edge reads
-   as "more this way"; the fade lifts once the end is reached. Same rule as
-   Sales Activity's `.chip-scroll`. */
+/* A chip row that scrolls sideways on a phone fades at its right edge, so a
+   chip cut by the edge reads as "more this way"; the fade lifts once the
+   end is reached. Same rule as Sales Activity's `.chip-scroll`. LeadEngine's
+   own rows now use `.edge-fade` below, which fades both edges; this stays
+   for anything that still asks for it. */
 .chip-scroll {
   mask-image: linear-gradient(to right, black calc(100% - 2.5rem), transparent 100%);
 }
@@ -221,6 +222,43 @@
 }
 @media (min-width: 640px) {
   .chip-scroll { mask-image: none; animation: none; }
+}
+
+/* A row that scrolls sideways (the Pipeline's stage tabs on a phone, the
+   applied-filter chips under a search, the dashboard's filter row) fades at
+   each edge it can still scroll toward: the left once it has left its start,
+   the right until its end is reached, neither when everything fits. The
+   state comes from JS (`useEdgeFade`, `lib/ui/edge-fade.ts`), which sets
+   `data-fade-left` / `data-fade-right` on scroll and resize; each fade is
+   2.5rem (`EDGE_FADE_PX`) and eases in and out over 150ms, at once under
+   reduced motion. The mask covers the whole box, so a row with its own
+   background keeps it on a wrapper (the stage tabs' sticky bar). */
+@property --edge-fade-left {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+@property --edge-fade-right {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+.edge-fade {
+  --edge-fade-left: 0px;
+  --edge-fade-right: 0px;
+  mask-image: linear-gradient(
+    to right,
+    transparent,
+    #000 var(--edge-fade-left),
+    #000 calc(100% - var(--edge-fade-right)),
+    transparent
+  );
+  transition: --edge-fade-left 150ms ease-out, --edge-fade-right 150ms ease-out;
+}
+.edge-fade[data-fade-left] { --edge-fade-left: 2.5rem; }
+.edge-fade[data-fade-right] { --edge-fade-right: 2.5rem; }
+@media (prefers-reduced-motion: reduce) {
+  .edge-fade { transition: none; }
 }
 
 /* Hide scrollbar while preserving scroll */

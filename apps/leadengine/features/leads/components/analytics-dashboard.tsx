@@ -114,6 +114,10 @@ import type { LayoutItem } from "react-grid-layout"
 import type { WidgetId } from "@/features/leads/lib/dashboard-layout"
 import { PageChrome, type ChromeMenuItem } from "@/components/layout/page-chrome"
 import { DashboardCountingSheet, DashboardViewsSheet } from "./dashboard-phone-sheets"
+import { DashboardPhoneFilters } from "./dashboard-phone-filters"
+import { defaultPipelineId } from "@/features/leads/lib/dashboard-filters"
+import { DEFAULT_DASHBOARD_PERIOD } from "@/lib/date-range-presets"
+import { useEdgeFade } from "@/hooks/use-edge-fade"
 
 const LAUNCH_WIDGET_IDS = WIDGET_IDS.filter(
     id => id !== "goal-forecast" && id !== "goal-variance",
@@ -183,7 +187,7 @@ export function AnalyticsDashboard({
         return () => { active = false }
     }, [])
     const [companyFilter, setCompanyFilter] = useState<string>("all")
-    const [periodStr, setPeriodStr] = useState("this_quarter")
+    const [periodStr, setPeriodStr] = useState(DEFAULT_DASHBOARD_PERIOD)
     const [customStart, setCustomStart] = useState("")
     const [customEnd, setCustomEnd] = useState("")
     const [catToggle, setCatToggle] = useState<string>('category')
@@ -1500,8 +1504,8 @@ export function AnalyticsDashboard({
         stageDistribution: stageData.map(s => ({ name: s.name, current: s.count, previous: s.previousCount })),
     }), [periodStr, stats, goalMetrics, activeGoal, pipelineStages, periodLeads.length, previousPeriodLeads.length, monthlyRev, salesData, topComps, sourceData, stageData])
 
-    const isDefaultPeriod = periodStr === "this_quarter" && companyFilter === "all"
-    const handleResetPeriod = () => { setPeriodStr("this_quarter"); setCustomStart(""); setCustomEnd(""); setCompanyFilter("all") }
+    const isDefaultPeriod = periodStr === DEFAULT_DASHBOARD_PERIOD && companyFilter === "all"
+    const handleResetPeriod = () => { setPeriodStr(DEFAULT_DASHBOARD_PERIOD); setCustomStart(""); setCustomEnd(""); setCompanyFilter("all") }
 
     // Switching pipeline also realigns the period. Pipelines are organised per
     // year ("Group Lead 2025", "Group Lead 2026"), so picking a past-year
@@ -1531,6 +1535,28 @@ export function AnalyticsDashboard({
         params.set("pipeline", id)
         router.push(`${pathname}?${params.toString()}`)
     }, [pipelines, currentYear, searchParams, router, pathname])
+
+    // The pipeline the dashboard opens on (the page's own pick), which the
+    // phone's Filter button does not count and its "Clear all" returns to.
+    const openingPipelineId = defaultPipelineId(pipelines)
+
+    // The phone's "Clear all": every filter back to how the dashboard opens
+    // (the default pipeline, every business unit, This Quarter) and the
+    // chart picks dropped. Returning to the default pipeline does not move
+    // the period the way choosing a pipeline does: the period is reset too.
+    const handleClearAllFilters = () => {
+        handleResetPeriod()
+        setCrossFilters([])
+        if (openingPipelineId && activePipelineId !== openingPipelineId) {
+            const params = new URLSearchParams(searchParams.toString())
+            params.set("pipeline", openingPipelineId)
+            router.push(`${pathname}?${params.toString()}`)
+        }
+    }
+
+    // Between `md` and `lg` the filter row scrolls sideways; its edges fade
+    // while there is more that way (`edge-fade`).
+    const filterRowFade = useEdgeFade<HTMLDivElement>()
 
     // Tools dropdown — PDF / Analyze / Ask AI moved here to keep the
     // primary toolbar focused on filter context (pipeline, company,
@@ -1739,17 +1765,46 @@ export function AnalyticsDashboard({
                     </p>
                 )}
 
-                {/* ─── Row 2: filter chips ───
+                {/* ─── Phone: the lists' filter pattern ───
+                    Below `md` the filters are one "Filter" button with the
+                    count of what differs from how the dashboard opens, which
+                    opens them in a bottom sheet; what is applied repeats
+                    under it as chips with an ✕ (`PhoneFilterFrame`). */}
+                <DashboardPhoneFilters
+                    className="px-4 pt-3 pb-3 sm:px-6 md:hidden"
+                    pipelines={pipelines}
+                    activePipelineId={activePipelineId}
+                    defaultPipelineId={openingPipelineId}
+                    onPipelineChange={handlePipelineChange}
+                    units={companies.filter(c => !c.isHolding)}
+                    unitsApply={isHoldingView && companies.length > 1}
+                    companyFilter={companyFilter}
+                    onCompanyChange={setCompanyFilter}
+                    period={periodStr}
+                    customStart={customStart}
+                    customEnd={customEnd}
+                    onDateRangeChange={(p, s, e) => { setPeriodStr(p); setCustomStart(s); setCustomEnd(e) }}
+                    dateRangeNote={activeRevenueMonthFilter ? "Set aside while a month is picked on the revenue chart. Choosing another range clears that month." : undefined}
+                    extraChips={crossFilters.map(filter => ({
+                        key: `${filter.field}:${filter.value}:${filter.revenueBasis}`,
+                        label: `${filter.label}: ${filter.displayValue}`,
+                        onRemove: () => toggleCrossFilter(filter),
+                    }))}
+                    onClearAll={handleClearAllFilters}
+                />
+
+                {/* ─── Row 2: filter chips (from `md`) ───
                     On a desk they wrap onto a second line when there is more
-                    than fits. Below `lg` they stay on one line that scrolls
-                    sideways under the thumb, bleeds to the screen's edge and
-                    fades at the right until its end (M3 chip carousel; the
-                    lists' applied-filter row, `.chip-scroll`), so the cards
+                    than fits. Between `md` and `lg` they stay on one line
+                    that scrolls sideways under the thumb, bleeds to the
+                    screen's edge and fades at each edge it can still scroll
+                    toward (M3 chip carousel; `edge-fade`), so the cards
                     start right under them; every chip keeps its size. */}
                 <div
+                    ref={filterRowFade}
                     className={
-                        "chip-scroll flex items-center gap-1.5 flex-wrap px-8 pt-[5px] pb-3.5 " +
-                        "max-lg:flex-nowrap max-lg:overflow-x-auto max-lg:px-4 max-lg:py-2.5 sm:max-lg:px-6 " +
+                        "edge-fade flex items-center gap-1.5 flex-wrap px-8 pt-[5px] pb-3.5 max-md:hidden " +
+                        "max-lg:flex-nowrap max-lg:overflow-x-auto max-lg:px-6 max-lg:py-2.5 " +
                         "[scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
                     }
                 >

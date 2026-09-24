@@ -98,21 +98,30 @@ export function withStageParam(search: string, stageId: string | null): string {
  * in the middle, held within the row's two ends. The tab row uses it to
  * bring the chosen stage into view by setting its own `scrollLeft`, so
  * nothing but the row moves.
+ *
+ * `fade` is the width of the row's edge fades (`EDGE_FADE_PX`), which show
+ * on a side the row can still scroll toward. A centred item narrower than
+ * the row less both fades is always clear of them (and at either end the
+ * fade on that side is off); a wider one cannot be, so its start is kept
+ * clear, where its name begins.
  */
 export function scrollLeftToCenter({
     itemLeft,
     itemWidth,
     viewWidth,
     scrollWidth,
+    fade = 0,
 }: {
     itemLeft: number
     itemWidth: number
     viewWidth: number
     scrollWidth: number
+    fade?: number
 }): number {
     const max = Math.max(0, scrollWidth - viewWidth)
-    const centred = itemLeft + itemWidth / 2 - viewWidth / 2
-    return Math.round(Math.min(max, Math.max(0, centred)))
+    const clamp = (left: number) => Math.round(Math.min(max, Math.max(0, left)))
+    if (fade > 0 && itemWidth > viewWidth - 2 * fade) return clamp(itemLeft - fade)
+    return clamp(itemLeft + itemWidth / 2 - viewWidth / 2)
 }
 
 // ─── A lead card's facts ─────────────────────────────────────────────

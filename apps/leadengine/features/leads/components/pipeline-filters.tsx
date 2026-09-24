@@ -9,7 +9,6 @@ import { Button } from "@/components/ui/button"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Input } from "@/components/ui/input"
 import { Lead } from "@/types"
-import { cn } from "@/lib/utils"
 
 // ════════════════════════════════════════════════════════════════════
 //  TYPES
@@ -30,9 +29,9 @@ export const INITIAL_FILTER_STATE: PipelineFilterState = {
     rules: []
 }
 
-type FieldType = 'enum' | 'person' | 'number' | 'date' | 'text'
+export type FieldType = 'enum' | 'person' | 'number' | 'date' | 'text'
 
-type FilterFieldConfig = {
+export type FilterFieldConfig = {
     key: string
     label: string
     icon: typeof Filter
@@ -66,7 +65,7 @@ function monthLabelFromDate(value: string | null | undefined): string | null {
 //  FIELD REGISTRY — all filterable lead columns
 // ════════════════════════════════════════════════════════════════════
 
-const FILTER_FIELDS: FilterFieldConfig[] = [
+export const FILTER_FIELDS: FilterFieldConfig[] = [
     {
         key: 'pic_sales',
         label: 'PIC Sales',
@@ -311,7 +310,7 @@ const FILTER_FIELDS: FilterFieldConfig[] = [
 ]
 
 // ── Operators per field type ──
-const OPERATORS: Record<FieldType, { value: string; label: string }[]> = {
+export const OPERATORS: Record<FieldType, { value: string; label: string }[]> = {
     enum: [
         { value: 'is_any_of', label: 'is any of' },
         { value: 'is_none_of', label: 'is none of' },
@@ -675,11 +674,14 @@ interface PipelineFiltersProps {
     leads: Lead[]
     filters: PipelineFilterState
     setFilters: React.Dispatch<React.SetStateAction<PipelineFilterState>>
-    /** The Filter button's size where it sits beside a taller field (the phone's search). */
-    triggerClassName?: string
 }
 
-export function PipelineFilters({ leads, filters, setFilters, triggerClassName }: PipelineFiltersProps) {
+/**
+ * The desk's Filter: a popover of rules (field, operator, value). On a
+ * phone the same rules are set from a bottom sheet of facets instead
+ * (`PipelinePhoneFilters`).
+ */
+export function PipelineFilters({ leads, filters, setFilters }: PipelineFiltersProps) {
     const [open, setOpen] = useState(false)
 
     const activeCount = filters.rules.filter(r => r.value.length > 0).length
@@ -722,7 +724,7 @@ export function PipelineFilters({ leads, filters, setFilters, triggerClassName }
                 <Button
                     variant={activeCount > 0 ? "secondary" : "outline"}
                     size="sm"
-                    className={cn("h-8 gap-y-0 gap-x-1.5 px-2.5 font-medium relative text-xs overflow-visible", triggerClassName)}
+                    className="h-8 gap-y-0 gap-x-1.5 px-2.5 font-medium relative text-xs overflow-visible"
                 >
                     <Filter className="h-3.5 w-3.5 text-slate-500" />
                     <span>Filter</span>

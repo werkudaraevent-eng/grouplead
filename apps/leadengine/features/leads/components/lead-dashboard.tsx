@@ -7,11 +7,11 @@ import { getColumns, DEFAULT_HIDDEN_COLUMNS } from "@/features/leads/components/
 import { useCurrency } from "@/contexts/currency-context"
 import { LeadKanban } from "@/features/leads/components/lead-kanban"
 import { PipelinePhoneView } from "@/features/leads/components/pipeline-phone-view"
+import { PipelinePhoneFilters } from "@/features/leads/components/pipeline-phone-filters"
 import { SheetChoice } from "@/features/leads/components/sheet-choice"
 import { sortStages } from "@/features/leads/lib/stage-transitions"
 import { STAGE_PARAM } from "@/features/leads/lib/pipeline-phone"
 import { BottomSheet, SheetRow } from "@/components/ui/bottom-sheet"
-import { SearchField } from "@/components/shared/search-field"
 import { useBelowMd } from "@/hooks/use-compact"
 import { LeadForm } from "@/features/leads/components/lead-form"
 import { ImportLeadsModal } from "@/features/leads/components/import-leads-modal"
@@ -1224,20 +1224,13 @@ export function LeadDashboard() {
                             transitionRules={transitionRules}
                             narrowed={searchQuery.trim() !== "" || filters.rules.some((rule) => rule.value.length > 0)}
                             toolbar={
-                                <>
-                                    <div className="flex items-center gap-2 px-4 pt-3">
-                                        <SearchField
-                                            value={searchQuery}
-                                            onChange={setSearchQuery}
-                                            placeholder="Search leads"
-                                            className="h-11 min-w-0 max-w-none flex-1 basis-auto"
-                                        />
-                                        <PipelineFilters leads={leads} filters={filters} setFilters={setFilters} triggerClassName="h-11 px-3 text-sm" />
-                                    </div>
-                                    <div className="mt-3 empty:hidden">
-                                        <ActiveFilterPills filters={filters} setFilters={setFilters} />
-                                    </div>
-                                </>
+                                <PipelinePhoneFilters
+                                    className="px-4 pt-3"
+                                    leads={leads}
+                                    filters={filters}
+                                    setFilters={setFilters}
+                                    search={{ value: searchQuery, onChange: setSearchQuery, placeholder: "Search leads" }}
+                                />
                             }
                             sortControl={<KanbanSortMenu value={kanbanSort} onChange={handleSortChange} phone />}
                             onQuickEdit={handleQuickEdit}
