@@ -43,7 +43,7 @@ import { HeaderOverflowMenu, ListPageHeader } from "@/components/shared/list-pag
 import { listIntroKey } from "@/lib/hints/hint-key"
 import { SavedViewsBar, ViewsMenu } from "@/components/shared/saved-views-bar"
 import { TableSkeleton } from "@/components/shared/table-skeleton"
-import { ListToolbar } from "@/components/shared/list-toolbar"
+import { ListControls, ListToolbar } from "@/components/shared/list-toolbar"
 import { ColumnsMenu } from "@/components/shared/columns-menu"
 import { ListFooter } from "@/components/shared/list-footer"
 import { InitialsAvatar } from "@/components/shared/initials-avatar"
@@ -498,7 +498,7 @@ export function ContactsList({ fresh, introSeen }: { fresh: boolean; /** Whether
         // (cards below md, the table scrolls inside its own box above it).
         <div data-fluid-page className="flex w-full flex-col bg-background md:h-full md:overflow-hidden">
             {/* One compact row; the description under it only until dismissed. */}
-            <div className="shrink-0 px-4 pb-2 sm:px-6 md:pb-0 md:has-[p]:pb-3 lg:px-8">
+            <div className="shrink-0 px-4 sm:px-6 md:has-[p]:pb-3 lg:px-8">
                 <ListPageHeader
                     title="Contacts"
                     subtitle="Manage client contacts, vendors, and associates."
@@ -537,25 +537,26 @@ export function ContactsList({ fresh, introSeen }: { fresh: boolean; /** Whether
                 />
             </div>
 
-            {/* Phone: the saved views as chips above the search. On a desk they are
-                chosen from the Views menu in the toolbar, so the table never moves
-                down when a view is saved. */}
-            <div className="shrink-0 px-4 sm:px-6 empty:hidden md:hidden">
-                <SavedViewsBar
-                    views={listViews.views.map((v) => ({ id: v.id, name: v.name, is_default: v.is_default }))}
-                    activeViewId={listViews.activeViewId}
-                    onSelectView={listViews.selectView}
-                    isDirty={listViews.isDirty}
-                    onSaveCurrent={listViews.saveCurrent}
-                    onSaveAs={listViews.saveAs}
-                    onRename={listViews.renameView}
-                    onDelete={listViews.deleteView}
-                    onMakeDefault={listViews.makeDefault}
-                    className="mb-3"
-                />
-            </div>
-
-            <div className="shrink-0 border-b border-border px-4 pb-4 sm:px-6 lg:px-8">
+            {/* The controls: on a desk the toolbar's band over the table; on a
+                phone one block that scrolls away reading down and returns,
+                pinned under the top app bar, on the first scroll up. */}
+            <ListControls>
+                {/* Phone: the saved views as chips above the search. On a desk they are
+                    chosen from the Views menu in the toolbar, so the table never moves
+                    down when a view is saved. */}
+                <div className="empty:hidden md:hidden">
+                    <SavedViewsBar
+                        views={listViews.views.map((v) => ({ id: v.id, name: v.name, is_default: v.is_default }))}
+                        activeViewId={listViews.activeViewId}
+                        onSelectView={listViews.selectView}
+                        isDirty={listViews.isDirty}
+                        onSaveCurrent={listViews.saveCurrent}
+                        onSaveAs={listViews.saveAs}
+                        onRename={listViews.renameView}
+                        onDelete={listViews.deleteView}
+                        onMakeDefault={listViews.makeDefault}
+                    />
+                </div>
                 <ListToolbar
                     search={{ value: state.q, onChange: setSearch, placeholder: "Search by name, email, phone, or company", "aria-label": "Search contacts" }}
                     filters={{ definitions: filterDefinitions, value: state.filters, onChange: setFilters, onClearAll: clearAll }}
@@ -566,7 +567,7 @@ export function ContactsList({ fresh, introSeen }: { fresh: boolean; /** Whether
                         </>
                     }
                 />
-            </div>
+            </ListControls>
 
             {/* Desk: the table, frozen select and name columns, scrolling inside its own box. */}
             <div className="relative z-0 hidden min-h-0 flex-1 flex-col overflow-hidden bg-card md:flex">
@@ -636,8 +637,9 @@ export function ContactsList({ fresh, introSeen }: { fresh: boolean; /** Whether
                 </div>
             </div>
 
-            {/* Phone: one card per contact; the card opens the contact, the ⋮ holds Edit and Delete. */}
-            <div className={cn("px-4 py-3 transition-opacity md:hidden", list.pending && list.loaded && "opacity-60")} aria-busy={list.pending}>
+            {/* Phone: one card per contact; the card opens the contact, the ⋮ holds Edit and Delete.
+                No top padding: the controls above end 12px over the first card. */}
+            <div className={cn("px-4 pb-3 transition-opacity md:hidden", list.pending && list.loaded && "opacity-60")} aria-busy={list.pending}>
                 {!list.loaded && !list.failed ? (
                     <ListCardSkeleton />
                 ) : empty ? (

@@ -5,6 +5,7 @@ import { SlidersHorizontal } from "@/components/icons"
 import { Button } from "@/components/ui/button"
 import { BottomSheet } from "@/components/ui/bottom-sheet"
 import { Tooltip } from "@/components/ui/tooltip"
+import { useQuickReturn } from "@/hooks/use-quick-return"
 import { cn } from "@/lib/utils"
 import { SearchField } from "./search-field"
 import { FilterBuilder } from "./filter-builder"
@@ -47,7 +48,9 @@ interface ToolbarFilters {
  * (Sales Activity's `FilterBarFrame`; M3 filter chips in a modal bottom
  * sheet). The view tools (the Views menu, columns) are desk tools and stay
  * there: the phone shows cards, not columns, and chooses a saved view from
- * the chips the page draws above the search (`SavedViewsBar`).
+ * the chips the page draws above the search (`SavedViewsBar`). The search
+ * row and the applied chips sit 12px apart; the page wraps them, with the
+ * saved views, in `ListControls`.
  */
 export function ListToolbar({
   search,
@@ -98,7 +101,7 @@ function PhoneFilterBar({ search, filters, className }: { search: ToolbarSearch;
   }
 
   return (
-    <div className={cn("space-y-2", className)}>
+    <div className={cn("flex flex-col gap-3", className)}>
       <div className="flex items-center gap-2">
         <SearchField
           value={search.value}
@@ -121,7 +124,10 @@ function PhoneFilterBar({ search, filters, className }: { search: ToolbarSearch;
         </Button>
       </div>
       {count > 0 && (
-        <div className="chip-scroll -mx-4 flex items-center overflow-x-auto px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        // `-my-1 py-1`: room above and below the chips inside a row that
+        // clips (the ✕'s grown target, a focus ring) without adding to the
+        // 12px between the rows.
+        <div className="chip-scroll -mx-4 -my-1 flex items-center overflow-x-auto px-4 py-1 sm:-mx-6 sm:px-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           <div className="flex shrink-0 items-center gap-1.5">
             {q && <FilterChip label={`“${q}”`} onRemove={() => search.onChange("")} />}
             {applied.map((f) => {
@@ -163,6 +169,53 @@ function PhoneFilterBar({ search, filters, className }: { search: ToolbarSearch;
         </div>
       </BottomSheet>
     </div>
+  )
+}
+
+/**
+ * The block that holds a list page's controls, directly under its header.
+ *
+ * From `md` up it is the toolbar's band over the table, as it always was:
+ * `pb-4` and one hairline under it.
+ *
+ * Below `md` it is one quick-return block (M3 top app bar, "enter always";
+ * Gmail, Google Contacts): the saved-view chips, the search with its Filter
+ * button and the applied chips, 12px apart and 12px from the first card.
+ * It scrolls away as the reader reads down and slides back, pinned under
+ * the top app bar, the moment they scroll up (`useQuickReturn`); near the
+ * top it is simply in its place. Sticky in the shell's `<main>` on an
+ * opaque surface, above the cards and below every sheet, menu and dialog
+ * (they are portalled at z-50); edge to edge, because the page gives each
+ * band its own side padding. While slid away it is `inert`, so nothing in
+ * it can be tabbed to or tapped; it never slides away while someone is in
+ * it (typing in the search, moving through it by keyboard) or while its
+ * Filter sheet or a menu opened from it is open. The hairline
+ * under it shows only while it is pinned with the list passing under it,
+ * and its 1px is part of the 12px (`pb-[11px]`), so nothing moves when it
+ * appears. The slide is 200ms, and instant under reduced motion.
+ */
+export function ListControls({ children }: { children: React.ReactNode }) {
+  const anchor = React.useRef<HTMLDivElement>(null)
+  const block = React.useRef<HTMLDivElement>(null)
+  const { hidden, stuck } = useQuickReturn(block, anchor)
+  return (
+    <>
+      {/* The block's own place in the page, which its pinned box no longer tells. */}
+      <div ref={anchor} aria-hidden="true" className="md:hidden" />
+      <div
+        ref={block}
+        inert={hidden}
+        className={cn(
+          "sticky top-0 z-20 flex shrink-0 flex-col gap-3 border-b bg-background px-4 pt-3 pb-[11px] sm:px-6",
+          "transition-transform duration-200 ease-out motion-reduce:transition-none",
+          hidden && "pointer-events-none -translate-y-full",
+          stuck && !hidden ? "border-border" : "border-transparent",
+          "md:static md:z-auto md:block md:border-border md:pt-0 md:pb-4 lg:px-8",
+        )}
+      >
+        {children}
+      </div>
+    </>
   )
 }
 

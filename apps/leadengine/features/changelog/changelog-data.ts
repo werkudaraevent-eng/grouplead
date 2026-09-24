@@ -78,6 +78,7 @@ export const CHANGELOG: ChangelogEntry[] = [
         date: "2026-09-24",
         title: "One compact header on every page",
         items: [
+            { type: "improvement", text: "On a phone, Contacts and Companies give the screen to the list as you scroll down: the saved views, the search and the filter chips slide out of the way, and come back under the top bar as soon as you scroll up a little. They stay put while you are typing a search or have the Filter panel open, and the gaps between the search, the chips and the first card are now even." },
             { type: "improvement", text: "Every page now has the same compact header as Contacts and Companies: the title and its buttons on one slim row at the top. The title keeps its size as you scroll and no longer jumps when you move between pages." },
             { type: "improvement", text: "The sentence under a page's title that explains what the page is for can be closed with ✕. Once closed, it stays closed on every device you use. Lines that tell you something current, such as when the dashboard was last updated, always show." },
             { type: "improvement", text: "Pages under Settings show \"Settings\" (and, where there is one, the page above, such as \"Settings / AI\") just above the title. Click it to go back." },
