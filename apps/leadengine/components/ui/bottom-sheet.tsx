@@ -1,5 +1,6 @@
 "use client"
 
+import * as React from "react"
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@/components/ui/sheet"
 import { cn } from "@/lib/utils"
 
@@ -9,7 +10,22 @@ import { cn } from "@/lib/utils"
  * dialog, a popover or a menu. It never grows past 85% of the viewport; the
  * body scrolls, the title and the footer stay, and the footer clears the
  * home indicator (safe-area inset), so its actions are always reachable.
- * Same component as Sales Activity's.
+ * Sales Activity's anatomy (its copy has neither the opaque header nor the
+ * keyboard rule below yet).
+ *
+ * The header (handle, title, supporting line) and the footer are surfaces
+ * of their own: opaque, never shrunk by a long body, and painted above it
+ * (`z-10` over the body's own `z-0` stacking context), so the body scrolls
+ * beneath them and nothing in it can show through, however a phone's
+ * browser composites a scrolled layer. Once the body has left its top, a
+ * hairline under the header marks the edge it passes under, as a top app
+ * bar separates itself once content scrolls under it (M3 top app bar,
+ * on scroll); the footer's hairline is always drawn.
+ *
+ * A sheet never raises the keyboard by itself: when its first control is a
+ * text field (a search above a long list), opening it focuses the sheet
+ * rather than the field, and the field waits for a tap (M3: a text field
+ * takes focus when the person chooses it).
  */
 export function BottomSheet({
   open,
@@ -33,7 +49,54 @@ export function BottomSheet({
       <SheetContent
         side="bottom"
         showCloseButton={false}
+        onOpenAutoFocus={keepKeyboardDown}
         className={cn("max-h-[85dvh] gap-0 rounded-t-[28px] border-t-0 bg-card p-0 shadow-xl", className)}
+      >
+        {/* Mounted with each opening, so the hairline starts off. */}
+        <BottomSheetFrame title={title} description={description} footer={footer}>
+          {children}
+        </BottomSheetFrame>
+      </SheetContent>
+    </Sheet>
+  )
+}
+
+const TABBABLE =
+  'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"]), [contenteditable="true"]'
+const TEXT_FIELD =
+  'input:not([type="checkbox"]):not([type="radio"]):not([type="button"]):not([type="submit"]):not([type="reset"]), textarea, [contenteditable="true"]'
+
+/** On open, focus the sheet itself instead of a text field that comes first. */
+function keepKeyboardDown(event: Event) {
+  const sheet = event.currentTarget
+  if (!(sheet instanceof HTMLElement)) return
+  if (sheet.querySelector<HTMLElement>(TABBABLE)?.matches(TEXT_FIELD)) {
+    event.preventDefault()
+    sheet.focus({ preventScroll: true })
+  }
+}
+
+function BottomSheetFrame({
+  title,
+  description,
+  footer,
+  children,
+}: {
+  title: string
+  description?: string
+  footer?: React.ReactNode
+  children: React.ReactNode
+}) {
+  const [scrolled, setScrolled] = React.useState(false)
+  return (
+    <>
+      <div
+        data-slot="bottom-sheet-header"
+        data-scrolled={scrolled ? "" : undefined}
+        className={cn(
+          "relative z-10 shrink-0 rounded-t-[inherit] border-b bg-card transition-colors",
+          scrolled ? "border-border" : "border-transparent",
+        )}
       >
         <div className="flex justify-center pt-3" aria-hidden="true">
           <span className="h-1 w-8 rounded-full bg-muted-foreground/40" />
@@ -46,19 +109,26 @@ export function BottomSheet({
             <SheetDescription className="sr-only">{title}</SheetDescription>
           )}
         </div>
-        <div
-          className={cn(
-            "thin-scrollbar min-h-0 flex-1 overflow-y-auto overscroll-contain",
-            !footer && "pb-[max(1rem,env(safe-area-inset-bottom))]",
-          )}
-        >
-          {children}
-        </div>
-        {footer && (
-          <div className="shrink-0 border-t px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))]">{footer}</div>
+      </div>
+      <div
+        data-slot="bottom-sheet-body"
+        onScroll={(e) => setScrolled(e.currentTarget.scrollTop > 0)}
+        className={cn(
+          "thin-scrollbar relative z-0 min-h-0 flex-1 overflow-y-auto overscroll-contain",
+          !footer && "pb-[max(1rem,env(safe-area-inset-bottom))]",
         )}
-      </SheetContent>
-    </Sheet>
+      >
+        {children}
+      </div>
+      {footer && (
+        <div
+          data-slot="bottom-sheet-footer"
+          className="relative z-10 shrink-0 border-t bg-card px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))]"
+        >
+          {footer}
+        </div>
+      )}
+    </>
   )
 }
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { dashboardFilterCount, dashboardFilterDiff, defaultPipelineId } from "../dashboard-filters"
+import { dashboardFilterCount, dashboardFilterDiff, dashboardFilterRows, defaultPipelineId, unitsMatching } from "../dashboard-filters"
 
 const context = { defaultPipelineId: "p26", unitsApply: true }
 const opening = { pipelineId: "p26", companyFilter: "all", period: "this_quarter" }
@@ -43,5 +43,75 @@ describe("dashboardFilterCount", () => {
 describe("dashboardFilterDiff", () => {
     it("says which filters differ", () => {
         expect(dashboardFilterDiff({ ...opening, period: "all_time" }, context)).toEqual({ pipeline: false, unit: false, dateRange: true })
+    })
+})
+
+describe("dashboardFilterRows", () => {
+    const pipelines = [
+        { id: "p26", name: "Group Lead 2026" },
+        { id: "p25", name: "Group Lead 2025" },
+    ]
+    const units = [
+        { id: "c1", name: "Werkudara Nirwana Event" },
+        { id: "c2", name: "Yukti Persada Nadi" },
+    ]
+    const input = {
+        pipelines,
+        activePipelineId: "p26",
+        defaultPipelineId: "p26",
+        units,
+        unitsApply: true,
+        companyFilter: "all",
+        period: "this_quarter",
+        customStart: "",
+        customEnd: "",
+    }
+
+    it("says what each filter is set to as the dashboard opens, none of them applied", () => {
+        expect(dashboardFilterRows(input)).toEqual([
+            { key: "pipeline", label: "Pipeline", value: "Group Lead 2026 · Default", applied: false },
+            { key: "unit", label: "Business unit", value: "All business units", applied: false },
+            { key: "dateRange", label: "Date range", value: "This Quarter", applied: false },
+        ])
+    })
+
+    it("marks what differs and names it", () => {
+        const rows = dashboardFilterRows({
+            ...input,
+            activePipelineId: "p25",
+            companyFilter: "c2",
+            period: "custom",
+            customStart: "2026-05-01",
+            customEnd: "2026-05-31",
+        })
+        expect(rows.map((r) => [r.value, r.applied])).toEqual([
+            ["Group Lead 2025", true],
+            ["Yukti Persada Nadi", true],
+            ["1 May – 31 May 2026", true],
+        ])
+    })
+
+    it("leaves out the pipeline with one pipeline and the unit outside a holding view", () => {
+        const rows = dashboardFilterRows({ ...input, pipelines: [pipelines[0]], unitsApply: false })
+        expect(rows.map((r) => r.key)).toEqual(["dateRange"])
+    })
+})
+
+describe("unitsMatching", () => {
+    const units = [
+        { id: "c1", name: "Werkudara Nirwana Event" },
+        { id: "c2", name: "Yukti Persada Nadi" },
+        { id: "c3", name: "Werkudara Tour & Travel" },
+    ]
+
+    it("keeps every unit for an empty or blank query", () => {
+        expect(unitsMatching(units, "")).toHaveLength(3)
+        expect(unitsMatching(units, "   ")).toHaveLength(3)
+    })
+
+    it("matches part of a name, ignoring case and the spaces around the query", () => {
+        expect(unitsMatching(units, " werkudara ").map((u) => u.id)).toEqual(["c1", "c3"])
+        expect(unitsMatching(units, "PERSADA").map((u) => u.id)).toEqual(["c2"])
+        expect(unitsMatching(units, "hotel")).toEqual([])
     })
 })

@@ -1,9 +1,9 @@
 "use client"
 
 import * as React from "react"
-import { SlidersHorizontal } from "@/components/icons"
+import { Check, ChevronRight, SlidersHorizontal } from "@/components/icons"
 import { Button } from "@/components/ui/button"
-import { BottomSheet } from "@/components/ui/bottom-sheet"
+import { BottomSheet, SheetRow } from "@/components/ui/bottom-sheet"
 import { useEdgeFade } from "@/hooks/use-edge-fade"
 import { cn } from "@/lib/utils"
 import { SearchField } from "./search-field"
@@ -23,7 +23,10 @@ export interface PhoneFilterSearch {
  * saying the page updates as you go, "Done"); what is applied is repeated
  * under it as one sideways-scrolling row of input chips, each with an ✕,
  * then "Clear all" (Sales Activity's `FilterBarFrame`; M3 filter chips in
- * a modal bottom sheet, input chips for what is applied).
+ * a modal bottom sheet, input chips for what is applied). A sheet that
+ * lists its filters as rows opening their own sheets (`FilterFieldRow`)
+ * may also carry "Clear all" as a text button beside "Done"
+ * (`clearAllInSheet`), shown while anything is applied.
  *
  * The chip row bleeds to the screen's edge and fades at each edge it can
  * still scroll toward (`edge-fade`); its own 4px above and below are room
@@ -37,6 +40,7 @@ export function PhoneFilterFrame({
   onClearAll,
   description,
   children,
+  clearAllInSheet = false,
   bleedClassName = "-mx-4 px-4 sm:-mx-6 sm:px-6",
   className,
 }: {
@@ -50,6 +54,8 @@ export function PhoneFilterFrame({
   description: string
   /** The sheet's body. */
   children: React.ReactNode
+  /** "Clear all" also in the sheet's footer, beside "Done", while a chip is shown. */
+  clearAllInSheet?: boolean
   /** How far the chip row reaches past the page's gutter to the screen's edge (16px, 24px from `sm`). */
   bleedClassName?: string
   className?: string
@@ -104,9 +110,21 @@ export function PhoneFilterFrame({
         title="Filter"
         description={description}
         footer={
-          <Button type="button" className="h-12 w-full" onClick={() => setOpen(false)}>
-            Done
-          </Button>
+          <div className="flex items-center gap-2">
+            {clearAllInSheet && chips.length > 0 && (
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={onClearAll}
+                className="h-12 shrink-0 px-4 font-semibold text-primary hover:bg-primary/10 hover:text-primary"
+              >
+                Clear all
+              </Button>
+            )}
+            <Button type="button" className="h-12 min-w-0 flex-1" onClick={() => setOpen(false)}>
+              Done
+            </Button>
+          </div>
         }
       >
         {children}
@@ -140,5 +158,45 @@ export function FilterSheetSection({
       {hint && <p className="px-4 pb-2 text-xs text-muted-foreground">{hint}</p>}
       {children}
     </section>
+  )
+}
+
+/**
+ * One filter in a Filter sheet that opens its own sheet over it (the
+ * Pipeline's fields; the Dashboard's pipeline, business unit and date
+ * range): a 56dp `SheetRow` with the filter's icon, its name, what it is
+ * set to under it, a check in the primary colour while it narrows the
+ * page, and a chevron (Sales Activity opens a facet's checklist the same
+ * way; M3 list in a modal bottom sheet).
+ */
+export function FilterFieldRow({
+  icon,
+  label,
+  value,
+  applied,
+  onOpen,
+}: {
+  icon?: React.ElementType
+  label: string
+  /** What it is set to, the row's second line. */
+  value?: string
+  /** It differs from how the page opens: the check. */
+  applied: boolean
+  onOpen: () => void
+}) {
+  return (
+    <SheetRow
+      icon={icon}
+      label={label}
+      hint={value}
+      aria-haspopup="dialog"
+      onClick={onOpen}
+      trailing={
+        <span className="flex shrink-0 items-center gap-1">
+          {applied && <Check className="h-4 w-4 text-primary" aria-hidden="true" />}
+          <ChevronRight className="h-5 w-5 text-muted-foreground" aria-hidden="true" />
+        </span>
+      }
+    />
   )
 }

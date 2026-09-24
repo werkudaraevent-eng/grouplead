@@ -17,24 +17,25 @@
  *
  * Below `md` the popover (presets beside two months, ~680px) is wider than a
  * phone, so the same choices open in a bottom sheet instead: the presets as
- * choice chips, then one month with 40px days (M3: a menu or a popover
- * becomes a modal bottom sheet in a compact window; the Google Analytics app
- * picks a range the same way). That panel is `DateRangeChoices`, which the
- * dashboard's phone Filter sheet shows as its Date range section, so the
- * phone picks a range one way wherever it does.
+ * choice chips, then a "Custom range…" row that opens one month with 40px
+ * days under it (M3: a menu or a popover becomes a modal bottom sheet in a
+ * compact window; the Google Analytics app picks a range the same way).
+ * That panel is `DateRangeChoices`, which the dashboard's phone Filter
+ * sheet opens as its Date range sheet, so the phone picks a range one way
+ * wherever it does.
  *
  * The quick ranges and the labels are in `lib/date-range-presets.ts`.
  */
 
 import * as React from "react"
 import { format, parseISO, isValid, subMonths } from "date-fns"
-import { CalendarDays, Check, ChevronDown } from "@/components/icons"
+import { CalendarDays, CalendarIcon, Check, ChevronDown } from "@/components/icons"
 import type { DateRange } from "react-day-picker"
 import { Slot } from "radix-ui"
 
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { BottomSheet } from "@/components/ui/bottom-sheet"
+import { BottomSheet, SheetRow } from "@/components/ui/bottom-sheet"
 import { useBelowMd } from "@/hooks/use-compact"
 import { cn } from "@/lib/utils"
 import {
@@ -42,6 +43,7 @@ import {
     DEFAULT_DASHBOARD_PERIOD,
     activeDateRangePreset,
     dateRangeLabel,
+    isCustomDateRange,
     type DateRangePreset,
 } from "@/lib/date-range-presets"
 
@@ -110,11 +112,15 @@ function useRangeDraft(
 
 /**
  * The phone's way to pick a range: the quick ranges as M3 choice chips
- * (8dp corners, the chosen one tonal with a check), then one month with
- * 40px days where a start day and an end day make a custom range. Each
- * pick commits at once through `onSelect`; the caller decides whether that
- * closes anything (the date sheet closes, the dashboard's Filter sheet
- * stays open).
+ * (8dp corners, the chosen one tonal with a check), then one 56dp row,
+ * "Custom range…", which opens one month with 40px days under it, where a
+ * start day and an end day make a custom range. The month is not drawn
+ * until asked for, so the sheet stays short for the common pick; the row
+ * says the custom range in effect (with a check), or what to do, or, once
+ * a start day is tapped, that the end day is next. Each pick commits at
+ * once through `onSelect` (a quick range on its tap, a custom range on its
+ * end day); the caller decides what closes. Opening the month scrolls the
+ * sheet's own body, never the page, so the month is in view.
  */
 export function DateRangeChoices({
     period,
@@ -133,10 +139,39 @@ export function DateRangeChoices({
 }) {
     const { selectedRange, draft, onDaySelect } = useRangeDraft(period, customStart, customEnd, (start, end) => onSelect("custom", start, end))
     const activePresetKey = activeDateRangePreset(period, customStart, customEnd, now)
+    const custom = isCustomDateRange(period, customStart, customEnd, now)
+    const [calendarOpen, setCalendarOpen] = React.useState(false)
+    const calendarId = React.useId()
+    const rowRef = React.useRef<HTMLDivElement>(null)
+    const calendarRef = React.useRef<HTMLDivElement>(null)
+
+    // Bring the month into view inside the sheet's body, keeping the row on screen.
+    React.useEffect(() => {
+        if (!calendarOpen) return
+        const row = rowRef.current
+        const calendar = calendarRef.current
+        const body = calendar?.closest<HTMLElement>("[data-slot=bottom-sheet-body]")
+        if (!row || !calendar || !body) return
+        const bodyBox = body.getBoundingClientRect()
+        const shift = Math.min(
+            calendar.getBoundingClientRect().bottom - bodyBox.bottom,
+            row.getBoundingClientRect().top - bodyBox.top,
+        )
+        if (shift <= 0) return
+        const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches
+        body.scrollBy({ top: shift, behavior: reduce ? "auto" : "smooth" })
+    }, [calendarOpen])
+
+    const picking = calendarOpen && draft?.from && !draft.to
+    const hint = picking
+        ? `From ${format(draft.from as Date, "d MMM yyyy")}: now tap the end day`
+        : custom
+          ? dateRangeLabel(period, customStart, customEnd)
+          : "Tap a start day, then an end day"
 
     return (
-        <div className={className}>
-            <div role="radiogroup" aria-label="Quick ranges" className="flex flex-wrap gap-2">
+        <div className={cn("pb-2", className)}>
+            <div role="radiogroup" aria-label="Quick ranges" className="flex flex-wrap gap-2 px-4">
                 {DATE_RANGE_PRESETS.map((p) => {
                     const checked = activePresetKey === p.key
                     return (
@@ -162,18 +197,38 @@ export function DateRangeChoices({
                     )
                 })}
             </div>
-            <p className="mt-4 text-xs font-medium text-muted-foreground">Or tap a start day, then an end day</p>
-            <div className="flex justify-center">
-                <Calendar
-                    mode="range"
-                    numberOfMonths={1}
-                    selected={draft}
-                    onSelect={onDaySelect}
-                    defaultMonth={selectedRange?.from ?? now}
-                    captionLayout="dropdown"
-                    className="bg-transparent px-0 [--cell-size:--spacing(10)]"
+            <div ref={rowRef} className="px-2 pt-3">
+                <SheetRow
+                    icon={CalendarIcon}
+                    label="Custom range…"
+                    hint={hint}
+                    aria-expanded={calendarOpen}
+                    aria-controls={calendarOpen ? calendarId : undefined}
+                    onClick={() => setCalendarOpen((o) => !o)}
+                    trailing={
+                        <span className="flex shrink-0 items-center gap-1">
+                            {custom && <Check className="h-4 w-4 text-primary" aria-hidden="true" />}
+                            <ChevronDown
+                                className={cn("h-5 w-5 text-muted-foreground transition-transform", calendarOpen && "rotate-180")}
+                                aria-hidden="true"
+                            />
+                        </span>
+                    }
                 />
             </div>
+            {calendarOpen && (
+                <div ref={calendarRef} id={calendarId} className="flex justify-center px-4">
+                    <Calendar
+                        mode="range"
+                        numberOfMonths={1}
+                        selected={draft}
+                        onSelect={onDaySelect}
+                        defaultMonth={selectedRange?.from ?? now}
+                        captionLayout="dropdown"
+                        className="bg-transparent px-0 [--cell-size:--spacing(10)]"
+                    />
+                </div>
+            )}
         </div>
     )
 }
@@ -240,7 +295,6 @@ export function DateRangeFilter({
                             setOpen(false)
                         }}
                         now={now}
-                        className="px-4"
                     />
                 </BottomSheet>
             </>

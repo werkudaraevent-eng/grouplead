@@ -65,3 +65,8 @@ export function activeDateRangePreset(period: string, start: string, end: string
     }
     return null
 }
+
+/** A range picked on the calendar: custom, and none of the quick ranges. */
+export function isCustomDateRange(period: string, start: string, end: string, now: Date): boolean {
+    return period === "custom" && activeDateRangePreset(period, start, end, now) === null
+}

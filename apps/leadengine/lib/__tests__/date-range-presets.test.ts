@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { DATE_RANGE_PRESETS, activeDateRangePreset, dateRangeLabel } from "../date-range-presets"
+import { DATE_RANGE_PRESETS, activeDateRangePreset, dateRangeLabel, isCustomDateRange } from "../date-range-presets"
 
 const NOW = new Date(2026, 8, 24) // 24 Sep 2026
 
@@ -36,5 +36,16 @@ describe("activeDateRangePreset", () => {
 
     it("finds nothing for any other custom range", () => {
         expect(activeDateRangePreset("custom", "2025-01-01", "2025-12-31", NOW)).toBeNull()
+    })
+})
+
+describe("isCustomDateRange", () => {
+    it("is a range picked on the calendar", () => {
+        expect(isCustomDateRange("custom", "2026-05-01", "2026-05-31", NOW)).toBe(true)
+    })
+
+    it("is not a quick range, even one stored as custom days", () => {
+        expect(isCustomDateRange("custom", "2026-09-18", "2026-09-24", NOW)).toBe(false) // Last 7 days
+        expect(isCustomDateRange("this_quarter", "", "", NOW)).toBe(false)
     })
 })

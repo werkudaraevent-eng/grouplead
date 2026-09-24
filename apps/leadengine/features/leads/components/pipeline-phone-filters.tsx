@@ -1,11 +1,10 @@
 "use client"
 
 import { useState, type Dispatch, type ReactNode, type SetStateAction } from "react"
-import { Check, ChevronRight } from "@/components/icons"
 import { FilterChip } from "@/components/shared/filter-chip"
-import { FilterSheetSection, PhoneFilterFrame, type PhoneFilterSearch } from "@/components/shared/phone-filter-frame"
+import { FilterFieldRow, FilterSheetSection, PhoneFilterFrame, type PhoneFilterSearch } from "@/components/shared/phone-filter-frame"
 import { SearchField } from "@/components/shared/search-field"
-import { BottomSheet, SheetRow } from "@/components/ui/bottom-sheet"
+import { BottomSheet } from "@/components/ui/bottom-sheet"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import type { Lead } from "@/types"
@@ -51,7 +50,8 @@ const newRuleId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 6)}
  * filters under them as input chips with an ✕, then "Clear all".
  *
  * The sheet lists every field the desk's Filter can use as a 56dp row
- * (`SheetRow`: the field's icon, its name, what it is set to), grouped
+ * (`FilterFieldRow`: the field's icon, its name, what it is set to, a check
+ * once applied, a chevron; the Dashboard's Filter sheet uses the same), grouped
  * under M3 subheaders (People, Details, Amounts, Dates, Text). A row opens
  * that field's own sheet over it (Sales Activity opens a facet's checklist
  * the same way): how it compares as choice chips ("Is any of" / "Is none
@@ -113,22 +113,16 @@ export function PipelinePhoneFilters({
                             const rule = ruleForField(filters, field.key)
                             const on = rule !== undefined && isAppliedRule(rule)
                             return (
-                                <SheetRow
+                                <FilterFieldRow
                                     key={field.key}
                                     icon={field.icon}
                                     label={field.label}
-                                    hint={on ? ruleValueLabel(rule, field.type, operatorLabel(field.type, rule.operator)) : undefined}
-                                    aria-haspopup="dialog"
-                                    onClick={() => {
+                                    value={on ? ruleValueLabel(rule, field.type, operatorLabel(field.type, rule.operator)) : undefined}
+                                    applied={on}
+                                    onOpen={() => {
                                         setFacetKey(field.key)
                                         setFacetOpen(true)
                                     }}
-                                    trailing={
-                                        <span className="flex shrink-0 items-center gap-1">
-                                            {on && <Check className="h-4 w-4 text-primary" aria-hidden="true" />}
-                                            <ChevronRight className="h-5 w-5 text-muted-foreground" aria-hidden="true" />
-                                        </span>
-                                    }
                                 />
                             )
                         })}
