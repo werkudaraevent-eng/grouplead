@@ -10,7 +10,11 @@ import { cn } from "@/lib/utils"
  * of records, the summary over them, and the day's AI brief. Indicator
  * under the active label, 48dp tall, sentence case. On a phone the row
  * sits flush under the top app bar, edge to edge, where M3 puts primary
- * tabs; on a desk it follows the page header.
+ * tabs; on a desk it follows the page header. The row pins to the top of
+ * the page's scroller: the tabs say which of the three views this is and
+ * are how to reach the others, so they stay in reach under the header while
+ * a long Ringkasan or Insight scrolls beneath them (M3 tabs: fixed under the
+ * top app bar as content scrolls; Google Analytics, Play Console).
  *
  * Insight is a tab only where it exists: the unit's switch is on and the
  * person may read Insight AI. A tab that leads to a refusal is worse than
@@ -27,7 +31,7 @@ export function ReportTabs({ showInsight = false }: { showInsight?: boolean }) {
   const pathname = usePathname()
   const tabs = showInsight ? [...TABS, INSIGHT_TAB] : TABS
   return (
-    <nav role="tablist" aria-label="Tampilan laporan" className="mb-4 flex border-b max-lg:-mt-3 max-sm:-mx-4 max-sm:mb-3 sm:max-lg:-mx-6 sm:max-lg:px-2">
+    <nav role="tablist" aria-label="Tampilan laporan" className="sticky top-0 z-20 mb-4 flex border-b bg-background max-lg:-mt-3 max-sm:-mx-4 max-sm:mb-3 sm:max-lg:-mx-6 sm:max-lg:px-2">
       {tabs.map((tab) => {
         const active = tab.href === "/workspace/reports" ? pathname === tab.href : pathname.startsWith(tab.href)
         return (
