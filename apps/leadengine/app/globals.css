@@ -101,6 +101,14 @@
      both past the 3:1 WCAG asks of a component boundary. */
   --switch-off: #7B8795;
   --ring: #02378D;
+  /* M3 secondary container, outside the drawer: the phone navigation bar's
+     active pill and the More sheet's current row. The same pair as Sales
+     Activity's --tonal and as the drawer's light indicator, but its own
+     token, because the drawer's --sidebar-* turn dark with the panel toggle
+     and nothing outside the drawer may follow them. Its text, the primary,
+     is 8.9:1 on this fill. */
+  --tonal: #D9E4F5;
+  --tonal-foreground: #02378D;
   --chart-1: oklch(0.646 0.222 41.116);
   --chart-2: oklch(0.6 0.118 184.704);
   --chart-3: oklch(0.398 0.07 227.392);

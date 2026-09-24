@@ -61,3 +61,44 @@ export function BottomSheet({
     </Sheet>
   )
 }
+
+/**
+ * A 56dp list row inside a sheet: leading icon, label, optional supporting
+ * line and trailing element; the current place on the tonal indicator.
+ * Same row as Sales Activity's `SheetRow`.
+ */
+export function SheetRow({
+  icon: Icon,
+  label,
+  hint,
+  trailing,
+  active,
+  className,
+  ...props
+}: {
+  icon?: React.ElementType
+  label: string
+  hint?: string
+  trailing?: React.ReactNode
+  active?: boolean
+} & React.ButtonHTMLAttributes<HTMLButtonElement>) {
+  return (
+    <button
+      type="button"
+      aria-current={active ? "page" : undefined}
+      className={cn(
+        "flex min-h-14 w-full items-center gap-4 rounded-xl px-4 text-left text-sm transition-colors disabled:cursor-default disabled:hover:bg-transparent",
+        active ? "bg-[var(--tonal)] font-medium text-[var(--tonal-foreground)]" : "text-foreground hover:bg-muted",
+        className,
+      )}
+      {...props}
+    >
+      {Icon && <Icon className="h-5 w-5 shrink-0 text-muted-foreground" aria-hidden="true" />}
+      <span className="min-w-0 flex-1">
+        <span className="block truncate">{label}</span>
+        {hint && <span className="block truncate text-xs text-muted-foreground">{hint}</span>}
+      </span>
+      {trailing}
+    </button>
+  )
+}

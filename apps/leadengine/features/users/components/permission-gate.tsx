@@ -38,3 +38,16 @@ export function PermissionGate({
 
   return <>{fallback}</>
 }
+
+/**
+ * `PermissionGate`'s answer as a value, for what a gate cannot wrap: a page
+ * announcing its phone menu, or leaving room at its foot for a FAB. False
+ * while the grants load, like the gate's default placeholder.
+ */
+export function useCan(resource: string, action: string): boolean {
+  const { activeCompany } = useCompany()
+  const { can, loading } = usePermissions()
+  if (!activeCompany) return true
+  if (loading) return false
+  return can(resource, action)
+}

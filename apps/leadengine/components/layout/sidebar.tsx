@@ -2,12 +2,10 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { usePathname, useRouter } from "next/navigation"
+import { usePathname } from "next/navigation"
 import {
-    LayoutDashboard, KanbanSquare, Building2, Users,
-    LogOut, ChevronLeft, ChevronsLeft, Settings, Loader2, Moon, Sun, ScrollText, MoreVertical, UserCircle,
+    LogOut, ChevronsLeft, Settings, Loader2, Moon, Sun, ScrollText, MoreVertical, UserCircle,
 } from "@/components/icons"
-import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { CompanySwitcherHeader } from "@/components/layout/company-switcher"
 import dynamic from "next/dynamic"
@@ -29,30 +27,30 @@ const AppSwitcher = dynamic(
 import { usePermissions } from "@/contexts/permissions-context"
 import { useSidebarTheme } from "@/contexts/sidebar-theme-context"
 import { createClient } from "@/utils/supabase/client"
-import { clearActiveSessionId } from "@/lib/session-guard"
+import { useSignOut } from "@/components/layout/use-sign-out"
+import { DESTINATION_ICONS } from "@/components/layout/destination-icons"
+import { CHANGELOG_HREF, PROFILE_HREF, SETTINGS_HREF, canOpenSettings, isActiveHref, permittedDestinations, roleLabel } from "@/lib/navigation/app-nav"
 
+/**
+ * The drawer, from `lg` up. Below `lg` the phone shell takes its place (the
+ * top app bar and the navigation bar in `main-layout.tsx`, the More sheet in
+ * `mobile-nav-bar.tsx`); the drawer never opens as a sheet there.
+ */
 interface SidebarProps {
-    onCollapse?: () => void
-    isSheet?: boolean
     collapsed?: boolean
     onToggleCollapse?: () => void
     serverProfile?: { full_name: string | null; role: string | null; avatar_url: string | null } | null
 }
 
-const mainNav = [
-    { href: "/", label: "Dashboard", icon: LayoutDashboard, module: null },
-    { href: "/leads", label: "Pipeline", icon: KanbanSquare, module: "leads" },
-    { href: "/companies", label: "Companies", icon: Building2, module: "companies" },
-    { href: "/contacts", label: "Contacts", icon: Users, module: "contacts" },
-]
-
 // Administration is administration. Supporting pages (the changelog, the
 // profile), the panel toggle and sign-out live behind the account menu at
 // the foot of the drawer, the same pattern as Sales Activity: Material's
 // drawer holds destinations, and Slack, Notion and Linear keep help and
-// release notes off the rail.
+// release notes off the rail. The destinations and their grants are
+// `DESTINATIONS` in lib/navigation/app-nav.ts, shared with the phone's
+// navigation bar.
 const adminNav = [
-    { href: "/settings", label: "Settings", icon: Settings },
+    { href: SETTINGS_HREF, label: "Settings", icon: Settings },
 ]
 
 /** Menu rows on the panel's own tokens: hover/focus as a tonal state layer, icons in the panel's muted ink. */
@@ -65,12 +63,11 @@ interface UserProfile {
     avatar_url: string | null
 }
 
-export function Sidebar({ onCollapse, isSheet = false, collapsed = false, onToggleCollapse, serverProfile = null }: SidebarProps) {
+export function Sidebar({ collapsed = false, onToggleCollapse, serverProfile = null }: SidebarProps) {
     const pathname = usePathname()
-    const router = useRouter()
     // Use server-provided profile to avoid redundant client-side fetch
     const [profile, setProfile] = useState<UserProfile | null>(serverProfile)
-    const [loggingOut, setLoggingOut] = useState(false)
+    const { signOut: handleLogout, signingOut: loggingOut } = useSignOut()
     const { can, loading: permsLoading } = usePermissions()
     const { isDarkPanel, togglePanel } = useSidebarTheme()
 
@@ -91,44 +88,17 @@ export function Sidebar({ onCollapse, isSheet = false, collapsed = false, onTogg
         fetchProfile()
     }, [serverProfile])
 
-    const handleLogout = async () => {
-        setLoggingOut(true)
-        const supabase = createClient()
-        // Clear the shared session id too — leaving it behind would make the
-        // sibling app compare against an id this browser no longer owns.
-        clearActiveSessionId()
-        await supabase.auth.signOut()
-        router.push("/login")
-        router.refresh()
-    }
-
     const getInitials = (name: string | null) => {
         if (!name) return "?"
         return name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2)
     }
 
-    const getRoleLabel = (role: string | null) => {
-        const labels: Record<string, string> = {
-            super_admin: "Super Admin", director: "Director", bu_manager: "BU Manager", sales: "Sales", finance: "Finance",
-        }
-        return role ? labels[role] || role : "User"
-    }
 
-    const visibleMainNav = permsLoading
-        ? []
-        : mainNav.filter(item => {
-            switch (item.label) {
-                case 'Dashboard':  return can('dashboard', 'read')
-                case 'Pipeline':   return can('leads', 'read')
-                case 'Companies':  return can('companies', 'read')
-                case 'Contacts':   return can('contacts', 'read')
-                default:           return false
-            }
-        })
+    const visibleMainNav = permsLoading ? [] : permittedDestinations(can)
 
     // Settings hub visibility is controlled by settings.read.
     // Section-level access is handled inside /settings via module permissions.
-    const showAdminNav = !permsLoading && can('settings', 'read')
+    const showAdminNav = !permsLoading && canOpenSettings(can)
 
     const menuItemClasses = (isActive: boolean) =>
         `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-semibold transition-all duration-150 ${
@@ -162,7 +132,7 @@ export function Sidebar({ onCollapse, isSheet = false, collapsed = false, onTogg
                 </div>
                 {/* Collapse button — appears on sidebar hover */}
                 {/* Expand button — replaces logo on hover when collapsed */}
-                {onToggleCollapse && !isSheet && collapsed && (
+                {onToggleCollapse && collapsed && (
                     <button
                         onClick={onToggleCollapse}
                         className="absolute inset-x-0 top-0 h-14 flex items-center justify-center transition-opacity duration-150 text-sidebar-foreground/70 hover:text-sidebar-foreground opacity-0 group-hover/sidebar:opacity-100"
@@ -171,12 +141,7 @@ export function Sidebar({ onCollapse, isSheet = false, collapsed = false, onTogg
                         <ChevronsLeft className="h-[18px] w-[18px] rotate-180" />
                     </button>
                 )}
-                {isSheet && onCollapse && (
-                    <Button variant="ghost" size="icon" onClick={onCollapse} className="h-8 w-8 text-sidebar-foreground/50 hover:text-sidebar-foreground" aria-label="Close sidebar">
-                        <ChevronLeft className="h-4 w-4" />
-                    </Button>
-                )}
-                {!collapsed && onToggleCollapse && !isSheet && (
+                {!collapsed && onToggleCollapse && (
                     <button
                         onClick={onToggleCollapse}
                         className="-mr-px flex w-8 shrink-0 self-stretch items-center justify-center rounded-l-lg text-sidebar-foreground/50 transition-colors duration-150 hover:bg-sidebar-accent hover:text-sidebar-foreground"
@@ -204,16 +169,16 @@ export function Sidebar({ onCollapse, isSheet = false, collapsed = false, onTogg
                     </>
                 ) : (
                     visibleMainNav.map((item) => {
-                    const isActive = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href))
+                    const isActive = isActiveHref(pathname, item.href)
+                    const Icon = DESTINATION_ICONS[item.key]
                     return (
                         <Link
                             key={item.href}
                             href={item.href}
-                            onClick={isSheet ? onCollapse : undefined}
                             className={collapsed ? `flex items-center justify-center p-2.5 rounded-lg transition-all duration-150 ${isActive ? "bg-sidebar-primary text-sidebar-primary-foreground" : "text-sidebar-foreground hover:text-sidebar-accent-foreground hover:bg-sidebar-accent"}` : menuItemClasses(isActive)}
                             title={collapsed ? item.label : undefined}
                         >
-                            <item.icon className={iconClasses(isActive)} />
+                            <Icon className={iconClasses(isActive)} />
                             {!collapsed && <span>{item.label}</span>}
                         </Link>
                     )
@@ -230,7 +195,6 @@ export function Sidebar({ onCollapse, isSheet = false, collapsed = false, onTogg
                                 <Link
                                     key={item.href}
                                     href={item.href}
-                                    onClick={isSheet ? onCollapse : undefined}
                                     className={collapsed ? `flex items-center justify-center p-2.5 rounded-lg transition-all duration-150 ${isActive ? "bg-sidebar-primary text-sidebar-primary-foreground" : "text-sidebar-foreground hover:text-sidebar-accent-foreground hover:bg-sidebar-accent"}` : menuItemClasses(isActive)}
                                     title={collapsed ? item.label : undefined}
                                 >
@@ -264,7 +228,7 @@ export function Sidebar({ onCollapse, isSheet = false, collapsed = false, onTogg
                             </span>
                                 <span className="flex-1 min-w-0">
                                     <span className="block text-sm font-semibold truncate leading-tight text-sidebar-accent-foreground">{profile?.full_name || "Loading..."}</span>
-                                    <span className="block text-[11px] truncate text-sidebar-foreground/60">{getRoleLabel(profile?.role ?? null)}</span>
+                                    <span className="block text-[11px] truncate text-sidebar-foreground/60">{roleLabel(profile?.role)}</span>
                                 </span>
                                 <MoreVertical className="h-4 w-4 shrink-0 text-sidebar-foreground" aria-hidden="true" />
                             </button>
@@ -293,15 +257,15 @@ export function Sidebar({ onCollapse, isSheet = false, collapsed = false, onTogg
                     >
                         <div className="px-2 py-1.5">
                             <p className="truncate text-sm font-semibold">{profile?.full_name || "Account"}</p>
-                            <p className="truncate text-xs text-sidebar-foreground">{getRoleLabel(profile?.role ?? null)}</p>
+                            <p className="truncate text-xs text-sidebar-foreground">{roleLabel(profile?.role)}</p>
                         </div>
                         <DropdownMenuSeparator className="bg-sidebar-border" />
                         <DropdownMenuItem asChild>
-                            <Link href="/settings/profile" onClick={isSheet ? onCollapse : undefined}><UserCircle className="h-4 w-4" /> My profile</Link>
+                            <Link href={PROFILE_HREF}><UserCircle className="h-4 w-4" /> My profile</Link>
                         </DropdownMenuItem>
                         {showAdminNav && (
                             <DropdownMenuItem asChild>
-                                <Link href="/changelog" onClick={isSheet ? onCollapse : undefined}><ScrollText className="h-4 w-4" /> Changelog</Link>
+                                <Link href={CHANGELOG_HREF}><ScrollText className="h-4 w-4" /> Changelog</Link>
                             </DropdownMenuItem>
                         )}
                         <DropdownMenuSeparator className="bg-sidebar-border" />

@@ -76,6 +76,17 @@ export const CHANGE_TYPE_META: Record<
 export const CHANGELOG: ChangelogEntry[] = [
     {
         date: "2026-09-24",
+        title: "LeadEngine on a phone now works like Sales Activity",
+        items: [
+            { type: "improvement", text: "On a phone or a small tablet, the side menu no longer slides over the page. Dashboard, Pipeline, Companies and Contacts are in a bar along the bottom of the screen, the same as in Sales Activity, and you only see the ones your role can open." },
+            { type: "feature", text: "More, at the right end of that bar, holds everything else: Settings and the Changelog (if your role can open Settings), My profile, the business unit you are viewing (tap it to switch to another unit or to the whole Werkudara Group), a shortcut to Sales Activity, and Sign out." },
+            { type: "improvement", text: "The top of the screen shows the page's name. On a record or a page inside Settings, the arrow at its left takes you back to the page above; on Contacts, Companies and Pipeline, the ⋮ at its right holds Export and Import (and on Pipeline, renaming, cloning or deleting the pipeline and managing its stages)." },
+            { type: "improvement", text: "Add contact, Add company and New lead are a large button at the bottom right of the screen, just above the bar, so they are always in reach while you scroll. The last rows and the Load more button are never hidden behind it." },
+            { type: "improvement", text: "The search and filters on Contacts and Companies still slide away as you scroll down and come back just under the top bar when you scroll up. On a computer nothing changes." },
+        ],
+    },
+    {
+        date: "2026-09-24",
         title: "One compact header on every page",
         items: [
             { type: "improvement", text: "On a phone, Contacts and Companies give the screen to the list as you scroll down: the saved views, the search and the filter chips slide out of the way, and come back under the top bar as soon as you scroll up a little. They stay put while you are typing a search or have the Filter panel open, and the gaps between the search, the chips and the first card are now even." },

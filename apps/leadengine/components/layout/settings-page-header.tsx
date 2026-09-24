@@ -21,14 +21,19 @@
  * title's size never change. The line under it follows what it says: with
  * `intro` it teaches and closes for good with ✕ (`PageIntro`); without, it
  * states facts and always shows. The header block always ends 16px above the
- * content, whether or not a line shows. On a phone the title and the actions
- * share the row, the parent line stays (it is the way back) and so does the
- * description.
+ * content, whether or not a line shows.
+ *
+ * Below `lg` the phone shell's top app bar carries the title, and the
+ * parent line becomes the bar's back arrow to the nearest parent (Sales
+ * Activity hides its page title there the same way): the row keeps only
+ * the actions, and is not drawn when there are none. The description
+ * stays.
  */
 
 import { useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { PageIntro } from "@/components/shared/page-intro"
+import { PageChrome } from "@/components/layout/page-chrome"
 import { cn } from "@/lib/utils"
 
 interface Breadcrumb {
@@ -78,18 +83,22 @@ export function SettingsPageHeader({ title, subtitle, intro, breadcrumbs, action
     }, [])
 
     const parents = breadcrumbs ? [SETTINGS_CRUMB, ...breadcrumbs.slice(0, -1)] : []
+    // The phone's back arrow goes to the nearest parent with a page.
+    const backHref = [...parents].reverse().find((crumb) => crumb.href)?.href
 
     return (
         <>
+            <PageChrome title={title} backHref={backHref} />
             {/* The sticky part is this one row and nothing else. */}
             <div
                 ref={headerRef}
                 className={cn(
                     "sticky top-0 z-40 flex min-h-14 items-center justify-between gap-3 border-b bg-background px-4 py-1.5 transition-[border-color,box-shadow] duration-200 sm:px-6 lg:px-8",
                     scrolled ? "border-border shadow-sm" : "border-transparent",
+                    !actions && "max-lg:hidden",
                 )}
             >
-                <div className="min-w-0">
+                <div className="min-w-0 max-lg:hidden">
                     {parents.length > 0 && (
                         <nav aria-label="Breadcrumb">
                             <ol className="flex min-w-0 items-center gap-1 text-xs font-medium text-muted-foreground">
@@ -115,7 +124,7 @@ export function SettingsPageHeader({ title, subtitle, intro, breadcrumbs, action
 
             {/* Under the row, so it scrolls away; the 16px under it is always there.
                 The 6px above keeps the ✕'s round target clear of the sticky row. */}
-            <div className="px-4 pb-4 sm:px-6 lg:px-8">
+            <div className={cn("px-4 pb-4 sm:px-6 lg:px-8", !actions && "max-lg:pt-1.5")}>
                 {subtitle && (intro ? (
                     <PageIntro hintKey={intro} className="pt-1.5">{subtitle}</PageIntro>
                 ) : (

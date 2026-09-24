@@ -13,7 +13,7 @@ import { contactFilterOptionsAction, exportContactsAction, listContactsPageActio
 import { deleteContactsAction } from "@/app/actions/contact-actions"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
-import { DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu"
+import { DropdownMenuSeparator } from "@/components/ui/dropdown-menu"
 import {
     Table,
     TableBody,
@@ -35,11 +35,13 @@ import {
 
 import { AddContactModal } from "@/features/contacts/components/add-contact-modal"
 import { ImportContactsModal } from "@/features/contacts/components/import-contacts-modal"
-import { PermissionGate } from "@/features/users/components/permission-gate"
+import { PermissionGate, useCan } from "@/features/users/components/permission-gate"
 import { PermissionMenuItem } from "@/components/shared/permission-menu-item"
 import { BulkActionBar } from "@/components/shared/bulk-action-bar"
 import type { FilterDefinition, FilterValue } from "@/components/shared/filter-builder-types"
-import { HeaderOverflowMenu, ListPageHeader } from "@/components/shared/list-page-header"
+import { ListPageHeader } from "@/components/shared/list-page-header"
+import type { ChromeMenuItem } from "@/components/layout/page-chrome"
+import { FAB_CLEARANCE, Fab } from "@/components/layout/fab"
 import { listIntroKey } from "@/lib/hints/hint-key"
 import { SavedViewsBar, ViewsMenu } from "@/components/shared/saved-views-bar"
 import { TableSkeleton } from "@/components/shared/table-skeleton"
@@ -475,6 +477,7 @@ export function ContactsList({ fresh, introSeen }: { fresh: boolean; /** Whether
     // Worth saving as a view once the list differs from how it first opens.
     const customised = !isPlainState(state) || columnsKey(columns) !== columnsKey(DEFAULT_COLUMNS)
     const exportCount = list.loaded && list.total > 0 ? ` (${fmt(list.total)})` : ""
+    const canCreate = useCan("contacts", "create")
     const addButton = (className?: string) => (
         <PermissionGate resource="contacts" action="create">
             <Button size="sm" className={className} onClick={() => setAddContactOpen(true)}>
@@ -482,6 +485,11 @@ export function ContactsList({ fresh, introSeen }: { fresh: boolean; /** Whether
             </Button>
         </PermissionGate>
     )
+    // Below `lg`: Export and Import behind the top app bar's ⋮, Add as the FAB.
+    const phoneMenu: ChromeMenuItem[] = [
+        { label: exporting ? "Exporting…" : `Export${exportCount}`, icon: Download, onSelect: () => { if (!exporting) handleExport(false) } },
+        ...(canCreate ? [{ label: "Import", icon: Upload, onSelect: () => setImportOpen(true) }] : []),
+    ]
 
     const empty: React.ReactNode = !list.loaded
         ? list.failed
@@ -496,42 +504,29 @@ export function ContactsList({ fresh, introSeen }: { fresh: boolean; /** Whether
     return (
         // Opts out of the shell's 900px floor: built for a phone's own width
         // (cards below md, the table scrolls inside its own box above it).
-        <div data-fluid-page className="flex w-full flex-col bg-background md:h-full md:overflow-hidden">
-            {/* One compact row; the description under it only until dismissed. */}
-            <div className="shrink-0 px-4 sm:px-6 md:has-[p]:pb-3 lg:px-8">
+        // Below `lg` it ends clear of the FAB, so the last card and the pager are never under it.
+        <div data-fluid-page className={cn("flex w-full flex-col bg-background md:h-full md:overflow-hidden", canCreate && FAB_CLEARANCE)}>
+            {/* One compact row; the description under it only until dismissed.
+                Below `lg` the phone shell carries it (title, ⋮, FAB). */}
+            <div className="shrink-0 px-4 max-lg:hidden sm:px-6 md:has-[p]:pb-3 lg:px-8">
                 <ListPageHeader
                     title="Contacts"
                     subtitle="Manage client contacts, vendors, and associates."
                     intro={{ key: listIntroKey("contacts"), seen: introSeen }}
+                    phoneMenu={phoneMenu}
                     actions={
                         <>
                             {/* Secondary actions as labelled outlined buttons beside the
                                 primary one, the way Sales Activity's lists carry them. */}
-                            <div className="hidden items-center gap-2 md:flex">
-                                <Button variant="outline" size="sm" onClick={() => handleExport(false)} disabled={exporting} title={`Export ${fmt(list.total)} contacts that match the filters`}>
-                                    <Download className="h-4 w-4" /> {exporting ? "Exporting…" : `Export${exportCount}`}
+                            <Button variant="outline" size="sm" onClick={() => handleExport(false)} disabled={exporting} title={`Export ${fmt(list.total)} contacts that match the filters`}>
+                                <Download className="h-4 w-4" /> {exporting ? "Exporting…" : `Export${exportCount}`}
+                            </Button>
+                            <PermissionGate resource="contacts" action="create">
+                                <Button variant="outline" size="sm" onClick={() => setImportOpen(true)}>
+                                    <Upload className="h-4 w-4" /> Import
                                 </Button>
-                                <PermissionGate resource="contacts" action="create">
-                                    <Button variant="outline" size="sm" onClick={() => setImportOpen(true)}>
-                                        <Upload className="h-4 w-4" /> Import
-                                    </Button>
-                                </PermissionGate>
-                                {addButton()}
-                            </div>
-                            {/* On a phone: Add stays a button, Export and Import go behind ⋮. */}
-                            <div className="flex items-center gap-2 md:hidden">
-                                {addButton("h-11")}
-                                <HeaderOverflowMenu>
-                                    <DropdownMenuItem disabled={exporting} onSelect={() => handleExport(false)}>
-                                        <Download className="mr-2 h-4 w-4" /> Export{exportCount}
-                                    </DropdownMenuItem>
-                                    <PermissionGate resource="contacts" action="create">
-                                        <DropdownMenuItem onSelect={() => setImportOpen(true)}>
-                                            <Upload className="mr-2 h-4 w-4" /> Import
-                                        </DropdownMenuItem>
-                                    </PermissionGate>
-                                </HeaderOverflowMenu>
-                            </div>
+                            </PermissionGate>
+                            {addButton()}
                         </>
                     }
                 />
@@ -694,6 +689,8 @@ export function ContactsList({ fresh, introSeen }: { fresh: boolean; /** Whether
             />
 
             <ImportContactsModal open={importOpen} onOpenChange={setImportOpen} onSuccess={reloadAll} />
+
+            {canCreate && <Fab label="Add contact" onClick={() => setAddContactOpen(true)} />}
 
             <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
                 <AlertDialogContent>

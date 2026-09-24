@@ -3,6 +3,9 @@
 import { useEffect, useState } from "react"
 import dynamic from "next/dynamic"
 import { Sidebar } from "@/components/layout/sidebar"
+import { MobileTopBar } from "@/components/layout/mobile-top-bar"
+import { MobileNavBar } from "@/components/layout/mobile-nav-bar"
+import { PageChromeProvider } from "@/components/layout/page-chrome"
 
 /**
  * Loaded client-only, and that is load-bearing rather than an optimisation.
@@ -28,9 +31,6 @@ import { CompanySwitchLoader } from "@/components/layout/company-switch-loader"
 import { SessionGuard } from "@/components/layout/session-guard"
 import { UsageBeacon } from "@/components/layout/usage-beacon"
 import { MaintenanceWatcher } from "@/features/settings/components/maintenance-watcher"
-import { Sheet, SheetContent, SheetTitle, SheetDescription } from "@/components/ui/sheet"
-import { Button } from "@/components/ui/button"
-import { Menu } from "@/components/icons"
 import { CompanyProvider } from "@/contexts/company-context"
 import { PermissionsProvider } from "@/contexts/permissions-context"
 import { SidebarThemeProvider } from "@/contexts/sidebar-theme-context"
@@ -57,8 +57,6 @@ interface MainLayoutProps {
 }
 
 export function MainLayout({ children, initialCompany, companies, currencySettings = DEFAULT_CURRENCY_SETTINGS, userProfile = null, initialCollapsed = false }: MainLayoutProps) {
-    const [mobileOpen, setMobileOpen] = useState(false)
-
     return (
         <CompanyProvider initialCompany={initialCompany} companies={companies}>
             <CompanySwitchLoader />
@@ -70,9 +68,11 @@ export function MainLayout({ children, initialCompany, companies, currencySettin
                         <UsageBeacon />
                         <MaintenanceWatcher />
                         <TopLoader />
-                        <MainLayoutInner initialCollapsed={initialCollapsed} mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} userProfile={userProfile}>
-                            {children}
-                        </MainLayoutInner>
+                        <PageChromeProvider>
+                            <MainLayoutInner initialCollapsed={initialCollapsed} userProfile={userProfile}>
+                                {children}
+                            </MainLayoutInner>
+                        </PageChromeProvider>
                     </SidebarThemeProvider>
                 </CurrencyProvider>
             </PermissionsProvider>
@@ -86,14 +86,10 @@ import { useCompany } from "@/contexts/company-context"
 
 function MainLayoutInner({
     children,
-    mobileOpen,
-    setMobileOpen,
     userProfile,
     initialCollapsed = false,
 }: {
     children: React.ReactNode
-    mobileOpen: boolean
-    setMobileOpen: (v: boolean) => void
     userProfile?: UserProfile | null
     initialCollapsed?: boolean
 }) {
@@ -121,39 +117,33 @@ function MainLayoutInner({
         })
     }
 
+    // Below `lg` the phone shell (Sales Activity's, rule for rule): the top
+    // app bar above `<main>`, the navigation bar under it, the drawer gone
+    // rather than folded into a sheet. From `lg` the drawer, as it was. The
+    // shell is `h-dvh` so the navigation bar sits on the visible bottom edge
+    // of a phone's browser, not under its toolbar.
     return (
-        <div className="shell-in flex h-screen overflow-hidden">
+        <div className="shell-in flex h-dvh overflow-hidden">
             <aside
                 data-sidebar
                 className={`hidden lg:flex lg:flex-col shrink-0 flex-none overflow-hidden bg-sidebar relative ${darkClass} transition-[width] duration-200 ease-out ${collapsed ? "lg:w-[60px]" : "lg:w-[220px]"}`}
             >
                 <Sidebar serverProfile={userProfile} collapsed={collapsed} onToggleCollapse={toggleCollapse} />
             </aside>
-            <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-                <SheetContent side="left" className={`w-72 p-0 border-r-0 ${darkClass}`}>
-                    <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
-                    <SheetDescription className="sr-only">Main navigation sidebar for mobile devices.</SheetDescription>
-                    <Sidebar isSheet onCollapse={() => setMobileOpen(false)} serverProfile={userProfile} />
-                </SheetContent>
-            </Sheet>
-            <div className="flex-1 flex flex-col min-w-0 overflow-x-auto">
-                <div className="lg:hidden flex items-center h-14 px-4 border-b bg-background/95 backdrop-blur shrink-0">
-                    <Button variant="ghost" size="icon" onClick={() => setMobileOpen(true)} className="h-9 w-9 mr-3" aria-label="Open navigation menu">
-                        <Menu className="h-5 w-5" />
-                    </Button>
-                    <div className="flex items-center gap-2">
-                        <div className="w-7 h-7 rounded-md bg-primary flex items-center justify-center">
-                            <span className="text-primary-foreground font-bold text-xs">W</span>
-                        </div>
-                        <span className="font-bold text-sm">Werkudara Group</span>
-                    </div>
-                </div>
+            <div className="flex min-w-0 flex-1 flex-col">
+                <MobileTopBar />
                 {/* The content keeps a 900px floor so the CRM's wide tables scroll
                     sideways instead of squeezing. A page built to reflow down
                     to a phone opts out by carrying `data-fluid-page` on its
                     root (Settings → Usage), so it gets the real width and no
-                    sideways page scroll; every other page is unchanged. */}
-                <main id="main-content" className={`flex-1 overflow-y-auto overflow-x-auto bg-background thin-scrollbar min-w-[900px] has-[[data-fluid-page]]:min-w-0 transition-opacity duration-200 ${isSwitching ? "opacity-60 pointer-events-none" : "opacity-100"}`}>{children}</main>
+                    sideways page scroll; every other page is unchanged. The
+                    sideways scroll is this box's, between the two bars, so
+                    the bars stay on screen while a wide page moves under
+                    them. */}
+                <div className="flex min-h-0 flex-1 flex-col overflow-x-auto overflow-y-hidden">
+                    <main id="main-content" className={`flex-1 min-h-0 overflow-y-auto overflow-x-auto bg-background thin-scrollbar min-w-[900px] has-[[data-fluid-page]]:min-w-0 transition-opacity duration-200 ${isSwitching ? "opacity-60 pointer-events-none" : "opacity-100"}`}>{children}</main>
+                </div>
+                <MobileNavBar profile={userProfile ?? null} />
             </div>
         </div>
     )

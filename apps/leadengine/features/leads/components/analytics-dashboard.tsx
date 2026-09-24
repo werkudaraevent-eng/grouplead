@@ -112,6 +112,7 @@ import { DashboardViewSwitcher } from "./dashboard-view-switcher"
 import type { DashboardFiltersSnapshot } from "@/types/dashboard-view"
 import type { LayoutItem } from "react-grid-layout"
 import type { WidgetId } from "@/features/leads/lib/dashboard-layout"
+import { PageChrome } from "@/components/layout/page-chrome"
 
 const LAUNCH_WIDGET_IDS = WIDGET_IDS.filter(
     id => id !== "goal-forecast" && id !== "goal-variance",
@@ -1534,6 +1535,10 @@ export function AnalyticsDashboard({
 
     return (
         <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
+            {/* Below `lg` the top app bar says "Dashboard", the destination's
+                name, and the greeting gives way to it (Sales Activity hides
+                its page title there the same way); the factual line stays. */}
+            <PageChrome title="Dashboard" />
             {/* ─── HEADER (two-row, sticky) ──────────────────────────────────
                 Inspired by Vercel / Stripe / GitHub Actions: separate the
                 identity row (title + global actions) from the filter row
@@ -1581,7 +1586,7 @@ export function AnalyticsDashboard({
                             the same size at rest and scrolled (DESIGN.md "Page
                             headers"); only the row's height and the factual
                             subtitle change with the scroll. */}
-                        <h1 style={{
+                        <h1 className="max-lg:hidden" style={{
                             fontSize: 20, fontWeight: 600, color: "var(--foreground)",
                             letterSpacing: "-0.025em", lineHeight: 1.15, margin: 0,
                             whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",

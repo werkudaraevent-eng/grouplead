@@ -176,7 +176,9 @@ function PhoneFilterBar({ search, filters, className }: { search: ToolbarSearch;
  * The block that holds a list page's controls, directly under its header.
  *
  * From `md` up it is the toolbar's band over the table, as it always was:
- * `pb-4` and one hairline under it.
+ * `pb-4` and one hairline under it; between `md` and `lg`, where the page's
+ * header row gives way to the top app bar, it keeps its 12px top padding
+ * so the search does not touch the bar.
  *
  * Below `md` it is one quick-return block (M3 top app bar, "enter always";
  * Gmail, Google Contacts): the saved-view chips, the search with its Filter
@@ -210,7 +212,7 @@ export function ListControls({ children }: { children: React.ReactNode }) {
           "transition-transform duration-200 ease-out motion-reduce:transition-none",
           hidden && "pointer-events-none -translate-y-full",
           stuck && !hidden ? "border-border" : "border-transparent",
-          "md:static md:z-auto md:block md:border-border md:pt-0 md:pb-4 lg:px-8",
+          "md:static md:z-auto md:block md:border-border md:pb-4 lg:px-8 lg:pt-0",
         )}
       >
         {children}

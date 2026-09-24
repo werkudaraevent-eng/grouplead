@@ -40,7 +40,9 @@ export function BulkActionBar({
     return (
         <div
             className={cn(
-                "fixed left-1/2 -translate-x-1/2 z-50 bottom-6",
+                // Below `lg` it clears the phone's navigation bar (80dp and the
+                // home indicator's inset), level with the FAB beside it.
+                "fixed left-1/2 -translate-x-1/2 z-50 bottom-6 max-lg:bottom-[calc(6rem+env(safe-area-inset-bottom))]",
                 "animate-in fade-in slide-in-from-bottom-4 duration-200",
                 className,
             )}

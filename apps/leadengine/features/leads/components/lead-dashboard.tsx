@@ -36,7 +36,9 @@ import { PipelineIconPicker, PipelineIcon, DEFAULT_PIPELINE_ICON } from "@/featu
 import { useResizablePanel } from "@/hooks/use-resizable-panel"
 import { usePersistentViewMode } from "@/hooks/use-persistent-view-mode"
 import { useRouter, usePathname } from "next/navigation"
-import { PermissionGate } from "@/features/users/components/permission-gate"
+import { PermissionGate, useCan } from "@/features/users/components/permission-gate"
+import { PageChrome, type ChromeMenuItem } from "@/components/layout/page-chrome"
+import { FAB_CLEARANCE, Fab } from "@/components/layout/fab"
 import { usePermissions } from "@/contexts/permissions-context"
 import { Input } from "@/components/ui/input"
 
@@ -110,6 +112,8 @@ export function LeadDashboard() {
     // super_admin/admin to mutate them). Gate the create/rename/delete UI on
     // the same admin-config permission so operators don't see dead buttons.
     const canManagePipelines = can("master_options", "update")
+    // The New Lead button's gate, as a value for the phone's FAB and menu.
+    const canCreateLeads = useCan("leads", "create")
 
     // Pipeline state
     const [pipelines, setPipelines] = useState<Pipeline[]>([])
@@ -703,8 +707,39 @@ export function LeadDashboard() {
         []
     )
 
+    // Below `lg` the header's first row gives way to the phone shell: the
+    // pipeline's name is the top app bar's title, New lead is the FAB, and
+    // what the row's two menus hold is in the bar's ⋮ (Sales Activity's
+    // "Content before chrome on a phone"). On a phone the row sat past the
+    // right edge of the board's 900px, out of sight.
+    const openNewLead = () => {
+        setAddSheetDefaultStageId(undefined)
+        setAddSheetOpen(true)
+    }
+    const phoneMenu: ChromeMenuItem[] = [
+        ...(canCreateLeads ? [{ label: "Import leads", icon: Upload, onSelect: () => setImportOpen(true) }] : []),
+        ...(canCreateLeads && filteredLeads.length > 0 ? [{ label: "Export to XLSX", icon: Download, onSelect: () => handleBulkExport(filteredLeads) }] : []),
+        ...(activePipeline && canManagePipelines
+            ? [
+                  {
+                      label: "Rename pipeline",
+                      icon: Pencil,
+                      onSelect: () => {
+                          setRenameValue(activePipeline.name)
+                          setRenameIcon(activePipeline.icon || DEFAULT_PIPELINE_ICON)
+                          setRenameOpen(true)
+                      },
+                  },
+                  { label: "Manage stages", icon: ListTree, href: `/settings/pipeline?id=${activePipeline.id}` },
+                  { label: "Clone pipeline", icon: Copy, onSelect: () => { if (!cloning) handleClonePipeline() } },
+                  ...(pipelines.length > 1 ? [{ label: "Delete pipeline", icon: Trash2, danger: true, onSelect: () => setDeleteTarget(activePipeline) }] : []),
+              ]
+            : []),
+    ]
+
     return (
-        <div className="flex h-[calc(100vh-3.5rem)] lg:h-screen overflow-hidden bg-muted/20">
+        <div className={`flex h-full overflow-hidden bg-muted/20 ${canCreateLeads && activePipeline ? FAB_CLEARANCE : ""}`}>
+            <PageChrome title={activePipeline?.name ?? "Pipeline"} menu={phoneMenu} />
             {/* ═══════════════════════════════════════════════════════════
                 LEFT: Collapsible Pipeline Sidebar (Bigin-style)
             ═══════════════════════════════════════════════════════════ */}
@@ -924,8 +959,8 @@ export function LeadDashboard() {
 
                 {/* ─── Page Header (Linear / Attio style two-row layout) ─────────── */}
                 <div className="border-b border-border bg-background shrink-0">
-                    {/* Row 1: Pipeline identity + primary action */}
-                    <div className="flex items-center justify-between gap-4 px-6 pt-4 pb-2">
+                    {/* Row 1: Pipeline identity + primary action (from `lg`; below, the phone shell's) */}
+                    <div className="flex items-center justify-between gap-4 px-6 pt-4 pb-2 max-lg:hidden">
                         <div className="flex items-center gap-3 min-w-0">
                             {activePipeline?.icon && (
                                 <PipelineIcon icon={activePipeline.icon} className="h-5 w-5 text-muted-foreground shrink-0" />
@@ -1020,8 +1055,12 @@ export function LeadDashboard() {
                     </div>
 
                     {/* Row 2: Toolbar */}
-                    <div className="flex items-center justify-between gap-3 px-6 pb-2.5">
+                    <div className="flex items-center justify-between gap-3 px-6 pb-2.5 max-lg:pt-2.5">
                         <div className="flex items-center gap-2 min-w-0 flex-1">
+                            {/* Row 1's count, which a phone does not draw. */}
+                            <span className="shrink-0 text-xs font-medium tabular-nums text-muted-foreground lg:hidden">
+                                {leadsLoading ? "…" : `${filteredLeads.length.toLocaleString("en-US")} ${filteredLeads.length === 1 ? "lead" : "leads"}`}
+                            </span>
                             <div className="relative w-full max-w-[280px]">
                                 <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground/60 pointer-events-none" />
                                 <Input
@@ -1243,6 +1282,8 @@ export function LeadDashboard() {
                     />
                 </SheetContent>
             </Sheet>
+
+            {canCreateLeads && activePipeline && <Fab label="New lead" onClick={openNewLead} />}
 
             {/* Import Leads Modal */}
             <ImportLeadsModal

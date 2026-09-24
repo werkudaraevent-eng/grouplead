@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react"
 import { useRouter } from "next/navigation"
+import { PageChrome } from "@/components/layout/page-chrome"
 import Link from "next/link"
 import { Lead, PipelineStage, TransitionRule } from "@/types"
 import { Button } from "@/components/ui/button"
@@ -240,6 +241,11 @@ export function LeadDetailPage({ lead, prevLeadId, nextLeadId, lastModifiedBy = 
     // ═══════════════════════════════════════════════════════
     return (
         <div className="flex min-w-0 flex-col h-full overflow-hidden bg-[#f8fafc]">
+            {/* Below `lg` the top app bar's arrow is the way back, so the
+                header's own arrow is desk-only (one door each). The bar says
+                what the page is; the name, which can be edited in place,
+                stays in the header under it. */}
+            <PageChrome title="Lead" backHref="/leads" />
 
             {/* ═══ TOP HEADER (white) ══════════════════════════════ */}
             <header className="flex-none min-w-0 bg-white border-b border-slate-200">
@@ -249,7 +255,7 @@ export function LeadDetailPage({ lead, prevLeadId, nextLeadId, lastModifiedBy = 
                     <div className="flex min-w-0 flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
                         <div className="flex min-w-0 flex-1 items-start gap-3">
                             {/* Nav Cluster: Back + Prev/Next */}
-                            <div className="flex items-center gap-1 mt-0.5">
+                            <div className="flex items-center gap-1 mt-0.5 max-lg:hidden">
                                 <button
                                     onClick={() => router.push('/leads')}
                                     className="w-8 h-8 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"

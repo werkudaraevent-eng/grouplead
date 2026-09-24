@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react"
 import { useRouter } from "next/navigation"
+import { PageChrome } from "@/components/layout/page-chrome"
 import Link from "next/link"
 import { createClient } from "@/utils/supabase/client"
 import { updateContactAction } from "@/app/actions/contact-actions"
@@ -251,6 +252,11 @@ export function ContactDetailPage({ contact, leads, lastModified, lastModifiedBy
     // ═══════════════════════════════════════════════════════
     return (
         <div className="flex flex-col h-full overflow-hidden bg-[#f8fafc]">
+            {/* Below `lg` the top app bar's arrow is the way back, so the
+                header's own arrow is desk-only (one door each). The bar says
+                what the page is; the name, which can be edited in place,
+                stays in the header under it. */}
+            <PageChrome title="Contact" backHref="/contacts" />
 
             {/* ═══ TOP HEADER ══════════════════════════════════════ */}
             <header className="flex-none bg-white border-b border-slate-200">
@@ -258,7 +264,7 @@ export function ContactDetailPage({ contact, leads, lastModified, lastModifiedBy
                     <div className="flex items-start gap-3">
                         <button
                             onClick={() => router.push('/contacts')}
-                            className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors mt-0.5"
+                            className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors mt-0.5 max-lg:hidden"
                             title="Back to contacts"
                         >
                             <ArrowLeft className="h-[18px] w-[18px]" />

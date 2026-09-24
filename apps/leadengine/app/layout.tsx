@@ -1,4 +1,4 @@
-﻿import type { Metadata } from "next";
+﻿import type { Metadata, Viewport } from "next";
 import { Plus_Jakarta_Sans, Geist_Mono } from "next/font/google";
 import { Toaster } from "sonner";
 import "./globals.css";
@@ -13,6 +13,16 @@ const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
 });
+
+// The layout reaches under a phone's notch and home indicator, so the top
+// app bar and the navigation bar can pad themselves by the safe-area insets
+// (env(safe-area-inset-*)) rather than the browser letterboxing the page.
+// Same as Sales Activity's.
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+};
 
 export const metadata: Metadata = {
   title: "LeadEngine - Corporate Lead Management",

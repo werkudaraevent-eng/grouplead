@@ -23,7 +23,8 @@ import { AppTransit, type WerkudaraApp } from "@/components/layout/app-transit"
  * than missing, so a menu opened early does not grow a row a moment later.
  */
 
-const salesMissionUrl = process.env.NEXT_PUBLIC_SALES_MISSION_URL?.trim() || null
+/** Sales Activity's address, for this switcher and the phone's More sheet. */
+export const salesMissionUrl = process.env.NEXT_PUBLIC_SALES_MISSION_URL?.trim() || null
 
 function LauncherMark() {
     return (

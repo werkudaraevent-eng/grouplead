@@ -5,11 +5,12 @@ export default function SettingsLoading() {
             {/* Header skeleton, matching SettingsPageHeader: the one 56dp row
                 with the title, then the 16px the header always leaves. No
                 description line, which people close once read (PageIntro),
-                so the page does not jump when it arrives. */}
-            <div className="flex min-h-14 items-center border-b border-transparent px-4 py-1.5 sm:px-6 lg:px-8">
+                so the page does not jump when it arrives. Below `lg` the
+                title is the top app bar's, so the row is not drawn. */}
+            <div className="flex min-h-14 items-center border-b border-transparent px-4 py-1.5 max-lg:hidden sm:px-6 lg:px-8">
                 <div className="h-7 w-32 bg-muted animate-pulse rounded-md" />
             </div>
-            <div className="pb-4" />
+            <div className="pb-4 max-lg:pt-1.5" />
 
             <div className="px-4 sm:px-6 lg:px-8 pb-20">
                 <div className={CONTAINER}>
