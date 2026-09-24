@@ -50,6 +50,7 @@ export const CHANGELOG: ChangeEntry[] = [
     items: [
       { kind: "diperbaiki", text: "Aplikasi kini benar-benar memakai huruf Plus Jakarta Sans. Selama ini yang tampil huruf bawaan perangkat karena pengaturannya tidak terbaca." },
       { kind: "lebih-baik", text: "Tabel Aktivitas, Prospek, dan Laporan mendapat ruang lebih: bagian bawah halaman dan baris halaman di bawah tabel dibuat lebih ramping, batang geser tidak lagi menampilkan panah yang menabrak sudut kartu dan dimulai di bawah judul kolom, dan judul kolom Aksi kini rata kiri seperti tombolnya." },
+      { kind: "diperbaiki", text: "Menu Kolom tidak lagi terpotong di bagian bawah layar: tingginya menyesuaikan ruang yang ada, judul dan Susunan awal tetap di atas, dan daftar kolomnya bisa digulir." },
     ],
   },
   {

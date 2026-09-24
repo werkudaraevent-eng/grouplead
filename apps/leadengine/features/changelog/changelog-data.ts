@@ -80,6 +80,7 @@ export const CHANGELOG: ChangelogEntry[] = [
         items: [
             { type: "fix", text: "LeadEngine now really uses Plus Jakarta Sans. Until now the setting never reached the page, so text showed in the device's default font." },
             { type: "improvement", text: "Scrollbars in tables and lists are the slim kind without arrow buttons on Windows." },
+            { type: "fix", text: "The Columns menu on Contacts and Companies no longer runs off the bottom of a short window: it fits the space available and its list scrolls." },
         ],
     },
     {

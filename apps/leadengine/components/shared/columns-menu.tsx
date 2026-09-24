@@ -58,8 +58,11 @@ export function ColumnsMenu<T extends ColumnLike>({
           <Columns className="h-5 w-5" />
         </ToolbarIconButton>
       </PopoverTrigger>
-      <PopoverContent align="end" className="w-72 p-0">
-        <div className="flex items-center justify-between border-b border-border px-4 py-3">
+      {/* M3 menu: it never runs past the window. Its height is capped at the
+          room Radix measures around the trigger, the title and Reset stay
+          put, and only the list scrolls. */}
+      <PopoverContent align="end" collisionPadding={16} className="flex w-72 flex-col p-0 max-h-[min(var(--radix-popover-content-available-height),32rem)]">
+        <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
           <div>
             <p className="text-sm font-semibold text-foreground">Columns</p>
             <p className="text-xs text-muted-foreground">{shown} of {columns.length} shown</p>
@@ -68,8 +71,8 @@ export function ColumnsMenu<T extends ColumnLike>({
             <RotateCcw className="h-3 w-3" /> Reset
           </button>
         </div>
-        <p className="px-4 pb-1 pt-2 text-[11px] text-muted-foreground">Tick to show · drag to reorder</p>
-        <div className="custom-scrollbar flex max-h-[360px] flex-col gap-0.5 overflow-y-auto px-2 pb-2">
+        <p className="shrink-0 px-4 pb-1 pt-2 text-[11px] text-muted-foreground">Tick to show · drag to reorder</p>
+        <div className="custom-scrollbar flex min-h-0 flex-1 overscroll-contain flex-col gap-0.5 overflow-y-auto px-2 pb-2">
           {columns.map((column, index) => (
             <div
               key={column.id}

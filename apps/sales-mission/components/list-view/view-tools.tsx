@@ -101,8 +101,11 @@ function ColumnsMenu() {
           <Columns className="h-5 w-5" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent align="end" className="w-72 p-0">
-        <div className="flex items-start justify-between gap-3 border-b px-4 py-3">
+      {/* M3 menu: it never runs past the window. Its height is capped at the
+          room Radix measures below (or above) the trigger, the title and
+          Susunan awal stay put, and only the list scrolls. */}
+      <PopoverContent align="end" collisionPadding={16} className="flex w-72 flex-col p-0 max-h-[min(var(--radix-popover-content-available-height),32rem)]">
+        <div className="flex shrink-0 items-start justify-between gap-3 border-b px-4 py-3">
           <div>
             <p className="text-sm font-semibold text-foreground">Kolom</p>
             <p className="text-xs text-muted-foreground" aria-live="polite">
@@ -113,8 +116,8 @@ function ColumnsMenu() {
             <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" /> Susunan awal
           </button>
         </div>
-        <p className="px-4 pb-1 pt-2 text-[11px] text-muted-foreground">Centang untuk menampilkan · seret untuk mengurutkan</p>
-        <ul ref={listRef} className="custom-scrollbar flex max-h-[360px] flex-col gap-0.5 overflow-y-auto px-2 pb-2">
+        <p className="shrink-0 px-4 pb-1 pt-2 text-[11px] text-muted-foreground">Centang untuk menampilkan · seret untuk mengurutkan</p>
+        <ul ref={listRef} className="custom-scrollbar flex min-h-0 flex-1 overscroll-contain flex-col gap-0.5 overflow-y-auto px-2 pb-2">
           {locked.map((spec) => (
             <li key={spec.id} className="flex items-center justify-between gap-2 rounded-md py-2 pl-2 pr-2">
               <span className="flex min-w-0 items-center gap-3">
