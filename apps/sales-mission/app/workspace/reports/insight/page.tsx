@@ -7,6 +7,7 @@ import { createClient } from "@/utils/supabase/server"
 import { insightDayLabel, insightDayName, insightHistoryWindow, listInsightDays, readInsight, wibDayOf } from "@/lib/ai/insights"
 import { buildInsightView, canSeeInsight, insightScopeNote, resolveInsightScope } from "@/lib/ai/insight-view"
 import { WorkspacePage } from "@/app/workspace/workspace-page"
+import { pageIntroKey } from "@/lib/hints/hint-key"
 import { paths } from "@/lib/paths"
 import { cn } from "@/lib/utils"
 import { ReportTabs } from "../report-tabs"
@@ -58,7 +59,7 @@ export default async function ReportInsightPage({ searchParams }: { searchParams
 
   return (
     <WorkspacePage
-      eyebrow="Sales Activity / Reporting"
+      introKey={pageIntroKey("report-insight")}
       title="Laporan"
       description={[
         describeReadScope(readScope, "laporan"),

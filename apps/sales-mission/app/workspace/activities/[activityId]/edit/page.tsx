@@ -47,7 +47,7 @@ export default async function EditMissionPage({ params }: { params: Promise<{ ac
     // Say which rule refused, in the matrix's own words: a cancelled mission
     // is history; an open one is outside the Cakupan the role holds.
     return (
-      <WorkspacePage eyebrow="Sales Activity / Aktivitas" title="Ubah aktivitas" action={<BackLink href={paths.activity(missionId)} />}>
+      <WorkspacePage eyebrow="Aktivitas" title="Ubah aktivitas" action={<BackLink href={paths.activity(missionId)} />}>
         <EmptyState
           title="Aktivitas ini tidak bisa diubah"
           description={
@@ -102,7 +102,7 @@ export default async function EditMissionPage({ params }: { params: Promise<{ ac
 
   return (
     <WorkspacePage
-      eyebrow="Sales Activity / Aktivitas"
+      eyebrow="Aktivitas"
       title="Ubah aktivitas"
       description={
         completed

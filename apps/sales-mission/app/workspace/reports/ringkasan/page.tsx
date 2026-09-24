@@ -15,6 +15,7 @@ import { presentWidget, type WidgetView } from "@/lib/reporting/widget-view"
 import { rememberedView } from "@/lib/remembered-view"
 import { RememberView } from "@/components/remember-view"
 import { WorkspacePage } from "@/app/workspace/workspace-page"
+import { pageIntroKey } from "@/lib/hints/hint-key"
 import { Button } from "@/components/ui/button"
 import { paths } from "@/lib/paths"
 import { ReportTabs } from "../report-tabs"
@@ -81,7 +82,7 @@ export default async function ReportSummaryPage({ searchParams }: { searchParams
 
   return (
     <WorkspacePage
-      eyebrow="Sales Activity / Reporting"
+      introKey={pageIntroKey("report-summary")}
       title="Laporan"
       description={[describeReadScope(readScope, "laporan"), "Ringkasan dihitung dari laporan yang sudah dikirim; draf tidak ikut. Saring periode dan sales di atas; semua kartu mengikuti."].filter(Boolean).join(" ")}
       // On a phone the exports and "Atur widget" live in the app bar's

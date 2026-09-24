@@ -1,22 +1,24 @@
 "use client"
 
 import { useRouter } from "next/navigation"
-import { Check } from "@/components/icons"
 import { FacetSelect } from "@/components/facet-select"
 import { PersonAvatar } from "@/components/person-avatar"
-import { rememberView, ViewLink } from "@/components/remember-view"
+import { rememberView } from "@/components/remember-view"
+import { ToggleChip } from "@/components/toggle-chip"
 import { calendarHref, SALES_ME, toggleMe, type CalendarView } from "@/lib/missions/calendar-filter"
-import { cn } from "@/lib/utils"
 
 /**
- * Whose calendar, where, and what kind: "Semua" and "Saya" as filter chips,
- * then the Sales, Lokasi and Jenis facets. The same shapes as the activity
- * list's quick chips and facets (M3 filter chips, tonal with a leading check
- * when on; a facet button opening a checklist), so the two pages read as
- * one. Lokasi and Jenis list what the month actually holds. Every change is
- * remembered as the calendar's view before navigating, and "Semua" writes
- * an empty memory first so the server does not restore the filter it is
- * leaving.
+ * Whose calendar, where, and what kind: the "Saya" toggle, then the Sales,
+ * Lokasi and Jenis facets, then "Bersihkan semua" while anything narrows the
+ * month. The same controls as the activity list's (one `ToggleChip`, the
+ * same facet buttons, M3 filter chips), so the two pages read as one. There
+ * is no "Semua" chip: the whole team is what the calendar shows when nothing
+ * is chosen, so it is not an option beside the others but the state that
+ * clearing returns to, as on Aktivitas. "Saya" comes first because on a
+ * phone this row scrolls sideways and it is the chip a rep reaches for most.
+ * Lokasi and Jenis list what the month actually holds. Every change is
+ * remembered as the calendar's view before navigating, so clearing writes
+ * an empty memory and the server does not restore the filter it is leaving.
  */
 export function CalendarFilter({
   month,
@@ -44,33 +46,14 @@ export function CalendarFilter({
     router.push(target)
   }
 
-  const chips = [
-    { key: "all", label: "Semua", active: sales.length === 0, href: href({ sales: [] }) },
-    { key: "me", label: "Saya", active: hasMe, href: href({ sales: toggleMe(sales) }) },
-  ]
+  const narrowed = sales.length > 0 || view.location.length > 0 || view.type.length > 0
 
   return (
     <nav
       aria-label="Saringan kalender"
       className="chip-scroll -mx-4 flex shrink-0 items-center gap-2 overflow-x-auto px-4 py-1 sm:mx-0 sm:flex-wrap sm:px-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
     >
-      {chips.map((chip) => (
-        <ViewLink
-          key={chip.key}
-          list="calendar"
-          href={chip.href}
-          aria-pressed={chip.active}
-          className={cn(
-            "relative inline-flex h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg border px-3 text-sm transition-colors after:absolute after:inset-x-0 after:-inset-y-2 after:content-['']",
-            chip.active
-              ? "border-transparent bg-[var(--tonal)] font-medium text-[var(--tonal-foreground)]"
-              : "border-input bg-transparent text-foreground hover:bg-muted"
-          )}
-        >
-          {chip.active && <Check className="h-4 w-4" aria-hidden="true" />}
-          {chip.label}
-        </ViewLink>
-      ))}
+      <ToggleChip label="Saya" pressed={hasMe} onToggle={() => go({ sales: toggleMe(sales) })} />
       <FacetSelect
         label="Sales"
         options={people.map((person) => ({ value: person.id, label: person.name }))}
@@ -88,6 +71,15 @@ export function CalendarFilter({
       />
       <FacetSelect label="Lokasi" options={locations.map((location) => ({ value: location, label: location }))} value={view.location} onChange={(next) => go({ location: next })} />
       <FacetSelect label="Jenis" options={types.map((type) => ({ value: type, label: type }))} value={view.type} onChange={(next) => go({ type: next })} />
+      {narrowed && (
+        <button
+          type="button"
+          onClick={() => go({ sales: [], location: [], type: [] })}
+          className="inline-flex min-h-10 shrink-0 items-center px-1 text-xs font-semibold text-primary hover:underline md:min-h-9"
+        >
+          Bersihkan semua
+        </button>
+      )}
     </nav>
   )
 }

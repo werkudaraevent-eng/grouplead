@@ -14,15 +14,14 @@ export default function WorkspaceLoading() {
     <div className="flex h-full w-full flex-col overflow-clip bg-background" role="status" aria-live="polite">
       <span className="sr-only">Memuat halaman…</span>
 
-      <div className="shrink-0 px-4 pb-4 pt-6 sm:px-6 lg:px-8">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-          <div className="space-y-2">
-            <div className="h-3 w-40 animate-pulse rounded bg-muted" />
-            <div className="h-6 w-56 animate-pulse rounded bg-muted" />
-            <div className="h-4 w-72 max-w-full animate-pulse rounded bg-muted" />
-          </div>
+      {/* The one 56dp title row, then a line of description. On a phone the
+          title is in the top app bar, so only the description shows here. */}
+      <div className="shrink-0 space-y-3 px-4 pb-3 pt-3 sm:px-6 lg:space-y-0 lg:px-8 lg:pt-0">
+        <div className="hidden min-h-14 items-center justify-between gap-3 lg:flex">
+          <div className="h-6 w-56 animate-pulse rounded bg-muted" />
           <div className="h-9 w-32 shrink-0 animate-pulse rounded-md bg-muted" />
         </div>
+        <div className="h-4 w-72 max-w-full animate-pulse rounded bg-muted" />
       </div>
 
       <div className="flex-1 space-y-4 px-4 pb-8 sm:px-6 lg:px-8">

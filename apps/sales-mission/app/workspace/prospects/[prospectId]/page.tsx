@@ -65,7 +65,7 @@ export default async function ProspectDetailPage({ params }: { params: Promise<{
 
   return (
     <WorkspacePage
-      eyebrow="Sales Activity / Prospek"
+      eyebrow="Prospek"
       title={prospect.clientCompanyName}
       description={[contactName, prospect.contactJobTitle].filter(Boolean).join(" · ") || "Belum ada kontak yang dicatat"}
       action={

@@ -87,7 +87,7 @@ export default async function VisitReportPage({ params, searchParams }: { params
   if (!canWrite && !report) {
     return (
       <WorkspacePage
-        eyebrow="Sales Activity / Laporan kunjungan"
+        eyebrow="Laporan kunjungan"
         title={mission.clientCompanyName}
         description="Laporan kunjungan"
         action={<BackLink href={paths.activity(missionId)} />}
@@ -110,7 +110,7 @@ export default async function VisitReportPage({ params, searchParams }: { params
   if (lock) {
     return (
       <WorkspacePage
-        eyebrow="Sales Activity / Laporan kunjungan"
+        eyebrow="Laporan kunjungan"
         title={mission.clientCompanyName}
         description="Laporan kunjungan"
         action={<BackLink href={paths.activity(missionId)} />}
@@ -125,7 +125,7 @@ export default async function VisitReportPage({ params, searchParams }: { params
 
   return (
     <WorkspacePage
-      eyebrow="Sales Activity / Laporan kunjungan"
+      eyebrow="Laporan kunjungan"
       title={mission.clientCompanyName}
       description={[mission.missionType, mission.location].filter(Boolean).join(" · ")}
       // On a phone the section chips stick right under the app bar; a

@@ -46,6 +46,18 @@ export const CHANGE_KIND_LABELS: Record<ChangeKind, string> = {
 export const CHANGELOG: ChangeEntry[] = [
   {
     date: "2026-09-24",
+    title: "Judul yang sama di setiap halaman",
+    items: [
+      { kind: "lebih-baik", text: "Di komputer, semua halaman kini memakai judul satu baris ramping seperti Aktivitas, Prospek, dan Laporan: Hari ini, Kalender, Papan live, Pengaturan, Notifikasi, Panduan, Yang baru, dan lainnya. Tulisan kecil “SALES ACTIVITY / …” di atas judul sudah hilang." },
+      { kind: "lebih-baik", text: "Halaman di dalam Pengaturan, halaman aktivitas, dan halaman prospek kini hanya menyebut induknya di atas judul (misalnya Pengaturan atau Aktivitas), supaya jelas kamu sedang di bagian mana." },
+      { kind: "lebih-baik", text: "Kalimat penjelasan di bawah judul halaman mana pun kini bisa ditutup dengan ✕, dan tetap tertutup di komputer atau HP mana pun yang kamu pakai. Keterangan yang berisi fakta, seperti tanggal di Hari ini atau kontak di halaman prospek, tetap tampil." },
+      { kind: "lebih-baik", text: "Di Kalender, chip Semua sudah tidak ada dan Saya menjadi chip nyala/mati seperti di Aktivitas. Kalender menampilkan seluruh tim selama tidak ada saringan; untuk kembali ke sana, tekan Bersihkan semua. Kalender publik untuk manajemen ikut sama." },
+      { kind: "diperbaiki", text: "Di Hari ini, status kunjungan tidak lagi terpotong (“Diteri…”) saat nama perusahaannya panjang: kini nama perusahaan yang dipotong, statusnya selalu terbaca utuh." },
+      { kind: "lebih-baik", text: "Jam di daftar Kalender, Papan live, Notifikasi, dan catatan pendukung kini memakai huruf yang sama dengan tulisan lain, tetap rata satu sama lain." },
+    ],
+  },
+  {
+    date: "2026-09-24",
     title: "Daftar yang lebih ringkas: judul satu baris, filter satu baris",
     items: [
       { kind: "lebih-baik", text: "Di komputer, judul Aktivitas, Prospek, dan Laporan kini satu baris ramping bersama tombolnya, tanpa tulisan kecil “SALES ACTIVITY / …” di atasnya, jadi tabel mulai lebih tinggi dan menampilkan lebih banyak baris." },

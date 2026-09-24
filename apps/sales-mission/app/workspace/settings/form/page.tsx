@@ -2,6 +2,7 @@ import { redirect } from "next/navigation"
 import { canPerform, getSalesMissionAccess } from "@/lib/sales-mission-access"
 import { listFormFields } from "@/lib/missions/form-field-queries"
 import { BackLink, EmptyState, WorkspacePage } from "@/app/workspace/workspace-page"
+import { pageIntroKey } from "@/lib/hints/hint-key"
 import { FieldManager } from "./field-manager"
 
 export const dynamic = "force-dynamic"
@@ -13,7 +14,8 @@ export default async function MissionFormSettingsPage() {
   if (!(await canPerform(access, "sales_mission_settings", "update"))) {
     return (
       <WorkspacePage
-        eyebrow="Sales Activity / Administrasi"
+        introKey={pageIntroKey("settings-form")}
+        eyebrow="Pengaturan"
         title="Form aktivitas"
         description="Atur field pada form buat aktivitas."
         action={<BackLink href="/workspace/settings" />}
@@ -30,7 +32,8 @@ export default async function MissionFormSettingsPage() {
 
   return (
     <WorkspacePage
-      eyebrow="Sales Activity / Administrasi"
+      introKey={pageIntroKey("settings-form")}
+      eyebrow="Pengaturan"
       title="Form aktivitas"
       description="Tambah, ubah, urutkan, dan tentukan field mana yang wajib diisi saat membuat aktivitas."
       action={<BackLink href="/workspace/settings" />}

@@ -4,6 +4,7 @@ import { listTenantSales } from "@/lib/missions/mission-queries"
 import { listAuditLog, type AuditFilter } from "@/lib/audit/audit-queries"
 import { groupAuditEvents, type AuditAction } from "@/lib/audit/describe-audit"
 import { BackLink, EmptyState, WorkspacePage } from "@/app/workspace/workspace-page"
+import { pageIntroKey } from "@/lib/hints/hint-key"
 import { ActivityFilters, ActivityList } from "./activity-log"
 
 export const dynamic = "force-dynamic"
@@ -32,7 +33,7 @@ export default async function ActivityPage({
 
   if (!(await canPerform(access, "sales_mission_settings", "read"))) {
     return (
-      <WorkspacePage eyebrow="Sales Activity / Pengaturan" title="Riwayat perubahan" action={<BackLink href="/workspace/settings" />}>
+      <WorkspacePage eyebrow="Pengaturan" title="Riwayat perubahan" action={<BackLink href="/workspace/settings" />}>
         <EmptyState title="Tidak punya izin" description="Riwayat perubahan hanya dapat dibaca oleh admin Sales Activity." />
       </WorkspacePage>
     )
@@ -56,7 +57,8 @@ export default async function ActivityPage({
 
   return (
     <WorkspacePage
-      eyebrow="Sales Activity / Pengaturan"
+      introKey={pageIntroKey("settings-history")}
+      eyebrow="Pengaturan"
       title="Riwayat perubahan"
       description="Siapa membuat, mengubah, dan menghapus apa. Dicatat otomatis oleh database untuk setiap perubahan, jadi tidak ada yang bisa lolos."
       action={<BackLink href="/workspace/settings" />}

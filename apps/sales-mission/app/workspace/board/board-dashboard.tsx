@@ -217,7 +217,7 @@ export function BoardDashboard({
                                 href={paths.activity(mission.id)}
                                 className="flex items-center gap-4 px-5 py-2 text-sm transition-colors hover:bg-muted/50"
                               >
-                                <span className="w-12 shrink-0 font-mono text-xs tabular-nums text-muted-foreground">{mission.time}</span>
+                                <span className="w-12 shrink-0 text-xs tabular-nums text-muted-foreground">{mission.time}</span>
                                 <span className="min-w-0 flex-1">
                                   <span className="block truncate font-semibold text-foreground">{mission.clientLabel}</span>
                                   <span className="block truncate text-xs text-muted-foreground">

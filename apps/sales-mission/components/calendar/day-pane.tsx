@@ -82,7 +82,7 @@ export function DayPane<T extends MissionListItem>({
                 const secondary = [group === "location" ? null : mission.location, group === "sales" ? null : mission.primarySalesName].filter(Boolean).join(" · ") || mission.missionType
                 const body = (
                   <>
-                    <span className="w-12 shrink-0 font-mono text-xs text-muted-foreground">
+                    <span className="w-12 shrink-0 text-xs tabular-nums text-muted-foreground">
                       {formatMissionSchedule(mission.scheduledStart, now).split(", ").pop()}
                     </span>
                     <span className="min-w-0 flex-1">

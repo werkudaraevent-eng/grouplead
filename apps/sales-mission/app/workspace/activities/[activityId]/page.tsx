@@ -346,7 +346,7 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
 
   return (
     <WorkspacePage
-      eyebrow="Sales Activity / Detail aktivitas"
+      eyebrow="Aktivitas"
       title={mission.clientCompanyName}
       description={[mission.missionType, mission.industry, mission.location].filter(Boolean).join(" · ")}
       // The facts card right under it carries the same three facts as rows.

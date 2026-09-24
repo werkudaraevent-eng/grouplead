@@ -91,7 +91,7 @@ export function NotificationList({ notifications }: { notifications: Notificatio
                     <span className="mt-0.5 block truncate text-xs text-muted-foreground">{notification.body}</span>
                   )}
                 </span>
-                <span className="shrink-0 font-mono text-[11px] text-muted-foreground">
+                <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground">
                   {formatWhen(notification.createdAt)}
                 </span>
               </>

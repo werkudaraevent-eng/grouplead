@@ -69,7 +69,7 @@ function TodayCard({ mission, policy }: { mission: MissionListItem; policy: Conf
             <span className="block min-w-0 truncate text-base font-semibold text-foreground">
               {mission.clientCompanyName}
             </span>
-            <StatusBadge status={mission.status} />
+            <StatusBadge status={mission.status} className="shrink-0" />
           </span>
 
           <span className="mt-1 block truncate text-sm text-muted-foreground">{mission.missionType}</span>
@@ -147,7 +147,7 @@ export default async function MissionHomePage() {
   // the guard that sent them.
   if (!canRead) {
     return (
-      <WorkspacePage eyebrow="Sales Activity" title="Hari ini" description={dateLabel}>
+      <WorkspacePage title="Hari ini" description={dateLabel}>
         <EmptyState
           title="Aktivitas tidak termasuk akses Anda"
           description="Peran Anda tidak mencakup jadwal kunjungan. Menu lain di samping tetap bisa dibuka."
@@ -241,7 +241,6 @@ export default async function MissionHomePage() {
 
   return (
     <WorkspacePage
-      eyebrow="Sales Activity"
       title="Hari ini"
       description={dateLabel}
       primaryAction={canCreate ? { href: paths.newActivity(), label: "Aktivitas baru" } : undefined}

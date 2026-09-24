@@ -7,7 +7,7 @@ import { statusLabel } from "@/lib/missions/status-labels"
 import { paths } from "@/lib/paths"
 import { PageChrome } from "@/components/page-chrome"
 import { Fab, type FabHint } from "@/components/fab"
-import { ListIntro } from "@/components/list-intro"
+import { PageIntro } from "@/components/page-intro"
 
 /**
  * Shared page furniture, matching LeadEngine's list-page language: same
@@ -15,16 +15,22 @@ import { ListIntro } from "@/components/list-intro"
  */
 
 /**
+ * One header for every page (DESIGN.md "Page headers"), the lists' own.
+ *
+ * From `lg` it is one 56dp row, level with the drawer's header, holding
+ * the 20px title and the page's actions centred on it. A top-level page
+ * has nothing above the title: the drawer's active item and the title
+ * already say where you are, and the product's name is in the drawer. A
+ * derived page (a settings page, a record, a form) may name its parent
+ * in one small sentence-case line above the title, inside the same row
+ * (`eyebrow`: "Pengaturan", "Aktivitas"), never the product's name. Under
+ * the row, a description that teaches shows until the person closes it
+ * (`introKey`); one that states facts (Hari ini's date, a record's type
+ * and place) always shows.
+ *
  * On a phone the title lives in the top app bar (announced through
  * PageChrome), the one primary action is an extended FAB, and the rest of
- * the header row wraps. From `lg` up the header is the page's own.
- *
- * A list page (`fill`) has the compact header of LeadEngine's lists too:
- * one 56dp row, level with the drawer's header, holding the 20px title and
- * the page's actions centred on it, no eyebrow above it (the drawer and the
- * title already say where you are), and the description under it only
- * until the person closes it (`introKey`). Every pixel above the table is
- * a row of records fewer.
+ * the header row wraps.
  */
 export function WorkspacePage({
   eyebrow,
@@ -38,12 +44,14 @@ export function WorkspacePage({
   fill = false,
   children,
 }: {
+  /** A derived page's parent, in sentence case ("Pengaturan / AI"); a top-level page has none. */
   eyebrow?: string
   title: string
   description?: string
   /**
    * The description only teaches: show it until the person closes it, and
-   * remember that on their account under this key (`list-intro-<list>`).
+   * remember that on their account under this key (`listIntroKey`,
+   * `pageIntroKey`). Without it the description states facts and stays.
    */
   introKey?: string
   /**
@@ -93,39 +101,37 @@ export function WorkspacePage({
   const text =
     description &&
     (introKey ? (
-      <ListIntro hintKey={introKey} className={cn(!phoneDescription && "max-lg:hidden")}>
+      <PageIntro hintKey={introKey} className={cn(!fill && "max-lg:order-first", !phoneDescription && "max-lg:hidden")}>
         {description}
-      </ListIntro>
+      </PageIntro>
     ) : (
-      <p className={cn("text-sm text-muted-foreground lg:mt-1", !phoneDescription && "max-lg:hidden")}>{description}</p>
+      <p data-page-intro="" className={cn("text-sm text-muted-foreground", !fill && "max-lg:order-first", !phoneDescription && "max-lg:hidden")}>
+        {description}
+      </p>
     ))
   return (
     <div className="flex h-full w-full flex-col overflow-clip bg-background">
       <PageChrome title={title} />
-      {fill
-        ? (description || action || primaryAction) && (
-            // A list: one row, the title and the actions centred on it; the
-            // description, while it is still wanted, under the row.
-            <div className={cn("shrink-0 px-4 pb-3 pt-3 sm:px-6 lg:px-8 lg:pb-0 lg:pt-0 lg:has-[p]:pb-3", !phoneHeader && "max-lg:hidden")}>
-              <div className="flex flex-col gap-3 lg:min-h-14 lg:flex-row lg:items-center lg:justify-between">
-                <h1 className="hidden min-w-0 truncate text-xl font-semibold tracking-tight text-foreground lg:block">{title}</h1>
-                {actions}
-              </div>
-              {text}
-            </div>
-          )
-        : (eyebrow || description || action || primaryAction) && (
-            <div className={cn("shrink-0 px-4 pb-3 pt-3 sm:px-6 lg:px-8 lg:pb-4 lg:pt-6", !phoneHeader && "max-lg:hidden")}>
-              <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-                <div className="min-w-0">
-                  {eyebrow && <p className="mb-1 hidden text-[11px] font-bold uppercase tracking-widest text-muted-foreground lg:block">{eyebrow}</p>}
-                  <h1 className="hidden text-xl font-semibold tracking-tight text-foreground lg:block">{title}</h1>
-                  {text}
-                </div>
-                {actions}
-              </div>
-            </div>
-          )}
+      {/* The row keeps its 56dp whether or not a parent line sits over the
+          title; the description, while there is one, under it. On a phone
+          a page other than a list reads its description before its
+          actions, as it always has. */}
+      <div
+        className={cn(
+          "shrink-0 px-4 pb-3 pt-3 sm:px-6 lg:px-8 lg:pb-0 lg:pt-0 lg:has-[[data-page-intro]]:pb-3",
+          !fill && "max-lg:flex max-lg:flex-col max-lg:gap-3",
+          !phoneHeader && "max-lg:hidden"
+        )}
+      >
+        <div className="flex flex-col gap-3 lg:min-h-14 lg:flex-row lg:items-center lg:justify-between lg:py-1.5">
+          <div className="hidden min-w-0 lg:block">
+            {eyebrow && <p className="truncate text-xs font-medium text-muted-foreground">{eyebrow}</p>}
+            <h1 className={cn("text-xl font-semibold tracking-tight text-foreground", fill && "truncate")}>{title}</h1>
+          </div>
+          {actions}
+        </div>
+        {text}
+      </div>
       <div
         id="page-scroll"
         className={cn(
@@ -225,9 +231,14 @@ const STATUS_DOT: Record<string, string> = {
   DRAFT: "bg-muted-foreground",
 }
 
-export function StatusBadge({ status }: { status: string }) {
+/**
+ * In a table cell it may be cut like any cell; beside a name that can run
+ * long (a card's headline) pass `shrink-0`, so the name gives way and the
+ * status is always read whole ("Diteri…" said nothing).
+ */
+export function StatusBadge({ status, className }: { status: string; className?: string }) {
   return (
-    <span className="inline-flex min-w-0 max-w-full items-center gap-2 text-sm text-foreground">
+    <span className={cn("inline-flex min-w-0 max-w-full items-center gap-2 text-sm text-foreground", className)}>
       <span
         aria-hidden="true"
         className={cn("h-2 w-2 shrink-0 rounded-full", STATUS_DOT[status] ?? "bg-muted-foreground")}

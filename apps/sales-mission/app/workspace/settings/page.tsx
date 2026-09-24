@@ -21,6 +21,7 @@ import {
   type IconComponent,
 } from "@/components/icons"
 import { WorkspacePage } from "@/app/workspace/workspace-page"
+import { pageIntroKey } from "@/lib/hints/hint-key"
 import { paths } from "@/lib/paths"
 
 type SettingItem = {
@@ -164,7 +165,7 @@ export default async function SettingsPage() {
 
   return (
     <WorkspacePage
-      eyebrow="Sales Activity / Administrasi"
+      introKey={pageIntroKey("settings")}
       title="Pengaturan"
       description="Atur bagaimana aktivitas direncanakan, ditugaskan, dan dikomunikasikan ke tim."
     >

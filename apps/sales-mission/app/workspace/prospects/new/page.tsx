@@ -5,6 +5,7 @@ import { listTenantSales } from "@/lib/missions/mission-queries"
 import { listFormFields } from "@/lib/missions/form-field-queries"
 import { DEFAULT_CONTACT_SALUTATIONS, configuredOptions } from "@/lib/missions/form-fields"
 import { BackLink, WorkspacePage } from "@/app/workspace/workspace-page"
+import { pageIntroKey } from "@/lib/hints/hint-key"
 import { ProspectForm } from "../prospect-form"
 
 export const dynamic = "force-dynamic"
@@ -24,7 +25,7 @@ export default async function NewProspectPage() {
   const salesOptions = allSales.filter((person) => canAssignTo(viewer, person.id))
 
   return (
-    <WorkspacePage eyebrow="Sales Activity / Prospek" title="Prospek baru" description="Satu perusahaan dan satu orang yang akan dihubungi." action={<BackLink href="/workspace/prospects" />}>
+    <WorkspacePage introKey={pageIntroKey("new-prospect")} eyebrow="Prospek" title="Prospek baru" description="Satu perusahaan dan satu orang yang akan dihubungi." action={<BackLink href="/workspace/prospects" />}>
       <ProspectForm fields={prospectFields} salesOptions={salesOptions} salutations={configuredOptions(fields, "contact_salutation", DEFAULT_CONTACT_SALUTATIONS)} salutationsAllowOther={fields.find((field) => field.reportingKey === "contact_salutation")?.allowOther ?? false} viewerId={access.userId} canAssignOthers={canAssignOthers(viewer)} />
     </WorkspacePage>
   )

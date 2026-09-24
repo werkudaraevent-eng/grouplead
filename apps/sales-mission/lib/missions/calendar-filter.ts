@@ -74,7 +74,7 @@ export function parseCalendarView(params: { sales?: Raw; location?: Raw; type?: 
   }
 }
 
-/** Whether the request says anything about the view at all (an empty `sales=` from "Semua" counts). */
+/** Whether the request says anything about the view at all. */
 export function hasCalendarView(params: { sales?: Raw; location?: Raw; type?: Raw; group?: Raw }): boolean {
   return params.sales !== undefined || params.location !== undefined || params.type !== undefined || params.group !== undefined
 }

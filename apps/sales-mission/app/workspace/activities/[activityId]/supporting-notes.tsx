@@ -69,7 +69,7 @@ export function SupportingNotes({
             <li key={item.id} className="px-5 py-4">
               <div className="flex items-baseline justify-between gap-3">
                 <p className="text-sm font-semibold text-foreground">{item.authorName}</p>
-                <p className="shrink-0 font-mono text-[11px] text-muted-foreground">{formatWhen(item.createdAt)}</p>
+                <p className="shrink-0 text-[11px] tabular-nums text-muted-foreground">{formatWhen(item.createdAt)}</p>
               </div>
               <p className="mt-1.5 whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">{item.note}</p>
             </li>

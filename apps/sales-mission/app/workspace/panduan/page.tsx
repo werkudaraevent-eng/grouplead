@@ -3,6 +3,7 @@ import { redirect } from "next/navigation"
 import { getSalesMissionAccess } from "@/lib/sales-mission-access"
 import { resolveNavAccess } from "@/lib/missions/nav-access"
 import { WorkspacePage } from "@/app/workspace/workspace-page"
+import { pageIntroKey } from "@/lib/hints/hint-key"
 import { BarChart3, Bookmark, CalendarDays, ClipboardList, Download, LayoutDashboard, ShieldCheck, UserSearch } from "@/components/icons"
 import { paths } from "@/lib/paths"
 import { PRODUCT_NAME } from "@/lib/brand"
@@ -49,7 +50,7 @@ const PARTS: Part[] = [
       "Membatalkan: pilih Batal bila tidak ada lanjutan, atau Ditunda, jadwal menyusul bila klien minta hari lain dan tanggalnya belum ada. Yang ditunda muncul di Hari ini pada Perlu dijadwalkan ulang sampai Anda menekan Jadwalkan lagi.",
       "Sales utama adalah yang menulis laporan. Sales pendukung boleh Join sendiri selama kuota pendukung belum penuh dan pemilik mengizinkan.",
       "Bila konfirmasi penugasan diaktifkan, orang yang ditugaskan menjawab Terima atau Tolak, atau mengusulkan jadwal lain.",
-      "Kalender dan Papan live memperlihatkan hal yang sama dari sudut waktu dan dari sudut tim. Di Kalender, chip Semua dan Saya serta pilihan Sales menyaring siapa yang digambar, pilihan Lokasi dan Jenis menyaring tempat dan jenis kunjungannya, dan tombol kelompokkan di panel hari menyusun daftar per lokasi atau per sales; foto sales ada di ujung tiap baris; pilihan terakhir diingat per orang. Admin bisa membuat tautan jadwal publik dari Kalender: manajemen membukanya di browser tanpa login, baca-saja, dan tautannya bisa dicabut dari Pengaturan → Tautan publik. Papan live untuk TV kantor menyorot kunjungan yang sedang berlangsung, menyusun Tim di lapangan menurut siapa sedang di mana, dan menghitung progres dari yang sudah berlangsung; kunjungan yang jamnya lewat tanpa laporan ditandai Belum dilaporkan, jadi laporkan segera setelah kembali. Saat admin membuat tautan layar ada dua saklar yang terikat ke tautan itu: Tampilkan nama klien dan Tampilkan hasil kunjungan; keduanya hanya untuk layar di ruang tim sendiri, karena nama klien bersama hasil kunjungan adalah pipeline. Saklar ketiga, Sertakan QR ke kalender, menaruh QR kecil di layar menuju Jadwal tim: pindai dengan ponsel untuk mengecek jadwal dengan waktumu sendiri, tanpa login.",
+      "Kalender dan Papan live memperlihatkan hal yang sama dari sudut waktu dan dari sudut tim. Di Kalender, seluruh tim digambar selama tidak ada saringan; chip Saya dan pilihan Sales menyaring siapa yang digambar, pilihan Lokasi dan Jenis menyaring tempat dan jenis kunjungannya, Bersihkan semua mengembalikan seluruh tim, dan tombol kelompokkan di panel hari menyusun daftar per lokasi atau per sales; foto sales ada di ujung tiap baris; pilihan terakhir diingat per orang. Admin bisa membuat tautan jadwal publik dari Kalender: manajemen membukanya di browser tanpa login, baca-saja, dan tautannya bisa dicabut dari Pengaturan → Tautan publik. Papan live untuk TV kantor menyorot kunjungan yang sedang berlangsung, menyusun Tim di lapangan menurut siapa sedang di mana, dan menghitung progres dari yang sudah berlangsung; kunjungan yang jamnya lewat tanpa laporan ditandai Belum dilaporkan, jadi laporkan segera setelah kembali. Saat admin membuat tautan layar ada dua saklar yang terikat ke tautan itu: Tampilkan nama klien dan Tampilkan hasil kunjungan; keduanya hanya untuk layar di ruang tim sendiri, karena nama klien bersama hasil kunjungan adalah pipeline. Saklar ketiga, Sertakan QR ke kalender, menaruh QR kecil di layar menuju Jadwal tim: pindai dengan ponsel untuk mengecek jadwal dengan waktumu sendiri, tanpa login.",
     ],
     link: { href: paths.activities(), label: "Buka daftar aktivitas" },
   },
@@ -99,7 +100,7 @@ const PARTS: Part[] = [
     points: [
       "Semua yang menyaring daftar tersimpan di alamatnya. Buka daftar lagi dan ia kembali seperti terakhir kamu tinggalkan; kirim tautannya dan rekanmu melihat daftar yang sama.",
       "Di Aktivitas, saringan harian ada di baris filter itu sendiri: Saya menyaring aktivitasmu dengan satu ketukan (ketuk lagi untuk mematikannya), Tanggal memilih Hari ini, Minggu ini, Mendatang, atau rentang tanggal, dan bila unitmu meminta jawaban penugasan, Butuh jawaban dan Menunggu tim menyaring yang menunggu jawabanmu atau jawaban tim, lengkap dengan jumlahnya. Untuk melihat semua lagi, tekan Bersihkan semua. Di HP keempatnya ada di satu baris di bawah kolom cari.",
-      "Kalimat penjelasan di bawah judul daftar bisa ditutup dengan ✕. Setelah ditutup, kalimat itu tidak muncul lagi di daftar tersebut, di perangkat mana pun.",
+      "Kalimat penjelasan di bawah judul halaman, di daftar maupun di halaman lain, bisa ditutup dengan ✕. Setelah ditutup, kalimat itu tidak muncul lagi di halaman tersebut, di perangkat mana pun. Keterangan yang berisi fakta, seperti tanggal di Hari ini, selalu tampil.",
       "Simpan tampilan (di komputer): setelah mengatur daftar, klik ikon Simpan tampilan di ujung kanan baris filter dan beri nama. Tampilan tersimpan muncul sebagai chip di atas daftar; yang sedang tampil diberi centang, dan satu klik membukanya lagi. Tampilanmu hanya terlihat olehmu.",
       "Ubah daftar setelah memilih sebuah tampilan, lalu klik Simpan perubahan untuk memperbaruinya. ⋮ di samping chip menyimpan salinan, mengubah nama, menjadikan tampilan itu bawaan, atau menghapusnya (Batalkan di notifikasi mengembalikannya). Tampilan bawaan hanya dipakai saat daftar pertama kali dibuka di sebuah browser; tautan dan daftar yang diingat selalu didahulukan.",
       "Kolom: tombol Kolom memilih kolom yang tampil dan urutannya (centang, seret, atau Susunan awal); nama perusahaan selalu tampil. Setiap sel satu baris, dan teks yang terpotong tampil utuh saat kursor diarahkan ke atasnya. Di komputer tabel memenuhi layar dan bergulir di dalam kartunya: judul kolom tetap di atas, tombol halaman tetap di bawah. Tabel yang lebih lebar dari layar digeser ke samping dengan penggeser di dasar kartu, sementara nama dan tombol Aksi tetap di tempat.",
@@ -136,7 +137,7 @@ export default async function GuidePage() {
 
   return (
     <WorkspacePage
-      eyebrow={`${PRODUCT_NAME} / Panduan`}
+      introKey={pageIntroKey("guide")}
       title="Panduan"
       description={`Cara kerja ${PRODUCT_NAME} dalam beberapa bagian pendek.`}
     >

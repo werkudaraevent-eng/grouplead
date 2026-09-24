@@ -5,6 +5,7 @@ import { CalendarDays, MonitorPlay } from "@/components/icons"
 import { canPerform, getSalesMissionAccess } from "@/lib/sales-mission-access"
 import { createClient } from "@/utils/supabase/server"
 import { BackLink, EmptyState, WorkspacePage } from "@/app/workspace/workspace-page"
+import { pageIntroKey } from "@/lib/hints/hint-key"
 import { Button } from "@/components/ui/button"
 import { BoardTokenManager, type BoardTokenRow } from "./token-manager"
 import type { BoardTokenKind } from "@/lib/board/board-access"
@@ -19,7 +20,8 @@ export default async function BoardSettingsPage() {
   if (!(await canPerform(access, "sales_mission_settings", "update"))) {
     return (
       <WorkspacePage
-        eyebrow="Sales Activity / Administration"
+        introKey={pageIntroKey("settings-board")}
+        eyebrow="Pengaturan"
         title="Tautan publik"
         description="Kelola tautan layar TV dan kalender manajemen."
         action={<BackLink href="/workspace/settings" />}
@@ -59,7 +61,8 @@ export default async function BoardSettingsPage() {
 
   return (
     <WorkspacePage
-      eyebrow="Sales Activity / Administration"
+      introKey={pageIntroKey("settings-board")}
+      eyebrow="Pengaturan"
       title="Tautan publik"
       description="Setiap tautan yang pernah dibuat, dari dua jenis: layar TV dan kalender manajemen. Cabut yang tidak dipakai."
       action={<BackLink href="/workspace/settings" />}

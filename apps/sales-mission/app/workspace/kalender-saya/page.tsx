@@ -4,7 +4,7 @@ import { requireModule } from "@/lib/missions/nav-access"
 import { getActiveCalendarTokens } from "@/lib/calendar/calendar-token-queries"
 import { requestOrigin } from "@/lib/request-origin"
 import { BackLink, WorkspacePage } from "@/app/workspace/workspace-page"
-import { PRODUCT_NAME } from "@/lib/brand"
+import { pageIntroKey } from "@/lib/hints/hint-key"
 import { paths } from "@/lib/paths"
 import { FeedSetup, SubscribeSteps } from "./feed-setup"
 
@@ -26,7 +26,7 @@ export default async function MyCalendarPage() {
 
   return (
     <WorkspacePage
-      eyebrow={`${PRODUCT_NAME} / Kalender saya`}
+      introKey={pageIntroKey("my-calendar")}
       title="Kalender saya"
       description="Jadwal kunjungan ikut ke Google Calendar, Kalender iPhone, atau Outlook lewat tautan langganan; tempel sebagai kalender dari URL, bukan impor berkas, supaya perubahan jadwal ikut. Pengingat dan tampilan mengikuti kalender ponsel."
       action={<BackLink href={paths.calendar} />}

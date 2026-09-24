@@ -12,3 +12,44 @@ export type IntroList = "activities" | "prospects" | "reports"
 export function listIntroKey(list: IntroList): string {
   return `list-intro-${list}`
 }
+
+/** Every other page whose description only teaches: one slug per page. */
+export const INTRO_PAGES = [
+  "board",
+  "calendar",
+  "guide",
+  "install",
+  "my-calendar",
+  "new-activity",
+  "new-prospect",
+  "edit-prospect",
+  "notifications",
+  "report-insight",
+  "report-summary",
+  "settings",
+  "settings-activities",
+  "settings-ai",
+  "settings-ai-usage",
+  "settings-announcements",
+  "settings-board",
+  "settings-data",
+  "settings-follow-up",
+  "settings-form",
+  "settings-history",
+  "settings-prospect-form",
+  "settings-prospect-statuses",
+  "settings-recycle-bin",
+  "settings-report-form",
+  "settings-usage",
+  "whats-new",
+] as const
+export type IntroPage = (typeof INTRO_PAGES)[number]
+
+/**
+ * The seen mark of any other page's teaching description
+ * ("page-intro-calendar"). A description that states facts (Hari ini's
+ * date, a record's contact) has no key: it always shows.
+ */
+export function pageIntroKey(page: IntroPage): string {
+  return `page-intro-${page}`
+}

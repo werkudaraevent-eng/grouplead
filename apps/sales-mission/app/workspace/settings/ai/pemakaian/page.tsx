@@ -3,6 +3,7 @@ import { canPerform, getSalesMissionAccess } from "@/lib/sales-mission-access"
 import { readAiUsage } from "@/lib/ai/ai-usage"
 import { createServiceClient, hasServiceClientConfig } from "@/utils/supabase/service"
 import { BackLink, EmptyState, WorkspacePage } from "@/app/workspace/workspace-page"
+import { pageIntroKey } from "@/lib/hints/hint-key"
 import { paths } from "@/lib/paths"
 import { UsageCard } from "../usage-card"
 
@@ -21,7 +22,8 @@ export default async function AiUsagePage() {
 
   const shell = (children: React.ReactNode) => (
     <WorkspacePage
-      eyebrow="Sales Activity / Pengaturan / AI"
+      introKey={pageIntroKey("settings-ai-usage")}
+      eyebrow="Pengaturan / AI"
       title="Pemakaian AI"
       description="Token yang dipakai kedua aplikasi lewat proxy AI, dan perkiraan kebutuhan seminggu dan sebulan."
       action={<BackLink href={paths.settings.ai} />}

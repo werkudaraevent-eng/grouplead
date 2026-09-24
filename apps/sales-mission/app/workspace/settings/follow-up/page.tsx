@@ -5,6 +5,7 @@ import { listReportChoices } from "@/lib/missions/report-choice-queries"
 import { FIELD_LABELS } from "@/lib/missions/report-choices"
 import { paths } from "@/lib/paths"
 import { BackLink, EmptyState, WorkspacePage } from "@/app/workspace/workspace-page"
+import { pageIntroKey } from "@/lib/hints/hint-key"
 import { ChoiceManager } from "@/app/workspace/settings/report-form/choice-manager"
 
 export const dynamic = "force-dynamic"
@@ -22,7 +23,7 @@ export default async function FollowUpSettingsPage() {
 
   if (!(await canPerform(access, "sales_mission_settings", "update"))) {
     return (
-      <WorkspacePage eyebrow="Sales Activity / Administrasi" title="Tindak lanjut" action={<BackLink href={paths.settings.index} />}>
+      <WorkspacePage eyebrow="Pengaturan" title="Tindak lanjut" action={<BackLink href={paths.settings.index} />}>
         <EmptyState title="Tidak punya izin" description="Pengaturan tindak lanjut hanya dapat diubah oleh admin Sales Activity." />
       </WorkspacePage>
     )
@@ -32,7 +33,8 @@ export default async function FollowUpSettingsPage() {
 
   return (
     <WorkspacePage
-      eyebrow="Sales Activity / Administrasi"
+      introKey={pageIntroKey("settings-follow-up")}
+      eyebrow="Pengaturan"
       title="Tindak lanjut"
       description="Pilihan yang muncul saat sales mencatat tindak lanjut dari laporan: lewat apa dan bagaimana hasilnya."
       action={<BackLink href={paths.settings.index} />}

@@ -9,6 +9,7 @@ import { listMissionFacets } from "@/lib/missions/mission-page-queries"
 import { EMPTY_AUDIT_FILTER, listAuditLog } from "@/lib/audit/audit-queries"
 import { hasServiceClientConfig } from "@/utils/supabase/service"
 import { EmptyState, WorkspacePage } from "@/app/workspace/workspace-page"
+import { pageIntroKey } from "@/lib/hints/hint-key"
 import { BoardActions, BoardToolbar } from "./board-controls"
 import { BoardDashboard } from "./board-dashboard"
 
@@ -36,7 +37,7 @@ export default async function InternalBoardPage({
 
   if (!hasServiceClientConfig()) {
     return (
-      <WorkspacePage eyebrow="Sales Activity / Papan live" title="Papan live">
+      <WorkspacePage title="Papan live">
         <EmptyState
           title="Papan live belum dikonfigurasi"
           description="Variabel SUPABASE_SERVICE_ROLE_KEY belum diset di deployment Sales Activity. Tambahkan di Vercel → Project → Settings → Environment Variables, lalu deploy ulang."
@@ -50,7 +51,7 @@ export default async function InternalBoardPage({
   // explanation, not a wall that contradicts their own list.
   if ((await getReadScope(access, "sales_mission_mission")) !== "all") {
     return (
-      <WorkspacePage eyebrow="Sales Activity / Papan live" title="Papan live">
+      <WorkspacePage title="Papan live">
         <EmptyState
           title="Papan live menampilkan seluruh unit bisnis"
           description="Cakupan lihat peran Anda pada Aktivitas bukan Semua, jadi papan tidak ditampilkan. Minta admin melebarkannya di Role & Izin bila Anda perlu melihat papan."
@@ -87,7 +88,7 @@ export default async function InternalBoardPage({
 
   return (
     <WorkspacePage
-      eyebrow="Sales Activity / Papan live"
+      introKey={pageIntroKey("board")}
       title="Papan live"
       description="Siapa di mana hari ini. Atur di sini, lalu kirim tampilan yang sama ke layar kantor."
       action={<BoardActions options={options} isAdmin={isAdmin} baseUrl={`${proto}://${host}`} />}

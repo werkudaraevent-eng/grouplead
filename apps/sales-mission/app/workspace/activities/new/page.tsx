@@ -5,6 +5,7 @@ import { getMission, getMissionSettings, listMissionTeam, listTeamSchedules, lis
 import { listMissionFormFields } from "@/lib/missions/form-field-queries"
 import { MISSION_TIME_ZONE } from "@/lib/missions/mission-schema"
 import { BackLink, WorkspacePage } from "@/app/workspace/workspace-page"
+import { pageIntroKey } from "@/lib/hints/hint-key"
 import { MissionForm, type MissionPrefill } from "./mission-form"
 import { getProspect } from "@/lib/prospects/prospect-queries"
 import { paths } from "@/lib/paths"
@@ -108,8 +109,11 @@ export default async function NewMissionPage({
 
   return (
     <WorkspacePage
-      eyebrow="Sales Activity / Aktivitas"
+      eyebrow="Aktivitas"
       title={prospectId ? "Jadwalkan kunjungan" : prefill ? "Jadwalkan lagi" : "Buat aktivitas"}
+      // Scheduling from a prospect or again names the visit: that line is
+      // about this record and stays; the blank form's line only teaches.
+      introKey={prospectId || prefill ? undefined : pageIntroKey("new-activity")}
       description={
         prospectId
           ? `Janji temu dengan ${prefill?.clientCompanyName} disepakati. Data prospek sudah terisi; tentukan jadwal dan tim yang berangkat, lalu prospek otomatis menjadi Confirmed.`

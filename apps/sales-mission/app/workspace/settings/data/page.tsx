@@ -2,6 +2,7 @@ import { redirect } from "next/navigation"
 import { canPerform, getSalesMissionAccess } from "@/lib/sales-mission-access"
 import { createClient } from "@/utils/supabase/server"
 import { BackLink, EmptyState, WorkspacePage } from "@/app/workspace/workspace-page"
+import { pageIntroKey } from "@/lib/hints/hint-key"
 import Link from "next/link"
 import { ClearMissions } from "./clear-missions"
 
@@ -24,7 +25,7 @@ export default async function DataSettingsPage() {
 
   if (!canManage) {
     return (
-      <WorkspacePage eyebrow="Sales Activity / Pengaturan" title="Data" action={<BackLink href="/workspace/settings" />}>
+      <WorkspacePage eyebrow="Pengaturan" title="Data" action={<BackLink href="/workspace/settings" />}>
         <EmptyState title="Tidak punya izin" description="Halaman ini hanya untuk admin Sales Activity." />
       </WorkspacePage>
     )
@@ -38,7 +39,8 @@ export default async function DataSettingsPage() {
 
   return (
     <WorkspacePage
-      eyebrow="Sales Activity / Pengaturan"
+      introKey={pageIntroKey("settings-data")}
+      eyebrow="Pengaturan"
       title="Data"
       description="Mengosongkan data unit bisnis ini. Setiap penghapusan tercatat di Riwayat perubahan."
       action={<BackLink href="/workspace/settings" />}

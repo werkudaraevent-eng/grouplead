@@ -26,6 +26,7 @@ import { MonthGrid } from "@/components/calendar/month-grid"
 import { DayPane } from "@/components/calendar/day-pane"
 import { DayGroupMenu } from "@/components/calendar/day-group-menu"
 import { JoinStatusLine, WorkspacePage } from "@/app/workspace/workspace-page"
+import { pageIntroKey } from "@/lib/hints/hint-key"
 import { Button } from "@/components/ui/button"
 import { paths } from "@/lib/paths"
 
@@ -46,8 +47,9 @@ export default async function CalendarPage({
 
   // The remembered view. A request that says nothing about the view (a
   // bare open, or a month link from elsewhere) gets the person's last
-  // choice; one that carries any of it (even an empty `sales=`, from
-  // "Semua") is honest as it is.
+  // choice; one that carries any of it is honest as it is. Clearing the
+  // filters writes an empty memory before it navigates, so the bare URL it
+  // lands on restores nothing.
   if (!hasCalendarView(params)) {
     const raw = (await cookies()).get(VIEW_COOKIES.calendar)?.value
     if (raw) {
@@ -112,7 +114,7 @@ export default async function CalendarPage({
 
   return (
     <WorkspacePage
-      eyebrow="Sales Activity / Kalender"
+      introKey={pageIntroKey("calendar")}
       title="Kalender"
       description="Lihat jadwal tim dan waktu perjalanan sebelum menugaskan kunjungan baru."
       // On a phone the grid is the first thing on screen; the two once-only

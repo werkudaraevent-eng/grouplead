@@ -19,6 +19,7 @@ import {
 import { firstUsageDay, listUsageDays, listUsageLastSeen, listUsagePages, resolveUsageNames } from "@/lib/usage/usage-queries"
 import { createClient } from "@/utils/supabase/server"
 import { BackLink, EmptyState, WorkspacePage } from "@/app/workspace/workspace-page"
+import { pageIntroKey } from "@/lib/hints/hint-key"
 import { ListBars } from "@/app/workspace/reports/ringkasan/charts/plain"
 import { paths } from "@/lib/paths"
 import { UsageActiveChart } from "./usage-active-chart"
@@ -49,7 +50,8 @@ export default async function UsagePage({ searchParams }: { searchParams: Promis
 
   const shell = (children: React.ReactNode) => (
     <WorkspacePage
-      eyebrow="Sales Activity / Pengaturan"
+      introKey={pageIntroKey("settings-usage")}
+      eyebrow="Pengaturan"
       title="Pemakaian"
       description="Siapa yang membuka Sales Activity, kapan terakhir, dan halaman mana yang paling sering dibuka. Yang dicatat hanya halaman yang dibuka dan kapan, per orang per hari; isi ketikan dan lokasi tidak dicatat."
       action={<BackLink href={paths.settings.index} />}
