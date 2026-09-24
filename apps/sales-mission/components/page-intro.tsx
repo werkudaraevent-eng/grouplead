@@ -24,7 +24,7 @@ export function PageIntro({ hintKey, children, className }: { hintKey: string; c
   const dismiss = useDismissHint()
   if (seen) return null
   return (
-    <div data-page-intro="" className={cn("flex max-w-3xl items-start gap-1", className)}>
+    <div data-page-intro="" className={cn("flex w-fit max-w-3xl items-start gap-1", className)}>
       <p className="min-w-0 flex-1 text-sm text-muted-foreground">{children}</p>
       <button
         type="button"

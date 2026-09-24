@@ -66,7 +66,7 @@ export function PageIntro({ hintKey, seen, children, className }: { hintKey: str
     }
 
     return (
-        <div className={cn("flex max-w-3xl items-start gap-1", className)}>
+        <div className={cn("flex w-fit max-w-3xl items-start gap-1", className)}>
             <p className="min-w-0 flex-1 text-sm text-muted-foreground">{children}</p>
             <Tooltip content="Dismiss">
                 <button
