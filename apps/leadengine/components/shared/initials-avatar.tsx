@@ -30,6 +30,10 @@ const SIZES = {
   xs: "h-5 w-5 text-[9px]",
   sm: "h-7 w-7 text-[11px]",
   md: "h-8 w-8 text-xs",
+  /** A record's header on a desk (40dp). */
+  lg: "h-10 w-10 text-sm",
+  /** A record's header card on a phone (56dp). */
+  xl: "h-14 w-14 text-lg",
 } as const
 
 export function InitialsAvatar({

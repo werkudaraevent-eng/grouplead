@@ -25,6 +25,7 @@ import { CompanyFilesTab } from "./company-files-tab"
 import { formatPhoneDisplay } from "@/lib/phone-normalize"
 import { getInitials, getAvatarColor } from "@/lib/avatar"
 import { InlineTextField, InlineSelectField, InlineCustomSelectField } from "@/components/shared/inline-edit-field"
+import { sentenceCaseLabel } from "@/lib/label-case"
 import { usePermissions } from "@/contexts/permissions-context"
 // ═══════════════════════════════════════════════════════════════
 //  TYPES
@@ -858,18 +859,19 @@ function InfoRow({ icon: Icon, label, value, isLink }: {
     if (!value) return null
     return (
         <div className="flex items-start gap-3 py-1.5">
-            <Icon className="w-4 h-4 text-slate-400 mt-0.5 shrink-0" />
+            <Icon className="w-4 h-4 text-muted-foreground mt-0.5 shrink-0" />
             <div className="min-w-0 flex-1">
-                <p className="text-[11px] text-slate-400 font-medium uppercase tracking-wider">{label}</p>
+                {/* The shared rows' label (`FieldShell`): sentence case, never tracked capitals. */}
+                <p className="text-xs font-medium text-muted-foreground">{sentenceCaseLabel(label)}</p>
                 {isLink && value !== "—" ? (
                     <a
                         href={value.startsWith("http") ? value : `https://${value}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-[13px] text-blue-600 hover:underline break-all"
+                        className="text-[13px] text-primary hover:underline break-all"
                     >{value}</a>
                 ) : (
-                    <p className="text-[13px] text-slate-800">{value}</p>
+                    <p className="text-[13px] text-foreground">{value}</p>
                 )}
             </div>
         </div>
@@ -894,9 +896,9 @@ function HierarchyRow({ parent, subsidiaries, onNavigate }: {
 
     return (
         <div className="flex items-start gap-3 py-1.5 border-t border-slate-100 mt-1 pt-3">
-            <Network className="w-4 h-4 text-slate-400 mt-0.5 shrink-0" />
+            <Network className="w-4 h-4 text-muted-foreground mt-0.5 shrink-0" />
             <div className="min-w-0 flex-1">
-                <p className="text-[11px] text-slate-400 font-medium uppercase tracking-wider mb-1">Relationship</p>
+                <p className="text-xs font-medium text-muted-foreground mb-1">Relationship</p>
 
                 {isIndependent && (
                     <span className="inline-flex items-center gap-1.5 text-[13px] text-slate-600">

@@ -75,6 +75,21 @@ export const CHANGE_TYPE_META: Record<
 
 export const CHANGELOG: ChangelogEntry[] = [
     {
+        date: "2026-09-25",
+        title: "A new layout for a contact's page",
+        items: [
+            { type: "improvement", text: "A contact's page has a new layout. The name stays at the top while you scroll, with Send email, Edit and ⋮ (Delete) beside it, and under it two tabs: Overview and Timeline. The whole page now scrolls as one, instead of two boxes scrolling separately." },
+            { type: "improvement", text: "Overview starts with a short summary card: email, phone (with a WhatsApp link), company, owner and job title. Under it, Contact information lists every field of the contact, including the fields your admin added to the contact form. Click a value to change it; fields with nothing in them are tucked under \"Show N empty fields\"." },
+            { type: "feature", text: "On a computer, a list at the left of the page (Info, Notes, Leads, Files, with how many of each) takes you straight to that part of the page and shows which part you are reading." },
+            { type: "improvement", text: "The four number boxes across the top of the page are gone. Beside the Leads heading, one line now says how many of the contact's leads are active, what they are worth and how many were won." },
+            { type: "fix", text: "Owner now shows the person who owns the contact, with their photo or initials. A contact that was imported belongs to whoever imported it, so one imported from a shared account shows that account (for example \"Werkudara Group\"); pick the right person in the Owner field. If you work across several business units, the contact's business unit is shown separately." },
+            { type: "feature", text: "You can now edit a note you wrote; Edit and Delete show only on your own notes, and deleting a note asks you to confirm first." },
+            { type: "feature", text: "A contact can be deleted from its own page (⋮, then Delete). It goes to the Recycle Bin, the same as deleting it from the list." },
+            { type: "improvement", text: "On a phone, a contact's page now fits the screen instead of sliding sideways. Under the name are Call, WhatsApp and Email buttons; the Overview and Timeline tabs stay under the top bar as you scroll; and a row of buttons takes you to Info, Notes, Leads or Files. The ⋮ at the top right has Edit, Send email, the previous and next contact, and Delete." },
+            { type: "improvement", text: "Field names on contact and company pages are now written normally (\"Segment tier\", \"Line industry\") instead of in small capital letters." },
+        ],
+    },
+    {
         date: "2026-09-24",
         title: "LeadEngine on a phone now works like Sales Activity",
         items: [

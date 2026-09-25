@@ -11,7 +11,7 @@ import {
 import { toast } from "sonner"
 import {
     Upload, Loader2, FileText, FileSpreadsheet, FileImage, File,
-    Download, Trash2, Folder,
+    Download, Trash2,
 } from "@/components/icons"
 import { formatDistanceToNow } from "date-fns"
 
@@ -30,13 +30,23 @@ interface ContactAttachmentRow {
 
 interface ContactFilesTabProps {
     contactId: string
+    /** The id of the section's heading, which the record page's section is labelled by. */
+    headingId?: string
+    /** Told how many files there are, for the page's rail and chips. */
+    onCountChange?: (count: number) => void
 }
 
 const BUCKET = "contact_attachments"
 const MAX_FILE_SIZE_MB = 25
 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024
 
-export function ContactFilesTab({ contactId }: ContactFilesTabProps) {
+/**
+ * The contact's files, as a section of its record page: the heading with
+ * Upload at its trailing edge, then one card that is the list and the drop
+ * zone. A file opens (downloads) from its name; Download and Delete sit at
+ * the row's end, on hover or focus with a pointer and always to a finger.
+ */
+export function ContactFilesTab({ contactId, headingId, onCountChange }: ContactFilesTabProps) {
     const supabase = createClient()
     const inputRef = useRef<HTMLInputElement>(null)
 
@@ -58,9 +68,10 @@ export function ContactFilesTab({ contactId }: ContactFilesTabProps) {
             console.error("[ContactFilesTab] fetch error:", error.message)
         } else {
             setFiles(data ?? [])
+            onCountChange?.((data ?? []).length)
         }
         setLoading(false)
-    }, [contactId, supabase])
+    }, [contactId, supabase, onCountChange])
 
     useEffect(() => {
         // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -216,26 +227,17 @@ export function ContactFilesTab({ contactId }: ContactFilesTabProps) {
     )
 
     return (
-        <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-            <div className="px-5 py-3.5 border-b border-slate-100 flex items-center justify-between">
-                <h3 className="font-semibold text-[13px] text-slate-800 tracking-tight flex items-center gap-2">
-                    <Folder className="w-4 h-4 text-slate-400" /> Files &amp; Documents
-                    {files.length > 0 && (
-                        <span className="text-[11px] font-normal text-slate-400">({files.length})</span>
-                    )}
-                </h3>
+        <>
+            <div className="mb-3 flex min-h-9 items-center justify-between gap-3">
+                <h2 id={headingId} className="text-base font-semibold text-foreground">Files</h2>
                 <Button
                     size="sm"
                     variant="outline"
                     onClick={() => inputRef.current?.click()}
                     disabled={uploading}
-                    className="h-8 gap-1.5 text-xs"
+                    className="h-9 gap-1.5 max-md:h-10"
                 >
-                    {uploading ? (
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    ) : (
-                        <Upload className="h-3.5 w-3.5" />
-                    )}
+                    {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
                     Upload
                 </Button>
                 <input
@@ -259,87 +261,63 @@ export function ContactFilesTab({ contactId }: ContactFilesTabProps) {
                     setDragOver(false)
                     if (e.dataTransfer.files) handleFiles(e.dataTransfer.files)
                 }}
-                className={`transition-colors ${dragOver ? "bg-blue-50/60" : ""}`}
+                className={`overflow-hidden rounded-xl border bg-card transition-colors ${dragOver ? "border-primary bg-primary/5" : ""}`}
             >
                 {loading ? (
-                    <div className="flex items-center justify-center py-14 text-slate-400">
-                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                        <span className="text-[13px]">Loading files…</span>
+                    <div className="flex items-center justify-center gap-2 py-8 text-sm text-muted-foreground">
+                        <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> Loading files…
                     </div>
                 ) : files.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-14 text-center px-6">
-                        <div className="w-11 h-11 rounded-full bg-slate-100 flex items-center justify-center mb-3">
-                            <Upload className="h-5 w-5 text-slate-300" />
-                        </div>
-                        <p className="text-[13px] text-slate-500 font-medium mb-0.5">
-                            {dragOver ? "Drop files here" : "No files attached"}
+                    <div className="px-4 py-6 sm:px-5">
+                        <p className="text-sm text-muted-foreground">
+                            {dragOver ? "Drop the files here." : <>No files yet. Drop files here or use <span className="font-medium text-foreground">Upload</span> to attach business cards, ID scans and other documents (up to {MAX_FILE_SIZE_MB} MB each).</>}
                         </p>
-                        <p className="text-[12px] text-slate-400 max-w-xs mb-4">
-                            Drag &amp; drop or click <span className="font-medium">Upload</span> to attach business cards,
-                            ID scans, and supporting documents (max {MAX_FILE_SIZE_MB} MB each).
-                        </p>
-                        <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => inputRef.current?.click()}
-                            disabled={uploading}
-                            className="h-8 gap-1.5 text-xs"
-                        >
-                            <Upload className="h-3.5 w-3.5" /> Upload file
-                        </Button>
                     </div>
                 ) : (
-                    <ul className="divide-y divide-slate-100">
+                    <ul className="divide-y">
                         {files.map((f) => (
-                            <li
-                                key={f.id}
-                                className="flex items-center gap-3 px-5 py-3 group hover:bg-slate-50/60 transition-colors"
-                            >
-                                <div className="w-9 h-9 rounded-lg bg-slate-100 flex items-center justify-center shrink-0 text-slate-500">
-                                    <FileIcon mime={f.mime_type} className="w-4 h-4" />
+                            <li key={f.id} className="group/file flex items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/60 sm:px-5">
+                                <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-muted text-muted-foreground">
+                                    <FileIcon mime={f.mime_type} className="h-4 w-4" />
                                 </div>
-                                <div className="flex-1 min-w-0">
+                                <div className="min-w-0 flex-1">
                                     <button
                                         type="button"
                                         onClick={() => handleDownload(f)}
-                                        className="block text-left w-full truncate text-[13px] font-medium text-slate-800 hover:text-blue-700"
+                                        className="block w-full truncate text-left text-sm font-medium text-foreground hover:text-primary"
                                         title={f.file_name}
                                     >
                                         {f.file_name}
                                     </button>
-                                    <div className="flex items-center gap-2 text-[11px] text-slate-400 mt-0.5">
-                                        <span>{formatBytes(f.file_size_bytes)}</span>
-                                        <span>·</span>
-                                        <span>
-                                            {f.uploaded_by_name ?? "Unknown"} ·{" "}
-                                            {(() => {
-                                                try {
-                                                    return formatDistanceToNow(new Date(f.created_at), { addSuffix: true })
-                                                } catch {
-                                                    return new Date(f.created_at).toLocaleDateString()
-                                                }
-                                            })()}
-                                        </span>
-                                    </div>
+                                    <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                                        {formatBytes(f.file_size_bytes)} · {f.uploaded_by_name ?? "Unknown"} ·{" "}
+                                        {(() => {
+                                            try {
+                                                return formatDistanceToNow(new Date(f.created_at), { addSuffix: true })
+                                            } catch {
+                                                return new Date(f.created_at).toLocaleDateString()
+                                            }
+                                        })()}
+                                    </p>
                                 </div>
-                                <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover/file:opacity-100 group-focus-within/file:opacity-100 pointer-coarse:opacity-100">
                                     <Button
-                                        size="sm"
+                                        size="icon-sm"
                                         variant="ghost"
                                         onClick={() => handleDownload(f)}
-                                        className="h-7 w-7 p-0 text-slate-500 hover:text-blue-600"
-                                        title="Download"
+                                        className="text-muted-foreground hover:text-primary pointer-coarse:size-10"
+                                        aria-label={`Download ${f.file_name}`}
                                     >
-                                        <Download className="h-3.5 w-3.5" />
+                                        <Download className="h-4 w-4" />
                                     </Button>
                                     <Button
-                                        size="sm"
+                                        size="icon-sm"
                                         variant="ghost"
                                         onClick={() => setPendingDelete(f)}
-                                        className="h-7 w-7 p-0 text-slate-500 hover:text-red-600"
-                                        title="Delete"
+                                        className="text-muted-foreground hover:text-destructive pointer-coarse:size-10"
+                                        aria-label={`Delete ${f.file_name}`}
                                     >
-                                        <Trash2 className="h-3.5 w-3.5" />
+                                        <Trash2 className="h-4 w-4" />
                                     </Button>
                                 </div>
                             </li>
@@ -358,7 +336,7 @@ export function ContactFilesTab({ contactId }: ContactFilesTabProps) {
                         <AlertDialogTitle>Delete this file?</AlertDialogTitle>
                         <AlertDialogDescription>
                             {pendingDelete
-                                ? <><span className="font-medium text-slate-700">{pendingDelete.file_name}</span> will be permanently removed from this contact. This cannot be undone.</>
+                                ? <><span className="font-medium text-foreground">{pendingDelete.file_name}</span> will be permanently removed from this contact. This cannot be undone.</>
                                 : null}
                         </AlertDialogDescription>
                     </AlertDialogHeader>
@@ -370,7 +348,7 @@ export function ContactFilesTab({ contactId }: ContactFilesTabProps) {
                                 e.preventDefault()
                                 if (pendingDelete) handleDelete(pendingDelete)
                             }}
-                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            className="bg-destructive text-white hover:bg-destructive/90"
                         >
                             {deleting ? (
                                 <><Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> Deleting…</>
@@ -381,7 +359,7 @@ export function ContactFilesTab({ contactId }: ContactFilesTabProps) {
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
-        </div>
+        </>
     )
 }
 

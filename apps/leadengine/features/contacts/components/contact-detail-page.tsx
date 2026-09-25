@@ -1,48 +1,55 @@
 "use client"
 
-import { useState, useEffect, useCallback, useMemo } from "react"
-import { useRouter } from "next/navigation"
-import { PageChrome } from "@/components/layout/page-chrome"
 import Link from "next/link"
-import { createClient } from "@/utils/supabase/client"
-import { updateContactAction } from "@/app/actions/contact-actions"
-import { usePermissions } from "@/contexts/permissions-context"
-import { Button } from "@/components/ui/button"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Fragment, useCallback, useEffect, useRef, useState, type ComponentType, type ReactNode } from "react"
+import { useRouter } from "next/navigation"
 import { toast } from "sonner"
+import { PageChrome, type ChromeMenuItem } from "@/components/layout/page-chrome"
+import { createClient } from "@/utils/supabase/client"
+import { deleteContactsAction, updateContactAction } from "@/app/actions/contact-actions"
+import { usePermissions } from "@/contexts/permissions-context"
+import { useCompany } from "@/contexts/company-context"
+import { Button } from "@/components/ui/button"
+import { Tooltip } from "@/components/ui/tooltip"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import {
-    ArrowLeft, Pencil, Building2, Phone, Globe, MapPin,
-    Briefcase, FileText, Clock, Folder, Users, Mail,
-    Target, TrendingUp, CheckCircle2, XCircle, Loader2, Linkedin,
-    CalendarDays, Link2, Search, ChevronLeft, ChevronRight, ArrowUpRight, AlertTriangle, MessageCircle
+    AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+    AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import { InitialsAvatar } from "@/components/shared/initials-avatar"
+import { NeedsDetailsMark } from "@/components/shared/status-badge"
+import { PermissionMenuItem } from "@/components/shared/permission-menu-item"
+import {
+    FieldRow, InlineChoiceField, InlineSelectField, InlineTextField, type ChoiceOption,
+} from "@/components/shared/inline-edit-field"
+import { RecordTabs, SectionChips, SectionRail, type SectionLink } from "@/components/shared/record-page"
+import { useSectionSpy } from "@/hooks/use-section-spy"
+import { formatPhoneDisplay } from "@/lib/phone-normalize"
+import { cn } from "@/lib/utils"
+import {
+    ChevronDown, ChevronLeft, ChevronRight, Loader2, Mail, MessageCircle, MoreVertical, Pencil, Phone, Trash2,
 } from "@/components/icons"
-import { useCurrency } from "@/contexts/currency-context"
-
+import {
+    CONTACT_SECTIONS, CONTACT_TABS, contactSectionDomId, discSummary, emptyFieldsToggleLabel, externalHref,
+    formatCalendarDay, formatCustomValue, formatDayTime, isBlank, mailtoHref, nameWithSalutation, readDisc,
+    secondaryValues, sectionCounts, showBusinessUnit, socialLinks, splitEmptyFields, telHref, whatsAppHref,
+    withContactTab, type ContactTab, type DiscReading, type SocialLink,
+} from "../lib/contact-record"
 import { ContactTimelineTab } from "./contact-timeline-tab"
 import { AddContactModal } from "./add-contact-modal"
 import { ContactFilesTab } from "./contact-files-tab"
-import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select"
-import { formatPhoneDisplay } from "@/lib/phone-normalize"
-import { getInitials, getAvatarColor } from "@/lib/avatar"
-import { InlineTextField } from "@/components/shared/inline-edit-field"
+import { ContactNotesSection } from "./contact-notes-section"
+import { ContactLeadsSection, type ContactLead } from "./contact-leads-section"
 
 // ═══════════════════════════════════════════════════════════════
 //  TYPES
 // ═══════════════════════════════════════════════════════════════
 
-interface ContactLead {
-    id: number
-    project_name: string | null
-    estimated_value: number | null
-    status: string | null
-    target_close_date: string | null
-    pipeline_stage: { name: string; color: string } | null
-    pic_sales_profile: { full_name: string } | null
-}
-
-interface SocialUrl {
-    platform: string
-    url: string
+interface ContactPerson {
+    id: string
+    full_name: string
+    email?: string | null
+    avatar_url?: string | null
 }
 
 interface ContactData {
@@ -61,12 +68,25 @@ interface ContactData {
     notes: string | null
     date_of_birth: string | null
     address: string | null
-    social_urls: SocialUrl[] | null
-    /** Free-form per-tenant fields; `disc` is the reading Sales Mission sends (see readDisc). */
+    social_urls: Partial<SocialLink>[] | null
+    /** Free-form per-tenant fields; `disc` is the reading Sales Activity sends (see readDisc). */
     custom_fields?: Record<string, unknown> | null
+    /** The values of the fields an admin added to the form (form_schemas). */
+    custom_data?: Record<string, unknown> | null
+    owner_id?: string | null
+    company_id?: string | null
     client_company?: { id: string; name: string } | null
-    owner?: { id: string; full_name: string; email: string; avatar_url?: string | null } | null
+    owner?: ContactPerson | null
     needs_enrichment?: boolean
+    created_at?: string
+    updated_at?: string | null
+}
+
+/** A field an admin added to the contact form (Settings → Layout). */
+export interface ContactCustomField {
+    field_key: string
+    field_name: string
+    field_type: string
 }
 
 interface ContactDetailPageProps {
@@ -76,748 +96,672 @@ interface ContactDetailPageProps {
     lastModifiedBy?: string
     nextContactId?: string
     prevContactId?: string
+    /** The tenant's business unit the contact belongs to (`companies`, never the client company). */
+    businessUnit?: { id: string; name: string } | null
+    customFields?: ContactCustomField[]
+    initialTab?: ContactTab
 }
 
-interface ContactNote {
-    id: string
-    content: string
-    author_name: string | null
-    created_at: string
-    user_id: string | null
+/** One property in Contact information, with whether it is empty and whether a person fills it in. */
+interface InfoField {
+    key: string
+    empty: boolean
+    fillable: boolean
+    node: ReactNode
 }
 
+const SECTION_IDS = CONTACT_SECTIONS.map((section) => contactSectionDomId(section.id))
+const SECTIONS_END_ID = "contact-sections-end"
+
+/** M3's tonal button: the secondary container, with an 8% state layer on hover. */
+const TONAL_BUTTON = "border-transparent bg-[var(--tonal)] text-[var(--tonal-foreground)] shadow-none hover:bg-[color-mix(in_srgb,var(--tonal-foreground)_8%,var(--tonal))]"
+
 // ═══════════════════════════════════════════════════════════════
-//  MAIN COMPONENT
+//  PAGE
 // ═══════════════════════════════════════════════════════════════
 
-export function ContactDetailPage({ contact, leads, lastModified, lastModifiedBy, nextContactId, prevContactId }: ContactDetailPageProps) {
+/**
+ * A contact's record page, on Zoho CRM's record page with Material 3's
+ * rules (DESIGN.md, "Record pages"). One scroll in the shell's `<main>`:
+ *
+ *   desk (lg+)  header row, pinned: avatar, "Contacts" / name, ‹ ›, Send email, Edit, ⋮
+ *               the facts under it: job title · company, owner, business unit
+ *               tabs, pinned under the row: Overview | Timeline
+ *               Overview: the related-list rail (Info, Notes, Leads, Files),
+ *               pinned beside one column of sections, 840px at most
+ *   phone       the top app bar ("Contact", back, ⋮ Edit / Send email / ‹ › / Delete)
+ *               a header card: avatar, name, facts, Call · WhatsApp · Email
+ *               tabs pinned under the top app bar, then the sections' chips
+ *
+ * Overview is the summary card (Zoho's business card), Contact information
+ * (every field, label : value, edited in place, the empty ones folded),
+ * Notes, Leads and Files; Timeline is the contact's activity log.
+ */
+export function ContactDetailPage({
+    contact, leads, lastModified, lastModifiedBy, nextContactId, prevContactId,
+    businessUnit = null, customFields = [], initialTab = "overview",
+}: ContactDetailPageProps) {
     const router = useRouter()
-    const supabase = createClient()
-    const { fmt } = useCurrency()
-
-    // ─── Editable Details Setup ────────────────────────────
     const { can } = usePermissions()
+    const { isHoldingView, companies } = useCompany()
     const canEdit = can("contacts", "update")
-    const [isEditingName, setIsEditingName] = useState(false)
-    const [nameEdit, setNameEdit] = useState(contact.full_name)
-    const [savingName, setSavingName] = useState(false)
-    const [editModalOpen, setEditModalOpen] = useState(false)
-    const [allUsers, setAllUsers] = useState<{id: string, full_name: string, avatar_url?: string | null}[]>([])
-    const [allCompanies, setAllCompanies] = useState<{id: string, name: string}[]>([])
+    const canDelete = can("contacts", "delete")
 
-    const fetchUsers = useCallback(async () => {
-        const { data } = await supabase.from('profiles').select('id, full_name, avatar_url').eq('is_active', true).order('full_name')
-        if (data) setAllUsers(data)
-    }, [supabase])
+    const [tab, setTab] = useState<ContactTab>(initialTab)
+    // The Timeline loads its log when first opened, and is kept after.
+    const [timelineSeen, setTimelineSeen] = useState(initialTab === "timeline")
+    const [editOpen, setEditOpen] = useState(false)
+    const [deleteOpen, setDeleteOpen] = useState(false)
+    const [deleting, setDeleting] = useState(false)
+    const [showEmpty, setShowEmpty] = useState(false)
+    const [currentUserId, setCurrentUserId] = useState<string | null>(null)
+    const [notesCount, setNotesCount] = useState<number | null>(null)
+    const [filesCount, setFilesCount] = useState<number | null>(null)
+    const [ownerOptions, setOwnerOptions] = useState<ChoiceOption[] | null>(null)
+    const [companyOptions, setCompanyOptions] = useState<ChoiceOption[] | null>(null)
 
-    const fetchCompanies = useCallback(async () => {
-        const { data } = await supabase.from('client_companies').select('id, name').is('deleted_at', null).order('name')
-        if (data) setAllCompanies(data)
-    }, [supabase])
+    const headerRowRef = useRef<HTMLDivElement>(null)
+    const tabsRef = useRef<HTMLDivElement>(null)
+    const tabsAnchorRef = useRef<HTMLDivElement>(null)
 
-    useEffect(() => { fetchUsers(); fetchCompanies(); }, [fetchUsers, fetchCompanies])
+    useEffect(() => {
+        createClient().auth.getUser().then(({ data }) => setCurrentUserId(data.user?.id ?? null))
+    }, [])
 
-    const handleSaveName = async () => {
-        if (!nameEdit.trim() || nameEdit === contact.full_name) {
-            setIsEditingName(false)
-            setNameEdit(contact.full_name)
+    // ─── Facts ─────────────────────────────────────────────
+    const nameDisplay = nameWithSalutation(contact.salutation, contact.full_name)
+    const owner = contact.owner ?? null
+    const company = contact.client_company?.id ? contact.client_company : null
+    const unitName = businessUnit?.name ?? companies.find((unit) => unit.id === contact.company_id)?.name ?? null
+    const unitShown = showBusinessUnit({ unitName, isHoldingView, unitCount: companies.length })
+    const mailto = mailtoHref(contact.email)
+    const tel = telHref(contact.phone)
+    const whatsApp = whatsAppHref(contact.phone)
+    const disc = readDisc(contact.custom_fields)
+
+    const openEdit = () => setEditOpen(true)
+
+    // ─── Owner and company pickers (their lists load when first opened) ───
+    const loadingOwners = useRef(false)
+    const loadOwners = useCallback(async () => {
+        if (loadingOwners.current) return
+        loadingOwners.current = true
+        const { data } = await createClient().from("profiles").select("id, full_name, avatar_url").eq("is_active", true).order("full_name")
+        setOwnerOptions((data ?? []).map((person) => ({
+            value: person.id as string,
+            label: (person.full_name as string | null) ?? "Unnamed",
+            leading: <InitialsAvatar name={(person.full_name as string | null) ?? "?"} src={person.avatar_url as string | null} size="xs" className="mr-2" />,
+        })))
+    }, [])
+    const loadingCompanies = useRef(false)
+    const loadCompanies = useCallback(async () => {
+        if (loadingCompanies.current) return
+        loadingCompanies.current = true
+        const { data } = await createClient().from("client_companies").select("id, name").is("deleted_at", null).order("name")
+        setCompanyOptions((data ?? []).map((row) => ({ value: row.id as string, label: row.name as string })))
+    }, [])
+
+    const saveContact = useCallback(async (payload: Record<string, unknown>, done: string, failed: string) => {
+        const result = await updateContactAction(contact.id, payload)
+        if (!result.success) {
+            toast.error(result.error || failed)
+            return false
+        }
+        toast.success(done)
+        router.refresh()
+        return true
+    }, [contact.id, router])
+
+    // ─── Delete ────────────────────────────────────────────
+    const confirmDelete = async () => {
+        setDeleting(true)
+        const result = await deleteContactsAction([contact.id])
+        setDeleting(false)
+        if (!result.success) {
+            toast.error(result.error || "Failed to delete contact")
             return
         }
-        setSavingName(true)
-        const result = await updateContactAction(contact.id, { full_name: nameEdit.trim() })
-        if (!result.success) { toast.error(result.error || "Failed to update contact name") }
-        else { toast.success("Name updated"); router.refresh() }
-        setSavingName(false)
-        setIsEditingName(false)
+        setDeleteOpen(false)
+        toast.success("Contact moved to the Recycle Bin")
+        router.push("/contacts")
     }
 
-    const handleSaveOwner = async (newOwnerId: string) => {
-        const val = newOwnerId === "unassigned" ? null : newOwnerId
-        if (val === contact.owner?.id) return
+    // ─── Tabs ──────────────────────────────────────────────
+    const chooseTab = useCallback((next: ContactTab) => {
+        setTab(next)
+        if (next === "timeline") setTimelineSeen(true)
+        // In the address, replaced rather than pushed, so a reload and Back
+        // from a lead come back to it; `null` state, as Next.js asks.
+        const query = withContactTab(window.location.search, next)
+        window.history.replaceState(null, "", query ? `${window.location.pathname}?${query}` : window.location.pathname)
+        // A view read far down starts at its top: the tabs return to where
+        // they pin, the page's own scroller moving, nothing else.
+        const main = document.getElementById("main-content")
+        const anchor = tabsAnchorRef.current
+        if (!main || !anchor) return
+        const pinnedAt = anchor.getBoundingClientRect().top - main.getBoundingClientRect().top + main.scrollTop - (headerRowRef.current?.offsetHeight ?? 0)
+        if (main.scrollTop > pinnedAt) main.scrollTo({ top: pinnedAt })
+    }, [])
 
-        const result = await updateContactAction(contact.id, { owner_id: val })
-        if (!result.success) { toast.error(result.error || "Failed to update record owner") }
-        else { toast.success("Record owner updated"); router.refresh() }
-    }
+    // ─── Sections: the rail, the chips, the one being read ───
+    const getPinned = useCallback(() => (headerRowRef.current?.offsetHeight ?? 0) + (tabsRef.current?.offsetHeight ?? 0), [])
+    const { active, jumpTo } = useSectionSpy({ ids: SECTION_IDS, endId: SECTIONS_END_ID, getPinned, enabled: tab === "overview" })
+    const counts = sectionCounts({ notes: notesCount, leads: leads.length, files: filesCount })
+    const sectionLinks: SectionLink[] = CONTACT_SECTIONS.map((section) => ({
+        domId: contactSectionDomId(section.id),
+        label: section.label,
+        count: counts[section.id],
+    }))
 
-    const handleSaveCompany = async (newCompanyId: string) => {
-        const val = newCompanyId === "unassigned" ? null : newCompanyId
-        if (val === contact.client_company?.id) return
+    // ─── The top app bar's ⋮ (below lg) ────────────────────
+    // `PageChrome` compares the items by label, so a new array on each
+    // render announces nothing new, and each handler reaches this render.
+    // The desk's ‹ › live here on a phone, so no way through the contacts is lost.
+    const phoneMenu: ChromeMenuItem[] = [
+        ...(canEdit ? [{ label: "Edit", icon: Pencil, onSelect: openEdit }] : []),
+        ...(mailto ? [{ label: "Send email", icon: Mail, onSelect: () => { window.location.href = mailto } }] : []),
+        ...(prevContactId ? [{ label: "Previous contact", icon: ChevronLeft, href: `/contacts/${prevContactId}` }] : []),
+        ...(nextContactId ? [{ label: "Next contact", icon: ChevronRight, href: `/contacts/${nextContactId}` }] : []),
+        ...(canDelete ? [{ label: "Delete", icon: Trash2, onSelect: () => setDeleteOpen(true), danger: true }] : []),
+    ]
 
-        const result = await updateContactAction(contact.id, { client_company_id: val })
-        if (!result.success) { toast.error(result.error || "Failed to update company") }
-        else { toast.success("Company updated"); router.refresh() }
-    }
+    // ─── Contact information ───────────────────────────────
+    const editForm = canEdit ? openEdit : undefined
+    const secondaryEmails = secondaryValues(contact.secondary_email, contact.secondary_emails)
+    const secondaryPhones = secondaryValues(contact.secondary_phone, contact.secondary_phones)
+    const socials = socialLinks(contact.linkedin_url, contact.social_urls)
+    const ownerDisplay = owner ? <PersonLine person={owner} /> : "No owner"
 
-    // ─── Leads Pagination & Search ───────────────────────
-    const ITEMS_PER_PAGE = 5
-    const [leadsSearch, setLeadsSearch] = useState("")
-    const [leadsPage, setLeadsPage] = useState(1)
-    const filteredLeads = useMemo(() => {
-        let res = leads
-        if (leadsSearch) {
-            const q = leadsSearch.toLowerCase()
-            res = res.filter(l => l.project_name?.toLowerCase().includes(q) || l.pic_sales_profile?.full_name?.toLowerCase().includes(q))
-        }
-        return res
-    }, [leads, leadsSearch])
-    const paginatedLeads = useMemo(() => {
-        return filteredLeads.slice((leadsPage - 1) * ITEMS_PER_PAGE, leadsPage * ITEMS_PER_PAGE)
-    }, [filteredLeads, leadsPage])
-    const leadsTotalPages = Math.ceil(filteredLeads.length / ITEMS_PER_PAGE)
-    useEffect(() => { setLeadsPage(1) }, [leadsSearch])
+    const infoFields: InfoField[] = [
+        {
+            key: "full_name", empty: false, fillable: true,
+            node: <InlineTextField layout="row" table="contacts" id={contact.id} fieldPath="full_name" label="Name" rawValue={contact.full_name} required />,
+        },
+        {
+            key: "salutation", empty: isBlank(contact.salutation), fillable: true,
+            node: <FieldRow label="Salutation" empty={isBlank(contact.salutation)} onEdit={editForm}>{contact.salutation || "—"}</FieldRow>,
+        },
+        {
+            key: "client_company", empty: !company, fillable: true,
+            node: (
+                <InlineChoiceField
+                    layout="row" label="Company" canEdit={canEdit}
+                    value={company?.id ?? null} display={company?.name ?? "—"} empty={!company}
+                    options={companyOptions} onOpen={loadCompanies} clearLabel="No company"
+                    onSave={(next) => saveContact({ client_company_id: next }, "Company updated", "Failed to update company")}
+                />
+            ),
+        },
+        {
+            key: "job_title", empty: isBlank(contact.job_title), fillable: true,
+            node: <InlineTextField layout="row" table="contacts" id={contact.id} fieldPath="job_title" label="Job title" rawValue={contact.job_title} />,
+        },
+        {
+            key: "contact_source", empty: isBlank(contact.contact_source), fillable: true,
+            node: <InlineSelectField layout="row" table="contacts" id={contact.id} fieldPath="contact_source" label="Contact source" rawValue={contact.contact_source} optionType="contact_source" />,
+        },
+        {
+            key: "disc", empty: !disc, fillable: false,
+            node: disc && <FieldRow label="Communication style (DISC)"><DiscValue disc={disc} /></FieldRow>,
+        },
+        {
+            key: "email", empty: isBlank(contact.email), fillable: true,
+            node: <InlineTextField layout="row" table="contacts" id={contact.id} fieldPath="email" label="Email" rawValue={contact.email} />,
+        },
+        {
+            key: "secondary_emails", empty: secondaryEmails.length === 0, fillable: true,
+            node: (
+                <FieldRow label="Secondary emails" empty={secondaryEmails.length === 0} onEdit={editForm} links>
+                    {secondaryEmails.length === 0 ? "—" : secondaryEmails.map((email) => (
+                        <a key={email} href={`mailto:${email}`} className="block text-primary break-words hover:underline"><EmailText email={email} /></a>
+                    ))}
+                </FieldRow>
+            ),
+        },
+        {
+            key: "phone", empty: isBlank(contact.phone), fillable: true,
+            node: <InlineTextField layout="row" table="contacts" id={contact.id} fieldPath="phone" label="Phone" rawValue={contact.phone} displayValue={contact.phone ? formatPhoneDisplay(contact.phone) : null} inputType="phone" />,
+        },
+        {
+            key: "secondary_phones", empty: secondaryPhones.length === 0, fillable: true,
+            node: (
+                <FieldRow label="Secondary phones" empty={secondaryPhones.length === 0} onEdit={editForm} links>
+                    {secondaryPhones.length === 0 ? "—" : secondaryPhones.map((phone) => (
+                        // tel: takes the stored number, not the spaced display form.
+                        <a key={phone} href={telHref(phone) ?? undefined} className="block text-primary hover:underline">{formatPhoneDisplay(phone)}</a>
+                    ))}
+                </FieldRow>
+            ),
+        },
+        {
+            key: "social", empty: socials.length === 0, fillable: true,
+            node: (
+                <FieldRow label="Social links" empty={socials.length === 0} onEdit={editForm} links>
+                    {socials.length === 0 ? "—" : socials.map((link) => (
+                        <a key={link.url} href={externalHref(link.url)} target="_blank" rel="noopener noreferrer" className="block text-primary wrap-anywhere hover:underline">
+                            <span className="text-muted-foreground">{link.platform}:</span> {link.url}
+                        </a>
+                    ))}
+                </FieldRow>
+            ),
+        },
+        {
+            key: "date_of_birth", empty: isBlank(contact.date_of_birth), fillable: true,
+            node: <InlineTextField layout="row" table="contacts" id={contact.id} fieldPath="date_of_birth" label="Date of birth" rawValue={contact.date_of_birth} displayValue={formatCalendarDay(contact.date_of_birth)} inputType="date" />,
+        },
+        {
+            key: "address", empty: isBlank(contact.address), fillable: true,
+            node: <InlineTextField layout="row" table="contacts" id={contact.id} fieldPath="address" label="Address" rawValue={contact.address} />,
+        },
+        {
+            key: "owner", empty: !owner, fillable: true,
+            node: (
+                <InlineChoiceField
+                    layout="row" label="Owner" canEdit={canEdit}
+                    value={owner?.id ?? contact.owner_id ?? null} display={ownerDisplay} empty={!owner}
+                    options={ownerOptions} onOpen={loadOwners} clearLabel="No owner"
+                    onSave={(next) => saveContact({ owner_id: next }, "Owner updated", "Failed to update the owner")}
+                />
+            ),
+        },
+        {
+            // The tenant's unit, which nobody changes here; named only to
+            // someone who sees more than one.
+            key: "business_unit", empty: !unitShown, fillable: false,
+            node: <FieldRow label="Business unit">{unitName}</FieldRow>,
+        },
+        ...customFields.map((field): InfoField => {
+            const value = formatCustomValue(contact.custom_data?.[field.field_key], field.field_type)
+            return {
+                key: `custom:${field.field_key}`, empty: value === null, fillable: true,
+                node: <FieldRow label={field.field_name} empty={value === null} onEdit={editForm}>{value ?? "—"}</FieldRow>,
+            }
+        }),
+        {
+            // The free-text notes from before Notes existed: shown while
+            // they hold something, never offered as a field to fill.
+            key: "notes", empty: isBlank(contact.notes), fillable: false,
+            node: <FieldRow label="Legacy notes" onEdit={editForm}><span className="whitespace-pre-wrap">{contact.notes}</span></FieldRow>,
+        },
+    ]
+    const { filled, empty } = splitEmptyFields(infoFields)
 
-
-    // ─── Notes State ─────────────────────────────────────
-    const [notes, setNotes] = useState<ContactNote[]>([])
-    const [notesLoading, setNotesLoading] = useState(false)
-    const [noteText, setNoteText] = useState("")
-    const [savingNote, setSavingNote] = useState(false)
-
-    // ─── Computed Stats ──────────────────────────────────
-    const activeLeads = leads.filter(l => {
-        const stage = l.pipeline_stage?.name?.toLowerCase() ?? ""
-        return !stage.includes("won") && !stage.includes("lost") && !stage.includes("cancel")
-    })
-    const wonLeads = leads.filter(l => l.pipeline_stage?.name?.toLowerCase().includes("won"))
-    const totalValue = leads.reduce((sum, l) => sum + (l.estimated_value || 0), 0)
-    const wonValue = wonLeads.reduce((sum, l) => sum + (l.estimated_value || 0), 0)
-    const nameDisplay = contact.salutation ? `${contact.salutation} ${contact.full_name}` : contact.full_name
-
-    // ─── Social Formatting ───────────────────────────────
-    const allSocialUrls: SocialUrl[] = []
-    if (contact.linkedin_url) {
-        allSocialUrls.push({ platform: "LinkedIn", url: contact.linkedin_url })
-    }
-    if (contact.social_urls && Array.isArray(contact.social_urls)) {
-        contact.social_urls.forEach(s => {
-            if (s.url && s.url !== contact.linkedin_url) allSocialUrls.push(s)
-        })
-    }
-
-    // ─── Fetch Notes ─────────────────────────────────────
-    const fetchNotes = useCallback(async () => {
-        setNotesLoading(true)
-        const { data } = await supabase
-            .from("contact_notes")
-            .select("*")
-            .eq("contact_id", contact.id)
-            .order("created_at", { ascending: false })
-        setNotes(data ?? [])
-        setNotesLoading(false)
-    }, [contact.id])
-
-    useEffect(() => { fetchNotes() }, [fetchNotes])
-
-    // ─── Save Note ───────────────────────────────────────
-    const handleSaveNote = async () => {
-        if (!noteText.trim()) return
-        setSavingNote(true)
-        const { data: { user } } = await supabase.auth.getUser()
-        const { data: profile } = await supabase
-            .from("profiles").select("full_name").eq("id", user?.id ?? "").single()
-
-        const { error } = await supabase.from("contact_notes").insert({
-            contact_id: contact.id,
-            user_id: user?.id ?? null,
-            author_name: profile?.full_name ?? "Unknown",
-            content: noteText.trim(),
-        })
-        if (error) { toast.error("Failed to save note"); setSavingNote(false); return }
-        setNoteText("")
-        setSavingNote(false)
-        fetchNotes()
-        toast.success("Note saved")
-    }
-
-    // ─── Delete Note ─────────────────────────────────────
-    const handleDeleteNote = async (noteId: string) => {
-        const { error } = await supabase.from("contact_notes").delete().eq("id", noteId)
-        if (error) { toast.error("Failed to delete note"); return }
-        fetchNotes()
-    }
-
-    // ─── Formatters ──────────────────────────────────────
-    const fmtCurrency = (v: number | null | undefined) =>
-        v ? fmt(v) : "—"
-    const fmtDate = (d: string | null | undefined) =>
-        d ? new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "—"
-    const fmtDateTime = (d: string | null | undefined) =>
-        d ? new Date(d).toLocaleString("en-GB", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "—"
-    const initials = (name: string) =>
-        name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2)
-
-    // ═══════════════════════════════════════════════════════
-    //  RENDER
-    // ═══════════════════════════════════════════════════════
     return (
-        <div className="flex flex-col h-full overflow-hidden bg-[#f8fafc]">
-            {/* Below `lg` the top app bar's arrow is the way back, so the
-                header's own arrow is desk-only (one door each). The bar says
-                what the page is; the name, which can be edited in place,
-                stays in the header under it. */}
-            <PageChrome title="Contact" backHref="/contacts" />
+        <div data-fluid-page className="min-h-full bg-background pb-12">
+            {/* Below `lg` the top app bar says what the page is and holds its
+                actions; the desk's header row is not drawn there. */}
+            <PageChrome title="Contact" backHref="/contacts" menu={phoneMenu} />
 
-            {/* ═══ TOP HEADER ══════════════════════════════════════ */}
-            <header className="flex-none bg-white border-b border-slate-200">
-                <div className="px-8 py-5 flex items-start justify-between">
-                    <div className="flex items-start gap-3">
-                        <button
-                            onClick={() => router.push('/contacts')}
-                            className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors mt-0.5 max-lg:hidden"
-                            title="Back to contacts"
-                        >
-                            <ArrowLeft className="h-[18px] w-[18px]" />
-                        </button>
-                        <div className="flex-1 w-full relative group">
-                            {isEditingName && canEdit ? (
-                                <div className="flex items-center gap-2 max-w-lg mb-1 relative">
-                                    {contact.salutation && <span className="text-xl font-semibold text-slate-500 mr-1">{contact.salutation}</span>}
-                                    <input 
-                                        type="text" 
-                                        autoFocus
-                                        value={nameEdit}
-                                        onChange={(e) => setNameEdit(e.target.value)}
-                                        onKeyDown={(e) => { 
-                                            if (e.key === "Enter") handleSaveName()
-                                            if (e.key === "Escape") { setIsEditingName(false); setNameEdit(contact.full_name) } 
-                                        }}
-                                        className="text-xl font-semibold text-slate-900 border border-blue-400 rounded-md px-2 py-0.5 outline-none focus:ring-2 focus:ring-blue-100 w-full"
-                                        disabled={savingName}
-                                    />
-                                    {savingName && <Loader2 className="w-4 h-4 text-blue-500 animate-spin absolute right-2" />}
-                                </div>
-                            ) : (
-                                <div className="flex items-center gap-3">
-                                    <h1 
-                                        className={canEdit ? "text-xl font-semibold text-slate-900 hover:bg-slate-50 px-1 -ml-1 rounded cursor-pointer border border-transparent hover:border-slate-200 transition-colors inline-block" : "text-xl font-semibold text-slate-900 px-1 -ml-1 inline-block"}
-                                        style={{ height: '32px', lineHeight: '30px' }}
-                                        onClick={canEdit ? () => setIsEditingName(true) : undefined}
-                                        title={canEdit ? "Click to edit" : undefined}
-                                    >
-                                        {nameDisplay}
-                                    </h1>
-                                    {canEdit && (
-                                        <button 
-                                            onClick={() => setIsEditingName(true)}
-                                            className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-blue-600 transition-opacity"
-                                        >
-                                            <Pencil className="w-3.5 h-3.5" />
-                                        </button>
-                                    )}
-                                    {contact.needs_enrichment && (
-                                        <span
-                                            className="inline-flex items-center gap-1 rounded-md bg-amber-50 border border-amber-200 px-2 py-0.5 text-[11px] font-semibold text-amber-700"
-                                            title="Auto-created from a lead import. Edit and save to complete this record and remove the flag."
-                                        >
-                                            <AlertTriangle className="w-3 h-3" /> Needs details
-                                        </span>
-                                    )}
-                                </div>
-                            )}
-                            
-                            <div className="flex flex-wrap items-center gap-4 mt-1.5 text-[13px] text-slate-500">
-                                <Select value={(contact as any).owner_id || "unassigned"} onValueChange={handleSaveOwner} disabled={!canEdit}>
-                                    <SelectTrigger className="h-7 gap-1.5 font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 pl-1 pr-2.5 py-0.5 rounded-full border border-slate-200 text-[13px] shadow-none focus:ring-0 w-auto hover:text-blue-600 transition-colors">
-                                        {contact.owner?.full_name ? (
-                                            <span className="flex items-center gap-1.5">
-                                                {contact.owner.avatar_url ? (
-                                                    <img src={contact.owner.avatar_url} alt={contact.owner.full_name} className="w-5 h-5 rounded-full object-cover shrink-0" />
-                                                ) : (
-                                                    <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold shrink-0 ${getAvatarColor(contact.owner.full_name)}`}>{getInitials(contact.owner.full_name)}</span>
-                                                )}
-                                                <span>Owner: {contact.owner.full_name}</span>
-                                            </span>
-                                        ) : (
-                                            <span className="flex items-center gap-1.5">
-                                                <Users className="w-3.5 h-3.5 ml-1" />
-                                                <span className="italic text-slate-500">Unassigned</span>
-                                            </span>
-                                        )}
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="unassigned" className="italic text-slate-400">Unassigned</SelectItem>
-                                        {allUsers.map((u, i) => (
-                                            <SelectItem key={u.id || i} value={u.id}>
-                                                <span className="flex items-center gap-2">
-                                                    {u.avatar_url ? (
-                                                        <img src={u.avatar_url} alt={u.full_name} className="w-5 h-5 rounded-full object-cover shrink-0" />
-                                                    ) : (
-                                                        <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold shrink-0 ${getAvatarColor(u.full_name)}`}>{getInitials(u.full_name)}</span>
-                                                    )}
-                                                    <span>{u.full_name}</span>
-                                                </span>
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-
-
-                                <Select value={(contact as any).client_company?.id || "unassigned"} onValueChange={handleSaveCompany} disabled={!canEdit}>
-                                    <SelectTrigger className="h-6 gap-1.5 font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 px-2.5 py-0.5 rounded-full border border-slate-200 text-[13px] shadow-none focus:ring-0 w-auto hover:text-blue-600 transition-colors">
-                                        <Building2 className="w-3.5 h-3.5" /> 
-                                        {contact.client_company?.name ? contact.client_company.name : <span className="italic text-slate-500">Unassigned Company</span>}
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="unassigned" className="italic text-slate-400">Unassigned Company</SelectItem>
-                                        {allCompanies.map((c, i) => (
-                                            <SelectItem key={c.id || i} value={c.id}>{c.name}</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                                {contact.client_company?.id && (
-                                    <Link href={`/companies/${contact.client_company.id}`} className="text-slate-400 hover:text-blue-600 transition-colors" title="View Company">
-                                        <ArrowUpRight className="w-4 h-4" />
-                                    </Link>
-                                )}
-                            </div>
-                        </div>
+            {/* ═══ DESK HEADER (lg+) ═══════════════════════════════ */}
+            <div ref={headerRowRef} className="sticky top-0 z-30 hidden min-h-14 items-center gap-3 bg-background px-8 py-1.5 lg:flex">
+                <InitialsAvatar name={contact.full_name} size="lg" />
+                <div className="min-w-0 flex-1">
+                    {/* The line box is the nav's own 16px, not the body's 24px, so the row stays 56dp. */}
+                    <nav aria-label="Breadcrumb" className="text-xs leading-4">
+                        <Link href="/contacts" className="font-medium text-muted-foreground transition-colors hover:text-primary">Contacts</Link>
+                    </nav>
+                    <div className="flex min-w-0 items-center gap-2">
+                        <h1 className="truncate text-xl font-semibold tracking-tight text-foreground" title={nameDisplay}>{nameDisplay}</h1>
+                        {contact.needs_enrichment && <NeedsDetailsMark />}
                     </div>
-                    <div className="flex items-center gap-3 shrink-0 mt-0.5">
-                        <div className="flex items-center border border-slate-200 rounded-lg overflow-hidden shadow-sm bg-white">
-                            <Link
-                                href={prevContactId ? `/contacts/${prevContactId}` : '#'}
-                                prefetch={false}
-                                className={`w-9 h-9 flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-50 transition-colors border-r border-slate-200 ${!prevContactId ? 'opacity-30 pointer-events-none bg-slate-50/50' : ''}`}
-                                title="Previous Contact"
-                            >
-                                <ChevronLeft className="w-4 h-4" />
-                            </Link>
-                            <Link
-                                href={nextContactId ? `/contacts/${nextContactId}` : '#'}
-                                prefetch={false}
-                                className={`w-9 h-9 flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-50 transition-colors ${!nextContactId ? 'opacity-30 pointer-events-none bg-slate-50/50' : ''}`}
-                                title="Next Contact"
-                            >
-                                <ChevronRight className="w-4 h-4" />
-                            </Link>
-                        </div>
-                        {canEdit && (
-                            <Button variant="outline" className="gap-2 text-[13px] h-9"
-                                onClick={() => setEditModalOpen(true)}
-                            >
-                                <Pencil className="w-3.5 h-3.5" /> Edit Details
+                </div>
+                <div className="flex shrink-0 items-center gap-2">
+                    <RecordStepper prevId={prevContactId} nextId={nextContactId} />
+                    {mailto ? (
+                        <Button asChild className={TONAL_BUTTON}>
+                            <a href={mailto}><Mail className="h-4 w-4" /> Send email</a>
+                        </Button>
+                    ) : (
+                        <Tooltip content="This contact has no email address" position="bottom">
+                            <Button disabled className={TONAL_BUTTON}><Mail className="h-4 w-4" /> Send email</Button>
+                        </Tooltip>
+                    )}
+                    {canEdit && (
+                        <Button variant="outline" onClick={openEdit}><Pencil className="h-4 w-4" /> Edit</Button>
+                    )}
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" aria-label="More actions" className="text-muted-foreground">
+                                <MoreVertical className="h-5 w-5" />
                             </Button>
-                        )}
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-48">
+                            <PermissionMenuItem resource="contacts" action="delete" onClick={() => setDeleteOpen(true)} className="text-destructive focus:text-destructive">
+                                <Trash2 className="h-4 w-4" /> Delete
+                            </PermissionMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                </div>
+            </div>
+            {/* The facts under the row scroll away; the row stays. Aligned
+                with the name: 32px gutter, 40px avatar, 12px gap. */}
+            <div className="hidden pb-4 pl-[5.25rem] pr-8 lg:block">
+                <HeaderFacts jobTitle={contact.job_title} company={company} owner={owner} unitName={unitShown ? unitName : null} />
+            </div>
+
+            {/* ═══ PHONE HEADER CARD (below lg) ═════════════════════ */}
+            <section aria-labelledby="contact-name" className="px-4 pb-4 pt-4 sm:px-6 lg:hidden">
+                <div className="flex items-start gap-4">
+                    <InitialsAvatar name={contact.full_name} size="xl" />
+                    <div className="min-w-0 flex-1">
+                        <h2 id="contact-name" className="text-xl font-semibold leading-7 text-foreground break-words">
+                            {nameDisplay}
+                            {contact.needs_enrichment && <NeedsDetailsMark className="ml-1.5 align-[-3px]" />}
+                        </h2>
+                        <div className="mt-1">
+                            <HeaderFacts jobTitle={contact.job_title} company={company} owner={owner} unitName={unitShown ? unitName : null} />
+                        </div>
                     </div>
                 </div>
-            </header>
+                {(tel || mailto) && (
+                    <div className="mt-4 grid grid-cols-3 gap-2">
+                        <QuickAction icon={Phone} label="Call" href={tel} missing="No phone number" />
+                        <QuickAction icon={MessageCircle} label="WhatsApp" href={whatsApp} external missing="No phone number" />
+                        <QuickAction icon={Mail} label="Email" href={mailto} missing="No email address" />
+                    </div>
+                )}
+            </section>
 
-            {/* ═══ STATS BAR ══════════════════════════════════════ */}
-            <div className="flex-none bg-white border-b border-slate-200 px-8 py-4">
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                    <StatBadge icon={Target} label="Active Leads" value={activeLeads.length.toString()} color="blue" />
-                    <StatBadge icon={TrendingUp} label="Total Value" value={fmtCurrency(totalValue)} color="slate" />
-                    <StatBadge icon={CheckCircle2} label="Won Deals" value={wonLeads.length.toString()} color="emerald" />
-                    <StatBadge icon={TrendingUp} label="Won Value" value={fmtCurrency(wonValue)} color="emerald" />
+            {/* ═══ TABS ═══════════════════════════════════════════ */}
+            <div ref={tabsAnchorRef} aria-hidden="true" />
+            <RecordTabs
+                ref={tabsRef}
+                tabs={CONTACT_TABS}
+                value={tab}
+                onChange={chooseTab}
+                label="Contact views"
+                idPrefix="contact"
+                className="sticky top-0 z-20 lg:top-14 lg:px-4"
+            />
+
+            {/* ═══ OVERVIEW ═══════════════════════════════════════ */}
+            <div role="tabpanel" id="contact-panel-overview" aria-labelledby="contact-tab-overview" hidden={tab !== "overview"}>
+                <SectionChips links={sectionLinks} active={active} onJump={jumpTo} className="lg:hidden" />
+                <div className="flex gap-8 px-4 sm:px-6 lg:px-8 lg:pt-6">
+                    {/* Pinned under the header row (56) and the tabs (49), 24px lower. */}
+                    <SectionRail links={sectionLinks} active={active} onJump={jumpTo} className="sticky top-[129px] hidden w-[220px] shrink-0 self-start lg:block" />
+                    <div className="min-w-0 max-w-[840px] flex-1 space-y-8">
+                        <section id={contactSectionDomId("info")} aria-labelledby="contact-info-heading" tabIndex={-1} className="space-y-6 outline-none">
+                            <SummaryCard
+                                email={contact.email} mailto={mailto}
+                                phone={contact.phone} tel={tel} whatsApp={whatsApp}
+                                company={company} owner={owner} jobTitle={contact.job_title}
+                            />
+                            <div>
+                                <h2 id="contact-info-heading" className="mb-3 text-base font-semibold text-foreground">Contact information</h2>
+                                <div className="rounded-xl border bg-card px-4 py-2 sm:px-5">
+                                    <dl>
+                                        {filled.map((field) => <Fragment key={field.key}>{field.node}</Fragment>)}
+                                    </dl>
+                                    {empty.length > 0 && (
+                                        <>
+                                            {showEmpty && (
+                                                <dl id="contact-empty-fields">
+                                                    {empty.map((field) => <Fragment key={field.key}>{field.node}</Fragment>)}
+                                                </dl>
+                                            )}
+                                            <button
+                                                type="button"
+                                                aria-expanded={showEmpty}
+                                                aria-controls="contact-empty-fields"
+                                                onClick={() => setShowEmpty((open) => !open)}
+                                                className="-mx-2 my-1 inline-flex h-10 items-center gap-1 rounded-md px-2 text-sm font-medium text-primary outline-none transition-colors hover:bg-primary/5 focus-visible:ring-2 focus-visible:ring-ring/50"
+                                            >
+                                                {emptyFieldsToggleLabel(empty.length, showEmpty)}
+                                                <ChevronDown className={cn("h-4 w-4 transition-transform", showEmpty && "rotate-180")} aria-hidden="true" />
+                                            </button>
+                                        </>
+                                    )}
+                                </div>
+                            </div>
+                        </section>
+
+                        <section id={contactSectionDomId("notes")} aria-labelledby="contact-notes-heading" tabIndex={-1} className="outline-none">
+                            <ContactNotesSection contactId={contact.id} currentUserId={currentUserId} headingId="contact-notes-heading" onCountChange={setNotesCount} />
+                        </section>
+
+                        <section id={contactSectionDomId("leads")} aria-labelledby="contact-leads-heading" tabIndex={-1} className="outline-none">
+                            <ContactLeadsSection leads={leads} headingId="contact-leads-heading" />
+                        </section>
+
+                        <section id={contactSectionDomId("files")} aria-labelledby="contact-files-heading" tabIndex={-1} className="outline-none">
+                            <ContactFilesTab contactId={contact.id} headingId="contact-files-heading" onCountChange={setFilesCount} />
+                        </section>
+
+                        <p className="text-xs text-muted-foreground" suppressHydrationWarning>
+                            Last modified {formatDayTime(lastModified || contact.created_at) ?? "—"} by {lastModifiedBy || "System"}
+                        </p>
+                        <div id={SECTIONS_END_ID} aria-hidden="true" className="h-px" />
+                    </div>
                 </div>
             </div>
 
-            {/* ═══ MAIN CONTENT ════════════════════════════════════ */}
-            <div className="flex-1 flex gap-6 px-8 py-6 overflow-hidden min-h-0">
-
-                {/* ─── LEFT PANEL ─────────────────────────────────── */}
-                <div className="w-[340px] shrink-0 h-full overflow-y-auto custom-scrollbar pr-1 flex flex-col gap-5">
-
-                    {/* Contact Detail Card */}
-                    <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden shrink-0">
-                        <div className="px-5 py-3.5 border-b border-slate-100 flex items-center justify-between">
-                            <h3 className="font-semibold text-[14px] text-slate-900 flex items-center gap-2">
-                                <Users className="w-4 h-4 text-slate-400" /> Contact Information
-                            </h3>
-                        </div>
-                        <div className="px-5 py-4 space-y-3">
-                            <InlineTextField table="contacts" id={contact.id} fieldPath="job_title" icon={Briefcase} label="Job Title" rawValue={contact.job_title} />
-                            <InfoRow icon={Globe} label="Contact Source" value={contact.contact_source} />
-                            <DiscRow disc={readDisc(contact.custom_fields)} />
-
-                            <InlineTextField table="contacts" id={contact.id} fieldPath="email" icon={Mail} label="Email" rawValue={contact.email} inputType="text" />
-                            <InfoRow icon={Mail} label="Secondary Email(s)" value={[contact.secondary_email, ...(contact.secondary_emails || [])].filter(Boolean).join("\n")} isEmail />
-                            
-                            <InlineTextField table="contacts" id={contact.id} fieldPath="phone" icon={Phone} label="Phone" rawValue={contact.phone} displayValue={contact.phone ? formatPhoneDisplay(contact.phone) : null} inputType="phone" />
-                            <InfoRow icon={Phone} label="Secondary Phone(s)" value={[contact.secondary_phone, ...(contact.secondary_phones || [])].filter(Boolean).map(p => formatPhoneDisplay(p as string)).join("\n")} isPhone phoneRaw={[contact.secondary_phone, ...(contact.secondary_phones || [])].filter(Boolean).join("\n")} />
-                            
-                            <InfoRow icon={CalendarDays} label="Date of Birth" value={fmtDate(contact.date_of_birth)} />
-                            <InfoRow icon={MapPin} label="Address" value={contact.address} />
-                            
-                            {allSocialUrls.length > 0 && (
-                                <div className="flex items-start gap-3 py-1.5">
-                                    <Link2 className="w-4 h-4 text-slate-400 mt-0.5 shrink-0" />
-                                    <div className="min-w-0 flex-1">
-                                        <p className="text-[11px] text-slate-400 font-medium uppercase tracking-wider mb-1">Social Links</p>
-                                        <div className="space-y-1">
-                                            {allSocialUrls.map((s, idx) => (
-                                                <a key={idx} href={s.url.startsWith("http") ? s.url : `https://${s.url}`} target="_blank" rel="noopener noreferrer" className="text-[13px] text-blue-600 hover:underline break-all block">
-                                                    {s.platform}: {s.url}
-                                                </a>
-                                            ))}
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-
-                            {contact.notes && (
-                                <div className="flex items-start gap-3 py-1.5">
-                                    <FileText className="w-4 h-4 text-slate-400 mt-0.5 shrink-0" />
-                                    <div className="min-w-0 flex-1">
-                                        <p className="text-[11px] text-slate-400 font-medium uppercase tracking-wider mb-1">Legacy Notes</p>
-                                        <p className="text-[13px] text-slate-800 whitespace-pre-wrap">{contact.notes}</p>
-                                    </div>
-                                </div>
-                            )}
-
-                        </div>
-                    </div>
-
-                    {/* Meta Footer */}
-                    <div className="text-[11px] text-slate-400 px-1 pb-2 shrink-0 flex flex-col gap-0.5 mt-auto">
-                        <p suppressHydrationWarning>Last Modified: <span className="font-medium text-slate-500">{fmtDateTime(lastModified || (contact as any).created_at)}</span></p>
-                        <p suppressHydrationWarning>By: <span className="font-medium text-slate-500">{lastModifiedBy || "System"}</span></p>
-                    </div>
-                </div>
-
-                {/* ─── RIGHT PANEL (Tabs) ─────────────────────────── */}
-                <div className="flex-1 min-w-0 h-full flex flex-col overflow-y-auto custom-scrollbar relative">
-                    <Tabs defaultValue="notes" className="flex flex-col h-fit pb-12 pr-2">
-                        {/* Tab Bar */}
-                        <TabsList className="w-full justify-start rounded-lg! bg-white! gap-0! p-0! h-auto! shrink-0 shadow-none! sticky top-0 z-30 border border-slate-200/80 overflow-hidden">
-                            <TabBtn value="notes" icon={FileText} label="Notes" />
-                            <TabBtn value="timeline" icon={Clock} label="Timeline" />
-                            <TabBtn value="leads" icon={Target} label={`Leads (${leads.length})`} />
-                            <TabBtn value="files" icon={Folder} label="Files" />
-                        </TabsList>
-
-                        {/* ── TIMELINE TAB ── */}
-                        <TabsContent value="timeline" className="m-0 pt-6">
-                            <ContactTimelineTab contactId={contact.id} />
-                        </TabsContent>
-
-                        {/* ── NOTES TAB ── */}
-                        <TabsContent value="notes" className="m-0 pt-6">
-                            <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-                                <div className="px-5 py-3.5 border-b border-slate-100">
-                                    <h3 className="font-semibold text-[13px] text-slate-800 tracking-tight flex items-center gap-2">
-                                        <FileText className="w-4 h-4 text-slate-400" /> Contact Notes
-                                    </h3>
-                                </div>
-                                {/* Note Input */}
-                                <div className="p-4 border-b border-slate-100">
-                                    <textarea
-                                        value={noteText}
-                                        onChange={e => setNoteText(e.target.value)}
-                                        placeholder="Add a note — meeting summary, call log, preferences..."
-                                        className="w-full min-h-[80px] text-[13px] text-slate-700 bg-slate-50 border border-slate-200 rounded-lg px-3.5 py-2.5 resize-none focus:outline-none focus:ring-1 focus:ring-blue-400 focus:border-blue-400 placeholder:text-slate-400"
-                                        onKeyDown={e => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) handleSaveNote() }}
-                                    />
-                                    <div className="flex items-center justify-between mt-2">
-                                        <span className="text-[11px] text-slate-400">Ctrl+Enter to save</span>
-                                        <Button size="sm" disabled={!noteText.trim() || savingNote} onClick={handleSaveNote}
-                                            className="h-8 text-[12px] gap-1.5 bg-slate-900 hover:bg-slate-800"
-                                        >
-                                            {savingNote ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileText className="w-3.5 h-3.5" />}
-                                            Save Note
-                                        </Button>
-                                    </div>
-                                </div>
-                                {/* Notes List */}
-                                {notesLoading ? (
-                                    <div className="flex items-center justify-center py-10">
-                                        <Loader2 className="h-5 w-5 animate-spin text-slate-400" />
-                                    </div>
-                                ) : notes.length === 0 ? (
-                                    <div className="flex flex-col items-center justify-center py-12 text-center">
-                                        <div className="w-11 h-11 rounded-full bg-slate-100 flex items-center justify-center mb-3">
-                                            <FileText className="h-5 w-5 text-slate-300" />
-                                        </div>
-                                        <p className="text-[13px] text-slate-500 font-medium">No notes yet</p>
-                                        <p className="text-[12px] text-slate-400">Add your first note above.</p>
-                                    </div>
-                                ) : (
-                                    <div className="divide-y divide-slate-100">
-                                        {notes.map(note => (
-                                            <div key={note.id} className="px-5 py-4 group hover:bg-slate-50/50 transition-colors">
-                                                <div className="flex items-center justify-between mb-2">
-                                                    <div className="flex items-center gap-2">
-                                                        <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center text-[9px] font-bold text-blue-700">
-                                                            {note.author_name ? initials(note.author_name) : "?"}
-                                                        </div>
-                                                        <span className="text-[12px] font-medium text-slate-700">{note.author_name ?? "Unknown"}</span>
-                                                        <span className="text-[11px] text-slate-400">• {fmtDateTime(note.created_at)}</span>
-                                                    </div>
-                                                    <button
-                                                        onClick={() => handleDeleteNote(note.id)}
-                                                        className="text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all"
-                                                        title="Delete note"
-                                                    >
-                                                        <XCircle className="w-4 h-4" />
-                                                    </button>
-                                                </div>
-                                                <p className="text-[13px] text-slate-700 whitespace-pre-wrap leading-relaxed pl-8">
-                                                    {note.content}
-                                                </p>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
-                        </TabsContent>
-
-                        {/* ── LEADS TAB ── */}
-                        <TabsContent value="leads" className="m-0 pt-6">
-                            <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden flex flex-col">
-                                <div className="px-5 py-3.5 border-b border-slate-100 flex items-center justify-between">
-                                    <div className="flex items-center gap-3">
-                                        <h3 className="font-semibold text-[13px] text-slate-800 tracking-tight flex items-center gap-2">
-                                            <Target className="w-4 h-4 text-slate-400" /> Associated Leads
-                                        </h3>
-                                        <span className="text-[12px] text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">{filteredLeads.length} total</span>
-                                    </div>
-                                    <div className="relative">
-                                        <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
-                                        <input
-                                            type="text"
-                                            placeholder="Search leads..."
-                                            value={leadsSearch}
-                                            onChange={(e) => setLeadsSearch(e.target.value)}
-                                            className="w-48 text-[12px] pl-8 pr-3 py-1.5 rounded-md border border-slate-200 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-all font-medium text-slate-700 bg-slate-50 placeholder:text-slate-400"
-                                        />
-                                    </div>
-                                </div>
-                                {paginatedLeads.length === 0 ? (
-                                    <div className="flex flex-col items-center justify-center py-14 text-center">
-                                        <div className="w-11 h-11 rounded-full bg-slate-100 flex items-center justify-center mb-3">
-                                            <Target className="h-5 w-5 text-slate-300" />
-                                        </div>
-                                        <p className="text-[13px] text-slate-500 font-medium">No leads found</p>
-                                        <p className="text-[12px] text-slate-400">Try adjusting your search criteria.</p>
-                                    </div>
-                                ) : (
-                                    <div className="overflow-x-auto">
-                                        <table className="w-full text-left border-collapse" style={{ tableLayout: 'fixed' }}>
-                                            <colgroup>
-                                                <col style={{ width: '35%' }} />
-                                                <col style={{ width: '18%' }} />
-                                                <col style={{ width: '22%' }} />
-                                                <col style={{ width: '13%' }} />
-                                                <col style={{ width: '12%' }} />
-                                            </colgroup>
-                                            <thead>
-                                                <tr className="border-b border-slate-200 bg-slate-50/50">
-                                                    <th className="px-5 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Project Name</th>
-                                                    <th className="px-3 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider text-right">Value</th>
-                                                    <th className="px-3 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Stage</th>
-                                                    <th className="px-3 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">PIC</th>
-                                                    <th className="px-3 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Close</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody className="divide-y divide-slate-100">
-                                                {paginatedLeads.map(lead => (
-                                                    <tr key={lead.id} className="hover:bg-slate-50 transition-colors group cursor-pointer" onClick={() => router.push(`/leads/${lead.id}`)}>
-                                                        <td className="px-5 py-3 align-middle">
-                                                            <p className="text-[13px] font-semibold text-slate-900 group-hover:text-blue-600 transition-colors truncate" title={lead.project_name || "Untitled Lead"}>
-                                                                {lead.project_name || "Untitled Lead"}
-                                                            </p>
-                                                        </td>
-                                                        <td className="px-3 py-3 align-middle text-right">
-                                                            <span className="text-[13px] font-medium text-slate-700 whitespace-nowrap">
-                                                                {fmtCurrency(lead.estimated_value)}
-                                                            </span>
-                                                        </td>
-                                                        <td className="px-3 py-3 align-middle">
-                                                            {lead.pipeline_stage ? (
-                                                                <span className={`inline-flex text-[11px] font-medium px-2.5 py-0.5 rounded-full whitespace-nowrap truncate max-w-full ${
-                                                                    lead.pipeline_stage.name.toLowerCase().includes("won")
-                                                                        ? "bg-emerald-100 text-emerald-700"
-                                                                        : lead.pipeline_stage.name.toLowerCase().includes("lost") || lead.pipeline_stage.name.toLowerCase().includes("cancel") || lead.pipeline_stage.name.toLowerCase().includes("turndown") || lead.pipeline_stage.name.toLowerCase().includes("postponed")
-                                                                            ? "bg-red-100 text-red-600"
-                                                                            : "bg-blue-50 text-blue-600"
-                                                                }`}>
-                                                                    {lead.pipeline_stage.name}
-                                                                </span>
-                                                            ) : (
-                                                                <span className="text-[12px] text-slate-400">—</span>
-                                                            )}
-                                                        </td>
-                                                        <td className="px-3 py-3 align-middle">
-                                                            <span className="text-[12px] text-slate-600 truncate block">{lead.pic_sales_profile?.full_name || "—"}</span>
-                                                        </td>
-                                                        <td className="px-3 py-3 align-middle">
-                                                            <span className="text-[12px] text-slate-500 whitespace-nowrap">{fmtDate(lead.target_close_date)}</span>
-                                                        </td>
-                                                    </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                )}
-                                {leadsTotalPages > 1 && (
-                                    <div className="border-t border-slate-100 px-5 py-3 flex items-center justify-between bg-slate-50">
-                                        <span className="text-[12px] text-slate-500 font-medium">
-                                            Page {leadsPage} of {leadsTotalPages}
-                                        </span>
-                                        <div className="flex gap-2">
-                                            <Button variant="outline" size="sm" className="h-7 px-2 text-[12px] bg-white text-slate-600" disabled={leadsPage === 1} onClick={() => setLeadsPage(p => Math.max(1, p - 1))}>
-                                                <ChevronLeft className="w-3.5 h-3.5 mr-1" /> Prev
-                                            </Button>
-                                            <Button variant="outline" size="sm" className="h-7 px-2 text-[12px] bg-white text-slate-600" disabled={leadsPage === leadsTotalPages} onClick={() => setLeadsPage(p => Math.min(leadsTotalPages, p + 1))}>
-                                                Next <ChevronRight className="w-3.5 h-3.5 ml-1" />
-                                            </Button>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        </TabsContent>
-
-                        {/* ── FILES TAB ── */}
-                        <TabsContent value="files" className="m-0 pt-6">
-                            <ContactFilesTab contactId={contact.id} />
-                        </TabsContent>
-                    </Tabs>
+            {/* ═══ TIMELINE ═══════════════════════════════════════ */}
+            <div role="tabpanel" id="contact-panel-timeline" aria-labelledby="contact-tab-timeline" hidden={tab !== "timeline"} className="px-4 pt-4 sm:px-6 lg:px-8 lg:pt-6">
+                <div className="max-w-[840px]">
+                    {timelineSeen && <ContactTimelineTab contactId={contact.id} />}
                 </div>
             </div>
 
-            {/* ═══ OVERLAYS ════════════════════════════════════ */}
+            {/* ═══ DIALOGS ════════════════════════════════════════ */}
             <AddContactModal
-                isOpen={editModalOpen}
-                onOpenChange={setEditModalOpen}
+                isOpen={editOpen}
+                onOpenChange={setEditOpen}
                 initialData={contact}
                 onSuccess={() => router.refresh()}
             />
+            <AlertDialog open={deleteOpen} onOpenChange={(open) => { if (!deleting) setDeleteOpen(open) }}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Move to Recycle Bin?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            This will move <strong className="text-foreground">{contact.full_name}</strong> to the Recycle Bin. An admin can restore it later.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                            disabled={deleting}
+                            onClick={(event) => { event.preventDefault(); confirmDelete() }}
+                            className="bg-destructive text-white hover:bg-destructive/90"
+                        >
+                            {deleting && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                            Move to Recycle Bin
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     )
 }
 
 // ═══════════════════════════════════════════════════════════════
-//  SUB-COMPONENTS
+//  PARTS
 // ═══════════════════════════════════════════════════════════════
 
-function StatBadge({ icon: Icon, label, value, color }: {
-    icon: typeof Target; label: string; value: string; color: string
-}) {
-    const colorMap: Record<string, string> = {
-        blue: "bg-blue-50 text-blue-600",
-        slate: "bg-slate-100 text-slate-600",
-        emerald: "bg-emerald-50 text-emerald-600",
-        violet: "bg-violet-50 text-violet-600",
-    }
+/** An address that, when it must wrap, wraps after the "@" rather than inside the domain. */
+function EmailText({ email }: { email: string }) {
+    const at = email.indexOf("@")
+    if (at <= 0) return <>{email}</>
+    return <>{email.slice(0, at + 1)}<wbr />{email.slice(at + 1)}</>
+}
+
+/** A person as avatar and name: the owner, wherever the page names them. */
+function PersonLine({ person }: { person: ContactPerson }) {
     return (
-        <div className="flex items-center gap-3 rounded-xl border border-slate-200/80 bg-white px-3.5 py-2.5 transition-colors hover:border-slate-300 hover:bg-slate-50/50">
-            <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${colorMap[color] || colorMap.slate}`}>
-                <Icon className="w-[18px] h-[18px]" />
-            </div>
-            <div className="min-w-0">
-                <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider truncate">{label}</p>
-                <p className="text-[15px] font-bold text-slate-900 truncate" title={value}>{value}</p>
-            </div>
-        </div>
+        <span className="inline-flex min-w-0 max-w-full items-center gap-1.5 align-middle">
+            <InitialsAvatar name={person.full_name} src={person.avatar_url} size="xs" />
+            <span className="truncate">{person.full_name}</span>
+        </span>
     )
-}
-
-function TabBtn({ value, icon: Icon, label }: { value: string; icon: typeof Clock; label: string }) {
-    return (
-        <TabsTrigger
-            value={value}
-            className={
-                "flex-none! rounded-none! border-none! h-auto! px-4 pb-2.5 pt-2.5 text-[13px]" +
-                " text-slate-400 hover:text-slate-600 data-[state=active]:text-blue-600" +
-                " shadow-none! ring-0! outline-none!" +
-                " bg-white! data-[state=active]:bg-white!" +
-                " focus:ring-0! focus-visible:ring-0! focus-visible:ring-offset-0! focus-visible:outline-none!" +
-                " after:bg-blue-600! after:h-[2.5px]! after:bottom-0! after:rounded-full!" +
-                " data-[state=active]:after:opacity-100!"
-            }
-        >
-            <Icon className="h-3.5 w-3.5 mr-1.5 shrink-0" />
-            {label}
-        </TabsTrigger>
-    )
-}
-
-const DISC_NAMES: Record<string, string> = { D: "Dominance", I: "Influence", S: "Steadiness", C: "Conscientiousness" }
-
-interface DiscReading {
-    primary: string
-    secondary: string | null
-    note: string | null
-    assessedByName: string | null
-    assessedAt: string | null
-}
-
-/** The DISC reading Sales Mission stores under custom_fields.disc, or null when malformed or absent. */
-function readDisc(customFields: Record<string, unknown> | null | undefined): DiscReading | null {
-    const raw = customFields?.disc
-    if (!raw || typeof raw !== "object") return null
-    const disc = raw as Record<string, unknown>
-    const primary = typeof disc.primary === "string" && DISC_NAMES[disc.primary] ? disc.primary : null
-    if (!primary) return null
-    const secondary = typeof disc.secondary === "string" && DISC_NAMES[disc.secondary] && disc.secondary !== primary ? disc.secondary : null
-    return {
-        primary,
-        secondary,
-        note: typeof disc.note === "string" && disc.note.trim() ? disc.note.trim() : null,
-        assessedByName: typeof disc.assessedByName === "string" && disc.assessedByName.trim() ? disc.assessedByName : null,
-        assessedAt: typeof disc.assessedAt === "string" ? disc.assessedAt : null,
-    }
 }
 
 /**
- * The reading as a badge with its meaning under it, the way Crystal Knows
- * and Humantic AI sit beside a contact in HubSpot and Salesforce. It is one
- * rep's impression on one day, so the name and the date stay attached; the
- * note is shown in the rep's own words, which are Indonesian.
+ * What the header says under the name: the job title and the client
+ * company (a link to it), then who owns the contact, a person, and, for
+ * someone who sees several business units, which one it belongs to.
  */
-function DiscRow({ disc }: { disc: DiscReading | null }) {
-    if (!disc) return null
-    const code = disc.secondary ? `${disc.primary}${disc.secondary}` : disc.primary
-    const meaning = disc.secondary
-        ? `${DISC_NAMES[disc.primary]} with a ${DISC_NAMES[disc.secondary]} side`
-        : DISC_NAMES[disc.primary]
-    const when = disc.assessedAt ? new Date(disc.assessedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : null
-    const signed = disc.assessedByName ? `Assessed by ${disc.assessedByName}${when ? ` on ${when}` : ""}` : when ? `Assessed on ${when}` : null
+function HeaderFacts({ jobTitle, company, owner, unitName }: {
+    jobTitle: string | null
+    company: { id: string; name: string } | null
+    owner: ContactPerson | null
+    unitName: string | null
+}) {
     return (
-        <div className="flex items-start gap-3 py-1.5">
-            <MessageCircle className="w-4 h-4 text-slate-400 mt-0.5 shrink-0" />
-            <div className="min-w-0 flex-1">
-                <p className="text-[11px] text-slate-400 font-medium uppercase tracking-wider">Communication style (DISC)</p>
-                <p className="mt-0.5 flex flex-wrap items-center gap-2 text-[13px] text-slate-800">
-                    <span className="rounded-md bg-primary/10 px-1.5 py-0.5 text-[12px] font-semibold text-primary" title={meaning}>{code}</span>
-                    <span>{meaning}</span>
+        <div className="space-y-1 text-sm">
+            {(jobTitle || company) && (
+                <p className="text-muted-foreground">
+                    {jobTitle}
+                    {jobTitle && company && " · "}
+                    {company && <Link href={`/companies/${company.id}`} className="text-primary hover:underline">{company.name}</Link>}
                 </p>
-                {disc.note && <p className="mt-0.5 text-[13px] text-slate-800 break-words">{disc.note}</p>}
-                {signed && <p className="mt-0.5 text-[11px] text-slate-400">{signed}</p>}
-            </div>
+            )}
+            <p className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                <span className="inline-flex min-w-0 items-center gap-1.5">
+                    <span className="text-muted-foreground">Owner</span>
+                    {owner ? <span className="min-w-0 text-foreground"><PersonLine person={owner} /></span> : <span className="text-muted-foreground">No owner</span>}
+                </span>
+                {unitName && (
+                    <span className="inline-flex min-w-0 items-center gap-1.5">
+                        <span className="text-muted-foreground">Business unit</span>
+                        <span className="truncate text-foreground">{unitName}</span>
+                    </span>
+                )}
+            </p>
         </div>
     )
 }
 
-function InfoRow({ icon: Icon, label, value, isEmail, isPhone, phoneRaw }: {
-    icon: typeof Building2; label: string; value?: string | null; isEmail?: boolean; isPhone?: boolean; phoneRaw?: string | null
-}) {
-    if (!value || value === "—") return null
-    const lines = value.split("\n").filter(Boolean)
-    const rawLines = (phoneRaw || "").split("\n").filter(Boolean)
-    if (lines.length === 0) return null
-
+/** ‹ › to the contact before and after this one by name. */
+function RecordStepper({ prevId, nextId }: { prevId?: string; nextId?: string }) {
+    const step = (id: string | undefined, label: string, Icon: ComponentType<{ className?: string }>) => (
+        <Tooltip content={label} position="bottom">
+            {id ? (
+                <Button asChild variant="ghost" size="icon" className="text-muted-foreground">
+                    <Link href={`/contacts/${id}`} prefetch={false} aria-label={label}><Icon className="h-5 w-5" /></Link>
+                </Button>
+            ) : (
+                <Button variant="ghost" size="icon" disabled aria-label={label} className="text-muted-foreground"><Icon className="h-5 w-5" /></Button>
+            )}
+        </Tooltip>
+    )
     return (
-        <div className="flex items-start gap-3 py-1.5">
-            <Icon className="w-4 h-4 text-slate-400 mt-0.5 shrink-0" />
-            <div className="min-w-0 flex-1">
-                <p className="text-[11px] text-slate-400 font-medium uppercase tracking-wider">{label}</p>
-                <div className="space-y-0.5 mt-0.5">
-                    {lines.map((line, idx) => {
-                        if (isEmail) {
-                            return <a key={idx} href={`mailto:${line}`} className="text-[13px] text-blue-600 hover:underline break-all block">{line}</a>
-                        } else if (isPhone) {
-                            // tel: must use the canonical/raw value, not the
-                            // formatted display string with spaces.
-                            const telTarget = rawLines[idx] || line
-                            return <a key={idx} href={`tel:${telTarget}`} className="text-[13px] text-blue-600 hover:underline break-all block">{line}</a>
-                        } else {
-                            return <p key={idx} className="text-[13px] text-slate-800 break-words">{line}</p>
-                        }
-                    })}
-                </div>
-            </div>
+        <div className="flex items-center">
+            {step(prevId, "Previous contact", ChevronLeft)}
+            {step(nextId, "Next contact", ChevronRight)}
         </div>
+    )
+}
+
+/**
+ * An M3 labelled icon button for the phone's header card: a 40dp tonal
+ * container over its label (Google Contacts' Call, Text, Email). Without a
+ * number or an address it stays in its place, disabled, and says why.
+ */
+function QuickAction({ icon: Icon, label, href, external = false, missing }: {
+    icon: ComponentType<{ className?: string }>
+    label: string
+    href: string | null
+    external?: boolean
+    missing: string
+}) {
+    const body = (
+        <>
+            <span className="grid h-10 w-16 place-items-center rounded-full bg-[var(--tonal)] text-[var(--tonal-foreground)]">
+                <Icon className="h-5 w-5" />
+            </span>
+            <span className="text-xs font-medium">{label}</span>
+        </>
+    )
+    const base = "flex min-h-16 flex-col items-center justify-center gap-1 rounded-xl py-1 text-foreground outline-none"
+    if (!href) {
+        return (
+            <button type="button" disabled title={missing} aria-label={`${label} (${missing.toLowerCase()})`} className={cn(base, "opacity-40")}>
+                {body}
+            </button>
+        )
+    }
+    return (
+        <a
+            href={href}
+            {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+            className={cn(base, "transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring/50")}
+        >
+            {body}
+        </a>
+    )
+}
+
+/**
+ * Zoho's business card: the five facts a person opens a contact for,
+ * each a label beside its value, the reachable ones as links (mail, call,
+ * WhatsApp, the company's page). Two pairs to a row once the card is wide.
+ */
+function SummaryCard({ email, mailto, phone, tel, whatsApp, company, owner, jobTitle }: {
+    email: string | null
+    mailto: string | null
+    phone: string | null
+    tel: string | null
+    whatsApp: string | null
+    company: { id: string; name: string } | null
+    owner: ContactPerson | null
+    jobTitle: string | null
+}) {
+    const none = (text: string) => <span className="text-muted-foreground">{text}</span>
+    return (
+        <div role="group" aria-label="Summary" className="@container rounded-xl border bg-card px-4 py-3.5 sm:px-5">
+            <dl className="grid grid-cols-[5.5rem_minmax(0,1fr)] gap-x-4 gap-y-2.5 text-sm leading-5 @xl:grid-cols-[5.5rem_minmax(0,1fr)_5.5rem_minmax(0,1fr)]">
+                <dt className="text-muted-foreground">Email</dt>
+                <dd className="min-w-0 break-words">
+                    {mailto && email ? <a href={mailto} className="text-primary hover:underline"><EmailText email={email} /></a> : none("No email")}
+                </dd>
+                <dt className="text-muted-foreground">Phone</dt>
+                <dd className="min-w-0">
+                    {tel && phone ? (
+                        <>
+                            <a href={tel} className="text-primary hover:underline">{formatPhoneDisplay(phone)}</a>
+                            {whatsApp && (
+                                <>
+                                    <span className="text-muted-foreground"> · </span>
+                                    <a href={whatsApp} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline">
+                                        <MessageCircle className="h-3.5 w-3.5" aria-hidden="true" />WhatsApp
+                                    </a>
+                                </>
+                            )}
+                        </>
+                    ) : phone ? <span className="text-foreground">{phone}</span> : none("No phone")}
+                </dd>
+                <dt className="text-muted-foreground">Company</dt>
+                <dd className="min-w-0 break-words">
+                    {company ? <Link href={`/companies/${company.id}`} className="text-primary hover:underline">{company.name}</Link> : none("No company")}
+                </dd>
+                <dt className="text-muted-foreground">Owner</dt>
+                <dd className="min-w-0 text-foreground">{owner ? <PersonLine person={owner} /> : none("No owner")}</dd>
+                <dt className="text-muted-foreground">Job title</dt>
+                <dd className="min-w-0 break-words text-foreground">{jobTitle || none("No job title")}</dd>
+            </dl>
+        </div>
+    )
+}
+
+/**
+ * The DISC reading as a small tonal badge with its meaning beside it, the
+ * rep's note under it in their own words (Indonesian) and who assessed it
+ * and when; one rep's impression on one day, so it is signed and never a
+ * status (DESIGN.md, "A field reading is a badge, signed").
+ */
+function DiscValue({ disc }: { disc: DiscReading }) {
+    const { code, meaning } = discSummary(disc)
+    const when = formatCalendarDay(disc.assessedAt)
+    const signed = disc.assessedByName ? `Assessed by ${disc.assessedByName}${when ? ` on ${when}` : ""}` : when ? `Assessed on ${when}` : null
+    return (
+        <>
+            <span className="flex flex-wrap items-center gap-2">
+                <span className="rounded-md bg-primary/10 px-1.5 py-0.5 text-xs font-semibold text-primary" title={meaning}>{code}</span>
+                <span>{meaning}</span>
+            </span>
+            {disc.note && <span className="mt-1 block break-words">{disc.note}</span>}
+            {signed && <span className="mt-1 block text-xs text-muted-foreground">{signed}</span>}
+        </>
     )
 }

@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
+import { FormFieldLabel } from "@/components/shared/form-field-label"
 
 interface ActivityProfile {
     full_name: string | null
@@ -217,11 +218,9 @@ export function ContactTimelineTab({ contactId }: ContactTimelineTabProps) {
                         </DialogHeader>
                         <div className="flex flex-col gap-4 pt-2">
                             <div className="flex flex-col gap-1.5">
-                                <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">
-                                    Activity Type
-                                </label>
+                                <FormFieldLabel id="log-activity-type">Activity type</FormFieldLabel>
                                 <Select value={logType} onValueChange={setLogType}>
-                                    <SelectTrigger className="h-9 text-[13px]">
+                                    <SelectTrigger className="h-9 text-[13px]" aria-labelledby="log-activity-type">
                                         <SelectValue placeholder="Select type" />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -241,10 +240,9 @@ export function ContactTimelineTab({ contactId }: ContactTimelineTabProps) {
                             </div>
 
                             <div className="flex flex-col gap-1.5">
-                                <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">
-                                    Description
-                                </label>
+                                <FormFieldLabel htmlFor="log-activity-description">Description</FormFieldLabel>
                                 <Textarea
+                                    id="log-activity-description"
                                     value={logDescription}
                                     onChange={(e) => setLogDescription(e.target.value)}
                                     placeholder="Describe the activity..."
@@ -317,7 +315,7 @@ export function ContactTimelineTab({ contactId }: ContactTimelineTabProps) {
                                 key={activity.id}
                                 className="relative flex gap-4 mb-4 group"
                             >
-                                <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 z-10 relative bg-[#f8fafc] border-[2px] border-[#f8fafc] mt-0.5">
+                                <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 z-10 relative bg-background border-[2px] border-background mt-0.5">
                                     <div className={`w-6 h-6 rounded-full flex items-center justify-center ${config.nodeBg} ${config.nodeText}`}>
                                         <Icon className="h-3 w-3" />
                                     </div>
