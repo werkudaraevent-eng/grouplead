@@ -372,7 +372,9 @@ export function findInFileClashes(rows: ParsedRow[]): RowIssue[] {
 /** Export rows, in the same column order the template teaches. */
 export function toExportRows(
   missions: MissionListItem[],
-  columns: ImportColumn[]
+  columns: ImportColumn[],
+  /** Mission id → why it was cancelled (`listCancellationReasons`). */
+  cancellationReasons: Map<string, string> = new Map()
 ): Array<Record<string, string>> {
   const time = new Intl.DateTimeFormat("en-GB", {
     timeZone: MISSION_TIME_ZONE, hour: "2-digit", minute: "2-digit", hour12: false,
@@ -410,6 +412,7 @@ export function toExportRows(
     // Export-only columns: not something an import may set, but what an
     // audit or a recap is usually after.
     row["Status"] = mission.status
+    row["Alasan batal"] = mission.status === "CANCELLED" ? cancellationReasons.get(mission.id) ?? "" : ""
     row["Dibuat oleh"] = mission.createdByName ?? ""
     row["Dibuat pada"] = mission.createdAt
       ? `${day.format(new Date(mission.createdAt))} ${time.format(new Date(mission.createdAt))}`

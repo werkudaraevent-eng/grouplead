@@ -765,6 +765,36 @@ export async function getCancellation(
   }
 }
 
+/**
+ * Why each cancelled mission was cancelled, for the export: the reason on
+ * the last CANCELLED history row per mission. Missions never cancelled are
+ * absent. Read in chunks so a long export never builds an over-long URL.
+ */
+export async function listCancellationReasons(
+  access: SalesMissionAccess,
+  missionIds: string[]
+): Promise<Map<string, string>> {
+  const reasons = new Map<string, string>()
+  if (missionIds.length === 0) return reasons
+  const { missions } = await missionSchema()
+  const CHUNK = 200
+  for (let index = 0; index < missionIds.length; index += CHUNK) {
+    const { data } = await missions
+      .from("status_history")
+      .select("mission_id, reason, created_at")
+      .eq("company_id", access.companyId)
+      .eq("to_status", "CANCELLED")
+      .in("mission_id", missionIds.slice(index, index + CHUNK))
+      .order("created_at", { ascending: false })
+    for (const row of data ?? []) {
+      const id = row.mission_id as string
+      // Newest first, so the first row seen for a mission is its last cancellation.
+      if (!reasons.has(id)) reasons.set(id, ((row.reason as string | null) ?? "").trim())
+    }
+  }
+  return reasons
+}
+
 export interface MissionSummary {
   open: number
   today: number

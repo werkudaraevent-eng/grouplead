@@ -45,6 +45,13 @@ export const CHANGE_KIND_LABELS: Record<ChangeKind, string> = {
 
 export const CHANGELOG: ChangeEntry[] = [
   {
+    date: "2026-09-25",
+    title: "Alasan batal ikut di ekspor Aktivitas",
+    items: [
+      { kind: "baru", text: "Ekspor Excel di halaman Aktivitas kini punya kolom Alasan batal, di sebelah Status: alasan yang ditulis saat aktivitas dibatalkan, jadi rekap pembatalan bisa dibuat langsung dari berkasnya tanpa membuka aktivitasnya satu per satu. Untuk aktivitas yang tidak dibatalkan kolom ini kosong." },
+    ],
+  },
+  {
     date: "2026-09-24",
     title: "Judul yang sama di setiap halaman",
     items: [

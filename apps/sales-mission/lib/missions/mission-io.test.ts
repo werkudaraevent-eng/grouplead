@@ -8,9 +8,11 @@ import {
   normaliseTime,
   parseRow,
   splitList,
+  toExportRows,
   type ParsedRow,
 } from "./mission-io"
 import type { FormField } from "./form-fields"
+import type { MissionListItem } from "./mission-schema"
 
 function field(overrides: Partial<FormField> & { reportingKey: string }): FormField {
   return {
@@ -244,5 +246,27 @@ describe("findInFileClashes", () => {
 
   it("ignores rows too incomplete to compare", () => {
     expect(findInFileClashes([row(2, "", "", ""), row(3, "", "", "")])).toEqual([])
+  })
+})
+
+describe("toExportRows", () => {
+  const mission = (over: Partial<MissionListItem>): MissionListItem =>
+    ({
+      id: "m1", clientCompanyName: "PT Contoh", clientCompanyId: null, missionType: "Sales mission", status: "SCHEDULED",
+      location: null, address: null, objective: null, scheduledStart: "2026-09-21T02:30:00Z", scheduledEnd: null,
+      primarySalesName: "Ananda", supportingSalesNames: [], primarySalesId: "u1", assigneeIds: ["u1"], allowJoin: true,
+      createdBy: "u1", createdByName: null, createdAt: "2026-09-01T00:00:00Z", reportStatus: "NONE", visitOutcome: null,
+      appointment: { salutation: null, contactId: null, name: null, jobTitle: null, division: null, phone: null, email: null },
+      ...over,
+    }) as MissionListItem
+
+  it("carries a cancelled mission's reason and leaves the column empty for the rest", () => {
+    const reasons = new Map([["m2", "Klien minta diundur ke bulan depan"]])
+    const rows = toExportRows(
+      [mission({ id: "m1" }), mission({ id: "m2", status: "CANCELLED" }), mission({ id: "m3", status: "CANCELLED" })],
+      buildImportColumns([]),
+      reasons
+    )
+    expect(rows.map((row) => row["Alasan batal"])).toEqual(["", "Klien minta diundur ke bulan depan", ""])
   })
 })

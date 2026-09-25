@@ -3,7 +3,7 @@ import * as XLSX from "xlsx"
 import { canPerform, getSalesMissionAccess } from "@/lib/sales-mission-access"
 import { listMissionFormFields } from "@/lib/missions/form-field-queries"
 import { listMissionsByIds, } from "@/lib/missions/mission-queries"
-import { getMissionSettings } from "@/lib/missions/mission-queries"
+import { getMissionSettings, listCancellationReasons } from "@/lib/missions/mission-queries"
 import { parseMissionQuery, resolveMissionFilter } from "@/lib/missions/mission-filter"
 import { listMatchingMissionIds, parsePageParams } from "@/lib/missions/mission-page-queries"
 import { buildImportColumns, toExportRows } from "@/lib/missions/mission-io"
@@ -15,7 +15,9 @@ export const dynamic = "force-dynamic"
  *
  * Columns match the import template exactly, so an export can be edited and fed
  * straight back in. Status is appended read-only: it is derived from the team's
- * answers and is not something an import may set.
+ * answers and is not something an import may set. So is "Alasan batal", the
+ * reason given when a cancelled mission was cancelled (from its status
+ * history), empty for every other mission.
  *
  * Guarded on mission `read`, the same grant the list screen needs. An export is
  * a bulk read of every client name and schedule in the tenant, which makes it
@@ -41,10 +43,12 @@ export async function GET(request: Request) {
   const { sort } = parsePageParams(params)
   const { ids } = await listMatchingMissionIds(access, { query: parseMissionQuery(params), lens, sort, now: new Date() })
   const visible = await listMissionsByIds(access, ids)
+  const cancelled = visible.filter((mission) => mission.status === "CANCELLED").map((mission) => mission.id)
+  const cancellationReasons = await listCancellationReasons(access, cancelled)
 
   const columns = buildImportColumns(fields)
-  const rows = toExportRows(visible, columns)
-  const headers = [...columns.map((column) => column.header), "Status", "Dibuat oleh", "Dibuat pada"]
+  const rows = toExportRows(visible, columns, cancellationReasons)
+  const headers = [...columns.map((column) => column.header), "Status", "Alasan batal", "Dibuat oleh", "Dibuat pada"]
 
   const sheet = XLSX.utils.json_to_sheet(rows, { header: headers })
   sheet["!cols"] = headers.map((header) => ({
