@@ -18,6 +18,7 @@ import {
     isMirroredNote,
     joinFacts,
     lastActivityLabel,
+    revealScrollTop,
     leadStanding,
     leadSummaryLabel,
     mailtoHref,
@@ -263,5 +264,35 @@ describe("the composer", () => {
         expect(composerPlaceholder("note", "Abdan")).toBe("Write a note about Abdan — meeting summary, preferences…")
         expect(composerPlaceholder("call", "Elitery")).toContain("the call with Elitery")
         expect(composerPlaceholder("note", " ")).toBe("Write a note about them — meeting summary, preferences…")
+    })
+})
+
+describe("scrolling", () => {
+    // A 900px scroller with the tabs (43px) pinned at its top.
+    const view = { viewHeight: 900, pinned: 43 }
+
+    it("leaves the page where it is when the target already shows whole", () => {
+        expect(revealScrollTop({ ...view, scrollTop: 0, top: 267, height: 186 })).toBeNull()
+        expect(revealScrollTop({ ...view, scrollTop: 150, top: 267, height: 186 })).toBeNull()
+    })
+
+    it("brings a target hidden under the pinned tabs to just below them", () => {
+        // Scrolled so the composer's top is behind the tabs.
+        expect(revealScrollTop({ ...view, scrollTop: 250, top: 267, height: 186 })).toBe(267 - 43 - 16)
+    })
+
+    it("brings a target below the fold up to just below the tabs", () => {
+        expect(revealScrollTop({ ...view, scrollTop: 0, top: 1400, height: 186 })).toBe(1400 - 43 - 16)
+        // Cut by the foot of the view.
+        expect(revealScrollTop({ ...view, scrollTop: 0, top: 800, height: 186 })).toBe(800 - 43 - 16)
+    })
+
+    it("shows the top of a target taller than the view", () => {
+        expect(revealScrollTop({ ...view, scrollTop: 0, top: 300, height: 2000 })).toBe(300 - 43 - 16)
+    })
+
+    it("never goes above the page's top, and takes its own gap", () => {
+        expect(revealScrollTop({ ...view, scrollTop: 40, top: 20, height: 100 })).toBe(0)
+        expect(revealScrollTop({ ...view, scrollTop: 600, top: 500, height: 100, gap: 0 })).toBe(457)
     })
 })

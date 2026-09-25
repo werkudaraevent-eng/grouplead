@@ -2,9 +2,10 @@ import { cn } from "@/lib/utils"
 
 /**
  * A record's page while it loads, in the page's own layout (DESIGN.md,
- * "Record pages"): on a desk the header (the parent link, a 48dp avatar or
- * tile, the name, the actions, the facts), the tabs, then the main column
- * (composer, Recent activity) beside the 380px side column; below `lg` the
+ * "Record pages"): on a desk the header (the back button, a 48dp avatar or
+ * tile, the name, the actions in one row; the facts under the name), the
+ * tabs, then the main column (composer, Recent activity) beside the 380px
+ * side column, all in the page's 32dp margins; below `lg` the
  * centred header with its quick actions, the tabs and the Overview's
  * cards. `data-fluid-page`, as the pages carry, so the shell's 900px
  * floor never flashes on a phone while one loads.
@@ -23,9 +24,12 @@ export function RecordPageSkeleton({ label, shape, tabs, quickActions }: {
         <div data-fluid-page className="min-h-full bg-background" aria-busy="true" aria-label={label}>
             {/* Desk header */}
             <div className="hidden bg-card px-8 pt-4 lg:block">
-                <div className={cn(bar, "h-4 w-24")} />
-                <div className="flex items-center justify-between gap-6 pt-3">
+                <div className="flex items-center justify-between gap-6">
                     <div className="flex items-center gap-4">
+                        {/* The back button, its arrow on the keyline as the page's. */}
+                        <div className="-ml-2.5 -mr-2 grid size-10 place-items-center">
+                            <div className={cn(bar, "h-5 w-5 rounded-full")} />
+                        </div>
                         <div className={cn("h-12 w-12 animate-pulse bg-muted", avatarShape)} />
                         <div className="space-y-2">
                             <div className={cn(bar, "h-7 w-60")} />
@@ -37,7 +41,7 @@ export function RecordPageSkeleton({ label, shape, tabs, quickActions }: {
                         {[64, 72, 56, 96].map((width) => <div key={width} className={cn(bar, "h-9 rounded-[8px]")} style={{ width }} />)}
                     </div>
                 </div>
-                <div className="flex gap-12 pb-5 pl-16 pt-6">
+                <div className="flex gap-12 pb-5 pl-[102px] pt-6">
                     {[120, 130, 190, 120].map((width, index) => (
                         <div key={index} className="space-y-1.5">
                             <div className={cn(bar, "h-3 w-14")} />

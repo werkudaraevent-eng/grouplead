@@ -23,8 +23,9 @@ import {
 } from "@/components/shared/inline-edit-field"
 import {
     AboutCard, ActivityComposer, AddNoteRow, ComposerSheet, FactLink, FactNone, FILLED_BUTTON, HeaderLinkButton,
-    ICON_BUTTON, KeyFact, KeyFactsCard, OUTLINED_BUTTON, PersonLine, QuickAction, RecentActivityCard, RecordFact,
-    RecordHeader, RecordHero, RecordLeadsCard, RecordStepper, RecordTabs, RECORD_TYPE, RelatedCompanyCard, type RecordLead, type RecordTab,
+    KeyFact, KeyFactsCard, MORE_BUTTON, OUTLINED_BUTTON, PersonLine, QuickAction, RecentActivityCard, RecordFact,
+    RecordHeader, RecordHero, RecordLeadsCard, RecordPanel, RecordStepper, RecordTabs, RECORD_TYPE, RelatedCompanyCard,
+    revealAndFocus, type RecordLead, type RecordTab,
 } from "@/components/shared/record-page"
 import { RecordActivityFeed } from "@/components/shared/record-activity-feed"
 import { RecordFiles } from "@/components/shared/record-files"
@@ -130,17 +131,20 @@ interface InfoField {
  * Desktop 1440" and "— Phone 390"; DESIGN.md, "Record pages"). One scroll
  * in the shell's `<main>`:
  *
- *   desk (lg+)  the header: "← Contacts", avatar, name, job title · company,
- *               ‹ › Call Email Edit New lead ⋮; the facts: Owner, Phone,
- *               Email, Last activity
+ *   desk (lg+)  the header: back (←, "Back to Contacts"), avatar, name,
+ *               job title · company, ‹ › Call Email Edit New lead ⋮; the
+ *               facts: Owner, Phone, Email, Last activity
  *               tabs pinned to the top: Overview · Activity · Leads n · Files n
  *               Overview: the composer and Recent activity; beside them
- *               (380px) About this contact, Company, Leads
+ *               (380px) About this contact, Company, Leads. Activity, Leads
+ *               and Files take the whole width; Activity is the history
+ *               alone, its "Log activity" opening Overview's composer
  *   phone       the top app bar ("Contact", back, ⋮ Edit / Email / ‹ › / Delete)
  *               the header centred: avatar, name, job title, company, then
  *               Call · WhatsApp · Email · Note
  *               tabs pinned under the top app bar; Overview: Key facts,
- *               Add a note…, Recent activity, Company, About this contact
+ *               Add a note… (the composer, in a bottom sheet), Recent
+ *               activity, Company, About this contact
  */
 export function ContactDetailPage({
     contact, leads, activities, notes, fileCount, lastModified, lastModifiedBy, nextContactId, prevContactId,
@@ -166,6 +170,7 @@ export function ContactDetailPage({
     const [ownerOptions, setOwnerOptions] = useState<ChoiceOption[] | null>(null)
     const [companyOptions, setCompanyOptions] = useState<ChoiceOption[] | null>(null)
     const tabsAnchorRef = useRef<HTMLDivElement>(null)
+    const composerFieldRef = useRef<HTMLTextAreaElement>(null)
 
     useEffect(() => {
         createClient().auth.getUser().then(({ data }) => setCurrentUserId(data.user?.id ?? null))
@@ -250,6 +255,14 @@ export function ContactDetailPage({
         const pinnedAt = anchor.getBoundingClientRect().top - main.getBoundingClientRect().top + main.scrollTop
         if (main.scrollTop > pinnedAt) main.scrollTo({ top: pinnedAt })
     }, [])
+
+    // Activity's "Log activity": the composer lives on Overview alone, so
+    // the button opens Overview and, once it is drawn, puts the composer in
+    // view (the page's own scroller moving, only if it must) and in focus.
+    const logActivity = useCallback(() => {
+        chooseTab("overview")
+        requestAnimationFrame(() => revealAndFocus(composerFieldRef.current))
+    }, [chooseTab])
 
     const tabs: RecordTab<ContactTab>[] = [
         { id: "overview", label: "Overview" },
@@ -399,7 +412,6 @@ export function ContactDetailPage({
     const phoneFact = tel && contact.phone ? <FactLink href={tel}>{formatPhoneDisplay(contact.phone)}</FactLink> : contact.phone ? contact.phone : <FactNone>No phone</FactNone>
     const emailFact = mailto && contact.email ? <FactLink href={mailto}>{contact.email}</FactLink> : <FactNone>No email</FactNone>
     const lastActivityFact = lastActivity ? <span suppressHydrationWarning>{lastActivity}</span> : <FactNone>No activity yet</FactNone>
-    const composer = <ActivityComposer subject={subject} onLog={log} className="hidden lg:block" />
     const lastModifiedLine = (
         <p className="text-xs text-muted-foreground" suppressHydrationWarning>
             Last modified {formatDayTime(lastModified || contact.created_at) ?? "—"} by {lastModifiedBy || "System"}
@@ -435,7 +447,7 @@ export function ContactDetailPage({
                         {openNewLead && <Button onClick={openNewLead} className={FILLED_BUTTON}>New lead</Button>}
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" aria-label="More actions" className={ICON_BUTTON}>
+                                <Button variant="ghost" size="icon" aria-label="More actions" className={MORE_BUTTON}>
                                     <MoreVertical className="h-5 w-5" />
                                 </Button>
                             </DropdownMenuTrigger>
@@ -484,59 +496,49 @@ export function ContactDetailPage({
             <RecordTabs tabs={tabs} value={tab} onChange={chooseTab} label="Contact views" idPrefix="contact" />
 
             {/* ═══ OVERVIEW ═══════════════════════════════════════ */}
-            <div role="tabpanel" id="contact-panel-overview" aria-labelledby="contact-tab-overview" hidden={tab !== "overview"}>
-                <div className="flex flex-col gap-3 px-4 pb-6 pt-3 lg:flex-row lg:items-start lg:gap-6 lg:px-8 lg:pb-8 lg:pt-6">
-                    {/* On a phone both columns dissolve into one, reordered. */}
-                    <div className="contents lg:flex lg:min-w-0 lg:flex-1 lg:flex-col lg:gap-5">
-                        <KeyFactsCard className="order-1 lg:hidden">
-                            <KeyFact label="Owner">{ownerFact}</KeyFact>
-                            <KeyFact label="Phone">{phoneFact}</KeyFact>
-                            <KeyFact label="Email">{emailFact}</KeyFact>
-                            <KeyFact label="Last activity">{lastActivityFact}</KeyFact>
-                        </KeyFactsCard>
-                        {composer}
-                        <AddNoteRow onOpen={() => setComposerOpen(true)} className="order-2 lg:hidden" />
-                        <div className="order-3 lg:order-none">
-                            <RecentActivityCard feed={feed} onViewAll={() => chooseTab("activity")} />
-                        </div>
-                    </div>
-                    <div className="contents lg:flex lg:w-[320px] xl:w-[380px] lg:shrink-0 lg:flex-col lg:gap-5">
-                        <div className="order-5 lg:order-none">
-                            <AboutCard title="About this contact" onEdit={editForm} filled={filled} empty={empty} idPrefix="contact" />
-                        </div>
-                        {company && (
-                            <div className="order-4 lg:order-none">
-                                <RelatedCompanyCard company={{ id: company.id, name: company.name, line: companyCardLine(company) }} />
-                            </div>
-                        )}
-                        <RecordLeadsCard leads={leads} onNew={openNewLead} onViewAll={() => chooseTab("leads")} className="hidden lg:block" />
-                        <div className="order-6 px-1 lg:order-none">{lastModifiedLine}</div>
+            <RecordPanel idPrefix="contact" id="overview" active={tab === "overview"} className="flex flex-col gap-3 lg:flex-row lg:items-start lg:gap-6">
+                {/* On a phone both columns dissolve into one, reordered. */}
+                <div className="contents lg:flex lg:min-w-0 lg:flex-1 lg:flex-col lg:gap-5">
+                    <KeyFactsCard className="order-1 lg:hidden">
+                        <KeyFact label="Owner">{ownerFact}</KeyFact>
+                        <KeyFact label="Phone">{phoneFact}</KeyFact>
+                        <KeyFact label="Email">{emailFact}</KeyFact>
+                        <KeyFact label="Last activity">{lastActivityFact}</KeyFact>
+                    </KeyFactsCard>
+                    <ActivityComposer subject={subject} onLog={log} fieldRef={composerFieldRef} className="hidden lg:block" />
+                    <AddNoteRow onOpen={() => setComposerOpen(true)} className="order-2 lg:hidden" />
+                    <div className="order-3 lg:order-none">
+                        <RecentActivityCard feed={feed} onViewAll={() => chooseTab("activity")} />
                     </div>
                 </div>
-            </div>
+                <div className="contents lg:flex lg:w-[320px] xl:w-[380px] lg:shrink-0 lg:flex-col lg:gap-5">
+                    <div className="order-5 lg:order-none">
+                        <AboutCard title="About this contact" onEdit={editForm} filled={filled} empty={empty} idPrefix="contact" />
+                    </div>
+                    {company && (
+                        <div className="order-4 lg:order-none">
+                            <RelatedCompanyCard company={{ id: company.id, name: company.name, line: companyCardLine(company) }} />
+                        </div>
+                    )}
+                    <RecordLeadsCard leads={leads} onNew={openNewLead} onViewAll={() => chooseTab("leads")} className="hidden lg:block" />
+                    <div className="order-6 px-1 lg:order-none">{lastModifiedLine}</div>
+                </div>
+            </RecordPanel>
 
-            {/* ═══ ACTIVITY ═══════════════════════════════════════ */}
-            <div role="tabpanel" id="contact-panel-activity" aria-labelledby="contact-tab-activity" hidden={tab !== "activity"}>
-                <div className="flex flex-col gap-3 px-4 pb-6 pt-3 lg:max-w-[880px] lg:gap-5 lg:px-8 lg:pb-8 lg:pt-6">
-                    {composer}
-                    <AddNoteRow onOpen={() => setComposerOpen(true)} className="lg:hidden" />
-                    <RecordActivityFeed feed={feed} currentUserId={currentUserId} onEditNote={editNote} onDeleteNote={deleteNote} />
-                </div>
-            </div>
+            {/* ═══ ACTIVITY: the history only (the composer is Overview's) ═══ */}
+            <RecordPanel idPrefix="contact" id="activity" active={tab === "activity"} className="flex flex-col gap-3 lg:gap-5">
+                <RecordActivityFeed feed={feed} currentUserId={currentUserId} onEditNote={editNote} onDeleteNote={deleteNote} onLogActivity={logActivity} />
+            </RecordPanel>
 
             {/* ═══ LEADS ══════════════════════════════════════════ */}
-            <div role="tabpanel" id="contact-panel-leads" aria-labelledby="contact-tab-leads" hidden={tab !== "leads"}>
-                <div className="px-4 pb-6 pt-3 lg:px-8 lg:pb-8 lg:pt-6">
-                    <RecordLeadsTable leads={leads} onNew={openNewLead} emptyText="No leads yet. A lead that names this contact as its contact person shows here." />
-                </div>
-            </div>
+            <RecordPanel idPrefix="contact" id="leads" active={tab === "leads"}>
+                <RecordLeadsTable leads={leads} onNew={openNewLead} emptyText="No leads yet. A lead that names this contact as its contact person shows here." />
+            </RecordPanel>
 
             {/* ═══ FILES ══════════════════════════════════════════ */}
-            <div role="tabpanel" id="contact-panel-files" aria-labelledby="contact-tab-files" hidden={tab !== "files"}>
-                <div className="px-4 pb-6 pt-3 lg:max-w-[880px] lg:px-8 lg:pb-8 lg:pt-6">
-                    {filesSeen && <RecordFiles kind="contact" recordId={contact.id} onCountChange={setFilesCount} />}
-                </div>
-            </div>
+            <RecordPanel idPrefix="contact" id="files" active={tab === "files"}>
+                {filesSeen && <RecordFiles kind="contact" recordId={contact.id} onCountChange={setFilesCount} />}
+            </RecordPanel>
 
             {/* ═══ SHEETS AND DIALOGS ═════════════════════════════ */}
             <ComposerSheet open={composerOpen} onOpenChange={setComposerOpen} subject={subject} onLog={log} />

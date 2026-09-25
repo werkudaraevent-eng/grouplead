@@ -487,3 +487,29 @@ export function composerPlaceholder(kind: ComposerKind, subject: string): string
         case "task": return `What needs doing for ${who}? The task and when it is due…`
     }
 }
+
+// ─── Scrolling ───────────────────────────────────────────────────────
+
+/**
+ * Where the page's scroller must go so a target shows whole under what is
+ * pinned at its top (the tabs), or null when it already does and nothing
+ * should move. Positions are in the scroller's content (`top` is the
+ * target's distance from the content's top). A target above the visible
+ * band, or reaching past its foot, is brought to `gap` under the pinned
+ * bar; one taller than the band shows its top. Used for "Log activity"
+ * (the composer), in place of `scrollIntoView`, which asks every ancestor
+ * to scroll (DESIGN.md, "Record pages").
+ */
+export function revealScrollTop({ scrollTop, viewHeight, pinned, top, height, gap = 16 }: {
+    scrollTop: number
+    viewHeight: number
+    pinned: number
+    top: number
+    height: number
+    gap?: number
+}): number | null {
+    const bandTop = scrollTop + pinned
+    const bandBottom = scrollTop + viewHeight
+    if (top >= bandTop && top + height <= bandBottom) return null
+    return Math.max(0, Math.round(top - pinned - gap))
+}

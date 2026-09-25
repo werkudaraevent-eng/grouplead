@@ -9,24 +9,29 @@ import {
 } from "@/components/ui/alert-dialog"
 import { useEdgeFade } from "@/hooks/use-edge-fade"
 import { cn } from "@/lib/utils"
-import { Check, Loader2, Paperclip, Pencil, Trash2 } from "@/components/icons"
+import { Check, Loader2, Paperclip, Pencil, Plus, Trash2 } from "@/components/icons"
 import { feedFilterOptions, feedHeadline, filterFeed, formatDayTime, type FeedFilter, type FeedItem } from "@/lib/record-page"
-import { ActivityIcon, ActivityWhen, RecordCard } from "./record-page"
+import { ActivityIcon, ActivityWhen, OUTLINED_BUTTON, RecordCard } from "./record-page"
 
 /**
- * A record's Activity tab: every note, call, email, meeting, task, file
- * and change, newest first, as the Overview's Recent activity rows but
- * whole. Choice chips narrow it to one kind (only the kinds it holds are
- * offered; on a phone the row scrolls sideways and fades at its edges). A
- * note is its author's: only they see Edit and Delete on it, which is what
- * the database allows, and Delete asks first. The caller puts the
- * composer above it.
+ * A record's Activity tab, the history and nothing else: every note,
+ * call, email, meeting, task, file and change, newest first, as the
+ * Overview's Recent activity rows but whole. Choice chips narrow it to one
+ * kind (only the kinds it holds are offered; on a phone the row scrolls
+ * sideways and fades at its edges). A note is its author's: only they see
+ * Edit and Delete on it, which is what the database allows, and Delete
+ * asks first. There is no composer here: one door per action, and the
+ * composer's is on Overview. On a desk "Log activity", outlined, at the
+ * trailing end of the chips' row, takes the person there (`onLogActivity`);
+ * a phone has Note under the name for that.
  */
-export function RecordActivityFeed({ feed, currentUserId, onEditNote, onDeleteNote }: {
+export function RecordActivityFeed({ feed, currentUserId, onEditNote, onDeleteNote, onLogActivity }: {
     feed: readonly FeedItem[]
     currentUserId: string | null
     onEditNote: (noteId: string, text: string) => Promise<boolean>
     onDeleteNote: (noteId: string) => Promise<boolean>
+    /** Opens Overview with its composer in focus. */
+    onLogActivity?: () => void
 }) {
     const [filter, setFilter] = useState<FeedFilter>("all")
     const [editingKey, setEditingKey] = useState<string | null>(null)
@@ -65,30 +70,39 @@ export function RecordActivityFeed({ feed, currentUserId, onEditNote, onDeleteNo
 
     return (
         <>
-            {options.length > 1 && (
-                <div ref={fade} role="radiogroup" aria-label="Show" className="edge-fade no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4 lg:mx-0 lg:flex-wrap lg:px-0">
-                    {options.map((option) => {
-                        const active = option.id === current
-                        return (
-                            <button
-                                key={option.id}
-                                type="button"
-                                role="radio"
-                                aria-checked={active}
-                                onClick={() => setFilter(option.id)}
-                                className={cn(
-                                    "relative inline-flex h-8 shrink-0 items-center gap-1.5 rounded-[8px] border px-3 text-[13px] font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring/50",
-                                    "before:absolute before:inset-x-0 before:-inset-y-2 before:content-['']",
-                                    active
-                                        ? "border-transparent bg-[var(--tonal)] text-[var(--tonal-foreground)]"
-                                        : "border-border bg-card text-foreground hover:bg-muted",
-                                )}
-                            >
-                                {active && <Check className="h-4 w-4" aria-hidden="true" />}
-                                {option.label}
-                            </button>
-                        )
-                    })}
+            {(options.length > 1 || onLogActivity) && (
+                <div className={cn("flex items-start gap-4", options.length <= 1 && "max-lg:hidden")}>
+                    {options.length > 1 && (
+                        <div ref={fade} role="radiogroup" aria-label="Show" className="edge-fade no-scrollbar -mx-4 flex min-w-0 flex-1 gap-2 overflow-x-auto px-4 lg:mx-0 lg:flex-wrap lg:px-0 lg:py-0.5">
+                            {options.map((option) => {
+                                const active = option.id === current
+                                return (
+                                    <button
+                                        key={option.id}
+                                        type="button"
+                                        role="radio"
+                                        aria-checked={active}
+                                        onClick={() => setFilter(option.id)}
+                                        className={cn(
+                                            "relative inline-flex h-8 shrink-0 items-center gap-1.5 rounded-[8px] border px-3 text-[13px] font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring/50",
+                                            "before:absolute before:inset-x-0 before:-inset-y-2 before:content-['']",
+                                            active
+                                                ? "border-transparent bg-[var(--tonal)] text-[var(--tonal-foreground)]"
+                                                : "border-border bg-card text-foreground hover:bg-muted",
+                                        )}
+                                    >
+                                        {active && <Check className="h-4 w-4" aria-hidden="true" />}
+                                        {option.label}
+                                    </button>
+                                )
+                            })}
+                        </div>
+                    )}
+                    {onLogActivity && (
+                        <Button variant="outline" onClick={onLogActivity} className={cn(OUTLINED_BUTTON, "ml-auto max-lg:hidden")}>
+                            <Plus className="h-4 w-4" aria-hidden="true" /> Log activity
+                        </Button>
+                    )}
                 </div>
             )}
 

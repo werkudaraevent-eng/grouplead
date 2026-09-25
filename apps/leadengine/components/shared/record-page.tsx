@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { Fragment, useId, useRef, useState, type ComponentType, type KeyboardEvent, type ReactNode } from "react"
+import { Fragment, useId, useRef, useState, type ComponentType, type KeyboardEvent, type ReactNode, type Ref } from "react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Tooltip } from "@/components/ui/tooltip"
@@ -16,8 +16,8 @@ import {
 } from "@/components/icons"
 import {
     activityTime, COMPOSER_KINDS, composerPlaceholder, emptyFieldsToggleLabel, feedHeadline, leadStanding,
-    leadSummaryLabel, summarizeLeads, type ActivityKind, type ComposerKind, type FeedItem, type LeadStageFacts,
-    type LeadStanding,
+    leadSummaryLabel, revealScrollTop, summarizeLeads, type ActivityKind, type ComposerKind, type FeedItem,
+    type LeadStageFacts, type LeadStanding,
 } from "@/lib/record-page"
 
 /**
@@ -25,12 +25,13 @@ import {
  * — Desktop 1440" and "— Phone 390"; DESIGN.md, "Record pages"), shared by
  * the Contact and Company pages:
  *
- *   desk (lg+)  RecordHeader: the parent link, avatar, name, the line under
- *               it and the actions, then the facts row (RecordFact)
+ *   desk (lg+)  RecordHeader: back, avatar, name, the line under it and
+ *               the actions in one row, then the facts row (RecordFact)
  *   phone       RecordHero: avatar, name, lines, QuickAction buttons;
  *               KeyFactsCard, AddNoteRow, ComposerSheet
- *   both        RecordTabs pinned under the top; RecordCard and its kinds:
- *               ActivityComposer, RecentActivityCard, AboutCard,
+ *   both        RecordTabs pinned under the top; RecordPanel for each
+ *               tab's body; RecordCard and its kinds: ActivityComposer
+ *               (on Overview only), RecentActivityCard, AboutCard,
  *               RelatedCompanyCard, RecordLeadsCard, RelatedListCard
  *
  * Tokens only; sentence case; 4dp grid (4/8 inside a group, 16–24 between
@@ -48,26 +49,49 @@ type IconType = ComponentType<{ className?: string }>
  */
 export const RECORD_TYPE = "leading-[normal] [--text-xs--line-height:normal] [--text-sm--line-height:normal] [--text-base--line-height:normal] [--text-2xl--line-height:normal]"
 
+/**
+ * The page's content box, one for the header, the tabs and every tab's
+ * body, so their edges line up (the header's ⋮ ends where the cards below
+ * end): 16dp sides on a phone, 32 on a desk. The header is desk-only and
+ * the phone's tabs run edge to edge, so they take the desk half alone.
+ */
+export const RECORD_GUTTER = "px-4 lg:px-8"
+export const RECORD_GUTTER_DESK = "lg:px-8"
+
 /** The outlined button of the header (Call, Email, Edit): the card's surface, a hairline, 36dp, 8dp corners. */
 export const OUTLINED_BUTTON = "h-9 rounded-[8px] border-border bg-card px-4 font-semibold text-foreground shadow-none hover:bg-muted hover:text-foreground"
 /** The filled button (New lead, Save note). */
 export const FILLED_BUTTON = "h-9 rounded-[8px] px-4 font-semibold"
 /** A 36dp round icon button (‹ › ⋮). */
 export const ICON_BUTTON = "size-9 rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
+/**
+ * The header's ⋮, the last of its actions: the 36dp icon button with its
+ * 16dp icon, not its transparent container, on the trailing keyline (M3's
+ * top app bar: the icon sits on the margin, the container reaches 10dp
+ * into it), so the row visibly ends where the cards below end.
+ */
+export const MORE_BUTTON = "-mr-2.5 size-9 rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
 
 // ═══════════════════════════════════════════════════════════════
 //  HEADER (desk)
 // ═══════════════════════════════════════════════════════════════
 
 /**
- * A record's header from `lg`, on the card's surface: the parent as a link
- * ("← Contacts"), 12dp below it the identity (a 48dp avatar, 16dp, the
- * name at 24px and the line under it at 14px) with the actions at the
- * trailing edge, and 24dp below that the facts, under the name (48 + 16 =
- * 64dp in), 48dp apart. It scrolls away; the tabs under it stay.
+ * A record's header from `lg`, on the card's surface, in the page's
+ * content box (`RECORD_GUTTER`, shared with the tabs and the body): 16dp
+ * top, then one row centred on the 48dp avatar: back to the list as the
+ * leading 40dp icon button (M3's top app bar navigation icon, "Back to
+ * Contacts" in its tooltip; its 20dp arrow on the leading keyline, the
+ * container reaching 10dp into the margin, as the ⋮'s does at the other
+ * end), 8dp, the identity (the avatar, 16dp, the name at 24px and the line
+ * under it at 14px), and the actions at the trailing edge; 24dp below, the
+ * facts under the name, 48dp apart, and 20dp above the tabs. It scrolls
+ * away; the tabs under it stay. The back link opens the list bare, so the
+ * list's remembered view comes back.
  */
 export function RecordHeader({ backHref, backLabel, avatar, name, nameAdornment, supporting, actions, facts }: {
     backHref: string
+    /** The list's name ("Contacts"): the button reads "Back to Contacts". */
     backLabel: string
     avatar: ReactNode
     name: string
@@ -76,26 +100,31 @@ export function RecordHeader({ backHref, backLabel, avatar, name, nameAdornment,
     actions: ReactNode
     facts?: ReactNode
 }) {
+    const back = `Back to ${backLabel}`
     return (
-        <header className="hidden bg-card px-8 pt-4 lg:block">
-            <Link href={backHref} className="flex w-fit items-center gap-1 rounded-sm text-[13px] font-medium text-muted-foreground outline-none transition-colors hover:text-primary focus-visible:ring-2 focus-visible:ring-ring/50">
-                <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
-                {backLabel}
-            </Link>
-            <div className="flex items-center justify-between gap-6 pt-3">
-                <div className="flex min-w-0 items-center gap-4">
-                    {avatar}
-                    <div className="flex min-w-0 flex-col gap-1">
-                        <div className="flex min-w-0 items-center gap-2">
-                            <h1 className="truncate text-2xl font-semibold text-foreground" title={name}>{name}</h1>
-                            {nameAdornment}
+        <header className={cn("hidden bg-card pt-4 lg:block", RECORD_GUTTER_DESK)}>
+            <div className="flex items-center justify-between gap-6">
+                <div className="flex min-w-0 items-center">
+                    <Tooltip content={back} position="bottom">
+                        <Button asChild variant="ghost" size="icon" className="-ml-2.5 size-10 rounded-full text-foreground hover:bg-muted hover:text-foreground">
+                            <Link href={backHref} aria-label={back}><ArrowLeft className="size-5" /></Link>
+                        </Button>
+                    </Tooltip>
+                    <div className="ml-2 flex min-w-0 items-center gap-4">
+                        {avatar}
+                        <div className="flex min-w-0 flex-col gap-1">
+                            <div className="flex min-w-0 items-center gap-2">
+                                <h1 className="truncate text-2xl font-semibold text-foreground" title={name}>{name}</h1>
+                                {nameAdornment}
+                            </div>
+                            {supporting && <p className="truncate text-sm text-muted-foreground">{supporting}</p>}
                         </div>
-                        {supporting && <p className="truncate text-sm text-muted-foreground">{supporting}</p>}
                     </div>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">{actions}</div>
             </div>
-            {facts ? <dl className="flex flex-wrap gap-x-12 gap-y-4 pb-5 pl-16 pt-6">{facts}</dl> : <div className="h-5" />}
+            {/* Under the name: the back button's 30dp past the keyline, 8, the avatar's 48, 16. */}
+            {facts ? <dl className="flex flex-wrap gap-x-12 gap-y-4 pb-5 pl-[102px] pt-6">{facts}</dl> : <div className="h-5" />}
         </header>
     )
 }
@@ -217,7 +246,9 @@ export function RecordHero({ avatar, name, nameAdornment, lines, actions }: {
 /**
  * An M3 labelled icon button for the phone's header: a 64×40dp tonal pill
  * over its label (12px), the whole column the target. Without a number or
- * an address it stays in its place, disabled, and says why.
+ * an address it stays in its place, disabled, and says why; disabled is
+ * M3's treatment (the pill on-surface at 12%, icon and label at 38%), as
+ * the Button's is.
  */
 export function QuickAction({ icon: Icon, label, href, onClick, external = false, missing }: {
     icon: IconType
@@ -228,12 +259,20 @@ export function QuickAction({ icon: Icon, label, href, onClick, external = false
     /** Why it is unavailable, when there is no `href` nor `onClick`. */
     missing?: string
 }) {
+    const disabled = !href && !onClick
     const body = (
         <>
-            <span className="grid h-10 w-16 place-items-center rounded-full bg-[var(--tonal)] text-[var(--tonal-foreground)] transition-colors group-hover/quick:bg-[color-mix(in_srgb,var(--tonal-foreground)_8%,var(--tonal))] group-focus-visible/quick:ring-2 group-focus-visible/quick:ring-ring/50">
+            <span
+                className={cn(
+                    "grid h-10 w-16 place-items-center rounded-full transition-colors",
+                    disabled
+                        ? "bg-foreground/12 text-foreground/38"
+                        : "bg-[var(--tonal)] text-[var(--tonal-foreground)] group-hover/quick:bg-[color-mix(in_srgb,var(--tonal-foreground)_8%,var(--tonal))] group-focus-visible/quick:ring-2 group-focus-visible/quick:ring-ring/50",
+                )}
+            >
                 <Icon className="h-5 w-5" />
             </span>
-            <span className="text-xs font-medium">{label}</span>
+            <span className={cn("text-xs font-medium", disabled && "text-foreground/38")}>{label}</span>
         </>
     )
     const base = "group/quick flex w-16 flex-col items-center gap-1.5 text-foreground outline-none"
@@ -248,7 +287,7 @@ export function QuickAction({ icon: Icon, label, href, onClick, external = false
         return <button type="button" onClick={onClick} className={base}>{body}</button>
     }
     return (
-        <button type="button" disabled title={missing} aria-label={missing ? `${label} (${missing.toLowerCase()})` : label} className={cn(base, "opacity-40")}>
+        <button type="button" disabled title={missing} aria-label={missing ? `${label} (${missing.toLowerCase()})` : label} className={base}>
             {body}
         </button>
     )
@@ -320,7 +359,7 @@ export function RecordTabs<T extends string>({ tabs, value, onChange, label, idP
     }
 
     return (
-        <div className="sticky top-0 z-20 border-b border-border bg-card lg:px-8">
+        <div data-record-tabs className={cn("sticky top-0 z-20 border-b border-border bg-card", RECORD_GUTTER_DESK)}>
             <div
                 ref={fade}
                 role="tablist"
@@ -358,6 +397,27 @@ export function RecordTabs<T extends string>({ tabs, value, onChange, label, idP
                     )
                 })}
             </div>
+        </div>
+    )
+}
+
+/**
+ * One tab's body, in the page's content box (`RECORD_GUTTER`), 12dp under
+ * the tabs on a phone and 24 on a desk. A tab with no side column
+ * (Activity, Leads, Contacts, Files) takes the whole width between those
+ * margins, never a reading column that leaves the side column's space
+ * empty; only Overview splits it, through `className`, into its two.
+ */
+export function RecordPanel({ idPrefix, id, active, className, children }: {
+    idPrefix: string
+    id: string
+    active: boolean
+    className?: string
+    children: ReactNode
+}) {
+    return (
+        <div role="tabpanel" id={`${idPrefix}-panel-${id}`} aria-labelledby={`${idPrefix}-tab-${id}`} hidden={!active}>
+            <div className={cn(RECORD_GUTTER, "pb-6 pt-3 lg:pb-8 lg:pt-6", className)}>{children}</div>
         </div>
     )
 }
@@ -450,9 +510,12 @@ export function AddNoteRow({ onOpen, className }: { onOpen: () => void; classNam
  * choices (Note, Log call, Log email, Log meeting, Task), a 76dp text
  * field on the field fill that grows with what is written, and under it
  * "Ctrl + Enter to save" beside the filled button that says what it will
- * do (Save note, Log call…). `bare` drops the card (inside a sheet).
+ * do (Save note, Log call…). `bare` drops the card (inside a sheet). It
+ * lives on Overview alone (on a phone behind "Add a note…"): Activity's
+ * "Log activity" brings it into view and into focus (`revealAndFocus`
+ * with `fieldRef`) rather than drawing a second one.
  */
-export function ActivityComposer({ subject, onLog, onDone, bare = false, className }: {
+export function ActivityComposer({ subject, onLog, onDone, bare = false, className, fieldRef }: {
     /** Named in the prompt: the contact's first name, the company's name. */
     subject: string
     onLog: (kind: ComposerKind, text: string) => Promise<boolean>
@@ -460,6 +523,8 @@ export function ActivityComposer({ subject, onLog, onDone, bare = false, classNa
     onDone?: () => void
     bare?: boolean
     className?: string
+    /** The text field, for "Log activity" to focus. */
+    fieldRef?: Ref<HTMLTextAreaElement>
 }) {
     const [kind, setKind] = useState<ComposerKind>("note")
     const [text, setText] = useState("")
@@ -479,7 +544,7 @@ export function ActivityComposer({ subject, onLog, onDone, bare = false, classNa
     }
 
     return (
-        <div className={cn(!bare && "overflow-hidden rounded-[12px] border border-border bg-card", className)}>
+        <div data-reveal className={cn(!bare && "overflow-hidden rounded-[12px] border border-border bg-card", className)}>
             {/* One row; on a narrow screen it scrolls sideways and fades at its edges. */}
             <div ref={fade} role="radiogroup" aria-label="What to log" className="edge-fade no-scrollbar flex gap-1 overflow-x-auto px-3 pb-2.5 pt-2.5">
                 {COMPOSER_KINDS.map((entry) => {
@@ -504,6 +569,7 @@ export function ActivityComposer({ subject, onLog, onDone, bare = false, classNa
             <div className="px-3 pb-3">
                 <label htmlFor={fieldId} className="sr-only">{choice.label}</label>
                 <Textarea
+                    ref={fieldRef}
                     id={fieldId}
                     value={text}
                     onChange={(event) => setText(event.target.value)}
@@ -526,6 +592,32 @@ export function ActivityComposer({ subject, onLog, onDone, bare = false, classNa
             </div>
         </div>
     )
+}
+
+/**
+ * Brings a field into view and gives it the focus without
+ * `scrollIntoView` or a bare `.focus()` (DESIGN.md, "Record pages"): only
+ * `<main>` moves, and only when the field's `[data-reveal]` block (the
+ * composer's card) does not already show whole under the pinned tabs,
+ * which it then sits 16dp under; the focus follows with `preventScroll`.
+ */
+export function revealAndFocus(field: HTMLElement | null) {
+    if (!field) return
+    const main = document.getElementById("main-content")
+    if (main) {
+        const block = field.closest<HTMLElement>("[data-reveal]") ?? field
+        const tabs = main.querySelector<HTMLElement>("[data-record-tabs]")
+        const box = block.getBoundingClientRect()
+        const next = revealScrollTop({
+            scrollTop: main.scrollTop,
+            viewHeight: main.clientHeight,
+            pinned: tabs?.offsetHeight ?? 0,
+            top: box.top - main.getBoundingClientRect().top + main.scrollTop,
+            height: box.height,
+        })
+        if (next !== null) main.scrollTo({ top: next })
+    }
+    field.focus({ preventScroll: true })
 }
 
 /** The composer in a bottom sheet, for the phone's "Add a note…" and Note. */

@@ -22,9 +22,9 @@ import {
 } from "@/components/shared/inline-edit-field"
 import {
     AboutCard, ActivityComposer, AddNoteRow, CardAction, ComposerSheet, FactLink, FactNone, FILLED_BUTTON,
-    HeaderLinkButton, ICON_BUTTON, KeyFact, KeyFactsCard, OUTLINED_BUTTON, PersonLine, QuickAction, RecentActivityCard,
-    RecordFact, RecordHeader, RecordHero, RecordLeadsCard, RecordStepper, RecordTabs, RECORD_TYPE, RelatedListCard, type RecordLead,
-    type RecordTab,
+    HeaderLinkButton, KeyFact, KeyFactsCard, MORE_BUTTON, OUTLINED_BUTTON, PersonLine, QuickAction, RecentActivityCard,
+    RecordFact, RecordHeader, RecordHero, RecordLeadsCard, RecordPanel, RecordStepper, RecordTabs, RECORD_TYPE,
+    RelatedListCard, revealAndFocus, type RecordLead, type RecordTab,
 } from "@/components/shared/record-page"
 import { RecordActivityFeed } from "@/components/shared/record-activity-feed"
 import { RecordFiles } from "@/components/shared/record-files"
@@ -111,13 +111,16 @@ interface InfoField {
  * organisation (DESIGN.md, "Record pages"). One scroll in the shell's
  * `<main>`:
  *
- *   desk (lg+)  the header: "← Companies", a 48dp tile, name, sector · line
- *               industry · city, ‹ › Call Edit New lead ⋮; the facts:
- *               Owner, Phone, Website, Last activity
+ *   desk (lg+)  the header: back (←, "Back to Companies"), a 48dp tile,
+ *               name, sector · line industry · city, ‹ › Call Edit New
+ *               lead ⋮; the facts: Owner, Phone, Website, Last activity
  *               tabs pinned to the top: Overview · Activity · Contacts n ·
  *               Leads n · Files n
  *               Overview: the composer and Recent activity; beside them
- *               (380px) About this company, Contacts, Leads, the group
+ *               (380px) About this company, Contacts, Leads, the group.
+ *               Activity, Contacts, Leads and Files take the whole width;
+ *               Activity is the history alone, its "Log activity" opening
+ *               Overview's composer
  *   phone       the top app bar ("Company", back, ⋮ Edit / ‹ › / Delete)
  *               the header centred, then Call · Website · Note
  *               tabs pinned under the top app bar (they scroll sideways
@@ -149,6 +152,7 @@ export function CompanyDetailPage({
     const [filesCount, setFilesCount] = useState<number | null>(fileCount)
     const [ownerOptions, setOwnerOptions] = useState<ChoiceOption[] | null>(null)
     const tabsAnchorRef = useRef<HTMLDivElement>(null)
+    const composerFieldRef = useRef<HTMLTextAreaElement>(null)
 
     useEffect(() => {
         createClient().auth.getUser().then(({ data }) => setCurrentUserId(data.user?.id ?? null))
@@ -225,6 +229,14 @@ export function CompanyDetailPage({
         const pinnedAt = anchor.getBoundingClientRect().top - main.getBoundingClientRect().top + main.scrollTop
         if (main.scrollTop > pinnedAt) main.scrollTo({ top: pinnedAt })
     }, [])
+
+    // Activity's "Log activity": the composer lives on Overview alone, so
+    // the button opens Overview and, once it is drawn, puts the composer in
+    // view (the page's own scroller moving, only if it must) and in focus.
+    const logActivity = useCallback(() => {
+        chooseTab("overview")
+        requestAnimationFrame(() => revealAndFocus(composerFieldRef.current))
+    }, [chooseTab])
 
     const tabs: RecordTab<CompanyTab>[] = [
         { id: "overview", label: "Overview" },
@@ -319,7 +331,6 @@ export function CompanyDetailPage({
     const phoneFact = tel && company.phone ? <FactLink href={tel}>{formatPhoneDisplay(company.phone)}</FactLink> : company.phone ? company.phone : <FactNone>No phone</FactNone>
     const websiteFact = website ? <FactLink href={website} external>{websiteLabel(company.website)}</FactLink> : <FactNone>No website</FactNone>
     const lastActivityFact = lastActivity ? <span suppressHydrationWarning>{lastActivity}</span> : <FactNone>No activity yet</FactNone>
-    const composer = <ActivityComposer subject={company.name} onLog={log} className="hidden lg:block" />
     const lastModifiedLine = (
         <p className="text-xs text-muted-foreground" suppressHydrationWarning>
             Last modified {formatDayTime(lastModified || company.created_at) ?? "—"} by {lastModifiedBy || "System"}
@@ -356,7 +367,7 @@ export function CompanyDetailPage({
                         {openNewLead && <Button onClick={openNewLead} className={FILLED_BUTTON}>New lead</Button>}
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" aria-label="More actions" className={ICON_BUTTON}>
+                                <Button variant="ghost" size="icon" aria-label="More actions" className={MORE_BUTTON}>
                                     <MoreVertical className="h-5 w-5" />
                                 </Button>
                             </DropdownMenuTrigger>
@@ -399,87 +410,75 @@ export function CompanyDetailPage({
             <RecordTabs tabs={tabs} value={tab} onChange={chooseTab} label="Company views" idPrefix="company" />
 
             {/* ═══ OVERVIEW ═══════════════════════════════════════ */}
-            <div role="tabpanel" id="company-panel-overview" aria-labelledby="company-tab-overview" hidden={tab !== "overview"}>
-                <div className="flex flex-col gap-3 px-4 pb-6 pt-3 lg:flex-row lg:items-start lg:gap-6 lg:px-8 lg:pb-8 lg:pt-6">
-                    {/* On a phone both columns dissolve into one, reordered. */}
-                    <div className="contents lg:flex lg:min-w-0 lg:flex-1 lg:flex-col lg:gap-5">
-                        <KeyFactsCard className="order-1 lg:hidden">
-                            <KeyFact label="Owner">{ownerFact}</KeyFact>
-                            <KeyFact label="Phone">{phoneFact}</KeyFact>
-                            <KeyFact label="Website">{websiteFact}</KeyFact>
-                            <KeyFact label="Last activity">{lastActivityFact}</KeyFact>
-                        </KeyFactsCard>
-                        {composer}
-                        <AddNoteRow onOpen={() => setComposerOpen(true)} className="order-2 lg:hidden" />
-                        <div className="order-3 lg:order-none">
-                            <RecentActivityCard feed={feed} onViewAll={() => chooseTab("activity")} />
-                        </div>
+            <RecordPanel idPrefix="company" id="overview" active={tab === "overview"} className="flex flex-col gap-3 lg:flex-row lg:items-start lg:gap-6">
+                {/* On a phone both columns dissolve into one, reordered. */}
+                <div className="contents lg:flex lg:min-w-0 lg:flex-1 lg:flex-col lg:gap-5">
+                    <KeyFactsCard className="order-1 lg:hidden">
+                        <KeyFact label="Owner">{ownerFact}</KeyFact>
+                        <KeyFact label="Phone">{phoneFact}</KeyFact>
+                        <KeyFact label="Website">{websiteFact}</KeyFact>
+                        <KeyFact label="Last activity">{lastActivityFact}</KeyFact>
+                    </KeyFactsCard>
+                    <ActivityComposer subject={company.name} onLog={log} fieldRef={composerFieldRef} className="hidden lg:block" />
+                    <AddNoteRow onOpen={() => setComposerOpen(true)} className="order-2 lg:hidden" />
+                    <div className="order-3 lg:order-none">
+                        <RecentActivityCard feed={feed} onViewAll={() => chooseTab("activity")} />
                     </div>
-                    <div className="contents lg:flex lg:w-[320px] xl:w-[380px] lg:shrink-0 lg:flex-col lg:gap-5">
-                        <div className="order-5 lg:order-none">
-                            <AboutCard title="About this company" onEdit={canEdit ? openEdit : undefined} filled={filled} empty={empty} idPrefix="company" />
-                        </div>
-                        <div className="hidden lg:block">
+                </div>
+                <div className="contents lg:flex lg:w-[320px] xl:w-[380px] lg:shrink-0 lg:flex-col lg:gap-5">
+                    <div className="order-5 lg:order-none">
+                        <AboutCard title="About this company" onEdit={canEdit ? openEdit : undefined} filled={filled} empty={empty} idPrefix="company" />
+                    </div>
+                    <div className="hidden lg:block">
+                        <RelatedListCard
+                            title="Contacts"
+                            headingId="company-contacts-heading"
+                            action={openAddContact && <CardAction onClick={openAddContact} aria-label="Add contact"><Plus className="h-3.5 w-3.5" aria-hidden="true" />Add</CardAction>}
+                            items={contacts.slice(0, 5).map((person) => ({
+                                key: person.id,
+                                href: `/contacts/${person.id}`,
+                                name: nameWithSalutation(person.salutation, person.full_name),
+                                detail: person.job_title,
+                                avatar: <InitialsAvatar name={person.full_name} size="md" />,
+                            }))}
+                            emptyText="No contacts yet."
+                            footer={contacts.length > 5 ? <CardAction onClick={() => chooseTab("contacts")}>View all {contacts.length}</CardAction> : undefined}
+                        />
+                    </div>
+                    <RecordLeadsCard leads={leads} onNew={openNewLead} onViewAll={() => chooseTab("leads")} className="hidden lg:block" />
+                    {groupTitle && (
+                        <div className="order-4 lg:order-none">
                             <RelatedListCard
-                                title="Contacts"
-                                headingId="company-contacts-heading"
-                                action={openAddContact && <CardAction onClick={openAddContact} aria-label="Add contact"><Plus className="h-3.5 w-3.5" aria-hidden="true" />Add</CardAction>}
-                                items={contacts.slice(0, 5).map((person) => ({
-                                    key: person.id,
-                                    href: `/contacts/${person.id}`,
-                                    name: nameWithSalutation(person.salutation, person.full_name),
-                                    detail: person.job_title,
-                                    avatar: <InitialsAvatar name={person.full_name} size="md" />,
-                                }))}
-                                emptyText="No contacts yet."
-                                footer={contacts.length > 5 ? <CardAction onClick={() => chooseTab("contacts")}>View all {contacts.length}</CardAction> : undefined}
+                                title={groupTitle}
+                                headingId="company-group-heading"
+                                items={groupItems}
+                                footer={subsidiaries.length > 5 ? <p className="text-[13px] text-muted-foreground">and {subsidiaries.length - 5} more</p> : undefined}
                             />
                         </div>
-                        <RecordLeadsCard leads={leads} onNew={openNewLead} onViewAll={() => chooseTab("leads")} className="hidden lg:block" />
-                        {groupTitle && (
-                            <div className="order-4 lg:order-none">
-                                <RelatedListCard
-                                    title={groupTitle}
-                                    headingId="company-group-heading"
-                                    items={groupItems}
-                                    footer={subsidiaries.length > 5 ? <p className="text-[13px] text-muted-foreground">and {subsidiaries.length - 5} more</p> : undefined}
-                                />
-                            </div>
-                        )}
-                        <div className="order-6 px-1 lg:order-none">{lastModifiedLine}</div>
-                    </div>
+                    )}
+                    <div className="order-6 px-1 lg:order-none">{lastModifiedLine}</div>
                 </div>
-            </div>
+            </RecordPanel>
 
-            {/* ═══ ACTIVITY ═══════════════════════════════════════ */}
-            <div role="tabpanel" id="company-panel-activity" aria-labelledby="company-tab-activity" hidden={tab !== "activity"}>
-                <div className="flex flex-col gap-3 px-4 pb-6 pt-3 lg:max-w-[880px] lg:gap-5 lg:px-8 lg:pb-8 lg:pt-6">
-                    {composer}
-                    <AddNoteRow onOpen={() => setComposerOpen(true)} className="lg:hidden" />
-                    <RecordActivityFeed feed={feed} currentUserId={currentUserId} onEditNote={editNote} onDeleteNote={deleteNote} />
-                </div>
-            </div>
+            {/* ═══ ACTIVITY: the history only (the composer is Overview's) ═══ */}
+            <RecordPanel idPrefix="company" id="activity" active={tab === "activity"} className="flex flex-col gap-3 lg:gap-5">
+                <RecordActivityFeed feed={feed} currentUserId={currentUserId} onEditNote={editNote} onDeleteNote={deleteNote} onLogActivity={logActivity} />
+            </RecordPanel>
 
             {/* ═══ CONTACTS ═══════════════════════════════════════ */}
-            <div role="tabpanel" id="company-panel-contacts" aria-labelledby="company-tab-contacts" hidden={tab !== "contacts"}>
-                <div className="px-4 pb-6 pt-3 lg:px-8 lg:pb-8 lg:pt-6">
-                    <CompanyContactsTable contacts={contacts} onAdd={openAddContact} />
-                </div>
-            </div>
+            <RecordPanel idPrefix="company" id="contacts" active={tab === "contacts"}>
+                <CompanyContactsTable contacts={contacts} onAdd={openAddContact} />
+            </RecordPanel>
 
             {/* ═══ LEADS ══════════════════════════════════════════ */}
-            <div role="tabpanel" id="company-panel-leads" aria-labelledby="company-tab-leads" hidden={tab !== "leads"}>
-                <div className="px-4 pb-6 pt-3 lg:px-8 lg:pb-8 lg:pt-6">
-                    <RecordLeadsTable leads={leads} onNew={openNewLead} emptyText="No leads yet. A lead for this company shows here." />
-                </div>
-            </div>
+            <RecordPanel idPrefix="company" id="leads" active={tab === "leads"}>
+                <RecordLeadsTable leads={leads} onNew={openNewLead} emptyText="No leads yet. A lead for this company shows here." />
+            </RecordPanel>
 
             {/* ═══ FILES ══════════════════════════════════════════ */}
-            <div role="tabpanel" id="company-panel-files" aria-labelledby="company-tab-files" hidden={tab !== "files"}>
-                <div className="px-4 pb-6 pt-3 lg:max-w-[880px] lg:px-8 lg:pb-8 lg:pt-6">
-                    {filesSeen && <RecordFiles kind="company" recordId={company.id} onCountChange={setFilesCount} />}
-                </div>
-            </div>
+            <RecordPanel idPrefix="company" id="files" active={tab === "files"}>
+                {filesSeen && <RecordFiles kind="company" recordId={company.id} onCountChange={setFilesCount} />}
+            </RecordPanel>
 
             {/* ═══ SHEETS AND DIALOGS ═════════════════════════════ */}
             <ComposerSheet open={composerOpen} onOpenChange={setComposerOpen} subject={company.name} onLog={log} />
