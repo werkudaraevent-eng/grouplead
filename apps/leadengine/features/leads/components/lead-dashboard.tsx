@@ -64,6 +64,7 @@ import {
     AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { bulkDeleteLeadsAction, deleteLeadAction } from "@/app/actions/lead-actions"
+import { PIPELINE_STORAGE_PREFIX } from "@/features/leads/lib/new-lead-pipeline"
 import * as XLSX from "xlsx"
 
 type ViewMode = 'table' | 'kanban'
@@ -71,7 +72,7 @@ const VIEW_MODES = ['kanban', 'table'] as const satisfies readonly ViewMode[]
 
 // Persist the last-selected pipeline per company scope so a page refresh
 // restores the user's choice instead of snapping back to the first pipeline.
-const PIPELINE_STORAGE_PREFIX = 'leadengine.activePipeline.'
+// A record page's New lead reads the same memory (`new-lead-pipeline.ts`).
 // URL search param name — authoritative + shareable across refresh/back/forward.
 const PIPELINE_QUERY_KEY = 'pipeline'
 

@@ -19,11 +19,15 @@ const AVATAR_COLORS = [
     "bg-teal-100 text-teal-700",
 ]
 
-/** Initials from a full name, e.g. "Kensrie Diah Ayuningtyas" → "KD". */
+/**
+ * Initials from a full name, e.g. "Kensrie Diah Ayuningtyas" → "KD"; letters
+ * and digits only, so "Elitery (Data Sinergitama)" reads "ED", never "E(".
+ */
 export function getInitials(name: string | null | undefined): string {
     if (!name) return "?"
     return name
-        .split(" ")
+        .split(/\s+/)
+        .map((w) => w.replace(/[^\p{L}\p{N}]/gu, ""))
         .filter(Boolean)
         .slice(0, 2)
         .map((w) => w[0]?.toUpperCase() ?? "")

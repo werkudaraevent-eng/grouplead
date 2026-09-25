@@ -1,960 +1,535 @@
 "use client"
 
-import { useState, useEffect, useCallback, useMemo } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { useRouter } from "next/navigation"
-import { PageChrome } from "@/components/layout/page-chrome"
-import Link from "next/link"
-import { createClient } from "@/utils/supabase/client"
-import { updateClientCompanyAction } from "@/app/actions/company-actions"
-import { Button } from "@/components/ui/button"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { toast } from "sonner"
-import {
-    ArrowLeft, Pencil, Building2, Phone, Globe, MapPin,
-    Briefcase, FileText, Clock, Folder, Users, Mail,
-    Plus, Loader2, Target, TrendingUp,
-    CheckCircle2, XCircle, Search, ChevronLeft, ChevronRight,
-    Network, Building, AlertTriangle
-} from "@/components/icons"
-import { useCurrency } from "@/contexts/currency-context"
-import type { ClientCompany, Contact } from "@/types"
-import { TimelineTab } from "./timeline-tab"
-import { AddCompanyModal } from "./add-company-modal"
-import { CompanyFilesTab } from "./company-files-tab"
-import { formatPhoneDisplay } from "@/lib/phone-normalize"
-import { getInitials, getAvatarColor } from "@/lib/avatar"
-import { InlineTextField, InlineSelectField, InlineCustomSelectField } from "@/components/shared/inline-edit-field"
-import { sentenceCaseLabel } from "@/lib/label-case"
+import { PageChrome, type ChromeMenuItem } from "@/components/layout/page-chrome"
+import { createClient } from "@/utils/supabase/client"
+import { deleteClientCompaniesAction, updateClientCompanyAction } from "@/app/actions/company-actions"
 import { usePermissions } from "@/contexts/permissions-context"
+import { useCompany } from "@/contexts/company-context"
+import { Button } from "@/components/ui/button"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import {
+    AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+    AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import { InitialsAvatar } from "@/components/shared/initials-avatar"
+import { NeedsDetailsMark } from "@/components/shared/status-badge"
+import { PermissionMenuItem } from "@/components/shared/permission-menu-item"
+import {
+    FieldRow, InlineChoiceField, InlineCustomSelectField, InlineSelectField, InlineTextField, type ChoiceOption,
+} from "@/components/shared/inline-edit-field"
+import {
+    AboutCard, ActivityComposer, AddNoteRow, CardAction, ComposerSheet, FactLink, FactNone, FILLED_BUTTON,
+    HeaderLinkButton, ICON_BUTTON, KeyFact, KeyFactsCard, OUTLINED_BUTTON, PersonLine, QuickAction, RecentActivityCard,
+    RecordFact, RecordHeader, RecordHero, RecordLeadsCard, RecordStepper, RecordTabs, RECORD_TYPE, RelatedListCard, type RecordLead,
+    type RecordTab,
+} from "@/components/shared/record-page"
+import { RecordActivityFeed } from "@/components/shared/record-activity-feed"
+import { RecordFiles } from "@/components/shared/record-files"
+import { RecordLeadsTable } from "@/components/shared/record-leads-table"
+import { AddContactModal } from "@/features/contacts/components/add-contact-modal"
+import { nameWithSalutation } from "@/features/contacts/lib/contact-record"
+import { NewLeadSheet } from "@/features/leads/components/new-lead-sheet"
+import { companyActivityTarget, useRecordActivity } from "@/hooks/use-record-activity"
+import { formatPhoneDisplay } from "@/lib/phone-normalize"
+import { cn } from "@/lib/utils"
+import {
+    buildFeed, externalHref, formatCalendarDay, formatDayTime, isBlank, lastActivityLabel, splitEmptyFields, telHref,
+    websiteLabel, type ActivityRow, type NoteRow,
+} from "@/lib/record-page"
+import { ChevronLeft, ChevronRight, FileText, Globe, Loader2, MoreVertical, Pencil, Phone, Plus, Trash2 } from "@/components/icons"
+import type { ClientCompany } from "@/types"
+import {
+    companyAddress, companyCardLine, companyGroupTitle, companySupportingLine, withCompanyTab, type CompanyTab,
+} from "../lib/company-record"
+import { AddCompanyModal } from "./add-company-modal"
+import { CompanyContactsTable } from "./company-contacts-table"
+
 // ═══════════════════════════════════════════════════════════════
 //  TYPES
 // ═══════════════════════════════════════════════════════════════
 
-interface CompanyLead {
-    id: number
-    project_name: string | null
-    estimated_value: number | null
-    status: string | null
-    target_close_date: string | null
-    pipeline_stage: { name: string; color: string } | null
-    pic_sales_profile: { full_name: string } | null
+interface RelatedCompany {
+    id: string
+    name: string
+    industry?: string | null
+    line_industry?: string | null
+    city?: string | null
+    area?: string | null
 }
 
-interface CompanyData extends ClientCompany {
-    parent?: { id: string; name: string } | null
+interface CompanyData extends Omit<ClientCompany, "parent"> {
+    parent?: RelatedCompany | null
     owner?: { id: string; full_name: string; email: string; avatar_url?: string | null } | null
+    updated_at?: string | null
+    company_id?: string | null
+}
+
+/** One of the company's people, as its Contacts card and tab list them. */
+export interface CompanyContact {
+    id: string
+    salutation: string | null
+    full_name: string
+    job_title: string | null
+    email: string | null
+    phone: string | null
 }
 
 interface CompanyDetailPageProps {
     company: CompanyData
-    leads: CompanyLead[]
-    contactCount: number
-    subsidiaries?: { id: string; name: string }[]
+    leads: RecordLead[]
+    contacts: CompanyContact[]
+    /** The company's timeline, newest first. */
+    activities: ActivityRow[]
+    /** The company's notes, newest first. */
+    notes: NoteRow[]
+    fileCount: number | null
+    subsidiaries?: RelatedCompany[]
     lastModified?: string
     lastModifiedBy?: string
     nextCompanyId?: string
     prevCompanyId?: string
+    initialTab?: CompanyTab
 }
 
-interface CompanyNote {
-    id: string
-    content: string
-    author_name: string | null
-    created_at: string
-    user_id: string | null
+/** One property in About this company, with whether it is empty and whether a person fills it in. */
+interface InfoField {
+    key: string
+    empty: boolean
+    fillable: boolean
+    node: ReactNode
 }
 
 // ═══════════════════════════════════════════════════════════════
-//  MAIN COMPONENT
+//  PAGE
 // ═══════════════════════════════════════════════════════════════
-
-export function CompanyDetailPage({ company, leads, contactCount, subsidiaries = [], lastModified, lastModifiedBy, nextCompanyId, prevCompanyId }: CompanyDetailPageProps) {
-    const router = useRouter()
-    const supabase = createClient()
-    const { fmt } = useCurrency()
-
-    // ─── Contacts State ──────────────────────────────────
-    const [contacts, setContacts] = useState<Contact[]>([])
-    const [contactsLoading, setContactsLoading] = useState(true)
-
-    // ─── Notes State ─────────────────────────────────────
-    const [notes, setNotes] = useState<CompanyNote[]>([])
-    const [notesLoading, setNotesLoading] = useState(true)
-    const [noteText, setNoteText] = useState("")
-    const [savingNote, setSavingNote] = useState(false)
-
-    // ─── New: users for owner selection ──────────────────
-    const [allUsers, setAllUsers] = useState<{id: string, full_name: string, avatar_url?: string | null}[]>([])
-
-    // ─── Computed Stats ──────────────────────────────────
-    const activeLeads = leads.filter(l => {
-        const stage = l.pipeline_stage?.name?.toLowerCase() ?? ""
-        return !stage.includes("won") && !stage.includes("lost") && !stage.includes("cancel")
-    })
-    const wonLeads = leads.filter(l => l.pipeline_stage?.name?.toLowerCase().includes("won"))
-    const totalValue = leads.reduce((sum, l) => sum + (l.estimated_value || 0), 0)
-    const wonValue = wonLeads.reduce((sum, l) => sum + (l.estimated_value || 0), 0)
-
-    // ─── Fetch Users ─────────────────────────────────────
-    const fetchUsers = useCallback(async () => {
-        const { data } = await supabase.from('profiles').select('id, full_name, avatar_url').eq('is_active', true).order('full_name')
-        if (data) setAllUsers(data)
-    }, [supabase])
-
-    // ─── Fetch Contacts ──────────────────────────────────
-    const fetchContacts = useCallback(async () => {
-        setContactsLoading(true)
-        const { data, error } = await supabase
-            .from("contacts")
-            .select("*")
-            .eq("client_company_id", company.id)
-            .order("full_name")
-        setContacts(data ?? [])
-        setContactsLoading(false)
-    }, [company.id])
-
-    // ─── Fetch Notes ─────────────────────────────────────
-    const fetchNotes = useCallback(async () => {
-        setNotesLoading(true)
-        const { data } = await supabase
-            .from("company_notes")
-            .select("*")
-            .eq("client_company_id", company.id)
-            .order("created_at", { ascending: false })
-        setNotes(data ?? [])
-        setNotesLoading(false)
-    }, [company.id])
-
-    useEffect(() => { fetchContacts(); fetchNotes(); fetchUsers() }, [fetchContacts, fetchNotes, fetchUsers])
-
-    // ─── Save Note ───────────────────────────────────────
-    const handleSaveNote = async () => {
-        if (!noteText.trim()) return
-        setSavingNote(true)
-        const { data: { user } } = await supabase.auth.getUser()
-        const { data: profile } = await supabase
-            .from("profiles").select("full_name").eq("id", user?.id ?? "").single()
-
-        const { error } = await supabase.from("company_notes").insert({
-            client_company_id: company.id,
-            user_id: user?.id ?? null,
-            author_name: profile?.full_name ?? "Unknown",
-            content: noteText.trim(),
-        })
-        if (error) { toast.error("Failed to save note"); setSavingNote(false); return }
-        setNoteText("")
-        setSavingNote(false)
-        fetchNotes()
-        toast.success("Note saved")
-    }
-
-    // ─── Delete Note ─────────────────────────────────────
-    const handleDeleteNote = async (noteId: string) => {
-        const { error } = await supabase.from("company_notes").delete().eq("id", noteId)
-        if (error) { toast.error("Failed to delete note"); return }
-        fetchNotes()
-    }
-
-    // ─── Formatters ──────────────────────────────────────
-    const fmtCurrency = (v: number | null | undefined) =>
-        v ? fmt(v) : "—"
-    const fmtDate = (d: string | null | undefined) =>
-        d ? new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "—"
-    const fmtDateTime = (d: string | null | undefined) =>
-        d ? new Date(d).toLocaleString("en-GB", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "—"
-    const initials = (name: string) =>
-        name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2)
-
-    // ─── Table Search & Pagination State ─────────────────
-    const ITEMS_PER_PAGE = 5
-    
-    // Leads
-    const [leadsSearch, setLeadsSearch] = useState("")
-    const [leadsPage, setLeadsPage] = useState(1)
-    const filteredLeads = useMemo(() => {
-        let res = leads
-        if (leadsSearch) {
-            const q = leadsSearch.toLowerCase()
-            res = res.filter(l => l.project_name?.toLowerCase().includes(q) || l.pic_sales_profile?.full_name?.toLowerCase().includes(q))
-        }
-        return res
-    }, [leads, leadsSearch])
-    const paginatedLeads = useMemo(() => filteredLeads.slice((leadsPage - 1) * ITEMS_PER_PAGE, leadsPage * ITEMS_PER_PAGE), [filteredLeads, leadsPage])
-    const leadsTotalPages = Math.ceil(filteredLeads.length / ITEMS_PER_PAGE)
-
-    // Contacts
-    const [contactsSearch, setContactsSearch] = useState("")
-    const [contactsPage, setContactsPage] = useState(1)
-    const filteredContacts = useMemo(() => {
-        let res = contacts
-        if (contactsSearch) {
-            const q = contactsSearch.toLowerCase()
-            res = res.filter(c => c.full_name?.toLowerCase().includes(q) || c.job_title?.toLowerCase().includes(q) || c.email?.toLowerCase().includes(q))
-        }
-        return res
-    }, [contacts, contactsSearch])
-    const paginatedContacts = useMemo(() => filteredContacts.slice((contactsPage - 1) * ITEMS_PER_PAGE, contactsPage * ITEMS_PER_PAGE), [filteredContacts, contactsPage])
-    const contactsTotalPages = Math.ceil(filteredContacts.length / ITEMS_PER_PAGE)
-
-    // Reset pagination on search
-    useEffect(() => { setLeadsPage(1) }, [leadsSearch])
-    useEffect(() => { setContactsPage(1) }, [contactsSearch])
-
-    // ─── Editable Details Setup ────────────────────────────
-    const { can } = usePermissions()
-    const canEdit = can("companies", "update")
-    const [isEditingName, setIsEditingName] = useState(false)
-    const [nameEdit, setNameEdit] = useState(company.name)
-    const [savingName, setSavingName] = useState(false)
-    const [editModalOpen, setEditModalOpen] = useState(false)
-
-    const handleSaveName = async () => {
-        if (!nameEdit.trim() || nameEdit === company.name) {
-            setIsEditingName(false)
-            setNameEdit(company.name)
-            return
-        }
-        setSavingName(true)
-        const result = await updateClientCompanyAction(company.id, { name: nameEdit.trim() })
-        if (!result.success) {
-            toast.error(result.error || "Failed to update company name")
-        } else {
-            toast.success("Name updated")
-            router.refresh()
-        }
-        setSavingName(false)
-        setIsEditingName(false)
-    }
-
-    const handleSaveOwner = async (newOwnerId: string) => {
-        const val = newOwnerId === "unassigned" ? null : newOwnerId
-        if (val === company.owner_id) return
-
-        const result = await updateClientCompanyAction(company.id, { owner_id: val })
-        if (!result.success) {
-            toast.error(result.error || "Failed to update record owner")
-        } else {
-            toast.success("Record owner updated")
-            router.refresh()
-        }
-    }
-
-    // ═══════════════════════════════════════════════════════
-    //  RENDER
-    // ═══════════════════════════════════════════════════════
-    return (
-        <div className="flex flex-col h-full overflow-hidden bg-[#f8fafc]">
-            {/* Below `lg` the top app bar's arrow is the way back, so the
-                header's own arrow is desk-only (one door each). The bar says
-                what the page is; the name, which can be edited in place,
-                stays in the header under it. */}
-            <PageChrome title="Company" backHref="/companies" />
-
-            {/* ═══ TOP HEADER ══════════════════════════════════════ */}
-            <header className="flex-none bg-white border-b border-slate-200">
-                <div className="px-8 py-5 flex items-start justify-between">
-                    <div className="flex items-start gap-3 w-full max-w-3xl">
-                        <button
-                            onClick={() => router.push('/companies')}
-                            className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors mt-0.5 max-lg:hidden"
-                            title="Back to companies"
-                        >
-                            <ArrowLeft className="h-[18px] w-[18px]" />
-                        </button>
-                        <div className="flex-1 w-full relative group">
-                            {isEditingName && canEdit ? (
-                                <div className="flex items-center gap-2 max-w-lg mb-1 relative">
-                                    <input 
-                                        type="text" 
-                                        autoFocus
-                                        value={nameEdit}
-                                        onChange={(e) => setNameEdit(e.target.value)}
-                                        onKeyDown={(e) => { 
-                                            if (e.key === "Enter") handleSaveName()
-                                            if (e.key === "Escape") { setIsEditingName(false); setNameEdit(company.name) } 
-                                        }}
-                                        className="text-xl font-semibold text-slate-900 border border-blue-400 rounded-md px-2 py-0.5 outline-none focus:ring-2 focus:ring-blue-100 w-full"
-                                        disabled={savingName}
-                                    />
-                                    {savingName && <Loader2 className="w-4 h-4 text-blue-500 animate-spin absolute right-2" />}
-                                </div>
-                            ) : (
-                                <div className="flex items-center gap-3">
-                                    <h1 
-                                        className={canEdit ? "text-xl font-semibold text-slate-900 hover:bg-slate-50 px-1 -ml-1 rounded cursor-pointer border border-transparent hover:border-slate-200 transition-colors inline-block" : "text-xl font-semibold text-slate-900 px-1 -ml-1 inline-block"}
-                                        style={{ height: '32px', lineHeight: '30px' }}
-                                        onClick={canEdit ? () => setIsEditingName(true) : undefined}
-                                        title={canEdit ? "Click to edit" : undefined}
-                                    >
-                                        {company.name}
-                                    </h1>
-                                    {canEdit && (
-                                        <button 
-                                            onClick={() => setIsEditingName(true)}
-                                            className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-blue-600 transition-opacity"
-                                        >
-                                            <Pencil className="w-3.5 h-3.5" />
-                                        </button>
-                                    )}
-                                    {company.needs_enrichment && (
-                                        <span
-                                            className="inline-flex items-center gap-1 rounded-md bg-amber-50 border border-amber-200 px-2 py-0.5 text-[11px] font-semibold text-amber-700"
-                                            title="Auto-created from a lead import. Edit and save to complete this record and remove the flag."
-                                        >
-                                            <AlertTriangle className="w-3 h-3" /> Needs details
-                                        </span>
-                                    )}
-                                </div>
-                            )}
-
-                            {/* RECORD OWNER - EDITABLE DROPDOWN */}
-                            <div className="flex flex-wrap items-center gap-4 mt-1.5 text-[13px] text-slate-500">
-                                <Select value={company.owner_id || "unassigned"} onValueChange={handleSaveOwner} disabled={!canEdit}>
-                                    <SelectTrigger className="h-7 gap-1.5 font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 pl-1 pr-2.5 py-0.5 rounded-full border border-slate-200 text-[13px] shadow-none focus:ring-0 w-auto hover:text-blue-600 transition-colors">
-                                        {company.owner?.full_name ? (
-                                            <span className="flex items-center gap-1.5">
-                                                {company.owner.avatar_url ? (
-                                                    <img src={company.owner.avatar_url} alt={company.owner.full_name} className="w-5 h-5 rounded-full object-cover shrink-0" />
-                                                ) : (
-                                                    <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold shrink-0 ${getAvatarColor(company.owner.full_name)}`}>{getInitials(company.owner.full_name)}</span>
-                                                )}
-                                                <span>Owner: {company.owner.full_name}</span>
-                                            </span>
-                                        ) : (
-                                            <span className="flex items-center gap-1.5">
-                                                <Users className="w-3.5 h-3.5 ml-1" />
-                                                <span className="italic text-slate-500">Unassigned</span>
-                                            </span>
-                                        )}
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="unassigned" className="italic text-slate-400">Unassigned</SelectItem>
-                                        {allUsers.map((u, i) => (
-                                            <SelectItem key={u.id || i} value={u.id}>
-                                                <span className="flex items-center gap-2">
-                                                    {u.avatar_url ? (
-                                                        <img src={u.avatar_url} alt={u.full_name} className="w-5 h-5 rounded-full object-cover shrink-0" />
-                                                    ) : (
-                                                        <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold shrink-0 ${getAvatarColor(u.full_name)}`}>{getInitials(u.full_name)}</span>
-                                                    )}
-                                                    <span>{u.full_name}</span>
-                                                </span>
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-
-                                {/* Removed Industry Tag */}
-                                
-                                {company.area && (
-                                    <span className="flex items-center gap-1.5">
-                                        <MapPin className="w-3.5 h-3.5" /> {company.area}
-                                    </span>
-                                )}
-                                {company.phone && (
-                                    <span className="flex items-center gap-1.5">
-                                        <Phone className="w-3.5 h-3.5" /> {formatPhoneDisplay(company.phone)}
-                                    </span>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-                    <div className="flex items-center gap-3 ml-4 shrink-0 mt-0.5">
-                        <div className="flex items-center border border-slate-200 rounded-lg overflow-hidden shadow-sm bg-white">
-                            <Link
-                                href={prevCompanyId ? `/companies/${prevCompanyId}` : '#'}
-                                prefetch={false}
-                                className={`w-9 h-9 flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-50 transition-colors border-r border-slate-200 ${!prevCompanyId ? 'opacity-30 pointer-events-none bg-slate-50/50' : ''}`}
-                                title="Previous Company"
-                            >
-                                <ChevronLeft className="w-4 h-4" />
-                            </Link>
-                            <Link
-                                href={nextCompanyId ? `/companies/${nextCompanyId}` : '#'}
-                                prefetch={false}
-                                className={`w-9 h-9 flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-50 transition-colors ${!nextCompanyId ? 'opacity-30 pointer-events-none bg-slate-50/50' : ''}`}
-                                title="Next Company"
-                            >
-                                <ChevronRight className="w-4 h-4" />
-                            </Link>
-                        </div>
-                        {canEdit && (
-                            <Button variant="outline" className="gap-2 text-[13px] h-9"
-                                onClick={() => setEditModalOpen(true)}
-                            >
-                                <Pencil className="w-3.5 h-3.5" /> Edit Details
-                            </Button>
-                        )}
-                    </div>
-                </div>
-            </header>
-
-            {/* ═══ STATS BAR ══════════════════════════════════════ */}
-            <div className="flex-none bg-white border-b border-slate-200 px-8 py-4">
-                <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3">
-                    <StatBadge icon={Target} label="Active Leads" value={activeLeads.length.toString()} color="blue" />
-                    <StatBadge icon={TrendingUp} label="Total Value" value={fmtCurrency(totalValue)} color="slate" />
-                    <StatBadge icon={CheckCircle2} label="Won Deals" value={wonLeads.length.toString()} color="emerald" />
-                    <StatBadge icon={TrendingUp} label="Won Value" value={fmtCurrency(wonValue)} color="emerald" />
-                    <StatBadge icon={Users} label="Contacts" value={contactCount.toString()} color="violet" />
-                </div>
-            </div>
-
-            {/* ═══ MAIN CONTENT ════════════════════════════════════ */}
-            <div className="flex-1 flex gap-6 px-8 py-6 overflow-hidden min-h-0">
-
-                {/* ─── LEFT PANEL ─────────────────────────────────── */}
-                <div className="w-[340px] shrink-0 h-full pr-1 flex flex-col gap-5 min-h-0">
-
-                    {/* Company Information Card — header frozen, body scrolls inside */}
-                    <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden flex flex-col min-h-0 flex-1">
-                        <div className="shrink-0 px-5 py-3.5 border-b border-slate-100 flex items-center justify-between bg-white">
-                            <h3 className="font-semibold text-[14px] text-slate-900 flex items-center gap-2">
-                                <Building2 className="w-4 h-4 text-slate-400" /> Company Information
-                            </h3>
-                        </div>
-                        <div className="px-5 py-4 space-y-3 overflow-y-auto custom-scrollbar min-h-0 flex-1">
-                            <InlineSelectField table="client_companies" id={company.id} fieldPath="industry" icon={Briefcase} label="Sector" rawValue={company.industry} optionType="sector" />
-                            <InlineCustomSelectField table="client_companies" id={company.id} customData={company.custom_data} customKey="segment_tier" icon={Network} label="Segment Tier" optionType="custom_companies__segment_tier" alsoClearCustomKeys={["segment"]} alsoClearColumns={["line_industry"]} />
-                            <InlineCustomSelectField table="client_companies" id={company.id} customData={company.custom_data} customKey="segment" icon={Network} label="Segment" optionType="custom_companies__segment" parentValue={(company.custom_data?.segment_tier as string | undefined) ?? null} alsoClearColumns={["line_industry"]} />
-                            <InlineSelectField table="client_companies" id={company.id} fieldPath="line_industry" icon={Building2} label="Line Industry" rawValue={company.line_industry} optionType="line_industry" parentValue={(company.custom_data?.segment as string | undefined) ?? null} />
-                            <InlineTextField table="client_companies" id={company.id} fieldPath="phone" icon={Phone} label="Phone" rawValue={company.phone} displayValue={company.phone ? formatPhoneDisplay(company.phone) : null} inputType="phone" />
-                            <InlineTextField table="client_companies" id={company.id} fieldPath="website" icon={Globe} label="Website" rawValue={company.website} inputType="url" />
-                            <InlineSelectField table="client_companies" id={company.id} fieldPath="area" icon={MapPin} label="Area" rawValue={company.area} optionType="area" />
-                            <InfoRow icon={MapPin} label="Address" value={[company.street_address, company.city, company.postal_code, company.country].filter(Boolean).join(", ") || company.address} />
-                            <HierarchyRow
-                                parent={company.parent ?? null}
-                                subsidiaries={subsidiaries}
-                                onNavigate={(id) => router.push(`/companies/${id}`)}
-                            />
-                        </div>
-                    </div>
-
-                    {/* Meta Footer */}
-                    <div className="text-[11px] text-slate-400 px-1 pb-2 shrink-0 flex flex-col gap-0.5">
-                        <p suppressHydrationWarning>Created: {company.created_at ? fmtDateTime(company.created_at) : "—"}</p>
-                        <p suppressHydrationWarning>Last Modified: <span className="font-medium text-slate-500">{fmtDateTime(lastModified || company.created_at)}</span></p>
-                        <p suppressHydrationWarning>By: <span className="font-medium text-slate-500">{lastModifiedBy || "System"}</span></p>
-                    </div>
-                </div>
-
-                {/* ─── RIGHT PANEL (Tabs) ─────────────────────────── */}
-                <div className="flex-1 min-w-0 h-full flex flex-col overflow-y-auto custom-scrollbar relative">
-                    <Tabs defaultValue="notes" className="flex flex-col h-fit pb-12 pr-2">
-                        {/* Tab Bar */}
-                        <TabsList className="w-full justify-start rounded-lg! bg-white! gap-0! p-0! h-auto! shrink-0 shadow-none! sticky top-0 z-30 border border-slate-200/80 overflow-hidden">
-                            <TabBtn value="notes" icon={FileText} label="Notes" />
-                            <TabBtn value="timeline" icon={Clock} label="Timeline" />
-                            <TabBtn value="leads" icon={Target} label={`Leads (${leads.length})`} />
-                            <TabBtn value="contacts" icon={Users} label={`Contacts (${contactCount})`} />
-                            <TabBtn value="files" icon={Folder} label="Files" />
-                        </TabsList>
-
-                        {/* ── NOTES TAB ── */}
-                        <TabsContent value="notes" className="m-0 pt-6">
-                            <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-                                <div className="px-5 py-3.5 border-b border-slate-100">
-                                    <h3 className="font-semibold text-[13px] text-slate-800 tracking-tight flex items-center gap-2">
-                                        <FileText className="w-4 h-4 text-slate-400" /> Company Notes
-                                    </h3>
-                                </div>
-                                {/* Note Input */}
-                                <div className="p-4 border-b border-slate-100">
-                                    <textarea
-                                        value={noteText}
-                                        onChange={e => setNoteText(e.target.value)}
-                                        placeholder="Add a note — meeting summary, call log, follow-up action..."
-                                        className="w-full min-h-[80px] text-[13px] text-slate-700 bg-slate-50 border border-slate-200 rounded-lg px-3.5 py-2.5 resize-none focus:outline-none focus:ring-1 focus:ring-blue-400 focus:border-blue-400 placeholder:text-slate-400"
-                                        onKeyDown={e => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) handleSaveNote() }}
-                                    />
-                                    <div className="flex items-center justify-between mt-2">
-                                        <span className="text-[11px] text-slate-400">Ctrl+Enter to save</span>
-                                        <Button size="sm" disabled={!noteText.trim() || savingNote} onClick={handleSaveNote}
-                                            className="h-8 text-[12px] gap-1.5 bg-slate-900 hover:bg-slate-800"
-                                        >
-                                            {savingNote ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileText className="w-3.5 h-3.5" />}
-                                            Save Note
-                                        </Button>
-                                    </div>
-                                </div>
-                                {/* Notes List */}
-                                {notesLoading ? (
-                                    <div className="flex items-center justify-center py-10">
-                                        <Loader2 className="h-5 w-5 animate-spin text-slate-400" />
-                                    </div>
-                                ) : notes.length === 0 ? (
-                                    <div className="flex flex-col items-center justify-center py-12 text-center">
-                                        <div className="w-11 h-11 rounded-full bg-slate-100 flex items-center justify-center mb-3">
-                                            <FileText className="h-5 w-5 text-slate-300" />
-                                        </div>
-                                        <p className="text-[13px] text-slate-500 font-medium">No notes yet</p>
-                                        <p className="text-[12px] text-slate-400">Add your first note above.</p>
-                                    </div>
-                                ) : (
-                                    <div className="divide-y divide-slate-100">
-                                        {notes.map(note => (
-                                            <div key={note.id} className="px-5 py-4 group hover:bg-slate-50/50 transition-colors">
-                                                <div className="flex items-center justify-between mb-2">
-                                                    <div className="flex items-center gap-2">
-                                                        <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center text-[9px] font-bold text-blue-700">
-                                                            {note.author_name ? initials(note.author_name) : "?"}
-                                                        </div>
-                                                        <span className="text-[12px] font-medium text-slate-700">{note.author_name ?? "Unknown"}</span>
-                                                        <span className="text-[11px] text-slate-400">• {fmtDateTime(note.created_at)}</span>
-                                                    </div>
-                                                    <button
-                                                        onClick={() => handleDeleteNote(note.id)}
-                                                        className="text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all"
-                                                        title="Delete note"
-                                                    >
-                                                        <XCircle className="w-4 h-4" />
-                                                    </button>
-                                                </div>
-                                                <p className="text-[13px] text-slate-700 whitespace-pre-wrap leading-relaxed pl-8">
-                                                    {note.content}
-                                                </p>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
-                        </TabsContent>
-
-                        {/* ── TIMELINE TAB ── */}
-                        <TabsContent value="timeline" className="m-0 pt-6">
-                            <TimelineTab companyId={company.id} />
-                        </TabsContent>
-
-                        {/* ── LEADS TAB ── */}
-                        <TabsContent value="leads" className="m-0 pt-6">
-                            <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-                                <div className="px-5 py-3.5 border-b border-slate-100 flex items-center justify-between">
-                                    <h3 className="font-semibold text-[13px] text-slate-800 tracking-tight flex items-center gap-2">
-                                        <Target className="w-4 h-4 text-slate-400" /> Associated Leads
-                                    </h3>
-                                    <div className="flex items-center gap-3">
-                                        {leads.length > 0 && (
-                                            <div className="relative">
-                                                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
-                                                <input 
-                                                    type="text" 
-                                                    placeholder="Search leads..." 
-                                                    value={leadsSearch}
-                                                    onChange={e => setLeadsSearch(e.target.value)}
-                                                    className="pl-8 pr-3 py-1.5 text-[12px] bg-slate-50 border border-slate-200 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 w-[180px] transition-all"
-                                                />
-                                            </div>
-                                        )}
-                                        <span className="text-[12px] text-slate-400">{filteredLeads.length} total</span>
-                                    </div>
-                                </div>
-                                {leads.length === 0 ? (
-                                    <div className="flex flex-col items-center justify-center py-14 text-center">
-                                        <div className="w-11 h-11 rounded-full bg-slate-100 flex items-center justify-center mb-3">
-                                            <Target className="h-5 w-5 text-slate-300" />
-                                        </div>
-                                        <p className="text-[13px] text-slate-500 font-medium">No leads linked</p>
-                                        <p className="text-[12px] text-slate-400">Create a lead and associate it with this company.</p>
-                                    </div>
-                                ) : (
-                                    <>
-                                        <div className="overflow-x-auto">
-                                            <table className="w-full text-left border-collapse" style={{ tableLayout: 'fixed' }}>
-                                            <colgroup>
-                                                <col style={{ width: '40%' }} />
-                                                <col style={{ width: '18%' }} />
-                                                <col style={{ width: '22%' }} />
-                                                <col style={{ width: '20%' }} />
-                                            </colgroup>
-                                            <thead>
-                                                <tr className="border-b border-slate-200 bg-slate-50/50">
-                                                    <th className="px-5 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Project Name</th>
-                                                    <th className="px-3 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">PIC & Date</th>
-                                                    <th className="px-3 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Stage</th>
-                                                    <th className="px-5 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider text-right">Estimated Value</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody className="divide-y divide-slate-100">
-                                                {paginatedLeads.length === 0 && leads.length > 0 && (
-                                                    <tr>
-                                                        <td colSpan={4} className="px-5 py-8 text-center text-[12px] text-slate-400">
-                                                            No leads match your search.
-                                                        </td>
-                                                    </tr>
-                                                )}
-                                                {paginatedLeads.map(lead => (
-                                                    <tr key={lead.id} onClick={() => router.push(`/leads/${lead.id}`)} className="group hover:bg-slate-50 transition-colors cursor-pointer">
-                                                        <td className="px-5 py-3 align-middle">
-                                                            <p className="text-[13px] font-medium text-slate-900 group-hover:text-blue-600 transition-colors truncate" title={lead.project_name || "Untitled Lead"}>
-                                                                {lead.project_name || "Untitled Lead"}
-                                                            </p>
-                                                        </td>
-                                                        <td className="px-3 py-3 align-middle">
-                                                            <div className="flex flex-col gap-0.5 min-w-0">
-                                                                <span className="text-[12px] text-slate-700 truncate">{lead.pic_sales_profile?.full_name || "—"}</span>
-                                                                {lead.target_close_date && <span className="text-[11px] text-slate-400 truncate">Close: {fmtDate(lead.target_close_date)}</span>}
-                                                            </div>
-                                                        </td>
-                                                        <td className="px-3 py-3 align-middle">
-                                                            {lead.pipeline_stage && (
-                                                                <span className={`inline-flex text-[11px] font-medium px-2.5 py-0.5 rounded-full whitespace-nowrap truncate max-w-full ${
-                                                                    lead.pipeline_stage.name.toLowerCase().includes("won")
-                                                                        ? "bg-emerald-100 text-emerald-700"
-                                                                        : lead.pipeline_stage.name.toLowerCase().includes("lost") || lead.pipeline_stage.name.toLowerCase().includes("cancel")
-                                                                            ? "bg-red-100 text-red-600"
-                                                                            : "bg-blue-50 text-blue-600"
-                                                                }`}>
-                                                                    {lead.pipeline_stage.name}
-                                                                </span>
-                                                            )}
-                                                        </td>
-                                                        <td className="px-5 py-3 align-middle text-right">
-                                                            <span className="text-[13px] font-semibold text-slate-700 whitespace-nowrap">
-                                                                {fmtCurrency(lead.estimated_value)}
-                                                            </span>
-                                                        </td>
-                                                    </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
-                                        </div>
-                                        {leadsTotalPages > 1 && (
-                                            <div className="px-5 py-3 border-t border-slate-100 flex items-center justify-between bg-white text-[12px]">
-                                                <span className="text-slate-500">
-                                                    Showing <span className="font-medium text-slate-700">{((leadsPage - 1) * ITEMS_PER_PAGE) + 1}</span> to <span className="font-medium text-slate-700">{Math.min(leadsPage * ITEMS_PER_PAGE, filteredLeads.length)}</span> of <span className="font-medium text-slate-700">{filteredLeads.length}</span>
-                                                </span>
-                                                <div className="flex items-center gap-1.5">
-                                                    <Button 
-                                                        variant="outline" 
-                                                        size="sm" 
-                                                        className="h-7 w-7 p-0 rounded shadow-sm hover:bg-slate-50" 
-                                                        disabled={leadsPage === 1}
-                                                        onClick={() => setLeadsPage(p => Math.max(1, p - 1))}
-                                                    >
-                                                        <ChevronLeft className="w-3.5 h-3.5" />
-                                                    </Button>
-                                                    <Button 
-                                                        variant="outline" 
-                                                        size="sm" 
-                                                        className="h-7 w-7 p-0 rounded shadow-sm hover:bg-slate-50" 
-                                                        disabled={leadsPage === leadsTotalPages}
-                                                        onClick={() => setLeadsPage(p => Math.min(leadsTotalPages, p + 1))}
-                                                    >
-                                                        <ChevronRight className="w-3.5 h-3.5" />
-                                                    </Button>
-                                                </div>
-                                            </div>
-                                        )}
-                                    </>
-                                )}
-                            </div>
-                        </TabsContent>
-
-                        {/* ── CONTACTS TAB ── */}
-                        <TabsContent value="contacts" className="m-0 pt-6">
-                            <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-                                <div className="px-5 py-3.5 border-b border-slate-100 flex items-center justify-between">
-                                    <h3 className="font-semibold text-[13px] text-slate-800 tracking-tight flex items-center gap-2">
-                                        <Users className="w-4 h-4 text-slate-400" /> Contacts
-                                    </h3>
-                                    <div className="flex items-center gap-3">
-                                        {contacts.length > 0 && (
-                                            <div className="relative">
-                                                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
-                                                <input 
-                                                    type="text" 
-                                                    placeholder="Search contacts..." 
-                                                    value={contactsSearch}
-                                                    onChange={e => setContactsSearch(e.target.value)}
-                                                    className="pl-8 pr-3 py-1.5 text-[12px] bg-slate-50 border border-slate-200 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 w-[180px] transition-all"
-                                                />
-                                            </div>
-                                        )}
-                                        <span className="text-[12px] text-slate-400">{filteredContacts.length} total</span>
-                                    </div>
-                                </div>
-                                {contactsLoading ? (
-                                    <div className="flex items-center justify-center py-10">
-                                        <Loader2 className="h-5 w-5 animate-spin text-slate-400" />
-                                    </div>
-                                ) : contacts.length === 0 ? (
-                                    <div className="flex flex-col items-center justify-center py-14 text-center">
-                                        <div className="w-11 h-11 rounded-full bg-slate-100 flex items-center justify-center mb-3">
-                                            <Users className="h-5 w-5 text-slate-300" />
-                                        </div>
-                                        <p className="text-[13px] text-slate-500 font-medium">No contacts linked</p>
-                                        <p className="text-[12px] text-slate-400">Add contacts associated with this company.</p>
-                                    </div>
-                                ) : (
-                                    <>
-                                        <div className="overflow-x-auto">
-                                            <table className="w-full text-left border-collapse" style={{ tableLayout: 'fixed' }}>
-                                            <colgroup>
-                                                <col style={{ width: '48px' }} />
-                                                <col style={{ width: '28%' }} />
-                                                <col style={{ width: '22%' }} />
-                                                <col style={{ width: '28%' }} />
-                                                <col style={{ width: '18%' }} />
-                                            </colgroup>
-                                            <thead>
-                                                <tr className="border-b border-slate-200 bg-slate-50/50">
-                                                    <th className="px-3 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider w-[48px]"></th>
-                                                    <th className="px-1 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Contact Name</th>
-                                                    <th className="px-3 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Job Title</th>
-                                                    <th className="px-3 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Email</th>
-                                                    <th className="px-3 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Phone</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody className="divide-y divide-slate-100">
-                                                {paginatedContacts.length === 0 && contacts.length > 0 && (
-                                                    <tr>
-                                                        <td colSpan={5} className="px-5 py-8 text-center text-[12px] text-slate-400">
-                                                            No contacts match your search.
-                                                        </td>
-                                                    </tr>
-                                                )}
-                                                {paginatedContacts.map(contact => (
-                                                    <tr key={contact.id} onClick={() => router.push(`/contacts/${contact.id}`)} className="group hover:bg-slate-50 transition-colors cursor-pointer">
-                                                        <td className="px-3 py-3 align-middle w-[48px]">
-                                                            <div className="w-8 h-8 rounded-full bg-violet-100 flex items-center justify-center text-[10px] font-bold text-violet-700">
-                                                                {initials(contact.full_name)}
-                                                            </div>
-                                                        </td>
-                                                        <td className="px-1 py-3 align-middle">
-                                                            <p className="text-[13px] font-medium text-slate-900 group-hover:text-blue-600 transition-colors truncate">
-                                                                {contact.salutation ? `${contact.salutation} ` : ""}{contact.full_name}
-                                                            </p>
-                                                        </td>
-                                                        <td className="px-3 py-3 align-middle">
-                                                            <span className="text-[13px] text-slate-600 truncate block">{contact.job_title || "—"}</span>
-                                                        </td>
-                                                        <td className="px-3 py-3 align-middle">
-                                                            {contact.email ? (
-                                                                <a href={`mailto:${contact.email}`} className="flex items-center gap-1.5 text-[12px] text-blue-600 hover:underline w-fit max-w-full truncate" onClick={e => e.stopPropagation()} title={contact.email}>
-                                                                    <Mail className="w-3 h-3 shrink-0" /> <span className="truncate">{contact.email}</span>
-                                                                </a>
-                                                            ) : (
-                                                                <span className="text-slate-400 text-[12px] italic">—</span>
-                                                            )}
-                                                        </td>
-                                                        <td className="px-3 py-3 align-middle">
-                                                            {contact.phone ? (
-                                                                <span className="flex items-center gap-1.5 text-[12px] text-slate-600 truncate">
-                                                                    <Phone className="w-3 h-3 shrink-0 text-slate-400" /> <span className="truncate">{contact.phone}</span>
-                                                                </span>
-                                                            ) : (
-                                                                <span className="text-slate-400 text-[12px] italic">—</span>
-                                                            )}
-                                                        </td>
-                                                    </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
-                                        </div>
-                                        {contactsTotalPages > 1 && (
-                                            <div className="px-5 py-3 border-t border-slate-100 flex items-center justify-between bg-white text-[12px]">
-                                                <span className="text-slate-500">
-                                                    Showing <span className="font-medium text-slate-700">{((contactsPage - 1) * ITEMS_PER_PAGE) + 1}</span> to <span className="font-medium text-slate-700">{Math.min(contactsPage * ITEMS_PER_PAGE, filteredContacts.length)}</span> of <span className="font-medium text-slate-700">{filteredContacts.length}</span>
-                                                </span>
-                                                <div className="flex items-center gap-1.5">
-                                                    <Button 
-                                                        variant="outline" 
-                                                        size="sm" 
-                                                        className="h-7 w-7 p-0 rounded shadow-sm hover:bg-slate-50" 
-                                                        disabled={contactsPage === 1}
-                                                        onClick={() => setContactsPage(p => Math.max(1, p - 1))}
-                                                    >
-                                                        <ChevronLeft className="w-3.5 h-3.5" />
-                                                    </Button>
-                                                    <Button 
-                                                        variant="outline" 
-                                                        size="sm" 
-                                                        className="h-7 w-7 p-0 rounded shadow-sm hover:bg-slate-50" 
-                                                        disabled={contactsPage === contactsTotalPages}
-                                                        onClick={() => setContactsPage(p => Math.min(contactsTotalPages, p + 1))}
-                                                    >
-                                                        <ChevronRight className="w-3.5 h-3.5" />
-                                                    </Button>
-                                                </div>
-                                            </div>
-                                        )}
-                                    </>
-                                )}
-                            </div>
-                        </TabsContent>
-
-                        {/* ── FILES TAB ── */}
-                        <TabsContent value="files" className="m-0 pt-6">
-                            <CompanyFilesTab companyId={company.id} />
-                        </TabsContent>
-                    </Tabs>
-                </div>
-            </div>
-
-            {/* ═══ OVERLAYS ════════════════════════════════════ */}
-            <AddCompanyModal
-                open={editModalOpen}
-                onOpenChange={setEditModalOpen}
-                initialData={company}
-                onCreated={() => router.refresh()}
-            />
-        </div>
-    )
-}
-
-
-// ═══════════════════════════════════════════════════════════════
-//  SUB-COMPONENTS
-// ═══════════════════════════════════════════════════════════════
-
-/** Stat badge for the summary bar */
-function StatBadge({ icon: Icon, label, value, color }: {
-    icon: typeof Target; label: string; value: string; color: string
-}) {
-    const colorMap: Record<string, string> = {
-        blue: "bg-blue-50 text-blue-600",
-        slate: "bg-slate-100 text-slate-600",
-        emerald: "bg-emerald-50 text-emerald-600",
-        violet: "bg-violet-50 text-violet-600",
-    }
-    return (
-        <div className="flex items-center gap-3 rounded-xl border border-slate-200/80 bg-white px-3.5 py-2.5 transition-colors hover:border-slate-300 hover:bg-slate-50/50">
-            <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${colorMap[color] || colorMap.slate}`}>
-                <Icon className="w-[18px] h-[18px]" />
-            </div>
-            <div className="min-w-0">
-                <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider truncate">{label}</p>
-                <p className="text-[15px] font-bold text-slate-900 truncate" title={value}>{value}</p>
-            </div>
-        </div>
-    )
-}
-
-/** Tab button — fully custom underline, solid bg, zero leak */
-function TabBtn({ value, icon: Icon, label }: { value: string; icon: typeof Clock; label: string }) {
-    return (
-        <TabsTrigger
-            value={value}
-            className={
-                "flex-none! rounded-none! border-none! h-auto! px-4 pb-2.5 pt-2.5 text-[13px]" +
-                " text-slate-400 hover:text-slate-600 data-[state=active]:text-blue-600" +
-                " shadow-none! ring-0! outline-none!" +
-                " bg-white! data-[state=active]:bg-white!" +
-                " focus:ring-0! focus-visible:ring-0! focus-visible:ring-offset-0! focus-visible:outline-none!" +
-                " after:bg-blue-600! after:h-[2.5px]! after:bottom-0! after:rounded-full!" +
-                " data-[state=active]:after:opacity-100!"
-            }
-        >
-            <Icon className="h-3.5 w-3.5 mr-1.5 shrink-0" />
-            {label}
-        </TabsTrigger>
-    )
-}
-
-/** Key-Value row for info cards */
-function InfoRow({ icon: Icon, label, value, isLink }: {
-    icon: typeof Building2; label: string; value?: string | null; isLink?: boolean
-}) {
-    if (!value) return null
-    return (
-        <div className="flex items-start gap-3 py-1.5">
-            <Icon className="w-4 h-4 text-muted-foreground mt-0.5 shrink-0" />
-            <div className="min-w-0 flex-1">
-                {/* The shared rows' label (`FieldShell`): sentence case, never tracked capitals. */}
-                <p className="text-xs font-medium text-muted-foreground">{sentenceCaseLabel(label)}</p>
-                {isLink && value !== "—" ? (
-                    <a
-                        href={value.startsWith("http") ? value : `https://${value}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-[13px] text-primary hover:underline break-all"
-                    >{value}</a>
-                ) : (
-                    <p className="text-[13px] text-foreground">{value}</p>
-                )}
-            </div>
-        </div>
-    )
-}
 
 /**
- * Always-visible company hierarchy row. Three states:
- *   1. Subsidiary  → "Subsidiary of <parent>" (parent is a clickable link).
- *   2. Parent      → "Parent company" + clickable list of subsidiaries.
- *   3. Independent → "Independent company" (no parent, no children).
- * A company can be both a subsidiary AND a parent (mid-tier in a tree).
+ * A company's record page, the Contact's approved design applied to an
+ * organisation (DESIGN.md, "Record pages"). One scroll in the shell's
+ * `<main>`:
+ *
+ *   desk (lg+)  the header: "← Companies", a 48dp tile, name, sector · line
+ *               industry · city, ‹ › Call Edit New lead ⋮; the facts:
+ *               Owner, Phone, Website, Last activity
+ *               tabs pinned to the top: Overview · Activity · Contacts n ·
+ *               Leads n · Files n
+ *               Overview: the composer and Recent activity; beside them
+ *               (380px) About this company, Contacts, Leads, the group
+ *   phone       the top app bar ("Company", back, ⋮ Edit / ‹ › / Delete)
+ *               the header centred, then Call · Website · Note
+ *               tabs pinned under the top app bar (they scroll sideways
+ *               when five do not fit); Overview: Key facts, Add a note…,
+ *               Recent activity, the group, About this company
  */
-function HierarchyRow({ parent, subsidiaries, onNavigate }: {
-    parent: { id: string; name: string } | null
-    subsidiaries: { id: string; name: string }[]
-    onNavigate: (id: string) => void
-}) {
-    const hasParent = !!parent?.id
-    const childCount = subsidiaries.length
-    const isIndependent = !hasParent && childCount === 0
+export function CompanyDetailPage({
+    company, leads, contacts, activities, notes, fileCount, subsidiaries = [], lastModified, lastModifiedBy,
+    nextCompanyId, prevCompanyId, initialTab = "overview",
+}: CompanyDetailPageProps) {
+    const router = useRouter()
+    const { can } = usePermissions()
+    const { isHoldingView, companies } = useCompany()
+    const canEdit = can("companies", "update")
+    const canDelete = can("companies", "delete")
+    const canCreateLead = can("leads", "create")
+    const canCreateContact = can("contacts", "create")
+
+    const [tab, setTab] = useState<CompanyTab>(initialTab)
+    // The Files tab loads its list when first opened, and is kept after.
+    const [filesSeen, setFilesSeen] = useState(initialTab === "files")
+    const [editOpen, setEditOpen] = useState(false)
+    const [addContactOpen, setAddContactOpen] = useState(false)
+    const [deleteOpen, setDeleteOpen] = useState(false)
+    const [deleting, setDeleting] = useState(false)
+    const [composerOpen, setComposerOpen] = useState(false)
+    const [newLeadOpen, setNewLeadOpen] = useState(false)
+    const [currentUserId, setCurrentUserId] = useState<string | null>(null)
+    const [filesCount, setFilesCount] = useState<number | null>(fileCount)
+    const [ownerOptions, setOwnerOptions] = useState<ChoiceOption[] | null>(null)
+    const tabsAnchorRef = useRef<HTMLDivElement>(null)
+
+    useEffect(() => {
+        createClient().auth.getUser().then(({ data }) => setCurrentUserId(data.user?.id ?? null))
+    }, [])
+
+    // ─── Facts ─────────────────────────────────────────────
+    const owner = company.owner ?? null
+    const tel = telHref(company.phone)
+    const website = company.website?.trim() ? externalHref(company.website.trim()) : null
+    const supporting = companySupportingLine(company)
+    const address = companyAddress(company)
+    const unitName = companies.find((unit) => unit.id === company.company_id)?.name ?? null
+    const unitShown = !!unitName && (isHoldingView || companies.length > 1)
+    const feed = useMemo(() => buildFeed(activities, notes), [activities, notes])
+    const lastActivity = lastActivityLabel(feed)
+    const { log, editNote, deleteNote } = useRecordActivity(companyActivityTarget(company.id))
+    const parent = company.parent?.id ? company.parent : null
+    const groupTitle = companyGroupTitle(!!parent, subsidiaries.length)
+
+    const openEdit = () => setEditOpen(true)
+    const openNewLead = canCreateLead ? () => setNewLeadOpen(true) : undefined
+    const openAddContact = canCreateContact ? () => setAddContactOpen(true) : undefined
+
+    // ─── Owner picker (its list loads when first opened) ───
+    const loadingOwners = useRef(false)
+    const loadOwners = useCallback(async () => {
+        if (loadingOwners.current) return
+        loadingOwners.current = true
+        const { data } = await createClient().from("profiles").select("id, full_name, avatar_url").eq("is_active", true).order("full_name")
+        setOwnerOptions((data ?? []).map((person) => ({
+            value: person.id as string,
+            label: (person.full_name as string | null) ?? "Unnamed",
+            leading: <InitialsAvatar name={(person.full_name as string | null) ?? "?"} src={person.avatar_url as string | null} size="xs" className="mr-2" />,
+        })))
+    }, [])
+
+    const saveCompany = useCallback(async (payload: Record<string, unknown>, done: string, failed: string) => {
+        const result = await updateClientCompanyAction(company.id, payload)
+        if (!result.success) {
+            toast.error(result.error || failed)
+            return false
+        }
+        toast.success(done)
+        router.refresh()
+        return true
+    }, [company.id, router])
+
+    // ─── Delete ────────────────────────────────────────────
+    const confirmDelete = async () => {
+        setDeleting(true)
+        const result = await deleteClientCompaniesAction([company.id])
+        setDeleting(false)
+        if (!result.success) {
+            toast.error(result.error || "Failed to delete company")
+            return
+        }
+        setDeleteOpen(false)
+        toast.success("Company moved to the Recycle Bin")
+        router.push("/companies")
+    }
+
+    // ─── Tabs ──────────────────────────────────────────────
+    const chooseTab = useCallback((next: CompanyTab) => {
+        setTab(next)
+        if (next === "files") setFilesSeen(true)
+        // In the address, replaced rather than pushed; `null` state, as Next.js asks.
+        const query = withCompanyTab(window.location.search, next)
+        window.history.replaceState(null, "", query ? `${window.location.pathname}?${query}` : window.location.pathname)
+        // A view read far down starts at its top: the tabs return to where
+        // they pin, the page's own scroller moving, nothing else.
+        const main = document.getElementById("main-content")
+        const anchor = tabsAnchorRef.current
+        if (!main || !anchor) return
+        const pinnedAt = anchor.getBoundingClientRect().top - main.getBoundingClientRect().top + main.scrollTop
+        if (main.scrollTop > pinnedAt) main.scrollTo({ top: pinnedAt })
+    }, [])
+
+    const tabs: RecordTab<CompanyTab>[] = [
+        { id: "overview", label: "Overview" },
+        { id: "activity", label: "Activity" },
+        { id: "contacts", label: "Contacts", count: contacts.length },
+        { id: "leads", label: "Leads", count: leads.length },
+        { id: "files", label: "Files", count: filesCount },
+    ]
+
+    // ─── The top app bar's ⋮ (below lg) ────────────────────
+    const phoneMenu: ChromeMenuItem[] = [
+        ...(canEdit ? [{ label: "Edit", icon: Pencil, onSelect: openEdit }] : []),
+        ...(prevCompanyId ? [{ label: "Previous company", icon: ChevronLeft, href: `/companies/${prevCompanyId}` }] : []),
+        ...(nextCompanyId ? [{ label: "Next company", icon: ChevronRight, href: `/companies/${nextCompanyId}` }] : []),
+        ...(canDelete ? [{ label: "Delete", icon: Trash2, onSelect: () => setDeleteOpen(true), danger: true }] : []),
+    ]
+
+    // ─── About this company ────────────────────────────────
+    const segmentTier = (company.custom_data?.segment_tier as string | undefined) ?? null
+    const segment = (company.custom_data?.segment as string | undefined) ?? null
+    const infoFields: InfoField[] = [
+        {
+            key: "name", empty: false, fillable: true,
+            node: (
+                <InlineTextField
+                    table="client_companies" id={company.id} fieldPath="name" label="Name" rawValue={company.name} required
+                    save={(next) => saveCompany({ name: next }, "Name updated", "Failed to update the name")}
+                />
+            ),
+        },
+        {
+            key: "industry", empty: isBlank(company.industry), fillable: true,
+            node: <InlineSelectField table="client_companies" id={company.id} fieldPath="industry" label="Sector" rawValue={company.industry} optionType="sector" />,
+        },
+        {
+            key: "segment_tier", empty: isBlank(segmentTier), fillable: true,
+            node: <InlineCustomSelectField table="client_companies" id={company.id} customData={company.custom_data} customKey="segment_tier" label="Segment tier" optionType="custom_companies__segment_tier" alsoClearCustomKeys={["segment"]} alsoClearColumns={["line_industry"]} />,
+        },
+        {
+            key: "segment", empty: isBlank(segment), fillable: true,
+            node: <InlineCustomSelectField table="client_companies" id={company.id} customData={company.custom_data} customKey="segment" label="Segment" optionType="custom_companies__segment" parentValue={segmentTier} alsoClearColumns={["line_industry"]} />,
+        },
+        {
+            key: "line_industry", empty: isBlank(company.line_industry), fillable: true,
+            node: <InlineSelectField table="client_companies" id={company.id} fieldPath="line_industry" label="Line industry" rawValue={company.line_industry} optionType="line_industry" parentValue={segment} />,
+        },
+        {
+            key: "phone", empty: isBlank(company.phone), fillable: true,
+            node: <InlineTextField table="client_companies" id={company.id} fieldPath="phone" label="Phone" rawValue={company.phone} displayValue={company.phone ? formatPhoneDisplay(company.phone) : null} inputType="phone" href={tel} />,
+        },
+        {
+            key: "website", empty: isBlank(company.website), fillable: true,
+            node: <InlineTextField table="client_companies" id={company.id} fieldPath="website" label="Website" rawValue={company.website} displayValue={websiteLabel(company.website)} inputType="url" href={website} external />,
+        },
+        {
+            key: "area", empty: isBlank(company.area), fillable: true,
+            node: <InlineSelectField table="client_companies" id={company.id} fieldPath="area" label="Area" rawValue={company.area} optionType="area" />,
+        },
+        {
+            // Street, city, postal code and country are one form's work.
+            key: "address", empty: !address, fillable: true,
+            node: <FieldRow label="Address" empty={!address} onEdit={canEdit ? openEdit : undefined}>{address ?? "—"}</FieldRow>,
+        },
+        {
+            key: "owner", empty: !owner, fillable: true,
+            node: (
+                <InlineChoiceField
+                    label="Owner" canEdit={canEdit}
+                    value={owner?.id ?? company.owner_id ?? null}
+                    display={owner ? <PersonLine name={owner.full_name} src={owner.avatar_url} /> : "No owner"}
+                    empty={!owner}
+                    options={ownerOptions} onOpen={loadOwners} clearLabel="No owner"
+                    onSave={(next) => saveCompany({ owner_id: next }, "Owner updated", "Failed to update the owner")}
+                />
+            ),
+        },
+        {
+            // The tenant's unit, which nobody changes here; named only to
+            // someone who sees more than one.
+            key: "business_unit", empty: !unitShown, fillable: false,
+            node: <FieldRow label="Business unit">{unitName}</FieldRow>,
+        },
+        {
+            key: "created", empty: !company.created_at, fillable: false,
+            node: <FieldRow label="Created"><span suppressHydrationWarning>{formatCalendarDay(company.created_at)}</span></FieldRow>,
+        },
+    ]
+    const { filled, empty } = splitEmptyFields(infoFields)
+
+    // ─── Shared pieces ─────────────────────────────────────
+    const ownerFact = owner ? <PersonLine name={owner.full_name} src={owner.avatar_url} /> : <FactNone>No owner</FactNone>
+    const phoneFact = tel && company.phone ? <FactLink href={tel}>{formatPhoneDisplay(company.phone)}</FactLink> : company.phone ? company.phone : <FactNone>No phone</FactNone>
+    const websiteFact = website ? <FactLink href={website} external>{websiteLabel(company.website)}</FactLink> : <FactNone>No website</FactNone>
+    const lastActivityFact = lastActivity ? <span suppressHydrationWarning>{lastActivity}</span> : <FactNone>No activity yet</FactNone>
+    const composer = <ActivityComposer subject={company.name} onLog={log} className="hidden lg:block" />
+    const lastModifiedLine = (
+        <p className="text-xs text-muted-foreground" suppressHydrationWarning>
+            Last modified {formatDayTime(lastModified || company.created_at) ?? "—"} by {lastModifiedBy || "System"}
+        </p>
+    )
+    const groupItems = [
+        ...(parent ? [{ key: `parent:${parent.id}`, href: `/companies/${parent.id}`, name: parent.name, detail: joinGroupLine("Parent company", companyCardLine(parent)), avatar: <InitialsAvatar name={parent.name} size="lg" shape="square" /> }] : []),
+        ...subsidiaries.slice(0, 5).map((child) => ({
+            key: `child:${child.id}`, href: `/companies/${child.id}`, name: child.name,
+            detail: joinGroupLine("Subsidiary", companyCardLine(child)),
+            avatar: <InitialsAvatar name={child.name} size="lg" shape="square" />,
+        })),
+    ]
 
     return (
-        <div className="flex items-start gap-3 py-1.5 border-t border-slate-100 mt-1 pt-3">
-            <Network className="w-4 h-4 text-muted-foreground mt-0.5 shrink-0" />
-            <div className="min-w-0 flex-1">
-                <p className="text-xs font-medium text-muted-foreground mb-1">Relationship</p>
+        <div data-fluid-page className={cn("min-h-full bg-background", RECORD_TYPE)}>
+            {/* Below `lg` the top app bar says what the page is and holds its
+                actions; the desk's header is not drawn there. */}
+            <PageChrome title="Company" backHref="/companies" menu={phoneMenu} />
 
-                {isIndependent && (
-                    <span className="inline-flex items-center gap-1.5 text-[13px] text-slate-600">
-                        <Building className="w-3.5 h-3.5 text-slate-400" />
-                        Independent company
-                    </span>
-                )}
+            {/* ═══ DESK HEADER (lg+) ═══════════════════════════════ */}
+            <RecordHeader
+                backHref="/companies"
+                backLabel="Companies"
+                avatar={<InitialsAvatar name={company.name} size="header" shape="square" />}
+                name={company.name}
+                nameAdornment={company.needs_enrichment && <NeedsDetailsMark />}
+                supporting={supporting || undefined}
+                actions={
+                    <>
+                        <RecordStepper prevHref={prevCompanyId && `/companies/${prevCompanyId}`} nextHref={nextCompanyId && `/companies/${nextCompanyId}`} prevLabel="Previous company" nextLabel="Next company" />
+                        <HeaderLinkButton href={tel} label="Call" missing="This company has no phone number" />
+                        {canEdit && <Button variant="outline" onClick={openEdit} className={OUTLINED_BUTTON}>Edit</Button>}
+                        {openNewLead && <Button onClick={openNewLead} className={FILLED_BUTTON}>New lead</Button>}
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" aria-label="More actions" className={ICON_BUTTON}>
+                                    <MoreVertical className="h-5 w-5" />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-48">
+                                <PermissionMenuItem resource="companies" action="delete" onClick={() => setDeleteOpen(true)} className="text-destructive focus:text-destructive">
+                                    <Trash2 className="h-4 w-4" /> Delete
+                                </PermissionMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                    </>
+                }
+                facts={
+                    <>
+                        <RecordFact label="Owner">{ownerFact}</RecordFact>
+                        <RecordFact label="Phone">{phoneFact}</RecordFact>
+                        <RecordFact label="Website">{websiteFact}</RecordFact>
+                        <RecordFact label="Last activity">{lastActivityFact}</RecordFact>
+                        {unitShown && <RecordFact label="Business unit">{unitName}</RecordFact>}
+                    </>
+                }
+            />
 
-                {hasParent && (
-                    <div>
-                        <p className="text-[11px] text-slate-400 mb-1">Subsidiary of</p>
-                        <button
-                            type="button"
-                            onClick={() => onNavigate(parent!.id)}
-                            className="group flex w-full items-center gap-2 rounded-lg border border-slate-200 bg-slate-50/60 px-2.5 py-1.5 text-left transition-colors hover:border-blue-300 hover:bg-blue-50"
-                        >
-                            <Building2 className="w-3.5 h-3.5 shrink-0 text-slate-400 group-hover:text-blue-500" />
-                            <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-slate-700 group-hover:text-blue-700" title={parent!.name}>
-                                {parent!.name}
-                            </span>
-                            <ChevronRight className="w-4 h-4 shrink-0 text-slate-300 group-hover:text-blue-500" />
-                        </button>
-                    </div>
-                )}
+            {/* ═══ PHONE HEADER (below lg) ════════════════════════ */}
+            <RecordHero
+                avatar={<InitialsAvatar name={company.name} size="hero" shape="square" />}
+                name={company.name}
+                nameAdornment={company.needs_enrichment && <NeedsDetailsMark />}
+                lines={supporting ? <p className="text-sm text-muted-foreground">{supporting}</p> : undefined}
+                actions={
+                    <>
+                        <QuickAction icon={Phone} label="Call" href={tel} missing="No phone number" />
+                        <QuickAction icon={Globe} label="Website" href={website} external missing="No website" />
+                        <QuickAction icon={FileText} label="Note" onClick={() => setComposerOpen(true)} />
+                    </>
+                }
+            />
 
-                {childCount > 0 && (
-                    <div className={hasParent ? "mt-2.5" : ""}>
-                        <p className="text-[11px] text-slate-400 mb-1">
-                            {hasParent ? "Also parent of" : "Parent of"}{" "}
-                            <span className="font-semibold text-slate-600">{childCount}</span>{" "}
-                            {childCount === 1 ? "subsidiary" : "subsidiaries"}
-                        </p>
-                        <div className="flex flex-col gap-1">
-                            {subsidiaries.slice(0, 5).map((s) => (
-                                <button
-                                    key={s.id}
-                                    type="button"
-                                    onClick={() => onNavigate(s.id)}
-                                    className="group flex w-full items-center gap-2 rounded-lg border border-slate-200 bg-slate-50/60 px-2.5 py-1.5 text-left transition-colors hover:border-blue-300 hover:bg-blue-50"
-                                >
-                                    <Building2 className="w-3.5 h-3.5 shrink-0 text-slate-400 group-hover:text-blue-500" />
-                                    <span className="min-w-0 flex-1 truncate text-[13px] text-slate-700 group-hover:text-blue-700" title={s.name}>
-                                        {s.name}
-                                    </span>
-                                    <ChevronRight className="w-4 h-4 shrink-0 text-slate-300 group-hover:text-blue-500" />
-                                </button>
-                            ))}
-                            {childCount > 5 && (
-                                <span className="px-2.5 py-1 text-[12px] text-slate-400">
-                                    +{childCount - 5} more
-                                </span>
-                            )}
+            {/* ═══ TABS ═══════════════════════════════════════════ */}
+            <div ref={tabsAnchorRef} aria-hidden="true" />
+            <RecordTabs tabs={tabs} value={tab} onChange={chooseTab} label="Company views" idPrefix="company" />
+
+            {/* ═══ OVERVIEW ═══════════════════════════════════════ */}
+            <div role="tabpanel" id="company-panel-overview" aria-labelledby="company-tab-overview" hidden={tab !== "overview"}>
+                <div className="flex flex-col gap-3 px-4 pb-6 pt-3 lg:flex-row lg:items-start lg:gap-6 lg:px-8 lg:pb-8 lg:pt-6">
+                    {/* On a phone both columns dissolve into one, reordered. */}
+                    <div className="contents lg:flex lg:min-w-0 lg:flex-1 lg:flex-col lg:gap-5">
+                        <KeyFactsCard className="order-1 lg:hidden">
+                            <KeyFact label="Owner">{ownerFact}</KeyFact>
+                            <KeyFact label="Phone">{phoneFact}</KeyFact>
+                            <KeyFact label="Website">{websiteFact}</KeyFact>
+                            <KeyFact label="Last activity">{lastActivityFact}</KeyFact>
+                        </KeyFactsCard>
+                        {composer}
+                        <AddNoteRow onOpen={() => setComposerOpen(true)} className="order-2 lg:hidden" />
+                        <div className="order-3 lg:order-none">
+                            <RecentActivityCard feed={feed} onViewAll={() => chooseTab("activity")} />
                         </div>
                     </div>
-                )}
+                    <div className="contents lg:flex lg:w-[320px] xl:w-[380px] lg:shrink-0 lg:flex-col lg:gap-5">
+                        <div className="order-5 lg:order-none">
+                            <AboutCard title="About this company" onEdit={canEdit ? openEdit : undefined} filled={filled} empty={empty} idPrefix="company" />
+                        </div>
+                        <div className="hidden lg:block">
+                            <RelatedListCard
+                                title="Contacts"
+                                headingId="company-contacts-heading"
+                                action={openAddContact && <CardAction onClick={openAddContact} aria-label="Add contact"><Plus className="h-3.5 w-3.5" aria-hidden="true" />Add</CardAction>}
+                                items={contacts.slice(0, 5).map((person) => ({
+                                    key: person.id,
+                                    href: `/contacts/${person.id}`,
+                                    name: nameWithSalutation(person.salutation, person.full_name),
+                                    detail: person.job_title,
+                                    avatar: <InitialsAvatar name={person.full_name} size="md" />,
+                                }))}
+                                emptyText="No contacts yet."
+                                footer={contacts.length > 5 ? <CardAction onClick={() => chooseTab("contacts")}>View all {contacts.length}</CardAction> : undefined}
+                            />
+                        </div>
+                        <RecordLeadsCard leads={leads} onNew={openNewLead} onViewAll={() => chooseTab("leads")} className="hidden lg:block" />
+                        {groupTitle && (
+                            <div className="order-4 lg:order-none">
+                                <RelatedListCard
+                                    title={groupTitle}
+                                    headingId="company-group-heading"
+                                    items={groupItems}
+                                    footer={subsidiaries.length > 5 ? <p className="text-[13px] text-muted-foreground">and {subsidiaries.length - 5} more</p> : undefined}
+                                />
+                            </div>
+                        )}
+                        <div className="order-6 px-1 lg:order-none">{lastModifiedLine}</div>
+                    </div>
+                </div>
             </div>
+
+            {/* ═══ ACTIVITY ═══════════════════════════════════════ */}
+            <div role="tabpanel" id="company-panel-activity" aria-labelledby="company-tab-activity" hidden={tab !== "activity"}>
+                <div className="flex flex-col gap-3 px-4 pb-6 pt-3 lg:max-w-[880px] lg:gap-5 lg:px-8 lg:pb-8 lg:pt-6">
+                    {composer}
+                    <AddNoteRow onOpen={() => setComposerOpen(true)} className="lg:hidden" />
+                    <RecordActivityFeed feed={feed} currentUserId={currentUserId} onEditNote={editNote} onDeleteNote={deleteNote} />
+                </div>
+            </div>
+
+            {/* ═══ CONTACTS ═══════════════════════════════════════ */}
+            <div role="tabpanel" id="company-panel-contacts" aria-labelledby="company-tab-contacts" hidden={tab !== "contacts"}>
+                <div className="px-4 pb-6 pt-3 lg:px-8 lg:pb-8 lg:pt-6">
+                    <CompanyContactsTable contacts={contacts} onAdd={openAddContact} />
+                </div>
+            </div>
+
+            {/* ═══ LEADS ══════════════════════════════════════════ */}
+            <div role="tabpanel" id="company-panel-leads" aria-labelledby="company-tab-leads" hidden={tab !== "leads"}>
+                <div className="px-4 pb-6 pt-3 lg:px-8 lg:pb-8 lg:pt-6">
+                    <RecordLeadsTable leads={leads} onNew={openNewLead} emptyText="No leads yet. A lead for this company shows here." />
+                </div>
+            </div>
+
+            {/* ═══ FILES ══════════════════════════════════════════ */}
+            <div role="tabpanel" id="company-panel-files" aria-labelledby="company-tab-files" hidden={tab !== "files"}>
+                <div className="px-4 pb-6 pt-3 lg:max-w-[880px] lg:px-8 lg:pb-8 lg:pt-6">
+                    {filesSeen && <RecordFiles kind="company" recordId={company.id} onCountChange={setFilesCount} />}
+                </div>
+            </div>
+
+            {/* ═══ SHEETS AND DIALOGS ═════════════════════════════ */}
+            <ComposerSheet open={composerOpen} onOpenChange={setComposerOpen} subject={company.name} onLog={log} />
+            {canCreateLead && (
+                <NewLeadSheet open={newLeadOpen} onOpenChange={setNewLeadOpen} clientCompanyId={company.id} />
+            )}
+            <AddCompanyModal
+                open={editOpen}
+                onOpenChange={setEditOpen}
+                initialData={company as ClientCompany}
+                onCreated={() => router.refresh()}
+            />
+            {canCreateContact && (
+                <AddContactModal
+                    isOpen={addContactOpen}
+                    onOpenChange={setAddContactOpen}
+                    preselectedCompanyId={company.id}
+                    onSuccess={() => router.refresh()}
+                />
+            )}
+            <AlertDialog open={deleteOpen} onOpenChange={(open) => { if (!deleting) setDeleteOpen(open) }}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Move to Recycle Bin?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            This will move <strong className="text-foreground">{company.name}</strong> to the Recycle Bin. An admin can restore it later.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                            disabled={deleting}
+                            onClick={(event) => { event.preventDefault(); confirmDelete() }}
+                            className="bg-destructive text-white hover:bg-destructive/90"
+                        >
+                            {deleting && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                            Move to Recycle Bin
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     )
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  PARTS
+// ═══════════════════════════════════════════════════════════════
+
+/** "Parent company · Banking · Jakarta": the relation first, then what the company is. */
+function joinGroupLine(relation: string, line: string): string {
+    return line ? `${relation} · ${line}` : relation
 }

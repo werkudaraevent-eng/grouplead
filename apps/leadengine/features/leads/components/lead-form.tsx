@@ -146,9 +146,15 @@ interface LeadFormProps {
     pipelineId?: string
     defaultStageId?: string
     initialData?: Lead | null
+    /**
+     * A new lead started from a record's page: its client company and
+     * contact person filled in, as values the person can still change
+     * (a contact's or a company's New lead).
+     */
+    prefill?: { client_company_id?: string | null; contact_id?: string | null }
 }
 
-export function LeadForm({ onSuccess, onClose, pipelineId, defaultStageId, initialData }: LeadFormProps) {
+export function LeadForm({ onSuccess, onClose, pipelineId, defaultStageId, initialData, prefill }: LeadFormProps) {
     const isEditing = !!initialData
     const [subsidiaries, setSubsidiaries] = useState<{ id: string; name: string }[]>([])
     const [pipelineStages, setPipelineStages] = useState<{ id: string; name: string }[]>([])
@@ -384,8 +390,8 @@ export function LeadForm({ onSuccess, onClose, pipelineId, defaultStageId, initi
             project_name: "",
             company_id: null,
             pipeline_stage_id: defaultStageId || null,
-            client_company_id: null,
-            contact_id: null,
+            client_company_id: prefill?.client_company_id ?? null,
+            contact_id: prefill?.contact_id ?? null,
             category: null,
             grade_lead: null,
             lead_source: null,

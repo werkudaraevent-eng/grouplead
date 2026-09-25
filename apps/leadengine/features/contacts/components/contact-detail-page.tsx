@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { Fragment, useCallback, useEffect, useRef, useState, type ComponentType, type ReactNode } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { PageChrome, type ChromeMenuItem } from "@/components/layout/page-chrome"
@@ -10,7 +10,6 @@ import { deleteContactsAction, updateContactAction } from "@/app/actions/contact
 import { usePermissions } from "@/contexts/permissions-context"
 import { useCompany } from "@/contexts/company-context"
 import { Button } from "@/components/ui/button"
-import { Tooltip } from "@/components/ui/tooltip"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import {
     AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -22,24 +21,31 @@ import { PermissionMenuItem } from "@/components/shared/permission-menu-item"
 import {
     FieldRow, InlineChoiceField, InlineSelectField, InlineTextField, type ChoiceOption,
 } from "@/components/shared/inline-edit-field"
-import { RecordTabs, SectionChips, SectionRail, type SectionLink } from "@/components/shared/record-page"
-import { useSectionSpy } from "@/hooks/use-section-spy"
+import {
+    AboutCard, ActivityComposer, AddNoteRow, ComposerSheet, FactLink, FactNone, FILLED_BUTTON, HeaderLinkButton,
+    ICON_BUTTON, KeyFact, KeyFactsCard, OUTLINED_BUTTON, PersonLine, QuickAction, RecentActivityCard, RecordFact,
+    RecordHeader, RecordHero, RecordLeadsCard, RecordStepper, RecordTabs, RECORD_TYPE, RelatedCompanyCard, type RecordLead, type RecordTab,
+} from "@/components/shared/record-page"
+import { RecordActivityFeed } from "@/components/shared/record-activity-feed"
+import { RecordFiles } from "@/components/shared/record-files"
+import { RecordLeadsTable } from "@/components/shared/record-leads-table"
+import { NewLeadSheet } from "@/features/leads/components/new-lead-sheet"
+import { companyCardLine } from "@/features/companies/lib/company-record"
+import { contactActivityTarget, useRecordActivity } from "@/hooks/use-record-activity"
 import { formatPhoneDisplay } from "@/lib/phone-normalize"
 import { cn } from "@/lib/utils"
 import {
-    ChevronDown, ChevronLeft, ChevronRight, Loader2, Mail, MessageCircle, MoreVertical, Pencil, Phone, Trash2,
+    buildFeed, externalHref, firstName, formatCalendarDay, formatDayTime, isBlank, lastActivityLabel, mailtoHref,
+    splitEmptyFields, telHref, whatsAppHref, type ActivityRow, type NoteRow,
+} from "@/lib/record-page"
+import {
+    ChevronLeft, ChevronRight, FileText, Loader2, Mail, MessageCircle, MoreVertical, Pencil, Phone, Trash2,
 } from "@/components/icons"
 import {
-    CONTACT_SECTIONS, CONTACT_TABS, contactSectionDomId, discSummary, emptyFieldsToggleLabel, externalHref,
-    formatCalendarDay, formatCustomValue, formatDayTime, isBlank, mailtoHref, nameWithSalutation, readDisc,
-    secondaryValues, sectionCounts, showBusinessUnit, socialLinks, splitEmptyFields, telHref, whatsAppHref,
+    discSummary, formatCustomValue, nameWithSalutation, readDisc, secondaryValues, showBusinessUnit, socialLinks,
     withContactTab, type ContactTab, type DiscReading, type SocialLink,
 } from "../lib/contact-record"
-import { ContactTimelineTab } from "./contact-timeline-tab"
 import { AddContactModal } from "./add-contact-modal"
-import { ContactFilesTab } from "./contact-files-tab"
-import { ContactNotesSection } from "./contact-notes-section"
-import { ContactLeadsSection, type ContactLead } from "./contact-leads-section"
 
 // ═══════════════════════════════════════════════════════════════
 //  TYPES
@@ -75,7 +81,7 @@ interface ContactData {
     custom_data?: Record<string, unknown> | null
     owner_id?: string | null
     company_id?: string | null
-    client_company?: { id: string; name: string } | null
+    client_company?: { id: string; name: string; industry?: string | null; line_industry?: string | null; city?: string | null; area?: string | null } | null
     owner?: ContactPerson | null
     needs_enrichment?: boolean
     created_at?: string
@@ -91,7 +97,12 @@ export interface ContactCustomField {
 
 interface ContactDetailPageProps {
     contact: ContactData
-    leads: ContactLead[]
+    leads: RecordLead[]
+    /** The contact's timeline, newest first. */
+    activities: ActivityRow[]
+    /** The contact's notes, newest first. */
+    notes: NoteRow[]
+    fileCount: number | null
     lastModified?: string
     lastModifiedBy?: string
     nextContactId?: string
@@ -102,7 +113,7 @@ interface ContactDetailPageProps {
     initialTab?: ContactTab
 }
 
-/** One property in Contact information, with whether it is empty and whether a person fills it in. */
+/** One property in About this contact, with whether it is empty and whether a person fills it in. */
 interface InfoField {
     key: string
     empty: boolean
@@ -110,35 +121,29 @@ interface InfoField {
     node: ReactNode
 }
 
-const SECTION_IDS = CONTACT_SECTIONS.map((section) => contactSectionDomId(section.id))
-const SECTIONS_END_ID = "contact-sections-end"
-
-/** M3's tonal button: the secondary container, with an 8% state layer on hover. */
-const TONAL_BUTTON = "border-transparent bg-[var(--tonal)] text-[var(--tonal-foreground)] shadow-none hover:bg-[color-mix(in_srgb,var(--tonal-foreground)_8%,var(--tonal))]"
-
 // ═══════════════════════════════════════════════════════════════
 //  PAGE
 // ═══════════════════════════════════════════════════════════════
 
 /**
- * A contact's record page, on Zoho CRM's record page with Material 3's
- * rules (DESIGN.md, "Record pages"). One scroll in the shell's `<main>`:
+ * A contact's record page, the approved design (Figma "Contact detail —
+ * Desktop 1440" and "— Phone 390"; DESIGN.md, "Record pages"). One scroll
+ * in the shell's `<main>`:
  *
- *   desk (lg+)  header row, pinned: avatar, "Contacts" / name, ‹ ›, Send email, Edit, ⋮
- *               the facts under it: job title · company, owner, business unit
- *               tabs, pinned under the row: Overview | Timeline
- *               Overview: the related-list rail (Info, Notes, Leads, Files),
- *               pinned beside one column of sections, 840px at most
- *   phone       the top app bar ("Contact", back, ⋮ Edit / Send email / ‹ › / Delete)
- *               a header card: avatar, name, facts, Call · WhatsApp · Email
- *               tabs pinned under the top app bar, then the sections' chips
- *
- * Overview is the summary card (Zoho's business card), Contact information
- * (every field, label : value, edited in place, the empty ones folded),
- * Notes, Leads and Files; Timeline is the contact's activity log.
+ *   desk (lg+)  the header: "← Contacts", avatar, name, job title · company,
+ *               ‹ › Call Email Edit New lead ⋮; the facts: Owner, Phone,
+ *               Email, Last activity
+ *               tabs pinned to the top: Overview · Activity · Leads n · Files n
+ *               Overview: the composer and Recent activity; beside them
+ *               (380px) About this contact, Company, Leads
+ *   phone       the top app bar ("Contact", back, ⋮ Edit / Email / ‹ › / Delete)
+ *               the header centred: avatar, name, job title, company, then
+ *               Call · WhatsApp · Email · Note
+ *               tabs pinned under the top app bar; Overview: Key facts,
+ *               Add a note…, Recent activity, Company, About this contact
  */
 export function ContactDetailPage({
-    contact, leads, lastModified, lastModifiedBy, nextContactId, prevContactId,
+    contact, leads, activities, notes, fileCount, lastModified, lastModifiedBy, nextContactId, prevContactId,
     businessUnit = null, customFields = [], initialTab = "overview",
 }: ContactDetailPageProps) {
     const router = useRouter()
@@ -146,22 +151,20 @@ export function ContactDetailPage({
     const { isHoldingView, companies } = useCompany()
     const canEdit = can("contacts", "update")
     const canDelete = can("contacts", "delete")
+    const canCreateLead = can("leads", "create")
 
     const [tab, setTab] = useState<ContactTab>(initialTab)
-    // The Timeline loads its log when first opened, and is kept after.
-    const [timelineSeen, setTimelineSeen] = useState(initialTab === "timeline")
+    // The Files tab loads its list when first opened, and is kept after.
+    const [filesSeen, setFilesSeen] = useState(initialTab === "files")
     const [editOpen, setEditOpen] = useState(false)
     const [deleteOpen, setDeleteOpen] = useState(false)
     const [deleting, setDeleting] = useState(false)
-    const [showEmpty, setShowEmpty] = useState(false)
+    const [composerOpen, setComposerOpen] = useState(false)
+    const [newLeadOpen, setNewLeadOpen] = useState(false)
     const [currentUserId, setCurrentUserId] = useState<string | null>(null)
-    const [notesCount, setNotesCount] = useState<number | null>(null)
-    const [filesCount, setFilesCount] = useState<number | null>(null)
+    const [filesCount, setFilesCount] = useState<number | null>(fileCount)
     const [ownerOptions, setOwnerOptions] = useState<ChoiceOption[] | null>(null)
     const [companyOptions, setCompanyOptions] = useState<ChoiceOption[] | null>(null)
-
-    const headerRowRef = useRef<HTMLDivElement>(null)
-    const tabsRef = useRef<HTMLDivElement>(null)
     const tabsAnchorRef = useRef<HTMLDivElement>(null)
 
     useEffect(() => {
@@ -178,8 +181,13 @@ export function ContactDetailPage({
     const tel = telHref(contact.phone)
     const whatsApp = whatsAppHref(contact.phone)
     const disc = readDisc(contact.custom_fields)
+    const feed = useMemo(() => buildFeed(activities, notes), [activities, notes])
+    const lastActivity = lastActivityLabel(feed)
+    const { log, editNote, deleteNote } = useRecordActivity(contactActivityTarget(contact.id))
+    const subject = firstName(contact.full_name)
 
     const openEdit = () => setEditOpen(true)
+    const openNewLead = canCreateLead ? () => setNewLeadOpen(true) : undefined
 
     // ─── Owner and company pickers (their lists load when first opened) ───
     const loadingOwners = useRef(false)
@@ -229,7 +237,7 @@ export function ContactDetailPage({
     // ─── Tabs ──────────────────────────────────────────────
     const chooseTab = useCallback((next: ContactTab) => {
         setTab(next)
-        if (next === "timeline") setTimelineSeen(true)
+        if (next === "files") setFilesSeen(true)
         // In the address, replaced rather than pushed, so a reload and Back
         // from a lead come back to it; `null` state, as Next.js asks.
         const query = withContactTab(window.location.search, next)
@@ -239,19 +247,16 @@ export function ContactDetailPage({
         const main = document.getElementById("main-content")
         const anchor = tabsAnchorRef.current
         if (!main || !anchor) return
-        const pinnedAt = anchor.getBoundingClientRect().top - main.getBoundingClientRect().top + main.scrollTop - (headerRowRef.current?.offsetHeight ?? 0)
+        const pinnedAt = anchor.getBoundingClientRect().top - main.getBoundingClientRect().top + main.scrollTop
         if (main.scrollTop > pinnedAt) main.scrollTo({ top: pinnedAt })
     }, [])
 
-    // ─── Sections: the rail, the chips, the one being read ───
-    const getPinned = useCallback(() => (headerRowRef.current?.offsetHeight ?? 0) + (tabsRef.current?.offsetHeight ?? 0), [])
-    const { active, jumpTo } = useSectionSpy({ ids: SECTION_IDS, endId: SECTIONS_END_ID, getPinned, enabled: tab === "overview" })
-    const counts = sectionCounts({ notes: notesCount, leads: leads.length, files: filesCount })
-    const sectionLinks: SectionLink[] = CONTACT_SECTIONS.map((section) => ({
-        domId: contactSectionDomId(section.id),
-        label: section.label,
-        count: counts[section.id],
-    }))
+    const tabs: RecordTab<ContactTab>[] = [
+        { id: "overview", label: "Overview" },
+        { id: "activity", label: "Activity" },
+        { id: "leads", label: "Leads", count: leads.length },
+        { id: "files", label: "Files", count: filesCount },
+    ]
 
     // ─── The top app bar's ⋮ (below lg) ────────────────────
     // `PageChrome` compares the items by label, so a new array on each
@@ -259,33 +264,55 @@ export function ContactDetailPage({
     // The desk's ‹ › live here on a phone, so no way through the contacts is lost.
     const phoneMenu: ChromeMenuItem[] = [
         ...(canEdit ? [{ label: "Edit", icon: Pencil, onSelect: openEdit }] : []),
-        ...(mailto ? [{ label: "Send email", icon: Mail, onSelect: () => { window.location.href = mailto } }] : []),
+        ...(mailto ? [{ label: "Email", icon: Mail, onSelect: () => { window.location.href = mailto } }] : []),
         ...(prevContactId ? [{ label: "Previous contact", icon: ChevronLeft, href: `/contacts/${prevContactId}` }] : []),
         ...(nextContactId ? [{ label: "Next contact", icon: ChevronRight, href: `/contacts/${nextContactId}` }] : []),
         ...(canDelete ? [{ label: "Delete", icon: Trash2, onSelect: () => setDeleteOpen(true), danger: true }] : []),
     ]
 
-    // ─── Contact information ───────────────────────────────
+    // ─── About this contact ────────────────────────────────
     const editForm = canEdit ? openEdit : undefined
     const secondaryEmails = secondaryValues(contact.secondary_email, contact.secondary_emails)
     const secondaryPhones = secondaryValues(contact.secondary_phone, contact.secondary_phones)
     const socials = socialLinks(contact.linkedin_url, contact.social_urls)
-    const ownerDisplay = owner ? <PersonLine person={owner} /> : "No owner"
+    const ownerDisplay = owner ? <PersonLine name={owner.full_name} src={owner.avatar_url} /> : "No owner"
 
     const infoFields: InfoField[] = [
         {
+            // The salutation reads with the name, as it is spoken; it is
+            // changed in the Edit form, the name here.
             key: "full_name", empty: false, fillable: true,
-            node: <InlineTextField layout="row" table="contacts" id={contact.id} fieldPath="full_name" label="Name" rawValue={contact.full_name} required />,
+            node: <InlineTextField table="contacts" id={contact.id} fieldPath="full_name" label="Full name" rawValue={contact.full_name} displayValue={nameDisplay} required />,
         },
         {
-            key: "salutation", empty: isBlank(contact.salutation), fillable: true,
-            node: <FieldRow label="Salutation" empty={isBlank(contact.salutation)} onEdit={editForm}>{contact.salutation || "—"}</FieldRow>,
+            key: "job_title", empty: isBlank(contact.job_title), fillable: true,
+            node: <InlineTextField table="contacts" id={contact.id} fieldPath="job_title" label="Job title" rawValue={contact.job_title} />,
+        },
+        {
+            key: "email", empty: isBlank(contact.email), fillable: true,
+            node: <InlineTextField table="contacts" id={contact.id} fieldPath="email" label="Email" rawValue={contact.email} displayValue={contact.email ? <EmailText email={contact.email} /> : null} href={mailto} />,
+        },
+        {
+            key: "phone", empty: isBlank(contact.phone), fillable: true,
+            node: <InlineTextField table="contacts" id={contact.id} fieldPath="phone" label="Phone" rawValue={contact.phone} displayValue={contact.phone ? formatPhoneDisplay(contact.phone) : null} inputType="phone" href={tel} />,
+        },
+        {
+            key: "address", empty: isBlank(contact.address), fillable: true,
+            node: <InlineTextField table="contacts" id={contact.id} fieldPath="address" label="Address" rawValue={contact.address} />,
+        },
+        {
+            key: "contact_source", empty: isBlank(contact.contact_source), fillable: true,
+            node: <InlineSelectField table="contacts" id={contact.id} fieldPath="contact_source" label="Contact source" rawValue={contact.contact_source} optionType="contact_source" />,
+        },
+        {
+            key: "disc", empty: !disc, fillable: false,
+            node: disc && <FieldRow label="Communication style"><DiscValue disc={disc} /></FieldRow>,
         },
         {
             key: "client_company", empty: !company, fillable: true,
             node: (
                 <InlineChoiceField
-                    layout="row" label="Company" canEdit={canEdit}
+                    label="Company" canEdit={canEdit}
                     value={company?.id ?? null} display={company?.name ?? "—"} empty={!company}
                     options={companyOptions} onOpen={loadCompanies} clearLabel="No company"
                     onSave={(next) => saveContact({ client_company_id: next }, "Company updated", "Failed to update company")}
@@ -293,34 +320,25 @@ export function ContactDetailPage({
             ),
         },
         {
-            key: "job_title", empty: isBlank(contact.job_title), fillable: true,
-            node: <InlineTextField layout="row" table="contacts" id={contact.id} fieldPath="job_title" label="Job title" rawValue={contact.job_title} />,
-        },
-        {
-            key: "contact_source", empty: isBlank(contact.contact_source), fillable: true,
-            node: <InlineSelectField layout="row" table="contacts" id={contact.id} fieldPath="contact_source" label="Contact source" rawValue={contact.contact_source} optionType="contact_source" />,
-        },
-        {
-            key: "disc", empty: !disc, fillable: false,
-            node: disc && <FieldRow label="Communication style (DISC)"><DiscValue disc={disc} /></FieldRow>,
-        },
-        {
-            key: "email", empty: isBlank(contact.email), fillable: true,
-            node: <InlineTextField layout="row" table="contacts" id={contact.id} fieldPath="email" label="Email" rawValue={contact.email} />,
+            key: "owner", empty: !owner, fillable: true,
+            node: (
+                <InlineChoiceField
+                    label="Owner" canEdit={canEdit}
+                    value={owner?.id ?? contact.owner_id ?? null} display={ownerDisplay} empty={!owner}
+                    options={ownerOptions} onOpen={loadOwners} clearLabel="No owner"
+                    onSave={(next) => saveContact({ owner_id: next }, "Owner updated", "Failed to update the owner")}
+                />
+            ),
         },
         {
             key: "secondary_emails", empty: secondaryEmails.length === 0, fillable: true,
             node: (
                 <FieldRow label="Secondary emails" empty={secondaryEmails.length === 0} onEdit={editForm} links>
                     {secondaryEmails.length === 0 ? "—" : secondaryEmails.map((email) => (
-                        <a key={email} href={`mailto:${email}`} className="block text-primary break-words hover:underline"><EmailText email={email} /></a>
+                        <a key={email} href={`mailto:${email}`} className="block break-words font-medium text-primary hover:underline"><EmailText email={email} /></a>
                     ))}
                 </FieldRow>
             ),
-        },
-        {
-            key: "phone", empty: isBlank(contact.phone), fillable: true,
-            node: <InlineTextField layout="row" table="contacts" id={contact.id} fieldPath="phone" label="Phone" rawValue={contact.phone} displayValue={contact.phone ? formatPhoneDisplay(contact.phone) : null} inputType="phone" />,
         },
         {
             key: "secondary_phones", empty: secondaryPhones.length === 0, fillable: true,
@@ -328,7 +346,7 @@ export function ContactDetailPage({
                 <FieldRow label="Secondary phones" empty={secondaryPhones.length === 0} onEdit={editForm} links>
                     {secondaryPhones.length === 0 ? "—" : secondaryPhones.map((phone) => (
                         // tel: takes the stored number, not the spaced display form.
-                        <a key={phone} href={telHref(phone) ?? undefined} className="block text-primary hover:underline">{formatPhoneDisplay(phone)}</a>
+                        <a key={phone} href={telHref(phone) ?? undefined} className="block font-medium text-primary hover:underline">{formatPhoneDisplay(phone)}</a>
                     ))}
                 </FieldRow>
             ),
@@ -338,8 +356,8 @@ export function ContactDetailPage({
             node: (
                 <FieldRow label="Social links" empty={socials.length === 0} onEdit={editForm} links>
                     {socials.length === 0 ? "—" : socials.map((link) => (
-                        <a key={link.url} href={externalHref(link.url)} target="_blank" rel="noopener noreferrer" className="block text-primary wrap-anywhere hover:underline">
-                            <span className="text-muted-foreground">{link.platform}:</span> {link.url}
+                        <a key={link.url} href={externalHref(link.url)} target="_blank" rel="noopener noreferrer" className="block font-medium text-primary wrap-anywhere hover:underline">
+                            <span className="font-normal text-muted-foreground">{link.platform}:</span> {link.url}
                         </a>
                     ))}
                 </FieldRow>
@@ -347,23 +365,13 @@ export function ContactDetailPage({
         },
         {
             key: "date_of_birth", empty: isBlank(contact.date_of_birth), fillable: true,
-            node: <InlineTextField layout="row" table="contacts" id={contact.id} fieldPath="date_of_birth" label="Date of birth" rawValue={contact.date_of_birth} displayValue={formatCalendarDay(contact.date_of_birth)} inputType="date" />,
+            node: <InlineTextField table="contacts" id={contact.id} fieldPath="date_of_birth" label="Date of birth" rawValue={contact.date_of_birth} displayValue={formatCalendarDay(contact.date_of_birth)} inputType="date" />,
         },
-        {
-            key: "address", empty: isBlank(contact.address), fillable: true,
-            node: <InlineTextField layout="row" table="contacts" id={contact.id} fieldPath="address" label="Address" rawValue={contact.address} />,
-        },
-        {
-            key: "owner", empty: !owner, fillable: true,
-            node: (
-                <InlineChoiceField
-                    layout="row" label="Owner" canEdit={canEdit}
-                    value={owner?.id ?? contact.owner_id ?? null} display={ownerDisplay} empty={!owner}
-                    options={ownerOptions} onOpen={loadOwners} clearLabel="No owner"
-                    onSave={(next) => saveContact({ owner_id: next }, "Owner updated", "Failed to update the owner")}
-                />
-            ),
-        },
+        // A salutation reads in Full name; the row is offered only while there is none.
+        ...(isBlank(contact.salutation) ? [{
+            key: "salutation", empty: true, fillable: true,
+            node: <FieldRow label="Salutation" empty onEdit={editForm}>—</FieldRow>,
+        }] : []),
         {
             // The tenant's unit, which nobody changes here; named only to
             // someone who sees more than one.
@@ -386,164 +394,162 @@ export function ContactDetailPage({
     ]
     const { filled, empty } = splitEmptyFields(infoFields)
 
+    // ─── Shared pieces ─────────────────────────────────────
+    const ownerFact = owner ? <PersonLine name={owner.full_name} src={owner.avatar_url} /> : <FactNone>No owner</FactNone>
+    const phoneFact = tel && contact.phone ? <FactLink href={tel}>{formatPhoneDisplay(contact.phone)}</FactLink> : contact.phone ? contact.phone : <FactNone>No phone</FactNone>
+    const emailFact = mailto && contact.email ? <FactLink href={mailto}>{contact.email}</FactLink> : <FactNone>No email</FactNone>
+    const lastActivityFact = lastActivity ? <span suppressHydrationWarning>{lastActivity}</span> : <FactNone>No activity yet</FactNone>
+    const composer = <ActivityComposer subject={subject} onLog={log} className="hidden lg:block" />
+    const lastModifiedLine = (
+        <p className="text-xs text-muted-foreground" suppressHydrationWarning>
+            Last modified {formatDayTime(lastModified || contact.created_at) ?? "—"} by {lastModifiedBy || "System"}
+        </p>
+    )
+
     return (
-        <div data-fluid-page className="min-h-full bg-background pb-12">
+        <div data-fluid-page className={cn("min-h-full bg-background", RECORD_TYPE)}>
             {/* Below `lg` the top app bar says what the page is and holds its
-                actions; the desk's header row is not drawn there. */}
+                actions; the desk's header is not drawn there. */}
             <PageChrome title="Contact" backHref="/contacts" menu={phoneMenu} />
 
             {/* ═══ DESK HEADER (lg+) ═══════════════════════════════ */}
-            <div ref={headerRowRef} className="sticky top-0 z-30 hidden min-h-14 items-center gap-3 bg-background px-8 py-1.5 lg:flex">
-                <InitialsAvatar name={contact.full_name} size="lg" />
-                <div className="min-w-0 flex-1">
-                    {/* The line box is the nav's own 16px, not the body's 24px, so the row stays 56dp. */}
-                    <nav aria-label="Breadcrumb" className="text-xs leading-4">
-                        <Link href="/contacts" className="font-medium text-muted-foreground transition-colors hover:text-primary">Contacts</Link>
-                    </nav>
-                    <div className="flex min-w-0 items-center gap-2">
-                        <h1 className="truncate text-xl font-semibold tracking-tight text-foreground" title={nameDisplay}>{nameDisplay}</h1>
-                        {contact.needs_enrichment && <NeedsDetailsMark />}
-                    </div>
-                </div>
-                <div className="flex shrink-0 items-center gap-2">
-                    <RecordStepper prevId={prevContactId} nextId={nextContactId} />
-                    {mailto ? (
-                        <Button asChild className={TONAL_BUTTON}>
-                            <a href={mailto}><Mail className="h-4 w-4" /> Send email</a>
-                        </Button>
-                    ) : (
-                        <Tooltip content="This contact has no email address" position="bottom">
-                            <Button disabled className={TONAL_BUTTON}><Mail className="h-4 w-4" /> Send email</Button>
-                        </Tooltip>
-                    )}
-                    {canEdit && (
-                        <Button variant="outline" onClick={openEdit}><Pencil className="h-4 w-4" /> Edit</Button>
-                    )}
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" aria-label="More actions" className="text-muted-foreground">
-                                <MoreVertical className="h-5 w-5" />
-                            </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-48">
-                            <PermissionMenuItem resource="contacts" action="delete" onClick={() => setDeleteOpen(true)} className="text-destructive focus:text-destructive">
-                                <Trash2 className="h-4 w-4" /> Delete
-                            </PermissionMenuItem>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
-                </div>
-            </div>
-            {/* The facts under the row scroll away; the row stays. Aligned
-                with the name: 32px gutter, 40px avatar, 12px gap. */}
-            <div className="hidden pb-4 pl-[5.25rem] pr-8 lg:block">
-                <HeaderFacts jobTitle={contact.job_title} company={company} owner={owner} unitName={unitShown ? unitName : null} />
-            </div>
+            <RecordHeader
+                backHref="/contacts"
+                backLabel="Contacts"
+                avatar={<InitialsAvatar name={contact.full_name} size="header" />}
+                name={contact.full_name}
+                nameAdornment={contact.needs_enrichment && <NeedsDetailsMark />}
+                supporting={(contact.job_title || company) && (
+                    <>
+                        {contact.job_title}
+                        {contact.job_title && company && " · "}
+                        {company && <Link href={`/companies/${company.id}`} className="font-medium text-primary hover:underline">{company.name}</Link>}
+                    </>
+                )}
+                actions={
+                    <>
+                        <RecordStepper prevHref={prevContactId && `/contacts/${prevContactId}`} nextHref={nextContactId && `/contacts/${nextContactId}`} prevLabel="Previous contact" nextLabel="Next contact" />
+                        <HeaderLinkButton href={tel} label="Call" missing="This contact has no phone number" />
+                        <HeaderLinkButton href={mailto} label="Email" missing="This contact has no email address" />
+                        {canEdit && <Button variant="outline" onClick={openEdit} className={OUTLINED_BUTTON}>Edit</Button>}
+                        {openNewLead && <Button onClick={openNewLead} className={FILLED_BUTTON}>New lead</Button>}
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" aria-label="More actions" className={ICON_BUTTON}>
+                                    <MoreVertical className="h-5 w-5" />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-48">
+                                <PermissionMenuItem resource="contacts" action="delete" onClick={() => setDeleteOpen(true)} className="text-destructive focus:text-destructive">
+                                    <Trash2 className="h-4 w-4" /> Delete
+                                </PermissionMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                    </>
+                }
+                facts={
+                    <>
+                        <RecordFact label="Owner">{ownerFact}</RecordFact>
+                        <RecordFact label="Phone">{phoneFact}</RecordFact>
+                        <RecordFact label="Email">{emailFact}</RecordFact>
+                        <RecordFact label="Last activity">{lastActivityFact}</RecordFact>
+                        {unitShown && <RecordFact label="Business unit">{unitName}</RecordFact>}
+                    </>
+                }
+            />
 
-            {/* ═══ PHONE HEADER CARD (below lg) ═════════════════════ */}
-            <section aria-labelledby="contact-name" className="px-4 pb-4 pt-4 sm:px-6 lg:hidden">
-                <div className="flex items-start gap-4">
-                    <InitialsAvatar name={contact.full_name} size="xl" />
-                    <div className="min-w-0 flex-1">
-                        <h2 id="contact-name" className="text-xl font-semibold leading-7 text-foreground break-words">
-                            {nameDisplay}
-                            {contact.needs_enrichment && <NeedsDetailsMark className="ml-1.5 align-[-3px]" />}
-                        </h2>
-                        <div className="mt-1">
-                            <HeaderFacts jobTitle={contact.job_title} company={company} owner={owner} unitName={unitShown ? unitName : null} />
-                        </div>
-                    </div>
-                </div>
-                {(tel || mailto) && (
-                    <div className="mt-4 grid grid-cols-3 gap-2">
+            {/* ═══ PHONE HEADER (below lg) ════════════════════════ */}
+            <RecordHero
+                avatar={<InitialsAvatar name={contact.full_name} size="hero" />}
+                name={contact.full_name}
+                nameAdornment={contact.needs_enrichment && <NeedsDetailsMark />}
+                lines={
+                    <>
+                        {contact.job_title && <p className="text-sm text-muted-foreground">{contact.job_title}</p>}
+                        {company && <Link href={`/companies/${company.id}`} className="text-sm font-medium text-primary">{company.name}</Link>}
+                    </>
+                }
+                actions={
+                    <>
                         <QuickAction icon={Phone} label="Call" href={tel} missing="No phone number" />
                         <QuickAction icon={MessageCircle} label="WhatsApp" href={whatsApp} external missing="No phone number" />
                         <QuickAction icon={Mail} label="Email" href={mailto} missing="No email address" />
-                    </div>
-                )}
-            </section>
+                        <QuickAction icon={FileText} label="Note" onClick={() => setComposerOpen(true)} />
+                    </>
+                }
+            />
 
             {/* ═══ TABS ═══════════════════════════════════════════ */}
             <div ref={tabsAnchorRef} aria-hidden="true" />
-            <RecordTabs
-                ref={tabsRef}
-                tabs={CONTACT_TABS}
-                value={tab}
-                onChange={chooseTab}
-                label="Contact views"
-                idPrefix="contact"
-                className="sticky top-0 z-20 lg:top-14 lg:px-4"
-            />
+            <RecordTabs tabs={tabs} value={tab} onChange={chooseTab} label="Contact views" idPrefix="contact" />
 
             {/* ═══ OVERVIEW ═══════════════════════════════════════ */}
             <div role="tabpanel" id="contact-panel-overview" aria-labelledby="contact-tab-overview" hidden={tab !== "overview"}>
-                <SectionChips links={sectionLinks} active={active} onJump={jumpTo} className="lg:hidden" />
-                <div className="flex gap-8 px-4 sm:px-6 lg:px-8 lg:pt-6">
-                    {/* Pinned under the header row (56) and the tabs (49), 24px lower. */}
-                    <SectionRail links={sectionLinks} active={active} onJump={jumpTo} className="sticky top-[129px] hidden w-[220px] shrink-0 self-start lg:block" />
-                    <div className="min-w-0 max-w-[840px] flex-1 space-y-8">
-                        <section id={contactSectionDomId("info")} aria-labelledby="contact-info-heading" tabIndex={-1} className="space-y-6 outline-none">
-                            <SummaryCard
-                                email={contact.email} mailto={mailto}
-                                phone={contact.phone} tel={tel} whatsApp={whatsApp}
-                                company={company} owner={owner} jobTitle={contact.job_title}
-                            />
-                            <div>
-                                <h2 id="contact-info-heading" className="mb-3 text-base font-semibold text-foreground">Contact information</h2>
-                                <div className="rounded-xl border bg-card px-4 py-2 sm:px-5">
-                                    <dl>
-                                        {filled.map((field) => <Fragment key={field.key}>{field.node}</Fragment>)}
-                                    </dl>
-                                    {empty.length > 0 && (
-                                        <>
-                                            {showEmpty && (
-                                                <dl id="contact-empty-fields">
-                                                    {empty.map((field) => <Fragment key={field.key}>{field.node}</Fragment>)}
-                                                </dl>
-                                            )}
-                                            <button
-                                                type="button"
-                                                aria-expanded={showEmpty}
-                                                aria-controls="contact-empty-fields"
-                                                onClick={() => setShowEmpty((open) => !open)}
-                                                className="-mx-2 my-1 inline-flex h-10 items-center gap-1 rounded-md px-2 text-sm font-medium text-primary outline-none transition-colors hover:bg-primary/5 focus-visible:ring-2 focus-visible:ring-ring/50"
-                                            >
-                                                {emptyFieldsToggleLabel(empty.length, showEmpty)}
-                                                <ChevronDown className={cn("h-4 w-4 transition-transform", showEmpty && "rotate-180")} aria-hidden="true" />
-                                            </button>
-                                        </>
-                                    )}
-                                </div>
+                <div className="flex flex-col gap-3 px-4 pb-6 pt-3 lg:flex-row lg:items-start lg:gap-6 lg:px-8 lg:pb-8 lg:pt-6">
+                    {/* On a phone both columns dissolve into one, reordered. */}
+                    <div className="contents lg:flex lg:min-w-0 lg:flex-1 lg:flex-col lg:gap-5">
+                        <KeyFactsCard className="order-1 lg:hidden">
+                            <KeyFact label="Owner">{ownerFact}</KeyFact>
+                            <KeyFact label="Phone">{phoneFact}</KeyFact>
+                            <KeyFact label="Email">{emailFact}</KeyFact>
+                            <KeyFact label="Last activity">{lastActivityFact}</KeyFact>
+                        </KeyFactsCard>
+                        {composer}
+                        <AddNoteRow onOpen={() => setComposerOpen(true)} className="order-2 lg:hidden" />
+                        <div className="order-3 lg:order-none">
+                            <RecentActivityCard feed={feed} onViewAll={() => chooseTab("activity")} />
+                        </div>
+                    </div>
+                    <div className="contents lg:flex lg:w-[320px] xl:w-[380px] lg:shrink-0 lg:flex-col lg:gap-5">
+                        <div className="order-5 lg:order-none">
+                            <AboutCard title="About this contact" onEdit={editForm} filled={filled} empty={empty} idPrefix="contact" />
+                        </div>
+                        {company && (
+                            <div className="order-4 lg:order-none">
+                                <RelatedCompanyCard company={{ id: company.id, name: company.name, line: companyCardLine(company) }} />
                             </div>
-                        </section>
-
-                        <section id={contactSectionDomId("notes")} aria-labelledby="contact-notes-heading" tabIndex={-1} className="outline-none">
-                            <ContactNotesSection contactId={contact.id} currentUserId={currentUserId} headingId="contact-notes-heading" onCountChange={setNotesCount} />
-                        </section>
-
-                        <section id={contactSectionDomId("leads")} aria-labelledby="contact-leads-heading" tabIndex={-1} className="outline-none">
-                            <ContactLeadsSection leads={leads} headingId="contact-leads-heading" />
-                        </section>
-
-                        <section id={contactSectionDomId("files")} aria-labelledby="contact-files-heading" tabIndex={-1} className="outline-none">
-                            <ContactFilesTab contactId={contact.id} headingId="contact-files-heading" onCountChange={setFilesCount} />
-                        </section>
-
-                        <p className="text-xs text-muted-foreground" suppressHydrationWarning>
-                            Last modified {formatDayTime(lastModified || contact.created_at) ?? "—"} by {lastModifiedBy || "System"}
-                        </p>
-                        <div id={SECTIONS_END_ID} aria-hidden="true" className="h-px" />
+                        )}
+                        <RecordLeadsCard leads={leads} onNew={openNewLead} onViewAll={() => chooseTab("leads")} className="hidden lg:block" />
+                        <div className="order-6 px-1 lg:order-none">{lastModifiedLine}</div>
                     </div>
                 </div>
             </div>
 
-            {/* ═══ TIMELINE ═══════════════════════════════════════ */}
-            <div role="tabpanel" id="contact-panel-timeline" aria-labelledby="contact-tab-timeline" hidden={tab !== "timeline"} className="px-4 pt-4 sm:px-6 lg:px-8 lg:pt-6">
-                <div className="max-w-[840px]">
-                    {timelineSeen && <ContactTimelineTab contactId={contact.id} />}
+            {/* ═══ ACTIVITY ═══════════════════════════════════════ */}
+            <div role="tabpanel" id="contact-panel-activity" aria-labelledby="contact-tab-activity" hidden={tab !== "activity"}>
+                <div className="flex flex-col gap-3 px-4 pb-6 pt-3 lg:max-w-[880px] lg:gap-5 lg:px-8 lg:pb-8 lg:pt-6">
+                    {composer}
+                    <AddNoteRow onOpen={() => setComposerOpen(true)} className="lg:hidden" />
+                    <RecordActivityFeed feed={feed} currentUserId={currentUserId} onEditNote={editNote} onDeleteNote={deleteNote} />
                 </div>
             </div>
 
-            {/* ═══ DIALOGS ════════════════════════════════════════ */}
+            {/* ═══ LEADS ══════════════════════════════════════════ */}
+            <div role="tabpanel" id="contact-panel-leads" aria-labelledby="contact-tab-leads" hidden={tab !== "leads"}>
+                <div className="px-4 pb-6 pt-3 lg:px-8 lg:pb-8 lg:pt-6">
+                    <RecordLeadsTable leads={leads} onNew={openNewLead} emptyText="No leads yet. A lead that names this contact as its contact person shows here." />
+                </div>
+            </div>
+
+            {/* ═══ FILES ══════════════════════════════════════════ */}
+            <div role="tabpanel" id="contact-panel-files" aria-labelledby="contact-tab-files" hidden={tab !== "files"}>
+                <div className="px-4 pb-6 pt-3 lg:max-w-[880px] lg:px-8 lg:pb-8 lg:pt-6">
+                    {filesSeen && <RecordFiles kind="contact" recordId={contact.id} onCountChange={setFilesCount} />}
+                </div>
+            </div>
+
+            {/* ═══ SHEETS AND DIALOGS ═════════════════════════════ */}
+            <ComposerSheet open={composerOpen} onOpenChange={setComposerOpen} subject={subject} onLog={log} />
+            {canCreateLead && (
+                <NewLeadSheet
+                    open={newLeadOpen}
+                    onOpenChange={setNewLeadOpen}
+                    clientCompanyId={company?.id ?? null}
+                    // The contact picker lists a company's people, so the
+                    // contact is filled in only with its company.
+                    contactId={company ? contact.id : null}
+                />
+            )}
             <AddContactModal
                 isOpen={editOpen}
                 onOpenChange={setEditOpen}
@@ -586,164 +592,6 @@ function EmailText({ email }: { email: string }) {
     return <>{email.slice(0, at + 1)}<wbr />{email.slice(at + 1)}</>
 }
 
-/** A person as avatar and name: the owner, wherever the page names them. */
-function PersonLine({ person }: { person: ContactPerson }) {
-    return (
-        <span className="inline-flex min-w-0 max-w-full items-center gap-1.5 align-middle">
-            <InitialsAvatar name={person.full_name} src={person.avatar_url} size="xs" />
-            <span className="truncate">{person.full_name}</span>
-        </span>
-    )
-}
-
-/**
- * What the header says under the name: the job title and the client
- * company (a link to it), then who owns the contact, a person, and, for
- * someone who sees several business units, which one it belongs to.
- */
-function HeaderFacts({ jobTitle, company, owner, unitName }: {
-    jobTitle: string | null
-    company: { id: string; name: string } | null
-    owner: ContactPerson | null
-    unitName: string | null
-}) {
-    return (
-        <div className="space-y-1 text-sm">
-            {(jobTitle || company) && (
-                <p className="text-muted-foreground">
-                    {jobTitle}
-                    {jobTitle && company && " · "}
-                    {company && <Link href={`/companies/${company.id}`} className="text-primary hover:underline">{company.name}</Link>}
-                </p>
-            )}
-            <p className="flex flex-wrap items-center gap-x-4 gap-y-1">
-                <span className="inline-flex min-w-0 items-center gap-1.5">
-                    <span className="text-muted-foreground">Owner</span>
-                    {owner ? <span className="min-w-0 text-foreground"><PersonLine person={owner} /></span> : <span className="text-muted-foreground">No owner</span>}
-                </span>
-                {unitName && (
-                    <span className="inline-flex min-w-0 items-center gap-1.5">
-                        <span className="text-muted-foreground">Business unit</span>
-                        <span className="truncate text-foreground">{unitName}</span>
-                    </span>
-                )}
-            </p>
-        </div>
-    )
-}
-
-/** ‹ › to the contact before and after this one by name. */
-function RecordStepper({ prevId, nextId }: { prevId?: string; nextId?: string }) {
-    const step = (id: string | undefined, label: string, Icon: ComponentType<{ className?: string }>) => (
-        <Tooltip content={label} position="bottom">
-            {id ? (
-                <Button asChild variant="ghost" size="icon" className="text-muted-foreground">
-                    <Link href={`/contacts/${id}`} prefetch={false} aria-label={label}><Icon className="h-5 w-5" /></Link>
-                </Button>
-            ) : (
-                <Button variant="ghost" size="icon" disabled aria-label={label} className="text-muted-foreground"><Icon className="h-5 w-5" /></Button>
-            )}
-        </Tooltip>
-    )
-    return (
-        <div className="flex items-center">
-            {step(prevId, "Previous contact", ChevronLeft)}
-            {step(nextId, "Next contact", ChevronRight)}
-        </div>
-    )
-}
-
-/**
- * An M3 labelled icon button for the phone's header card: a 40dp tonal
- * container over its label (Google Contacts' Call, Text, Email). Without a
- * number or an address it stays in its place, disabled, and says why.
- */
-function QuickAction({ icon: Icon, label, href, external = false, missing }: {
-    icon: ComponentType<{ className?: string }>
-    label: string
-    href: string | null
-    external?: boolean
-    missing: string
-}) {
-    const body = (
-        <>
-            <span className="grid h-10 w-16 place-items-center rounded-full bg-[var(--tonal)] text-[var(--tonal-foreground)]">
-                <Icon className="h-5 w-5" />
-            </span>
-            <span className="text-xs font-medium">{label}</span>
-        </>
-    )
-    const base = "flex min-h-16 flex-col items-center justify-center gap-1 rounded-xl py-1 text-foreground outline-none"
-    if (!href) {
-        return (
-            <button type="button" disabled title={missing} aria-label={`${label} (${missing.toLowerCase()})`} className={cn(base, "opacity-40")}>
-                {body}
-            </button>
-        )
-    }
-    return (
-        <a
-            href={href}
-            {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
-            className={cn(base, "transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring/50")}
-        >
-            {body}
-        </a>
-    )
-}
-
-/**
- * Zoho's business card: the five facts a person opens a contact for,
- * each a label beside its value, the reachable ones as links (mail, call,
- * WhatsApp, the company's page). Two pairs to a row once the card is wide.
- */
-function SummaryCard({ email, mailto, phone, tel, whatsApp, company, owner, jobTitle }: {
-    email: string | null
-    mailto: string | null
-    phone: string | null
-    tel: string | null
-    whatsApp: string | null
-    company: { id: string; name: string } | null
-    owner: ContactPerson | null
-    jobTitle: string | null
-}) {
-    const none = (text: string) => <span className="text-muted-foreground">{text}</span>
-    return (
-        <div role="group" aria-label="Summary" className="@container rounded-xl border bg-card px-4 py-3.5 sm:px-5">
-            <dl className="grid grid-cols-[5.5rem_minmax(0,1fr)] gap-x-4 gap-y-2.5 text-sm leading-5 @xl:grid-cols-[5.5rem_minmax(0,1fr)_5.5rem_minmax(0,1fr)]">
-                <dt className="text-muted-foreground">Email</dt>
-                <dd className="min-w-0 break-words">
-                    {mailto && email ? <a href={mailto} className="text-primary hover:underline"><EmailText email={email} /></a> : none("No email")}
-                </dd>
-                <dt className="text-muted-foreground">Phone</dt>
-                <dd className="min-w-0">
-                    {tel && phone ? (
-                        <>
-                            <a href={tel} className="text-primary hover:underline">{formatPhoneDisplay(phone)}</a>
-                            {whatsApp && (
-                                <>
-                                    <span className="text-muted-foreground"> · </span>
-                                    <a href={whatsApp} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline">
-                                        <MessageCircle className="h-3.5 w-3.5" aria-hidden="true" />WhatsApp
-                                    </a>
-                                </>
-                            )}
-                        </>
-                    ) : phone ? <span className="text-foreground">{phone}</span> : none("No phone")}
-                </dd>
-                <dt className="text-muted-foreground">Company</dt>
-                <dd className="min-w-0 break-words">
-                    {company ? <Link href={`/companies/${company.id}`} className="text-primary hover:underline">{company.name}</Link> : none("No company")}
-                </dd>
-                <dt className="text-muted-foreground">Owner</dt>
-                <dd className="min-w-0 text-foreground">{owner ? <PersonLine person={owner} /> : none("No owner")}</dd>
-                <dt className="text-muted-foreground">Job title</dt>
-                <dd className="min-w-0 break-words text-foreground">{jobTitle || none("No job title")}</dd>
-            </dl>
-        </div>
-    )
-}
-
 /**
  * The DISC reading as a small tonal badge with its meaning beside it, the
  * rep's note under it in their own words (Indonesian) and who assessed it
@@ -756,8 +604,8 @@ function DiscValue({ disc }: { disc: DiscReading }) {
     const signed = disc.assessedByName ? `Assessed by ${disc.assessedByName}${when ? ` on ${when}` : ""}` : when ? `Assessed on ${when}` : null
     return (
         <>
-            <span className="flex flex-wrap items-center gap-2">
-                <span className="rounded-md bg-primary/10 px-1.5 py-0.5 text-xs font-semibold text-primary" title={meaning}>{code}</span>
+            <span className="flex flex-wrap items-center gap-1.5">
+                <span className="rounded-[6px] bg-primary/10 px-1.5 py-0.5 text-xs font-semibold text-primary" title={meaning}>{code}</span>
                 <span>{meaning}</span>
             </span>
             {disc.note && <span className="mt-1 block break-words">{disc.note}</span>}

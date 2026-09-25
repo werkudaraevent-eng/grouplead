@@ -76,17 +76,18 @@ export const CHANGE_TYPE_META: Record<
 export const CHANGELOG: ChangelogEntry[] = [
     {
         date: "2026-09-25",
-        title: "A new layout for a contact's page",
+        title: "New pages for contacts and companies",
         items: [
-            { type: "improvement", text: "A contact's page has a new layout. The name stays at the top while you scroll, with Send email, Edit and ⋮ (Delete) beside it, and under it two tabs: Overview and Timeline. The whole page now scrolls as one, instead of two boxes scrolling separately." },
-            { type: "improvement", text: "Overview starts with a short summary card: email, phone (with a WhatsApp link), company, owner and job title. Under it, Contact information lists every field of the contact, including the fields your admin added to the contact form. Click a value to change it; fields with nothing in them are tucked under \"Show N empty fields\"." },
-            { type: "feature", text: "On a computer, a list at the left of the page (Info, Notes, Leads, Files, with how many of each) takes you straight to that part of the page and shows which part you are reading." },
-            { type: "improvement", text: "The four number boxes across the top of the page are gone. Beside the Leads heading, one line now says how many of the contact's leads are active, what they are worth and how many were won." },
-            { type: "fix", text: "Owner now shows the person who owns the contact, with their photo or initials. A contact that was imported belongs to whoever imported it, so one imported from a shared account shows that account (for example \"Werkudara Group\"); pick the right person in the Owner field. If you work across several business units, the contact's business unit is shown separately." },
-            { type: "feature", text: "You can now edit a note you wrote; Edit and Delete show only on your own notes, and deleting a note asks you to confirm first." },
-            { type: "feature", text: "A contact can be deleted from its own page (⋮, then Delete). It goes to the Recycle Bin, the same as deleting it from the list." },
-            { type: "improvement", text: "On a phone, a contact's page now fits the screen instead of sliding sideways. Under the name are Call, WhatsApp and Email buttons; the Overview and Timeline tabs stay under the top bar as you scroll; and a row of buttons takes you to Info, Notes, Leads or Files. The ⋮ at the top right has Edit, Send email, the previous and next contact, and Delete." },
-            { type: "improvement", text: "Field names on contact and company pages are now written normally (\"Segment tier\", \"Line industry\") instead of in small capital letters." },
+            { type: "improvement", text: "A contact's page and a company's page have a new, cleaner layout. At the top: the name, the job title and company (for a company, its sector, line industry and city), and buttons for Call, Email, Edit and New lead, with ‹ › to go to the previous or next record and ⋮ for Delete. Under the name you see at a glance who owns the record, the phone number, the email (or a company's website) and the last activity." },
+            { type: "feature", text: "\"Last activity\" shows the most recent note, call, email, meeting or task, for example \"Call · 2 days ago\", so you can see straight away when someone last talked to this person or company." },
+            { type: "feature", text: "Write a note or log a call, an email, a meeting or a task right on the page: pick the kind above the box, type, and press Save (or Ctrl + Enter). It appears at once under Recent activity." },
+            { type: "improvement", text: "The page has tabs: Overview, Activity, Leads and Files (a company also has Contacts). Activity lists everything that happened, newest first, and you can show only notes, calls, emails, meetings, tasks, files or changes. You can still edit or delete your own notes there." },
+            { type: "improvement", text: "On the right, \"About this contact\" (or company) lists every field. Click a value to change it; fields with nothing in them are tucked under \"Show N empty fields\". Field names are written normally (\"Segment tier\") instead of in small capital letters. A contact's page also shows its company and its open leads; a company's page shows its contacts, its open leads and its parent company or subsidiaries." },
+            { type: "feature", text: "New lead on a contact's or a company's page opens the lead form with the company (and the contact) already filled in, in the pipeline you last used." },
+            { type: "feature", text: "A contact or a company can be deleted from its own page (⋮, then Delete). It goes to the Recycle Bin, the same as deleting it from the list." },
+            { type: "improvement", text: "On a phone, both pages fit the screen. Under the name are Call, WhatsApp, Email and Note buttons (a company: Call, Website and Note); the tabs stay under the top bar as you scroll; \"Add a note…\" opens the note box from the bottom of the screen. The ⋮ at the top right has Edit, Email, the previous and next record, and Delete." },
+            { type: "fix", text: "Owner shows the person who owns the record, with their photo or initials. A contact that was imported belongs to whoever imported it, so one imported from a shared account shows that account (for example \"Werkudara Group\"); pick the right person in the Owner field." },
+            { type: "fix", text: "Leads and contacts that are in the Recycle Bin no longer show on a contact's or a company's page." },
         ],
     },
     {

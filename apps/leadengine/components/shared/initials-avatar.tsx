@@ -17,7 +17,9 @@ const TONES = [
 
 export function getInitials(name: string): string {
   if (!name) return "?"
-  return name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join("").toUpperCase()
+  // Letters and digits only: "Elitery (Data Sinergitama)" reads "ED", never "E(".
+  const words = name.split(/\s+/).map((part) => part.replace(/[^\p{L}\p{N}]/gu, "")).filter(Boolean)
+  return words.slice(0, 2).map((part) => part[0]).join("").toUpperCase() || "?"
 }
 
 export function avatarTone(name: string): string {
@@ -30,11 +32,23 @@ const SIZES = {
   xs: "h-5 w-5 text-[9px]",
   sm: "h-7 w-7 text-[11px]",
   md: "h-8 w-8 text-xs",
-  /** A record's header on a desk (40dp). */
+  /** A company's tile on another record's card (40dp). */
   lg: "h-10 w-10 text-sm",
-  /** A record's header card on a phone (56dp). */
-  xl: "h-14 w-14 text-lg",
+  /** A record's header on a desk (48dp). */
+  header: "h-12 w-12 text-[17px]",
+  /** A record's header on a phone (64dp). */
+  hero: "h-16 w-16 text-[23px]",
 } as const
+
+/** A square's corners grow with it: 8dp small, 10dp at 40, 12dp at 48 and up (the record page's tiles). */
+const SQUARE_RADIUS: Record<keyof typeof SIZES, string> = {
+  xs: "rounded-md",
+  sm: "rounded-md",
+  md: "rounded-md",
+  lg: "rounded-[10px]",
+  header: "rounded-[12px]",
+  hero: "rounded-[16px]",
+}
 
 export function InitialsAvatar({
   name,
@@ -50,7 +64,7 @@ export function InitialsAvatar({
   shape?: "circle" | "square"
   className?: string
 }) {
-  const radius = shape === "circle" ? "rounded-full" : "rounded-md"
+  const radius = shape === "circle" ? "rounded-full" : SQUARE_RADIUS[size]
   if (src) {
     // eslint-disable-next-line @next/next/no-img-element
     return <img src={src} alt={name} className={cn("shrink-0 object-cover", SIZES[size], radius, className)} />
