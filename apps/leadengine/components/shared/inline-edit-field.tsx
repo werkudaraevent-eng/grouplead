@@ -69,8 +69,12 @@ async function persist(table: string, id: string | number, payload: Record<strin
 export function FieldShell({ label, children }: { label: string; children: ReactNode }) {
     return (
         <div className="relative flex min-w-0 flex-col gap-0.5 px-4 py-2.5 lg:flex-row lg:gap-3 lg:py-[9px]">
-            <dt className="text-xs text-muted-foreground lg:w-28 lg:shrink-0 lg:text-[13px]">{sentenceCaseLabel(label)}</dt>
-            <dd className="min-w-0 flex-1 text-sm text-foreground lg:text-[13px]">{children}</dd>
+            {/* One line height for label and value (M3 body-medium 20px; the
+                phone's label is body-small 16px), so a value that wraps or
+                stacks keeps an even rhythm and its first line sits level
+                with the label. */}
+            <dt className="text-xs leading-4 text-muted-foreground lg:w-28 lg:shrink-0 lg:text-[13px] lg:leading-5">{sentenceCaseLabel(label)}</dt>
+            <dd className="min-w-0 flex-1 text-sm leading-5 text-foreground lg:text-[13px]">{children}</dd>
         </div>
     )
 }

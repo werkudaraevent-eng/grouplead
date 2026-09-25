@@ -598,12 +598,16 @@ function DiscValue({ disc }: { disc: DiscReading }) {
     const signed = disc.assessedByName ? `Assessed by ${disc.assessedByName}${when ? ` on ${when}` : ""}` : when ? `Assessed on ${when}` : null
     return (
         <>
-            <span className="flex flex-wrap items-center gap-1.5">
-                <span className="rounded-[6px] bg-primary/10 px-1.5 py-0.5 text-xs font-semibold text-primary" title={meaning}>{code}</span>
-                <span>{meaning}</span>
+            {/* The badge sits in the sentence's first line (inline, on the
+                text's own 20px line height), so a meaning that wraps runs on
+                under it instead of dropping the whole meaning to a new line
+                with a gap above it; note and signature follow 4px apart. */}
+            <span className="block">
+                <span className="mr-1.5 inline-block rounded-[6px] bg-primary/10 px-1.5 align-baseline text-xs font-semibold leading-5 text-primary" title={meaning}>{code}</span>
+                {meaning}
             </span>
             {disc.note && <span className="mt-1 block break-words">{disc.note}</span>}
-            {signed && <span className="mt-1 block text-xs text-muted-foreground">{signed}</span>}
+            {signed && <span className="mt-1 block text-xs leading-4 text-muted-foreground">{signed}</span>}
         </>
     )
 }
