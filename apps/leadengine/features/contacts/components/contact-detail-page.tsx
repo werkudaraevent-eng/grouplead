@@ -1,6 +1,5 @@
 "use client"
 
-import Link from "next/link"
 import { useCallback, useMemo, useRef, useState, type ReactNode } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
@@ -22,7 +21,7 @@ import {
     FieldRow, InlineChoiceField, InlineSelectField, InlineTextField, type ChoiceOption,
 } from "@/components/shared/inline-edit-field"
 import {
-    AboutCard, AddNoteRow, FactLink, FactNone, FILLED_BUTTON, HeaderLinkButton, KeyFact, KeyFactsCard, MORE_BUTTON,
+    AboutCard, AddNoteRow, FactNone, FILLED_BUTTON, HeaderLinkButton, KeyFact, KeyFactsCard, MORE_BUTTON,
     OUTLINED_BUTTON, PersonLine, QuickAction, RecordFact, RecordHeader, RecordHero, RecordLeadsCard, RecordPanel,
     RecordStepper, RecordTabs, RECORD_TYPE, RelatedCompanyCard, type RecordLead, type RecordTab,
 } from "@/components/shared/record-page"
@@ -37,7 +36,7 @@ import { formatPhoneDisplay } from "@/lib/phone-normalize"
 import { cn } from "@/lib/utils"
 import {
     buildFeed, externalHref, firstName, formatCalendarDay, formatDayTime, isBlank, lastActivityLabel, mailtoHref,
-    splitEmptyFields, telHref, whatsAppHref, type ActivityRow, type NoteRow, type PeopleById,
+    splitAboutFields, telHref, whatsAppHref, type ActivityRow, type NoteRow, type PeopleById,
 } from "@/lib/record-page"
 import type { RecordViewer } from "@/lib/record-activity"
 import {
@@ -137,18 +136,22 @@ interface InfoField {
  * in the shell's `<main>`:
  *
  *   desk (lg+)  the header: back (←, "Back to Contacts"), avatar, name,
- *               job title · company, ‹ › Call Email Edit New lead ⋮; the
- *               facts: Owner, Phone, Email, Last activity
+ *               job title · company, ‹ › Call Send email Edit New lead ⋮;
+ *               the facts: Owner, Phone, Email, Last activity
  *               tabs pinned to the top: Activity · Leads n · Files n
  *               Activity: the composer, Upcoming (open follow-ups) and
  *               History; beside them (380px) About this contact, Company,
  *               Leads. Leads and Files take the whole width
- *   phone       the top app bar ("Contact", back, ⋮ Edit / Email / ‹ › / Delete)
+ *   phone       the top app bar ("Contact", back, ⋮ Edit / Send email / ‹ › / Delete)
  *               the header centred: avatar, name, job title, company, then
  *               Call · WhatsApp · Email · Note
  *               tabs pinned under the top app bar; Activity: Key facts,
  *               Add a note… (the composer, in a bottom sheet), Upcoming,
  *               History, then Company and About this contact
+ *
+ * The email, the phone, the owner (the facts) and the company (the line
+ * under the name) are edited where they show, and About holds them only
+ * while they are empty, so nothing is said twice.
  */
 export function ContactDetailPage({
     contact, leads, activities, notes, people, viewer, fileCount, lastModified, lastModifiedBy, nextContactId, prevContactId,
@@ -274,7 +277,7 @@ export function ContactDetailPage({
     // The desk's ‹ › live here on a phone, so no way through the contacts is lost.
     const phoneMenu: ChromeMenuItem[] = [
         ...(canEdit ? [{ label: "Edit", icon: Pencil, onSelect: openEdit }] : []),
-        ...(mailto ? [{ label: "Email", icon: Mail, onSelect: () => { window.location.href = mailto } }] : []),
+        ...(mailto ? [{ label: "Send email", icon: Mail, onSelect: () => { window.location.href = mailto } }] : []),
         ...(prevContactId ? [{ label: "Previous contact", icon: ChevronLeft, href: `/contacts/${prevContactId}` }] : []),
         ...(nextContactId ? [{ label: "Next contact", icon: ChevronRight, href: `/contacts/${nextContactId}` }] : []),
         ...(canDelete ? [{ label: "Delete", icon: Trash2, onSelect: () => setDeleteOpen(true), danger: true }] : []),
@@ -402,13 +405,47 @@ export function ContactDetailPage({
             node: <FieldRow label="Legacy notes" onEdit={editForm}><span className="whitespace-pre-wrap">{contact.notes}</span></FieldRow>,
         },
     ]
-    const { filled, empty } = splitEmptyFields(infoFields)
+    // The facts and the line under the name show (and edit) these; About
+    // keeps them only while they are empty, to be filled in.
+    const { filled, empty } = splitAboutFields(infoFields, ["email", "phone", "client_company", "owner", "business_unit"])
 
     // ─── Shared pieces ─────────────────────────────────────
-    const ownerFact = owner ? <PersonLine name={owner.full_name} src={owner.avatar_url} /> : <FactNone>No owner</FactNone>
-    const phoneFact = tel && contact.phone ? <FactLink href={tel}>{formatPhoneDisplay(contact.phone)}</FactLink> : contact.phone ? contact.phone : <FactNone>No phone</FactNone>
-    const emailFact = mailto && contact.email ? <FactLink href={mailto}>{contact.email}</FactLink> : <FactNone>No email</FactNone>
+    // The facts, edited in place as About's rows are: `fact`, in the shell
+    // each size draws (RecordFact on a desk, KeyFact on a phone).
+    const ownerFact = (
+        <InlineChoiceField
+            layout="fact" label="Owner" canEdit={canEdit}
+            value={owner?.id ?? contact.owner_id ?? null}
+            display={owner ? <PersonLine name={owner.full_name} src={owner.avatar_url} /> : <FactNone>No owner</FactNone>}
+            empty={!owner}
+            options={ownerOptions} onOpen={loadOwners} clearLabel="No owner"
+            onSave={(next) => saveContact({ owner_id: next }, "Owner updated", "Failed to update the owner")}
+        />
+    )
+    const phoneFact = (
+        <InlineTextField
+            layout="fact" table="contacts" id={contact.id} fieldPath="phone" label="Phone" rawValue={contact.phone}
+            displayValue={contact.phone ? formatPhoneDisplay(contact.phone) : null} inputType="phone" href={tel}
+            emptyText={<FactNone>No phone</FactNone>}
+        />
+    )
+    const emailFact = (
+        <InlineTextField
+            layout="fact" table="contacts" id={contact.id} fieldPath="email" label="Email" rawValue={contact.email}
+            displayValue={contact.email ? <EmailText email={contact.email} /> : null} href={mailto}
+            emptyText={<FactNone>No email</FactNone>}
+        />
+    )
     const lastActivityFact = lastActivity ? <span suppressHydrationWarning>{lastActivity}</span> : <FactNone>No activity yet</FactNone>
+    // The company, in the line under the name: a link to its page, and the pencil that changes it.
+    const companyLine = company && (
+        <InlineChoiceField
+            layout="inline" label="Company" canEdit={canEdit}
+            value={company.id} display={company.name} href={`/companies/${company.id}`}
+            options={companyOptions} onOpen={loadCompanies} clearLabel="No company"
+            onSave={(next) => saveContact({ client_company_id: next }, "Company updated", "Failed to update company")}
+        />
+    )
     const lastModifiedLine = (
         <p className="text-xs text-muted-foreground" suppressHydrationWarning>
             Last modified {formatDayTime(lastModified || contact.created_at) ?? "—"} by {lastModifiedBy || "System"}
@@ -430,16 +467,16 @@ export function ContactDetailPage({
                 nameAdornment={contact.needs_enrichment && <NeedsDetailsMark />}
                 supporting={(contact.job_title || company) && (
                     <>
-                        {contact.job_title}
-                        {contact.job_title && company && " · "}
-                        {company && <Link href={`/companies/${company.id}`} className="font-medium text-primary hover:underline">{company.name}</Link>}
+                        {contact.job_title && <span className="truncate">{contact.job_title}</span>}
+                        {contact.job_title && company && <span aria-hidden="true" className="shrink-0 whitespace-pre"> · </span>}
+                        {companyLine}
                     </>
                 )}
                 actions={
                     <>
                         <RecordStepper prevHref={prevContactId && `/contacts/${prevContactId}`} nextHref={nextContactId && `/contacts/${nextContactId}`} prevLabel="Previous contact" nextLabel="Next contact" />
                         <HeaderLinkButton href={tel} label="Call" missing="This contact has no phone number" />
-                        <HeaderLinkButton href={mailto} label="Email" missing="This contact has no email address" />
+                        <HeaderLinkButton href={mailto} label="Send email" missing="This contact has no email address" />
                         {canEdit && <Button variant="outline" onClick={openEdit} className={OUTLINED_BUTTON}>Edit</Button>}
                         {openNewLead && <Button onClick={openNewLead} className={FILLED_BUTTON}>New lead</Button>}
                         <DropdownMenu>
@@ -475,14 +512,14 @@ export function ContactDetailPage({
                 lines={
                     <>
                         {contact.job_title && <p className="text-sm text-muted-foreground">{contact.job_title}</p>}
-                        {company && <Link href={`/companies/${company.id}`} className="text-sm font-medium text-primary">{company.name}</Link>}
+                        {company && <p className="flex max-w-full justify-center text-sm">{companyLine}</p>}
                     </>
                 }
                 actions={
                     <>
-                        <QuickAction icon={Phone} label="Call" href={tel} missing="No phone number" />
+                        <QuickAction icon={Phone} label="Call" name={contact.phone ? `Call ${formatPhoneDisplay(contact.phone)}` : undefined} href={tel} missing="No phone number" />
                         <QuickAction icon={MessageCircle} label="WhatsApp" href={whatsApp} external missing="No phone number" />
-                        <QuickAction icon={Mail} label="Email" href={mailto} missing="No email address" />
+                        <QuickAction icon={Mail} label="Email" name="Send email" href={mailto} missing="No email address" />
                         <QuickAction icon={FileText} label="Note" onClick={() => setComposerOpen(true)} />
                     </>
                 }
@@ -501,6 +538,7 @@ export function ContactDetailPage({
                         <KeyFact label="Phone">{phoneFact}</KeyFact>
                         <KeyFact label="Email">{emailFact}</KeyFact>
                         <KeyFact label="Last activity">{lastActivityFact}</KeyFact>
+                        {unitShown && <KeyFact label="Business unit">{unitName}</KeyFact>}
                     </KeyFactsCard>
                     <ActivityComposer env={composerEnv} onSubmit={log} className="hidden lg:block" />
                     <AddNoteRow onOpen={() => setComposerOpen(true)} className="order-2 lg:hidden" />
@@ -510,7 +548,7 @@ export function ContactDetailPage({
                 </div>
                 <div className="contents lg:flex lg:w-[320px] xl:w-[380px] lg:shrink-0 lg:flex-col lg:gap-5">
                     <div className="order-5 lg:order-none">
-                        <AboutCard title="About this contact" onEdit={editForm} filled={filled} empty={empty} idPrefix="contact" />
+                        <AboutCard title="About this contact" onEdit={editForm} filled={filled} empty={empty} idPrefix="contact" hint={canEdit} />
                     </div>
                     {company && (
                         <div className="order-4 lg:order-none">

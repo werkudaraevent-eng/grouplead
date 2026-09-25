@@ -10,10 +10,9 @@ import {
     AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { InitialsAvatar } from "@/components/shared/initials-avatar"
-import { cn } from "@/lib/utils"
 import { ExternalLink, Loader2, MoreVertical, Paperclip, Pencil, Trash2 } from "@/components/icons"
 import {
-    buildFeed, buildUpcoming, dueLabel, feedByline, feedFilterOptions, filterFeed, formatDayTime, shortPersonName, websiteLabel,
+    buildFeed, buildUpcoming, dueLabel, feedFilterOptions, feedMeta, filterFeed, formatDayTime, shortPersonName, websiteLabel,
     type FeedFilter, type FeedItem, type NoteRow, type PeopleById, type UpcomingItem,
 } from "@/lib/record-page"
 import {
@@ -21,7 +20,7 @@ import {
     type ActivityRow, type ComposerDraft, type ComposerInput, type ComposerKind, type LoggedInput,
 } from "@/lib/record-activity"
 import { ActivityComposer, ChoiceChips, type ComposerEnv } from "./record-composer"
-import { ActivityIcon, ActivityWhen, RecordCard } from "./record-page"
+import { ActivityIcon, RecordCard } from "./record-page"
 
 /** What the feed asks of `useRecordActivity`. */
 export interface RecordActivityActions {
@@ -48,12 +47,16 @@ const NO_OVERRIDES: Readonly<Record<string, string | null>> = {}
 /**
  * A record's Upcoming and History, under the composer on its Activity tab
  * (DESIGN.md, "Record pages"; HubSpot's upcoming and history, Pipedrive's
- * planned and done). **Upcoming**: the open follow-ups, the one due first
- * on top, each with a checkbox that marks it done, its title, when it is
- * due ("Overdue · 20 Sep" in the danger ink) and who it is for; hidden
- * when there are none. **History**: everything that happened, newest
- * first by when it happened, filtered by choice chips (only the kinds it
- * holds are offered); a done follow-up sits here at the time it was done,
+ * planned and done). Every row reads the same way down: what it is (the
+ * title, 14px semibold), what was written (its text), then a small line of
+ * the rest. **Upcoming**: the open follow-ups, the one due first on top,
+ * each with a checkbox that marks it done, its title, its notes, then when
+ * it is due ("Overdue · 20 Sep" in the danger ink) and who it is for;
+ * hidden when there are none. **History**: everything that happened,
+ * newest first by when it happened, filtered by choice chips in the card's
+ * header (only the kinds it holds are offered); each row's title says what
+ * happened ("Call · Connected"), never who: who and when are its small
+ * line ("Hanung Prasetyo · 2 hours ago"); a done follow-up sits here at the time it was done,
  * its checkbox ticked, and unticking reopens it. A row a person logged has
  * a ⋮ with Edit (the composer's own fields, in place) and Delete (asks
  * first) for its author or an admin, what row security allows; the rows the
@@ -180,18 +183,20 @@ export function RecordActivityFeed({ activities, notes, people, env, actions }: 
                 </RecordCard>
             )}
 
-            <RecordCard title="History" headingId="record-history-heading">
-                {options.length > 1 && (
-                    <div className="pb-3 pt-1 lg:pt-3">
-                        <ChoiceChips options={options} value={current} onChange={setFilter} label="Show" scroll className="px-4" />
-                    </div>
-                )}
+            <RecordCard
+                title="History"
+                headingId="record-history-heading"
+                toolbar={options.length > 1
+                    // Right-aligned beside the title when they fit; scrolled from the start when not.
+                    ? <ChoiceChips options={options} value={current} onChange={setFilter} label="Show" scroll className="px-4 lg:pl-0 lg:[&>:first-child]:ml-auto" />
+                    : undefined}
+            >
                 {shown.length === 0 ? (
                     <p className="px-4 pb-5 pt-1 text-[13px] text-muted-foreground lg:pt-3.5">
                         No activity yet. Notes, calls, meetings, emails and changes to this record show here as they happen.
                     </p>
                 ) : (
-                    <ul className={cn("divide-y divide-border", options.length > 1 && "border-t border-border")}>
+                    <ul className="divide-y divide-border">
                         {shown.map((item) => {
                             const row = item.row
                             const canEditRow = !!row && canManageActivity(row, viewer)
@@ -324,6 +329,7 @@ function UpcomingRow({ item, canToggle, onToggle, menu, editor }: {
                             <p className="min-w-0 break-words text-sm font-semibold text-foreground">{item.title}</p>
                             {menu}
                         </div>
+                        {item.detail && <p className="mt-0.5 line-clamp-2 whitespace-pre-wrap break-words text-[13px] leading-5 text-muted-foreground">{item.detail}</p>}
                         <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs" title={formatDayTime(item.dueAt) ?? undefined}>
                             <span suppressHydrationWarning className={due.overdue ? "font-semibold text-[var(--danger-foreground)]" : "text-muted-foreground"}>{due.text}</span>
                             {item.assignee && (
@@ -338,7 +344,6 @@ function UpcomingRow({ item, canToggle, onToggle, menu, editor }: {
                                 </>
                             )}
                         </p>
-                        {item.detail && <p className="mt-1 line-clamp-2 whitespace-pre-wrap break-words text-[13px] text-muted-foreground">{item.detail}</p>}
                     </>
                 )}
             </div>
@@ -346,29 +351,23 @@ function UpcomingRow({ item, canToggle, onToggle, menu, editor }: {
     )
 }
 
+/**
+ * A History row: its icon (or a done follow-up's checkbox), the title that
+ * says what happened ("Call · Connected", "Meeting · In person · The
+ * Manhattan Square"; the kind alone for a row from before), its ⋮ at the
+ * trailing edge, the text under it, an online meeting's link and a file's
+ * name, then the small line of who and when (`feedMeta`: the name and "2
+ * hours ago" on a desk, "Hanung P. · 2h" on a phone; the whole date and
+ * time in its tooltip).
+ */
 function HistoryRow({ item, leading, menu, editor }: { item: FeedItem; leading: ReactNode; menu: ReactNode; editor: ReactNode }) {
-    const full = feedByline(item)
-    const short = feedByline(item, true)
     return (
         <li className="group/item flex gap-3 px-4 py-3">
             {leading}
             <div className="min-w-0 flex-1 lg:pt-1.5">
                 <div className="flex items-start justify-between gap-3">
-                    <p className="min-w-0 break-words text-sm text-foreground">
-                        <span className="font-semibold">{item.title}</span>
-                        {full && (
-                            <span className="text-muted-foreground">
-                                {" · "}
-                                <span className="lg:hidden">{short}</span>
-                                <span className="max-lg:hidden">{full}</span>
-                            </span>
-                        )}
-                    </p>
-                    <span className="flex shrink-0 items-center gap-1" title={formatDayTime(item.at) ?? undefined} suppressHydrationWarning>
-                        <ActivityWhen at={item.at} />
-                        {/* Every row keeps the ⋮'s place, so the times line up. */}
-                        {menu ?? <span aria-hidden="true" className="-my-1.5 size-8 shrink-0" />}
-                    </span>
+                    <p className="min-w-0 break-words text-sm font-semibold text-foreground">{item.title}</p>
+                    {menu}
                 </div>
                 {editor ?? (
                     <>
@@ -390,6 +389,10 @@ function HistoryRow({ item, leading, menu, editor }: { item: FeedItem; leading: 
                                 <span className="truncate">{item.attachment}</span>
                             </p>
                         )}
+                        <p className="mt-1 truncate text-xs text-muted-foreground" title={formatDayTime(item.at) ?? undefined} suppressHydrationWarning>
+                            <span className="lg:hidden" suppressHydrationWarning>{feedMeta(item, new Date(), true)}</span>
+                            <span className="max-lg:hidden" suppressHydrationWarning>{feedMeta(item)}</span>
+                        </p>
                     </>
                 )}
             </div>

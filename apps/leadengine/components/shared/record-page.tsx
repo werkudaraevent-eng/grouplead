@@ -5,6 +5,7 @@ import { Fragment, useRef, useState, type ComponentType, type KeyboardEvent, typ
 import { Button } from "@/components/ui/button"
 import { Tooltip } from "@/components/ui/tooltip"
 import { InitialsAvatar } from "@/components/shared/initials-avatar"
+import { PageIntro } from "@/components/shared/page-intro"
 import { useEdgeFade } from "@/hooks/use-edge-fade"
 import { useCurrency } from "@/contexts/currency-context"
 import { cn } from "@/lib/utils"
@@ -12,8 +13,9 @@ import {
     ArrowLeft, ArrowRightLeft, ArrowUpRight, Calendar, CheckSquare, ChevronDown, ChevronLeft, ChevronRight, Clock, FileText,
     Mail, Paperclip, Pencil, Phone, Plus, Trash2,
 } from "@/components/icons"
+import { pageIntroKey } from "@/lib/hints/hint-key"
 import {
-    activityTime, emptyFieldsToggleLabel, leadStanding, leadSummaryLabel, summarizeLeads, type ActivityKind,
+    emptyFieldsToggleLabel, leadStanding, leadSummaryLabel, summarizeLeads, type ActivityKind,
     type LeadStageFacts, type LeadStanding,
 } from "@/lib/record-page"
 
@@ -57,7 +59,7 @@ export const RECORD_TYPE = "leading-[normal] [--text-xs--line-height:normal] [--
 export const RECORD_GUTTER = "px-4 lg:px-8"
 export const RECORD_GUTTER_DESK = "lg:px-8"
 
-/** The outlined button of the header (Call, Email, Edit): the card's surface, a hairline, 36dp, 8dp corners. */
+/** The outlined button of the header (Call, Send email, Edit): the card's surface, a hairline, 36dp, 8dp corners. */
 export const OUTLINED_BUTTON = "h-9 rounded-[8px] border-border bg-card px-4 font-semibold text-foreground shadow-none hover:bg-muted hover:text-foreground"
 /** The filled button (New lead, the composer's Save note / Log call…). */
 export const FILLED_BUTTON = "h-9 rounded-[8px] px-4 font-semibold"
@@ -86,7 +88,10 @@ export const MORE_BUTTON = "-mr-2.5 size-9 rounded-full text-muted-foreground ho
  * under it at 14px), and the actions at the trailing edge; 24dp below, the
  * facts under the name, 48dp apart, and 20dp above the tabs. It scrolls
  * away; the tabs under it stay. The back link opens the list bare, so the
- * list's remembered view comes back.
+ * list's remembered view comes back. The line under the name is one row
+ * that never wraps: a string is cut short with an ellipsis; parts (a
+ * contact's job title and its company, which is edited in place, its
+ * pencil beside it) are laid out by the page, each cutting itself short.
  */
 export function RecordHeader({ backHref, backLabel, avatar, name, nameAdornment, supporting, actions, facts }: {
     backHref: string
@@ -116,7 +121,11 @@ export function RecordHeader({ backHref, backLabel, avatar, name, nameAdornment,
                                 <h1 className="truncate text-2xl font-semibold text-foreground" title={name}>{name}</h1>
                                 {nameAdornment}
                             </div>
-                            {supporting && <p className="truncate text-sm text-muted-foreground">{supporting}</p>}
+                            {supporting && (
+                                <div className="flex min-w-0 items-center text-sm text-muted-foreground">
+                                    {typeof supporting === "string" ? <span className="truncate">{supporting}</span> : supporting}
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -155,8 +164,10 @@ export function RecordStepper({ prevHref, nextHref, prevLabel, nextLabel }: {
 }
 
 /**
- * A header action that is a link (Call, Email): outlined, 36dp. Without a
- * number or an address it stays, disabled, and its tooltip says why.
+ * A header action that is a link (Call, which dials; Send email, which
+ * writes one): outlined, 36dp. Without a number or an address it stays,
+ * disabled, and its tooltip says why. What already happened is logged in
+ * the composer ("Log call", "Log email"), never here.
  */
 export function HeaderLinkButton({ href, label, missing }: { href: string | null; label: string; missing: string }) {
     if (href) {
@@ -173,12 +184,18 @@ export function HeaderLinkButton({ href, label, missing }: { href: string | null
     )
 }
 
-/** One fact under the header: the label (12px, medium, muted) over its value (14px). No icon beside it; the label names it. */
+/**
+ * One fact under the header: the label (12px, medium, muted) over its value
+ * (14px). No icon beside it; the label names it. A value the person may
+ * change is its own editor (an `Inline*Field` with `layout="fact"`, as in
+ * About: the pencil on hover or focus, a link keeping its own pencil), and
+ * the fact is `relative` so its whole box, the label too, is the target.
+ */
 export function RecordFact({ label, children }: { label: string; children: ReactNode }) {
     return (
-        <div className="flex min-w-0 max-w-80 flex-col gap-1">
+        <div className="relative flex min-w-0 max-w-80 flex-col gap-1">
             <dt className="text-xs font-medium text-muted-foreground">{label}</dt>
-            <dd className="min-w-0 truncate text-sm font-medium text-foreground">{children}</dd>
+            <dd className="min-w-0 break-words text-sm font-medium text-foreground">{children}</dd>
         </div>
     )
 }
@@ -244,20 +261,25 @@ export function RecordHero({ avatar, name, nameAdornment, lines, actions }: {
 
 /**
  * An M3 labelled icon button for the phone's header: a 64×40dp tonal pill
- * over its label (12px), the whole column the target. Without a number or
- * an address it stays in its place, disabled, and says why; disabled is
- * M3's treatment (the pill on-surface at 12%, icon and label at 38%), as
- * the Button's is.
+ * over its label (12px), the whole column the target. The label stays one
+ * short word ("Email", "Call"); `name` says what it does, for a screen
+ * reader and in its tooltip ("Send email", "Call +62 811-2836-676"). Without
+ * a number or an address it stays in its place, disabled, and says why;
+ * disabled is M3's treatment (the pill on-surface at 12%, icon and label at
+ * 38%), as the Button's is.
  */
-export function QuickAction({ icon: Icon, label, href, onClick, external = false, missing }: {
+export function QuickAction({ icon: Icon, label, name, href, onClick, external = false, missing }: {
     icon: IconType
     label: string
+    /** What it does, when the short label does not say it all; the label by default. */
+    name?: string
     href?: string | null
     onClick?: () => void
     external?: boolean
     /** Why it is unavailable, when there is no `href` nor `onClick`. */
     missing?: string
 }) {
+    const said = name ?? label
     const disabled = !href && !onClick
     const body = (
         <>
@@ -275,18 +297,19 @@ export function QuickAction({ icon: Icon, label, href, onClick, external = false
         </>
     )
     const base = "group/quick flex w-16 flex-col items-center gap-1.5 text-foreground outline-none"
+    const named = said === label ? {} : { "aria-label": said, title: said }
     if (href) {
         return (
-            <a href={href} {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})} className={base}>
+            <a href={href} {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})} {...named} className={base}>
                 {body}
             </a>
         )
     }
     if (onClick) {
-        return <button type="button" onClick={onClick} className={base}>{body}</button>
+        return <button type="button" onClick={onClick} {...named} className={base}>{body}</button>
     }
     return (
-        <button type="button" disabled title={missing} aria-label={missing ? `${label} (${missing.toLowerCase()})` : label} className={base}>
+        <button type="button" disabled title={missing} aria-label={missing ? `${said} (${missing.toLowerCase()})` : said} className={base}>
             {body}
         </button>
     )
@@ -429,20 +452,35 @@ export function RecordPanel({ idPrefix, id, active, className, children }: {
  * A card of the record's body: the card's surface, a hairline, 12dp
  * corners; its header (15px semibold, an action at the trailing edge) sits
  * over a hairline on a desk and runs straight into the body on a phone.
+ * A `toolbar` (History's filter chips) belongs to the header: from `lg` in
+ * the title's row, at its trailing edge, the row 48dp; on a phone its own
+ * row under the title, edge to edge so a row that scrolls sideways reaches
+ * the card's edges. Either way one hairline closes the header, on a phone
+ * too, and the body starts under it.
  */
-export function RecordCard({ title, headingId, action, children, className }: {
+export function RecordCard({ title, headingId, action, toolbar, children, className }: {
     title?: string
     headingId?: string
     action?: ReactNode
+    toolbar?: ReactNode
     children: ReactNode
     className?: string
 }) {
     return (
         <section aria-labelledby={title ? headingId : undefined} className={cn("overflow-hidden rounded-[12px] border border-border bg-card", className)}>
-            {title && (
+            {title && !toolbar && (
                 <div className="flex items-center justify-between gap-3 px-4 pb-2 pt-3.5 lg:border-b lg:border-border lg:py-3.5">
                     <h2 id={headingId} className="text-[15px] font-semibold text-foreground">{title}</h2>
                     {action}
+                </div>
+            )}
+            {title && toolbar && (
+                <div className="flex flex-col gap-3 border-b border-border px-4 pb-3 pt-3.5 lg:min-h-12 lg:flex-row lg:items-center lg:gap-4 lg:py-2">
+                    <div className="flex items-center justify-between gap-3 lg:shrink-0">
+                        <h2 id={headingId} className="text-[15px] font-semibold text-foreground">{title}</h2>
+                        {action}
+                    </div>
+                    <div className="-mx-4 min-w-0 lg:ml-0 lg:flex-1">{toolbar}</div>
                 </div>
             )}
             {children}
@@ -471,14 +509,19 @@ export function CardAction({ href, onClick, external = false, children, "aria-la
     return <button type="button" onClick={onClick} aria-label={ariaLabel} className={className}>{children}</button>
 }
 
-/** The phone's key facts: one card, each label (12px) over its value (14px). */
+/**
+ * The phone's key facts: one card, each label (12px) over its value (14px);
+ * the desk's facts row, which the phone's header has no room for, and edited
+ * in place as that row is (`RecordFact`).
+ */
 export function KeyFactsCard({ children, className }: { children: ReactNode; className?: string }) {
     return <dl className={cn("rounded-[12px] border border-border bg-card py-1", className)}>{children}</dl>
 }
 
+/** One of the phone's key facts; `relative`, so an editable value's target is the whole row. */
 export function KeyFact({ label, children }: { label: string; children: ReactNode }) {
     return (
-        <div className="flex min-w-0 flex-col gap-0.5 px-4 py-2.5">
+        <div className="relative flex min-w-0 flex-col gap-0.5 px-4 py-2.5">
             <dt className="text-xs text-muted-foreground">{label}</dt>
             <dd className="min-w-0 break-words text-sm text-foreground">{children}</dd>
         </div>
@@ -528,36 +571,48 @@ export function ActivityIcon({ kind }: { kind: ActivityKind }) {
     )
 }
 
-/** When, as the desk says it ("2 days ago", "12 Sep 2026") and as the phone does ("2d", "12 Sep"). */
-export function ActivityWhen({ at }: { at: string }) {
-    return (
-        <time dateTime={at} className="shrink-0 text-xs text-muted-foreground" suppressHydrationWarning>
-            <span className="lg:hidden" suppressHydrationWarning>{activityTime(at, new Date(), true)}</span>
-            <span className="hidden lg:inline" suppressHydrationWarning>{activityTime(at)}</span>
-        </time>
-    )
-}
-
 // ═══════════════════════════════════════════════════════════════
 //  ABOUT
 // ═══════════════════════════════════════════════════════════════
 
 /**
+ * The one-time line at the top of About that says its values are edited in
+ * place, which nothing else on a quiet row does until it is pointed at:
+ * "Click a value to change it." on a desk, "Tap a value to change it." on a
+ * phone, with the ✕ that closes it for good on every device (`PageIntro`,
+ * under `pageIntroKey("record-inline-edit")`, one key for every contact and
+ * company). The page draws it only for whoever may edit the record.
+ */
+export function InlineEditHint() {
+    return (
+        <PageIntro hintKey={pageIntroKey("record-inline-edit")} className="px-4 pb-1 pt-3 [&_p]:text-[13px]">
+            <span className="lg:hidden">Tap a value to change it.</span>
+            <span className="max-lg:hidden">Click a value to change it.</span>
+        </PageIntro>
+    )
+}
+
+/**
  * "About this contact" / "About this company": every field as label :
  * value (see `FieldShell`), each edited in place, the empty ones a person
  * fills in folded under "Show N empty fields"; "Edit" opens the record's
- * Edit form.
+ * Edit form. What the header already shows (and edits in place) is left
+ * out while it holds a value (`splitAboutFields`). `hint` puts
+ * `InlineEditHint` at its top.
  */
-export function AboutCard({ title, onEdit, filled, empty, idPrefix }: {
+export function AboutCard({ title, onEdit, filled, empty, idPrefix, hint = false }: {
     title: string
     onEdit?: () => void
     filled: readonly { key: string; node: ReactNode }[]
     empty: readonly { key: string; node: ReactNode }[]
     idPrefix: string
+    /** Whether to teach that a value is changed by clicking it: for whoever may edit the record. */
+    hint?: boolean
 }) {
     const [showEmpty, setShowEmpty] = useState(false)
     return (
         <RecordCard title={title} headingId={`${idPrefix}-about-heading`} action={onEdit ? <CardAction onClick={onEdit}>Edit</CardAction> : undefined}>
+            {hint && <InlineEditHint />}
             <dl className="lg:py-1.5">
                 {filled.map((field) => <Fragment key={field.key}>{field.node}</Fragment>)}
             </dl>

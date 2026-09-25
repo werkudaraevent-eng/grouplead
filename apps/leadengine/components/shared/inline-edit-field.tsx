@@ -1,6 +1,7 @@
 "use client"
 
-import { useState, useRef, useEffect, type ComponentProps, type ReactNode } from "react"
+import Link from "next/link"
+import { useId, useState, useRef, useEffect, type ComponentProps, type ReactNode } from "react"
 import { useRouter } from "next/navigation"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import {
@@ -36,13 +37,36 @@ function moduleForTable(table: string): string {
  * keyboard focus (always shown to a finger, which has no hover); the whole
  * row is its target, so a finger gets at least 48dp.
  *
- * One layout, a record page's About card (DESIGN.md, "Record pages"):
+ * Their layout is a record page's About card (DESIGN.md, "Record pages"):
  * from `lg` the label (13px, muted, a 112px column) beside the value
  * (13px); below `lg` the label (12px) above the value (14px). The label is
  * always sentence case in the muted ink (M3's type scale has no all-caps
  * label): "Segment Tier" reads "Segment tier". The caller wraps the rows in
- * a `<dl>`.
+ * a `<dl>`. The text and choice editors also edit a value where the page
+ * shows it outside About (`FieldLayout`): a fact under the header, the
+ * phone's Key facts, the company in the line under a contact's name.
  */
+
+/**
+ * Where an editable value sits. `row`, the default: About's row, its label
+ * beside or over it (`FieldShell`). `fact`: the value alone, in the shell
+ * the page draws with the label, which carries `relative` so the whole fact
+ * is the target, as a row is: on a phone the Key facts (`KeyFact`), where it
+ * fills the row as About's value does; from `lg` the facts under the header
+ * (`RecordFact`, 48dp apart), where it is as wide as its words and the
+ * pencil and the hover tint reach into the gap after it without taking room,
+ * so an editable fact stands as far from the next as a read-only one does.
+ * `inline`: in a line of words (a contact's company in the line under its
+ * name): no label drawn, a link and its pencil flowing with the text.
+ * Everything a value is drawn with is phrasing content (spans, a button, a
+ * link), so it may sit inside a `<p>`.
+ */
+export type FieldLayout = "row" | "fact" | "inline"
+
+/** The value in its place: in About's row, or alone for the page's own shell. */
+function placed(layout: FieldLayout, label: string, value: ReactNode): ReactNode {
+    return layout === "row" ? <FieldShell label={label}>{value}</FieldShell> : value
+}
 
 interface InlineRowBaseProps {
     /** Supabase table to update, e.g. "client_companies" | "contacts". */
@@ -56,8 +80,10 @@ interface InlineRowBaseProps {
     rawValue: string | null | undefined
     /** Pre-formatted display. Falls back to rawValue. */
     displayValue?: ReactNode
-    /** Shown when there is no value; "—" by default. */
-    emptyText?: string
+    /** Shown when there is no value; "—" by default ("No phone" in the facts). */
+    emptyText?: ReactNode
+    /** Where the value sits; About's row by default. */
+    layout?: FieldLayout
 }
 
 async function persist(table: string, id: string | number, payload: Record<string, unknown>) {
@@ -81,7 +107,7 @@ export function FieldShell({ label, children }: { label: string; children: React
 
 /** A value nobody changes here. */
 export function FieldValue({ empty, children }: { empty?: boolean; children: ReactNode }) {
-    return <div className={cn("break-words", empty && "text-muted-foreground")}>{children}</div>
+    return <span className={cn("block break-words", empty && "text-muted-foreground")}>{children}</span>
 }
 
 /**
@@ -129,6 +155,44 @@ const PENCIL_BUTTON = "relative -my-1 grid h-6 w-6 shrink-0 place-items-center r
 /** The row behind a value made of links, tinted on hover as an edited value is. */
 const LINKS_ROW = "group/inline -mx-1.5 -my-1 flex w-[calc(100%+0.75rem)] min-w-0 items-start gap-2 rounded-md px-1.5 py-1 transition-colors hover:bg-muted"
 
+/** The same in a line of words: the link and its pencil, nothing tinted, the link cut short before the pencil is. */
+const LINKS_INLINE = "group/inline inline-flex min-w-0 max-w-full items-center gap-1 align-bottom"
+
+/** The pencil that edits a value which is a link; a popover's trigger (its ref and props arrive through `...props`). */
+function PencilButton({ label, saving, className, ...props }: ComponentProps<"button"> & { label: string; saving?: boolean }) {
+    return (
+        <button type="button" disabled={saving} aria-label={`Edit ${sentenceCaseLabel(label)}`} {...props} className={cn(PENCIL_BUTTON, className)}>
+            {saving
+                ? <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" aria-hidden="true" />
+                : <Pencil className="h-3.5 w-3.5" aria-hidden="true" />}
+        </button>
+    )
+}
+
+/**
+ * A fact's link and pencil from `lg`: as wide as the link, the 8dp gap, the
+ * 24dp pencil and the tint's 6dp end reaching 38dp past it, into the facts'
+ * 48dp gap, without taking room.
+ */
+const LINKS_FACT = "lg:w-auto lg:-mr-[38px]"
+
+/** A fact's value that is its own button, from `lg`: the 8dp gap, the 14dp pencil and the tint's 6dp end reach 28dp past its words. */
+const EDIT_TRIGGER_FACT = "lg:w-auto lg:-mr-7"
+
+/** A value that is a link, with its pencil beside it: in a row (tinted on hover) or in a line of words. */
+function LinkWithPencil({ layout, link, pencil }: { layout: FieldLayout; link: ReactNode; pencil: ReactNode }) {
+    if (layout === "inline") return <span className={LINKS_INLINE}>{link}{pencil}</span>
+    return (
+        <span className={cn(LINKS_ROW, layout === "fact" && LINKS_FACT)}>
+            <span className="block min-w-0 flex-1">{link}</span>
+            {pencil}
+        </span>
+    )
+}
+
+/** In a line of words, a value that is its own editor stays a word among them: no row to fill, no target over the line. */
+const EDIT_TRIGGER_INLINE = "mx-0 my-0 inline-flex w-auto max-w-full items-center px-0 py-0 align-bottom after:hidden hover:bg-transparent hover:underline"
+
 /**
  * A property this page shows but edits elsewhere (a list of phones, social
  * links, a custom field, an address): the value, and for whoever may change
@@ -150,18 +214,11 @@ export function FieldRow({ label, empty, onEdit, links = false, children }: {
         value = <FieldValue empty={empty}>{children}</FieldValue>
     } else if (links && !empty) {
         value = (
-            <div className={LINKS_ROW}>
-                <div className="min-w-0 flex-1"><FieldValue>{children}</FieldValue></div>
-                <button
-                    type="button"
-                    onClick={onEdit}
-                    aria-haspopup="dialog"
-                    aria-label={`Edit ${sentenceCaseLabel(label)}`}
-                    className={PENCIL_BUTTON}
-                >
-                    <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
-                </button>
-            </div>
+            <LinkWithPencil
+                layout="row"
+                link={<FieldValue>{children}</FieldValue>}
+                pencil={<PencilButton label={label} onClick={onEdit} aria-haspopup="dialog" />}
+            />
         )
     } else {
         value = (
@@ -197,7 +254,7 @@ interface InlineTextFieldProps extends InlineRowBaseProps {
 
 export function InlineTextField({
     table, id, fieldPath, label, rawValue, displayValue,
-    inputType = "text", placeholder, emptyText = "—", required = false, href, external = false, save,
+    inputType = "text", placeholder, emptyText = "—", required = false, href, external = false, save, layout = "row",
 }: InlineTextFieldProps) {
     const router = useRouter()
     const { can } = usePermissions()
@@ -206,6 +263,8 @@ export function InlineTextField({
     const [value, setValue] = useState(rawValue?.toString() ?? "")
     const [saving, setSaving] = useState(false)
     const inputRef = useRef<HTMLInputElement>(null)
+    // One field may be edited from About and from the facts: an id each.
+    const inputId = `inline-${fieldPath}-${useId()}`
     const text = sentenceCaseLabel(label)
 
     useEffect(() => {
@@ -247,67 +306,60 @@ export function InlineTextField({
 
     const shown = displayValue ?? rawValue ?? null
     const link = href && shown ? (
-        <a href={href} {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})} className="break-words font-medium text-primary hover:underline">
+        <a
+            href={href}
+            {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+            className={cn("font-medium text-primary hover:underline", layout === "inline" ? "min-w-0 truncate" : "break-words")}
+        >
             {shown}
         </a>
     ) : null
 
     if (!canEdit) {
-        return (
-            <FieldShell label={label}>
-                <FieldValue empty={!shown}>{link ?? (shown || emptyText)}</FieldValue>
-            </FieldShell>
-        )
+        return placed(layout, label, <FieldValue empty={!shown}>{link ?? (shown || emptyText)}</FieldValue>)
     }
 
-    return (
-        <FieldShell label={label}>
-            <Popover open={open} onOpenChange={setOpen}>
-                {link ? (
-                    <div className={LINKS_ROW}>
-                        <div className="min-w-0 flex-1">{link}</div>
-                        <PopoverTrigger asChild>
-                            <button type="button" disabled={saving} aria-label={`Edit ${text}`} className={PENCIL_BUTTON}>
-                                {saving
-                                    ? <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" aria-hidden="true" />
-                                    : <Pencil className="h-3.5 w-3.5" aria-hidden="true" />}
-                            </button>
-                        </PopoverTrigger>
+    return placed(layout, label, (
+        <Popover open={open} onOpenChange={setOpen}>
+            {link ? (
+                <LinkWithPencil
+                    layout={layout}
+                    link={link}
+                    pencil={<PopoverTrigger asChild><PencilButton label={label} saving={saving} /></PopoverTrigger>}
+                />
+            ) : (
+                <PopoverTrigger asChild>
+                    <EditTrigger label={label} saving={saving} empty={!shown} className={layout === "inline" ? EDIT_TRIGGER_INLINE : layout === "fact" ? EDIT_TRIGGER_FACT : undefined}>
+                        {shown || emptyText}
+                    </EditTrigger>
+                </PopoverTrigger>
+            )}
+            <PopoverContent className="w-72 p-3" align="start" sideOffset={8} collisionPadding={16}>
+                <div className="flex flex-col gap-2">
+                    <label htmlFor={inputId} className="text-xs font-medium text-muted-foreground">{text}</label>
+                    <Input
+                        id={inputId}
+                        ref={inputRef}
+                        type={inputType === "phone" ? "tel" : inputType === "url" ? "text" : inputType}
+                        value={value}
+                        onChange={(e) => setValue(e.target.value)}
+                        onKeyDown={handleKeyDown}
+                        className="h-9 text-sm"
+                        placeholder={placeholder ?? `Enter ${text.toLowerCase()}`}
+                    />
+                    <div className="flex items-center justify-end gap-1.5 pt-1">
+                        <Button variant="ghost" size="sm" className="h-8 text-xs px-2" onClick={() => setOpen(false)} disabled={saving}>
+                            <X className="h-3 w-3 mr-1" /> Cancel
+                        </Button>
+                        <Button size="sm" className="h-8 text-xs px-3" onClick={handleSave} disabled={saving}>
+                            {saving ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Check className="h-3 w-3 mr-1" />}
+                            Save
+                        </Button>
                     </div>
-                ) : (
-                    <PopoverTrigger asChild>
-                        <EditTrigger label={label} saving={saving} empty={!shown}>
-                            {shown || emptyText}
-                        </EditTrigger>
-                    </PopoverTrigger>
-                )}
-                <PopoverContent className="w-72 p-3" align="start" sideOffset={8} collisionPadding={16}>
-                    <div className="flex flex-col gap-2">
-                        <label htmlFor={`inline-${fieldPath}`} className="text-xs font-medium text-muted-foreground">{text}</label>
-                        <Input
-                            id={`inline-${fieldPath}`}
-                            ref={inputRef}
-                            type={inputType === "phone" ? "tel" : inputType === "url" ? "text" : inputType}
-                            value={value}
-                            onChange={(e) => setValue(e.target.value)}
-                            onKeyDown={handleKeyDown}
-                            className="h-9 text-sm"
-                            placeholder={placeholder ?? `Enter ${text.toLowerCase()}`}
-                        />
-                        <div className="flex items-center justify-end gap-1.5 pt-1">
-                            <Button variant="ghost" size="sm" className="h-8 text-xs px-2" onClick={() => setOpen(false)} disabled={saving}>
-                                <X className="h-3 w-3 mr-1" /> Cancel
-                            </Button>
-                            <Button size="sm" className="h-8 text-xs px-3" onClick={handleSave} disabled={saving}>
-                                {saving ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Check className="h-3 w-3 mr-1" />}
-                                Save
-                            </Button>
-                        </div>
-                    </div>
-                </PopoverContent>
-            </Popover>
-        </FieldShell>
-    )
+                </div>
+            </PopoverContent>
+        </Popover>
+    ))
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -520,6 +572,13 @@ interface InlineChoiceFieldProps {
     value: string | null
     /** What the row shows for the current value. */
     display: ReactNode
+    /**
+     * The value is also a link (the contact's company, to its page): it
+     * opens, and the pencil beside it edits.
+     */
+    href?: string | null
+    /** Where the value sits; About's row by default. */
+    layout?: FieldLayout
     /** The row reads as empty (muted). */
     empty?: boolean
     /** The choices; null while they load. */
@@ -534,18 +593,19 @@ interface InlineChoiceFieldProps {
 }
 
 export function InlineChoiceField({
-    label, value, display, empty, options, onOpen, onSave, canEdit, clearLabel,
+    label, value, display, href, layout = "row", empty, options, onOpen, onSave, canEdit, clearLabel,
 }: InlineChoiceFieldProps) {
     const [open, setOpen] = useState(false)
     const [saving, setSaving] = useState(false)
     const text = sentenceCaseLabel(label)
+    const link = href && !empty ? (
+        <Link href={href} className={cn("font-medium text-primary hover:underline", layout === "inline" ? "min-w-0 truncate" : "break-words")}>
+            {display}
+        </Link>
+    ) : null
 
     if (!canEdit) {
-        return (
-            <FieldShell label={label}>
-                <FieldValue empty={empty}>{display}</FieldValue>
-            </FieldShell>
-        )
+        return placed(layout, label, layout === "inline" && link ? link : <FieldValue empty={empty}>{link ?? display}</FieldValue>)
     }
 
     const choose = async (next: string | null) => {
@@ -556,42 +616,48 @@ export function InlineChoiceField({
         setSaving(false)
     }
 
-    return (
-        <FieldShell label={label}>
-            <Popover open={open} onOpenChange={(next) => { setOpen(next); if (next) onOpen?.() }}>
+    return placed(layout, label, (
+        <Popover open={open} onOpenChange={(next) => { setOpen(next); if (next) onOpen?.() }}>
+            {link ? (
+                <LinkWithPencil
+                    layout={layout}
+                    link={link}
+                    pencil={<PopoverTrigger asChild><PencilButton label={label} saving={saving} /></PopoverTrigger>}
+                />
+            ) : (
                 <PopoverTrigger asChild>
-                    <EditTrigger label={label} saving={saving} empty={empty}>
+                    <EditTrigger label={label} saving={saving} empty={empty} className={layout === "inline" ? EDIT_TRIGGER_INLINE : layout === "fact" ? EDIT_TRIGGER_FACT : undefined}>
                         {display}
                     </EditTrigger>
                 </PopoverTrigger>
-                <PopoverContent className="w-72 p-0" align="start" sideOffset={8} collisionPadding={16}>
-                    {/* Matched on the names only: an id holds letters too. */}
-                    <Command filter={(_, search, keywords) => ((keywords ?? []).join(" ").toLowerCase().includes(search.trim().toLowerCase()) ? 1 : 0)}>
-                        <CommandInput placeholder={`Search ${text.toLowerCase()}…`} className="h-9 text-sm" />
-                        <CommandList>
-                            <CommandEmpty className="py-4 text-center text-[12px] text-muted-foreground">No matches</CommandEmpty>
-                            {options === null && (
-                                <p className="flex items-center justify-center gap-2 py-3 text-xs text-muted-foreground">
-                                    <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" /> Loading…
-                                </p>
-                            )}
-                            <CommandGroup>
-                                <CommandItem value="__clear__" keywords={[clearLabel]} onSelect={() => choose(null)} className="text-[13px] text-muted-foreground">
-                                    <Check className={cn("mr-2 h-3.5 w-3.5", value === null ? "opacity-100 text-primary" : "opacity-0")} />
-                                    {clearLabel}
+            )}
+            <PopoverContent className="w-72 p-0" align="start" sideOffset={8} collisionPadding={16}>
+                {/* Matched on the names only: an id holds letters too. */}
+                <Command filter={(_, search, keywords) => ((keywords ?? []).join(" ").toLowerCase().includes(search.trim().toLowerCase()) ? 1 : 0)}>
+                    <CommandInput placeholder={`Search ${text.toLowerCase()}…`} className="h-9 text-sm" />
+                    <CommandList>
+                        <CommandEmpty className="py-4 text-center text-[12px] text-muted-foreground">No matches</CommandEmpty>
+                        {options === null && (
+                            <p className="flex items-center justify-center gap-2 py-3 text-xs text-muted-foreground">
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" /> Loading…
+                            </p>
+                        )}
+                        <CommandGroup>
+                            <CommandItem value="__clear__" keywords={[clearLabel]} onSelect={() => choose(null)} className="text-[13px] text-muted-foreground">
+                                <Check className={cn("mr-2 h-3.5 w-3.5", value === null ? "opacity-100 text-primary" : "opacity-0")} />
+                                {clearLabel}
+                            </CommandItem>
+                            {(options ?? []).map((option) => (
+                                <CommandItem key={option.value} value={option.value} keywords={[option.label]} onSelect={() => choose(option.value)} className="text-[13px]">
+                                    <Check className={cn("mr-2 h-3.5 w-3.5 shrink-0", value === option.value ? "opacity-100 text-primary" : "opacity-0")} />
+                                    {option.leading}
+                                    <span className="truncate">{option.label}</span>
                                 </CommandItem>
-                                {(options ?? []).map((option) => (
-                                    <CommandItem key={option.value} value={option.value} keywords={[option.label]} onSelect={() => choose(option.value)} className="text-[13px]">
-                                        <Check className={cn("mr-2 h-3.5 w-3.5 shrink-0", value === option.value ? "opacity-100 text-primary" : "opacity-0")} />
-                                        {option.leading}
-                                        <span className="truncate">{option.label}</span>
-                                    </CommandItem>
-                                ))}
-                            </CommandGroup>
-                        </CommandList>
-                    </Command>
-                </PopoverContent>
-            </Popover>
-        </FieldShell>
-    )
+                            ))}
+                        </CommandGroup>
+                    </CommandList>
+                </Command>
+            </PopoverContent>
+        </Popover>
+    ))
 }

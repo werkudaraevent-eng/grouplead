@@ -8,8 +8,8 @@ import {
     dueLabel,
     emptyFieldsToggleLabel,
     externalHref,
-    feedByline,
     feedFilterOptions,
+    feedMeta,
     filterFeed,
     firstName,
     formatCalendarDay,
@@ -22,6 +22,7 @@ import {
     leadSummaryLabel,
     mailtoHref,
     readRecordTab,
+    splitAboutFields,
     splitEmptyFields,
     summarizeLeads,
     telHref,
@@ -71,6 +72,32 @@ describe("empty fields", () => {
         const { filled, empty } = splitEmptyFields(fields)
         expect(filled.map((field) => field.key)).toEqual(["name", "unit"])
         expect(empty.map((field) => field.key)).toEqual(["dob", "address"])
+    })
+
+    it("leaves out of About what the header shows, while it holds a value", () => {
+        const fields = [
+            { key: "full_name", empty: false, fillable: true },
+            { key: "job_title", empty: false, fillable: true },
+            { key: "email", empty: false, fillable: true },
+            { key: "phone", empty: true, fillable: true },
+            { key: "client_company", empty: false, fillable: true },
+            { key: "owner", empty: true, fillable: true },
+            { key: "business_unit", empty: false, fillable: false },
+            { key: "address", empty: true, fillable: true },
+        ]
+        const { filled, empty } = splitAboutFields(fields, ["email", "phone", "client_company", "owner", "business_unit"])
+        // Filled in the header: gone from About. Empty: still offered, to be filled in.
+        expect(filled.map((field) => field.key)).toEqual(["full_name", "job_title"])
+        expect(empty.map((field) => field.key)).toEqual(["phone", "owner", "address"])
+    })
+
+    it("keeps About whole when the header shows nothing of it", () => {
+        const fields = [
+            { key: "name", empty: false, fillable: true },
+            { key: "phone", empty: false, fillable: true },
+            { key: "area", empty: true, fillable: true },
+        ]
+        expect(splitAboutFields(fields, [])).toEqual(splitEmptyFields(fields))
     })
 
     it("words the toggle for one and for many", () => {
@@ -234,9 +261,28 @@ describe("activity", () => {
         expect(feed[1]).toMatchObject({ kind: "note", actor: "Rini", detail: "Prefers WhatsApp over email.", note: { id: "n1", userId: "u2" }, row: null })
         expect(feed[0]).toMatchObject({ kind: "update", title: "Details updated", actor: null, note: null })
         expect(feed[2]).toMatchObject({ title: "Call · Connected", at: hoursAgo(48), row: { id: "a2" } })
-        expect(feedByline(feed[2])).toBe("Hanung Prasetyo")
-        expect(feedByline(feed[2], true)).toBe("Hanung P.")
-        expect(feedByline(feed[0])).toBeNull()
+    })
+
+    it("puts who and when in the row's small line, never in its title", () => {
+        const feed = buildFeed([
+            row("a1", "call", "Budget agreed", 0, "Hanung Prasetyo", { outcome: "connected", occurred_at: hoursAgo(2) }),
+            row("a2", "update", "Changed record owner", 3, null),
+            // A call logged before outcomes: the kind alone.
+            row("a3", "Call", "Left a message", 48, "Setyorini Dewi"),
+            row("a4", "email", "", 5, "Bagus Wicaksono", { subject: "Proposal v2", occurred_at: hoursAgo(5) }),
+        ])
+        const byKey = Object.fromEntries(feed.map((item) => [item.key, item]))
+        expect(byKey["a:a1"].title).toBe("Call · Connected")
+        expect(byKey["a:a3"].title).toBe("Call")
+        expect(byKey["a:a4"].title).toBe("Email · Proposal v2")
+        for (const item of feed) if (item.actor) expect(item.title).not.toContain(item.actor)
+        expect(feedMeta(byKey["a:a1"], now)).toBe("Hanung Prasetyo · 2 hours ago")
+        expect(feedMeta(byKey["a:a1"], now, true)).toBe("Hanung P. · 2h")
+        expect(feedMeta(byKey["a:a3"], now)).toBe("Setyorini Dewi · 2 days ago")
+        expect(feedMeta(byKey["a:a3"], now, true)).toBe("Setyorini D. · 2d")
+        // What the system wrote says when alone.
+        expect(feedMeta(byKey["a:a2"], now)).toBe("3 hours ago")
+        expect(feedMeta(byKey["a:a2"], now, true)).toBe("3h")
     })
 
     it("keeps open follow-ups out of History and puts a done one in, when it was done, by who did it", () => {

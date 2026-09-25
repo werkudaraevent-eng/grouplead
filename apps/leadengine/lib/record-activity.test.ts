@@ -31,8 +31,9 @@ const now = new Date(2026, 8, 25, 14, 5)
 const draft = (patch: Partial<ComposerDraft> = {}): ComposerDraft => ({ ...emptyDraft(now, "u1"), ...patch })
 
 describe("the composer's kinds", () => {
-    it("are Note, Call, Meeting, Email and Follow-up, each with its button", () => {
-        expect(COMPOSER_KINDS.map((kind) => kind.label)).toEqual(["Note", "Call", "Meeting", "Email", "Follow-up"])
+    it("are Note, Log call, Log meeting, Log email and Follow-up, each with its button", () => {
+        // "Log …", never the header's Call or Send email, which reach the person.
+        expect(COMPOSER_KINDS.map((kind) => kind.label)).toEqual(["Note", "Log call", "Log meeting", "Log email", "Follow-up"])
         expect(COMPOSER_KINDS.map((kind) => kind.action)).toEqual(["Save note", "Log call", "Log meeting", "Log email", "Add follow-up"])
     })
 

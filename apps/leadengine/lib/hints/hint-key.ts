@@ -24,7 +24,10 @@ export function listIntroKey(list: IntroList): string {
  * ago") is not here: that line always shows. Named after the page's path, so
  * `/settings/ai/usage` is "settings-ai-usage"; a record's page is named after
  * what it is ("settings-goal-configuration" for every goal's), one key for
- * all its records.
+ * all its records. A hint inside a page that only teaches is here too, named
+ * after what it teaches: "record-inline-edit", the line at the top of a
+ * contact's or a company's About card ("Click a value to change it."), one
+ * key for both pages.
  */
 export const INTRO_PAGES = [
   "settings",
@@ -44,6 +47,7 @@ export const INTRO_PAGES = [
   "settings-usage",
   "settings-users",
   "changelog",
+  "record-inline-edit",
 ] as const
 
 export type IntroPage = (typeof INTRO_PAGES)[number]

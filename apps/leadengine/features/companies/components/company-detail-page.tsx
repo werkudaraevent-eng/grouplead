@@ -21,7 +21,7 @@ import {
     FieldRow, InlineChoiceField, InlineCustomSelectField, InlineSelectField, InlineTextField, type ChoiceOption,
 } from "@/components/shared/inline-edit-field"
 import {
-    AboutCard, AddNoteRow, CardAction, FactLink, FactNone, FILLED_BUTTON, HeaderLinkButton, KeyFact, KeyFactsCard,
+    AboutCard, AddNoteRow, CardAction, FactNone, FILLED_BUTTON, HeaderLinkButton, KeyFact, KeyFactsCard,
     MORE_BUTTON, OUTLINED_BUTTON, PersonLine, QuickAction, RecordFact, RecordHeader, RecordHero, RecordLeadsCard,
     RecordPanel, RecordStepper, RecordTabs, RECORD_TYPE, RelatedListCard, type RecordLead, type RecordTab,
 } from "@/components/shared/record-page"
@@ -36,7 +36,7 @@ import { companyActivityTarget, useRecordActivity, useRecordAssignees } from "@/
 import { formatPhoneDisplay } from "@/lib/phone-normalize"
 import { cn } from "@/lib/utils"
 import {
-    buildFeed, externalHref, formatCalendarDay, formatDayTime, isBlank, lastActivityLabel, splitEmptyFields, telHref,
+    buildFeed, externalHref, formatCalendarDay, formatDayTime, isBlank, lastActivityLabel, splitAboutFields, telHref,
     websiteLabel, type ActivityRow, type NoteRow, type PeopleById,
 } from "@/lib/record-page"
 import type { RecordViewer } from "@/lib/record-activity"
@@ -130,6 +130,10 @@ interface InfoField {
  *               tabs pinned under the top app bar; Activity: Key facts,
  *               Add a note…, Upcoming, History, then the group and About
  *               this company
+ *
+ * The phone, the website and the owner are edited in the facts, where they
+ * show, and About holds them only while they are empty, so nothing is said
+ * twice.
  */
 export function CompanyDetailPage({
     company, leads, contacts, activities, notes, people, viewer, fileCount, subsidiaries = [], lastModified, lastModifiedBy,
@@ -322,12 +326,37 @@ export function CompanyDetailPage({
             node: <FieldRow label="Created"><span suppressHydrationWarning>{formatCalendarDay(company.created_at)}</span></FieldRow>,
         },
     ]
-    const { filled, empty } = splitEmptyFields(infoFields)
+    // The facts show (and edit) these; About keeps them only while they are
+    // empty, to be filled in.
+    const { filled, empty } = splitAboutFields(infoFields, ["phone", "website", "owner", "business_unit"])
 
     // ─── Shared pieces ─────────────────────────────────────
-    const ownerFact = owner ? <PersonLine name={owner.full_name} src={owner.avatar_url} /> : <FactNone>No owner</FactNone>
-    const phoneFact = tel && company.phone ? <FactLink href={tel}>{formatPhoneDisplay(company.phone)}</FactLink> : company.phone ? company.phone : <FactNone>No phone</FactNone>
-    const websiteFact = website ? <FactLink href={website} external>{websiteLabel(company.website)}</FactLink> : <FactNone>No website</FactNone>
+    // The facts, edited in place as About's rows are: `fact`, in the shell
+    // each size draws (RecordFact on a desk, KeyFact on a phone).
+    const ownerFact = (
+        <InlineChoiceField
+            layout="fact" label="Owner" canEdit={canEdit}
+            value={owner?.id ?? company.owner_id ?? null}
+            display={owner ? <PersonLine name={owner.full_name} src={owner.avatar_url} /> : <FactNone>No owner</FactNone>}
+            empty={!owner}
+            options={ownerOptions} onOpen={loadOwners} clearLabel="No owner"
+            onSave={(next) => saveCompany({ owner_id: next }, "Owner updated", "Failed to update the owner")}
+        />
+    )
+    const phoneFact = (
+        <InlineTextField
+            layout="fact" table="client_companies" id={company.id} fieldPath="phone" label="Phone" rawValue={company.phone}
+            displayValue={company.phone ? formatPhoneDisplay(company.phone) : null} inputType="phone" href={tel}
+            emptyText={<FactNone>No phone</FactNone>}
+        />
+    )
+    const websiteFact = (
+        <InlineTextField
+            layout="fact" table="client_companies" id={company.id} fieldPath="website" label="Website" rawValue={company.website}
+            displayValue={websiteLabel(company.website)} inputType="url" href={website} external
+            emptyText={<FactNone>No website</FactNone>}
+        />
+    )
     const lastActivityFact = lastActivity ? <span suppressHydrationWarning>{lastActivity}</span> : <FactNone>No activity yet</FactNone>
     const lastModifiedLine = (
         <p className="text-xs text-muted-foreground" suppressHydrationWarning>
@@ -396,7 +425,7 @@ export function CompanyDetailPage({
                 lines={supporting ? <p className="text-sm text-muted-foreground">{supporting}</p> : undefined}
                 actions={
                     <>
-                        <QuickAction icon={Phone} label="Call" href={tel} missing="No phone number" />
+                        <QuickAction icon={Phone} label="Call" name={company.phone ? `Call ${formatPhoneDisplay(company.phone)}` : undefined} href={tel} missing="No phone number" />
                         <QuickAction icon={Globe} label="Website" href={website} external missing="No website" />
                         <QuickAction icon={FileText} label="Note" onClick={() => setComposerOpen(true)} />
                     </>
@@ -416,6 +445,7 @@ export function CompanyDetailPage({
                         <KeyFact label="Phone">{phoneFact}</KeyFact>
                         <KeyFact label="Website">{websiteFact}</KeyFact>
                         <KeyFact label="Last activity">{lastActivityFact}</KeyFact>
+                        {unitShown && <KeyFact label="Business unit">{unitName}</KeyFact>}
                     </KeyFactsCard>
                     <ActivityComposer env={composerEnv} onSubmit={log} className="hidden lg:block" />
                     <AddNoteRow onOpen={() => setComposerOpen(true)} className="order-2 lg:hidden" />
@@ -425,7 +455,7 @@ export function CompanyDetailPage({
                 </div>
                 <div className="contents lg:flex lg:w-[320px] xl:w-[380px] lg:shrink-0 lg:flex-col lg:gap-5">
                     <div className="order-5 lg:order-none">
-                        <AboutCard title="About this company" onEdit={canEdit ? openEdit : undefined} filled={filled} empty={empty} idPrefix="company" />
+                        <AboutCard title="About this company" onEdit={canEdit ? openEdit : undefined} filled={filled} empty={empty} idPrefix="company" hint={canEdit} />
                     </div>
                     <div className="hidden lg:block">
                         <RelatedListCard

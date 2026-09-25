@@ -68,6 +68,20 @@ export function splitEmptyFields<T extends { empty: boolean; fillable: boolean }
     return { filled, empty }
 }
 
+/**
+ * About without repeats: a field the header already shows and edits in
+ * place (a contact's email, phone, company and owner; a company's phone,
+ * website and owner; the business unit) is left out of About while it holds
+ * a value, and stays among the empty fields while it has none, so it can
+ * still be filled in there. Then `splitEmptyFields`, order kept.
+ */
+export function splitAboutFields<T extends { key: string; empty: boolean; fillable: boolean }>(
+    fields: readonly T[],
+    shownInHeader: readonly string[],
+): { filled: T[]; empty: T[] } {
+    return splitEmptyFields(fields.filter((field) => field.empty || !shownInHeader.includes(field.key)))
+}
+
 /** "Show 1 empty field" / "Show 4 empty fields". */
 export function emptyFieldsToggleLabel(count: number, open: boolean): string {
     if (open) return count === 1 ? "Hide the empty field" : "Hide empty fields"
@@ -426,10 +440,15 @@ export function shortPersonName(name: string): string {
     return `${words[0]} ${words[words.length - 1][0].toUpperCase()}.`
 }
 
-/** Who, after a row's title: the name on a desk, "Hanung P." on a phone; nothing for the system. */
-export function feedByline(item: Pick<FeedItem, "actor">, compact = false): string | null {
-    if (!item.actor) return null
-    return compact ? shortPersonName(item.actor) : item.actor
+/**
+ * A History row's small line under its text: who and when, "Hanung
+ * Prasetyo · 2 hours ago" on a desk, "Hanung P. · 2h" on a phone
+ * (`compact`); the time alone for what the system wrote. The title says
+ * what happened ("Call · Connected"), never who.
+ */
+export function feedMeta(item: Pick<FeedItem, "actor" | "at">, now: Date = new Date(), compact = false): string {
+    const who = item.actor ? (compact ? shortPersonName(item.actor) : item.actor) : null
+    return joinFacts([who, activityTime(item.at, now, compact)])
 }
 
 /**

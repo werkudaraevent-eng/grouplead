@@ -16,6 +16,13 @@ describe("page intro keys", () => {
     expect(pageIntroKey("changelog")).toBe("page-intro-changelog")
   })
 
+  it("name a record page's inline-edit hint once for every contact and company", () => {
+    expect(pageIntroKey("record-inline-edit")).toBe("page-intro-record-inline-edit")
+    expect(HINT_KEY.test(pageIntroKey("record-inline-edit"))).toBe(true)
+    // Read back by the app layout with the other page descriptions.
+    expect(pageIntroKeys(["list-intro-contacts", "page-intro-record-inline-edit"])).toEqual(["page-intro-record-inline-edit"])
+  })
+
   it("pass the table's own check for every page", () => {
     for (const page of INTRO_PAGES) expect(HINT_KEY.test(pageIntroKey(page)), page).toBe(true)
   })

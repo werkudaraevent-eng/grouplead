@@ -140,12 +140,17 @@ export function canManageNote(note: { userId: string | null }, viewer: ActivityV
 
 export type ComposerKind = "note" | "call" | "meeting" | "email" | "follow_up"
 
-/** The type pills in order, the button each makes, the toast after a save, and the word for Delete's question. */
+/**
+ * The type pills in order, the button each makes, the toast after a save,
+ * and the word for Delete's question. A pill for something that already
+ * happened says so ("Log call"), so it never reads as the header's Call
+ * (which dials) or Send email (which writes one).
+ */
 export const COMPOSER_KINDS: readonly { id: ComposerKind; label: string; action: string; done: string; noun: string }[] = [
     { id: "note", label: "Note", action: "Save note", done: "Note saved", noun: "note" },
-    { id: "call", label: "Call", action: "Log call", done: "Call logged", noun: "call" },
-    { id: "meeting", label: "Meeting", action: "Log meeting", done: "Meeting logged", noun: "meeting" },
-    { id: "email", label: "Email", action: "Log email", done: "Email logged", noun: "email" },
+    { id: "call", label: "Log call", action: "Log call", done: "Call logged", noun: "call" },
+    { id: "meeting", label: "Log meeting", action: "Log meeting", done: "Meeting logged", noun: "meeting" },
+    { id: "email", label: "Log email", action: "Log email", done: "Email logged", noun: "email" },
     { id: "follow_up", label: "Follow-up", action: "Add follow-up", done: "Follow-up added", noun: "follow-up" },
 ]
 

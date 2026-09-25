@@ -21,8 +21,9 @@ import { FILLED_BUTTON, RECORD_TYPE } from "./record-page"
 /**
  * The composer of a contact's and a company's Activity tab (DESIGN.md,
  * "Record pages"; HubSpot's, Pipedrive's and Salesforce's logging with
- * M3's rules): one card, the type pills (Note · Call · Meeting · Email ·
- * Follow-up) and under them the fields that kind asks for, as M3 filled
+ * M3's rules): one card, the type pills (Note · Log call · Log meeting ·
+ * Log email · Follow-up: what already happened is logged, never the
+ * header's Call or Send email) and under them the fields that kind asks for, as M3 filled
  * fields with sentence-case labels over them (a red * on what is
  * required), then "Ctrl + Enter to save" beside the filled button that
  * says what it will do (Save note, Log call, Log meeting, Log email, Add
@@ -61,8 +62,9 @@ function useNow(stepMs = 30_000): Date {
  * where, History's kinds): 32dp, 8dp corners, outlined at rest, the chosen
  * one tonal with a leading check; a 48dp target around each. One radio
  * group: arrow keys, Home and End move and choose. `scroll` keeps them on
- * one row that scrolls sideways and fades at its edges below `lg` and wraps
- * from `lg`; otherwise they wrap.
+ * one row that scrolls sideways and fades at its edges, at every width
+ * (History's, which sit in its card's header: beside the title on a desk,
+ * under it on a phone); otherwise they wrap.
  */
 export function ChoiceChips<T extends string>({ options, value, onChange, label, labelledBy, scroll = false, className }: {
     options: readonly { id: T; label: string }[]
@@ -103,7 +105,7 @@ export function ChoiceChips<T extends string>({ options, value, onChange, label,
             onKeyDown={onKey}
             className={cn(
                 "flex gap-2",
-                scroll ? "edge-fade no-scrollbar overflow-x-auto py-2 lg:flex-wrap" : "flex-wrap py-2",
+                scroll ? "edge-fade no-scrollbar overflow-x-auto py-2" : "flex-wrap py-2",
                 "-my-2",
                 className,
             )}
