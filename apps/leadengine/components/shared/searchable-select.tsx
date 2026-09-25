@@ -51,6 +51,10 @@ interface SearchableSelectProps {
     className?: string
     /** Force the dropdown content width. Default: matches trigger. */
     contentWidth?: "trigger" | "auto"
+    /** The trigger's id, for a visible label's `htmlFor`. */
+    id?: string
+    /** The visible label that names the trigger. */
+    "aria-labelledby"?: string
 }
 
 export function SearchableSelect({
@@ -65,6 +69,8 @@ export function SearchableSelect({
     clearable = true,
     className,
     contentWidth = "trigger",
+    id,
+    "aria-labelledby": labelledBy,
 }: SearchableSelectProps) {
     const [open, setOpen] = React.useState(false)
 
@@ -105,6 +111,8 @@ export function SearchableSelect({
                     type="button"
                     variant="outline"
                     role="combobox"
+                    id={id}
+                    aria-labelledby={labelledBy}
                     aria-expanded={open}
                     disabled={disabled || loading}
                     className={cn(

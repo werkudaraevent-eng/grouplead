@@ -4,6 +4,7 @@ import { CompanyDetailPage, type CompanyContact } from "@/features/companies/com
 import type { RecordLead } from "@/components/shared/record-page"
 import type { ActivityRow, NoteRow } from "@/lib/record-page"
 import { readCompanyTab } from "@/features/companies/lib/company-record"
+import { readRecordPeople, readRecordViewer } from "@/lib/record-activity-server"
 
 export const dynamic = 'force-dynamic'
 export const fetchCache = 'force-no-store'
@@ -21,15 +22,18 @@ export default async function CompanyPage({
     // `client_companies` is the CRM's customer organisation; `owner` is the
     // person who owns it (profiles, through owner_id), never the tenant's
     // business unit (`companies`, through company_id).
-    const { data: company, error } = await supabase
-        .from('client_companies')
-        .select(`
-            *,
-            parent:parent_id(id, name, industry, line_industry, city, area),
-            owner:profiles!client_companies_owner_id_fkey(id, full_name, email, avatar_url)
-        `)
-        .eq('id', companyId)
-        .single()
+    const [{ data: company, error }, viewer] = await Promise.all([
+        supabase
+            .from('client_companies')
+            .select(`
+                *,
+                parent:parent_id(id, name, industry, line_industry, city, area),
+                owner:profiles!client_companies_owner_id_fkey(id, full_name, email, avatar_url)
+            `)
+            .eq('id', companyId)
+            .single(),
+        readRecordViewer(supabase),
+    ])
 
     if (error || !company) return notFound()
 
@@ -48,9 +52,10 @@ export default async function CompanyPage({
             .eq('client_company_id', companyId)
             .is('deleted_at', null)
             .order('full_name'),
-        // The timeline and the notes, read here so the Overview's facts,
-        // Recent activity and the Activity tab draw from one feed on first
-        // paint; every write refreshes the page.
+        // The timeline and the notes, read here so the facts, Upcoming and
+        // History draw from one read on first paint; every write refreshes
+        // the page. The typed columns (occurred_at, outcome, due_at…) come
+        // from migration 20260925120000.
         supabase
             .from('company_activities')
             .select('*, profile:profiles!company_activities_user_id_fkey(full_name, avatar_url)')
@@ -77,6 +82,7 @@ export default async function CompanyPage({
     ])
 
     const activities = (activitiesRes.data as unknown as ActivityRow[] | null) ?? []
+    const people = await readRecordPeople(supabase, activities)
     const latest = activities[0] ?? null
     const lastModified = latest?.created_at || company.updated_at || company.created_at
     const lastModifiedBy = latest?.profile?.full_name || company.owner?.full_name || "System"
@@ -88,6 +94,8 @@ export default async function CompanyPage({
             contacts={(contactsRes.data as CompanyContact[] | null) ?? []}
             activities={activities}
             notes={(notesRes.data as NoteRow[] | null) ?? []}
+            people={people}
+            viewer={viewer}
             fileCount={filesRes.count ?? null}
             subsidiaries={(childrenRes.data as { id: string; name: string }[] | null) ?? []}
             lastModified={lastModified}

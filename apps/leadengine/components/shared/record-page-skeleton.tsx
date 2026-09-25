@@ -4,10 +4,10 @@ import { cn } from "@/lib/utils"
  * A record's page while it loads, in the page's own layout (DESIGN.md,
  * "Record pages"): on a desk the header (the back button, a 48dp avatar or
  * tile, the name, the actions in one row; the facts under the name), the
- * tabs, then the main column (composer, Recent activity) beside the 380px
- * side column, all in the page's 32dp margins; below `lg` the
- * centred header with its quick actions, the tabs and the Overview's
- * cards. `data-fluid-page`, as the pages carry, so the shell's 900px
+ * tabs, then the Activity tab's main column (the composer, History)
+ * beside the 380px side column, all in the page's 32dp margins; below
+ * `lg` the centred header with its quick actions, the tabs and the
+ * Activity tab's cards (Key facts, Add a note…, History). `data-fluid-page`, as the pages carry, so the shell's 900px
  * floor never flashes on a phone while one loads.
  */
 export function RecordPageSkeleton({ label, shape, tabs, quickActions }: {
@@ -74,16 +74,16 @@ export function RecordPageSkeleton({ label, shape, tabs, quickActions }: {
                 {Array.from({ length: tabs }, (_, index) => <div key={index} className={cn(bar, "h-4 w-14")} />)}
             </div>
 
-            {/* Overview */}
+            {/* Activity */}
             <div className="flex flex-col gap-3 px-4 pb-6 pt-3 lg:flex-row lg:items-start lg:gap-6 lg:px-8 lg:pt-6">
                 <div className="flex min-w-0 flex-1 flex-col gap-3 lg:gap-5">
                     <div className={cn(card, "h-[220px] lg:hidden")} />
                     <div className={cn(card, "h-12 lg:hidden")} />
                     <div className={cn(card, "hidden h-[186px] lg:block")} />
-                    <div className={cn(card, "h-[240px] lg:h-[300px]")} />
+                    <div className={cn(card, "h-[320px] lg:h-[420px]")} />
                 </div>
                 <div className="flex flex-col gap-3 lg:w-[320px] xl:w-[380px] lg:shrink-0 lg:gap-5">
-                    <div className={cn(card, "h-[300px] lg:h-[360px]")} />
+                    <div className={cn(card, "hidden h-[360px] lg:block")} />
                     <div className={cn(card, "hidden h-[120px] lg:block")} />
                     <div className={cn(card, "hidden h-[200px] lg:block")} />
                 </div>

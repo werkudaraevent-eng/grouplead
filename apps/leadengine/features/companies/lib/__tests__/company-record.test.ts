@@ -10,17 +10,19 @@ import {
 } from "../company-record"
 
 describe("tabs", () => {
-    it("are Overview, Activity, Contacts, Leads and Files", () => {
-        expect(COMPANY_TAB_IDS).toEqual(["overview", "activity", "contacts", "leads", "files"])
+    it("are Activity, Contacts, Leads and Files", () => {
+        expect(COMPANY_TAB_IDS).toEqual(["activity", "contacts", "leads", "files"])
     })
 
     it("open the tab the address names, the old ones as Activity", () => {
         expect(readCompanyTab("contacts")).toBe("contacts")
+        expect(readCompanyTab("overview")).toBe("activity")
+        expect(readCompanyTab("activity")).toBe("activity")
         expect(readCompanyTab("timeline")).toBe("activity")
         expect(readCompanyTab("notes")).toBe("activity")
-        expect(readCompanyTab("x")).toBe("overview")
+        expect(readCompanyTab("x")).toBe("activity")
         expect(withCompanyTab("", "files")).toBe("tab=files")
-        expect(withCompanyTab("tab=files", "overview")).toBe("")
+        expect(withCompanyTab("tab=files", "activity")).toBe("")
     })
 })
 

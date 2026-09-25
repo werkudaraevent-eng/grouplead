@@ -13,21 +13,23 @@ import {
 } from "../contact-record"
 
 describe("tabs", () => {
-    it("are Overview, Activity, Leads and Files", () => {
-        expect(CONTACT_TAB_IDS).toEqual(["overview", "activity", "leads", "files"])
+    it("are Activity, Leads and Files", () => {
+        expect(CONTACT_TAB_IDS).toEqual(["activity", "leads", "files"])
     })
 
-    it("open the tab the address names, and the old Timeline as Activity", () => {
+    it("open the tab the address names, and the old Overview and Timeline as Activity", () => {
         expect(readContactTab("leads")).toBe("leads")
-        expect(readContactTab(["files", "overview"])).toBe("files")
+        expect(readContactTab(["files", "activity"])).toBe("files")
+        expect(readContactTab("overview")).toBe("activity")
+        expect(readContactTab("activity")).toBe("activity")
         expect(readContactTab("timeline")).toBe("activity")
-        expect(readContactTab("contacts")).toBe("overview")
-        expect(readContactTab(undefined)).toBe("overview")
+        expect(readContactTab("contacts")).toBe("activity")
+        expect(readContactTab(undefined)).toBe("activity")
     })
 
     it("keep the rest of the query and leave the default out", () => {
-        expect(withContactTab("?from=list", "activity")).toBe("from=list&tab=activity")
-        expect(withContactTab("tab=leads&from=list", "overview")).toBe("from=list")
+        expect(withContactTab("?from=list", "leads")).toBe("from=list&tab=leads")
+        expect(withContactTab("tab=leads&from=list", "activity")).toBe("from=list")
     })
 })
 

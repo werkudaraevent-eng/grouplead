@@ -12,18 +12,22 @@ import { formatCalendarDay, isBlank, readRecordTab, withRecordTab } from "@/lib/
 
 // ─── Tabs ────────────────────────────────────────────────────────────
 
-export type ContactTab = "overview" | "activity" | "leads" | "files"
+export type ContactTab = "activity" | "leads" | "files"
 
-export const CONTACT_TAB_IDS: readonly ContactTab[] = ["overview", "activity", "leads", "files"]
+export const CONTACT_TAB_IDS: readonly ContactTab[] = ["activity", "leads", "files"]
 
-/** `?tab=activity|leads|files` opens that tab; the old `?tab=timeline` opens Activity; anything else, the Overview. */
+/**
+ * `?tab=leads|files` opens that tab; the old `?tab=overview` and
+ * `?tab=timeline` open Activity, which holds what Overview held; anything
+ * else, Activity.
+ */
 export function readContactTab(value: string | string[] | null | undefined): ContactTab {
-    return readRecordTab(value, CONTACT_TAB_IDS, { timeline: "activity" })
+    return readRecordTab(value, CONTACT_TAB_IDS, { overview: "activity", timeline: "activity" })
 }
 
-/** The query string with the tab in it; the Overview, the default, is left out. */
+/** The query string with the tab in it; Activity, the default, is left out. */
 export function withContactTab(search: string, tab: ContactTab): string {
-    return withRecordTab(search, tab, "overview")
+    return withRecordTab(search, tab, "activity")
 }
 
 // ─── Fields ──────────────────────────────────────────────────────────

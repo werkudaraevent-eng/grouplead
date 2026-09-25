@@ -32,6 +32,10 @@ interface DatePickerFieldProps {
     minDate?: string
     /** Max selectable date (ISO). */
     maxDate?: string
+    /** The trigger's id, for a visible label's `htmlFor`. */
+    id?: string
+    /** The visible label (or labels) that name the trigger. */
+    "aria-labelledby"?: string
 }
 
 export function DatePickerField({
@@ -43,6 +47,8 @@ export function DatePickerField({
     clearable = true,
     minDate,
     maxDate,
+    id,
+    "aria-labelledby": labelledBy,
 }: DatePickerFieldProps) {
     const [open, setOpen] = React.useState(false)
 
@@ -63,6 +69,8 @@ export function DatePickerField({
                 <Button
                     type="button"
                     variant="outline"
+                    id={id}
+                    aria-labelledby={labelledBy}
                     disabled={disabled}
                     className={cn(
                         "w-full justify-start font-normal h-9 px-3 text-sm",

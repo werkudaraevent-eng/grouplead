@@ -4,12 +4,12 @@ import {
     activityTime,
     activityTitle,
     buildFeed,
-    COMPOSER_KINDS,
-    composerPlaceholder,
+    buildUpcoming,
+    dueLabel,
     emptyFieldsToggleLabel,
     externalHref,
+    feedByline,
     feedFilterOptions,
-    feedHeadline,
     filterFeed,
     firstName,
     formatCalendarDay,
@@ -18,7 +18,6 @@ import {
     isMirroredNote,
     joinFacts,
     lastActivityLabel,
-    revealScrollTop,
     leadStanding,
     leadSummaryLabel,
     mailtoHref,
@@ -34,19 +33,19 @@ import {
 } from "./record-page"
 
 describe("tabs", () => {
-    const ids = ["overview", "activity", "leads"] as const
+    const ids = ["activity", "leads", "files"] as const
 
     it("open the tab the address names, an alias, or the first", () => {
         expect(readRecordTab("leads", ids)).toBe("leads")
-        expect(readRecordTab(["activity", "leads"], ids)).toBe("activity")
-        expect(readRecordTab("timeline", ids, { timeline: "activity" })).toBe("activity")
-        expect(readRecordTab("nope", ids)).toBe("overview")
-        expect(readRecordTab(undefined, ids)).toBe("overview")
+        expect(readRecordTab(["files", "leads"], ids)).toBe("files")
+        expect(readRecordTab("overview", ids, { overview: "activity" })).toBe("activity")
+        expect(readRecordTab("nope", ids)).toBe("activity")
+        expect(readRecordTab(undefined, ids)).toBe("activity")
     })
 
     it("keep the rest of the query and leave the default out", () => {
-        expect(withRecordTab("?from=list", "leads", "overview")).toBe("from=list&tab=leads")
-        expect(withRecordTab("tab=leads&from=list", "overview", "overview")).toBe("from=list")
+        expect(withRecordTab("?from=list", "leads", "activity")).toBe("from=list&tab=leads")
+        expect(withRecordTab("tab=leads&from=list", "activity", "activity")).toBe("from=list")
     })
 })
 
@@ -172,25 +171,48 @@ describe("leads", () => {
 describe("activity", () => {
     const now = new Date("2026-09-25T10:00:00Z")
     const hoursAgo = (hours: number) => new Date(now.getTime() - hours * 3600_000).toISOString()
-    const row = (id: string, action_type: string, description: string, hours: number, who: string | null = "Hanung Prasetyo"): ActivityRow => ({
-        id, action_type, description, created_at: hoursAgo(hours), profile: who ? { full_name: who } : null,
+    const row = (id: string, action_type: string, description: string, hours: number, who: string | null = "Hanung Prasetyo", extra: Partial<ActivityRow> = {}): ActivityRow => ({
+        id, action_type, description, created_at: hoursAgo(hours), profile: who ? { full_name: who } : null, ...extra,
     })
+    const people = {
+        u2: { full_name: "Setyorini Dewi", avatar_url: null },
+        u3: { full_name: "Bagus Wicaksono", avatar_url: "https://x.co/b.png" },
+    }
 
-    it("names each kind of timeline row", () => {
+    it("names each kind of timeline row, old words and new", () => {
         expect(activityKind("Call")).toBe("call")
+        expect(activityKind("call")).toBe("call")
         expect(activityKind("Meeting")).toBe("meeting")
         expect(activityKind("meeting")).toBe("meeting")
         expect(activityKind("Email")).toBe("email")
-        expect(activityKind("Task")).toBe("task")
+        expect(activityKind("Task")).toBe("follow_up")
+        expect(activityKind("follow_up")).toBe("follow_up")
         expect(activityKind("note")).toBe("note")
+        expect(activityKind("Note")).toBe("note")
         expect(activityKind("File Uploaded")).toBe("file")
         expect(activityKind("File Deleted")).toBe("file")
         expect(activityKind("update")).toBe("update")
         expect(activityKind("delete")).toBe("delete")
         expect(activityKind("Stage Change")).toBe("stage")
         expect(activityKind("merge")).toBe("other")
-        expect(activityTitle("call")).toBe("Call logged")
-        expect(activityTitle("file", "File Uploaded")).toBe("File uploaded")
+    })
+
+    it("titles a row by what it holds", () => {
+        expect(activityTitle({ action_type: "call", outcome: "connected" })).toBe("Call · Connected")
+        expect(activityTitle({ action_type: "call", outcome: "call_back" })).toBe("Call · Call back requested")
+        expect(activityTitle({ action_type: "Call" })).toBe("Call")
+        expect(activityTitle({ action_type: "meeting", meeting_mode: "in_person", location: "The Manhattan Square" })).toBe("Meeting · In person · The Manhattan Square")
+        expect(activityTitle({ action_type: "meeting", meeting_mode: "in_person", location: null })).toBe("Meeting · In person")
+        // A location left from before the mode changed is not said.
+        expect(activityTitle({ action_type: "meeting", meeting_mode: "online", location: "Lobby" })).toBe("Meeting · Online")
+        expect(activityTitle({ action_type: "meeting" })).toBe("Meeting")
+        expect(activityTitle({ action_type: "email", subject: "Proposal v2" })).toBe("Email · Proposal v2")
+        expect(activityTitle({ action_type: "Email" })).toBe("Email")
+        expect(activityTitle({ action_type: "follow_up", subject: "Send the proposal", due_at: hoursAgo(-24), completed_at: hoursAgo(1) })).toBe("Follow-up done · Send the proposal")
+        expect(activityTitle({ action_type: "follow_up", subject: "Send the proposal", due_at: hoursAgo(-24) })).toBe("Follow-up · Send the proposal")
+        expect(activityTitle({ action_type: "Task" })).toBe("Task")
+        expect(activityTitle({ action_type: "File Uploaded" })).toBe("File uploaded")
+        expect(activityTitle({ action_type: "update" })).toBe("Details updated")
     })
 
     it("knows the database's copy of a note", () => {
@@ -199,26 +221,68 @@ describe("activity", () => {
         expect(isMirroredNote({ action_type: "delete", description: "Deleted a note" })).toBe(false)
     })
 
-    it("merges the notes in place of their copies, newest first", () => {
+    it("merges the notes in place of their copies, newest first, by when it happened", () => {
         const notes: NoteRow[] = [{ id: "n1", content: "Prefers WhatsApp over email.", author_name: "Rini", user_id: "u2", created_at: hoursAgo(5) }]
         const feed = buildFeed([
             row("a1", "note", 'Added a note: "Prefers WhatsApp over email."', 5, "Rini"),
-            row("a2", "Call", "Send the proposal by Friday.", 48),
+            // Logged just now, for a call two days ago.
+            row("a2", "call", "Send the proposal by Friday.", 0, "Hanung Prasetyo", { outcome: "connected", occurred_at: hoursAgo(48) }),
             row("a3", "update", "Changed record owner", 1, null),
             row("a4", "Note", "Old note from the dialog", 200),
         ], notes)
         expect(feed.map((item) => item.key)).toEqual(["a:a3", "n:n1", "a:a2", "a:a4"])
-        expect(feed[1]).toMatchObject({ kind: "note", actor: "Rini", detail: "Prefers WhatsApp over email.", note: { id: "n1", userId: "u2" } })
+        expect(feed[1]).toMatchObject({ kind: "note", actor: "Rini", detail: "Prefers WhatsApp over email.", note: { id: "n1", userId: "u2" }, row: null })
         expect(feed[0]).toMatchObject({ kind: "update", title: "Details updated", actor: null, note: null })
-        expect(feedHeadline(feed[2])).toBe("Call logged by Hanung Prasetyo")
-        expect(feedHeadline(feed[0])).toBe("Details updated")
-        expect(feedHeadline(feed[2], true)).toBe("Call · Hanung P.")
-        expect(feedHeadline(feed[1], true)).toBe("Note · Rini")
-        expect(feedHeadline(feed[0], true)).toBe("Updated")
+        expect(feed[2]).toMatchObject({ title: "Call · Connected", at: hoursAgo(48), row: { id: "a2" } })
+        expect(feedByline(feed[2])).toBe("Hanung Prasetyo")
+        expect(feedByline(feed[2], true)).toBe("Hanung P.")
+        expect(feedByline(feed[0])).toBeNull()
+    })
+
+    it("keeps open follow-ups out of History and puts a done one in, when it was done, by who did it", () => {
+        const feed = buildFeed([
+            row("f1", "follow_up", "", 30, "Hanung Prasetyo", { subject: "Send the proposal", due_at: hoursAgo(-24), assignee_id: "u3" }),
+            row("f2", "follow_up", "Sent by email", 30, "Hanung Prasetyo", { subject: "Call back Rudi", due_at: hoursAgo(10), assignee_id: "u3", completed_at: hoursAgo(2), completed_by: "u2" }),
+            row("t1", "Task", "Prepare venue options", 60),
+        ], [], people)
+        expect(feed.map((item) => item.key)).toEqual(["a:f2", "a:t1"])
+        expect(feed[0]).toMatchObject({ kind: "follow_up", title: "Follow-up done · Call back Rudi", actor: "Setyorini Dewi", at: hoursAgo(2), detail: "Sent by email" })
+        expect(feed[1]).toMatchObject({ kind: "follow_up", title: "Task", actor: "Hanung Prasetyo" })
+    })
+
+    it("carries an online meeting's link", () => {
+        const [item] = buildFeed([row("m1", "meeting", "", 1, "Hanung Prasetyo", { meeting_mode: "online", meeting_url: "https://meet.google.com/abc-defg-hij" })])
+        expect(item).toMatchObject({ title: "Meeting · Online", link: "https://meet.google.com/abc-defg-hij" })
+    })
+
+    it("lists the open follow-ups, the one due first on top, with who they are for", () => {
+        const upcoming = buildUpcoming([
+            row("f1", "follow_up", "", 30, "Hanung Prasetyo", { subject: "Send the proposal", due_at: hoursAgo(-48), assignee_id: "u3" }),
+            row("f2", "follow_up", "Bring the rate card", 30, "Hanung Prasetyo", { subject: "Visit the GA team", due_at: hoursAgo(24), assignee_id: "u2" }),
+            row("f3", "follow_up", "", 30, "Hanung Prasetyo", { subject: " ", due_at: hoursAgo(-48), assignee_id: "gone" }),
+            row("f4", "follow_up", "", 30, "Hanung Prasetyo", { subject: "Done already", due_at: hoursAgo(48), completed_at: hoursAgo(1) }),
+            row("t1", "Task", "Old task", 60),
+        ], people)
+        expect(upcoming.map((item) => item.key)).toEqual(["a:f2", "a:f1", "a:f3"])
+        expect(upcoming[0]).toMatchObject({ title: "Visit the GA team", detail: "Bring the rate card", assignee: { id: "u2", name: "Setyorini Dewi", avatarUrl: null } })
+        expect(upcoming[1].assignee).toEqual({ id: "u3", name: "Bagus Wicaksono", avatarUrl: "https://x.co/b.png" })
+        expect(upcoming[2]).toMatchObject({ title: "Follow-up", assignee: null })
+    })
+
+    it("says when a follow-up is due, and when it is overdue", () => {
+        const at = new Date(2026, 8, 25, 9, 0)
+        const day = (offset: number) => new Date(2026, 8, 25 + offset, 12, 0).toISOString()
+        expect(dueLabel(day(0), at)).toEqual({ text: "Due today", overdue: false })
+        expect(dueLabel(day(1), at)).toEqual({ text: "Due tomorrow", overdue: false })
+        expect(dueLabel(day(8), at)).toEqual({ text: "Due 3 Oct", overdue: false })
+        expect(dueLabel(day(-5), at)).toEqual({ text: "Overdue · 20 Sep", overdue: true })
+        expect(dueLabel(new Date(2027, 0, 4, 12).toISOString(), at)).toEqual({ text: "Due 4 Jan 2027", overdue: false })
+        expect(dueLabel("soon", at)).toEqual({ text: "", overdue: false })
     })
 
     it("says when, relative for a week and then the day; compact on a phone", () => {
         expect(activityTime(hoursAgo(0), now)).toBe("just now")
+        expect(activityTime(hoursAgo(-0.01), now)).toBe("just now")
         expect(activityTime(hoursAgo(3), now)).toBe("3 hours ago")
         expect(activityTime(hoursAgo(48), now)).toBe("2 days ago")
         expect(activityTime(hoursAgo(24 * 13), now)).toBe(formatCalendarDay(hoursAgo(24 * 13)))
@@ -230,69 +294,28 @@ describe("activity", () => {
         expect(activityTime("not a date", now)).toBe("")
     })
 
-    it("counts only contact with someone as the last activity", () => {
+    it("counts only a note, a call, a meeting or an email as the last activity", () => {
         const feed = buildFeed([
             row("a1", "update", "Changed record owner", 1),
             row("a2", "File Uploaded", 'Uploaded file "deck.pdf"', 2),
-            row("a3", "Call", "Send the proposal by Friday.", 48),
-        ])
+            row("a4", "follow_up", "", 3, "Hanung Prasetyo", { subject: "Send it", due_at: hoursAgo(20), completed_at: hoursAgo(3), completed_by: "u2" }),
+            row("a3", "call", "Send the proposal by Friday.", 48, "Hanung Prasetyo", { outcome: "busy" }),
+        ], [], people)
         expect(lastActivityLabel(feed, now)).toBe("Call · 2 days ago")
         expect(lastActivityLabel(buildFeed([row("a1", "update", "x", 1)]), now)).toBeNull()
     })
 
-    it("filters the feed and offers only the filters with something in them", () => {
+    it("filters History and offers only the filters with something in them", () => {
         const feed = buildFeed([
             row("a1", "update", "Changed record owner", 1),
-            row("a2", "Call", "Proposal", 2),
+            row("a2", "call", "Proposal", 2, "Hanung Prasetyo", { outcome: "connected" }),
             row("a3", "Meeting", "Kick-off", 3),
+            row("a4", "follow_up", "", 4, "Hanung Prasetyo", { subject: "Done", due_at: hoursAgo(4), completed_at: hoursAgo(4) }),
         ])
         expect(filterFeed(feed, "call").map((item) => item.key)).toEqual(["a:a2"])
+        expect(filterFeed(feed, "follow_up").map((item) => item.key)).toEqual(["a:a4"])
         expect(filterFeed(feed, "changes").map((item) => item.key)).toEqual(["a:a1"])
-        expect(filterFeed(feed, "all")).toHaveLength(3)
-        expect(feedFilterOptions(feed).map((filter) => filter.id)).toEqual(["all", "call", "meeting", "changes"])
-    })
-})
-
-describe("the composer", () => {
-    it("logs a note and the kinds the Log Activity dialog wrote, plus calls", () => {
-        expect(COMPOSER_KINDS.map((kind) => kind.label)).toEqual(["Note", "Log call", "Log email", "Log meeting", "Task"])
-        expect(COMPOSER_KINDS.map((kind) => kind.actionType)).toEqual([null, "Call", "Email", "Meeting", "Task"])
-        expect(COMPOSER_KINDS.every((kind) => kind.actionType === null || activityKind(kind.actionType) === kind.id)).toBe(true)
-    })
-
-    it("prompts about the person or the company", () => {
-        expect(composerPlaceholder("note", "Abdan")).toBe("Write a note about Abdan — meeting summary, preferences…")
-        expect(composerPlaceholder("call", "Elitery")).toContain("the call with Elitery")
-        expect(composerPlaceholder("note", " ")).toBe("Write a note about them — meeting summary, preferences…")
-    })
-})
-
-describe("scrolling", () => {
-    // A 900px scroller with the tabs (43px) pinned at its top.
-    const view = { viewHeight: 900, pinned: 43 }
-
-    it("leaves the page where it is when the target already shows whole", () => {
-        expect(revealScrollTop({ ...view, scrollTop: 0, top: 267, height: 186 })).toBeNull()
-        expect(revealScrollTop({ ...view, scrollTop: 150, top: 267, height: 186 })).toBeNull()
-    })
-
-    it("brings a target hidden under the pinned tabs to just below them", () => {
-        // Scrolled so the composer's top is behind the tabs.
-        expect(revealScrollTop({ ...view, scrollTop: 250, top: 267, height: 186 })).toBe(267 - 43 - 16)
-    })
-
-    it("brings a target below the fold up to just below the tabs", () => {
-        expect(revealScrollTop({ ...view, scrollTop: 0, top: 1400, height: 186 })).toBe(1400 - 43 - 16)
-        // Cut by the foot of the view.
-        expect(revealScrollTop({ ...view, scrollTop: 0, top: 800, height: 186 })).toBe(800 - 43 - 16)
-    })
-
-    it("shows the top of a target taller than the view", () => {
-        expect(revealScrollTop({ ...view, scrollTop: 0, top: 300, height: 2000 })).toBe(300 - 43 - 16)
-    })
-
-    it("never goes above the page's top, and takes its own gap", () => {
-        expect(revealScrollTop({ ...view, scrollTop: 40, top: 20, height: 100 })).toBe(0)
-        expect(revealScrollTop({ ...view, scrollTop: 600, top: 500, height: 100, gap: 0 })).toBe(457)
+        expect(filterFeed(feed, "all")).toHaveLength(4)
+        expect(feedFilterOptions(feed).map((filter) => filter.label)).toEqual(["All", "Calls", "Meetings", "Follow-ups", "Changes"])
     })
 })

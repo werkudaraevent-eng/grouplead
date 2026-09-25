@@ -4,6 +4,7 @@ import { ContactDetailPage, type ContactCustomField } from "@/features/contacts/
 import type { RecordLead } from "@/components/shared/record-page"
 import type { ActivityRow, NoteRow } from "@/lib/record-page"
 import { readContactTab } from "@/features/contacts/lib/contact-record"
+import { readRecordPeople, readRecordViewer } from "@/lib/record-activity-server"
 
 export const dynamic = 'force-dynamic'
 export const fetchCache = 'force-no-store'
@@ -22,15 +23,18 @@ export default async function ContactPage({
     // owner_id). The business unit is a different thing, `company_id` on
     // the tenant's own `companies`, read below; the client company is
     // `client_company_id` on `client_companies`.
-    const { data: contact, error } = await supabase
-        .from('contacts')
-        .select(`
-            *,
-            client_company:client_company_id(id, name, industry, line_industry, city, area),
-            owner:profiles!contacts_owner_id_fkey(id, full_name, email, avatar_url)
-        `)
-        .eq('id', contactId)
-        .single()
+    const [{ data: contact, error }, viewer] = await Promise.all([
+        supabase
+            .from('contacts')
+            .select(`
+                *,
+                client_company:client_company_id(id, name, industry, line_industry, city, area),
+                owner:profiles!contacts_owner_id_fkey(id, full_name, email, avatar_url)
+            `)
+            .eq('id', contactId)
+            .single(),
+        readRecordViewer(supabase),
+    ])
 
     if (error || !contact) return notFound()
 
@@ -43,12 +47,13 @@ export default async function ContactPage({
             .eq('contact_id', contactId)
             .is('deleted_at', null)
             .order('created_at', { ascending: false }),
-        // The timeline and the notes, read here so the Overview's facts,
-        // Recent activity and the Activity tab draw from one feed on first
-        // paint; every write refreshes the page.
+        // The timeline and the notes, read here so the facts, Upcoming and
+        // History draw from one read on first paint; every write refreshes
+        // the page. `*`: contact_activities has no attachment columns,
+        // company_activities does; the typed columns (occurred_at, outcome,
+        // due_at…) come from migration 20260925120000.
         supabase
             .from('contact_activities')
-            // `*`: contact_activities has no attachment columns, company_activities does.
             .select('*, profile:profiles!contact_activities_user_id_fkey(full_name, avatar_url)')
             .eq('contact_id', contactId)
             .order('created_at', { ascending: false }),
@@ -79,6 +84,7 @@ export default async function ContactPage({
     ])
 
     const activities = (activitiesRes.data as unknown as ActivityRow[] | null) ?? []
+    const people = await readRecordPeople(supabase, activities)
     const latest = activities[0] ?? null
     const lastModified = latest?.created_at || contact.updated_at || contact.created_at
     const lastModifiedBy = latest?.profile?.full_name || contact.owner?.full_name || "System"
@@ -89,6 +95,8 @@ export default async function ContactPage({
             leads={(leadsRes.data as unknown as RecordLead[] | null) ?? []}
             activities={activities}
             notes={(notesRes.data as NoteRow[] | null) ?? []}
+            people={people}
+            viewer={viewer}
             fileCount={filesRes.count ?? null}
             lastModified={lastModified}
             lastModifiedBy={lastModifiedBy}

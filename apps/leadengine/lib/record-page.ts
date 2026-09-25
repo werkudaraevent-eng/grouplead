@@ -1,21 +1,26 @@
 import { normalizePhoneToE164 } from "@/lib/phone-normalize"
 import { formatRelativeTime } from "@/lib/relative-time"
+import {
+    activityKind, callOutcomeLabel, isFollowUp, isOpenFollowUp, meetingModeLabel, type ActivityKind, type ActivityRow,
+} from "@/lib/record-activity"
 
 /**
  * The pure half of a record's page (a contact and a company; the lead is to
  * follow): which tab the address opens, the empty fields folded under "Show
  * N empty fields", the links behind Call, WhatsApp, Email and Website, the
  * one-line summary of the record's leads, and the activity: what each
- * timeline row is called, the feed the page shows (notes merged in), what
- * "Last activity" says and what the composer logs. See DESIGN.md, "Record
+ * timeline row is called, History (notes merged in), Upcoming (the open
+ * follow-ups) and what "Last activity" says. What the composer logs and
+ * how it is saved is `lib/record-activity.ts`. See DESIGN.md, "Record
  * pages".
  */
 
 // ─── Tabs ────────────────────────────────────────────────────────────
 
 /**
- * The tab `?tab=` names, the first of `ids` (Overview) for anything else.
- * `aliases` keeps an old address working (`?tab=timeline` is Activity now).
+ * The tab `?tab=` names, the first of `ids` (Activity) for anything else.
+ * `aliases` keeps an old address working (`?tab=overview` and
+ * `?tab=timeline` are Activity now).
  */
 export function readRecordTab<T extends string>(
     value: string | string[] | null | undefined,
@@ -215,57 +220,26 @@ export function leadSummaryLabel(summary: LeadSummary, money: (amount: number) =
 
 // ─── Activity ────────────────────────────────────────────────────────
 
-export type ActivityKind = "note" | "call" | "email" | "meeting" | "task" | "file" | "stage" | "create" | "update" | "delete" | "other"
+export { activityKind, type ActivityKind, type ActivityRow }
 
 /**
- * What a timeline row is, from its free-text `action_type`: the kinds a
- * person logs (Note, Call, Email, Meeting, Task; a Sales Activity visit
- * lands as "meeting"), the rows the app writes (a file uploaded or deleted,
- * a stage moved) and the rows the database writes (a note added, a field
- * changed, a note deleted).
+ * The kinds that are contact with the person or the account, which "Last
+ * activity" counts: a note, a call, a meeting, an email (HubSpot's last
+ * activity date). A follow-up is a plan, not contact; a field changed or a
+ * file uploaded is not contact with anyone.
  */
-export function activityKind(actionType: string | null | undefined): ActivityKind {
-    const type = (actionType ?? "").trim().toLowerCase()
-    if (type.startsWith("file")) return "file"
-    if (type.includes("stage")) return "stage"
-    if (type.includes("note")) return "note"
-    if (type.includes("call")) return "call"
-    if (type.includes("email")) return "email"
-    if (type.includes("meeting") || type.includes("visit")) return "meeting"
-    if (type.includes("task")) return "task"
-    if (type.includes("create")) return "create"
-    if (type.includes("update")) return "update"
-    if (type.includes("delete")) return "delete"
-    return "other"
-}
-
-/** The kinds that are contact with the person or the account, which "Last activity" counts (HubSpot's last activity date). */
-export const ENGAGEMENT_KINDS: readonly ActivityKind[] = ["note", "call", "email", "meeting", "task"]
+export const ENGAGEMENT_KINDS: readonly ActivityKind[] = ["note", "call", "email", "meeting"]
 
 const KIND_TITLE: Record<ActivityKind, string> = {
-    note: "Note",
-    call: "Call logged",
-    email: "Email logged",
-    meeting: "Meeting logged",
-    task: "Task logged",
-    file: "File",
-    stage: "Stage changed",
-    create: "Record created",
-    update: "Details updated",
-    delete: "Removed",
-    other: "Activity",
-}
-
-const KIND_SHORT: Record<ActivityKind, string> = {
     note: "Note",
     call: "Call",
     email: "Email",
     meeting: "Meeting",
-    task: "Task",
+    follow_up: "Task",
     file: "File",
-    stage: "Stage",
-    create: "Created",
-    update: "Update",
+    stage: "Stage changed",
+    create: "Record created",
+    update: "Details updated",
     delete: "Removed",
     other: "Activity",
 }
@@ -276,20 +250,32 @@ function sentenceCase(text: string): string {
     return trimmed ? trimmed[0].toUpperCase() + trimmed.slice(1).toLowerCase() : trimmed
 }
 
-/** A row's title: "Call logged", "File uploaded". */
-export function activityTitle(kind: ActivityKind, actionType?: string | null): string {
-    if (kind === "file" && actionType?.trim()) return sentenceCase(actionType)
-    return KIND_TITLE[kind]
-}
+type TitleFacts = Pick<ActivityRow, "action_type" | "outcome" | "meeting_mode" | "location" | "subject" | "due_at" | "completed_at">
 
-export interface ActivityRow {
-    id: string
-    action_type: string
-    description: string | null
-    created_at: string
-    user_id?: string | null
-    attachment_name?: string | null
-    profile?: { full_name: string | null; avatar_url?: string | null } | null
+/**
+ * A row's title, what it was in a few words: "Call · Connected", "Meeting
+ * · In person · The Manhattan Square", "Meeting · Online", "Email ·
+ * Proposal v2", "Follow-up done · Send the proposal", "File uploaded". A
+ * row logged before these fields existed says its kind alone ("Call"; an
+ * old task, "Task").
+ */
+export function activityTitle(row: TitleFacts): string {
+    const kind = activityKind(row.action_type)
+    switch (kind) {
+        case "call":
+            return joinFacts(["Call", callOutcomeLabel(row.outcome)])
+        case "meeting":
+            return joinFacts(["Meeting", meetingModeLabel(row.meeting_mode), row.meeting_mode === "in_person" ? row.location : null])
+        case "email":
+            return joinFacts(["Email", row.subject])
+        case "follow_up":
+            if (!row.due_at) return KIND_TITLE.follow_up
+            return joinFacts([row.completed_at ? "Follow-up done" : "Follow-up", row.subject])
+        case "file":
+            return row.action_type?.trim() ? sentenceCase(row.action_type) : KIND_TITLE.file
+        default:
+            return KIND_TITLE[kind]
+    }
 }
 
 export interface NoteRow {
@@ -300,18 +286,30 @@ export interface NoteRow {
     created_at: string
 }
 
+/** The people a record's activity names (its assignees, who ticked a follow-up done), by id. */
+export type PeopleById = Readonly<Record<string, { full_name: string | null; avatar_url?: string | null }>>
+
+function personName(people: PeopleById, id: string | null | undefined): string | null {
+    return (id && people[id]?.full_name?.trim()) || null
+}
+
 export interface FeedItem {
     /** "a:<activity id>" or "n:<note id>". */
     key: string
     kind: ActivityKind
     title: string
-    /** Who did it; null for the system. */
+    /** Who did it (who ticked a follow-up done); null for the system. */
     actor: string | null
     detail: string | null
+    /** When it happened: the time a person chose, when a follow-up was done, else when it was written. */
     at: string
     attachment: string | null
-    /** Set on a note from the notes table, which its author may edit or delete. */
+    /** An online meeting's link. */
+    link: string | null
+    /** Set on a note from the notes table, which its author or an admin may edit or delete. */
     note: { id: string; userId: string | null; content: string } | null
+    /** The timeline row behind it, for Edit, Delete and a follow-up's tick. */
+    row: ActivityRow | null
 }
 
 const MIRRORED_NOTE = /^Added a note: "/
@@ -327,25 +325,30 @@ export function isMirroredNote(row: Pick<ActivityRow, "action_type" | "descripti
 }
 
 /**
- * One feed, newest first: the timeline's rows, with the notes taken from
- * the notes table (whole, editable by their author) in place of the
- * database's truncated copies. A note logged through the old Log Activity
+ * History, newest first: the timeline's rows, with the notes taken from
+ * the notes table (whole, editable) in place of the database's truncated
+ * copies, and without the open follow-ups, which are Upcoming's; a
+ * follow-up joins History when it is done, at the time it was done, under
+ * the name of whoever ticked it. A note logged through the old Log Activity
  * dialog lives only in the timeline and stays as it was.
  */
-export function buildFeed(activities: readonly ActivityRow[], notes: readonly NoteRow[] = []): FeedItem[] {
+export function buildFeed(activities: readonly ActivityRow[], notes: readonly NoteRow[] = [], people: PeopleById = {}): FeedItem[] {
     const items: FeedItem[] = []
     for (const row of activities) {
-        if (isMirroredNote(row)) continue
+        if (isMirroredNote(row) || isOpenFollowUp(row)) continue
         const kind = activityKind(row.action_type)
+        const done = isFollowUp(row) && !!row.completed_at
         items.push({
             key: `a:${row.id}`,
             kind,
-            title: activityTitle(kind, row.action_type),
-            actor: row.profile?.full_name?.trim() || null,
+            title: activityTitle(row),
+            actor: done ? personName(people, row.completed_by) : row.profile?.full_name?.trim() || null,
             detail: row.description?.trim() || null,
-            at: row.created_at,
+            at: (done ? row.completed_at : row.occurred_at) || row.created_at,
             attachment: row.attachment_name ?? null,
+            link: kind === "meeting" && row.meeting_url?.trim() ? row.meeting_url.trim() : null,
             note: null,
+            row,
         })
     }
     for (const note of notes) {
@@ -357,10 +360,63 @@ export function buildFeed(activities: readonly ActivityRow[], notes: readonly No
             detail: note.content,
             at: note.created_at,
             attachment: null,
+            link: null,
             note: { id: note.id, userId: note.user_id, content: note.content },
+            row: null,
         })
     }
     return items.sort((a, b) => Date.parse(b.at) - Date.parse(a.at))
+}
+
+export interface UpcomingItem {
+    key: string
+    title: string
+    detail: string | null
+    dueAt: string
+    assignee: { id: string; name: string; avatarUrl: string | null } | null
+    row: ActivityRow
+}
+
+/** Upcoming: the open follow-ups, the one due first on top (the most overdue), then the oldest. */
+export function buildUpcoming(activities: readonly ActivityRow[], people: PeopleById = {}): UpcomingItem[] {
+    return activities
+        .filter(isOpenFollowUp)
+        .map((row): UpcomingItem => {
+            const name = personName(people, row.assignee_id)
+            return {
+                key: `a:${row.id}`,
+                title: row.subject?.trim() || "Follow-up",
+                detail: row.description?.trim() || null,
+                dueAt: row.due_at as string,
+                assignee: row.assignee_id && name ? { id: row.assignee_id, name, avatarUrl: people[row.assignee_id]?.avatar_url ?? null } : null,
+                row,
+            }
+        })
+        .sort((a, b) => Date.parse(a.dueAt) - Date.parse(b.dueAt) || Date.parse(a.row.created_at) - Date.parse(b.row.created_at))
+}
+
+/** "3 Oct" this year, "3 Oct 2027" another. */
+function shortDay(at: Date, now: Date): string {
+    const day = `${at.getDate()} ${MONTHS[at.getMonth()]}`
+    return at.getFullYear() === now.getFullYear() ? day : `${day} ${at.getFullYear()}`
+}
+
+/**
+ * When a follow-up is due, as its row says it: "Due today", "Due
+ * tomorrow", "Due 3 Oct", or, once the day has passed, "Overdue · 20 Sep"
+ * (in the danger ink; the word says it too, for whoever does not see the
+ * colour). Days are the reader's calendar days.
+ */
+export function dueLabel(dueAt: string, now: Date = new Date()): { text: string; overdue: boolean } {
+    const due = new Date(dueAt)
+    if (Number.isNaN(due.getTime())) return { text: "", overdue: false }
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
+    const dueDay = new Date(due.getFullYear(), due.getMonth(), due.getDate()).getTime()
+    const days = Math.round((dueDay - today) / 86_400_000)
+    if (days < 0) return { text: `Overdue · ${shortDay(due, now)}`, overdue: true }
+    if (days === 0) return { text: "Due today", overdue: false }
+    if (days === 1) return { text: "Due tomorrow", overdue: false }
+    return { text: `Due ${shortDay(due, now)}`, overdue: false }
 }
 
 /** "Hanung Prasetyo" → "Hanung P.": a name short enough for a phone's row. */
@@ -370,36 +426,17 @@ export function shortPersonName(name: string): string {
     return `${words[0]} ${words[words.length - 1][0].toUpperCase()}.`
 }
 
-const KIND_COMPACT: Record<ActivityKind, string> = {
-    note: "Note",
-    call: "Call",
-    email: "Email",
-    meeting: "Meeting",
-    task: "Task",
-    file: "File",
-    stage: "Stage changed",
-    create: "Created",
-    update: "Updated",
-    delete: "Removed",
-    other: "Activity",
-}
-
-/**
- * "Call logged by Hanung Prasetyo"; the title alone when nobody is named.
- * `compact` is the phone's: "Call · Hanung P.".
- */
-export function feedHeadline(item: Pick<FeedItem, "kind" | "title" | "actor">, compact = false): string {
-    if (compact) {
-        const label = item.kind === "file" ? item.title : KIND_COMPACT[item.kind]
-        return item.actor ? `${label} · ${shortPersonName(item.actor)}` : label
-    }
-    return item.actor ? `${item.title} by ${item.actor}` : item.title
+/** Who, after a row's title: the name on a desk, "Hanung P." on a phone; nothing for the system. */
+export function feedByline(item: Pick<FeedItem, "actor">, compact = false): string | null {
+    if (!item.actor) return null
+    return compact ? shortPersonName(item.actor) : item.actor
 }
 
 /**
  * When, as a timeline says it: "just now", "3 hours ago", "2 days ago" for
  * the last week, then the day ("12 Sep 2026"). `compact` is the phone's:
  * "now", "5m", "3h", "2d", "12 Sep" (the year only when it is not this one).
+ * A time ahead of the clock (a row logged on a clock running fast) reads as now.
  */
 export function activityTime(iso: string, now: Date = new Date(), compact = false): string {
     const at = new Date(iso)
@@ -408,38 +445,36 @@ export function activityTime(iso: string, now: Date = new Date(), compact = fals
     const seconds = Math.max(0, Math.floor((now.getTime() - time) / 1000))
     const week = 7 * 86400
     if (!compact) {
-        if (seconds < week) return formatRelativeTime(iso, now) ?? ""
+        if (seconds < week) return formatRelativeTime(time > now.getTime() ? now.toISOString() : iso, now) ?? ""
         return formatCalendarDay(iso) ?? ""
     }
     if (seconds < 60) return "now"
     if (seconds < 3600) return `${Math.floor(seconds / 60)}m`
     if (seconds < 86400) return `${Math.floor(seconds / 3600)}h`
     if (seconds < week) return `${Math.floor(seconds / 86400)}d`
-    const day = `${at.getDate()} ${MONTHS[at.getMonth()]}`
-    return at.getFullYear() === now.getFullYear() ? day : `${day} ${at.getFullYear()}`
+    return shortDay(at, now)
 }
 
 /**
- * "Last activity" in a record's facts: the newest note, call, email,
- * meeting or task, as "Call · 2 days ago"; null when there is none (the
- * page says "No activity yet"). A field changed or a file uploaded is not
- * contact with anyone, so it does not count.
+ * "Last activity" in a record's facts: the newest note, call, meeting or
+ * email, by when it happened, as "Call · 2 days ago"; null when there is
+ * none (the page says "No activity yet").
  */
 export function lastActivityLabel(feed: readonly FeedItem[], now: Date = new Date()): string | null {
     const latest = feed.find((item) => ENGAGEMENT_KINDS.includes(item.kind))
     if (!latest) return null
-    return `${KIND_SHORT[latest.kind]} · ${activityTime(latest.at, now)}`
+    return `${KIND_TITLE[latest.kind]} · ${activityTime(latest.at, now)}`
 }
 
-export type FeedFilter = "all" | "note" | "call" | "email" | "meeting" | "task" | "file" | "changes"
+export type FeedFilter = "all" | "note" | "call" | "meeting" | "email" | "follow_up" | "file" | "changes"
 
 export const FEED_FILTERS: readonly { id: FeedFilter; label: string }[] = [
-    { id: "all", label: "All activity" },
+    { id: "all", label: "All" },
     { id: "note", label: "Notes" },
     { id: "call", label: "Calls" },
-    { id: "email", label: "Emails" },
     { id: "meeting", label: "Meetings" },
-    { id: "task", label: "Tasks" },
+    { id: "email", label: "Emails" },
+    { id: "follow_up", label: "Follow-ups" },
     { id: "file", label: "Files" },
     { id: "changes", label: "Changes" },
 ]
@@ -457,59 +492,4 @@ export function filterFeed(items: readonly FeedItem[], filter: FeedFilter): Feed
 /** The filters worth offering: All, then only those with something to show. */
 export function feedFilterOptions(items: readonly FeedItem[]): { id: FeedFilter; label: string }[] {
     return FEED_FILTERS.filter((filter) => filter.id === "all" || items.some((item) => matchesFilter(item, filter.id)))
-}
-
-// ─── The composer ────────────────────────────────────────────────────
-
-export type ComposerKind = "note" | "call" | "email" | "meeting" | "task"
-
-/**
- * What the composer logs: a note (the notes table) or a call, an email, a
- * meeting or a task (a timeline row with that `action_type`, the words the
- * Log Activity dialog wrote).
- */
-export const COMPOSER_KINDS: readonly { id: ComposerKind; label: string; action: string; actionType: string | null }[] = [
-    { id: "note", label: "Note", action: "Save note", actionType: null },
-    { id: "call", label: "Log call", action: "Log call", actionType: "Call" },
-    { id: "email", label: "Log email", action: "Log email", actionType: "Email" },
-    { id: "meeting", label: "Log meeting", action: "Log meeting", actionType: "Meeting" },
-    { id: "task", label: "Task", action: "Save task", actionType: "Task" },
-]
-
-/** The textarea's prompt, naming the person (their first name) or the company. */
-export function composerPlaceholder(kind: ComposerKind, subject: string): string {
-    const who = subject.trim() || "them"
-    switch (kind) {
-        case "note": return `Write a note about ${who} — meeting summary, preferences…`
-        case "call": return `What was said on the call with ${who}? Outcome, next step…`
-        case "email": return `What did the email to ${who} say? Subject, what was sent…`
-        case "meeting": return `How did the meeting with ${who} go? Who came, what was agreed…`
-        case "task": return `What needs doing for ${who}? The task and when it is due…`
-    }
-}
-
-// ─── Scrolling ───────────────────────────────────────────────────────
-
-/**
- * Where the page's scroller must go so a target shows whole under what is
- * pinned at its top (the tabs), or null when it already does and nothing
- * should move. Positions are in the scroller's content (`top` is the
- * target's distance from the content's top). A target above the visible
- * band, or reaching past its foot, is brought to `gap` under the pinned
- * bar; one taller than the band shows its top. Used for "Log activity"
- * (the composer), in place of `scrollIntoView`, which asks every ancestor
- * to scroll (DESIGN.md, "Record pages").
- */
-export function revealScrollTop({ scrollTop, viewHeight, pinned, top, height, gap = 16 }: {
-    scrollTop: number
-    viewHeight: number
-    pinned: number
-    top: number
-    height: number
-    gap?: number
-}): number | null {
-    const bandTop = scrollTop + pinned
-    const bandBottom = scrollTop + viewHeight
-    if (top >= bandTop && top + height <= bandBottom) return null
-    return Math.max(0, Math.round(top - pinned - gap))
 }

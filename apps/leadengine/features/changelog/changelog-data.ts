@@ -76,6 +76,21 @@ export const CHANGE_TYPE_META: Record<
 export const CHANGELOG: ChangelogEntry[] = [
     {
         date: "2026-09-25",
+        title: "Log calls, meetings, emails and follow-ups on a contact or company",
+        items: [
+            { type: "improvement", text: "A contact's page and a company's page now open on one Activity tab instead of Overview and Activity, which showed the same things twice. At the top is the box to log something, under it Upcoming (the follow-ups still to do) and History (everything that happened), and beside them, as before, the details, the company or contacts and the leads. Old links to Overview or Activity open this tab." },
+            { type: "feature", text: "Pick what you are logging above the box: Note, Call, Meeting, Email or Follow-up, and the box asks for what that kind needs. A call: how it went (Connected, No answer, Busy or Call back requested), when it happened (now unless you change it; it can't be in the future) and notes. A meeting: in person (with the location) or online (with the meeting link), when, and the outcome. An email: its subject, when, and a summary. The button says what it will do (Log call, Log meeting…) and stays grey until the fields marked * are filled. Ctrl + Enter saves." },
+            { type: "feature", text: "Follow-ups replace tasks: give it a title, a due date (tomorrow unless you change it) and who should do it (you, unless you pick someone who can see this business unit). Open follow-ups are listed under Upcoming, the most urgent first, with an overdue one marked Overdue in red. Tick the box when it is done: it moves into History as \"Follow-up done\" with who did it and when, and Undo brings it back. The person it is assigned to can tick it too." },
+            { type: "improvement", text: "History lists what happened by the time it happened, not the time it was typed in, so a call you log in the evening sits at the time of the call. Each row says what it was (for example \"Call · Connected\" or \"Meeting · Online\" with the meeting link to open), and the chips above it show only notes, calls, meetings, emails, follow-ups, files or changes." },
+            { type: "feature", text: "Change or delete something you logged with the ⋮ on its row: Edit opens the same fields right there, and Delete asks you first. An admin can do this for anyone's notes and activity; changes the system records, files and Sales Activity visits can't be edited." },
+            { type: "improvement", text: "\"Last activity\" counts notes, calls, meetings and emails only. A follow-up you set is a plan, not contact with the customer, so it no longer counts." },
+            { type: "improvement", text: "Meetings you plan are still scheduled in Sales Activity; the Meeting box here is for a meeting that already happened, and says so." },
+            { type: "fix", text: "Notes and activity on a contact or a company can now only be seen, and added, by people who can see that contact or company, the same as the record itself. Before, anyone signed in could read them." },
+            { type: "improvement", text: "On a phone, Activity starts with the key facts and \"Add a note…\", which opens the same box from the bottom of the screen with all five kinds; Upcoming and History follow, then the company and the details." },
+        ],
+    },
+    {
+        date: "2026-09-25",
         title: "New pages for contacts and companies",
         items: [
             { type: "improvement", text: "A contact's page and a company's page have a new, cleaner layout. At the top: the ← arrow to go back to the list (it opens the way you left it), the name, the job title and company (for a company, its sector, line industry and city), and buttons for Call, Email, Edit and New lead, with ‹ › to go to the previous or next record and ⋮ for Delete. Under the name you see at a glance who owns the record, the phone number, the email (or a company's website) and the last activity. The top of the page lines up with the cards below it, edge to edge." },

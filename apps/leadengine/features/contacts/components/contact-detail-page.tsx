@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react"
+import { useCallback, useMemo, useRef, useState, type ReactNode } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { PageChrome, type ChromeMenuItem } from "@/components/layout/page-chrome"
@@ -22,23 +22,24 @@ import {
     FieldRow, InlineChoiceField, InlineSelectField, InlineTextField, type ChoiceOption,
 } from "@/components/shared/inline-edit-field"
 import {
-    AboutCard, ActivityComposer, AddNoteRow, ComposerSheet, FactLink, FactNone, FILLED_BUTTON, HeaderLinkButton,
-    KeyFact, KeyFactsCard, MORE_BUTTON, OUTLINED_BUTTON, PersonLine, QuickAction, RecentActivityCard, RecordFact,
-    RecordHeader, RecordHero, RecordLeadsCard, RecordPanel, RecordStepper, RecordTabs, RECORD_TYPE, RelatedCompanyCard,
-    revealAndFocus, type RecordLead, type RecordTab,
+    AboutCard, AddNoteRow, FactLink, FactNone, FILLED_BUTTON, HeaderLinkButton, KeyFact, KeyFactsCard, MORE_BUTTON,
+    OUTLINED_BUTTON, PersonLine, QuickAction, RecordFact, RecordHeader, RecordHero, RecordLeadsCard, RecordPanel,
+    RecordStepper, RecordTabs, RECORD_TYPE, RelatedCompanyCard, type RecordLead, type RecordTab,
 } from "@/components/shared/record-page"
+import { ActivityComposer, ComposerSheet, type ComposerEnv } from "@/components/shared/record-composer"
 import { RecordActivityFeed } from "@/components/shared/record-activity-feed"
 import { RecordFiles } from "@/components/shared/record-files"
 import { RecordLeadsTable } from "@/components/shared/record-leads-table"
 import { NewLeadSheet } from "@/features/leads/components/new-lead-sheet"
 import { companyCardLine } from "@/features/companies/lib/company-record"
-import { contactActivityTarget, useRecordActivity } from "@/hooks/use-record-activity"
+import { contactActivityTarget, useRecordActivity, useRecordAssignees } from "@/hooks/use-record-activity"
 import { formatPhoneDisplay } from "@/lib/phone-normalize"
 import { cn } from "@/lib/utils"
 import {
     buildFeed, externalHref, firstName, formatCalendarDay, formatDayTime, isBlank, lastActivityLabel, mailtoHref,
-    splitEmptyFields, telHref, whatsAppHref, type ActivityRow, type NoteRow,
+    splitEmptyFields, telHref, whatsAppHref, type ActivityRow, type NoteRow, type PeopleById,
 } from "@/lib/record-page"
+import type { RecordViewer } from "@/lib/record-activity"
 import {
     ChevronLeft, ChevronRight, FileText, Loader2, Mail, MessageCircle, MoreVertical, Pencil, Phone, Trash2,
 } from "@/components/icons"
@@ -103,6 +104,10 @@ interface ContactDetailPageProps {
     activities: ActivityRow[]
     /** The contact's notes, newest first. */
     notes: NoteRow[]
+    /** The people the timeline names beyond its authors: assignees, who ticked a follow-up done. */
+    people: PeopleById
+    /** Who is looking: their id, name and whether they are an admin (what they may edit and tick). */
+    viewer: RecordViewer
     fileCount: number | null
     lastModified?: string
     lastModifiedBy?: string
@@ -134,21 +139,20 @@ interface InfoField {
  *   desk (lg+)  the header: back (←, "Back to Contacts"), avatar, name,
  *               job title · company, ‹ › Call Email Edit New lead ⋮; the
  *               facts: Owner, Phone, Email, Last activity
- *               tabs pinned to the top: Overview · Activity · Leads n · Files n
- *               Overview: the composer and Recent activity; beside them
- *               (380px) About this contact, Company, Leads. Activity, Leads
- *               and Files take the whole width; Activity is the history
- *               alone, its "Log activity" opening Overview's composer
+ *               tabs pinned to the top: Activity · Leads n · Files n
+ *               Activity: the composer, Upcoming (open follow-ups) and
+ *               History; beside them (380px) About this contact, Company,
+ *               Leads. Leads and Files take the whole width
  *   phone       the top app bar ("Contact", back, ⋮ Edit / Email / ‹ › / Delete)
  *               the header centred: avatar, name, job title, company, then
  *               Call · WhatsApp · Email · Note
- *               tabs pinned under the top app bar; Overview: Key facts,
- *               Add a note… (the composer, in a bottom sheet), Recent
- *               activity, Company, About this contact
+ *               tabs pinned under the top app bar; Activity: Key facts,
+ *               Add a note… (the composer, in a bottom sheet), Upcoming,
+ *               History, then Company and About this contact
  */
 export function ContactDetailPage({
-    contact, leads, activities, notes, fileCount, lastModified, lastModifiedBy, nextContactId, prevContactId,
-    businessUnit = null, customFields = [], initialTab = "overview",
+    contact, leads, activities, notes, people, viewer, fileCount, lastModified, lastModifiedBy, nextContactId, prevContactId,
+    businessUnit = null, customFields = [], initialTab = "activity",
 }: ContactDetailPageProps) {
     const router = useRouter()
     const { can } = usePermissions()
@@ -165,16 +169,10 @@ export function ContactDetailPage({
     const [deleting, setDeleting] = useState(false)
     const [composerOpen, setComposerOpen] = useState(false)
     const [newLeadOpen, setNewLeadOpen] = useState(false)
-    const [currentUserId, setCurrentUserId] = useState<string | null>(null)
     const [filesCount, setFilesCount] = useState<number | null>(fileCount)
     const [ownerOptions, setOwnerOptions] = useState<ChoiceOption[] | null>(null)
     const [companyOptions, setCompanyOptions] = useState<ChoiceOption[] | null>(null)
     const tabsAnchorRef = useRef<HTMLDivElement>(null)
-    const composerFieldRef = useRef<HTMLTextAreaElement>(null)
-
-    useEffect(() => {
-        createClient().auth.getUser().then(({ data }) => setCurrentUserId(data.user?.id ?? null))
-    }, [])
 
     // ─── Facts ─────────────────────────────────────────────
     const nameDisplay = nameWithSalutation(contact.salutation, contact.full_name)
@@ -186,10 +184,18 @@ export function ContactDetailPage({
     const tel = telHref(contact.phone)
     const whatsApp = whatsAppHref(contact.phone)
     const disc = readDisc(contact.custom_fields)
-    const feed = useMemo(() => buildFeed(activities, notes), [activities, notes])
+    const feed = useMemo(() => buildFeed(activities, notes, people), [activities, notes, people])
     const lastActivity = lastActivityLabel(feed)
-    const { log, editNote, deleteNote } = useRecordActivity(contactActivityTarget(contact.id))
-    const subject = firstName(contact.full_name)
+    const target = useMemo(() => contactActivityTarget(contact.id), [contact.id])
+    const { log, ...activityActions } = useRecordActivity(target)
+    const { assignees, loadAssignees } = useRecordAssignees(target)
+    const composerEnv: ComposerEnv = {
+        subject: firstName(contact.full_name),
+        viewer: { id: viewer.id, isAdmin: viewer.isAdmin },
+        viewerName: viewer.name,
+        assignees,
+        loadAssignees,
+    }
 
     const openEdit = () => setEditOpen(true)
     const openNewLead = canCreateLead ? () => setNewLeadOpen(true) : undefined
@@ -256,16 +262,7 @@ export function ContactDetailPage({
         if (main.scrollTop > pinnedAt) main.scrollTo({ top: pinnedAt })
     }, [])
 
-    // Activity's "Log activity": the composer lives on Overview alone, so
-    // the button opens Overview and, once it is drawn, puts the composer in
-    // view (the page's own scroller moving, only if it must) and in focus.
-    const logActivity = useCallback(() => {
-        chooseTab("overview")
-        requestAnimationFrame(() => revealAndFocus(composerFieldRef.current))
-    }, [chooseTab])
-
     const tabs: RecordTab<ContactTab>[] = [
-        { id: "overview", label: "Overview" },
         { id: "activity", label: "Activity" },
         { id: "leads", label: "Leads", count: leads.length },
         { id: "files", label: "Files", count: filesCount },
@@ -495,8 +492,8 @@ export function ContactDetailPage({
             <div ref={tabsAnchorRef} aria-hidden="true" />
             <RecordTabs tabs={tabs} value={tab} onChange={chooseTab} label="Contact views" idPrefix="contact" />
 
-            {/* ═══ OVERVIEW ═══════════════════════════════════════ */}
-            <RecordPanel idPrefix="contact" id="overview" active={tab === "overview"} className="flex flex-col gap-3 lg:flex-row lg:items-start lg:gap-6">
+            {/* ═══ ACTIVITY: the composer, Upcoming and History, the record beside them ═══ */}
+            <RecordPanel idPrefix="contact" id="activity" active={tab === "activity"} className="flex flex-col gap-3 lg:flex-row lg:items-start lg:gap-6">
                 {/* On a phone both columns dissolve into one, reordered. */}
                 <div className="contents lg:flex lg:min-w-0 lg:flex-1 lg:flex-col lg:gap-5">
                     <KeyFactsCard className="order-1 lg:hidden">
@@ -505,10 +502,10 @@ export function ContactDetailPage({
                         <KeyFact label="Email">{emailFact}</KeyFact>
                         <KeyFact label="Last activity">{lastActivityFact}</KeyFact>
                     </KeyFactsCard>
-                    <ActivityComposer subject={subject} onLog={log} fieldRef={composerFieldRef} className="hidden lg:block" />
+                    <ActivityComposer env={composerEnv} onSubmit={log} className="hidden lg:block" />
                     <AddNoteRow onOpen={() => setComposerOpen(true)} className="order-2 lg:hidden" />
-                    <div className="order-3 lg:order-none">
-                        <RecentActivityCard feed={feed} onViewAll={() => chooseTab("activity")} />
+                    <div className="order-3 flex flex-col gap-3 lg:order-none lg:gap-5">
+                        <RecordActivityFeed activities={activities} notes={notes} people={people} env={composerEnv} actions={activityActions} />
                     </div>
                 </div>
                 <div className="contents lg:flex lg:w-[320px] xl:w-[380px] lg:shrink-0 lg:flex-col lg:gap-5">
@@ -525,11 +522,6 @@ export function ContactDetailPage({
                 </div>
             </RecordPanel>
 
-            {/* ═══ ACTIVITY: the history only (the composer is Overview's) ═══ */}
-            <RecordPanel idPrefix="contact" id="activity" active={tab === "activity"} className="flex flex-col gap-3 lg:gap-5">
-                <RecordActivityFeed feed={feed} currentUserId={currentUserId} onEditNote={editNote} onDeleteNote={deleteNote} onLogActivity={logActivity} />
-            </RecordPanel>
-
             {/* ═══ LEADS ══════════════════════════════════════════ */}
             <RecordPanel idPrefix="contact" id="leads" active={tab === "leads"}>
                 <RecordLeadsTable leads={leads} onNew={openNewLead} emptyText="No leads yet. A lead that names this contact as its contact person shows here." />
@@ -541,7 +533,7 @@ export function ContactDetailPage({
             </RecordPanel>
 
             {/* ═══ SHEETS AND DIALOGS ═════════════════════════════ */}
-            <ComposerSheet open={composerOpen} onOpenChange={setComposerOpen} subject={subject} onLog={log} />
+            <ComposerSheet open={composerOpen} onOpenChange={setComposerOpen} env={composerEnv} onSubmit={log} />
             {canCreateLead && (
                 <NewLeadSheet
                     open={newLeadOpen}

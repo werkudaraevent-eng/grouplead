@@ -1,22 +1,19 @@
 "use client"
 
 import Link from "next/link"
-import { Fragment, useId, useRef, useState, type ComponentType, type KeyboardEvent, type ReactNode, type Ref } from "react"
+import { Fragment, useRef, useState, type ComponentType, type KeyboardEvent, type ReactNode } from "react"
 import { Button } from "@/components/ui/button"
-import { Textarea } from "@/components/ui/textarea"
 import { Tooltip } from "@/components/ui/tooltip"
-import { BottomSheet } from "@/components/ui/bottom-sheet"
 import { InitialsAvatar } from "@/components/shared/initials-avatar"
 import { useEdgeFade } from "@/hooks/use-edge-fade"
 import { useCurrency } from "@/contexts/currency-context"
 import { cn } from "@/lib/utils"
 import {
     ArrowLeft, ArrowRightLeft, ArrowUpRight, Calendar, CheckSquare, ChevronDown, ChevronLeft, ChevronRight, Clock, FileText,
-    Loader2, Mail, Paperclip, Pencil, Phone, Plus, Trash2,
+    Mail, Paperclip, Pencil, Phone, Plus, Trash2,
 } from "@/components/icons"
 import {
-    activityTime, COMPOSER_KINDS, composerPlaceholder, emptyFieldsToggleLabel, feedHeadline, leadStanding,
-    leadSummaryLabel, revealScrollTop, summarizeLeads, type ActivityKind, type ComposerKind, type FeedItem,
+    activityTime, emptyFieldsToggleLabel, leadStanding, leadSummaryLabel, summarizeLeads, type ActivityKind,
     type LeadStageFacts, type LeadStanding,
 } from "@/lib/record-page"
 
@@ -28,11 +25,13 @@ import {
  *   desk (lg+)  RecordHeader: back, avatar, name, the line under it and
  *               the actions in one row, then the facts row (RecordFact)
  *   phone       RecordHero: avatar, name, lines, QuickAction buttons;
- *               KeyFactsCard, AddNoteRow, ComposerSheet
+ *               KeyFactsCard, AddNoteRow (the composer's bottom sheet)
  *   both        RecordTabs pinned under the top; RecordPanel for each
- *               tab's body; RecordCard and its kinds: ActivityComposer
- *               (on Overview only), RecentActivityCard, AboutCard,
+ *               tab's body; RecordCard and its kinds: AboutCard,
  *               RelatedCompanyCard, RecordLeadsCard, RelatedListCard
+ *
+ * The Activity tab's composer is `record-composer.tsx`, its Upcoming and
+ * History `record-activity-feed.tsx`.
  *
  * Tokens only; sentence case; 4dp grid (4/8 inside a group, 16–24 between
  * groups); the type as the frames set it, with the font's own line height.
@@ -60,7 +59,7 @@ export const RECORD_GUTTER_DESK = "lg:px-8"
 
 /** The outlined button of the header (Call, Email, Edit): the card's surface, a hairline, 36dp, 8dp corners. */
 export const OUTLINED_BUTTON = "h-9 rounded-[8px] border-border bg-card px-4 font-semibold text-foreground shadow-none hover:bg-muted hover:text-foreground"
-/** The filled button (New lead, Save note). */
+/** The filled button (New lead, the composer's Save note / Log call…). */
 export const FILLED_BUTTON = "h-9 rounded-[8px] px-4 font-semibold"
 /** A 36dp round icon button (‹ › ⋮). */
 export const ICON_BUTTON = "size-9 rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -403,10 +402,10 @@ export function RecordTabs<T extends string>({ tabs, value, onChange, label, idP
 
 /**
  * One tab's body, in the page's content box (`RECORD_GUTTER`), 12dp under
- * the tabs on a phone and 24 on a desk. A tab with no side column
- * (Activity, Leads, Contacts, Files) takes the whole width between those
- * margins, never a reading column that leaves the side column's space
- * empty; only Overview splits it, through `className`, into its two.
+ * the tabs on a phone and 24 on a desk. A tab with no side column (Leads,
+ * Contacts, Files) takes the whole width between those margins, never a
+ * reading column that leaves the side column's space empty; only Activity
+ * splits it, through `className`, into its two.
  */
 export function RecordPanel({ idPrefix, id, active, className, children }: {
     idPrefix: string
@@ -486,7 +485,7 @@ export function KeyFact({ label, children }: { label: string; children: ReactNod
     )
 }
 
-/** The phone's way into the composer: one row that reads "Add a note…" and opens it in a bottom sheet. */
+/** The phone's way into the composer: one row that reads "Add a note…" and opens it, with every kind, in a bottom sheet. */
 export function AddNoteRow({ onOpen, className }: { onOpen: () => void; className?: string }) {
     return (
         <button
@@ -502,139 +501,6 @@ export function AddNoteRow({ onOpen, className }: { onOpen: () => void; classNam
 }
 
 // ═══════════════════════════════════════════════════════════════
-//  COMPOSER
-// ═══════════════════════════════════════════════════════════════
-
-/**
- * The composer (HubSpot's and Zoho's, M3's rules): what to log as tonal
- * choices (Note, Log call, Log email, Log meeting, Task), a 76dp text
- * field on the field fill that grows with what is written, and under it
- * "Ctrl + Enter to save" beside the filled button that says what it will
- * do (Save note, Log call…). `bare` drops the card (inside a sheet). It
- * lives on Overview alone (on a phone behind "Add a note…"): Activity's
- * "Log activity" brings it into view and into focus (`revealAndFocus`
- * with `fieldRef`) rather than drawing a second one.
- */
-export function ActivityComposer({ subject, onLog, onDone, bare = false, className, fieldRef }: {
-    /** Named in the prompt: the contact's first name, the company's name. */
-    subject: string
-    onLog: (kind: ComposerKind, text: string) => Promise<boolean>
-    /** Called after a save that worked. */
-    onDone?: () => void
-    bare?: boolean
-    className?: string
-    /** The text field, for "Log activity" to focus. */
-    fieldRef?: Ref<HTMLTextAreaElement>
-}) {
-    const [kind, setKind] = useState<ComposerKind>("note")
-    const [text, setText] = useState("")
-    const [saving, setSaving] = useState(false)
-    const choice = COMPOSER_KINDS.find((entry) => entry.id === kind) ?? COMPOSER_KINDS[0]
-    const fieldId = useId()
-    const fade = useEdgeFade<HTMLDivElement>()
-
-    const save = async () => {
-        if (!text.trim() || saving) return
-        setSaving(true)
-        const saved = await onLog(kind, text)
-        setSaving(false)
-        if (!saved) return
-        setText("")
-        onDone?.()
-    }
-
-    return (
-        <div data-reveal className={cn(!bare && "overflow-hidden rounded-[12px] border border-border bg-card", className)}>
-            {/* One row; on a narrow screen it scrolls sideways and fades at its edges. */}
-            <div ref={fade} role="radiogroup" aria-label="What to log" className="edge-fade no-scrollbar flex gap-1 overflow-x-auto px-3 pb-2.5 pt-2.5">
-                {COMPOSER_KINDS.map((entry) => {
-                    const active = entry.id === kind
-                    return (
-                        <button
-                            key={entry.id}
-                            type="button"
-                            role="radio"
-                            aria-checked={active}
-                            onClick={() => setKind(entry.id)}
-                            className={cn(
-                                "relative shrink-0 rounded-[8px] px-3 py-1.5 text-[13px] font-semibold outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring/50 pointer-coarse:before:absolute pointer-coarse:before:-inset-y-2.5 pointer-coarse:before:inset-x-0 pointer-coarse:before:content-['']",
-                                active ? "bg-[var(--tonal)] text-[var(--tonal-foreground)]" : "text-muted-foreground hover:bg-muted hover:text-foreground",
-                            )}
-                        >
-                            {entry.label}
-                        </button>
-                    )
-                })}
-            </div>
-            <div className="px-3 pb-3">
-                <label htmlFor={fieldId} className="sr-only">{choice.label}</label>
-                <Textarea
-                    ref={fieldRef}
-                    id={fieldId}
-                    value={text}
-                    onChange={(event) => setText(event.target.value)}
-                    onKeyDown={(event) => {
-                        if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
-                            event.preventDefault()
-                            save()
-                        }
-                    }}
-                    placeholder={composerPlaceholder(kind, subject)}
-                    className="max-h-60 min-h-[76px] resize-none rounded-[8px] px-3.5 py-3 text-sm shadow-none md:text-sm"
-                />
-            </div>
-            <div className="flex items-center justify-between gap-3 px-3 pb-3">
-                <span className="text-xs text-muted-foreground pointer-coarse:invisible">Ctrl + Enter to save</span>
-                <Button onClick={save} disabled={!text.trim() || saving} className={FILLED_BUTTON}>
-                    {saving && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}
-                    {choice.action}
-                </Button>
-            </div>
-        </div>
-    )
-}
-
-/**
- * Brings a field into view and gives it the focus without
- * `scrollIntoView` or a bare `.focus()` (DESIGN.md, "Record pages"): only
- * `<main>` moves, and only when the field's `[data-reveal]` block (the
- * composer's card) does not already show whole under the pinned tabs,
- * which it then sits 16dp under; the focus follows with `preventScroll`.
- */
-export function revealAndFocus(field: HTMLElement | null) {
-    if (!field) return
-    const main = document.getElementById("main-content")
-    if (main) {
-        const block = field.closest<HTMLElement>("[data-reveal]") ?? field
-        const tabs = main.querySelector<HTMLElement>("[data-record-tabs]")
-        const box = block.getBoundingClientRect()
-        const next = revealScrollTop({
-            scrollTop: main.scrollTop,
-            viewHeight: main.clientHeight,
-            pinned: tabs?.offsetHeight ?? 0,
-            top: box.top - main.getBoundingClientRect().top + main.scrollTop,
-            height: box.height,
-        })
-        if (next !== null) main.scrollTo({ top: next })
-    }
-    field.focus({ preventScroll: true })
-}
-
-/** The composer in a bottom sheet, for the phone's "Add a note…" and Note. */
-export function ComposerSheet({ open, onOpenChange, subject, onLog }: {
-    open: boolean
-    onOpenChange: (open: boolean) => void
-    subject: string
-    onLog: (kind: ComposerKind, text: string) => Promise<boolean>
-}) {
-    return (
-        <BottomSheet open={open} onOpenChange={onOpenChange} title="Log activity">
-            <ActivityComposer bare subject={subject} onLog={onLog} onDone={() => onOpenChange(false)} className={cn(RECORD_TYPE, "pb-2")} />
-        </BottomSheet>
-    )
-}
-
-// ═══════════════════════════════════════════════════════════════
 //  ACTIVITY
 // ═══════════════════════════════════════════════════════════════
 
@@ -643,7 +509,7 @@ export const ACTIVITY_ICON: Record<ActivityKind, IconType> = {
     call: Phone,
     email: Mail,
     meeting: Calendar,
-    task: CheckSquare,
+    follow_up: CheckSquare,
     file: Paperclip,
     stage: ArrowRightLeft,
     create: Plus,
@@ -652,7 +518,7 @@ export const ACTIVITY_ICON: Record<ActivityKind, IconType> = {
     other: Clock,
 }
 
-/** A feed row's icon: bare at 16dp on a phone, in a 32dp neutral circle on a desk. */
+/** A History row's icon: bare at 16dp on a phone, in a 32dp neutral circle on a desk. */
 export function ActivityIcon({ kind }: { kind: ActivityKind }) {
     const Icon = ACTIVITY_ICON[kind]
     return (
@@ -669,40 +535,6 @@ export function ActivityWhen({ at }: { at: string }) {
             <span className="lg:hidden" suppressHydrationWarning>{activityTime(at, new Date(), true)}</span>
             <span className="hidden lg:inline" suppressHydrationWarning>{activityTime(at)}</span>
         </time>
-    )
-}
-
-/**
- * The newest of the record's activity on its Overview: five on a desk,
- * three on a phone, each its icon, who did what (14px semibold), what it
- * said (13px, two lines at most) and when; "View all" opens Activity.
- */
-export function RecentActivityCard({ feed, onViewAll }: { feed: readonly FeedItem[]; onViewAll: () => void }) {
-    const shown = feed.slice(0, 5)
-    return (
-        <RecordCard title="Recent activity" headingId="recent-activity-heading" action={feed.length > 0 ? <CardAction onClick={onViewAll}>View all</CardAction> : undefined}>
-            {shown.length === 0 ? (
-                <p className="px-4 pb-4 pt-1 text-[13px] text-muted-foreground lg:pt-3.5">No activity yet. Notes, calls and meetings you log show here.</p>
-            ) : (
-                <ul className="pb-2 lg:pt-1">
-                    {shown.map((item, index) => (
-                        <li key={item.key} className={cn("flex gap-3 px-4 py-2.5 lg:py-3", index >= 3 && "max-lg:hidden")}>
-                            <ActivityIcon kind={item.kind} />
-                            <div className="min-w-0 flex-1">
-                                <div className="flex items-start justify-between gap-3">
-                                    <p className="min-w-0 truncate text-sm font-semibold text-foreground">
-                                        <span className="lg:hidden">{feedHeadline(item, true)}</span>
-                                        <span className="hidden lg:inline">{feedHeadline(item)}</span>
-                                    </p>
-                                    <ActivityWhen at={item.at} />
-                                </div>
-                                {item.detail && <p className="mt-0.5 line-clamp-2 break-words text-[13px] text-muted-foreground">{item.detail}</p>}
-                            </div>
-                        </li>
-                    ))}
-                </ul>
-            )}
-        </RecordCard>
     )
 }
 
@@ -875,7 +707,7 @@ export function StageChip({ stage }: { stage: RecordLead["pipeline_stage"] }) {
 }
 
 /**
- * The record's leads on its Overview: "2 open · Rp 1.2B · 1 won" (compact
+ * The record's leads beside its activity: "2 open · Rp 1.2B · 1 won" (compact
  * currency), then the open ones, what is still in play (five at most, the
  * newest first), each its name over its stage chip with its value at the
  * trailing edge, the row opening the lead. "+ New" starts one for this

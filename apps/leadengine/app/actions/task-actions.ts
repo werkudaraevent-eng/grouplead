@@ -17,6 +17,7 @@ import { createServiceClient } from "@/utils/supabase/service"
 import { logAuditEvent } from "@/app/actions/audit-actions"
 import { revalidatePath } from "next/cache"
 import type { ActionResult } from "@/types/action-result"
+import { assignableUsersForUnit, type AssignableUser } from "@/lib/assignable-users"
 
 interface ChecklistRow {
     id: string
@@ -507,20 +508,18 @@ export async function deleteTaskAction(
 // Assignable users — company-scoped via company_members
 // ───────────────────────────────────────────────────────────────────────────
 
-export interface AssignableUser {
-    id: string
-    full_name: string
-    avatar_url: string | null
-}
+export type { AssignableUser }
 
 /**
- * Returns active profiles that are members of the lead's owning company.
+ * Returns active profiles that are members of the lead's owning company
+ * (`assignableUsersForUnit`, shared with a contact's and a company's
+ * follow-ups).
  *
- * Uses a SECURITY DEFINER service-role client because RLS on
- * `company_members` only exposes the caller's own membership rows
- * (`user_id = auth.uid()`) — so a non-admin user calling this with the user
- * client would only ever see themselves as assignable. We still gate the
- * function behind an authenticated session before doing the elevated read.
+ * Uses a service-role client because RLS on `company_members` only exposes
+ * the caller's own membership rows (`user_id = auth.uid()`) — so a
+ * non-admin user calling this with the user client would only ever see
+ * themselves as assignable. We still gate the function behind an
+ * authenticated session before doing the elevated read.
  *
  * Falls back to all active profiles when:
  *   - the lead has no `company_id`
@@ -538,19 +537,6 @@ export async function listAssignableUsersForLeadAction(
 
     const admin = createServiceClient()
 
-    const fetchAllActive = async (): Promise<AssignableUser[]> => {
-        const { data, error } = await admin
-            .from("profiles")
-            .select("id, full_name, avatar_url")
-            .eq("is_active", true)
-            .order("full_name")
-        if (error) {
-            console.error("[task-actions] fetch all active profiles error:", error.message)
-            return []
-        }
-        return (data ?? []).filter((u): u is AssignableUser => Boolean(u.full_name))
-    }
-
     const { data: lead, error: leadErr } = await admin
         .from("leads")
         .select("company_id")
@@ -559,44 +545,7 @@ export async function listAssignableUsersForLeadAction(
 
     if (leadErr) {
         console.error("[task-actions] fetch lead error:", leadErr.message)
-        return fetchAllActive()
     }
 
-    if (!lead?.company_id) {
-        return fetchAllActive()
-    }
-
-    const { data: members, error: memberErr } = await admin
-        .from("company_members")
-        .select("user_id")
-        .eq("company_id", lead.company_id)
-
-    if (memberErr) {
-        console.error("[task-actions] fetch members error:", memberErr.message)
-        return fetchAllActive()
-    }
-
-    const ids = (members ?? []).map((m) => m.user_id).filter(Boolean)
-    if (ids.length === 0) {
-        // No memberships provisioned for this company yet — degrade
-        // gracefully instead of returning an empty list.
-        return fetchAllActive()
-    }
-
-    const { data: profiles, error: profErr } = await admin
-        .from("profiles")
-        .select("id, full_name, avatar_url")
-        .in("id", ids)
-        .eq("is_active", true)
-        .order("full_name")
-
-    if (profErr) {
-        console.error("[task-actions] fetch profiles error:", profErr.message)
-        return fetchAllActive()
-    }
-
-    const scoped = (profiles ?? []).filter((u): u is AssignableUser => Boolean(u.full_name))
-    // Defensive: if the join produced zero usable rows (e.g. all members
-    // have null full_name), fall back to all active profiles.
-    return scoped.length > 0 ? scoped : fetchAllActive()
+    return assignableUsersForUnit(admin, (lead?.company_id as string | null | undefined) ?? null)
 }

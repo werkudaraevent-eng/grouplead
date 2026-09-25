@@ -7,17 +7,22 @@ import { joinFacts, readRecordTab, withRecordTab } from "@/lib/record-page"
  * record page shares is in `lib/record-page.ts`.
  */
 
-export type CompanyTab = "overview" | "activity" | "contacts" | "leads" | "files"
+export type CompanyTab = "activity" | "contacts" | "leads" | "files"
 
-export const COMPANY_TAB_IDS: readonly CompanyTab[] = ["overview", "activity", "contacts", "leads", "files"]
+export const COMPANY_TAB_IDS: readonly CompanyTab[] = ["activity", "contacts", "leads", "files"]
 
-/** `?tab=` opens that tab (the old `?tab=timeline`, Activity); anything else, the Overview. */
+/**
+ * `?tab=` opens that tab; the old `?tab=overview`, `?tab=timeline` and
+ * `?tab=notes` open Activity, which holds what Overview held; anything
+ * else, Activity.
+ */
 export function readCompanyTab(value: string | string[] | null | undefined): CompanyTab {
-    return readRecordTab(value, COMPANY_TAB_IDS, { timeline: "activity", notes: "activity" })
+    return readRecordTab(value, COMPANY_TAB_IDS, { overview: "activity", timeline: "activity", notes: "activity" })
 }
 
+/** The query string with the tab in it; Activity, the default, is left out. */
 export function withCompanyTab(search: string, tab: CompanyTab): string {
-    return withRecordTab(search, tab, "overview")
+    return withRecordTab(search, tab, "activity")
 }
 
 interface CompanyFacts {
