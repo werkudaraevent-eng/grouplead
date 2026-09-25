@@ -517,7 +517,7 @@ function KindSegments({ value, onChange, className }: { value: ComposerKind; onC
 
     return (
         <div className={cn("@container/kinds", className)}>
-            <div ref={group} role="radiogroup" aria-label="What to log" onKeyDown={onKey} className="flex h-10 rounded-full border border-input">
+            <div ref={group} role="radiogroup" aria-label="What to log" onKeyDown={onKey} className="flex h-10 rounded-full border border-border">
                 {COMPOSER_KINDS.map((entry) => {
                     const active = entry.id === value
                     const Icon = KIND_ICON[entry.id]
@@ -536,7 +536,7 @@ function KindSegments({ value, onChange, className }: { value: ComposerKind; onC
                             tabIndex={active ? 0 : -1}
                             onClick={() => onChange(entry.id)}
                             className={cn(
-                                "relative inline-flex min-w-0 flex-1 basis-0 items-center justify-center gap-2 px-1.5 text-sm font-semibold outline-none transition-colors first:rounded-l-full last:rounded-r-full not-first:border-l not-first:border-input focus-visible:z-10 focus-visible:ring-2 focus-visible:ring-ring/50",
+                                "relative inline-flex min-w-0 flex-1 basis-0 items-center justify-center gap-2 px-1.5 text-sm font-semibold outline-none transition-colors first:rounded-l-full last:rounded-r-full not-first:border-l not-first:border-border focus-visible:z-10 focus-visible:ring-2 focus-visible:ring-ring/50",
                                 // 40dp tall; a finger gets 48dp through a hit area that moves nothing.
                                 "pointer-coarse:before:absolute pointer-coarse:before:inset-x-0 pointer-coarse:before:-inset-y-1 pointer-coarse:before:content-['']",
                                 active ? "bg-secondary text-secondary-foreground" : "text-foreground hover:bg-foreground/8 active:bg-foreground/10",
