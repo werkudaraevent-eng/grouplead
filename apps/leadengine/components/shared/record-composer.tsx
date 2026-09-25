@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode } from "react"
+import { useCallback, useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -9,7 +9,7 @@ import { DatePickerField } from "@/components/shared/date-picker-field"
 import { SearchableSelect } from "@/components/shared/searchable-select"
 import { useEdgeFade } from "@/hooks/use-edge-fade"
 import { cn } from "@/lib/utils"
-import { Check, Loader2 } from "@/components/icons"
+import { CalendarCheck, Check, FileText, Loader2, Mail, Phone, Users, type IconComponent } from "@/components/icons"
 import type { AssignableUser } from "@/lib/assignable-users"
 import {
     CALL_OUTCOMES, COMPOSER_KINDS, composerKind, emptyDraft, localDay, MEETING_MODES, notePlaceholder, parseDraft,
@@ -21,9 +21,10 @@ import { FILLED_BUTTON, RECORD_TYPE } from "./record-page"
 /**
  * The composer of a contact's and a company's Activity tab (DESIGN.md,
  * "Record pages"; HubSpot's, Pipedrive's and Salesforce's logging with
- * M3's rules): one card, the type pills (Note · Log call · Log meeting ·
- * Log email · Follow-up: what already happened is logged, never the
- * header's Call or Send email) and under them the fields that kind asks for, as M3 filled
+ * M3's rules): one card, the type picker, an M3 segmented button (Note ·
+ * Log call · Log meeting · Log email · Follow-up: what already happened
+ * is logged, never the header's Call or Send email), and under it the
+ * fields that kind asks for, as M3 filled
  * fields with sentence-case labels over them (a red * on what is
  * required), then "Ctrl + Enter to save" beside the filled button that
  * says what it will do (Save note, Log call, Log meeting, Log email, Add
@@ -346,9 +347,10 @@ function ComposerFields({ kind, draft, patch, touchWhen, errors, env, today }: {
  * scroll); `inline` edits a row of History or Upcoming in place, its kind
  * fixed, with Cancel beside Save changes. Ctrl + Enter (⌘ + Enter) saves
  * from any field. A "when" nobody chose follows the clock; the kind stays
- * after a save, the fields clear.
+ * after a save, the fields clear. `kind` and `onKindChange` hand the kind
+ * to whoever names it (the sheet's title); otherwise it is the composer's own.
  */
-export function ActivityComposer({ env, onSubmit, onDone, variant = "card", className, initial, submitLabel, onCancel }: {
+export function ActivityComposer({ env, onSubmit, onDone, variant = "card", className, initial, submitLabel, onCancel, kind: chosenKind, onKindChange }: {
     env: ComposerEnv
     onSubmit: (input: ComposerInput) => Promise<boolean>
     /** Called after a save that worked. */
@@ -359,9 +361,17 @@ export function ActivityComposer({ env, onSubmit, onDone, variant = "card", clas
     initial?: { kind: ComposerKind; draft: ComposerDraft }
     submitLabel?: string
     onCancel?: () => void
+    /** The kind, when the caller holds it. */
+    kind?: ComposerKind
+    onKindChange?: (next: ComposerKind) => void
 }) {
     const now = useNow()
-    const [kind, setKind] = useState<ComposerKind>(initial?.kind ?? "note")
+    const [ownKind, setOwnKind] = useState<ComposerKind>(initial?.kind ?? "note")
+    const kind = chosenKind ?? ownKind
+    const setKind = (next: ComposerKind) => {
+        setOwnKind(next)
+        onKindChange?.(next)
+    }
     const [draft, setDraft] = useState<ComposerDraft>(() => initial?.draft ?? emptyDraft(new Date(), env.viewer.id))
     const [saving, setSaving] = useState(false)
     const rootRef = useRef<HTMLDivElement>(null)
@@ -423,7 +433,7 @@ export function ActivityComposer({ env, onSubmit, onDone, variant = "card", clas
         >
             {!inline && (
                 <>
-                    <KindPills value={kind} onChange={setKind} className={pad} />
+                    <KindSegments value={kind} onChange={setKind} className={cn(pad, variant === "sheet" ? "pb-3 pt-1" : "py-3")} />
                     {kind === "meeting" && (
                         <p className={cn(pad, "-mt-1 pb-3 text-xs text-muted-foreground")}>
                             Planned visits are scheduled in Sales Activity; this logs a meeting that happened.
@@ -452,14 +462,43 @@ export function ActivityComposer({ env, onSubmit, onDone, variant = "card", clas
     )
 }
 
+/** Each kind's icon on its segment (a note's is the one its History row carries). */
+const KIND_ICON: Record<ComposerKind, IconComponent> = {
+    note: FileText,
+    call: Phone,
+    meeting: Users,
+    email: Mail,
+    follow_up: CalendarCheck,
+}
+
 /**
- * What to log: tonal choices (13px semibold, 8dp corners, the chosen on
- * `--tonal`), one row that scrolls sideways and fades at its edges when
- * narrow; one radio group, arrow keys moving between them.
+ * What to log, as an M3 segmented button: a mode, always exactly one, that
+ * changes the form under it (History's filter chips narrow a list, so they
+ * stay chips). One connected 40dp control as wide as the composer, fully
+ * round ends, the outline role (`--input`) at its edge and between five
+ * equal segments; each an 18dp icon and its label (14px semibold), the
+ * chosen one on the secondary container with a check in its icon's place,
+ * the others on-surface with an 8% state layer on hover. Where five labels
+ * do not fit (under 640px of composer: a desk at 1024 with the drawer open,
+ * the phone's sheet) the segments are icons alone, the chosen keeping its
+ * own icon so the kind still reads, each named by its label and, pointed
+ * at, tooltipped with it. A container query decides, so the first paint is
+ * already right. One radio group: arrow keys, Home and End move and choose.
  */
-function KindPills({ value, onChange, className }: { value: ComposerKind; onChange: (next: ComposerKind) => void; className?: string }) {
-    const fade = useEdgeFade<HTMLDivElement>()
+function KindSegments({ value, onChange, className }: { value: ComposerKind; onChange: (next: ComposerKind) => void; className?: string }) {
     const buttons = useRef(new Map<ComposerKind, HTMLButtonElement>())
+    // Follows the container query rather than repeating its width: the
+    // tooltip is for a segment whose label is not drawn.
+    const [iconOnly, setIconOnly] = useState(false)
+    const group = useCallback((el: HTMLDivElement | null) => {
+        if (!el) return
+        const observer = new ResizeObserver(() => {
+            const label = el.querySelector("[data-segment-label]")
+            setIconOnly(label !== null && getComputedStyle(label).display === "none")
+        })
+        observer.observe(el)
+        return () => observer.disconnect()
+    }, [])
 
     const onKey = (event: KeyboardEvent<HTMLDivElement>) => {
         const index = COMPOSER_KINDS.findIndex((entry) => entry.id === value)
@@ -477,44 +516,72 @@ function KindPills({ value, onChange, className }: { value: ComposerKind; onChan
     }
 
     return (
-        <div ref={fade} role="radiogroup" aria-label="What to log" onKeyDown={onKey} className={cn("edge-fade no-scrollbar flex gap-1 overflow-x-auto pb-2.5 pt-2.5", className)}>
-            {COMPOSER_KINDS.map((entry) => {
-                const active = entry.id === value
-                return (
-                    <button
-                        key={entry.id}
-                        ref={(el) => {
-                            if (el) buttons.current.set(entry.id, el)
-                            else buttons.current.delete(entry.id)
-                        }}
-                        type="button"
-                        role="radio"
-                        aria-checked={active}
-                        tabIndex={active ? 0 : -1}
-                        onClick={() => onChange(entry.id)}
-                        className={cn(
-                            "relative shrink-0 rounded-[8px] px-3 py-1.5 text-[13px] font-semibold outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring/50 pointer-coarse:before:absolute pointer-coarse:before:-inset-y-2.5 pointer-coarse:before:inset-x-0 pointer-coarse:before:content-['']",
-                            active ? "bg-[var(--tonal)] text-[var(--tonal-foreground)]" : "text-muted-foreground hover:bg-muted hover:text-foreground",
-                        )}
-                    >
-                        {entry.label}
-                    </button>
-                )
-            })}
+        <div className={cn("@container/kinds", className)}>
+            <div ref={group} role="radiogroup" aria-label="What to log" onKeyDown={onKey} className="flex h-10 rounded-full border border-input">
+                {COMPOSER_KINDS.map((entry) => {
+                    const active = entry.id === value
+                    const Icon = KIND_ICON[entry.id]
+                    return (
+                        <button
+                            key={entry.id}
+                            ref={(el) => {
+                                if (el) buttons.current.set(entry.id, el)
+                                else buttons.current.delete(entry.id)
+                            }}
+                            type="button"
+                            role="radio"
+                            aria-checked={active}
+                            aria-label={entry.label}
+                            title={iconOnly ? entry.label : undefined}
+                            tabIndex={active ? 0 : -1}
+                            onClick={() => onChange(entry.id)}
+                            className={cn(
+                                "relative inline-flex min-w-0 flex-1 basis-0 items-center justify-center gap-2 px-1.5 text-sm font-semibold outline-none transition-colors first:rounded-l-full last:rounded-r-full not-first:border-l not-first:border-input focus-visible:z-10 focus-visible:ring-2 focus-visible:ring-ring/50",
+                                // 40dp tall; a finger gets 48dp through a hit area that moves nothing.
+                                "pointer-coarse:before:absolute pointer-coarse:before:inset-x-0 pointer-coarse:before:-inset-y-1 pointer-coarse:before:content-['']",
+                                active ? "bg-secondary text-secondary-foreground" : "text-foreground hover:bg-foreground/8 active:bg-foreground/10",
+                            )}
+                        >
+                            {active && <Check className="hidden size-[18px] shrink-0 @min-[640px]/kinds:block" aria-hidden="true" />}
+                            <Icon className={cn("size-[18px] shrink-0", active && "@min-[640px]/kinds:hidden")} aria-hidden="true" />
+                            <span data-segment-label className="hidden min-w-0 truncate @min-[640px]/kinds:block">{entry.label}</span>
+                        </button>
+                    )
+                })}
+            </div>
         </div>
     )
 }
 
-/** The composer in a bottom sheet, for the phone's "Add a note…" and Note: the same kinds and fields. */
+/**
+ * The composer in a bottom sheet, for the phone's "Add a note…" and Note:
+ * the same kinds and fields, the sheet's title naming the kind chosen
+ * ("Note", "Log call"…), since its segments are icons alone at a phone's
+ * width. Each opening starts on Note, the door it was opened by.
+ */
 export function ComposerSheet({ open, onOpenChange, env, onSubmit }: {
     open: boolean
     onOpenChange: (open: boolean) => void
     env: ComposerEnv
     onSubmit: (input: ComposerInput) => Promise<boolean>
 }) {
+    const [kind, setKind] = useState<ComposerKind>("note")
+    const [wasOpen, setWasOpen] = useState(open)
+    if (open !== wasOpen) {
+        setWasOpen(open)
+        if (open) setKind("note")
+    }
     return (
-        <BottomSheet open={open} onOpenChange={onOpenChange} title="Log activity">
-            <ActivityComposer variant="sheet" env={env} onSubmit={onSubmit} onDone={() => onOpenChange(false)} className={RECORD_TYPE} />
+        <BottomSheet open={open} onOpenChange={onOpenChange} title={composerKind(kind).label}>
+            <ActivityComposer
+                variant="sheet"
+                env={env}
+                onSubmit={onSubmit}
+                onDone={() => onOpenChange(false)}
+                kind={kind}
+                onKindChange={setKind}
+                className={RECORD_TYPE}
+            />
         </BottomSheet>
     )
 }

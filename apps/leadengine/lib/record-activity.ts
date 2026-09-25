@@ -141,10 +141,11 @@ export function canManageNote(note: { userId: string | null }, viewer: ActivityV
 export type ComposerKind = "note" | "call" | "meeting" | "email" | "follow_up"
 
 /**
- * The type pills in order, the button each makes, the toast after a save,
- * and the word for Delete's question. A pill for something that already
- * happened says so ("Log call"), so it never reads as the header's Call
- * (which dials) or Send email (which writes one).
+ * The composer's kinds in order (the segments of its type picker), the
+ * button each makes, the toast after a save, and the word for Delete's
+ * question. A kind for something that already happened says so ("Log
+ * call"), so it never reads as the header's Call (which dials) or Send
+ * email (which writes one).
  */
 export const COMPOSER_KINDS: readonly { id: ComposerKind; label: string; action: string; done: string; noun: string }[] = [
     { id: "note", label: "Note", action: "Save note", done: "Note saved", noun: "note" },
