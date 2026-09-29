@@ -10,7 +10,7 @@ import { fallbackTitle } from "@/lib/navigation/app-nav"
 /**
  * Material's small top app bar, below `lg`: the page's title, "back" on a
  * page below another (a record, a page under Settings) where the desk shows
- * a back arrow or a parent link, and the page's overflow menu at the
+ * a back arrow or the settings menu, and the page's overflow menu at the
  * trailing edge. The product mark stands in for "back" at a top
  * destination. Twin of Sales Activity's `MobileTopBar` (workspace-shell.tsx),
  * less the bell: LeadEngine has no notifications.

@@ -21,9 +21,10 @@ import { PageIntro } from "@/components/page-intro"
  * the 20px title and the page's actions centred on it. A top-level page
  * has nothing above the title: the drawer's active item and the title
  * already say where you are, and the product's name is in the drawer. A
- * derived page (a settings page, a record, a form) may name its parent
- * in one small sentence-case line above the title, inside the same row
- * (`eyebrow`: "Pengaturan", "Aktivitas"), never the product's name. Under
+ * derived page (a record, a form) may name its parent in one small
+ * sentence-case line above the title, inside the same row (`eyebrow`:
+ * "Aktivitas", "Prospek"), never the product's name; a settings page has
+ * none, its place is the settings menu's current row. Under
  * the row, a description that teaches shows until the person closes it
  * (`introKey`); one that states facts (Hari ini's date, a record's type
  * and place) always shows. A record whose title is the CRM's current name
@@ -33,6 +34,14 @@ import { PageIntro } from "@/components/page-intro"
  * On a phone the title lives in the top app bar (announced through
  * PageChrome), the one primary action is an extended FAB, and the rest of
  * the header row wraps.
+ *
+ * From `lg` the header and the content share one column (DESIGN.md
+ * "Settings layout and page width"): a reading page (`reading`: the guide,
+ * Yang baru, a create or edit form) centres one column of at most 960px;
+ * a page inside Pengaturan's frame sits in a column of at most 880px beside
+ * the settings menu, or fills the room beside it (`wide`) when a table or
+ * a matrix needs it. Lists, boards, dashboards and records keep the full
+ * width, and their rows stay the scroller's own.
  */
 export function WorkspacePage({
   eyebrow,
@@ -45,9 +54,11 @@ export function WorkspacePage({
   phoneAction = true,
   primaryAction,
   fill = false,
+  reading = false,
+  wide = false,
   children,
 }: {
-  /** A derived page's parent, in sentence case ("Pengaturan / AI"); a top-level page has none. */
+  /** A derived page's parent, in sentence case ("Aktivitas"); a top-level page and a settings page have none. */
   eyebrow?: string
   title: string
   /**
@@ -90,6 +101,19 @@ export function WorkspacePage({
    * for the card's minimum. Below `md` the page scrolls as every page does.
    */
   fill?: boolean
+  /**
+   * A page read top to bottom rather than scanned (the guide, Yang baru, a
+   * create or edit form): from `lg` its header and content are one centred
+   * column of at most 960px (`max-w-reading`), so the action in the header
+   * sits over the thing it acts on.
+   */
+  reading?: boolean
+  /**
+   * Inside Pengaturan only: the page shows a table or a matrix that needs
+   * more than the settings column's 880px, so its column fills the room
+   * beside the settings menu (still inside the page's gutter).
+   */
+  wide?: boolean
   children: React.ReactNode
 }) {
   // Whether anything in the header reaches a phone; if not, the block is
@@ -126,6 +150,17 @@ export function WorkspacePage({
       {titleNote}
     </p>
   ) : null
+  // The column the header and the content share. `contents` where there is
+  // none, so a list's rows stay the header's and the scroller's own children.
+  const column = cn(
+    "contents",
+    reading
+      ? "lg:mx-auto lg:block lg:w-full lg:max-w-reading"
+      : cn(
+          "lg:[[data-settings-frame]_&]:block lg:[[data-settings-frame]_&]:w-full",
+          !wide && "lg:[[data-settings-frame]_&]:max-w-settings"
+        )
+  )
   return (
     <div className="flex h-full w-full flex-col overflow-clip bg-background">
       <PageChrome title={title} />
@@ -140,15 +175,17 @@ export function WorkspacePage({
           !phoneHeader && "max-lg:hidden"
         )}
       >
-        <div className="flex flex-col gap-3 lg:min-h-14 lg:flex-row lg:items-center lg:justify-between lg:py-1.5">
-          <div className="hidden min-w-0 lg:block">
-            {eyebrow && <p className="truncate text-xs font-medium text-muted-foreground">{eyebrow}</p>}
-            <h1 className={cn("text-xl font-semibold tracking-tight text-foreground", fill && "truncate")}>{title}</h1>
+        <div className={column}>
+          <div className="flex flex-col gap-3 lg:min-h-14 lg:flex-row lg:items-center lg:justify-between lg:py-1.5">
+            <div className="hidden min-w-0 lg:block">
+              {eyebrow && <p className="truncate text-xs font-medium text-muted-foreground">{eyebrow}</p>}
+              <h1 className={cn("text-xl font-semibold tracking-tight text-foreground", fill && "truncate")}>{title}</h1>
+            </div>
+            {actions}
           </div>
-          {actions}
+          {note}
+          {text}
         </div>
-        {note}
-        {text}
       </div>
       <div
         id="page-scroll"
@@ -162,7 +199,8 @@ export function WorkspacePage({
           fill && primaryAction && "md:max-lg:pb-[calc(10.5rem+env(safe-area-inset-bottom))]"
         )}
       >
-        {children}
+        {/* A filled list's rows are the scroller's flex items; no column. */}
+        {fill ? children : <div className={column}>{children}</div>}
       </div>
       {primaryAction && <Fab href={primaryAction.href} label={primaryAction.label} hint={primaryAction.hint} />}
     </div>

@@ -195,9 +195,11 @@ export default function PipelineDetailSettingsPage() {
     if (!pipeline) return <div className="p-10 text-center text-[#8892a4]">Pipeline not found.</div>
 
     return (
-        <div className="min-h-screen bg-background">
-            {/* Every page's header (DESIGN.md "Page headers"): "Settings /
-                Pipeline" above the title is the way back, and the line under
+        // Wide: the stage flow and the rules editor need the room beside the settings menu.
+        <div data-settings-wide className="min-h-screen bg-background">
+            {/* Every page's header (DESIGN.md "Page headers"): the settings
+                menu's Pipeline & stages row, active beside it, is the way
+                back (on a phone, the top app bar's arrow), and the line under
                 it states facts, so it always shows. Only that row is sticky;
                 the flow and the tabs below it scroll with the page. */}
             <SettingsPageHeader
@@ -206,7 +208,7 @@ export default function PipelineDetailSettingsPage() {
                 breadcrumbs={[{ label: "Pipeline", href: "/settings/pipeline" }, { label: pipeline.name }]}
             />
             <div>
-                <div className="px-8 pb-4 max-w-[1400px] mx-auto">
+                <div className="px-4 sm:px-6 lg:px-8 pb-4">
                     {/* Flow preview — compact, wrapping */}
                     <div className="bg-white border border-[#e5e8ed] rounded-[10px] px-4 py-3 flex items-center flex-wrap gap-x-1 gap-y-2">
                         {openStages.map((s, i) => (
@@ -244,7 +246,7 @@ export default function PipelineDetailSettingsPage() {
             </div>
 
             {/* Tab Content — full width */}
-            <div className="px-8 pb-8 max-w-[1400px] mx-auto mt-6">
+            <div className="px-4 sm:px-6 lg:px-8 pb-8 mt-6">
                 {/* Rules Tab */}
                 {activeTab === 'rules' && (
                     <div className="space-y-4">

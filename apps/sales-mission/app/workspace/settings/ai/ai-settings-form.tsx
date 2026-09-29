@@ -67,7 +67,7 @@ export function AiSettingsForm({ initial }: { initial: AiSettings }) {
   const busy = testing || saving
 
   return (
-    <div className="max-w-3xl space-y-4">
+    <div className="space-y-4">
       <section className="overflow-clip rounded-xl border bg-card">
         <header className="border-b px-5 py-4">
           <h2 className="text-base font-semibold text-foreground">Koneksi</h2>

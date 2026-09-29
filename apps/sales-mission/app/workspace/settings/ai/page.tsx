@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { canPerform, getSalesMissionAccess } from "@/lib/sales-mission-access"
 import { readAiSettings } from "@/lib/ai/ai-settings"
 import { hasServiceClientConfig } from "@/utils/supabase/service"
-import { BackLink, EmptyState, WorkspacePage } from "@/app/workspace/workspace-page"
+import { EmptyState, WorkspacePage } from "@/app/workspace/workspace-page"
 import { pageIntroKey } from "@/lib/hints/hint-key"
 import { paths } from "@/lib/paths"
 import { AiSettingsForm } from "./ai-settings-form"
@@ -19,18 +19,14 @@ export default async function AiSettingsPage() {
   const shell = (children: React.ReactNode) => (
     <WorkspacePage
       introKey={pageIntroKey("settings-ai")}
-      eyebrow="Pengaturan"
       title="AI"
       description="Koneksi ke proxy AI yang dipakai kedua aplikasi: alamat endpoint, kunci API, dan model yang dipilih dari daftar endpoint itu."
       action={
-        <>
-          <Button asChild variant="outline" size="sm">
-            <Link href={paths.settings.aiUsage}>
-              <BarChart3 className="h-4 w-4" /> Pemakaian
-            </Link>
-          </Button>
-          <BackLink href={paths.settings.index} />
-        </>
+        <Button asChild variant="outline" size="sm">
+          <Link href={paths.settings.aiUsage}>
+            <BarChart3 className="h-4 w-4" /> Pemakaian
+          </Link>
+        </Button>
       }
     >
       {children}

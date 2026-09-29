@@ -571,7 +571,7 @@ export function GoalConfigurationPage({ goal, dimensions }: { goal: GoalV2; dime
   const panelRemaining = panelParentAmt - panelAllocAmt;
 
   return (
-    <div className="target-config w-full min-h-screen bg-background">
+    <div data-settings-wide className="target-config w-full min-h-screen bg-background">
       <style>{`
         .target-config input:focus, .target-config select:focus { outline: 2px solid #6366f1; outline-offset: 1px; }
         .target-config input[type=number]::-webkit-inner-spin-button,
@@ -581,10 +581,11 @@ export function GoalConfigurationPage({ goal, dimensions }: { goal: GoalV2; dime
 
       {/* Main */}
       <main style={{ flex: 1, isolation: "isolate" }}>
-        {/* Every page's header: "Settings / Goals" above the title, the
-            action on the same 56dp row, the description under it until it
-            is closed (DESIGN.md "Page headers"). The goal's own name is in
-            the overview card below. */}
+        {/* Every page's header: the title and the action on the same 56dp
+            row, the description under it until it is closed (DESIGN.md
+            "Page headers"); the settings menu's Goals row, active beside it,
+            is the way back. The goal's own name is in the overview card
+            below. */}
         <SettingsPageHeader
           title="Goal Configuration"
           subtitle="Design your revenue target breakdown structure"
@@ -608,7 +609,9 @@ export function GoalConfigurationPage({ goal, dimensions }: { goal: GoalV2; dime
           }
         />
 
-        <div style={{ padding: "0px 24px 32px", position: "relative", zIndex: 0 }}>
+        {/* Wide: the breakdown editor needs the room beside the settings menu.
+            The page's gutters are every settings page's. */}
+        <div className="relative z-0 px-4 pb-8 sm:px-6 lg:px-8">
 
           {/* Goal Overview — locked by default, edit via button with warning */}
           <div style={{ background: "#fff", border: overviewEditing ? "1.5px solid #f59e0b" : "1px solid #e5e8ed", borderRadius: 10, padding: "14px 20px", marginBottom: 14, boxShadow: "0 1px 2px rgba(0,0,0,.03)", transition: "border .2s" }}>

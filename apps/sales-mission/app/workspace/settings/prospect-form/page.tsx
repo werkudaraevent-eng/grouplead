@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation"
 import { canPerform, getSalesMissionAccess } from "@/lib/sales-mission-access"
 import { listFormFields } from "@/lib/missions/form-field-queries"
-import { BackLink, EmptyState, WorkspacePage } from "@/app/workspace/workspace-page"
+import { EmptyState, WorkspacePage } from "@/app/workspace/workspace-page"
 import { pageIntroKey } from "@/lib/hints/hint-key"
 import { FieldManager } from "@/app/workspace/settings/form/field-manager"
 
@@ -23,7 +23,7 @@ export default async function ProspectFormSettingsPage() {
 
   if (!(await canPerform(access, "sales_mission_settings", "update"))) {
     return (
-      <WorkspacePage eyebrow="Pengaturan" title="Form prospek" action={<BackLink href="/workspace/settings" />}>
+      <WorkspacePage title="Form prospek">
         <EmptyState title="Tidak punya izin" description="Pengaturan form prospek hanya dapat diubah oleh admin Sales Activity." />
       </WorkspacePage>
     )
@@ -34,10 +34,8 @@ export default async function ProspectFormSettingsPage() {
   return (
     <WorkspacePage
       introKey={pageIntroKey("settings-prospect-form")}
-      eyebrow="Pengaturan"
       title="Form prospek"
       description="Tambah, ubah, urutkan, dan tentukan field mana yang wajib diisi saat membuat atau mengimpor prospek."
-      action={<BackLink href="/workspace/settings" />}
     >
       <div className="mb-4 space-y-2 rounded-xl border border-dashed bg-muted/40 px-5 py-4 text-sm text-muted-foreground">
         <p>

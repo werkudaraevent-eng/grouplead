@@ -264,7 +264,7 @@ export function GoalSettingsPage() {
         />
 
         {/* Content */}
-        <div className="px-8 pb-10 max-w-[1200px] mx-auto">
+        <div className="px-4 sm:px-6 lg:px-8 pb-10">
           {loading ? (
             <div className="flex flex-col items-center justify-center py-20">
               <Loader2 className="h-8 w-8 animate-spin text-[#8892a4] mb-3" />

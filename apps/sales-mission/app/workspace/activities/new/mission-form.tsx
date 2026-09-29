@@ -891,9 +891,10 @@ function MissionFormBody({
   }
 
   return (
-    // Left-aligned, not centred. The page title sits at the left edge, so a
-    // centred form left the heading and the thing it describes on different
-    // axes with a stripe of empty page between them.
+    // The form fills the page's reading column, whose header (title and
+    // Kembali) sits on the same axes: one centred column from `lg`, header
+    // included (DESIGN.md "Settings layout and page width"), never a centred
+    // form under a title at the page's edge.
     <form ref={setFormElement} action={formAction} className="space-y-4">
       {notice}
       {linkedProspectId && <input type="hidden" name="prospectId" value={linkedProspectId} />}

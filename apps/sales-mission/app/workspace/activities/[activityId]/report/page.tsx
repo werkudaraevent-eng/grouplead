@@ -87,6 +87,7 @@ export default async function VisitReportPage({ params, searchParams }: { params
   if (!canWrite && !report) {
     return (
       <WorkspacePage
+        reading
         eyebrow="Laporan kunjungan"
         title={mission.clientCompanyName}
         description="Laporan kunjungan"
@@ -110,6 +111,7 @@ export default async function VisitReportPage({ params, searchParams }: { params
   if (lock) {
     return (
       <WorkspacePage
+        reading
         eyebrow="Laporan kunjungan"
         title={mission.clientCompanyName}
         description="Laporan kunjungan"
@@ -125,6 +127,7 @@ export default async function VisitReportPage({ params, searchParams }: { params
 
   return (
     <WorkspacePage
+      reading
       eyebrow="Laporan kunjungan"
       title={mission.clientCompanyName}
       description={[mission.missionType, mission.location].filter(Boolean).join(" · ")}

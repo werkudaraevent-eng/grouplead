@@ -51,10 +51,10 @@ const SUBTITLE =
  */
 export default async function UsagePage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   const shell = (children: React.ReactNode) => (
-    <div data-fluid-page className="min-h-[100dvh] bg-background">
+    <div data-fluid-page data-settings-wide className="min-h-[100dvh] bg-background">
       <SettingsPageHeader title="Usage" subtitle={SUBTITLE} intro={pageIntroKey("settings-usage")} breadcrumbs={[{ label: "Usage" }]} />
       <div className="px-4 pb-20 sm:px-6 lg:px-8">
-        <div className="w-full max-w-[1200px]">{children}</div>
+        <div className="w-full">{children}</div>
       </div>
     </div>
   )

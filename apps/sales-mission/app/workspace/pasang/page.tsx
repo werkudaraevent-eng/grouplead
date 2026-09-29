@@ -12,13 +12,12 @@ export default async function InstallPage() {
 
   return (
     <WorkspacePage
+      reading
       introKey={pageIntroKey("install")}
       title="Pasang di ponsel"
       description="Sales Activity bisa dipasang ke layar utama dan dibuka seperti aplikasi, tanpa unduhan dari toko."
     >
-      <div className="max-w-xl">
-        <InstallGuide />
-      </div>
+      <InstallGuide />
     </WorkspacePage>
   )
 }

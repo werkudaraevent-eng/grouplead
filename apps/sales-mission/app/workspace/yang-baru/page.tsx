@@ -33,10 +33,10 @@ export default async function WhatsNewPage() {
   const announcements = await listAnnouncements(access)
 
   return (
-    <WorkspacePage introKey={pageIntroKey("whats-new")} title="Yang baru" description={`Perubahan di ${PRODUCT_NAME}, dari yang terbaru.`}>
+    <WorkspacePage reading introKey={pageIntroKey("whats-new")} title="Yang baru" description={`Perubahan di ${PRODUCT_NAME}, dari yang terbaru.`}>
       {/* Opening the page is reading: the dot on the menu clears for every announcement that is on. */}
       <MarkAnnouncementsRead readKeys={announcements.filter((item) => item.enabled).map((item) => item.readKey)} />
-      <ol className="relative max-w-3xl space-y-8 border-l border-border pl-6 lg:pl-8">
+      <ol className="relative space-y-8 border-l border-border pl-6 lg:pl-8">
         {CHANGELOG.map((entry, index) => (
           <li key={`${entry.date}-${index}`} className="relative">
             <span aria-hidden="true" className="absolute -left-[calc(1.5rem+5px)] top-2 h-2.5 w-2.5 rounded-full bg-primary ring-4 ring-background lg:-left-[calc(2rem+5px)]" />

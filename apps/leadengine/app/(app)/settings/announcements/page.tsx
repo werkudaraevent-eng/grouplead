@@ -7,7 +7,7 @@ import { AnnouncementList } from "@/features/announcements/components/announceme
 
 export const dynamic = "force-dynamic"
 
-const CONTAINER = "w-full max-w-[1200px]"
+const CONTAINER = "w-full"
 
 /**
  * Settings → Announcements: the panel a product team would have for in-app

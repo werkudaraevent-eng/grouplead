@@ -109,6 +109,7 @@ export default async function NewMissionPage({
 
   return (
     <WorkspacePage
+      reading
       eyebrow="Aktivitas"
       title={prospectId ? "Jadwalkan kunjungan" : prefill ? "Jadwalkan lagi" : "Buat aktivitas"}
       // Scheduling from a prospect or again names the visit: that line is

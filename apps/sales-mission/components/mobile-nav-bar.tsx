@@ -18,6 +18,7 @@ import {
   MonitorPlay,
   MonitorSmartphone,
   Settings,
+  UserCircle,
   UserSearch,
 } from "@/components/icons"
 import { BottomSheet, SheetRow } from "@/components/ui/bottom-sheet"
@@ -95,6 +96,8 @@ export function MobileNavBar({
   if (hideNav) return null
 
   const destinations = DESTINATIONS.filter((item) => !item.requires || navAccess[item.requires])
+  // Profil and Perangkat aktif sit under Pengaturan's address but have rows of their own.
+  const accountPage = isActive(pathname, paths.settings.profile) || isActive(pathname, paths.settings.devices)
   const moreActive = !destinations.some((item) => isActive(pathname, item.href))
   const go = (href: string) => {
     setMoreOpen(false)
@@ -133,7 +136,7 @@ export function MobileNavBar({
               hintKey={menuHintSeen ? "install" : "nav-lainnya"}
               enabled={menuHintSeen ? !standalone : true}
               title={menuHintSeen ? "Pasang ke layar utama" : "Menu lainnya"}
-              body={menuHintSeen ? "Sales Activity bisa dibuka seperti aplikasi, tanpa bilah alamat. Caranya ada di Lainnya → Pasang di ponsel." : "Kalender, Papan live, Notifikasi, Pengaturan, dan Panduan ada di sini."}
+              body={menuHintSeen ? "Sales Activity bisa dibuka seperti aplikasi, tanpa bilah alamat. Caranya ada di Lainnya → Pasang di ponsel." : "Kalender, Papan live, Notifikasi, Profil, Pengaturan, dan Panduan ada di sini."}
               learnHref={menuHintSeen ? paths.install : paths.guide}
               side="top"
               align="end"
@@ -170,11 +173,18 @@ export function MobileNavBar({
             onClick={() => go(paths.notifications)}
             trailing={unreadCount > 0 ? <span className="rounded-full bg-[var(--danger-foreground)] px-2 py-0.5 text-[11px] font-bold tabular-nums text-white">{unreadCount > 99 ? "99+" : unreadCount}</span> : undefined}
           />
-          {navAccess.settings && <SheetRow icon={Settings} label="Pengaturan" active={isActive(pathname, paths.settings.index)} onClick={() => go(paths.settings.index)} />}
+          {navAccess.settings && (
+            <SheetRow icon={Settings} label="Pengaturan" active={isActive(pathname, paths.settings.index) && !accountPage} onClick={() => go(paths.settings.index)} />
+          )}
+          {/* The account menu's items, in its order and with its glyphs, the
+              same as LeadEngine's More sheet: Profil and Perangkat aktif
+              first (Pengaturan › Akun, everyone's), Keluar last. */}
+          <div className="my-2 border-t" />
+          <SheetRow icon={UserCircle} label="Profil" hint="Nama, foto, dan kata sandi" active={isActive(pathname, paths.settings.profile)} onClick={() => go(paths.settings.profile)} />
+          <SheetRow icon={MonitorSmartphone} label="Perangkat aktif" hint="Tempat akunmu sedang masuk" active={isActive(pathname, paths.settings.devices)} onClick={() => go(paths.settings.devices)} />
           {navAccess.missions && (
             <SheetRow icon={CalendarDays} label="Kalender saya" hint="Sinkron ke Google Calendar atau iPhone" active={isActive(pathname, paths.myCalendar)} onClick={() => go(paths.myCalendar)} />
           )}
-          <SheetRow icon={MonitorSmartphone} label="Perangkat aktif" hint="Tempat akunmu sedang masuk" active={isActive(pathname, paths.devices)} onClick={() => go(paths.devices)} />
           <SheetRow icon={HelpCircle} label="Panduan" hint="Cara kerja Sales Activity, singkat" active={isActive(pathname, paths.guide)} onClick={() => go(paths.guide)} />
           <SheetRow icon={Sparkles} label="Yang baru" hint="Perubahan terbaru di aplikasi" active={isActive(pathname, paths.whatsNew)} onClick={() => go(paths.whatsNew)} trailing={<WhatsNewDot announcements={announcements} className="h-2 w-2 shrink-0 rounded-full bg-primary" />} />
           {!standalone && (

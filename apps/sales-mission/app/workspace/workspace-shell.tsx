@@ -22,6 +22,7 @@ import {
   Sparkles,
   Settings,
   Sun,
+  UserCircle,
   UserSearch,
 } from "@/components/icons"
 import dynamic from "next/dynamic"
@@ -120,10 +121,11 @@ const mainNav: NavItem[] = [
   { href: "/workspace/reports", label: "Laporan", icon: BarChart3, requires: "reports" },
 ]
 
-// Administration is administration. Personal and supporting pages (my
-// calendar, active devices, the guide, what's new) are not destinations in Material's
-// sense; they live behind the account menu at the foot of the drawer, the
-// way Slack, Notion and Linear keep help and release notes off the rail.
+// Administration is administration. Personal and supporting pages (the
+// profile, active devices, my calendar, the guide, what's new) are not
+// destinations in Material's sense; they live behind the account menu at the
+// foot of the drawer, the way Slack, Notion and Linear keep help and release
+// notes off the rail.
 /** Menu rows on the panel's own tokens: hover/focus as a tonal state layer, icons in the panel's muted ink. */
 const ACCOUNT_MENU_ITEMS =
   "[&_[role=menuitem]]:text-sidebar-accent-foreground [&_[role=menuitem]]:focus:bg-sidebar-accent [&_[role=menuitem]]:focus:text-sidebar-accent-foreground [&_[role=menuitem]_svg:not([class*='text-'])]:text-sidebar-foreground"
@@ -411,14 +413,21 @@ function SidebarBody({
               {companyName !== displayName && <p className="truncate text-xs text-sidebar-foreground">{companyName}</p>}
             </div>
             <DropdownMenuSeparator className="bg-sidebar-border" />
+            {/* The account's own pages first, the same two, in the same
+                order and with the same glyphs, as LeadEngine's account
+                menu: Pengaturan › Akun, open to everyone. */}
+            <DropdownMenuItem asChild>
+              <Link href={paths.settings.profile} onClick={onNavigate}><UserCircle className="h-4 w-4" /> Profil</Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link href={paths.settings.devices} onClick={onNavigate}><MonitorSmartphone className="h-4 w-4" /> Perangkat aktif</Link>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator className="bg-sidebar-border" />
             {navAccess.missions && (
               <DropdownMenuItem asChild>
                 <Link href={paths.myCalendar} onClick={onNavigate}><CalendarDays className="h-4 w-4" /> Kalender saya</Link>
               </DropdownMenuItem>
             )}
-            <DropdownMenuItem asChild>
-              <Link href={paths.devices} onClick={onNavigate}><MonitorSmartphone className="h-4 w-4" /> Perangkat aktif</Link>
-            </DropdownMenuItem>
             <DropdownMenuItem asChild>
               <Link href={paths.guide} onClick={onNavigate}><HelpCircle className="h-4 w-4" /> Panduan</Link>
             </DropdownMenuItem>

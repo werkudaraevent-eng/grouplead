@@ -49,7 +49,7 @@ export default function LoginPage() {
         } else {
             // Several sessions may be open at once, here and in Sales Activity;
             // this one joins them, and the app records the device on load
-            // (Settings › Profile › Active devices).
+            // (Settings › Account › Active devices).
             router.push("/")
             router.refresh()
         }

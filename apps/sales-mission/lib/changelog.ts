@@ -46,6 +46,16 @@ export const CHANGE_KIND_LABELS: Record<ChangeKind, string> = {
 export const CHANGELOG: ChangeEntry[] = [
   {
     date: "2026-09-29",
+    title: "Pengaturan kini punya menu di kiri, dan ada Profil",
+    items: [
+      { kind: "lebih-baik", text: "Pengaturan kini punya menu di kiri, dikelompokkan seperti halaman Pengaturan: pindah dari Form aktivitas ke Sampah tanpa kembali ke daftar dulu. Halamannya tidak lagi melebar ke seluruh layar, jadi tombol di kanan atas (misalnya Keluar dari semua perangkat lain) ada tepat di atas isi yang diaturnya. Di ponsel tetap seperti biasa: daftar Pengaturan, lalu halamannya dengan panah kembali." },
+      { kind: "baru", text: "Profil baru di Sales Activity (menu akun, atau Lainnya di ponsel): ganti nama, foto, nomor telepon, jabatan, dan kata sandi. Profilnya sama dengan LeadEngine, jadi perubahan di sini tampil di sana juga. Mengganti kata sandi mengeluarkan semua perangkat lain; perangkat yang sedang dipakai tetap masuk." },
+      { kind: "lebih-baik", text: "Perangkat aktif kini ada di Pengaturan › Akun, di sebelah Profil, dan tetap bisa dibuka dari menu akun. Bagian Akun terlihat oleh semua orang, termasuk sales yang tidak bisa membuka pengaturan lain." },
+      { kind: "lebih-baik", text: "Panduan, Yang baru, dan form aktivitas, laporan, serta prospek kini terbaca dalam satu kolom di tengah layar lebar, dengan judul dan tombolnya di atas isinya." },
+    ],
+  },
+  {
+    date: "2026-09-29",
     title: "Isianmu tidak hilang saat aplikasi diperbarui",
     items: [
       { kind: "diperbaiki", text: "Kalau aplikasi diperbarui saat kamu sedang mengisi, isianmu tidak hilang. Menekan Simpan di halaman yang dibuka sebelum pembaruan dulu berakhir di layar “Halaman ini gagal dimuat”, dan form kembali kosong setiap kali dicoba lagi. Sekarang formnya tetap seperti yang kamu isi, dan muncul “Aplikasi baru saja diperbarui. Isianmu masih ada — muat ulang lalu kirim lagi.” dengan tombol Muat ulang." },

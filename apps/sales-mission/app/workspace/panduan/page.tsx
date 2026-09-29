@@ -137,6 +137,7 @@ export default async function GuidePage() {
 
   return (
     <WorkspacePage
+      reading
       introKey={pageIntroKey("guide")}
       title="Panduan"
       description={`Cara kerja ${PRODUCT_NAME} dalam beberapa bagian pendek.`}
@@ -156,7 +157,7 @@ export default async function GuidePage() {
         </a>
       </nav>
 
-      <div className="max-w-3xl space-y-4">
+      <div className="space-y-4">
         {parts.map((part) => (
           <section key={part.id} id={part.id} aria-labelledby={`guide-${part.id}`} className="scroll-mt-16 overflow-hidden rounded-xl border bg-card lg:scroll-mt-4">
             <header className="flex items-start gap-4 border-b px-5 py-4 sm:px-6">
@@ -194,7 +195,7 @@ export default async function GuidePage() {
             <div className="min-w-0">
               <h2 id="guide-pasang" className="text-base font-semibold text-foreground">Di ponsel</h2>
               <p className="mt-0.5 text-sm leading-relaxed text-muted-foreground">
-                {PRODUCT_NAME} bisa dipasang ke layar utama dan dibuka seperti aplikasi: tanpa bilah alamat, dengan ikon sendiri. Kalender, Papan live, Notifikasi, Pengaturan, dan Panduan ada di menu Lainnya di bilah bawah.
+                {PRODUCT_NAME} bisa dipasang ke layar utama dan dibuka seperti aplikasi: tanpa bilah alamat, dengan ikon sendiri. Kalender, Papan live, Notifikasi, Profil, Pengaturan, dan Panduan ada di menu Lainnya di bilah bawah.
               </p>
             </div>
           </header>
@@ -209,7 +210,7 @@ export default async function GuidePage() {
             </li>
             <li className="flex items-start gap-3 text-sm leading-relaxed text-foreground">
               <span className="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full bg-muted text-xs font-bold text-muted-foreground">3</span>
-              <span>Kamu bisa masuk di ponsel dan laptop sekaligus; masuk di satu perangkat tidak lagi mengeluarkan yang lain, dan satu kali masuk berlaku untuk Sales Activity dan LeadEngine. <strong>Perangkat aktif</strong> di menu akun (di ponsel: Lainnya) menampilkan di mana saja akunmu sedang masuk. Tidak kenal perangkatnya? Keluarkan, lalu ganti kata sandi. Perangkat yang tidak dipakai 30 hari keluar sendiri.</span>
+              <span>Kamu bisa masuk di ponsel dan laptop sekaligus; masuk di satu perangkat tidak lagi mengeluarkan yang lain, dan satu kali masuk berlaku untuk Sales Activity dan LeadEngine. <strong>Perangkat aktif</strong> ada di <strong>Pengaturan → Akun</strong>, di sebelah <strong>Profil</strong>; bukanya dari menu akun (namamu di kiri bawah; di ponsel: Lainnya). Halaman itu menampilkan di mana saja akunmu sedang masuk. Tidak kenal perangkatnya? Keluarkan, lalu ganti kata sandi di Profil: perangkat ini tetap masuk, semua perangkat lain keluar. Perangkat yang tidak dipakai 30 hari keluar sendiri.</span>
             </li>
             <li className="flex items-start gap-3 text-sm leading-relaxed text-foreground">
               <span className="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full bg-muted text-xs font-bold text-muted-foreground">4</span>
@@ -223,7 +224,10 @@ export default async function GuidePage() {
             <Link href={paths.myCalendar} className="inline-flex min-h-10 items-center text-sm font-semibold text-primary hover:underline">
               Kalender saya
             </Link>
-            <Link href={paths.devices} className="inline-flex min-h-10 items-center text-sm font-semibold text-primary hover:underline">
+            <Link href={paths.settings.profile} className="inline-flex min-h-10 items-center text-sm font-semibold text-primary hover:underline">
+              Profil
+            </Link>
+            <Link href={paths.settings.devices} className="inline-flex min-h-10 items-center text-sm font-semibold text-primary hover:underline">
               Perangkat aktif
             </Link>
             <Link href={paths.whatsNew} className="inline-flex min-h-10 items-center text-sm font-semibold text-primary hover:underline">

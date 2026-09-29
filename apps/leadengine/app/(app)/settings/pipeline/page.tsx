@@ -495,7 +495,8 @@ export default function PipelineOverviewPage() {
 
     // ─── Render ───────────────────────────────────────────────
     return (
-        <div className="min-h-screen bg-background">
+        // Wide: the pipelines' stage editors need the room beside the settings menu.
+        <div data-settings-wide className="min-h-screen bg-background">
             <SettingsPageHeader
                 title="Pipeline & Stages"
                 subtitle="Manage your sales pipelines, stages, and rules"
@@ -504,7 +505,7 @@ export default function PipelineOverviewPage() {
             />
 
             {/* Content */}
-            <div className="px-8 pb-8 max-w-[1400px] mx-auto">
+            <div className="px-4 sm:px-6 lg:px-8 pb-8">
                 {loading ? (
                     <div className="flex py-20 justify-center"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
                 ) : (

@@ -12,14 +12,14 @@ export default function SegmentsPage() {
       action="read"
       fallback={<div className="p-8 text-muted-foreground">You do not have permission to view segment settings.</div>}
     >
-      <div className="min-h-screen bg-muted/30">
+      <div data-settings-wide className="min-h-screen bg-background">
         <SettingsPageHeader
           title="Segments & Dimensions"
           subtitle="Define custom segments by grouping lead field values together. Segments are reusable across goals, dashboard widgets, and analytics."
           intro={pageIntroKey("settings-segments")}
           breadcrumbs={[{ label: "Segments" }]}
         />
-        <div className="px-6 pb-10 max-w-[1200px]">
+        <div className="px-4 sm:px-6 lg:px-8 pb-10">
           <div className="rounded-xl border bg-card p-5 shadow-sm">
             <SegmentSettings />
           </div>

@@ -4,6 +4,20 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* Settings layout and page width (DESIGN.md, the row of that name, word for
+   word the same in both apps). One set of measurements for Sales Activity
+   and LeadEngine: the settings menu beside a settings page, the column a
+   settings page reads in, and the one centred column of a reading page
+   (the guide, the changelog, a create or edit form). The two column widths
+   are the content's; the page's own 32px gutter sits outside them.
+   `static` so the variables are always on :root for a calc() to read.
+   Utilities: `w-settings-menu`, `max-w-settings`, `max-w-reading`. */
+@theme static {
+  --container-settings-menu: 15.5rem; /* 248px */
+  --container-settings: 55rem; /* 880px */
+  --container-reading: 60rem; /* 960px */
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);

@@ -36,7 +36,7 @@ export function ClearMissions({ count, canDelete }: { count: number; canDelete: 
   }
 
   return (
-    <section className="max-w-2xl overflow-clip rounded-xl border border-[var(--danger-foreground)]/30 bg-card">
+    <section className="overflow-clip rounded-xl border border-[var(--danger-foreground)]/30 bg-card">
       <header className="flex items-start gap-3 border-b border-[var(--danger-foreground)]/20 bg-[var(--danger)] px-5 py-4">
         <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-[var(--danger-foreground)]" />
         <div>

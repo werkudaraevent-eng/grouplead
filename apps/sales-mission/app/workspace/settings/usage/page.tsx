@@ -18,10 +18,9 @@ import {
 } from "@/lib/usage/usage-stats"
 import { firstUsageDay, listUsageDays, listUsageLastSeen, listUsagePages, resolveUsageNames } from "@/lib/usage/usage-queries"
 import { createClient } from "@/utils/supabase/server"
-import { BackLink, EmptyState, WorkspacePage } from "@/app/workspace/workspace-page"
+import { EmptyState, WorkspacePage } from "@/app/workspace/workspace-page"
 import { pageIntroKey } from "@/lib/hints/hint-key"
 import { ListBars } from "@/app/workspace/reports/ringkasan/charts/plain"
-import { paths } from "@/lib/paths"
 import { UsageActiveChart } from "./usage-active-chart"
 import { UsagePeople } from "./usage-people"
 import { UsagePeriodControl } from "./usage-period"
@@ -50,11 +49,10 @@ export default async function UsagePage({ searchParams }: { searchParams: Promis
 
   const shell = (children: React.ReactNode) => (
     <WorkspacePage
+      wide
       introKey={pageIntroKey("settings-usage")}
-      eyebrow="Pengaturan"
       title="Pemakaian"
       description="Siapa yang membuka Sales Activity, kapan terakhir, dan halaman mana yang paling sering dibuka. Yang dicatat hanya halaman yang dibuka dan kapan, per orang per hari; isi ketikan dan lokasi tidak dicatat."
-      action={<BackLink href={paths.settings.index} />}
     >
       {children}
     </WorkspacePage>
@@ -106,7 +104,7 @@ export default async function UsagePage({ searchParams }: { searchParams: Promis
   ]
 
   return shell(
-    <div className="max-w-5xl space-y-4">
+    <div className="space-y-4">
       <section aria-labelledby="usage-summary">
         <h2 id="usage-summary" className="sr-only">Ringkasan</h2>
         <dl className="grid grid-cols-2 gap-3 lg:grid-cols-4">

@@ -52,8 +52,11 @@ export default function ChangelogPage() {
     return (
         // Scrolls in the shell's <main>: the header's row stays at the top
         // and gains its edge once the entries pass under it, and the
-        // description under it scrolls away.
-        <div>
+        // description under it scrolls away. A reading page: from `lg` the
+        // header and the entries are one centred column of at most 960px
+        // plus the page's gutters (DESIGN.md "Settings layout and page
+        // width"), so the title sits over what it names.
+        <div className="mx-auto w-full lg:max-w-[calc(var(--container-reading)+4rem)]">
             {/* A top-level page (the account menu opens it): the same header
                 as every page, with no parent line above the title. */}
             <SettingsPageHeader
@@ -62,9 +65,8 @@ export default function ChangelogPage() {
                 intro={pageIntroKey("changelog")}
             />
 
-            {/* Centered content column */}
             <div className="px-4 sm:px-6 lg:px-8 pb-6">
-                <div className="max-w-4xl mx-auto">
+                <div>
                     {/* Timeline */}
                     <div className="relative">
                         {/* Vertical line */}

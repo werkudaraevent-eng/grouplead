@@ -3,7 +3,7 @@ import Link from "next/link"
 import { canPerform, getSalesMissionAccess } from "@/lib/sales-mission-access"
 import { listAnnouncements } from "@/lib/announcements/announcement-queries"
 import { paths } from "@/lib/paths"
-import { BackLink, EmptyState, WorkspacePage } from "@/app/workspace/workspace-page"
+import { EmptyState, WorkspacePage } from "@/app/workspace/workspace-page"
 import { pageIntroKey } from "@/lib/hints/hint-key"
 import { AnnouncementList } from "./announcement-list"
 
@@ -21,7 +21,7 @@ export default async function AnnouncementSettingsPage() {
 
   if (!(await canPerform(access, "sales_mission_settings", "update"))) {
     return (
-      <WorkspacePage eyebrow="Pengaturan" title="Pengumuman" action={<BackLink href={paths.settings.index} />}>
+      <WorkspacePage title="Pengumuman">
         <EmptyState title="Tidak punya izin" description="Pengumuman fitur hanya dapat diatur oleh admin Sales Activity." />
       </WorkspacePage>
     )
@@ -32,10 +32,8 @@ export default async function AnnouncementSettingsPage() {
   return (
     <WorkspacePage
       introKey={pageIntroKey("settings-announcements")}
-      eyebrow="Pengaturan"
       title="Pengumuman"
       description="Fitur baru yang diumumkan lewat dialog Yang baru saat orang membuka Hari ini."
-      action={<BackLink href={paths.settings.index} />}
     >
       <div className="mb-4 space-y-2 rounded-xl border border-dashed bg-muted/40 px-5 py-4 text-sm text-muted-foreground">
         <p>

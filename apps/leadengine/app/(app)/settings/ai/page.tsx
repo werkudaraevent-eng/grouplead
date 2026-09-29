@@ -19,7 +19,7 @@ export default async function AiSettingsPage() {
   const settings = guard.allowed ? await readAiSettings() : null
 
   return (
-    <div className="min-h-screen bg-muted/30">
+    <div className="min-h-screen bg-background">
       <SettingsPageHeader
         title="AI"
         subtitle="The endpoint, API key and models behind Ask AI and Analyze. One connection, shared with Sales Activity."
@@ -31,7 +31,7 @@ export default async function AiSettingsPage() {
           </Button>
         }
       />
-      <div className="px-6 pb-10 max-w-[800px]">
+      <div className="px-4 sm:px-6 lg:px-8 pb-10">
         {settings ? (
           <AiSettingsForm initial={settings} />
         ) : (

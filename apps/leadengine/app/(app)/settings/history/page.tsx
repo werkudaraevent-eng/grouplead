@@ -161,7 +161,7 @@ export default function ChangeHistoryPage() {
             </div>
 
             {/* Log List */}
-            <div className="px-4 py-4 sm:px-6">
+            <div className="px-4 py-4 sm:px-6 lg:px-8">
                 {isPending && logs.length === 0 ? (
                     <div className="flex items-center justify-center py-20 text-sm text-slate-400">
                         Loading...
@@ -224,7 +224,7 @@ export default function ChangeHistoryPage() {
             {/* Pagination. The count is a fact, so it lives here and always
                 shows, even on a single page; the header's line only teaches. */}
             {total > 0 && (
-                <div className="px-4 sm:px-6 py-3 border-t border-slate-100 bg-white flex items-center justify-between">
+                <div className="px-4 sm:px-6 lg:px-8 py-3 border-t border-slate-100 bg-white flex items-center justify-between">
                     <span className="text-[11px] text-slate-400">
                         {totalPages > 1
                             ? <>Page {page} of {totalPages} · {total} total events</>

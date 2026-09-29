@@ -45,8 +45,6 @@ export const paths = {
   install: "/workspace/pasang",
   whatsNew: "/workspace/yang-baru",
   myCalendar: "/workspace/kalender-saya",
-  /** Perangkat aktif: where this account is signed in, in both apps. */
-  devices: "/workspace/perangkat",
   /** The public iCalendar feed for one person's token. No session; the token is the credential. */
   calendarFeed: (token: string) => `/kalender/${encodeURIComponent(token)}/aktivitas.ics`,
   /** The read-only month calendar management opens without signing in. */
@@ -67,6 +65,16 @@ export const paths = {
 
   settings: {
     index: "/workspace/settings",
+    /** Profil: the person's own name, photo, phone, job title and password; open to everyone. */
+    profile: "/workspace/settings/profile",
+    /** Perangkat aktif: where this account is signed in, in both apps; open to everyone. Was /workspace/perangkat. */
+    devices: "/workspace/settings/devices",
+    form: "/workspace/settings/form",
+    reportForm: "/workspace/settings/report-form",
+    prospectForm: "/workspace/settings/prospect-form",
+    prospectStatuses: "/workspace/settings/prospect-statuses",
+    recycleBin: "/workspace/settings/recycle-bin",
+    data: "/workspace/settings/data",
     activities: "/workspace/settings/activities",
     announcements: "/workspace/settings/announcements",
     ai: "/workspace/settings/ai",

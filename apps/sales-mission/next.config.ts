@@ -32,6 +32,9 @@ const nextConfig: NextConfig = {
       { source: "/workspace/missions/:path*", destination: "/workspace/activities/:path*", permanent: true },
       { source: "/workspace/settings/missions", destination: "/workspace/settings/activities", permanent: true },
       { source: "/workspace/settings/activity", destination: "/workspace/settings/history", permanent: true },
+      // Perangkat aktif moved into Pengaturan › Akun beside Profil (DESIGN.md
+      // "Settings layout and page width"); the guide and old tabs said this.
+      { source: "/workspace/perangkat", destination: "/workspace/settings/devices", permanent: true },
     ]
   },
   async headers() {

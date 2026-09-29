@@ -1117,7 +1117,8 @@ export default function GlobalPermissionsPage() {
     <PermissionGate resource="permissions" action="read" fallback={
       <div className="p-8 text-center text-muted-foreground">Anda tidak punya izin mengelola izin.</div>
     }>
-      <div className="w-full">
+      {/* Wide: the permission matrix needs the room beside the settings menu. */}
+      <div data-settings-wide className="w-full">
         {/* Header. The line under the title names the company whose matrix
             this is, a fact, so it has no intro key and always shows. */}
         <SettingsPageHeader
@@ -1143,7 +1144,7 @@ export default function GlobalPermissionsPage() {
           }
         />
 
-        <div className="px-6 lg:px-8 pb-6 space-y-6">
+        <div className="px-4 sm:px-6 lg:px-8 pb-6 space-y-6">
 
         {error && (
           <div className="bg-destructive/15 text-destructive px-4 py-3 rounded-lg text-sm">{error}</div>

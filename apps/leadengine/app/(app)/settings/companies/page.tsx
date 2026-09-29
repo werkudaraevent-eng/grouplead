@@ -96,7 +96,8 @@ export default function CompanyManagementPage() {
     <PermissionGate resource="companies" action="read" fallback={
       <div className="p-8 text-center text-muted-foreground">You don&apos;t have permission to view company settings.</div>
     }>
-    <div className="w-full">
+    {/* Wide: the companies table needs the room beside the settings menu. */}
+    <div data-settings-wide className="w-full">
       <SettingsPageHeader
         title="Company Management"
         subtitle="Manage companies, members, and role permissions."
@@ -111,7 +112,7 @@ export default function CompanyManagementPage() {
         }
       />
 
-      <div className="px-6 lg:px-8 pb-8 space-y-5">
+      <div className="px-4 sm:px-6 lg:px-8 pb-8 space-y-5">
 
         {/* Search + count */}
         <div className="flex items-center justify-between gap-4">

@@ -4,7 +4,7 @@ import { canPerform, getSalesMissionAccess } from "@/lib/sales-mission-access"
 import { listReportChoices } from "@/lib/missions/report-choice-queries"
 import { FIELD_LABELS } from "@/lib/missions/report-choices"
 import { paths } from "@/lib/paths"
-import { BackLink, EmptyState, WorkspacePage } from "@/app/workspace/workspace-page"
+import { EmptyState, WorkspacePage } from "@/app/workspace/workspace-page"
 import { pageIntroKey } from "@/lib/hints/hint-key"
 import { ChoiceManager } from "@/app/workspace/settings/report-form/choice-manager"
 
@@ -23,7 +23,7 @@ export default async function FollowUpSettingsPage() {
 
   if (!(await canPerform(access, "sales_mission_settings", "update"))) {
     return (
-      <WorkspacePage eyebrow="Pengaturan" title="Tindak lanjut" action={<BackLink href={paths.settings.index} />}>
+      <WorkspacePage title="Tindak lanjut">
         <EmptyState title="Tidak punya izin" description="Pengaturan tindak lanjut hanya dapat diubah oleh admin Sales Activity." />
       </WorkspacePage>
     )
@@ -34,10 +34,8 @@ export default async function FollowUpSettingsPage() {
   return (
     <WorkspacePage
       introKey={pageIntroKey("settings-follow-up")}
-      eyebrow="Pengaturan"
       title="Tindak lanjut"
       description="Pilihan yang muncul saat sales mencatat tindak lanjut dari laporan: lewat apa dan bagaimana hasilnya."
-      action={<BackLink href={paths.settings.index} />}
     >
       <div className="mb-4 space-y-2 rounded-xl border border-dashed bg-muted/40 px-5 py-4 text-sm text-muted-foreground">
         <p>

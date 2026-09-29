@@ -2,9 +2,8 @@ import { redirect } from "next/navigation"
 import { canPerform, getSalesMissionAccess } from "@/lib/sales-mission-access"
 import { readAiUsage } from "@/lib/ai/ai-usage"
 import { createServiceClient, hasServiceClientConfig } from "@/utils/supabase/service"
-import { BackLink, EmptyState, WorkspacePage } from "@/app/workspace/workspace-page"
+import { EmptyState, WorkspacePage } from "@/app/workspace/workspace-page"
 import { pageIntroKey } from "@/lib/hints/hint-key"
-import { paths } from "@/lib/paths"
 import { UsageCard } from "../usage-card"
 
 export const dynamic = "force-dynamic"
@@ -23,10 +22,8 @@ export default async function AiUsagePage() {
   const shell = (children: React.ReactNode) => (
     <WorkspacePage
       introKey={pageIntroKey("settings-ai-usage")}
-      eyebrow="Pengaturan / AI"
       title="Pemakaian AI"
       description="Token yang dipakai kedua aplikasi lewat proxy AI, dan perkiraan kebutuhan seminggu dan sebulan."
-      action={<BackLink href={paths.settings.ai} />}
     >
       {children}
     </WorkspacePage>
@@ -40,9 +37,5 @@ export default async function AiUsagePage() {
   }
 
   const usage = await readAiUsage(createServiceClient())
-  return shell(
-    <div className="max-w-3xl">
-      <UsageCard summary={usage} />
-    </div>
-  )
+  return shell(<UsageCard summary={usage} />)
 }

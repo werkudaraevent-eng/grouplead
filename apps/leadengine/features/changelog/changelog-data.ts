@@ -76,6 +76,16 @@ export const CHANGE_TYPE_META: Record<
 export const CHANGELOG: ChangelogEntry[] = [
     {
         date: "2026-09-29",
+        title: "Settings has a menu on the left, and Active devices a page of its own",
+        items: [
+            { type: "improvement", text: "Settings now has a menu on the left, grouped as the Settings page is: go from Pipeline & stages to Users without going back to the list first. Settings pages no longer stretch across a wide screen, so the button at the top right sits right above what it acts on; a page with a large table (Users, Roles & permissions, Usage, the Recycle bin, the pipeline and segment editors) still uses the full width beside the menu. On a phone nothing changes: the Settings list, then the page with a back arrow." },
+            { type: "feature", text: "Active devices is its own page, Settings › Account › Active devices, next to Profile. Both are in the account menu (your name at the bottom left; on a phone, More), in the same order and with the same icons as in Sales Activity. The Account group shows for everyone, including people who cannot open any other settings." },
+            { type: "improvement", text: "My profile is now called Profile. It is the same profile as Sales Activity's, where it can now be edited too: a name, photo, phone or job title changed in either app shows in both." },
+            { type: "improvement", text: "The Changelog reads in one column in the middle of a wide screen, with its title above the entries." },
+        ],
+    },
+    {
+        date: "2026-09-29",
         title: "An update no longer costs what you typed",
         items: [
             { type: "fix", text: "If LeadEngine is updated while you are filling in a lead, saving from the page you opened before the update no longer fails with “Create failed: Server Action … was not found”. The form stays as you left it and a message says “LeadEngine was just updated. Your input is kept — reload and submit again.” with a Reload button." },

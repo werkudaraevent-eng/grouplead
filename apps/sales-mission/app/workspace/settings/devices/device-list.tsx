@@ -54,7 +54,7 @@ export function DeviceList({ devices, failed }: { devices: DeviceView[]; failed:
 
   if (failed) {
     return (
-      <div className="max-w-2xl space-y-4">
+      <div className="space-y-4">
         <div className="rounded-xl border bg-card px-5 py-6 text-sm" role="alert">
           <p className="font-semibold text-foreground">Daftar perangkat tidak bisa dimuat sekarang.</p>
           <p className="mt-1 text-muted-foreground">Perangkatmu tetap masuk seperti biasa. Coba muat ulang sebentar lagi.</p>
@@ -68,7 +68,7 @@ export function DeviceList({ devices, failed }: { devices: DeviceView[]; failed:
   }
 
   return (
-    <div className="max-w-2xl space-y-4">
+    <div className="space-y-4">
       {devices.length === 0 ? (
         <div className="rounded-xl border bg-card px-5 py-6 text-sm text-muted-foreground" role="status">
           Belum ada perangkat yang tercatat untuk akunmu. Perangkat muncul di sini setelah membuka Sales Activity atau LeadEngine.

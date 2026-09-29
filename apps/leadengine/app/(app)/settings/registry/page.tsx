@@ -12,14 +12,14 @@ export default function RegistryPage() {
       action="can_update"
       fallback={<div className="p-8 text-muted-foreground">You do not have permission to manage the field registry.</div>}
     >
-      <div className="min-h-screen bg-muted/30">
+      <div data-settings-wide className="min-h-screen bg-background">
         <SettingsPageHeader
           title="Lead Field Registry"
           subtitle="Manage which lead fields are available for analysis across goals, segments, and dashboard widgets."
           intro={pageIntroKey("settings-registry")}
           breadcrumbs={[{ label: "Registry" }]}
         />
-        <div className="px-6 pb-10 max-w-[1200px]">
+        <div className="px-4 sm:px-6 lg:px-8 pb-10">
           <div className="rounded-xl border bg-card p-5 shadow-sm">
             <RegistrySettings />
           </div>

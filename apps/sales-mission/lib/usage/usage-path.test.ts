@@ -82,6 +82,9 @@ describe("usagePageLabel", () => {
     expect(usagePageLabel("/workspace/settings/history")).toBe("Pengaturan · Riwayat perubahan")
     expect(usagePageLabel("/workspace/settings/ai/pemakaian")).toBe("Pengaturan · Pemakaian AI")
     expect(usagePageLabel("/workspace/settings/usage")).toBe("Pengaturan · Pemakaian")
+    expect(usagePageLabel("/workspace/settings/profile")).toBe("Pengaturan · Profil")
+    expect(usagePageLabel("/workspace/settings/devices")).toBe("Pengaturan · Perangkat aktif")
+    expect(usagePageLabel("/workspace/perangkat")).toBe("Pengaturan · Perangkat aktif")
   })
 
   it("shows a page it does not know as its path", () => {

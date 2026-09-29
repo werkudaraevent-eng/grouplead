@@ -49,7 +49,7 @@ export async function signOutDevice(input: unknown): Promise<ActionResult> {
   const { error } = await supabase.rpc("fn_sign_out_device", { p_session_id: parsed.data.sessionId })
   if (error) return { success: false, error: deviceErrorMessage(error.message) }
 
-  revalidatePath(paths.devices)
+  revalidatePath(paths.settings.devices)
   return { success: true }
 }
 
@@ -59,6 +59,6 @@ export async function signOutOtherDevices(): Promise<ActionResult<{ count: numbe
   const { data, error } = await supabase.rpc("fn_sign_out_other_devices")
   if (error) return { success: false, error: deviceErrorMessage(error.message) }
 
-  revalidatePath(paths.devices)
+  revalidatePath(paths.settings.devices)
   return { success: true, data: { count: typeof data === "number" ? data : 0 } }
 }

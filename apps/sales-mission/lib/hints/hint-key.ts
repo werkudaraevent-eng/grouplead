@@ -25,6 +25,7 @@ export const INTRO_PAGES = [
   "new-prospect",
   "edit-prospect",
   "notifications",
+  "profile",
   "report-insight",
   "report-summary",
   "settings",

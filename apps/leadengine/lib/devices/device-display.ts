@@ -2,7 +2,7 @@ import { formatRelativeTime } from "@/lib/relative-time"
 import { parseUserAgent, type DeviceKind, type ParsedUserAgent } from "./user-agent"
 
 /**
- * How one signed-in device reads in Settings › Profile › Active devices: its
+ * How one signed-in device reads in Settings › Account › Active devices: its
  * name ("Chrome on Windows"), then one line of where, when and which app
  * ("Jakarta, Indonesia · Last active 2 hours ago · Sales Activity"). The
  * rows come from `public.fn_list_my_devices()`, shared with Sales

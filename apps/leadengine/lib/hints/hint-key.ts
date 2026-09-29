@@ -35,6 +35,7 @@ export const INTRO_PAGES = [
   "settings-ai-usage",
   "settings-announcements",
   "settings-companies",
+  "settings-devices",
   "settings-goals",
   "settings-goal-configuration",
   "settings-history",

@@ -18,14 +18,14 @@ export default async function AiUsagePage() {
   const usage = guard.allowed ? await readAiUsage(createServiceClient()) : null
 
   return (
-    <div className="min-h-screen bg-muted/30">
+    <div className="min-h-screen bg-background">
       <SettingsPageHeader
         title="AI usage"
         subtitle="Tokens both apps sent through the AI proxy, and what a week and a month need at the current pace."
         intro={pageIntroKey("settings-ai-usage")}
         breadcrumbs={[{ label: "AI", href: "/settings/ai" }, { label: "Usage" }]}
       />
-      <div className="px-6 pb-10 max-w-[800px]">
+      <div className="px-4 sm:px-6 lg:px-8 pb-10">
         {usage ? (
           <AiUsageCard summary={usage} />
         ) : (

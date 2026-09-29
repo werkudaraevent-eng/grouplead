@@ -12,9 +12,12 @@ export const dynamic = "force-dynamic"
  * Perangkat aktif: where this account is signed in. Several devices may be
  * signed in at once (a laptop at the desk, the phone in the field); this is
  * where one of them, or all the others, is signed out. The same list as
- * LeadEngine's Settings › Profile › Active devices, since one sign-in
- * covers both apps. Opened from the account menu, so top-level: no parent
- * line above the title.
+ * LeadEngine's Settings › Account › Active devices, since one sign-in
+ * covers both apps.
+ *
+ * In Pengaturan › Akun, which every signed-in person sees (a rep included):
+ * it needs no grant, only a session. The old address, /workspace/perangkat,
+ * redirects here (next.config.ts).
  */
 export default async function DevicesPage() {
   const access = await getSalesMissionAccess()

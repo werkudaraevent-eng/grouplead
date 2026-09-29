@@ -130,7 +130,8 @@ export default function RecycleBinPage() {
     }
 
     return (
-        <div className="min-h-[100dvh] bg-background">
+        // Wide: its table needs the room beside the settings menu.
+        <div data-settings-wide className="min-h-[100dvh] bg-background">
             <SettingsPageHeader
                 title="Recycle Bin"
                 subtitle="Deleted leads, companies, and contacts. Restore them or remove permanently."
@@ -140,7 +141,7 @@ export default function RecycleBinPage() {
 
             <div className="px-4 sm:px-6 lg:px-8 pb-20">
                 {/* The header already leaves 16px; the first block's own top margin would double it. */}
-                <div className="w-full max-w-[1000px] [&>:first-child]:mt-0">
+                <div className="w-full [&>:first-child]:mt-0">
                     {isSuperAdmin && retention !== null && (
                         <div className="mt-6 flex flex-wrap items-center gap-3 rounded-xl border border-border bg-card px-4 py-3">
                             <div className="min-w-0 flex-1">

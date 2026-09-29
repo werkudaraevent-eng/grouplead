@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import {
-    LogOut, ChevronsLeft, Settings, Loader2, Moon, Sun, ScrollText, MoreVertical, UserCircle,
+    LogOut, ChevronsLeft, Settings, Loader2, Moon, Sun, ScrollText, MoreVertical, UserCircle, MonitorSmartphone,
 } from "@/components/icons"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { CompanySwitcherHeader } from "@/components/layout/company-switcher"
@@ -29,7 +29,7 @@ import { useSidebarTheme } from "@/contexts/sidebar-theme-context"
 import { createClient } from "@/utils/supabase/client"
 import { useSignOut } from "@/components/layout/use-sign-out"
 import { DESTINATION_ICONS } from "@/components/layout/destination-icons"
-import { CHANGELOG_HREF, PROFILE_HREF, SETTINGS_HREF, canOpenSettings, isActiveHref, permittedDestinations, roleLabel } from "@/lib/navigation/app-nav"
+import { CHANGELOG_HREF, DEVICES_HREF, PROFILE_HREF, SETTINGS_HREF, canOpenSettings, isActiveHref, permittedDestinations, roleLabel } from "@/lib/navigation/app-nav"
 
 /**
  * The drawer, from `lg` up. Below `lg` the phone shell takes its place (the
@@ -42,8 +42,8 @@ interface SidebarProps {
     serverProfile?: { full_name: string | null; role: string | null; avatar_url: string | null } | null
 }
 
-// Administration is administration. Supporting pages (the changelog, the
-// profile), the panel toggle and sign-out live behind the account menu at
+// Administration is administration. Supporting pages (the profile, active
+// devices, the changelog), the panel toggle and sign-out live behind the account menu at
 // the foot of the drawer, the same pattern as Sales Activity: Material's
 // drawer holds destinations, and Slack, Notion and Linear keep help and
 // release notes off the rail. The destinations and their grants are
@@ -260,13 +260,23 @@ export function Sidebar({ collapsed = false, onToggleCollapse, serverProfile = n
                             <p className="truncate text-xs text-sidebar-foreground">{roleLabel(profile?.role)}</p>
                         </div>
                         <DropdownMenuSeparator className="bg-sidebar-border" />
+                        {/* The account's own pages first, the same two, in the
+                            same order and with the same glyphs, as Sales
+                            Activity's account menu: Settings › Account, open
+                            to everyone. */}
                         <DropdownMenuItem asChild>
-                            <Link href={PROFILE_HREF}><UserCircle className="h-4 w-4" /> My profile</Link>
+                            <Link href={PROFILE_HREF}><UserCircle className="h-4 w-4" /> Profile</Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem asChild>
+                            <Link href={DEVICES_HREF}><MonitorSmartphone className="h-4 w-4" /> Active devices</Link>
                         </DropdownMenuItem>
                         {showAdminNav && (
-                            <DropdownMenuItem asChild>
-                                <Link href={CHANGELOG_HREF}><ScrollText className="h-4 w-4" /> Changelog</Link>
-                            </DropdownMenuItem>
+                            <>
+                                <DropdownMenuSeparator className="bg-sidebar-border" />
+                                <DropdownMenuItem asChild>
+                                    <Link href={CHANGELOG_HREF}><ScrollText className="h-4 w-4" /> Changelog</Link>
+                                </DropdownMenuItem>
+                            </>
                         )}
                         <DropdownMenuSeparator className="bg-sidebar-border" />
                         <DropdownMenuItem onSelect={togglePanel}>

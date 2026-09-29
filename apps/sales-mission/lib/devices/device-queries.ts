@@ -3,7 +3,7 @@ import type { DeviceRow } from "./device-display"
 
 /**
  * The signed-in person's live sessions, from `public.fn_list_my_devices()`:
- * the same list LeadEngine's Active devices card reads, because one sign-in
+ * the same list LeadEngine's Active devices page reads, because one sign-in
  * covers both apps. The function answers for the caller's own token only.
  */
 export async function listMyDevices(): Promise<{ rows: DeviceRow[]; failed: boolean }> {

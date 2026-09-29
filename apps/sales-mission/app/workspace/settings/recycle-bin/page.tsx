@@ -2,7 +2,7 @@ import { redirect } from "next/navigation"
 import { getSalesMissionAccess, isSettingsAdmin } from "@/lib/sales-mission-access"
 import { listDeletedMissions, purgeExpiredMissions } from "@/lib/missions/recycle-bin-queries"
 import { RETENTION_DAYS } from "@/lib/missions/recycle-bin"
-import { BackLink, EmptyState, WorkspacePage } from "@/app/workspace/workspace-page"
+import { EmptyState, WorkspacePage } from "@/app/workspace/workspace-page"
 import { pageIntroKey } from "@/lib/hints/hint-key"
 import { RecycleBinList } from "./recycle-bin-list"
 import { ProspectBinList } from "./prospect-bin-list"
@@ -22,7 +22,7 @@ export default async function RecycleBinPage() {
   const canManage = await isSettingsAdmin(access)
   if (!canManage) {
     return (
-      <WorkspacePage eyebrow="Pengaturan" title="Sampah" action={<BackLink href="/workspace/settings" />}>
+      <WorkspacePage wide title="Sampah">
         <EmptyState title="Tidak punya izin" description="Hanya admin dan super admin yang bisa memulihkan atau menghapus permanen." />
       </WorkspacePage>
     )
@@ -34,11 +34,10 @@ export default async function RecycleBinPage() {
 
   return (
     <WorkspacePage
+      wide
       introKey={pageIntroKey("settings-recycle-bin")}
-      eyebrow="Pengaturan"
       title="Sampah"
       description={`Aktivitas dan prospek yang dihapus disimpan ${RETENTION_DAYS} hari, lalu dihapus permanen. Laporan, penugasan, dan catatan di dalamnya ikut kembali saat dipulihkan.`}
-      action={<BackLink href="/workspace/settings" />}
     >
       <section aria-label="Aktivitas di sampah">
         <h2 className="mb-2 text-base font-semibold text-foreground">Aktivitas</h2>

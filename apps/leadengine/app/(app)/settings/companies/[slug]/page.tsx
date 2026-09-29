@@ -158,7 +158,7 @@ export default function CompanyDetailPage() {
 
             {/* ─── Content ─── */}
             <div>
-                <div className="max-w-[960px] mx-auto px-8 pb-6">
+                <div className="px-4 sm:px-6 lg:px-8 pb-6">
 
                     {/* ─── Hero Card ─── */}
                     <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden mb-5">

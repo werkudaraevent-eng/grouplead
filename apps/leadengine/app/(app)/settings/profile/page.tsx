@@ -21,7 +21,6 @@ import { pageIntroKey } from "@/lib/hints/hint-key"
 import { PhoneInput } from "@/components/shared/phone-input"
 import { normalizePhoneToE164 } from "@/lib/phone-normalize"
 import { Switch } from "@/components/ui/switch"
-import { ActiveDevicesCard } from "@/features/settings/components/active-devices-card"
 
 /* ─── Schemas ────────────────────────────────────────────────────────────── */
 const profileSchema = z.object({
@@ -176,16 +175,18 @@ export default function MyProfilePage() {
     }
 
     return (
-        <div>
-            {/* Top-level: opened from the account menu and open to people
-                without the Settings grant, so no "Settings" parent to bounce them. */}
+        // Settings › Account › Profile, open to everyone (no Settings grant
+        // needed); Active devices is the page beside it. A form that reflows
+        // to a phone, checked at 360px, so it takes the phone's real width.
+        <div data-fluid-page className="min-h-[100dvh] bg-background">
             <SettingsPageHeader
-                title="Profile Settings"
-                subtitle="Manage your personal information and security settings."
+                title="Profile"
+                subtitle="Your name, photo and contact details, used in LeadEngine and Sales Activity, and your password."
                 intro={pageIntroKey("settings-profile")}
+                breadcrumbs={[{ label: "Profile" }]}
             />
 
-            <div className="px-6 lg:px-8 pb-6 max-w-3xl space-y-6">
+            <div className="space-y-6 px-4 pb-10 sm:px-6 lg:px-8">
             {/* ─── Avatar ────────────────────────────────────────────────── */}
             <Card>
                 <CardContent className="pt-6">
@@ -422,8 +423,6 @@ export default function MyProfilePage() {
                 </CardContent>
             </Card>
 
-            {/* ─── Active devices ────────────────────────────────────────── */}
-            <ActiveDevicesCard />
             </div>
         </div>
     )

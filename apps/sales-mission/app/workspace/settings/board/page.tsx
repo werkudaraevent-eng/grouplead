@@ -4,7 +4,7 @@ import { redirect } from "next/navigation"
 import { CalendarDays, MonitorPlay } from "@/components/icons"
 import { canPerform, getSalesMissionAccess } from "@/lib/sales-mission-access"
 import { createClient } from "@/utils/supabase/server"
-import { BackLink, EmptyState, WorkspacePage } from "@/app/workspace/workspace-page"
+import { EmptyState, WorkspacePage } from "@/app/workspace/workspace-page"
 import { pageIntroKey } from "@/lib/hints/hint-key"
 import { Button } from "@/components/ui/button"
 import { BoardTokenManager, type BoardTokenRow } from "./token-manager"
@@ -21,10 +21,8 @@ export default async function BoardSettingsPage() {
     return (
       <WorkspacePage
         introKey={pageIntroKey("settings-board")}
-        eyebrow="Pengaturan"
         title="Tautan publik"
         description="Kelola tautan layar TV dan kalender manajemen."
-        action={<BackLink href="/workspace/settings" />}
       >
         <EmptyState title="Tidak punya izin" description="Tautan publik hanya dapat dikelola oleh admin Sales Activity." />
       </WorkspacePage>
@@ -62,10 +60,8 @@ export default async function BoardSettingsPage() {
   return (
     <WorkspacePage
       introKey={pageIntroKey("settings-board")}
-      eyebrow="Pengaturan"
       title="Tautan publik"
       description="Setiap tautan yang pernah dibuat, dari dua jenis: layar TV dan kalender manajemen. Cabut yang tidak dipakai."
-      action={<BackLink href="/workspace/settings" />}
     >
       <div className="mb-4 rounded-xl border border-dashed bg-muted/40 px-5 py-4 text-sm text-muted-foreground">
         Tautan dibuat di tempat yang ditampilkannya: <strong className="text-foreground">Papan live</strong> untuk layar TV

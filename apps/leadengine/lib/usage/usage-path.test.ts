@@ -100,7 +100,8 @@ describe("usagePageLabel", () => {
     expect(usagePageLabel("/settings/ai/usage")).toBe("Settings · AI usage")
     expect(usagePageLabel("/settings/usage")).toBe("Settings · Usage")
     expect(usagePageLabel("/settings/companies/:id/members")).toBe("Settings · Company members")
-    expect(usagePageLabel("/settings/profile")).toBe("Settings · My profile")
+    expect(usagePageLabel("/settings/profile")).toBe("Settings · Profile")
+    expect(usagePageLabel("/settings/devices")).toBe("Settings · Active devices")
   })
 
   it("shows a page it does not know as its path", () => {

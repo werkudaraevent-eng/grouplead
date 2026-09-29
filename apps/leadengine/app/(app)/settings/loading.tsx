@@ -1,5 +1,10 @@
+/**
+ * Loading state for a settings page, inside the settings frame: the menu
+ * stays where it is and only the column beside it waits, at the column's
+ * own width (the frame sets it).
+ */
 export default function SettingsLoading() {
-    const CONTAINER = "w-full max-w-[1200px]"
+    const CONTAINER = "w-full"
     return (
         <div className="min-h-[100dvh] bg-background">
             {/* Header skeleton, matching SettingsPageHeader: the one 56dp row

@@ -22,8 +22,8 @@
  * primary one as a FAB, and no description, so the list opens on its
  * records rather than on its furniture (Sales Activity's "Content before
  * chrome on a phone"). Every other page's header (`SettingsPageHeader`) is
- * the same row, with a parent line above the title on a page under
- * Settings.
+ * the same row; a page under Settings has the settings menu beside it,
+ * which names where it is.
  */
 
 import * as React from "react"

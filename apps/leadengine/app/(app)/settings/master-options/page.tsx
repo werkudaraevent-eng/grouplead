@@ -773,7 +773,9 @@ function MasterOptionsContent() {
         <PermissionGate resource="master_options" action="update" fallback={
             <div className="p-8 text-center text-muted-foreground">You don&apos;t have permission to manage options.</div>
         }>
-            <div className="flex flex-col w-full min-h-screen">
+            {/* Wide: its editors (a category list beside the values, the form
+                layout builder) need the room beside the settings menu. */}
+            <div data-settings-wide className="flex flex-col w-full min-h-screen">
                 <SettingsPageHeader
                     title="Master Options & Custom Fields"
                     subtitle="Manage dropdown values and dynamic form fields."
@@ -781,7 +783,7 @@ function MasterOptionsContent() {
                     breadcrumbs={[{ label: "Master Options" }]}
                 />
 
-                <Tabs value={activeTab} onValueChange={handleTabChange} className="flex-1 flex flex-col min-h-0 px-6">
+                <Tabs value={activeTab} onValueChange={handleTabChange} className="flex-1 flex flex-col min-h-0 px-4 sm:px-6 lg:px-8">
                     <TabsList className="w-max flex-none">
                         <TabsTrigger value="options">Lead Values</TabsTrigger>
                         <TabsTrigger value="fields">Custom Fields</TabsTrigger>

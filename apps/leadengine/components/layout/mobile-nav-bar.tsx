@@ -14,6 +14,7 @@ import {
     LogOut,
     MapPinned,
     Menu,
+    MonitorSmartphone,
     ScrollText,
     Settings,
     UserCircle,
@@ -29,6 +30,7 @@ import { usePermissions } from "@/contexts/permissions-context"
 import {
     CHANGELOG_HREF,
     DESTINATIONS,
+    DEVICES_HREF,
     PROFILE_HREF,
     SETTINGS_HREF,
     canOpenSettings,
@@ -37,6 +39,7 @@ import {
     permittedDestinations,
     roleLabel,
 } from "@/lib/navigation/app-nav"
+import { isAccountPath } from "@/lib/navigation/settings-nav"
 import { cn } from "@/lib/utils"
 
 interface Profile {
@@ -125,11 +128,12 @@ export function MobileNavBar({ profile }: { profile: Profile | null }) {
 }
 
 /**
- * Behind More, in the order Sales Activity's Lainnya keeps: the pages
- * (Settings, My profile, the changelog), then what the drawer's header
- * holds (the business unit, the other app), then the account and the way
- * out. The panel toggle is not here: it recolours the drawer, which a phone
- * does not have.
+ * Behind More, in the order Sales Activity's Lainnya keeps: Settings (the
+ * destination the bar lacks), then the account menu's pages (Profile,
+ * Active devices, the changelog), then what the drawer's header holds (the
+ * business unit, the other app), then the account and the way out. The
+ * panel toggle is not here: it recolours the drawer, which a phone does not
+ * have.
  */
 function MoreSheet({ open, onOpenChange, profile }: { open: boolean; onOpenChange: (open: boolean) => void; profile: Profile | null }) {
     const pathname = usePathname()
@@ -170,14 +174,22 @@ function MoreSheet({ open, onOpenChange, profile }: { open: boolean; onOpenChang
             <BottomSheet open={open} onOpenChange={setOpen} title="More" description={name}>
                 <div className="space-y-1 px-2 pb-2">
                     {showSettings && (
-                        <SheetRow
-                            icon={Settings}
-                            label="Settings"
-                            active={isActiveHref(pathname, SETTINGS_HREF) && !isActiveHref(pathname, PROFILE_HREF)}
-                            onClick={() => go(SETTINGS_HREF)}
-                        />
+                        <>
+                            <SheetRow
+                                icon={Settings}
+                                label="Settings"
+                                active={isActiveHref(pathname, SETTINGS_HREF) && !isAccountPath(pathname)}
+                                onClick={() => go(SETTINGS_HREF)}
+                            />
+                            <div className="my-2 border-t" />
+                        </>
                     )}
-                    <SheetRow icon={UserCircle} label="My profile" active={isActiveHref(pathname, PROFILE_HREF)} onClick={() => go(PROFILE_HREF)} />
+                    {/* The account menu's items, in its order and with its
+                        glyphs, the same as Sales Activity's Lainnya: Profile
+                        and Active devices first (Settings › Account,
+                        everyone's), Sign out last. */}
+                    <SheetRow icon={UserCircle} label="Profile" hint="Name, photo and password" active={isActiveHref(pathname, PROFILE_HREF)} onClick={() => go(PROFILE_HREF)} />
+                    <SheetRow icon={MonitorSmartphone} label="Active devices" hint="Where your account is signed in" active={isActiveHref(pathname, DEVICES_HREF)} onClick={() => go(DEVICES_HREF)} />
                     {showSettings && (
                         <SheetRow icon={ScrollText} label="Changelog" hint="The latest changes to the app" active={isActiveHref(pathname, CHANGELOG_HREF)} onClick={() => go(CHANGELOG_HREF)} />
                     )}

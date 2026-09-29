@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation"
 import { canPerform, getSalesMissionAccess } from "@/lib/sales-mission-access"
 import { listFormFields } from "@/lib/missions/form-field-queries"
-import { BackLink, EmptyState, WorkspacePage } from "@/app/workspace/workspace-page"
+import { EmptyState, WorkspacePage } from "@/app/workspace/workspace-page"
 import { pageIntroKey } from "@/lib/hints/hint-key"
 import { FieldManager } from "@/app/workspace/settings/form/field-manager"
 import { listReportChoices } from "@/lib/missions/report-choice-queries"
@@ -22,7 +22,7 @@ export default async function ReportFormSettingsPage() {
 
   if (!(await canPerform(access, "sales_mission_settings", "update"))) {
     return (
-      <WorkspacePage eyebrow="Pengaturan" title="Form laporan" action={<BackLink href="/workspace/settings" />}>
+      <WorkspacePage title="Form laporan">
         <EmptyState title="Tidak punya izin" description="Pengaturan form laporan hanya dapat diubah oleh admin Sales Activity." />
       </WorkspacePage>
     )
@@ -36,10 +36,8 @@ export default async function ReportFormSettingsPage() {
   return (
     <WorkspacePage
       introKey={pageIntroKey("settings-report-form")}
-      eyebrow="Pengaturan"
       title="Form laporan"
       description="Tambah, ubah, urutkan, dan tentukan pertanyaan mana yang wajib dijawab pada laporan kunjungan."
-      action={<BackLink href="/workspace/settings" />}
     >
       <div className="mb-4 space-y-2 rounded-xl border border-dashed bg-muted/40 px-5 py-4 text-sm text-muted-foreground">
         <p>

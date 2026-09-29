@@ -26,6 +26,7 @@ export default async function MyCalendarPage() {
 
   return (
     <WorkspacePage
+      reading
       introKey={pageIntroKey("my-calendar")}
       title="Kalender saya"
       description="Jadwal kunjungan ikut ke Google Calendar, Kalender iPhone, atau Outlook lewat tautan langganan; tempel sebagai kalender dari URL, bukan impor berkas, supaya perubahan jadwal ikut. Pengingat dan tampilan mengikuti kalender ponsel."

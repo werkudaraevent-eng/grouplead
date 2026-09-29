@@ -34,7 +34,10 @@ export const DESTINATIONS: readonly Destination[] = [
 ]
 
 export const SETTINGS_HREF = "/settings"
+/** Settings › Account › Profile: everyone's own page, no grant needed. */
 export const PROFILE_HREF = "/settings/profile"
+/** Settings › Account › Active devices: everyone's own page, no grant needed. */
+export const DEVICES_HREF = "/settings/devices"
 export const CHANGELOG_HREF = "/changelog"
 
 /** The destinations this person may open, in order. */
@@ -44,8 +47,8 @@ export function permittedDestinations(can: Can): Destination[] {
 
 /**
  * Settings, and the changelog beside it, open for whoever holds the Settings
- * grant (section-level access is handled inside /settings). My profile is
- * everyone's own page and needs no grant.
+ * grant (section-level access is handled inside /settings). Settings ›
+ * Account (Profile, Active devices) is everyone's own and needs no grant.
  */
 export function canOpenSettings(can: Can): boolean {
     return can("settings", "read")
@@ -59,7 +62,8 @@ export function isActiveHref(pathname: string, href: string): boolean {
 
 /**
  * The phone's More item is current when no destination in the bar is: a
- * page reached from the More sheet (Settings, My profile, the changelog).
+ * page reached from the More sheet (Settings, Profile, Active devices, the
+ * changelog).
  */
 export function isMoreActive(pathname: string, destinations: readonly Destination[]): boolean {
     return !destinations.some((destination) => isActiveHref(pathname, destination.href))

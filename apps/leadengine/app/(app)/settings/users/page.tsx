@@ -187,7 +187,8 @@ export default function UserManagementPage() {
         <PermissionGate resource="members" action="read" fallback={
             <div className="p-8 text-center text-muted-foreground">You don&apos;t have permission to view users.</div>
         }>
-        <div className="w-full">
+        {/* Wide: the users table needs the room beside the settings menu. */}
+        <div data-settings-wide className="w-full">
             <SettingsPageHeader
                 title="User Management"
                 subtitle="Manage team hierarchy, roles, and sales quotas."
@@ -200,7 +201,7 @@ export default function UserManagementPage() {
                 }
             />
 
-            <div className="px-6 lg:px-8 pb-8 space-y-5">
+            <div className="px-4 sm:px-6 lg:px-8 pb-8 space-y-5">
 
             {/* Search + Filters */}
             <div className="space-y-3">

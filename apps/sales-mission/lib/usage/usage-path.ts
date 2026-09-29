@@ -66,6 +66,9 @@ const PAGE_LABELS: Record<string, string> = {
   "/workspace/pasang": "Pasang di ponsel",
   "/workspace/yang-baru": "Yang baru",
   "/workspace/settings": "Pengaturan",
+  // Perangkat aktif's address until it moved into Pengaturan › Akun; rows
+  // recorded before then keep their path.
+  "/workspace/perangkat": "Pengaturan · Perangkat aktif",
 }
 
 /** Pengaturan's pages by what follows /workspace/settings/, named as their cards are. */
@@ -76,9 +79,11 @@ const SETTINGS_LABELS: Record<string, string> = {
   announcements: "Pengumuman",
   board: "Tautan publik",
   data: "Data",
+  devices: "Perangkat aktif",
   "follow-up": "Tindak lanjut",
   form: "Form aktivitas",
   history: "Riwayat perubahan",
+  profile: "Profil",
   "prospect-form": "Form prospek",
   "prospect-statuses": "Status prospek",
   "recycle-bin": "Sampah",
