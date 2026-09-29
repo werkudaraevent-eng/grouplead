@@ -26,7 +26,9 @@ import { PageIntro } from "@/components/page-intro"
  * (`eyebrow`: "Pengaturan", "Aktivitas"), never the product's name. Under
  * the row, a description that teaches shows until the person closes it
  * (`introKey`); one that states facts (Hari ini's date, a record's type
- * and place) always shows.
+ * and place) always shows. A record whose title is the CRM's current name
+ * may carry one quiet line right under the title (`titleNote`) naming what
+ * it recorded when that differs.
  *
  * On a phone the title lives in the top app bar (announced through
  * PageChrome), the one primary action is an extended FAB, and the rest of
@@ -35,6 +37,7 @@ import { PageIntro } from "@/components/page-intro"
 export function WorkspacePage({
   eyebrow,
   title,
+  titleNote,
   description,
   introKey,
   phoneDescription = true,
@@ -47,6 +50,12 @@ export function WorkspacePage({
   /** A derived page's parent, in sentence case ("Pengaturan / AI"); a top-level page has none. */
   eyebrow?: string
   title: string
+  /**
+   * One quiet line right under the title, on every window: on a record whose
+   * title is the CRM's current name, what the record wrote down when it was
+   * made ("Tercatat saat dijadwalkan: …"), only when the two differ.
+   */
+  titleNote?: string | null
   description?: string
   /**
    * The description only teaches: show it until the person closes it, and
@@ -85,7 +94,7 @@ export function WorkspacePage({
 }) {
   // Whether anything in the header reaches a phone; if not, the block is
   // desk-only rather than an empty band of padding above the list.
-  const phoneHeader = Boolean((description && phoneDescription) || (action && phoneAction))
+  const phoneHeader = Boolean((description && phoneDescription) || (action && phoneAction) || titleNote)
   const actions = (action || primaryAction) && (
     <div className={cn("flex shrink-0 flex-wrap items-center gap-2", !phoneAction && "max-lg:hidden")}>
       {action}
@@ -109,6 +118,14 @@ export function WorkspacePage({
         {description}
       </p>
     ))
+  // Under the row, before the description. On a phone the title is the top
+  // app bar's, so the line leads the header and still sits right under it,
+  // held 4px over the description rather than the header's 12px gap.
+  const note = titleNote ? (
+    <p data-page-intro="" className={cn("text-xs text-muted-foreground", !fill && "max-lg:order-first max-lg:-mb-2")}>
+      {titleNote}
+    </p>
+  ) : null
   return (
     <div className="flex h-full w-full flex-col overflow-clip bg-background">
       <PageChrome title={title} />
@@ -130,6 +147,7 @@ export function WorkspacePage({
           </div>
           {actions}
         </div>
+        {note}
         {text}
       </div>
       <div

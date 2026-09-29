@@ -46,6 +46,16 @@ export const CHANGE_KIND_LABELS: Record<ChangeKind, string> = {
 export const CHANGELOG: ChangeEntry[] = [
   {
     date: "2026-09-29",
+    title: "Nama perusahaan dan kontak mengikuti LeadEngine",
+    items: [
+      { kind: "lebih-baik", text: "Halaman aktivitas dan halaman prospek kini menampilkan nama perusahaan terbaru dari LeadEngine, dan halaman aktivitas juga nama, jabatan, telepon, dan email kontak janji temu terbaru. Jadi bila admin membetulkan nama atau nomor di LeadEngine, kamu langsung melihat yang benar. Kalau namanya berubah, nama lama tertulis kecil di bawahnya (“Tercatat saat dijadwalkan: …” atau “Tercatat saat dibuat: …”), supaya jelas itu perusahaan atau orang yang sama. Daftar, ekspor, kalender, dan papan live masih memakai nama yang tercatat." },
+      { kind: "diperbaiki", text: "Penilaian DISC dari kunjungan sebelumnya kini juga muncul untuk perusahaan yang belum ada di LeadEngine. Selama ini penilaian itu hanya terbawa bila perusahaannya sudah tertaut ke LeadEngine." },
+      { kind: "diperbaiki", text: "Saat admin menggabungkan dua perusahaan kembar di LeadEngine, prospeknya kini ikut pindah ke perusahaan yang dipertahankan, seperti aktivitasnya. Prospek yang tertinggal dari penggabungan sebelumnya ikut dibetulkan." },
+      { kind: "diperbaiki", text: "Perusahaan dan kontak yang sudah dihapus di LeadEngine tidak lagi muncul sebagai pilihan dari LeadEngine saat kamu mencari perusahaan atau memilih kontak di form aktivitas, dan kontak di laporan tidak lagi ditautkan ke orang yang sudah dihapus." },
+    ],
+  },
+  {
+    date: "2026-09-29",
     title: "Tidak ada lagi layar “Application error” saat membuka daftar",
     items: [
       { kind: "diperbaiki", text: "Membuka Aktivitas atau Laporan yang mengingat saringan terakhirmu kadang berakhir di layar putih bertuliskan “Application error” dan baru pulih setelah dimuat ulang beberapa kali. Penyebabnya bug di kerangka aplikasi yang kami pakai; kerangkanya sudah diperbarui, jadi daftar langsung terbuka dengan saringanmu." },

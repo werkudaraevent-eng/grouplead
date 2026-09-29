@@ -27,7 +27,16 @@ const errorSchema = z.object({
   error: z.object({ code: z.string(), message: z.string(), details: z.unknown().optional() }),
 })
 
-async function request<T>(path: string, schema: z.ZodType<T>, init?: RequestInit): Promise<T> {
+interface RequestOptions {
+  /**
+   * Give up after this long. For reads a page shows beside its own data,
+   * where the page must not wait on LeadEngine; the default is no limit,
+   * which is right for a write the person is waiting to see go through.
+   */
+  timeoutMs?: number
+}
+
+async function request<T>(path: string, schema: z.ZodType<T>, init?: RequestInit, options?: RequestOptions): Promise<T> {
   if (!BASE_URL) {
     throw new LeadEngineError(
       "not_configured",
@@ -53,10 +62,11 @@ async function request<T>(path: string, schema: z.ZodType<T>, init?: RequestInit
         "Content-Type": "application/json",
       },
       cache: "no-store",
+      ...(options?.timeoutMs ? { signal: AbortSignal.timeout(options.timeoutMs) } : {}),
     })
   } catch {
     // A field rep should be told the other system is unreachable, not shown a
-    // raw network error.
+    // raw network error. A timeout lands here too.
     throw new LeadEngineError("unreachable", "LeadEngine tidak dapat dihubungi. Coba lagi sebentar lagi.")
   }
 
@@ -130,6 +140,25 @@ export async function searchClientCompanies(search: string): Promise<LeadEngineC
   return data.companies
 }
 
+const clientCompanySchema = z.object({
+  company: z.object({
+    id: z.string(),
+    name: z.string(),
+    industry: z.string().nullable().optional(),
+  }),
+})
+
+export type LeadEngineCompanyRecord = z.infer<typeof clientCompanySchema>["company"]
+
+/**
+ * One company as the CRM holds it now. A company in the Recycle Bin, or one
+ * the person may not see, is a 404 (`LeadEngineError`, status 404).
+ */
+export async function fetchClientCompany(clientCompanyId: string, options?: RequestOptions): Promise<LeadEngineCompanyRecord> {
+  const data = await request(`/api/v1/client-companies/${encodeURIComponent(clientCompanyId)}`, clientCompanySchema, undefined, options)
+  return data.company
+}
+
 const contactsSchema = z.object({
   contacts: z.array(
     z.object({
@@ -155,6 +184,28 @@ export async function fetchCompanyContacts(clientCompanyId: string): Promise<Lea
   const query = new URLSearchParams({ clientCompanyId })
   const data = await request(`/api/v1/contacts?${query}`, contactsSchema)
   return data.contacts
+}
+
+const contactRecordSchema = z.object({
+  contact: z.object({
+    id: z.string(),
+    fullName: z.string(),
+    jobTitle: z.string().nullable().optional(),
+    phone: z.string().nullable().optional(),
+    email: z.string().nullable().optional(),
+    clientCompanyId: z.string().nullable().optional(),
+  }),
+})
+
+export type LeadEngineContactRecord = z.infer<typeof contactRecordSchema>["contact"]
+
+/**
+ * One contact as the CRM holds them now. A contact in the Recycle Bin, or one
+ * the person may not see, is a 404 (`LeadEngineError`, status 404).
+ */
+export async function fetchContact(contactId: string, options?: RequestOptions): Promise<LeadEngineContactRecord> {
+  const data = await request(`/api/v1/contacts/${encodeURIComponent(contactId)}`, contactRecordSchema, undefined, options)
+  return data.contact
 }
 
 const createdContactSchema = z.object({

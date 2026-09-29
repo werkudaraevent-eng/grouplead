@@ -87,6 +87,8 @@ import { listFormFields } from "@/lib/missions/form-field-queries"
 import { Suspense } from "react"
 import { ScrollToSection } from "@/components/scroll-to-section"
 import { paths } from "@/lib/paths"
+import { loadLiveCrm } from "@/lib/leadengine/live-crm"
+import { NO_LIVE_CRM, liveAppointment, liveName, recordedLine } from "@/lib/leadengine/live-values"
 
 export const dynamic = "force-dynamic"
 
@@ -139,6 +141,15 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
   const { activityId: missionId } = await params
   const mission = await getMission(access, missionId)
   if (!mission) notFound()
+
+  // The company's and the appointment contact's current details in the CRM,
+  // started now and awaited once the page's own queries are in, so it runs
+  // beside them and never holds the page past its own short limit. Only
+  // asked for a contact the viewer's role lets them read here (`canPerform`
+  // is memoised per request). Any failure is the recorded copy.
+  const liveCrmPending = canPerform(access, "sales_mission_contact", "read").then((canRead) =>
+    loadLiveCrm({ clientCompanyId: mission.clientCompanyId, contactId: canRead ? mission.appointment.contactId : null })
+  ).catch(() => NO_LIVE_CRM)
 
   // This page carries three different kinds of content, and the mission guard
   // above only covers one of them. Without these two the reporting module could
@@ -220,6 +231,16 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
   const editHint = editVerdict && isAuthor ? describeEditWindow(editVerdict, settings.reportEditWindowDays) : null
   const versions = report && canReadReport ? await listReportVersions(access, report.id) : []
   const primaryName = team.find((member) => member.role === "PRIMARY")?.name ?? null
+
+  // What the page shows is the CRM's current name and contact where the
+  // activity links to them; what it recorded stays as it is, named under the
+  // live value when they differ. What leaves the page (the WhatsApp text, its
+  // photo's file name, the calendar event) still carries the recorded name.
+  const liveCrm = await liveCrmPending
+  const company = liveName(mission.clientCompanyName, liveCrm.company?.name)
+  const companyName = company.name
+  const contact = liveAppointment(mission.appointment, liveCrm.contact)
+  const appointment = contact.appointment
 
   // Join eligibility is computed against the viewer's whole calendar, so it
   // needs the tenant's missions rather than this one alone.
@@ -307,7 +328,7 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
           </Button>
         )}
         {action === "join" && (
-          <JoinButton missionId={missionId} status={joinStatus} maxSupporting={settings.maxSupporting} clientName={mission.clientCompanyName} emphasis="filled" size="default" className="h-12 flex-1" />
+          <JoinButton missionId={missionId} status={joinStatus} maxSupporting={settings.maxSupporting} clientName={companyName} emphasis="filled" size="default" className="h-12 flex-1" />
         )}
         {action === "edit" && (
           <Button asChild variant="outline" className="h-12 flex-1">
@@ -347,7 +368,8 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
   return (
     <WorkspacePage
       eyebrow="Aktivitas"
-      title={mission.clientCompanyName}
+      title={companyName}
+      titleNote={recordedLine("activity", company.recordedAs)}
       description={[mission.missionType, mission.industry, mission.location].filter(Boolean).join(" · ")}
       // The facts card right under it carries the same three facts as rows.
       phoneDescription={false}
@@ -355,7 +377,7 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
     >
       {/* ?fokus=laporan from the lists: scroll the shell's panel, never the window. */}
       <Suspense fallback={null}><ScrollToSection /></Suspense>
-      <ActivityPhoneMenu links={chromeMenu} cancel={canCancel ? { missionId, clientName: mission.clientCompanyName } : undefined} />
+      <ActivityPhoneMenu links={chromeMenu} cancel={canCancel ? { missionId, clientName: companyName } : undefined} />
       {/* Two columns from lg; below that one column whose order is the
           rep's, not the layout's: facts, the answer, the report, then the
           contact, the team and the notes (`max-lg:order-*`; the column
@@ -460,7 +482,7 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
             {canCancel && (
               <div className="flex items-center justify-between gap-3 border-t bg-muted/30 px-5 py-3 max-lg:hidden">
                 <p className="text-xs text-muted-foreground">Klien membatalkan atau sales berhalangan sebelum berangkat?</p>
-                <CancelMissionButton missionId={missionId} clientName={mission.clientCompanyName} />
+                <CancelMissionButton missionId={missionId} clientName={companyName} />
               </div>
             )}
           </article>
@@ -470,52 +492,58 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
             appointment team's context reaches them, so it sits high on the page
             rather than below the assignment controls.
           */}
-          {canReadContacts && hasAppointmentDetails(mission.appointment) && (
+          {canReadContacts && hasAppointmentDetails(appointment) && (
             <article className="overflow-hidden rounded-xl border bg-card max-lg:order-4">
               <div className="border-b px-5 py-4">
                 <p className="text-xs font-semibold text-muted-foreground">Janji temu</p>
                 <h2 className="mt-1 text-base font-semibold text-foreground">
-                  {formatContactName(mission.appointment) ?? "Kontak belum diisi"}
+                  {formatContactName(appointment) ?? "Kontak belum diisi"}
                 </h2>
-                {(mission.appointment.jobTitle || mission.appointment.division) && (
+                {/* The CRM's current name above; what was booked, when the admin has corrected it since. */}
+                {contact.recordedName && (
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    {recordedLine("activity", formatContactName(mission.appointment))}
+                  </p>
+                )}
+                {(appointment.jobTitle || appointment.division) && (
                   <p className="mt-0.5 text-sm text-muted-foreground">
-                    {[mission.appointment.jobTitle, mission.appointment.division].filter(Boolean).join(" · ")}
+                    {[appointment.jobTitle, appointment.division].filter(Boolean).join(" · ")}
                   </p>
                 )}
               </div>
 
               <dl className="divide-y">
-                {mission.appointment.phone && (
+                {appointment.phone && (
                   <div className="flex items-center gap-3 px-5 py-3">
                     <Phone className="h-4 w-4 shrink-0 text-muted-foreground" />
                     <dt className="sr-only">Telepon</dt>
                     {/* Tappable: a rep standing at reception should not retype it. */}
-                    <dd><a href={`tel:${normalizePhone(mission.appointment.phone)}`} className="text-sm font-medium text-primary hover:underline">{formatPhone(mission.appointment.phone)}</a></dd>
+                    <dd><a href={`tel:${normalizePhone(appointment.phone)}`} className="text-sm font-medium text-primary hover:underline">{formatPhone(appointment.phone)}</a></dd>
                   </div>
                 )}
-                {mission.appointment.email && (
+                {appointment.email && (
                   <div className="flex items-center gap-3 px-5 py-3">
                     <Mail className="h-4 w-4 shrink-0 text-muted-foreground" />
                     <dt className="sr-only">Email</dt>
-                    <dd><a href={`mailto:${mission.appointment.email}`} className="text-sm font-medium text-primary hover:underline">{mission.appointment.email}</a></dd>
+                    <dd><a href={`mailto:${appointment.email}`} className="text-sm font-medium text-primary hover:underline">{appointment.email}</a></dd>
                   </div>
                 )}
-                {mission.appointment.building && (
+                {appointment.building && (
                   <div className="flex items-center gap-3 px-5 py-3">
                     <Building2 className="h-4 w-4 shrink-0 text-muted-foreground" />
                     <dt className="sr-only">Gedung</dt>
-                    <dd className="text-sm text-foreground">{mission.appointment.building}</dd>
+                    <dd className="text-sm text-foreground">{appointment.building}</dd>
                   </div>
                 )}
               </dl>
 
-              {mission.appointment.notes && (
+              {appointment.notes && (
                 <div className="border-t bg-muted/30 px-5 py-4">
                   <p className="text-xs font-semibold text-muted-foreground">
                     Sudah dibicarakan saat membuat janji
                   </p>
                   <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-foreground">
-                    {mission.appointment.notes}
+                    {appointment.notes}
                   </p>
                 </div>
               )}
@@ -621,7 +649,7 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
                       missionId={missionId}
                       status={joinStatus}
                       maxSupporting={settings.maxSupporting}
-                      clientName={mission.clientCompanyName}
+                      clientName={companyName}
                       emphasis="filled"
                       // One filled Join per screen: below lg the bottom bar has it.
                       className={compactAction === "join" ? "max-lg:hidden" : undefined}
@@ -943,10 +971,10 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
             </div>
             <PushLeadPanel
               missionId={missionId}
-              clientName={mission.clientCompanyName}
+              clientName={companyName}
               industry={mission.industry ?? null}
               salesOptions={salesOptions}
-              defaultProjectName={mission.objective?.slice(0, 120) || `${mission.missionType} — ${mission.clientCompanyName}`}
+              defaultProjectName={mission.objective?.slice(0, 120) || `${mission.missionType} — ${companyName}`}
               leadEngineUrl={leadEngineUrl}
             />
           </div>

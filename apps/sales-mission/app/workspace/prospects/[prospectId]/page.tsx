@@ -23,6 +23,8 @@ import { Button } from "@/components/ui/button"
 import { ProspectStatusLabel } from "../prospect-table"
 import { ProspectDetailActions } from "./detail-actions"
 import { paths } from "@/lib/paths"
+import { loadLiveCrm } from "@/lib/leadengine/live-crm"
+import { NO_LIVE_CRM, liveName, recordedLine } from "@/lib/leadengine/live-values"
 
 export const dynamic = "force-dynamic"
 
@@ -41,8 +43,14 @@ export default async function ProspectDetailPage({ params }: { params: Promise<{
   await requireModule(access, "sales_mission_prospect")
 
   const { prospectId } = await params
-  const [prospect, statuses, allPeople, canUpdate, canDelete, canCreateMission, scope, fields, settings] = await Promise.all([
-    getProspect(access, prospectId),
+  const prospectPending = getProspect(access, prospectId)
+  // The company's current name in the CRM, asked for as soon as the prospect
+  // is read and beside everything else; any failure is the recorded name.
+  const liveCrmPending = prospectPending
+    .then((found) => (found ? loadLiveCrm({ clientCompanyId: found.clientCompanyId }) : NO_LIVE_CRM))
+    .catch(() => NO_LIVE_CRM)
+  const [prospect, statuses, allPeople, canUpdate, canDelete, canCreateMission, scope, fields, settings, liveCrm] = await Promise.all([
+    prospectPending,
     listProspectStatuses(access, { includeArchived: true }),
     listTenantSales(access),
     canPerform(access, "sales_mission_prospect", "update"),
@@ -51,8 +59,14 @@ export default async function ProspectDetailPage({ params }: { params: Promise<{
     resolveScope(access, "sales_mission_prospect"),
     listFormFields(access, "prospect"),
     getMissionSettings(access),
+    liveCrmPending,
   ])
   if (!prospect) notFound()
+
+  // Shown: the CRM's current name where the prospect links to a company. The
+  // name typed when the prospect was made stays as it is, named under the
+  // title when it differs. The contact has no CRM link on a prospect.
+  const company = liveName(prospect.clientCompanyName, liveCrm.company?.name)
 
   const extra = customAnswers(fields, prospect.customValues)
   const viewer = toProspectViewer(scope)
@@ -66,12 +80,13 @@ export default async function ProspectDetailPage({ params }: { params: Promise<{
   return (
     <WorkspacePage
       eyebrow="Prospek"
-      title={prospect.clientCompanyName}
+      title={company.name}
+      titleNote={recordedLine("prospect", company.recordedAs)}
       description={[contactName, prospect.contactJobTitle].filter(Boolean).join(" · ") || "Belum ada kontak yang dicatat"}
       action={
         <>
           <BackLink href="/workspace/prospects" />
-          <ProspectDetailActions prospect={prospect} statuses={statuses} people={people.map((p) => ({ id: p.id, name: p.name, avatarUrl: p.avatarUrl }))} viewer={viewer} editable={editable} canUpdate={canUpdate} canDelete={canDelete} canCreateMission={canCreateMission} viewerName={access.displayName} companyName={access.companyName} whatsappGreeting={settings.whatsappGreeting} />
+          <ProspectDetailActions prospect={{ ...prospect, clientCompanyName: company.name }} statuses={statuses} people={people.map((p) => ({ id: p.id, name: p.name, avatarUrl: p.avatarUrl }))} viewer={viewer} editable={editable} canUpdate={canUpdate} canDelete={canDelete} canCreateMission={canCreateMission} viewerName={access.displayName} companyName={access.companyName} whatsappGreeting={settings.whatsappGreeting} />
         </>
       }
     >

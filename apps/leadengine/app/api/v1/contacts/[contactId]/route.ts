@@ -5,6 +5,54 @@ import { apiError, authenticate, resolveCompanyId } from '../../_lib/route-helpe
 
 export const dynamic = 'force-dynamic'
 
+/**
+ * GET /api/v1/contacts/:contactId
+ *
+ * One contact as the CRM holds them now: name, job title, phone, email.
+ *
+ * An activity in Sales Activity copies its appointment contact's details when
+ * it is scheduled and keeps the link. Admins correct people here, so the copy
+ * goes stale; the activity page asks this route for the current details and
+ * shows them over the copy.
+ *
+ * Read as the caller, so row security decides, as on every other v1 read. A
+ * contact in the Recycle Bin is 404 even for an admin, whom row security lets
+ * see it for the Bin: the caller then keeps its own copy.
+ */
+export async function GET(
+    request: Request,
+    { params }: { params: Promise<{ contactId: string }> }
+) {
+    const auth = await authenticate(request)
+    if (!auth.ok) return auth.response
+
+    const { contactId } = await params
+    if (!z.string().uuid().safeParse(contactId).success) {
+        return apiError(400, 'invalid_contact', 'contactId must be a uuid.')
+    }
+
+    const { data: contact, error } = await auth.context.supabase
+        .from('contacts')
+        .select('id, full_name, job_title, phone, email, client_company_id')
+        .eq('id', contactId)
+        .is('deleted_at', null)
+        .maybeSingle()
+
+    if (error) return apiError(500, 'lookup_failed', 'Could not read the contact.')
+    if (!contact) return apiError(404, 'not_found', 'Contact not found.')
+
+    return NextResponse.json({
+        contact: {
+            id: contact.id,
+            fullName: contact.full_name,
+            jobTitle: contact.job_title ?? null,
+            phone: contact.phone ?? null,
+            email: contact.email ?? null,
+            clientCompanyId: contact.client_company_id ?? null,
+        },
+    })
+}
+
 const enrichSchema = z.object({
     jobTitle: z.string().trim().max(150).nullish(),
     phone: z.string().trim().max(50).nullish(),
