@@ -12,11 +12,14 @@ import { cn } from "@/lib/utils"
 import { CalendarCheck, Check, FileText, Loader2, Mail, Phone, Users, type IconComponent } from "@/components/icons"
 import type { AssignableUser } from "@/lib/assignable-users"
 import {
-    CALL_OUTCOMES, COMPOSER_KINDS, composerKind, emptyDraft, localDay, MEETING_MODES, notePlaceholder, parseDraft,
-    visibleErrors, withCurrentTime, type ActivityViewer, type ComposerDraft, type ComposerInput, type ComposerKind,
+    CALL_OUTCOMES, COMPOSER_KINDS, composerHasInput, composerKind, emptyDraft, localDay, MEETING_MODES, notePlaceholder, parseDraft,
+    restoreComposer, visibleErrors, withCurrentTime, type ActivityViewer, type ComposerDraft, type ComposerInput, type ComposerKind,
     type DraftField,
 } from "@/lib/record-activity"
+import { catchStaleDeployment } from "@/lib/deploy/stale-announce"
+import { useFormDraft } from "@/hooks/use-form-draft"
 import { FILLED_BUTTON, RECORD_TYPE } from "./record-page"
+import { DraftNotice } from "./draft-notice"
 
 /**
  * The composer of a contact's and a company's Activity tab (DESIGN.md,
@@ -42,6 +45,12 @@ export interface ComposerEnv {
     /** Who a follow-up can be assigned to; null until loaded. */
     assignees: readonly AssignableUser[] | null
     loadAssignees: () => void
+    /**
+     * The record the composer writes on ("contact:<id>", "company:<id>"),
+     * which names its draft in this browser (DESIGN.md, "Surviving a
+     * deploy"). Without it the composer keeps no draft.
+     */
+    draftScope?: string
 }
 
 /** The time now, moving on every half minute, so a "when" nobody chose keeps saying now. */
@@ -349,6 +358,11 @@ function ComposerFields({ kind, draft, patch, touchWhen, errors, env, today }: {
  * from any field. A "when" nobody chose follows the clock; the kind stays
  * after a save, the fields clear. `kind` and `onKindChange` hand the kind
  * to whoever names it (the sheet's title); otherwise it is the composer's own.
+ *
+ * The card and the sheet keep what is typed in this browser, per record,
+ * until it is saved: a reload (after a deploy, a crash, a closed tab)
+ * opens the composer on it again with "Your unsaved input was restored."
+ * Editing a row in place keeps no draft.
  */
 export function ActivityComposer({ env, onSubmit, onDone, variant = "card", className, initial, submitLabel, onCancel, kind: chosenKind, onKindChange }: {
     env: ComposerEnv
@@ -394,6 +408,38 @@ export function ActivityComposer({ env, onSubmit, onDone, variant = "card", clas
         rootRef.current?.querySelector<HTMLElement>("input, textarea, [role=radio][tabindex='0'], button")?.focus({ preventScroll: true })
     }, [inline])
 
+    // What is typed, kept in this browser until it is saved (the card and the sheet each their own).
+    const store = useFormDraft<{ kind: ComposerKind; draft: ComposerDraft }>({
+        form: `composer-${variant}`,
+        record: env.draftScope ?? "",
+        value: { kind, draft },
+        changed: composerHasInput(draft),
+        enabled: !inline && Boolean(env.draftScope),
+    })
+    const restoredDraft = store.restored
+    const viewerId = env.viewer.id
+    // Taken in once per draft found, while rendering (React's "adjusting
+    // state when a prop changes"), so a later render never undoes what was
+    // typed since. The kind, when the sheet holds it, is handed up after.
+    const [appliedDraft, setAppliedDraft] = useState<unknown>(null)
+    const [restoredKind, setRestoredKind] = useState<ComposerKind | null>(null)
+    if (restoredDraft && appliedDraft !== restoredDraft) {
+        setAppliedDraft(restoredDraft)
+        const back = restoreComposer(restoredDraft, emptyDraft(now, viewerId))
+        setDraft(back.draft)
+        if (back.kind) {
+            setOwnKind(back.kind)
+            setRestoredKind(back.kind)
+        }
+    }
+    useEffect(() => {
+        if (restoredKind) onKindChange?.(restoredKind)
+    }, [restoredKind, onKindChange])
+    const discardDraft = () => {
+        store.discard()
+        setDraft(emptyDraft(new Date(), viewerId))
+    }
+
     const patch: Patch = (next) => setDraft((current) => ({ ...current, ...next }))
     // Choosing the day or the time fixes both, as they read at that moment.
     const touchWhen: Patch = (next) => setDraft((current) => ({ ...withCurrentTime(current, new Date()), ...next, whenTouched: true }))
@@ -404,10 +450,21 @@ export function ActivityComposer({ env, onSubmit, onDone, variant = "card", clas
         const fresh = parseDraft(kind, withCurrentTime(draft, at), at)
         if (!fresh.ok) return
         setSaving(true)
-        const saved = await onSubmit(fresh.input)
+        let saved: boolean
+        try {
+            saved = await onSubmit(fresh.input)
+        } catch (error) {
+            setSaving(false)
+            // A tab older than the server: what was typed stays, and the toast asks for a reload.
+            if (catchStaleDeployment(error)) return
+            throw error
+        }
         setSaving(false)
         if (!saved) return
-        if (!inline) setDraft(emptyDraft(new Date(), env.viewer.id))
+        if (!inline) {
+            store.clear()
+            setDraft(emptyDraft(new Date(), env.viewer.id))
+        }
         onDone?.()
     }
 
@@ -441,6 +498,7 @@ export function ActivityComposer({ env, onSubmit, onDone, variant = "card", clas
                     )}
                 </>
             )}
+            {store.noticeOpen && <DraftNotice onDismiss={store.dismiss} onDiscard={discardDraft} className={cn(variant === "sheet" ? "mx-4" : "mx-3", "mb-3")} />}
             <div className={cn(pad, "flex flex-col gap-4 pb-3", inline && "pt-2")}>
                 <ComposerFields kind={kind} draft={shown} patch={patch} touchWhen={touchWhen} errors={errors} env={env} today={localDay(now)} />
             </div>

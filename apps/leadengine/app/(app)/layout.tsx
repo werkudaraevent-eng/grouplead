@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { MainLayout } from "@/components/layout/main-layout";
 import { IntroSeenProvider } from "@/components/shared/intro-seen-provider";
+import { DraftOwnerProvider } from "@/hooks/use-form-draft";
 import { listSeenHints } from "@/lib/hints/hint-queries";
 import { pageIntroKeys } from "@/lib/hints/hint-key";
 import { getActiveCompany, getUserCompanies } from "@/utils/company";
@@ -26,6 +27,8 @@ export default async function AppLayout({
   // absent from the first HTML (PageIntro). Empty on any failure: the
   // descriptions show, never an error.
   let introSeen: string[] = [];
+  // Whose form drafts this browser keeps (the lead form, the composer).
+  let draftOwner: string | null = null;
 
   try {
     const supabase = await createClient();
@@ -38,6 +41,7 @@ export default async function AppLayout({
     companies = companiesResult;
 
     const userId = authResult.data?.user?.id;
+    draftOwner = userId ?? null;
     const [profileResult, settingsResult, seenResult] = await Promise.all([
       userId
         ? supabase.from("profiles").select("full_name, role, avatar_url").eq("id", userId).maybeSingle()
@@ -78,7 +82,9 @@ export default async function AppLayout({
       userProfile={userProfile}
       initialCollapsed={initialCollapsed}
     >
-      <IntroSeenProvider initialSeen={introSeen}>{children}</IntroSeenProvider>
+      <IntroSeenProvider initialSeen={introSeen}>
+        <DraftOwnerProvider owner={draftOwner}>{children}</DraftOwnerProvider>
+      </IntroSeenProvider>
     </MainLayout>
   );
 }

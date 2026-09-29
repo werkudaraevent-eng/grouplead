@@ -150,8 +150,12 @@ export const config = {
          *   none unless the link says use-credentials). Sent through the
          *   session check it was redirected to /login and arrived as HTML.
          *   They hold nothing private. Same as Sales Activity's proxy.ts.
+         * - api/version: every open tab asks it every few minutes which
+         *   build the server runs (DeployWatch). It names the build and
+         *   nothing else; a sign-in check per ask would be waste. Same as
+         *   Sales Activity's proxy.ts.
          * - public files (svg, png, jpg, etc.)
          */
-        '/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|icons/|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+        '/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|icons/|api/version$|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
     ],
 }

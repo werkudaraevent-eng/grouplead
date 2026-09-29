@@ -198,6 +198,7 @@ export function ContactDetailPage({
         viewerName: viewer.name,
         assignees,
         loadAssignees,
+        draftScope: `contact:${contact.id}`,
     }
 
     const openEdit = () => setEditOpen(true)

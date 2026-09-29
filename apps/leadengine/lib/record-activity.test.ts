@@ -7,6 +7,7 @@ import {
     canManageNote,
     combineLocal,
     COMPOSER_KINDS,
+    composerHasInput,
     composerSchema,
     draftFromActivity,
     dueAtFromDay,
@@ -19,6 +20,7 @@ import {
     normalizeMeetingUrl,
     notePlaceholder,
     parseDraft,
+    restoreComposer,
     shiftDay,
     visibleErrors,
     withCurrentTime,
@@ -222,5 +224,36 @@ describe("who may change what", () => {
         expect(canManageNote({ userId: "u1" }, viewer)).toBe(true)
         expect(canManageNote({ userId: "u2" }, viewer)).toBe(false)
         expect(canManageNote({ userId: "u2" }, admin)).toBe(true)
+    })
+})
+
+describe("the composer's draft in this browser", () => {
+    it("is kept only once something was typed or chosen", () => {
+        expect(composerHasInput(draft())).toBe(false)
+        expect(composerHasInput(draft({ text: "   " }))).toBe(false)
+        expect(composerHasInput(draft({ dueDate: "2026-10-01", assigneeId: "u2" }))).toBe(false)
+        expect(composerHasInput(draft({ text: "Asked for the venue list" }))).toBe(true)
+        expect(composerHasInput(draft({ subject: "Proposal" }))).toBe(true)
+        expect(composerHasInput(draft({ outcome: "connected" }))).toBe(true)
+        expect(composerHasInput(draft({ whenTouched: true }))).toBe(true)
+    })
+
+    it("comes back by field key, with its kind", () => {
+        const saved = { kind: "call", draft: draft({ text: "Wants a call back Monday", outcome: "connected", whenTouched: true, date: "2026-09-24", time: "09:30" }) }
+        const back = restoreComposer(JSON.parse(JSON.stringify(saved)), draft())
+        expect(back.kind).toBe("call")
+        expect(back.draft).toMatchObject({ text: "Wants a call back Monday", outcome: "connected", whenTouched: true, date: "2026-09-24", time: "09:30" })
+    })
+
+    it("drops a kind, a choice or a field that is not the composer's any more", () => {
+        const back = restoreComposer({ kind: "sms", draft: { text: 12, outcome: "voicemail-left-twice", meetingMode: "hologram", subject: "Hi", removed: "x" } }, draft())
+        expect(back.kind).toBeNull()
+        expect(back.draft).toEqual(draft({ subject: "Hi" }))
+    })
+
+    it("starts fresh from anything that is not a stored composer", () => {
+        expect(restoreComposer(null, draft())).toEqual({ kind: null, draft: draft() })
+        expect(restoreComposer("note", draft())).toEqual({ kind: null, draft: draft() })
+        expect(restoreComposer({ kind: "note", draft: ["x"] }, draft())).toEqual({ kind: "note", draft: draft() })
     })
 })

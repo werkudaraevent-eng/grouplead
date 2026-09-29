@@ -26,6 +26,7 @@ export default async function WorkspaceLayout({ children }: Readonly<{ children:
 
   return (
     <WorkspaceShell
+      userId={access.userId}
       displayName={access.displayName}
       avatarUrl={access.avatarUrl}
       unreadCount={unreadCount}

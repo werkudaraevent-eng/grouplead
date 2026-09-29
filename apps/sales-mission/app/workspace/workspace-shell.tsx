@@ -58,6 +58,8 @@ import type { AnnouncementState } from "@/lib/announcements/announcements"
 import { MobileNavBar } from "@/components/mobile-nav-bar"
 import { UsageBeacon } from "@/components/usage-beacon"
 import { SessionWatch } from "@/components/session-watch"
+import { DeployWatch } from "@/components/deploy-watch"
+import { DraftOwnerProvider } from "@/hooks/use-form-draft"
 import { ResponsiveMenu } from "@/components/responsive-menu"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { createClient } from "@/utils/supabase/client"
@@ -441,6 +443,7 @@ function SidebarBody({
 
 export function WorkspaceShell({
   children,
+  userId,
   displayName,
   avatarUrl = null,
   unreadCount = 0,
@@ -451,6 +454,8 @@ export function WorkspaceShell({
   announcements = [],
 }: {
   children: React.ReactNode
+  /** Whose form drafts this browser keeps (see `useFormDraft`). */
+  userId: string
   displayName: string
   avatarUrl?: string | null
   unreadCount?: number
@@ -490,6 +495,7 @@ export function WorkspaceShell({
   return (
     <PageChromeProvider>
     <HintsProvider seen={seenHints}>
+    <DraftOwnerProvider owner={userId}>
     <div className="app-shell shell-in flex h-dvh overflow-clip">
       <TopLoader />
       <aside
@@ -511,7 +517,10 @@ export function WorkspaceShell({
       <UsageBeacon />
       {/* Perangkat aktif: records this device and notices a sign-out from elsewhere; draws nothing. */}
       <SessionWatch />
+      {/* Surviving a deploy: the "Versi baru tersedia" snackbar and the one after a stale send. */}
+      <DeployWatch />
     </div>
+    </DraftOwnerProvider>
     </HintsProvider>
     </PageChromeProvider>
   )

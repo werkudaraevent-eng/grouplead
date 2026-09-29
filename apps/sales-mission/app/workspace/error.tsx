@@ -4,6 +4,7 @@ import { useEffect } from "react"
 import Link from "next/link"
 import { AlertTriangle, RotateCw } from "@/components/icons"
 import { Button } from "@/components/ui/button"
+import { STALE_COPY, staleKind } from "@/lib/deploy/stale-client"
 
 /**
  * Error state for every workspace page.
@@ -15,6 +16,13 @@ import { Button } from "@/components/ui/button"
  *
  * `reset()` re-runs the failed render, which is the right first move when the
  * cause was the connection rather than the data.
+ *
+ * Not when the cause is a deploy: a tab from the previous build that sent
+ * an action the server no longer has, or asked for a file the new build
+ * does not serve. Re-rendering the same old code fails the same way (a rep
+ * pressed it five times on 2026-09-29), so that error gets its own words and
+ * a full reload, which loads the new build; the forms keep their drafts in
+ * this browser and give them back (DESIGN.md, "Surviving a deploy").
  */
 export default function WorkspaceError({
   error,
@@ -27,17 +35,20 @@ export default function WorkspaceError({
     console.error("Sales Activity workspace error:", error)
   }, [error])
 
+  const stale = staleKind(error) !== null
+
   return (
     <div className="grid h-full w-full place-items-center bg-background px-4 py-12">
       <div className="w-full max-w-md rounded-xl border bg-card px-6 py-8 text-center">
-        <span className="mx-auto grid h-12 w-12 place-items-center rounded-xl bg-[var(--danger)] text-[var(--danger-foreground)]">
-          <AlertTriangle className="h-6 w-6" />
+        <span className={`mx-auto grid h-12 w-12 place-items-center rounded-xl ${stale ? "bg-[var(--tonal)] text-[var(--tonal-foreground)]" : "bg-[var(--danger)] text-[var(--danger-foreground)]"}`}>
+          {stale ? <RotateCw className="h-6 w-6" /> : <AlertTriangle className="h-6 w-6" />}
         </span>
 
-        <h1 className="mt-4 text-lg font-semibold text-foreground">Halaman ini gagal dimuat</h1>
+        <h1 className="mt-4 text-lg font-semibold text-foreground">{stale ? STALE_COPY.screenTitle : "Halaman ini gagal dimuat"}</h1>
         <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-          Biasanya karena koneksi terputus saat data diambil. Coba muat ulang — kalau masih gagal,
-          periksa sinyal lalu buka lagi dari dashboard.
+          {stale
+            ? STALE_COPY.screenBody
+            : "Biasanya karena koneksi terputus saat data diambil. Coba muat ulang — kalau masih gagal, periksa sinyal lalu buka lagi dari dashboard."}
         </p>
 
         {/* The digest is what makes a report actionable in the server logs. */}
@@ -46,7 +57,7 @@ export default function WorkspaceError({
         )}
 
         <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:justify-center">
-          <Button onClick={reset} className="h-11">
+          <Button onClick={stale ? () => window.location.reload() : reset} className="h-11">
             <RotateCw className="h-4 w-4" /> Muat ulang
           </Button>
           <Button asChild variant="outline" className="h-11">

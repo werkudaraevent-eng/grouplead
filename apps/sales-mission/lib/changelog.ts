@@ -46,6 +46,17 @@ export const CHANGE_KIND_LABELS: Record<ChangeKind, string> = {
 export const CHANGELOG: ChangeEntry[] = [
   {
     date: "2026-09-29",
+    title: "Isianmu tidak hilang saat aplikasi diperbarui",
+    items: [
+      { kind: "diperbaiki", text: "Kalau aplikasi diperbarui saat kamu sedang mengisi, isianmu tidak hilang. Menekan Simpan di halaman yang dibuka sebelum pembaruan dulu berakhir di layar “Halaman ini gagal dimuat”, dan form kembali kosong setiap kali dicoba lagi. Sekarang formnya tetap seperti yang kamu isi, dan muncul “Aplikasi baru saja diperbarui. Isianmu masih ada — muat ulang lalu kirim lagi.” dengan tombol Muat ulang." },
+      { kind: "baru", text: "Aplikasi memberi tahu lebih dulu: kalau ada versi baru sejak halaman dibuka, saat kamu kembali ke aplikasinya muncul “Versi baru tersedia. Muat ulang supaya yang kamu kirim tersimpan.” Tekan Muat ulang saat sempat." },
+      { kind: "baru", text: "Form aktivitas (baru dan ubah), form prospek, alasan membatalkan, dan pindah atau usul jadwal kini menyimpan isianmu di perangkat ini sampai terkirim. Setelah dimuat ulang, atau kalau tab tertutup, isiannya kembali dengan tulisan “Isian yang belum terkirim dikembalikan.”; tekan Buang kalau tidak perlu. Isian ini hanya ada di perangkat itu dan dibuang setelah 7 hari." },
+      { kind: "lebih-baik", text: "Laporan kunjungan tetap tersimpan otomatis sebagai draf. Perubahan yang belum sempat tersimpan (sinyal putus, atau aplikasi baru diperbarui) kini juga disimpan di perangkat dan dikirim sendiri setelah dimuat ulang. Foto dan rekaman yang sudah terunggah ikut kembali; yang unggahannya terputus karena pembaruan perlu dipilih lagi." },
+      { kind: "diperbaiki", text: "Isian di form aktivitas dan prospek tidak lagi ikut terhapus ketika penyimpanan ditolak, misalnya karena ada isian yang belum sesuai: betulkan yang diminta lalu simpan lagi." },
+    ],
+  },
+  {
+    date: "2026-09-29",
     title: "Masuk di ponsel dan laptop sekaligus",
     items: [
       { kind: "lebih-baik", text: "Masuk di laptop tidak lagi mengeluarkan akunmu dari ponsel, dan sebaliknya. Kamu bisa masuk di beberapa perangkat sekaligus, di Sales Activity maupun LeadEngine, seperti di Google atau HubSpot. Sebelumnya masuk di satu tempat bisa mengeluarkan LeadEngine di perangkat lain." },

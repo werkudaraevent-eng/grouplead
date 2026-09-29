@@ -36,6 +36,10 @@ import { SearchableSelect } from "@/components/shared/searchable-select"
 import { CityAutocomplete } from "@/components/shared/city-autocomplete"
 import { SegmentedControl } from "@/components/shared/segmented-control"
 import { DatePickerField } from "@/components/shared/date-picker-field"
+import { DraftNotice } from "@/components/shared/draft-notice"
+import { useFormDraft } from "@/hooks/use-form-draft"
+import { catchStaleDeployment } from "@/lib/deploy/stale-announce"
+import { mergeDraftValues } from "@/lib/drafts/form-draft"
 
 const DEFAULT_LAYOUT: LayoutItemsMap = {
     project: ["native:project_name", "native:pipeline_stage_id", "native:category", "native:grade_lead", "native:client_company_id", "native:account_status", "native:contact_id", "native:pic_sales_id", "native:lead_source", "native:referral_source", "native:received_date", "native:target_close_date"],
@@ -133,6 +137,17 @@ const getDynamicSchema = (requiredIds: string[]) => {
 
 type AddLeadValues = z.infer<typeof addLeadSchema>
 
+/**
+ * What this browser keeps of a lead being written (DESIGN.md, "Surviving a
+ * deploy"): the native fields by their field key (the layout's
+ * `native:<key>`) and the admin's custom fields by `field_key`, so the
+ * draft fits the form whatever layout the admin gives it.
+ */
+interface LeadDraft {
+    fields: Record<string, unknown>
+    custom: Record<string, unknown>
+}
+
 // Ordinal suffix for a day-of-month, e.g. 1 → "1st", 22 → "22nd", 27 → "27th".
 function ordinal(n: number): string {
     const s = ["th", "st", "nd", "rd"]
@@ -178,6 +193,8 @@ export function LeadForm({ onSuccess, onClose, pipelineId, defaultStageId, initi
     const [showWarning, setShowWarning] = useState(false)
     const [activeTab, setActiveTab] = useState("project")
     const [isPending, startTransition] = useTransition()
+    // False until an edited lead's own values are in the form, so its draft is compared with them, not with blanks.
+    const [seeded, setSeeded] = useState(!initialData)
     const [clientAccountStatus, setClientAccountStatus] = useState<string | null>(null)
     const [accountStatusReason, setAccountStatusReason] = useState<string | null>(null)
     const accountStatusSource = (initialData as Lead | null)?.account_status_source ?? null
@@ -501,6 +518,7 @@ export function LeadForm({ onSuccess, onClose, pipelineId, defaultStageId, initi
             // Sync cascade refs so watchers don't see a false "change"
             prevMainStream.current = initialData.main_stream || null
             prevStreamType.current = initialData.stream_type || null
+            setSeeded(true)
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [initialData?.id])
@@ -519,6 +537,7 @@ export function LeadForm({ onSuccess, onClose, pipelineId, defaultStageId, initi
 
     const handleForceClose = () => {
         setShowWarning(false)
+        draftStore.discard()
         form.reset()
         setCustomValues({})
         onClose?.()
@@ -527,6 +546,45 @@ export function LeadForm({ onSuccess, onClose, pipelineId, defaultStageId, initi
     // ═══ Dynamic Visibility Rule Evaluator (Multi-Condition with AND/OR) ═══
     // Watch ALL form values for rule evaluation
     const allFormValues = useWatch({ control: form.control })
+
+    // ═══ The draft in this browser ═══
+    // Kept while the lead is written, offered back when the form opens again
+    // ("Your unsaved input was restored."), removed once it is saved. A new
+    // lead's draft belongs to where it was started (a pipeline, a company,
+    // a contact), an edit's to the lead.
+    const initialCustom = (initialData?.custom_data as Record<string, unknown> | null | undefined) ?? {}
+    const draftRecord = initialData?.id != null
+        ? String(initialData.id)
+        : ["new", pipelineId && `pipeline-${pipelineId}`, prefill?.client_company_id && `company-${prefill.client_company_id}`, prefill?.contact_id && `contact-${prefill.contact_id}`].filter(Boolean).join("-")
+    const draftFields: Record<string, unknown> = { ...allFormValues }
+    delete draftFields.custom_data
+    const draftStore = useFormDraft<LeadDraft>({
+        form: "lead",
+        record: draftRecord,
+        value: { fields: draftFields, custom: customValues },
+        changed: Object.keys(dirtyFields).length > 0 || JSON.stringify(customValues) !== JSON.stringify(initialCustom),
+        ready: seeded,
+    })
+    const restoredLead = draftStore.restored
+    const appliedLead = useRef<unknown>(null)
+    useEffect(() => {
+        if (!seeded || !restoredLead || appliedLead.current === restoredLead) return
+        appliedLead.current = restoredLead
+        // Only the keys the form has, each only in the shape it has; the defaults stay the defaults, so what differs reads as changed.
+        form.reset(mergeDraftValues(form.getValues(), restoredLead.fields), { keepDefaultValues: true })
+        const custom = restoredLead.custom
+        if (custom && typeof custom === "object" && !Array.isArray(custom)) setCustomValues(custom)
+    }, [seeded, restoredLead, form])
+    const discardDraft = () => {
+        draftStore.discard()
+        if (initialData) {
+            form.reset()
+            setCustomValues(initialCustom)
+        } else {
+            form.reset()
+            setCustomValues({})
+        }
+    }
 
     const evaluateCondition = (cond: { dependsOn: string; operator: string; value: string | string[] }): boolean => {
         const depKey = cond.dependsOn.replace("native:", "").replace("custom:", "")
@@ -743,6 +801,7 @@ export function LeadForm({ onSuccess, onClose, pipelineId, defaultStageId, initi
                     // ── UPDATE MODE ──
                     const result = await updateLeadAction(initialData.id, payload)
                     if (!result.success) throw new Error(result.error)
+                    draftStore.clear()
                     toast.success("Lead updated successfully")
                     form.reset()
                     setCustomValues({})
@@ -760,6 +819,7 @@ export function LeadForm({ onSuccess, onClose, pipelineId, defaultStageId, initi
                     }
                     const result = await createLeadAction(payload)
                     if (!result.success) throw new Error(result.error)
+                    draftStore.clear()
                     toast.success("Lead created — opening details...")
                     form.reset()
                     setCustomValues({})
@@ -772,6 +832,9 @@ export function LeadForm({ onSuccess, onClose, pipelineId, defaultStageId, initi
                     }
                 }
             } catch (err) {
+                // A tab older than the server: not a failed create. The form
+                // keeps its input and the toast asks for a reload.
+                if (catchStaleDeployment(err)) return
                 toast.error(`${isEditing ? 'Update' : 'Create'} failed: ${err instanceof Error ? err.message : "Unknown error"}`)
             }
         })
@@ -850,6 +913,7 @@ export function LeadForm({ onSuccess, onClose, pipelineId, defaultStageId, initi
 
                     {/* SCROLLABLE BODY */}
                     <div className="flex-1 overflow-y-auto custom-scrollbar px-6 py-5">
+                        {draftStore.noticeOpen && <DraftNotice onDismiss={draftStore.dismiss} onDiscard={discardDraft} className="mb-5" />}
 
                         {visibleTabs.map(tab => (
                             <TabsContent key={tab} value={tab} className="mt-0 space-y-5">

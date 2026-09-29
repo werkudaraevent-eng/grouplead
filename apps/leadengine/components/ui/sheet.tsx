@@ -5,6 +5,7 @@ import { XIcon } from "@/components/icons"
 import { Dialog as SheetPrimitive } from "radix-ui"
 
 import { cn } from "@/lib/utils"
+import { keepOpenOnToast } from "@/lib/ui/toast-over-modal"
 
 function Sheet({ ...props }: React.ComponentProps<typeof SheetPrimitive.Root>) {
   return <SheetPrimitive.Root data-slot="sheet" {...props} />
@@ -75,6 +76,7 @@ function SheetContent({
           className
         )}
         {...props}
+        onInteractOutside={keepOpenOnToast(props.onInteractOutside)}
       >
         {children}
         {showCloseButton && (

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useTransition } from "react"
+import { useEffect, useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { Ban, Loader2 } from "@/components/icons"
@@ -18,6 +18,10 @@ import {
 import { Label } from "@/components/ui/label"
 import { MISSION_TIME_ZONE } from "@/lib/missions/mission-schema"
 import { cn } from "@/lib/utils"
+import { catchStaleDeployment } from "@/lib/deploy/stale-announce"
+import { mergeDraftValues } from "@/lib/drafts/form-draft"
+import { useFormDraft } from "@/hooks/use-form-draft"
+import { DraftNotice } from "@/components/draft-notice"
 
 /**
  * Call the visit off before it happens.
@@ -29,6 +33,10 @@ import { cn } from "@/lib/utils"
  * whether to try again, and it asks which kind of off this is: gone, or
  * postponed with a day by which the rep will call the client for a new date.
  * A postponed visit stays on Hari ini until a new one is scheduled from it.
+ *
+ * The reason is kept in this browser while it is written, so a reload
+ * (after a deploy, or a closed tab) gives it back the next time the dialog
+ * opens (DESIGN.md, "Surviving a deploy").
  */
 
 type Mode = "cancel" | "postpone"
@@ -65,13 +73,42 @@ export function CancelMissionButton({
   const [pending, start] = useTransition()
   const router = useRouter()
 
+  const draft = useFormDraft({
+    form: "batal",
+    record: missionId,
+    value: { mode, reason, followUpOn },
+    changed: reason.trim() !== "",
+  })
+  const restored = draft.restored
+  useEffect(() => {
+    if (!restored) return
+    const back = mergeDraftValues({ mode: "cancel" as string, reason: "", followUpOn: "" }, restored)
+    setMode(back.mode === "postpone" ? "postpone" : "cancel")
+    setReason(back.reason)
+    if (/^\d{4}-\d{2}-\d{2}$/.test(back.followUpOn)) setFollowUpOn(back.followUpOn)
+  }, [restored])
+  const discardDraft = () => {
+    draft.discard()
+    setMode("cancel")
+    setReason("")
+    setFollowUpOn(dayAfter(3))
+  }
+
   const postpone = mode === "postpone"
   const ready = reason.trim().length > 0 && (!postpone || /^\d{4}-\d{2}-\d{2}$/.test(followUpOn))
 
   const confirm = () => {
     start(async () => {
-      const result = await cancelMission(missionId, reason, { followUpOn: postpone ? followUpOn : null })
+      let result: Awaited<ReturnType<typeof cancelMission>>
+      try {
+        result = await cancelMission(missionId, reason, { followUpOn: postpone ? followUpOn : null })
+      } catch (error) {
+        // A tab older than the server: the dialog stays with its reason, the notice asks for a reload.
+        if (catchStaleDeployment(error)) return
+        throw error
+      }
       if (result.success) {
+        draft.clear()
         toast.success(postpone ? "Aktivitas ditunda. Muncul di Hari ini sampai dijadwalkan lagi." : "Aktivitas dibatalkan. Tim sudah diberi tahu.")
         setOpen(false)
         router.refresh()
@@ -108,6 +145,8 @@ export function CancelMissionButton({
               isi laporan kunjungan dengan hasil itu; kunjungannya tetap tercatat.
             </DialogDescription>
           </DialogHeader>
+
+          {draft.noticeOpen && <DraftNotice onDismiss={draft.dismiss} onDiscard={discardDraft} />}
 
           {/* Two radio list items (Material list + radio), not a select: both
               answers must be readable before choosing. */}

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react"
 import { AlertCircle, Camera, Loader2, Upload, X } from "@/components/icons"
 import { createClient } from "@/utils/supabase/client"
 import { preparePhotoUpload, removePhoto, signPhotos } from "@/app/actions/photo-actions"
+import { catchStaleDeployment } from "@/lib/deploy/stale-announce"
 import { PHOTO_BUCKET, PHOTO_MAX_BYTES, PHOTO_MAX_FILES, fitWithin, type PhotoAnswer } from "@/lib/photos/photo-answer"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
@@ -131,8 +132,9 @@ export function PhotoField({
         onChange?.(next.map(({ preview: _preview, ...rest }) => rest))
         return next
       })
-    } catch {
-      fail("Foto tidak bisa dibaca.")
+    } catch (error) {
+      // A deploy since this page opened: the file never left the phone, so it is picked again after the reload.
+      fail(catchStaleDeployment(error) ? "Aplikasi baru saja diperbarui. Muat ulang, lalu pilih fotonya lagi." : "Foto tidak bisa dibaca.")
     }
   }
 

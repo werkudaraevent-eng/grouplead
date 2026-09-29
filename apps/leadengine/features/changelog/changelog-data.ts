@@ -76,6 +76,15 @@ export const CHANGE_TYPE_META: Record<
 export const CHANGELOG: ChangelogEntry[] = [
     {
         date: "2026-09-29",
+        title: "An update no longer costs what you typed",
+        items: [
+            { type: "fix", text: "If LeadEngine is updated while you are filling in a lead, saving from the page you opened before the update no longer fails with “Create failed: Server Action … was not found”. The form stays as you left it and a message says “LeadEngine was just updated. Your input is kept — reload and submit again.” with a Reload button." },
+            { type: "feature", text: "LeadEngine tells you first: when a new version has come out since you opened the page, coming back to the tab shows “A new version is available. Reload so your changes save.” Reload when it suits you." },
+            { type: "feature", text: "The lead form and the Activity composer on a contact or a company keep what you type on this device until it is saved. After a reload, or a closed tab, it comes back with “Your unsaved input was restored.”; choose Discard if you don't need it. It stays on that device only and is cleared after 7 days." },
+        ],
+    },
+    {
+        date: "2026-09-29",
         title: "Stay signed in on your laptop and your phone",
         items: [
             { type: "improvement", text: "Signing in on one device no longer signs you out of the others. You can be signed in on several devices at once, in LeadEngine and Sales Activity alike, as with Google or HubSpot. Until now a sign-in anywhere else signed LeadEngine out with a “signed in on another device” message." },

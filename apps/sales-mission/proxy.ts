@@ -87,5 +87,8 @@ export const config = {
   // unless the link says use-credentials). Sent through the session check
   // they were redirected to /login, so the manifest arrived as HTML and the
   // worker never installed. They hold nothing private; the proxy skips them.
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|sw.js|icons/|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)"],
+  // So does /api/version, which every open tab asks every few minutes
+  // (DeployWatch): it names the build and nothing else, and a sign-in check
+  // per ask would be waste.
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|sw.js|icons/|api/version$|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)"],
 }

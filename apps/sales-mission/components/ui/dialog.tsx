@@ -6,6 +6,7 @@ import { Dialog as DialogPrimitive } from "radix-ui"
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
+import { keepOpenOnToast } from "@/lib/ui/toast-over-modal"
 
 function Dialog({
   ...props
@@ -65,6 +66,7 @@ function DialogContent({
           className
         )}
         {...props}
+        onInteractOutside={keepOpenOnToast(props.onInteractOutside)}
       >
         {children}
         {showCloseButton && (

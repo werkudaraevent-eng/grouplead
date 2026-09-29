@@ -211,6 +211,10 @@ export default async function GuidePage() {
               <span className="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full bg-muted text-xs font-bold text-muted-foreground">3</span>
               <span>Kamu bisa masuk di ponsel dan laptop sekaligus; masuk di satu perangkat tidak lagi mengeluarkan yang lain, dan satu kali masuk berlaku untuk Sales Activity dan LeadEngine. <strong>Perangkat aktif</strong> di menu akun (di ponsel: Lainnya) menampilkan di mana saja akunmu sedang masuk. Tidak kenal perangkatnya? Keluarkan, lalu ganti kata sandi. Perangkat yang tidak dipakai 30 hari keluar sendiri.</span>
             </li>
+            <li className="flex items-start gap-3 text-sm leading-relaxed text-foreground">
+              <span className="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full bg-muted text-xs font-bold text-muted-foreground">4</span>
+              <span>Kalau muncul <strong>Versi baru tersedia</strong>, tekan <strong>Muat ulang</strong> saat sempat, sebelum menyimpan. Isian form aktivitas, prospek, dan laporan yang belum terkirim disimpan di perangkat ini dan kembali setelah dimuat ulang; tekan <strong>Buang</strong> kalau tidak perlu.</span>
+            </li>
           </ul>
           <div className="flex flex-wrap gap-x-5 gap-y-1 border-t bg-muted/30 px-5 py-3 sm:px-6">
             <Link href={paths.install} className="inline-flex min-h-10 items-center text-sm font-semibold text-primary hover:underline">

@@ -447,3 +447,13 @@ html.sidebar-dark-mode {
 @media (prefers-reduced-motion: reduce) {
   .app-transit, .shell-in { animation: none; }
 }
+
+/* A toast over an open dialog or sheet stays pressable: the modal turns
+   pointer events off for everything outside it, and the update notice's
+   reload button lives in a toast while the form that could not be sent is
+   still open. Pressing it does not close the modal (`keepOpenOnToast` in
+   `lib/ui/toast-over-modal.ts`). A toast on its way out keeps sonner's own
+   `pointer-events: none`, which is more specific. */
+[data-sonner-toast] {
+  pointer-events: auto;
+}

@@ -179,6 +179,7 @@ export function CompanyDetailPage({
         viewerName: viewer.name,
         assignees,
         loadAssignees,
+        draftScope: `company:${company.id}`,
     }
     const parent = company.parent?.id ? company.parent : null
     const groupTitle = companyGroupTitle(!!parent, subsidiaries.length)

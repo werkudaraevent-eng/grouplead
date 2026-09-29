@@ -30,6 +30,7 @@ const TopLoader = dynamic(
 import { CompanySwitchLoader } from "@/components/layout/company-switch-loader"
 import { SessionWatch } from "@/components/layout/session-watch"
 import { UsageBeacon } from "@/components/layout/usage-beacon"
+import { DeployWatch } from "@/components/layout/deploy-watch"
 import { MaintenanceWatcher } from "@/features/settings/components/maintenance-watcher"
 import { CompanyProvider } from "@/contexts/company-context"
 import { PermissionsProvider } from "@/contexts/permissions-context"
@@ -67,6 +68,8 @@ export function MainLayout({ children, initialCompany, companies, currencySettin
                         <SessionWatch />
                         {/* Settings → Usage: which page, when; draws nothing, fails silently. */}
                         <UsageBeacon />
+                        {/* Surviving a deploy: "A new version is available", and the toast after a stale submit; draws nothing. */}
+                        <DeployWatch />
                         <MaintenanceWatcher />
                         <TopLoader />
                         <PageChromeProvider>

@@ -290,6 +290,44 @@ export function withCurrentTime(draft: ComposerDraft, now: Date): ComposerDraft 
     return { ...draft, date: localDay(now), time: localTime(now) }
 }
 
+/**
+ * Whether a composer holds anything worth keeping in this browser (DESIGN.md,
+ * "Surviving a deploy"): something typed or chosen. A kind picked, a due day
+ * and an assignee left as they open, and a "when" that follows the clock are
+ * the empty composer, so they never leave a draft behind.
+ */
+export function composerHasInput(draft: ComposerDraft): boolean {
+    return (
+        [draft.text, draft.subject, draft.title, draft.location, draft.meetingUrl].some((value) => value.trim() !== "") ||
+        draft.outcome !== null ||
+        draft.meetingMode !== null ||
+        draft.whenTouched
+    )
+}
+
+/**
+ * A composer draft read back from this browser: the kind, when it is still
+ * one, and the fields laid over a fresh composer by key, each only when it
+ * has the fresh field's shape. Anything else starts fresh.
+ */
+export function restoreComposer(stored: unknown, fresh: ComposerDraft): { kind: ComposerKind | null; draft: ComposerDraft } {
+    const source = stored && typeof stored === "object" ? (stored as { kind?: unknown; draft?: unknown }) : {}
+    const kind = COMPOSER_KINDS.find((entry) => entry.id === source.kind)?.id ?? null
+    const fields = source.draft && typeof source.draft === "object" && !Array.isArray(source.draft) ? (source.draft as Record<string, unknown>) : {}
+    const draft = { ...fresh }
+    const into = draft as unknown as Record<string, unknown>
+    for (const key of Object.keys(fresh) as Array<keyof ComposerDraft>) {
+        const value = fields[key]
+        const base = fresh[key]
+        if (value === undefined) continue
+        const fits = base === null ? value === null || typeof value === "string" : typeof value === typeof base
+        if (fits) into[key] = value
+    }
+    if (draft.outcome !== null && !CALL_OUTCOMES.some((entry) => entry.id === draft.outcome)) draft.outcome = null
+    if (draft.meetingMode !== null && !MEETING_MODES.some((entry) => entry.id === draft.meetingMode)) draft.meetingMode = null
+    return { kind, draft }
+}
+
 export const TEXT_MAX = 10_000
 export const LINE_MAX = 300
 export const URL_MAX = 2_000

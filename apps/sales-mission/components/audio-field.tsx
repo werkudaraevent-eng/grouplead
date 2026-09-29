@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react"
 import { AlertCircle, AudioFile, Loader2, Upload, X } from "@/components/icons"
 import { createClient } from "@/utils/supabase/client"
 import { prepareAudioUpload, removeAudio, signAudio } from "@/app/actions/audio-actions"
+import { catchStaleDeployment } from "@/lib/deploy/stale-announce"
 import { AUDIO_BUCKET, AUDIO_FORMATS_LABEL, AUDIO_MAX_BYTES, AUDIO_MAX_FILES, WAV_MESSAGE, audioExtension, formatBytes, formatDuration, isWavFile, type AudioAnswer } from "@/lib/audio/audio-answer"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
@@ -142,8 +143,9 @@ export function AudioField({
         onChange?.(strip(next))
         return next
       })
-    } catch {
-      fail("Rekaman tidak bisa dibaca.")
+    } catch (error) {
+      // A deploy since this page opened: the file never left the phone, so it is picked again after the reload.
+      fail(catchStaleDeployment(error) ? "Aplikasi baru saja diperbarui. Muat ulang, lalu pilih rekamannya lagi." : "Rekaman tidak bisa dibaca.")
     }
   }
 

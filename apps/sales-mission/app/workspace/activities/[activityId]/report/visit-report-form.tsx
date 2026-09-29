@@ -44,6 +44,10 @@ import { cn } from "@/lib/utils"
 import { jumpToField } from "@/lib/ui/scroll-in-panel"
 import { paths } from "@/lib/paths"
 import { missionDayKey } from "@/lib/missions/mission-calendar"
+import { catchStaleDeployment } from "@/lib/deploy/stale-announce"
+import { mergeDraftValues } from "@/lib/drafts/form-draft"
+import { useFormDraft } from "@/hooks/use-form-draft"
+import { DraftNotice } from "@/components/draft-notice"
 
 /**
  * Visit report, rendered from the tenant's configuration on the same
@@ -64,7 +68,31 @@ import { missionDayKey } from "@/lib/missions/mission-calendar"
  * One scrolling screen rather than a wizard: on a weak connection a wizard
  * forces navigation between steps and risks losing what was typed. A draft
  * autosaves as it is filled.
+ *
+ * The server's draft is the report's draft; this browser only keeps what
+ * the server does not have yet (DESIGN.md, "Surviving a deploy"): a change
+ * made while the connection was down, or after a deploy left this tab's
+ * autosave calling an action the server no longer has, or, for a sent
+ * report being changed, everything until Simpan perubahan. The form opens
+ * on that copy when there is one, and the autosave then sends it.
  */
+
+/** What this browser keeps for the report: the answers, and the reason when a sent report is being changed. */
+interface LocalReport {
+  draft: Draft
+  changeReason?: string
+}
+
+/** A contact from a stored copy, only if it still has the shape the form renders. */
+function isDraftContact(value: unknown): value is DraftContact {
+  return Boolean(value) && typeof value === "object" && typeof (value as { fullName?: unknown }).fullName === "string"
+}
+
+/** The stored copy laid over the report as the server has it, key by key. */
+function fromLocalReport(base: Draft, stored: LocalReport): Draft {
+  const merged = mergeDraftValues(base, stored.draft)
+  return { ...merged, contacts: merged.contacts.filter(isDraftContact) }
+}
 
 type Draft = {
   visitOutcome: VisitOutcome | null
@@ -484,7 +512,9 @@ export function VisitReportForm({
   fields: FormField[]
 }) {
   const router = useRouter()
-  const [draft, setDraft] = useState<Draft>(() => toDraft(report, appointmentContact, noActionCode(choices), schedule, discEnabled ? knownDisc : {}))
+  // The report as the server has it when the page opens: what Buang goes back to.
+  const [pristine] = useState<Draft>(() => toDraft(report, appointmentContact, noActionCode(choices), schedule, discEnabled ? knownDisc : {}))
+  const [draft, setDraft] = useState<Draft>(pristine)
   const [sync, setSync] = useState<SyncState>("idle")
   const [attempt, setAttempt] = useState(0)
   const [error, setError] = useState<string | null>(null)
@@ -499,6 +529,42 @@ export function VisitReportForm({
   const dirty = useRef(false)
   const latest = useRef(draft)
   latest.current = draft
+  // Set once the autosave has hit an action the server no longer has: retrying cannot work until a reload.
+  const staleTab = useRef(false)
+
+  // The answers as the server last stored them, so the browser keeps only the difference.
+  const [serverJson, setServerJson] = useState(() => JSON.stringify(pristine))
+  const localValue: LocalReport = editing ? { draft, changeReason } : { draft }
+  const local = useFormDraft<LocalReport>({
+    form: editing ? "laporan-ubah" : "laporan",
+    record: missionId,
+    value: localValue,
+    changed: editing ? JSON.stringify(draft) !== JSON.stringify(pristine) || changeReason.trim() !== "" : JSON.stringify(draft) !== serverJson,
+    // Once the autosave has it, the server's draft is the draft.
+    keepRestored: Boolean(editing),
+  })
+  const restoredLocal = local.restored
+  // Once per copy found: a refreshed page's new props must not undo what was changed since.
+  const appliedLocal = useRef<unknown>(null)
+  useEffect(() => {
+    if (!restoredLocal || appliedLocal.current === restoredLocal) return
+    appliedLocal.current = restoredLocal
+    setDraft(fromLocalReport(pristine, restoredLocal))
+    if (editing) setChangeReason(typeof restoredLocal.changeReason === "string" ? restoredLocal.changeReason : "")
+    // Not on the server yet: the autosave sends it.
+    dirty.current = true
+    setAttempt(0)
+  }, [restoredLocal, pristine, editing])
+
+  const discardLocal = () => {
+    local.discard()
+    setDraft(pristine)
+    setChangeReason("")
+    // If the autosave already sent the copy, the server's draft goes back too.
+    const sent = !editing && serverJson !== JSON.stringify(pristine)
+    dirty.current = sent
+    if (sent) setAttempt(0)
+  }
 
   const update = useCallback(<K extends keyof Draft>(key: K, value: Draft[K]) => {
     dirty.current = true
@@ -514,18 +580,33 @@ export function VisitReportForm({
   // Autosave on a trailing timer; a failed save schedules a retry with backoff.
   useEffect(() => {
     // A sent report has no draft: nothing is written until "Simpan perubahan".
-    if (!dirty.current || editing) return
+    if (!dirty.current || editing || staleTab.current) return
     const delay = attempt === 0 ? AUTOSAVE_DELAY_MS : Math.min(RETRY_CEILING_MS, RETRY_BASE_MS * 2 ** (attempt - 1))
     const timer = setTimeout(async () => {
       if (discarded.current) return
       setSync("saving")
-      const result = await saveVisitReportDraft(missionId, latest.current)
+      const sending = latest.current
+      let result: Awaited<ReturnType<typeof saveVisitReportDraft>>
+      try {
+        result = await saveVisitReportDraft(missionId, sending)
+      } catch (error) {
+        // A deploy left this tab calling an action the server no longer
+        // has: no retry can work, the browser keeps the change, and the
+        // notice asks for the reload that sends it. Anything else thrown
+        // (the network) is retried like a refused save.
+        if (discarded.current) return
+        setSync("pending")
+        if (catchStaleDeployment(error)) staleTab.current = true
+        else setAttempt((value) => value + 1)
+        return
+      }
       if (discarded.current) return
       if (result.success) {
         dirty.current = false
         setAttempt(0)
         setSync("saved")
         setHasDraft(true)
+        setServerJson(JSON.stringify(sending))
       } else {
         setSync("pending")
         setAttempt((value) => value + 1)
@@ -601,8 +682,17 @@ export function VisitReportForm({
       return
     }
     startSubmit(async () => {
-      const result = await submitVisitReport(missionId, { ...latest.current, changeReason: changeReason.trim() })
+      let result: Awaited<ReturnType<typeof submitVisitReport>>
+      try {
+        result = await submitVisitReport(missionId, { ...latest.current, changeReason: changeReason.trim() })
+      } catch (error) {
+        // Not sent, and not the report's fault: the form stays as it is,
+        // the browser keeps it, and the notice asks for a reload.
+        if (catchStaleDeployment(error)) return
+        throw error
+      }
       if (result.success) {
+        local.clear()
         router.push(paths.activity(missionId))
         router.refresh()
       } else {
@@ -850,6 +940,8 @@ export function VisitReportForm({
 
   return (
     <div className="space-y-4">
+      {local.noticeOpen && <DraftNotice onDismiss={local.dismiss} onDiscard={discardLocal} />}
+
       {report?.clarificationNote && (
         <div className="flex items-start gap-2.5 rounded-xl border border-[var(--warning-foreground)]/20 bg-[var(--warning)] px-5 py-4 text-sm text-[var(--warning-foreground)]">
           <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
@@ -1018,6 +1110,7 @@ export function VisitReportForm({
                   return
                 }
                 setHasDraft(false)
+                local.clear()
                 toast.success("Draf dibuang")
                 router.push(paths.activity(missionId))
                 router.refresh()

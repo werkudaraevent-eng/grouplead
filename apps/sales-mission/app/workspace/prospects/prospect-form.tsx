@@ -1,6 +1,6 @@
 "use client"
 
-import { useActionState, useEffect, useRef, useState } from "react"
+import { useActionState, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
 import { AlertCircle, Loader2, Save } from "@/components/icons"
 import { createProspect, updateProspect, type ProspectFormState } from "@/app/actions/prospect-actions"
@@ -26,6 +26,10 @@ import { PhoneInput } from "@/components/ui/phone-input"
 import { CompanyPicker } from "@/app/workspace/activities/new/company-picker"
 import { LocationPicker } from "@/app/workspace/activities/new/location-picker"
 import { PersonPicker } from "@/app/workspace/activities/new/people-picker"
+import { guardFormAction } from "@/lib/deploy/stale-announce"
+import { customAnswersFromDraft, draftText, sameFormValues, type FormValues } from "@/lib/drafts/form-draft"
+import { useFormCapture, useFormDraft } from "@/hooks/use-form-draft"
+import { DraftNotice } from "@/components/draft-notice"
 
 /**
  * One prospect, by hand, rendered from the tenant's prospect form.
@@ -157,15 +161,7 @@ function CustomField({ field, initial }: { field: FormField; initial?: unknown }
   )
 }
 
-export function ProspectForm({
-  fields,
-  salesOptions,
-  salutations,
-  salutationsAllowOther,
-  viewerId,
-  canAssignOthers,
-  prospect,
-}: {
+interface ProspectFormProps {
   /** The tenant's prospect form, core and custom, in the admin's order. */
   fields: FormField[]
   salesOptions: TenantSalesOption[]
@@ -177,15 +173,150 @@ export function ProspectForm({
   canAssignOthers: boolean
   /** Editing: the prospect to fill from, custom answers included. */
   prospect?: ProspectDetail
+}
+
+/** Where every field starts: the prospect being edited, a draft, or nothing. */
+interface ProspectStart {
+  clientCompanyName: string
+  clientCompanyId: string | null
+  industry: string
+  website: string
+  address: string
+  location: string
+  contactSalutation: string
+  contactName: string
+  contactJobTitle: string
+  contactDivision: string
+  contactPhone: string
+  contactEmail: string
+  notes: string
+  ownerId: string | null
+  customValues: Record<string, unknown>
+}
+
+function startFromProspect(prospect: ProspectDetail | undefined): ProspectStart | null {
+  if (!prospect) return null
+  return {
+    clientCompanyName: prospect.clientCompanyName,
+    clientCompanyId: prospect.clientCompanyId,
+    industry: prospect.industry ?? "",
+    website: prospect.website ?? "",
+    address: prospect.address ?? "",
+    location: prospect.location ?? "",
+    contactSalutation: prospect.contactSalutation ?? "",
+    contactName: prospect.contactName ?? "",
+    contactJobTitle: prospect.contactJobTitle ?? "",
+    contactDivision: prospect.contactDivision ?? "",
+    contactPhone: prospect.contactPhone ?? "",
+    contactEmail: prospect.contactEmail ?? "",
+    notes: prospect.notes ?? "",
+    ownerId: prospect.ownerId,
+    customValues: prospect.customValues,
+  }
+}
+
+/** A draft read back by input name, which is the field key (core names, and `custom__<key>` for the admin's own). */
+function startFromDraft(values: FormValues, fields: FormField[]): ProspectStart {
+  const text = (name: string) => draftText(values, name) ?? ""
+  return {
+    clientCompanyName: text("clientCompanyName"),
+    clientCompanyId: text("clientCompanyId") || null,
+    industry: text("industry"),
+    website: text("website"),
+    address: text("address"),
+    location: text("location"),
+    contactSalutation: text("contactSalutation"),
+    contactName: text("contactName"),
+    contactJobTitle: text("contactJobTitle"),
+    contactDivision: text("contactDivision"),
+    contactPhone: text("contactPhone"),
+    contactEmail: text("contactEmail"),
+    notes: text("notes"),
+    ownerId: text("ownerId") || null,
+    customValues: customAnswersFromDraft(values, fields.filter((field) => !field.isCore)),
+  }
+}
+
+/**
+ * The form with its draft (DESIGN.md, "Surviving a deploy"), the same way
+ * as the activity form: typed answers are kept in this browser by field
+ * key and offered back after a reload; a send that fails only because the
+ * tab is older than the server keeps the form and puts up the reload
+ * notice; a send that works removes the draft.
+ */
+export function ProspectForm(props: ProspectFormProps) {
+  const [fresh, setFresh] = useState<FormValues | null>(null)
+  const [current, setCurrent] = useState<FormValues>({})
+  const draft = useFormDraft<FormValues>({
+    form: "prospek",
+    record: props.prospect?.id ?? "baru",
+    value: current,
+    changed: fresh !== null && !sameFormValues(current, fresh),
+    ready: fresh !== null,
+  })
+  const { restored, saveNow, clear } = draft
+  // Buang: the form opens afresh, and what it then holds is the fresh form again.
+  const discard = () => {
+    setFresh(null)
+    draft.discard()
+  }
+
+  const onCapture = useCallback(
+    (values: FormValues, reason: "open" | "edit" | "submit") => {
+      if (reason === "open") setFresh((known) => known ?? values)
+      setCurrent(values)
+      if (reason === "submit" && fresh !== null && !sameFormValues(values, fresh)) saveNow(values)
+    },
+    [fresh, saveNow]
+  )
+
+  const start = restored ? startFromDraft(restored, props.fields) : startFromProspect(props.prospect)
+  return (
+    <ProspectFormBody
+      key={restored ? "draft" : "fresh"}
+      {...props}
+      start={start}
+      onCapture={onCapture}
+      onSent={clear}
+      notice={draft.noticeOpen ? <DraftNotice onDismiss={draft.dismiss} onDiscard={discard} /> : null}
+    />
+  )
+}
+
+function ProspectFormBody({
+  fields,
+  salesOptions,
+  salutations,
+  salutationsAllowOther,
+  viewerId,
+  canAssignOthers,
+  prospect,
+  start,
+  onCapture,
+  onSent,
+  notice,
+}: ProspectFormProps & {
+  start: ProspectStart | null
+  onCapture: (values: FormValues, reason: "open" | "edit" | "submit") => void
+  onSent: () => void
+  notice: React.ReactNode
 }) {
-  const action = prospect ? updateProspect.bind(null, prospect.id) : createProspect
+  const prospectId = prospect?.id
+  // A failure that only means this tab is older than the server leaves the
+  // form as it is; the notice says to reload, and the draft comes back.
+  const action = useMemo(
+    () => guardFormAction<ProspectFormState, FormData>(prospectId ? updateProspect.bind(null, prospectId) : createProspect, { onSent }),
+    [prospectId, onSent]
+  )
   const [state, formAction, pending] = useActionState<ProspectFormState, FormData>(action, null)
-  const [clientCompanyId, setClientCompanyId] = useState<string | null>(prospect?.clientCompanyId ?? null)
+  const [formElement, setFormElement] = useState<HTMLFormElement | null>(null)
+  useFormCapture(formElement, onCapture)
+  const [clientCompanyId, setClientCompanyId] = useState<string | null>(start?.clientCompanyId ?? null)
   // Industry as it stands; a CRM company fills it only while it is empty.
-  const [industry, setIndustry] = useState(prospect?.industry ?? "")
+  const [industry, setIndustry] = useState(start?.industry ?? "")
   const [industryKey, setIndustryKey] = useState(0)
-  const [phone, setPhone] = useState(prospect?.contactPhone ?? "")
-  const [ownerId, setOwnerId] = useState(prospect?.ownerId ?? viewerId)
+  const [phone, setPhone] = useState(start?.contactPhone ?? "")
+  const [ownerId, setOwnerId] = useState(start?.ownerId ?? viewerId)
   const errorRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -197,7 +328,7 @@ export function ProspectForm({
   const people = salesOptions.map((person) => ({ id: person.id, name: person.name, avatarUrl: person.avatarUrl }))
   const blocks = prospectBlocks(fields)
   const requiredCount = fields.filter((field) => field.isActive && field.isRequired).length
-  const customValues = prospect?.customValues ?? {}
+  const customValues = start?.customValues ?? {}
 
   const text = (field: FormField, name: string, value: string | null | undefined, extra: React.ComponentProps<typeof Input> = {}) => (
     <FieldShell field={field} key={field.id}>
@@ -219,7 +350,7 @@ export function ProspectForm({
                 setIndustry(company.industry)
                 setIndustryKey((key) => key + 1)
               }}
-              initial={prospect ? { name: prospect.clientCompanyName, id: prospect.clientCompanyId, industry: prospect.industry } : undefined}
+              initial={start ? { name: start.clientCompanyName, id: start.clientCompanyId, industry: start.industry || null } : undefined}
             />
           </FieldShell>
         )
@@ -245,27 +376,27 @@ export function ProspectForm({
         )
       }
       case "website":
-        return text(field, "website", prospect?.website, { maxLength: 200, inputMode: "url", placeholder: field.placeholder ?? "arunika.co.id" })
+        return text(field, "website", start?.website, { maxLength: 200, inputMode: "url", placeholder: field.placeholder ?? "arunika.co.id" })
       case "address":
-        return text(field, "address", prospect?.address, { maxLength: 300, autoComplete: "address-line1", placeholder: field.placeholder ?? "Jl. Jend. Sudirman Kav. 52-53" })
+        return text(field, "address", start?.address, { maxLength: 300, autoComplete: "address-line1", placeholder: field.placeholder ?? "Jl. Jend. Sudirman Kav. 52-53" })
       case "location":
         return (
           <FieldShell field={field} key={field.id}>
-            <LocationPicker id="field-location" required={field.isRequired} placeholder={field.placeholder ?? "Jakarta Selatan"} initial={prospect?.location ?? undefined} />
+            <LocationPicker id="field-location" required={field.isRequired} placeholder={field.placeholder ?? "Jakarta Selatan"} initial={start?.location || undefined} />
           </FieldShell>
         )
       case "contact_salutation":
         return (
           <FieldShell field={field} key={field.id}>
-            <SelectWithOther id="field-contact_salutation" name="contactSalutation" options={salutations} defaultValue={prospect?.contactSalutation ?? ""} required={field.isRequired} placeholder={field.placeholder || "—"} allowOther={salutationsAllowOther ?? false} />
+            <SelectWithOther id="field-contact_salutation" name="contactSalutation" options={salutations} defaultValue={start?.contactSalutation ?? ""} required={field.isRequired} placeholder={field.placeholder || "—"} allowOther={salutationsAllowOther ?? false} />
           </FieldShell>
         )
       case "contact_name":
-        return text(field, "contactName", prospect?.contactName, { maxLength: 150, placeholder: field.placeholder ?? "Nama lengkap" })
+        return text(field, "contactName", start?.contactName, { maxLength: 150, placeholder: field.placeholder ?? "Nama lengkap" })
       case "contact_job_title":
-        return text(field, "contactJobTitle", prospect?.contactJobTitle, { maxLength: 150, placeholder: field.placeholder ?? "GM Procurement" })
+        return text(field, "contactJobTitle", start?.contactJobTitle, { maxLength: 150, placeholder: field.placeholder ?? "GM Procurement" })
       case "contact_division":
-        return text(field, "contactDivision", prospect?.contactDivision, { maxLength: 150, placeholder: field.placeholder ?? "Procurement" })
+        return text(field, "contactDivision", start?.contactDivision, { maxLength: 150, placeholder: field.placeholder ?? "Procurement" })
       case "contact_phone":
         return (
           <FieldShell field={field} key={field.id}>
@@ -273,11 +404,11 @@ export function ProspectForm({
           </FieldShell>
         )
       case "contact_email":
-        return text(field, "contactEmail", prospect?.contactEmail, { type: "email", inputMode: "email", maxLength: 200, placeholder: field.placeholder ?? "nama@perusahaan.com" })
+        return text(field, "contactEmail", start?.contactEmail, { type: "email", inputMode: "email", maxLength: 200, placeholder: field.placeholder ?? "nama@perusahaan.com" })
       case "notes":
         return (
           <FieldShell field={field} key={field.id}>
-            <AutoTextarea id="field-notes" name="notes" minRows={3} maxLength={4000} required={field.isRequired} defaultValue={prospect?.notes ?? ""} placeholder={field.placeholder ?? "Dapat dari pameran, referensi klien lama, dan sebagainya."} />
+            <AutoTextarea id="field-notes" name="notes" minRows={3} maxLength={4000} required={field.isRequired} defaultValue={start?.notes ?? ""} placeholder={field.placeholder ?? "Dapat dari pameran, referensi klien lama, dan sebagainya."} />
           </FieldShell>
         )
       case "owner":
@@ -299,7 +430,8 @@ export function ProspectForm({
   }
 
   return (
-    <form action={formAction} className="space-y-4">
+    <form ref={setFormElement} action={formAction} className="space-y-4">
+      {notice}
       {state?.error && (
         <div ref={errorRef} tabIndex={-1} role="alert" className="flex items-start gap-2 rounded-lg border border-[var(--danger-foreground)]/25 bg-[var(--danger)] px-4 py-3 text-sm text-[var(--danger-foreground)]">
           <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />

@@ -46,8 +46,13 @@ export function CompanyPicker({
   const [prospects, setProspects] = useState<ProspectSuggestion[]>([])
   const [pickedProspect, setPickedProspect] = useState<ProspectSuggestion | null>(null)
   const [searching, setSearching] = useState(false)
-  /** Suppresses the lookup that adopting a previous name would otherwise trigger. */
-  const justAdopted = useRef(false)
+  /**
+   * Suppresses the lookup that adopting a previous name would otherwise
+   * trigger, and the one a name the form opens with (an unlinked company
+   * being edited, or a draft given back) would: a list nobody asked for
+   * should not open over the form.
+   */
+  const justAdopted = useRef(Boolean(initial && !initial.id && initial.name.trim().length >= 2))
   const [error, setError] = useState<string | null>(null)
   const [open, setOpen] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)

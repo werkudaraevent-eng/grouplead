@@ -1,6 +1,6 @@
 "use client"
 
-import { useActionState, useEffect, useRef, useState } from "react"
+import { useActionState, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
 import { AlertCircle, Loader2, Plus, Save } from "@/components/icons"
 import { createMission, type CreateMissionState } from "@/app/actions/mission-actions"
@@ -38,6 +38,10 @@ import type { ConflictSettings } from "@/lib/missions/mission-join"
 import type { PersonSchedule } from "@/lib/missions/schedule-availability"
 import { paths } from "@/lib/paths"
 import { scrollInPanel } from "@/lib/ui/scroll-in-panel"
+import { guardFormAction } from "@/lib/deploy/stale-announce"
+import { customAnswersFromDraft, draftList, draftText, sameFormValues, type FormValues } from "@/lib/drafts/form-draft"
+import { useFormCapture, useFormDraft } from "@/hooks/use-form-draft"
+import { DraftNotice } from "@/components/draft-notice"
 
 /**
  * Mission form, rendered from the tenant's field configuration.
@@ -345,17 +349,7 @@ export interface MissionPrefill {
   appointmentNotes: string
 }
 
-export function MissionForm({
-  salesOptions,
-  defaultDate,
-  fields,
-  schedules,
-  conflictSettings,
-  prefill,
-  prospectId,
-  rescheduleOf,
-  edit,
-}: {
+interface MissionFormProps {
   salesOptions: TenantSalesOption[]
   defaultDate: string
   fields: FormField[]
@@ -389,15 +383,142 @@ export function MissionForm({
      */
     frozen?: boolean
   }
+}
+
+/** The answers a draft carries, laid out as the form's starting values. */
+interface MissionRestore {
+  prefill: MissionPrefill
+  schedule: ScheduleValue
+  prospectId: string
+  customValues: Record<string, unknown>
+  scheduleReason: string
+}
+
+/**
+ * A draft read back by input name, which is the field key: the core
+ * fields post under fixed names and the admin's own as `custom__<key>`, so
+ * the draft fits the form whatever order and labels it has now.
+ */
+function restoreFromDraft(values: FormValues, fields: FormField[], fallbackDate: string): MissionRestore {
+  const text = (name: string) => draftText(values, name) ?? ""
+  return {
+    prefill: {
+      clientCompanyName: text("clientCompanyName"),
+      clientCompanyId: text("clientCompanyId") || null,
+      industry: text("industry"),
+      missionType: text("missionType"),
+      location: text("location"),
+      objective: text("objective"),
+      primarySalesId: text("primarySalesId"),
+      supportingSalesIds: draftList(values, "supportingSalesIds"),
+      contactSalutation: text("contactSalutation"),
+      contactId: text("contactId"),
+      contactName: text("contactName"),
+      contactJobTitle: text("contactJobTitle"),
+      contactDivision: text("contactDivision"),
+      contactPhone: text("contactPhone"),
+      contactEmail: text("contactEmail"),
+      building: text("building"),
+      address: text("address"),
+      appointmentNotes: text("appointmentNotes"),
+    },
+    schedule: { date: text("date") || fallbackDate, startTime: text("startTime"), endTime: text("endTime") },
+    prospectId: text("prospectId"),
+    customValues: customAnswersFromDraft(values, fields.filter((field) => !field.isCore)),
+    scheduleReason: text("scheduleReason"),
+  }
+}
+
+/**
+ * The form with its draft (DESIGN.md, "Surviving a deploy"). What is typed
+ * is kept in this browser by field key, so a reload (after a deploy, a
+ * dead battery, a closed tab) opens the form on it again with "Isian yang
+ * belum terkirim dikembalikan." A send that fails only because this tab is
+ * older than the server leaves the form as it is and puts up the notice to
+ * reload; a send that works (it ends in a redirect) removes the draft.
+ */
+export function MissionForm(props: MissionFormProps) {
+  const record = props.edit
+    ? props.edit.missionId
+    : ["baru", props.prospectId && `prospek-${props.prospectId}`, props.rescheduleOf && `ganti-${props.rescheduleOf}`].filter(Boolean).join("-")
+  const [fresh, setFresh] = useState<FormValues | null>(null)
+  const [current, setCurrent] = useState<FormValues>({})
+  const draft = useFormDraft<FormValues>({
+    form: "aktivitas",
+    record,
+    value: current,
+    changed: fresh !== null && !sameFormValues(current, fresh),
+    ready: fresh !== null,
+  })
+  const { restored, saveNow, clear } = draft
+  // Buang: the form opens afresh, and what it then holds is the fresh form again.
+  const discard = () => {
+    setFresh(null)
+    draft.discard()
+  }
+
+  const onCapture = useCallback(
+    (values: FormValues, reason: "open" | "edit" | "submit") => {
+      // What the form holds when it first opens, before any draft: the answers to compare with.
+      if (reason === "open") setFresh((known) => known ?? values)
+      setCurrent(values)
+      if (reason === "submit" && fresh !== null && !sameFormValues(values, fresh)) saveNow(values)
+    },
+    [fresh, saveNow]
+  )
+
+  const restore = restored ? restoreFromDraft(restored, props.fields, props.defaultDate) : null
+  return (
+    <MissionFormBody
+      // A new starting point is a new form: its uncontrolled fields take their values at mount.
+      key={restore ? "draft" : "fresh"}
+      {...props}
+      restore={restore}
+      onCapture={onCapture}
+      onSent={clear}
+      notice={draft.noticeOpen ? <DraftNotice onDismiss={draft.dismiss} onDiscard={discard} /> : null}
+    />
+  )
+}
+
+function MissionFormBody({
+  salesOptions,
+  defaultDate,
+  fields,
+  schedules,
+  conflictSettings,
+  prefill: givenPrefill,
+  prospectId,
+  rescheduleOf,
+  edit,
+  restore,
+  onCapture,
+  onSent,
+  notice,
+}: MissionFormProps & {
+  restore: MissionRestore | null
+  onCapture: (values: FormValues, reason: "open" | "edit" | "submit") => void
+  onSent: () => void
+  notice: React.ReactNode
 }) {
+  // A draft, when there is one, is where every field starts.
+  const prefill = restore?.prefill ?? givenPrefill
+  const customValues = restore?.customValues ?? edit?.customValues
+
   // On success the action redirects server-side, so this state only ever holds
-  // a failure worth showing.
-  const [state, formAction, pending] = useActionState<CreateMissionState, FormData>(edit?.action ?? createMission, null)
+  // a failure worth showing. A failure that only means this tab is older than
+  // the server leaves the state (and the form) as it was; the notice says to
+  // reload, and the draft brings the answers back.
+  const editAction = edit?.action
+  const action = useMemo(() => guardFormAction<CreateMissionState, FormData>(editAction ?? createMission, { onSent }), [editAction, onSent])
+  const [state, formAction, pending] = useActionState<CreateMissionState, FormData>(action, null)
+  const [formElement, setFormElement] = useState<HTMLFormElement | null>(null)
+  useFormCapture(formElement, onCapture)
 
   // Tracked so the supporting list can exclude whoever is leading the visit.
   const [primarySalesId, setPrimarySalesId] = useState(prefill?.primarySalesId ?? "")
   const [supportingIds, setSupportingIds] = useState<string[]>(prefill?.supportingSalesIds ?? [])
-  const [schedule, setSchedule] = useState<ScheduleValue>(edit?.schedule ?? { date: defaultDate, startTime: "09:30", endTime: "" })
+  const [schedule, setSchedule] = useState<ScheduleValue>(restore?.schedule ?? edit?.schedule ?? { date: defaultDate, startTime: "09:30", endTime: "" })
   const [location, setLocation] = useState(prefill?.location ?? "")
   const [address, setAddress] = useState(prefill?.address ?? "")
   // The industry as it stands in the form. Filled from a prospect or a CRM
@@ -412,7 +533,7 @@ export function MissionForm({
   }
   // Remounts the location picker when a prospect fills it, since it owns its text.
   const [locationKey, setLocationKey] = useState(0)
-  const [linkedProspectId, setLinkedProspectId] = useState(prospectId ?? "")
+  const [linkedProspectId, setLinkedProspectId] = useState(restore ? restore.prospectId : (prospectId ?? ""))
 
   // The calendars the picker draws: whoever is being sent. Nothing until a
   // primary is chosen, because an empty calendar looks like a free one.
@@ -424,7 +545,7 @@ export function MissionForm({
   // offer that company's known people.
   const [clientCompanyId, setClientCompanyId] = useState<string | null>(prefill?.clientCompanyId ?? null)
   const [contact, setContact] = useState<ContactDraft>(
-    prefill?.contactName
+    prefill?.contactName || prefill?.contactJobTitle || prefill?.contactPhone || prefill?.contactEmail
       ? {
           id: prefill.contactId,
           name: prefill.contactName,
@@ -601,6 +722,7 @@ export function MissionForm({
                 <Input
                   id="field-schedule_reason"
                   name="scheduleReason"
+                  defaultValue={restore?.scheduleReason}
                   maxLength={1000}
                   placeholder="Alasan perubahan jadwal (opsional), ikut dikirim ke tim"
                   className="h-11 bg-card"
@@ -772,7 +894,8 @@ export function MissionForm({
     // Left-aligned, not centred. The page title sits at the left edge, so a
     // centred form left the heading and the thing it describes on different
     // axes with a stripe of empty page between them.
-    <form action={formAction} className="space-y-4">
+    <form ref={setFormElement} action={formAction} className="space-y-4">
+      {notice}
       {linkedProspectId && <input type="hidden" name="prospectId" value={linkedProspectId} />}
       {rescheduleOf && <input type="hidden" name="rescheduleOf" value={rescheduleOf} />}
       {state?.error ? (
@@ -820,7 +943,7 @@ export function MissionForm({
           </header>
           <div className="grid grid-cols-1 gap-x-4 gap-y-5 px-5 py-5 sm:grid-cols-6 sm:px-6">
             {block.fields.map((field) =>
-              field.isCore ? coreField(field) : <CustomField key={field.id} field={field} initial={edit?.customValues[field.reportingKey]} />
+              field.isCore ? coreField(field) : <CustomField key={field.id} field={field} initial={customValues?.[field.reportingKey]} />
             )}
           </div>
         </section>
