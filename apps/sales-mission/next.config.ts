@@ -1,6 +1,11 @@
 import type { NextConfig } from "next"
 
 const nextConfig: NextConfig = {
+  // Since 16.3, `next dev` writes AGENTS.md and CLAUDE.md into the app
+  // directory whenever it detects a coding agent. The repo's rules live in
+  // the root AGENTS.md only; generated copies here would be committed by the
+  // usual `git add -A`.
+  agentRules: false,
   // Stamped into the service worker's URL, so each deploy installs a fresh
   // worker that discards the previous build's asset cache.
   env: { NEXT_PUBLIC_BUILD_ID: String(Date.now()) },

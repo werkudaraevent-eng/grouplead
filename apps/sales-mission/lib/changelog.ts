@@ -45,6 +45,13 @@ export const CHANGE_KIND_LABELS: Record<ChangeKind, string> = {
 
 export const CHANGELOG: ChangeEntry[] = [
   {
+    date: "2026-09-29",
+    title: "Tidak ada lagi layar “Application error” saat membuka daftar",
+    items: [
+      { kind: "diperbaiki", text: "Membuka Aktivitas atau Laporan yang mengingat saringan terakhirmu kadang berakhir di layar putih bertuliskan “Application error” dan baru pulih setelah dimuat ulang beberapa kali. Penyebabnya bug di kerangka aplikasi yang kami pakai; kerangkanya sudah diperbarui, jadi daftar langsung terbuka dengan saringanmu." },
+    ],
+  },
+  {
     date: "2026-09-25",
     title: "Alasan batal ikut di ekspor Aktivitas",
     items: [
