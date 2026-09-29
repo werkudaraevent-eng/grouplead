@@ -127,8 +127,13 @@ export const config = {
          * - _next/static (static files)
          * - _next/image (image optimization)
          * - favicon.ico
+         * - manifest.webmanifest and icons/: the browser fetches the web
+         *   manifest itself, without cookies (a manifest request carries
+         *   none unless the link says use-credentials). Sent through the
+         *   session check it was redirected to /login and arrived as HTML.
+         *   They hold nothing private. Same as Sales Activity's proxy.ts.
          * - public files (svg, png, jpg, etc.)
          */
-        '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+        '/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|icons/|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
     ],
 }

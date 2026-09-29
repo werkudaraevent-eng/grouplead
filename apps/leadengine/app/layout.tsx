@@ -2,6 +2,7 @@
 import { Plus_Jakarta_Sans, Geist_Mono } from "next/font/google";
 import { Toaster } from "sonner";
 import "./globals.css";
+import { PRODUCT_NAME } from "@/lib/navigation/app-nav";
 
 const jakartaSans = Plus_Jakarta_Sans({
   variable: "--font-jakarta-sans",
@@ -17,20 +18,26 @@ const geistMono = Geist_Mono({
 // The layout reaches under a phone's notch and home indicator, so the top
 // app bar and the navigation bar can pad themselves by the safe-area insets
 // (env(safe-area-inset-*)) rather than the browser letterboxing the page.
-// Same as Sales Activity's.
+// Same as Sales Activity's, and so is the theme colour: the page colour, so
+// the status bar reads as part of the page.
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
+  themeColor: "#F6F8FB",
 };
 
+// The icon family is shared with Sales Activity (same tile, colour and grid;
+// only the glyph differs): public/icons, app/favicon.ico, app/manifest.ts.
 export const metadata: Metadata = {
   title: "LeadEngine - Corporate Lead Management",
   description: "Workflow-driven lead and SLA management system",
+  manifest: "/manifest.webmanifest",
   icons: {
-    icon: "/icon.svg",
-    apple: "/apple-icon.svg",
+    icon: "/icons/icon.svg",
+    apple: "/icons/apple-touch-icon.png",
   },
+  appleWebApp: { capable: true, statusBarStyle: "default", title: PRODUCT_NAME },
 };
 
 // The other app's origin, warmed up at load: DNS and TLS are done before

@@ -75,6 +75,15 @@ export const CHANGE_TYPE_META: Record<
 
 export const CHANGELOG: ChangelogEntry[] = [
     {
+        date: "2026-09-29",
+        title: "A new icon that matches Sales Activity",
+        items: [
+            { type: "improvement", text: "LeadEngine has a new icon that matches Sales Activity's: the same blue square, with a white funnel for LeadEngine where Sales Activity has its map pin. In your browser tabs, your bookmarks and on your phone's home screen the two apps now look like one family and are still easy to tell apart. The old \"w\" icon is gone." },
+            { type: "feature", text: "Add LeadEngine to your phone's home screen and it opens full screen, like an app, the way Sales Activity does. On Android, open the browser menu (⋮) and tap Add to Home screen or Install app; on an iPhone, tap Share, then Add to Home Screen. If you added LeadEngine to your home screen before, remove it and add it again to get the new icon." },
+            { type: "fix", text: "Some browsers showed a black triangle in the tab instead of LeadEngine's icon. Every browser now shows the new one." },
+        ],
+    },
+    {
         date: "2026-09-25",
         title: "Log calls, meetings, emails and follow-ups on a contact or company",
         items: [

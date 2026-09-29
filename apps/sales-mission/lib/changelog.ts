@@ -46,6 +46,14 @@ export const CHANGE_KIND_LABELS: Record<ChangeKind, string> = {
 export const CHANGELOG: ChangeEntry[] = [
   {
     date: "2026-09-29",
+    title: "Ikon LeadEngine kini sekeluarga dengan Sales Activity",
+    items: [
+      { kind: "lebih-baik", text: "LeadEngine punya ikon baru yang sekeluarga dengan ikon Sales Activity: kotak biru yang sama, dengan corong putih untuk LeadEngine dan pin lokasi putih untuk Sales Activity. Di tab browser dan di layar utama HP, kedua aplikasi kini terlihat sebagai satu keluarga dan tetap mudah dibedakan. LeadEngine juga kini bisa ditambahkan ke layar utama HP seperti Sales Activity; kalau sudah pernah kamu tambahkan, hapus lalu tambahkan lagi supaya ikonnya berganti." },
+      { kind: "diperbaiki", text: "Browser yang mencari ikon kecil Sales Activity kini menemukannya, jadi pin Sales Activity tampil di tab dan bookmark di semua browser. Di ukuran sekecil itu garis pinnya digambar sedikit lebih tebal supaya tetap jelas." },
+    ],
+  },
+  {
+    date: "2026-09-29",
     title: "Nama perusahaan dan kontak mengikuti LeadEngine",
     items: [
       { kind: "lebih-baik", text: "Halaman aktivitas dan halaman prospek kini menampilkan nama perusahaan terbaru dari LeadEngine, dan halaman aktivitas juga nama, jabatan, telepon, dan email kontak janji temu terbaru. Jadi bila admin membetulkan nama atau nomor di LeadEngine, kamu langsung melihat yang benar. Kalau namanya berubah, nama lama tertulis kecil di bawahnya (“Tercatat saat dijadwalkan: …” atau “Tercatat saat dibuat: …”), supaya jelas itu perusahaan atau orang yang sama. Daftar, ekspor, kalender, dan papan live masih memakai nama yang tercatat." },
