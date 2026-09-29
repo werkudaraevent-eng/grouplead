@@ -7,31 +7,38 @@ import { createClient } from "@/utils/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Loader2, ArrowRight, BarChart3, Users, Target, TrendingUp, Eye, EyeOff } from "@/components/icons"
-import { newSessionId, writeActiveSessionId } from "@/lib/session-guard"
+import { Loader2, ArrowRight, BarChart3, Users, Target, TrendingUp, Eye, EyeOff, Info } from "@/components/icons"
+import { SIGNED_OUT_MESSAGE, SIGNED_OUT_REASON } from "@/lib/devices/signed-out"
 
 export default function LoginPage() {
     const [email, setEmail] = useState("")
     const [password, setPassword] = useState("")
     const [showPassword, setShowPassword] = useState(false)
     const [error, setError] = useState<string | null>(null)
+    // Signed out from another device (Active devices, an admin, a password
+    // change): said once, as information rather than an error.
+    const [notice, setNotice] = useState<string | null>(null)
     const [loading, setLoading] = useState(false)
     const router = useRouter()
     const supabase = createClient()
 
     useEffect(() => {
-        const errorCode = new URLSearchParams(window.location.search).get("error")
+        const params = new URLSearchParams(window.location.search)
+        const errorCode = params.get("error")
         if (errorCode === "access_not_provisioned") {
             setError("Your account is not provisioned for LeadEngine. Ask an administrator to add your user and business-unit access.")
+        } else if (params.get("reason") === SIGNED_OUT_REASON) {
+            setNotice(SIGNED_OUT_MESSAGE)
         }
     }, [])
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault()
         setError(null)
+        setNotice(null)
         setLoading(true)
 
-        const { data, error } = await supabase.auth.signInWithPassword({
+        const { error } = await supabase.auth.signInWithPassword({
             email,
             password,
         })
@@ -40,29 +47,9 @@ export default function LoginPage() {
             setError(error.message)
             setLoading(false)
         } else {
-            // Single active session: mint a fresh session id, persist it on the
-            // profile and in this browser. Any older session will detect the
-            // mismatch and sign itself out ("last login wins").
-            //
-            // Use the user from the sign-in response directly — calling
-            // getUser() here would add a redundant round-trip to the auth
-            // server and slow the login down.
-            const user = data.user
-            if (user) {
-                const sessionId = newSessionId()
-                // Write the shared cookie before the DB update. A sibling app
-                // reacting to the profile change re-reads this cookie, and a
-                // stale read there would sign that app out.
-                writeActiveSessionId(sessionId)
-                // Await the DB write so the SessionGuard on the dashboard reads
-                // a consistent active_session_id (a stale read would otherwise
-                // mismatch our local id and sign the user straight back out).
-                try {
-                    await supabase.from("profiles").update({ active_session_id: sessionId }).eq("id", user.id)
-                } catch {
-                    // Non-fatal — login still proceeds even if the stamp fails.
-                }
-            }
+            // Several sessions may be open at once, here and in Sales Activity;
+            // this one joins them, and the app records the device on load
+            // (Settings › Profile › Active devices).
             router.push("/")
             router.refresh()
         }
@@ -175,6 +162,12 @@ export default function LoginPage() {
 
                     {/* Form */}
                     <form onSubmit={handleLogin} className="space-y-5">
+                        {notice && !error && (
+                            <div className="flex items-start gap-2 rounded-lg border bg-muted px-4 py-3 text-sm text-foreground" role="status">
+                                <Info className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                                <p>{notice}</p>
+                            </div>
+                        )}
                         {error && (
                             <div className="flex items-center gap-2 bg-destructive/10 border border-destructive/20 text-destructive px-4 py-3 rounded-lg text-sm">
                                 <svg className="h-4 w-4 shrink-0" viewBox="0 0 16 16" fill="currentColor">

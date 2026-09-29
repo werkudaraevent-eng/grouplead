@@ -28,7 +28,7 @@ const TopLoader = dynamic(
   { ssr: false }
 )
 import { CompanySwitchLoader } from "@/components/layout/company-switch-loader"
-import { SessionGuard } from "@/components/layout/session-guard"
+import { SessionWatch } from "@/components/layout/session-watch"
 import { UsageBeacon } from "@/components/layout/usage-beacon"
 import { MaintenanceWatcher } from "@/features/settings/components/maintenance-watcher"
 import { CompanyProvider } from "@/contexts/company-context"
@@ -63,7 +63,8 @@ export function MainLayout({ children, initialCompany, companies, currencySettin
             <PermissionsProvider>
                 <CurrencyProvider settings={currencySettings}>
                     <SidebarThemeProvider>
-                        <SessionGuard />
+                        {/* Active devices: records this device, notices a sign-out from elsewhere; draws nothing. */}
+                        <SessionWatch />
                         {/* Settings → Usage: which page, when; draws nothing, fails silently. */}
                         <UsageBeacon />
                         <MaintenanceWatcher />

@@ -24,6 +24,7 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
 import { BusinessUnitPicker } from "./business-unit-picker"
+import { SignOutEverywhereSection } from "./sign-out-everywhere"
 import { Loader2, Save, UserCog, Building2, X, Camera, UserCircle } from "@/components/icons"
 import { Profile } from "@/types"
 import type { Role } from "@/types/company"
@@ -468,6 +469,11 @@ export function EditUserSheet({ profile, open, onOpenChange, onSaved }: EditUser
 
                         </form>
                     </Form>
+
+                    {/* Section 3: Sessions. Outside the form: it acts at once, with its own confirmation, and Save changes has nothing to do with it. */}
+                    <div className="mt-8">
+                        <SignOutEverywhereSection profile={profile} />
+                    </div>
                 </div>
 
                 {/* ─── Footer ─────────────────────────────────────────── */}

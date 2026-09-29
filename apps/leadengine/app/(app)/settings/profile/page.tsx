@@ -21,6 +21,7 @@ import { pageIntroKey } from "@/lib/hints/hint-key"
 import { PhoneInput } from "@/components/shared/phone-input"
 import { normalizePhoneToE164 } from "@/lib/phone-normalize"
 import { Switch } from "@/components/ui/switch"
+import { ActiveDevicesCard } from "@/features/settings/components/active-devices-card"
 
 /* ─── Schemas ────────────────────────────────────────────────────────────── */
 const profileSchema = z.object({
@@ -361,7 +362,7 @@ export default function MyProfilePage() {
                     <CardTitle className="text-base flex items-center gap-2">
                         <KeyRound className="h-4 w-4" /> Change Password
                     </CardTitle>
-                    <CardDescription>Update your login credentials. You&apos;ll stay logged in after the change.</CardDescription>
+                    <CardDescription>Update your login credentials. You&apos;ll stay signed in on this device; every other device signs out.</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <Form {...passwordForm}>
@@ -420,6 +421,9 @@ export default function MyProfilePage() {
                     </Form>
                 </CardContent>
             </Card>
+
+            {/* ─── Active devices ────────────────────────────────────────── */}
+            <ActiveDevicesCard />
             </div>
         </div>
     )

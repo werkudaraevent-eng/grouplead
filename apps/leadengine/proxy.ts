@@ -1,6 +1,20 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 import { authCookieOptions } from '@/utils/supabase/cookie-options'
+import { hasAuthCookie, isSignedOutError, SIGNED_OUT_REASON } from '@/lib/devices/signed-out'
+
+/**
+ * A redirect that keeps what the auth client wrote on `from`. When getUser()
+ * finds the session gone (signed out from Active devices, Sales Activity, an
+ * admin, a password change), auth-js removes it and @supabase/ssr answers
+ * with expired session cookies on the parent domain; a bare redirect would
+ * drop them and leave the dead cookie for Sales Activity to trip over too.
+ */
+function redirectKeepingCookies(url: URL, from: NextResponse): NextResponse {
+    const redirect = NextResponse.redirect(url)
+    for (const cookie of from.cookies.getAll()) redirect.cookies.set(cookie)
+    return redirect
+}
 
 export async function proxy(request: NextRequest) {
     // Forward the current pathname to Server Components via a request header.
@@ -39,8 +53,11 @@ export async function proxy(request: NextRequest) {
         }
     )
 
-    // Refresh the session (important for token rotation)
-    const { data: { user } } = await supabase.auth.getUser()
+    // Refresh the session (important for token rotation). GoTrue also checks
+    // the token's session_id against auth.sessions here, so a device signed
+    // out elsewhere is out on its next navigation.
+    const hadSession = hasAuthCookie(request.cookies.getAll().map((cookie) => cookie.name))
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
 
     // Also expose pathname on the response (harmless; some tooling/debugging
     // reads it). The authoritative copy for Server Components is on the request.
@@ -62,7 +79,8 @@ export async function proxy(request: NextRequest) {
     // If not authenticated and not on a public auth page, redirect to login
     if (!user && !isPublicPath) {
         const loginUrl = new URL('/login', request.url)
-        return NextResponse.redirect(loginUrl)
+        if (hadSession && isSignedOutError(authError)) loginUrl.searchParams.set('reason', SIGNED_OUT_REASON)
+        return redirectKeepingCookies(loginUrl, response)
     }
 
     // If authenticated and on the login page, redirect to home. We do NOT

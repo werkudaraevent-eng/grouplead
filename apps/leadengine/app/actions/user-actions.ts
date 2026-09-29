@@ -2,9 +2,12 @@
 
 import { revalidatePath } from "next/cache"
 import { headers } from "next/headers"
+import { z } from "zod"
+import { createClient } from "@/utils/supabase/server"
 import { createServiceClient } from "@/utils/supabase/service"
 import { logAuditEvent } from "@/app/actions/audit-actions"
 import { requirePermission } from "@/lib/require-permission"
+import { adminSignOutErrorMessage } from "@/lib/devices/admin-sign-out"
 import type { ActionResult } from "@/types"
 
 interface ProvisionUserData {
@@ -362,6 +365,63 @@ export async function deleteUserAction(
 
         revalidatePath("/settings/users")
         return { success: true }
+    } catch (err) {
+        return {
+            success: false,
+            error: err instanceof Error ? err.message : "Unknown error",
+        }
+    }
+}
+
+/**
+ * Sign one person out of every device, in both apps: for a lost phone or
+ * someone leaving. Their data stays and they can sign in again unless the
+ * account is also deactivated.
+ *
+ * The same door as Deactivate and Reset password (`members` update), and the
+ * database checks again with the admin's own session rather than a service
+ * key: `fn_admin_sign_out_user` also requires the target to be in a unit
+ * where the admin holds that grant (or the admin to be in a holding
+ * company), keeps super admins to super admins, and refuses one's own
+ * account (Active devices is for that).
+ */
+export async function signOutUserEverywhereAction(
+    userId: string
+): Promise<ActionResult<{ count: number }>> {
+    try {
+        const guard = await requirePermission('members', 'update')
+        if (!guard.allowed) return guard.error
+
+        if (!z.string().uuid().safeParse(userId).success) {
+            return { success: false, error: "Unknown user" }
+        }
+        if (userId === guard.userId) {
+            return { success: false, error: adminSignOutErrorMessage("self") }
+        }
+
+        const supabase = await createClient()
+        const { data, error } = await supabase.rpc("fn_admin_sign_out_user", { p_user_id: userId })
+        if (error) return { success: false, error: adminSignOutErrorMessage(error.message) }
+        const count = typeof data === "number" ? data : 0
+
+        const { data: target } = await supabase
+            .from("profiles")
+            .select("full_name, email")
+            .eq("id", userId)
+            .maybeSingle()
+        const name = target?.full_name ?? target?.email ?? userId
+
+        // Who ended whose sessions, and how many, is worth a durable record.
+        await logAuditEvent({
+            action: "user_management",
+            resource_type: "user",
+            resource_id: userId,
+            resource_name: name,
+            description: `signed "${name}" out of every device`,
+            metadata: { sessions_ended: count },
+        })
+
+        return { success: true, data: { count } }
     } catch (err) {
         return {
             success: false,

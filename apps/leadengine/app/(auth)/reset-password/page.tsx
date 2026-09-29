@@ -125,8 +125,10 @@ export default function ResetPasswordPage() {
         setDone(true)
         setSaving(false)
         // Sign out the recovery session so the user logs in fresh, then send
-        // them to the login page after a short beat.
-        await supabase.auth.signOut()
+        // them to the login page after a short beat. Changing the password has
+        // already ended every other session of the account (Supabase Auth does
+        // that on a password change), so this one is all that is left.
+        await supabase.auth.signOut({ scope: "local" })
         setTimeout(() => router.push("/login"), 2500)
     }
 

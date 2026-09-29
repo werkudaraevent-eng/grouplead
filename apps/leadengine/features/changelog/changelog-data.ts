@@ -76,6 +76,16 @@ export const CHANGE_TYPE_META: Record<
 export const CHANGELOG: ChangelogEntry[] = [
     {
         date: "2026-09-29",
+        title: "Stay signed in on your laptop and your phone",
+        items: [
+            { type: "improvement", text: "Signing in on one device no longer signs you out of the others. You can be signed in on several devices at once, in LeadEngine and Sales Activity alike, as with Google or HubSpot. Until now a sign-in anywhere else signed LeadEngine out with a “signed in on another device” message." },
+            { type: "feature", text: "Settings › Profile › Active devices lists where your account is signed in: the browser and system, the city, when each was last active and in which app. Sign out one device, or all the others at once; it leaves LeadEngine and Sales Activity straight away and shows “You were signed out of this device.” Devices idle for 30 days sign out on their own." },
+            { type: "feature", text: "For admins: a user's panel in Settings › Users has Sign out everywhere, for a lost phone or someone leaving. It signs the person out of every device at once; their data stays, and they can sign in again unless you also deactivate the account." },
+            { type: "fix", text: "Sign out now signs out only the device you are on. It used to sign your account out of every device." },
+        ],
+    },
+    {
+        date: "2026-09-29",
         title: "A new icon that matches Sales Activity",
         items: [
             { type: "improvement", text: "LeadEngine has a new icon that matches Sales Activity's: the same blue square, with a white funnel for LeadEngine where Sales Activity has its map pin. In your browser tabs, your bookmarks and on your phone's home screen the two apps now look like one family and are still easy to tell apart. The old \"w\" icon is gone." },
