@@ -82,6 +82,7 @@ export const CHANGELOG: ChangelogEntry[] = [
             { type: "feature", text: "Settings › Profile › Active devices lists where your account is signed in: the browser and system, the city, when each was last active and in which app. Sign out one device, or all the others at once; it leaves LeadEngine and Sales Activity straight away and shows “You were signed out of this device.” Devices idle for 30 days sign out on their own." },
             { type: "feature", text: "For admins: a user's panel in Settings › Users has Sign out everywhere, for a lost phone or someone leaving. It signs the person out of every device at once; their data stays, and they can sign in again unless you also deactivate the account." },
             { type: "fix", text: "Sign out now signs out only the device you are on. It used to sign your account out of every device." },
+            { type: "fix", text: "Delete and Move to Recycle Bin buttons in confirm dialogs show the warning orange again. Some showed in blue, like a harmless button." },
         ],
     },
     {

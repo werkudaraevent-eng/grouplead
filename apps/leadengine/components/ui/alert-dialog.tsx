@@ -152,10 +152,13 @@ function AlertDialogAction({
 }: React.ComponentProps<typeof AlertDialogPrimitive.Action> &
   Pick<React.ComponentProps<typeof Button>, "variant" | "size">) {
   return (
-    <Button variant={variant} size={size} asChild>
+    // The className goes on the Button, where cn() merges it with the
+    // variant's classes, so a caller's colour (bg-destructive) replaces the
+    // variant's (bg-primary). Put on the child it was only concatenated by
+    // the Slot, and the primary fill won: "Delete" rendered blue.
+    <Button variant={variant} size={size} className={className} asChild>
       <AlertDialogPrimitive.Action
         data-slot="alert-dialog-action"
-        className={cn(className)}
         {...props}
       />
     </Button>
@@ -170,10 +173,13 @@ function AlertDialogCancel({
 }: React.ComponentProps<typeof AlertDialogPrimitive.Cancel> &
   Pick<React.ComponentProps<typeof Button>, "variant" | "size">) {
   return (
-    <Button variant={variant} size={size} asChild>
+    // The className goes on the Button, where cn() merges it with the
+    // variant's classes, so a caller's colour (bg-destructive) replaces the
+    // variant's (bg-primary). Put on the child it was only concatenated by
+    // the Slot, and the primary fill won: "Delete" rendered blue.
+    <Button variant={variant} size={size} className={className} asChild>
       <AlertDialogPrimitive.Cancel
         data-slot="alert-dialog-cancel"
-        className={cn(className)}
         {...props}
       />
     </Button>
