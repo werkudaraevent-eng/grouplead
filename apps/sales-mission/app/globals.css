@@ -334,12 +334,12 @@
 }
 
 /* Data table slim scrollbar */
-.dialog-scroll,
 /* Chromium honours the standard scrollbar-width/-color first and then draws
    the platform's arrow buttons, which on Windows poked into the card's
    rounded corner. Where the -webkit- pseudo-elements exist they alone style
    the bar (thin thumb, no buttons); Firefox keeps the standard properties. */
 @supports not selector(::-webkit-scrollbar) {
+  .dialog-scroll,
   .data-table-scroll {
     scrollbar-width: thin;
     scrollbar-color: rgba(148, 163, 184, 0.25) transparent;
