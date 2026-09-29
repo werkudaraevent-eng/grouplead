@@ -16,6 +16,7 @@ import {
   LogOut,
   Menu,
   MonitorPlay,
+  MonitorSmartphone,
   Settings,
   UserSearch,
 } from "@/components/icons"
@@ -27,7 +28,6 @@ import { WhatsNewDot } from "@/components/announcements/announcement-dialog"
 import type { AnnouncementState } from "@/lib/announcements/announcements"
 import { useStandalone } from "@/hooks/use-compact"
 import { createClient } from "@/utils/supabase/client"
-import { clearActiveSessionId } from "@/lib/session-guard"
 import { paths } from "@/lib/paths"
 import { cn } from "@/lib/utils"
 import type { NavAccess } from "@/lib/missions/nav-access"
@@ -82,8 +82,8 @@ export function MobileNavBar({
 
   const handleLogout = async () => {
     setLoggingOut(true)
-    clearActiveSessionId()
-    await createClient().auth.signOut()
+    // This device only; the others are Perangkat aktif's to end.
+    await createClient().auth.signOut({ scope: "local" })
     router.push("/login")
     router.refresh()
   }
@@ -174,6 +174,7 @@ export function MobileNavBar({
           {navAccess.missions && (
             <SheetRow icon={CalendarDays} label="Kalender saya" hint="Sinkron ke Google Calendar atau iPhone" active={isActive(pathname, paths.myCalendar)} onClick={() => go(paths.myCalendar)} />
           )}
+          <SheetRow icon={MonitorSmartphone} label="Perangkat aktif" hint="Tempat akunmu sedang masuk" active={isActive(pathname, paths.devices)} onClick={() => go(paths.devices)} />
           <SheetRow icon={HelpCircle} label="Panduan" hint="Cara kerja Sales Activity, singkat" active={isActive(pathname, paths.guide)} onClick={() => go(paths.guide)} />
           <SheetRow icon={Sparkles} label="Yang baru" hint="Perubahan terbaru di aplikasi" active={isActive(pathname, paths.whatsNew)} onClick={() => go(paths.whatsNew)} trailing={<WhatsNewDot announcements={announcements} className="h-2 w-2 shrink-0 rounded-full bg-primary" />} />
           {!standalone && (

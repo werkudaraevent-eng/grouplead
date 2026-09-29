@@ -16,6 +16,7 @@ import {
   LogOut,
   MapPinned,
   MonitorPlay,
+  MonitorSmartphone,
   Moon,
   MoreVertical,
   Sparkles,
@@ -56,10 +57,10 @@ import { AnnouncementDialog, WhatsNewDot } from "@/components/announcements/anno
 import type { AnnouncementState } from "@/lib/announcements/announcements"
 import { MobileNavBar } from "@/components/mobile-nav-bar"
 import { UsageBeacon } from "@/components/usage-beacon"
+import { SessionWatch } from "@/components/session-watch"
 import { ResponsiveMenu } from "@/components/responsive-menu"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { createClient } from "@/utils/supabase/client"
-import { clearActiveSessionId } from "@/lib/session-guard"
 import { hasPreferenceCookie, writePreferenceCookie } from "@/lib/preference-cookie"
 import { PersonAvatar } from "@/components/person-avatar"
 import { cn } from "@/lib/utils"
@@ -118,7 +119,7 @@ const mainNav: NavItem[] = [
 ]
 
 // Administration is administration. Personal and supporting pages (my
-// calendar, the guide, what's new) are not destinations in Material's
+// calendar, active devices, the guide, what's new) are not destinations in Material's
 // sense; they live behind the account menu at the foot of the drawer, the
 // way Slack, Notion and Linear keep help and release notes off the rail.
 /** Menu rows on the panel's own tokens: hover/focus as a tonal state layer, icons in the panel's muted ink. */
@@ -211,10 +212,10 @@ function SidebarBody({
 
   const handleLogout = async () => {
     setLoggingOut(true)
-    // Clear the shared session id too — leaving it behind would make the
-    // sibling app compare against an id this browser no longer owns.
-    clearActiveSessionId()
-    await createClient().auth.signOut()
+    // This device only. The client's default ends every session of the
+    // account, which would sign the person's phone out whenever they left
+    // the laptop; other devices are Perangkat aktif's to end.
+    await createClient().auth.signOut({ scope: "local" })
     router.push("/login")
     router.refresh()
   }
@@ -414,6 +415,9 @@ function SidebarBody({
               </DropdownMenuItem>
             )}
             <DropdownMenuItem asChild>
+              <Link href={paths.devices} onClick={onNavigate}><MonitorSmartphone className="h-4 w-4" /> Perangkat aktif</Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
               <Link href={paths.guide} onClick={onNavigate}><HelpCircle className="h-4 w-4" /> Panduan</Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
@@ -505,6 +509,8 @@ export function WorkspaceShell({
       <AnnouncementDialog announcements={announcements} />
       {/* Pengaturan → Pemakaian: which kind of page, and when; draws nothing. */}
       <UsageBeacon />
+      {/* Perangkat aktif: records this device and notices a sign-out from elsewhere; draws nothing. */}
+      <SessionWatch />
     </div>
     </HintsProvider>
     </PageChromeProvider>

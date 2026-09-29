@@ -17,6 +17,7 @@ export function listIntroKey(list: IntroList): string {
 export const INTRO_PAGES = [
   "board",
   "calendar",
+  "devices",
   "guide",
   "install",
   "my-calendar",

@@ -3,9 +3,9 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { CalendarCheck, ClipboardList, Eye, EyeOff, Loader2, MapPinned, Users } from "@/components/icons"
+import { CalendarCheck, ClipboardList, Eye, EyeOff, Info, Loader2, MapPinned, Users } from "@/components/icons"
 import { createClient } from "@/utils/supabase/client"
-import { clearActiveSessionId, newSessionId, writeActiveSessionId } from "@/lib/session-guard"
+import { SIGNED_OUT_MESSAGE, SIGNED_OUT_REASON } from "@/lib/devices/signed-out"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -16,6 +16,9 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // Signed out from another device (Perangkat aktif, an admin, a password
+  // change): said once, as information rather than an error.
+  const [notice, setNotice] = useState<string | null>(null)
   // A rejected user arrives here still holding a valid shared session, so the
   // form alone would be a dead end. Offer a way out of that session.
   const [signedInButRejected, setSignedInButRejected] = useState(false)
@@ -23,16 +26,19 @@ export default function LoginPage() {
   const supabase = createClient()
 
   useEffect(() => {
-    const errorCode = new URLSearchParams(window.location.search).get("error")
+    const params = new URLSearchParams(window.location.search)
+    const errorCode = params.get("error")
     if (errorCode === "access_not_provisioned") {
       setError("Akun Anda belum mendapat akses Sales Activity. Minta admin menambahkan company membership dan permission Sales Activity.")
       setSignedInButRejected(true)
+    } else if (params.get("reason") === SIGNED_OUT_REASON) {
+      setNotice(SIGNED_OUT_MESSAGE)
     }
   }, [])
 
   async function handleSignOut() {
-    clearActiveSessionId()
-    await supabase.auth.signOut()
+    // This device only: a rejected sign-in must not end the person's other sessions.
+    await supabase.auth.signOut({ scope: "local" })
     setSignedInButRejected(false)
     setError(null)
     router.refresh()
@@ -41,9 +47,10 @@ export default function LoginPage() {
   async function handleLogin(event: React.FormEvent) {
     event.preventDefault()
     setError(null)
+    setNotice(null)
     setLoading(true)
 
-    const { data, error: authError } = await supabase.auth.signInWithPassword({ email, password })
+    const { error: authError } = await supabase.auth.signInWithPassword({ email, password })
 
     if (authError) {
       setError(authError.message)
@@ -51,19 +58,8 @@ export default function LoginPage() {
       return
     }
 
-    // Single active session, shared with LeadEngine. Write the cookie before the
-    // profile update so a LeadEngine tab reacting to the change reads this id
-    // and does not mistake it for a sign-in somewhere else.
-    if (data.user) {
-      const sessionId = newSessionId()
-      writeActiveSessionId(sessionId)
-      try {
-        await supabase.from("profiles").update({ active_session_id: sessionId }).eq("id", data.user.id)
-      } catch {
-        // Non-fatal — login still proceeds even if the stamp fails.
-      }
-    }
-
+    // Several sessions may be open at once, here and in LeadEngine; this one
+    // joins them, and the workspace records the device on load (Perangkat aktif).
     router.push("/workspace")
     router.refresh()
   }
@@ -146,6 +142,12 @@ export default function LoginPage() {
           </div>
 
           <form onSubmit={handleLogin} className="space-y-5">
+            {notice && !error && (
+              <div className="flex items-start gap-2 rounded-lg border bg-muted px-4 py-3 text-sm text-foreground" role="status">
+                <Info className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                <p>{notice}</p>
+              </div>
+            )}
             {error && (
               <div className="rounded-lg border border-[var(--danger-foreground)]/20 bg-[var(--danger)] px-4 py-3 text-sm text-[var(--danger-foreground)]" role="alert">
                 <p>{error}</p>

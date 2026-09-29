@@ -102,9 +102,9 @@ New Sales Mission tables go in `sales_mission`, are tenant-scoped by `company_id
 
 `sales_mission` must be listed under Settings → API → Exposed schemas in the Supabase dashboard for PostgREST to serve it.
 
-### Single active session
+### Sessions and active devices
 
-Both apps share the `le_active_session_id` cookie on the parent domain ("last login wins"). Any new login path must write that cookie **before** stamping `profiles.active_session_id`, or the sibling app will read a stale id and sign itself out.
+Since 2026-09-29 an account may be signed in on several devices at once; the old "last login wins" rule (`profiles.active_session_id` and the `le_active_session_id` cookie) is gone, and the column is deprecated. A session is Supabase Auth's own (`auth.sessions`, the JWT's `session_id` claim). Both apps record the device they run on through `public.fn_touch_device` and list and end sessions through `fn_list_my_devices`, `fn_sign_out_device`, `fn_sign_out_other_devices` and `fn_admin_sign_out_user` (migration `20260929130000_user_devices.sql`). A login path needs nothing extra. A sign-out button must pass `{ scope: "local" }`: the client's default ends every session of the account.
 
 ## Authorization and access
 

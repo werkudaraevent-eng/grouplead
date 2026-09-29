@@ -46,6 +46,16 @@ export const CHANGE_KIND_LABELS: Record<ChangeKind, string> = {
 export const CHANGELOG: ChangeEntry[] = [
   {
     date: "2026-09-29",
+    title: "Masuk di ponsel dan laptop sekaligus",
+    items: [
+      { kind: "lebih-baik", text: "Masuk di laptop tidak lagi mengeluarkan akunmu dari ponsel, dan sebaliknya. Kamu bisa masuk di beberapa perangkat sekaligus, di Sales Activity maupun LeadEngine, seperti di Google atau HubSpot. Sebelumnya masuk di satu tempat bisa mengeluarkan LeadEngine di perangkat lain." },
+      { kind: "baru", text: "Perangkat aktif di menu akun (di ponsel: Lainnya) menampilkan di mana saja akunmu sedang masuk: browser dan perangkatnya, kotanya, kapan terakhir dipakai, dan di aplikasi mana. Keluarkan satu perangkat, atau semua perangkat lain sekaligus; perangkat itu langsung keluar dari Sales Activity dan LeadEngine, dan layarnya menampilkan “Kamu dikeluarkan dari perangkat ini.”" },
+      { kind: "baru", text: "Perangkat yang tidak dipakai 30 hari keluar sendiri. Admin bisa mengeluarkan seseorang dari semua perangkat sekaligus lewat LeadEngine, misalnya saat ponselnya hilang; datanya tetap aman." },
+      { kind: "diperbaiki", text: "Keluar di satu perangkat kini hanya mengeluarkan perangkat itu. Sebelumnya tombol Keluar ikut mengeluarkan akunmu dari semua perangkat lain." },
+    ],
+  },
+  {
+    date: "2026-09-29",
     title: "Ikon LeadEngine kini sekeluarga dengan Sales Activity",
     items: [
       { kind: "lebih-baik", text: "LeadEngine punya ikon baru yang sekeluarga dengan ikon Sales Activity: kotak biru yang sama, dengan corong putih untuk LeadEngine dan pin lokasi putih untuk Sales Activity. Di tab browser dan di layar utama HP, kedua aplikasi kini terlihat sebagai satu keluarga dan tetap mudah dibedakan. LeadEngine juga kini bisa ditambahkan ke layar utama HP seperti Sales Activity; kalau sudah pernah kamu tambahkan, hapus lalu tambahkan lagi supaya ikonnya berganti." },

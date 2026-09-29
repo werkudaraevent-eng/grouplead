@@ -45,6 +45,8 @@ export const paths = {
   install: "/workspace/pasang",
   whatsNew: "/workspace/yang-baru",
   myCalendar: "/workspace/kalender-saya",
+  /** Perangkat aktif: where this account is signed in, in both apps. */
+  devices: "/workspace/perangkat",
   /** The public iCalendar feed for one person's token. No session; the token is the credential. */
   calendarFeed: (token: string) => `/kalender/${encodeURIComponent(token)}/aktivitas.ics`,
   /** The read-only month calendar management opens without signing in. */

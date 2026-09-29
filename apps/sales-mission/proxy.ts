@@ -1,6 +1,20 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr"
 import { NextResponse, type NextRequest } from "next/server"
 import { authCookieOptions } from "@/utils/supabase/cookie-options"
+import { hasAuthCookie, isSignedOutError, SIGNED_OUT_REASON } from "@/lib/devices/signed-out"
+
+/**
+ * A redirect that keeps what the auth client wrote on `from`. When getUser()
+ * finds the session gone (signed out from Perangkat aktif, LeadEngine, an
+ * admin, a password change), auth-js removes it and @supabase/ssr answers
+ * with expired session cookies on the parent domain; a bare redirect would
+ * drop them and leave the dead cookie for LeadEngine to trip over too.
+ */
+function redirectKeepingCookies(url: URL, from: NextResponse): NextResponse {
+  const redirect = NextResponse.redirect(url)
+  for (const cookie of from.cookies.getAll()) redirect.cookies.set(cookie)
+  return redirect
+}
 
 export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request })
@@ -20,7 +34,16 @@ export async function proxy(request: NextRequest) {
     },
   )
 
-  const { data: { user } } = await supabase.auth.getUser()
+  // GoTrue checks the token's session_id against auth.sessions here, so a
+  // device signed out elsewhere is out on its next navigation.
+  const hadSession = hasAuthCookie(request.cookies.getAll().map((cookie) => cookie.name))
+  const { data: { user }, error: authError } = await supabase.auth.getUser()
+  const signedOutElsewhere = !user && hadSession && isSignedOutError(authError)
+  const loginUrl = () => {
+    const url = new URL("/login", request.url)
+    if (signedOutElsewhere) url.searchParams.set("reason", SIGNED_OUT_REASON)
+    return url
+  }
   const pathname = request.nextUrl.pathname
   // `/reset-password` must stay public: the recovery link is opened before a
   // normal session exists, and the page establishes one from the token itself.
@@ -40,10 +63,10 @@ export async function proxy(request: NextRequest) {
   // here rather than from a page component: `user` is already resolved, so it
   // costs no extra round trip and nothing renders before the bounce.
   if (pathname === "/") {
-    return NextResponse.redirect(new URL(user ? "/workspace" : "/login", request.url))
+    return redirectKeepingCookies(user ? new URL("/workspace", request.url) : loginUrl(), response)
   }
 
-  if (!user && !isPublic) return NextResponse.redirect(new URL("/login", request.url))
+  if (!user && !isPublic) return redirectKeepingCookies(loginUrl(), response)
 
   // Bouncing a signed-in user off /login would loop when the workspace itself
   // sent them here: the session is shared with LeadEngine, so someone without

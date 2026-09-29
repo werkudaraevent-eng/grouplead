@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { CheckCircle2, Eye, EyeOff, KeyRound, Loader2 } from "@/components/icons"
 import { createClient } from "@/utils/supabase/client"
-import { clearActiveSessionId } from "@/lib/session-guard"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -98,10 +97,10 @@ export default function ResetPasswordPage() {
 
     setDone(true)
     setSaving(false)
-    // Drop the recovery session so the user signs in fresh. Clearing the shared
-    // session id too, otherwise a stale id would linger for the sibling app.
-    clearActiveSessionId()
-    await supabase.auth.signOut()
+    // Drop the recovery session so the user signs in fresh. Changing the
+    // password has already ended every other session of the account (Supabase
+    // Auth does that on a password change), so this one is all that is left.
+    await supabase.auth.signOut({ scope: "local" })
     setTimeout(() => router.push("/login"), 2500)
   }
 
