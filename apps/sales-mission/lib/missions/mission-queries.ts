@@ -2,6 +2,7 @@ import { cache } from "react"
 import { normalizeDisc, type DiscLetter } from "@/lib/contacts/disc"
 import { createClient } from "@/utils/supabase/server"
 import { reportChoiceLabels } from "./report-choice-queries"
+import { sameCompanyFilter } from "./same-company"
 import type { SalesMissionAccess } from "@/lib/sales-mission-access"
 import {
   mapMissions,
@@ -568,8 +569,8 @@ export async function getVisitReport(
  * Nuryono last month already worked out how to talk to him, and the next rep
  * should start from that, not from blank chips. Matched by name within the
  * same CRM company (or the same company name when the mission was never
- * linked), the same rule `replaceContacts` uses to link a contact, so the
- * two never disagree about who is who. Newest reading wins. Scoped to the
+ * linked; `sameCompanyFilter`), the same rule `replaceContacts` uses to link
+ * a contact, so the two never disagree about who is who. Newest reading wins. Scoped to the
  * unit by `company_id`; RLS keeps other units out as everywhere else.
  */
 export async function lastDiscForCompany(
@@ -583,9 +584,10 @@ export async function lastDiscForCompany(
     .select("id")
     .eq("company_id", access.companyId)
     .neq("id", mission.id)
-  related = mission.clientCompanyId
-    ? related.eq("client_company_id", mission.clientCompanyId)
-    : related.ilike("client_company_name", mission.clientCompanyName.trim().replace(/[%_]/g, (m) => `\\${m}`))
+  const sameCompany = sameCompanyFilter(mission)
+  related = sameCompany.op === "eq"
+    ? related.eq(sameCompany.column, sameCompany.value)
+    : related.ilike(sameCompany.column, sameCompany.value)
   const { data: missionRows } = await related.limit(200)
   const missionIds = (missionRows ?? []).map((row) => row.id as string)
   if (missionIds.length === 0) return new Map()

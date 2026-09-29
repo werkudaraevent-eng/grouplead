@@ -38,6 +38,10 @@ export async function GET(request: Request) {
         .from('contacts')
         .select('id, full_name, job_title, phone, email')
         .eq('client_company_id', clientCompanyId)
+        // Someone in the Recycle Bin is not offered for a visit, and a report
+        // contact is not linked to them. Row security shows trashed rows to an
+        // admin (for the Bin), so the filter has to be said here.
+        .is('deleted_at', null)
         .order('full_name', { ascending: true })
         .limit(MAX_PAGE_SIZE)
 

@@ -28,6 +28,10 @@ export async function GET(request: Request) {
     let query = auth.context.supabase
         .from('client_companies')
         .select('id, name, industry, phone, address')
+        // A company in the Recycle Bin (deleted, or merged into another) is
+        // not something to plan a visit at. Row security still shows trashed
+        // rows to an admin, for the Bin; this picker must not.
+        .is('deleted_at', null)
         .order('name', { ascending: true })
         .limit(pageSize)
 
