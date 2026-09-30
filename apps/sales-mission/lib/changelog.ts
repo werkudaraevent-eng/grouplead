@@ -48,6 +48,7 @@ export const CHANGELOG: ChangeEntry[] = [
     date: "2026-09-30",
     title: "Pengalih aplikasi tidak lagi menutupi halaman",
     items: [
+      { kind: "diperbaiki", text: "Di komputer, petunjuk \u201cMenu lainnya\u201d milik tampilan ponsel tidak lagi muncul di pojok kiri atas dan menghalangi menu. Petunjuk kini hanya muncul saat tombol yang ditunjuknya memang terlihat." },
       { kind: "lebih-baik", text: "Pengalih aplikasi (empat kotak di kanan atas menu kiri) kini terbuka di dalam menu, tepat di bawah bagian atasnya, jadi tidak lagi menutupi halaman yang sedang kamu kerjakan. Saat menu diciutkan, pengalihnya terbuka di samping menu." },
       { kind: "lebih-baik", text: "Tombol Ciutkan menu pindah ke bawah, di sebelah Notifikasi, berupa ikon « kecil; arahkan kursor ke sana untuk melihat namanya. Kamu juga bisa menekan [ di keyboard untuk menciutkan atau melebarkan menu, di mana saja kecuali saat mengetik." },
       { kind: "lebih-baik", text: "Bagian atas menu kini hanya berisi Sales Activity dengan nama unitmu, lalu pengalih aplikasi, dan menunya sedikit lebih lebar, jadi nama unit yang panjang terbaca utuh." },

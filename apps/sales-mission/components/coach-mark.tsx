@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { createContext, useCallback, useContext, useEffect, useId, useMemo, useState } from "react"
+import { createContext, useCallback, useContext, useEffect, useId, useMemo, useRef, useState } from "react"
 import { Popover, PopoverAnchor, PopoverContent } from "@/components/ui/popover"
 import { markHintSeen } from "@/app/actions/hint-actions"
 
@@ -137,10 +137,21 @@ export function CoachMark({
   /** The control the mark points at; must take a ref. */
   children: React.ReactElement
 }) {
-  const { show, dismiss } = useCoachMark(hintKey, enabled)
+  // A mark waits while its control is not on screen: the phone's bottom bar
+  // and FAB are display:none from lg, and a mark anchored to a hidden control
+  // opened at the window's top-left corner, over the drawer, blocking it.
+  const anchorRef = useRef<HTMLDivElement | null>(null)
+  const [anchorShown, setAnchorShown] = useState(false)
+  useEffect(() => {
+    const check = () => setAnchorShown(Boolean(anchorRef.current && anchorRef.current.getClientRects().length > 0))
+    check()
+    window.addEventListener("resize", check)
+    return () => window.removeEventListener("resize", check)
+  }, [])
+  const { show, dismiss } = useCoachMark(hintKey, enabled && anchorShown)
   return (
     <Popover open={show} onOpenChange={(open) => { if (!open) dismiss() }}>
-      <PopoverAnchor asChild>{children}</PopoverAnchor>
+      <PopoverAnchor asChild ref={anchorRef}>{children}</PopoverAnchor>
       <PopoverContent
         side={side}
         align={align}
