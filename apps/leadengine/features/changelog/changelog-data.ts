@@ -75,6 +75,15 @@ export const CHANGE_TYPE_META: Record<
 
 export const CHANGELOG: ChangelogEntry[] = [
     {
+        date: "2026-09-30",
+        title: "The business unit's name reads in full, and the app switcher stays in the sidebar",
+        items: [
+            { type: "improvement", text: "The top of the sidebar shows the business unit you are working in, in full: “Werkudara Group” and “Every business unit” instead of “Werku… / Every bu…”. Click anywhere on it to choose another unit. The sidebar is a little wider to make the room." },
+            { type: "improvement", text: "The app switcher (the four squares at the top right of the sidebar) now opens inside the sidebar, right under its top, so it no longer covers the page you are working on. With the sidebar collapsed, it opens beside it." },
+            { type: "improvement", text: "Collapse sidebar has moved to the bottom of the sidebar, just above your name, as a small « button; hover it to see its name. You can also press [ on the keyboard to collapse or expand the sidebar, anywhere except while typing." },
+        ],
+    },
+    {
         date: "2026-09-29",
         title: "Settings has a menu on the left, and Active devices a page of its own",
         items: [

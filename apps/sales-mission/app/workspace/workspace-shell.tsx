@@ -9,6 +9,7 @@ import {
   Bell,
   CalendarDays,
   ChevronsLeft,
+  ChevronsRight,
   ClipboardList,
   HelpCircle,
   LayoutDashboard,
@@ -43,7 +44,9 @@ import dynamic from "next/dynamic"
  */
 const AppSwitcher = dynamic(
   () => import("@/app/workspace/app-switcher").then((m) => m.AppSwitcher),
-  { ssr: false }
+  // Holds the button's 36px until it arrives, so the header's text does not
+  // lay out wider and then shrink.
+  { ssr: false, loading: () => <span className="h-9 w-9 shrink-0" aria-hidden="true" /> }
 )
 // Same reason: the bar reads useSearchParams, which bails out of SSR and
 // would shift the popover's ids. It has nothing to draw before hydration.
@@ -63,6 +66,9 @@ import { DeployWatch } from "@/components/deploy-watch"
 import { DraftOwnerProvider } from "@/hooks/use-form-draft"
 import { ResponsiveMenu } from "@/components/responsive-menu"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { PlainTooltip } from "@/components/ui/tooltip"
+import { SIDEBAR_SHORTCUT, sidebarToggleLabel } from "@/lib/ui/sidebar-shortcut"
+import { useSidebarShortcut } from "@/hooks/use-sidebar-shortcut"
 import { createClient } from "@/utils/supabase/client"
 import { hasPreferenceCookie, writePreferenceCookie } from "@/lib/preference-cookie"
 import { PersonAvatar } from "@/components/person-avatar"
@@ -173,6 +179,33 @@ function Avatar({ name, url }: { name: string; url: string | null }) {
   )
 }
 
+/**
+ * Folds the drawer to the rail and opens it again: an icon button at the
+ * drawer's foot, never a labelled one, named by its tooltip, which carries
+ * the shortcut (Notion, Linear, Gmail and Atlassian all fold with an icon).
+ * A 40px target; « when open, » on the rail. Twin of LeadEngine's
+ * `DrawerToggle` in components/layout/sidebar.tsx.
+ */
+function DrawerToggle({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => void }) {
+  const label = sidebarToggleLabel(collapsed)
+  const Icon = collapsed ? ChevronsRight : ChevronsLeft
+  return (
+    <PlainTooltip label={label} shortcut={SIDEBAR_SHORTCUT} side="right">
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-label={label}
+        aria-expanded={!collapsed}
+        aria-controls="app-drawer"
+        aria-keyshortcuts={SIDEBAR_SHORTCUT}
+        className="grid h-10 w-10 shrink-0 place-items-center rounded-lg text-sidebar-foreground transition-colors duration-150 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
+      >
+        <Icon className="h-[18px] w-[18px]" aria-hidden="true" />
+      </button>
+    </PlainTooltip>
+  )
+}
+
 function SidebarBody({
   displayName,
   avatarUrl,
@@ -181,7 +214,6 @@ function SidebarBody({
   companyName,
   collapsed,
   onToggleCollapse,
-  isSheet = false,
   onNavigate,
   announcements = [],
 }: {
@@ -192,7 +224,6 @@ function SidebarBody({
   companyName: string
   collapsed: boolean
   onToggleCollapse?: () => void
-  isSheet?: boolean
   onNavigate?: () => void
   announcements?: readonly AnnouncementState[]
 }) {
@@ -271,61 +302,40 @@ function SidebarBody({
   const notificationsActive = pathname.startsWith(NOTIFICATIONS_HREF)
 
   return (
-    <div className="group/sidebar relative flex h-full flex-col bg-sidebar text-sidebar-foreground transition-colors duration-300">
-      <div className={`relative min-h-14 shrink-0 border-b border-sidebar-border ${collapsed ? "flex flex-col items-center gap-2 px-2 py-2" : "flex h-14 items-center gap-2 pl-3 pr-0"}`}>
-        {!collapsed ? (
-          <div className="flex min-w-0 flex-1 items-center gap-2.5 overflow-hidden">
-            <Link href="/workspace" className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-primary text-primary-foreground" onClick={onNavigate} aria-label="Beranda Sales Activity">
+    <div className="relative flex h-full flex-col bg-sidebar text-sidebar-foreground transition-colors duration-300">
+      {/* The header does one job per control (DESIGN.md, "The drawer: header,
+          app switcher, collapse"): the product and the unit, as one link home
+          across the free width (this app has no unit switcher), and the apps
+          grid at the trailing end, whose menu drops from the header and stays
+          inside the drawer. The collapse control lives at the foot. On the
+          rail the mark and the grid stack. */}
+      {!collapsed ? (
+        <div className="flex h-14 shrink-0 items-center gap-0.5 border-b border-sidebar-border px-2">
+          <Link
+            href="/workspace"
+            onClick={onNavigate}
+            title={companyName}
+            aria-label={`Beranda Sales Activity, ${companyName}`}
+            className="flex h-12 min-w-0 flex-1 items-center gap-2 rounded-lg px-1.5 transition-colors duration-150 hover:bg-sidebar-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
+          >
+            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-primary text-primary-foreground" aria-hidden="true">
               <MapPinned className="h-4 w-4" />
-            </Link>
-            <span className="min-w-0 flex-1">
-              <Link href="/workspace" className="block truncate text-sm font-bold text-sidebar-accent-foreground" onClick={onNavigate}>Sales Activity</Link>
-              <span className="block truncate text-[11px] text-sidebar-foreground">{companyName}</span>
             </span>
-          </div>
-        ) : (
-          <Link href="/workspace" className="flex items-center justify-center transition-opacity duration-150 group-hover/sidebar:opacity-0" aria-label="Beranda Sales Activity">
-            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-primary text-primary-foreground">
-              <MapPinned className="h-4 w-4" />
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-[13px] font-semibold leading-[18px] tracking-tight text-sidebar-accent-foreground">Sales Activity</span>
+              <span className="block truncate text-[11px] leading-[14px] text-sidebar-foreground">{companyName}</span>
             </span>
           </Link>
-        )}
-
-        <div className={`flex shrink-0 items-center justify-center ${collapsed ? "flex-col gap-2" : ""}`}>
-          <AppSwitcher collapsed={collapsed} />
+          <AppSwitcher />
         </div>
-        {/* The sheet's own close button is off (it sat on top of the app
-            switcher); this one is in the header row, where LeadEngine has it. */}
-        {isSheet && onNavigate && (
-          <button
-            type="button"
-            onClick={onNavigate}
-            className="mr-1 grid h-8 w-8 shrink-0 place-items-center rounded-lg text-sidebar-foreground transition-colors duration-150 hover:bg-sidebar-accent hover:text-sidebar-foreground"
-            aria-label="Tutup menu"
-          >
-            <ChevronsLeft className="h-[18px] w-[18px]" />
-          </button>
-        )}
-
-        {onToggleCollapse && !isSheet && collapsed && (
-          <button
-            onClick={onToggleCollapse}
-            className="absolute inset-x-0 top-0 flex h-14 items-center justify-center text-sidebar-foreground opacity-0 transition-opacity duration-150 hover:text-sidebar-foreground group-hover/sidebar:opacity-100"
-            title="Lebarkan sidebar"
-          >
-            <ChevronsLeft className="h-[18px] w-[18px] rotate-180" />
-          </button>
-        )}
-        {onToggleCollapse && !isSheet && !collapsed && (
-          <button
-            onClick={onToggleCollapse}
-            className="-mr-px flex w-8 shrink-0 self-stretch items-center justify-center rounded-l-lg text-sidebar-foreground transition-colors duration-150 hover:bg-sidebar-accent hover:text-sidebar-foreground"
-            title="Ciutkan sidebar"
-          >
-            <ChevronsLeft className="h-[16px] w-[16px]" />
-          </button>
-        )}
-      </div>
+      ) : (
+        <div className="flex shrink-0 flex-col items-center gap-2 border-b border-sidebar-border px-2 py-2">
+          <Link href="/workspace" onClick={onNavigate} aria-label="Beranda Sales Activity" className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-primary text-primary-foreground">
+            <MapPinned className="h-4 w-4" />
+          </Link>
+          <AppSwitcher collapsed />
+        </div>
+      )}
 
       <nav aria-label="Navigasi Sales Activity" className={`sidebar-scrollbar flex-1 space-y-1 overflow-y-auto py-4 ${collapsed ? "px-1.5" : "px-3"}`}>
         {!collapsed && <p className="mb-2 px-3 text-[11px] font-bold uppercase tracking-widest text-sidebar-foreground">Menu</p>}
@@ -347,32 +357,39 @@ function SidebarBody({
         person signed in, which is exactly what the rest of this block is about.
       */}
       <div className={`shrink-0 space-y-2 border-t border-sidebar-border py-3 ${collapsed ? "px-1.5" : "px-3"}`}>
-        <Link
-          href={NOTIFICATIONS_HREF}
-          onClick={onNavigate}
-          aria-label={unreadLabel(unreadCount)}
-          title={unreadLabel(unreadCount)}
-          aria-current={notificationsActive ? "page" : undefined}
-          className={cn(
-            "relative flex w-full items-center rounded-lg transition-all duration-150",
-            collapsed ? "justify-center p-2.5" : "gap-2.5 px-3 py-2 text-[12px] font-medium",
-            notificationsActive
-              ? "bg-sidebar-primary text-sidebar-primary-foreground"
-              : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-          )}
-        >
-          <span className="relative flex shrink-0">
-            <Bell className={collapsed ? "h-4 w-4" : "h-3.5 w-3.5"} />
-            {/* Collapsed the label is gone, so the count rides the icon. */}
-            {collapsed && <UnreadBadge unreadCount={unreadCount} />}
-          </span>
-          {!collapsed && <span className="flex-1 text-left">Notifikasi</span>}
-          {!collapsed && unreadCount > 0 && (
-            <span className="rounded-full bg-[var(--danger-foreground)] px-1.5 py-0.5 text-[10px] font-bold tabular-nums text-white">
-              {unreadCount > 99 ? "99+" : unreadCount}
+        {/* Notifikasi, with the collapse control as its trailing icon: one
+            row, two jobs that never compete (the link goes somewhere, the
+            icon folds the drawer). On the rail they stack, the fold above
+            the avatar. */}
+        <div className={collapsed ? "flex flex-col items-center gap-2" : "flex items-center gap-1"}>
+          <Link
+            href={NOTIFICATIONS_HREF}
+            onClick={onNavigate}
+            aria-label={unreadLabel(unreadCount)}
+            title={unreadLabel(unreadCount)}
+            aria-current={notificationsActive ? "page" : undefined}
+            className={cn(
+              "relative flex items-center rounded-lg transition-all duration-150",
+              collapsed ? "w-full justify-center p-2.5" : "h-10 min-w-0 flex-1 gap-2.5 px-3 text-[12px] font-medium",
+              notificationsActive
+                ? "bg-sidebar-primary text-sidebar-primary-foreground"
+                : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+            )}
+          >
+            <span className="relative flex shrink-0">
+              <Bell className={collapsed ? "h-4 w-4" : "h-3.5 w-3.5"} />
+              {/* Collapsed the label is gone, so the count rides the icon. */}
+              {collapsed && <UnreadBadge unreadCount={unreadCount} />}
             </span>
-          )}
-        </Link>
+            {!collapsed && <span className="flex-1 text-left">Notifikasi</span>}
+            {!collapsed && unreadCount > 0 && (
+              <span className="rounded-full bg-[var(--danger-foreground)] px-1.5 py-0.5 text-[10px] font-bold tabular-nums text-white">
+                {unreadCount > 99 ? "99+" : unreadCount}
+              </span>
+            )}
+          </Link>
+          {onToggleCollapse && <DrawerToggle collapsed={collapsed} onToggle={onToggleCollapse} />}
+        </div>
 
         {/* The account menu: who you are, your own pages, the panel, and the
             way out. One trigger, one M3 menu, nothing more on the rail. */}
@@ -497,6 +514,8 @@ export function WorkspaceShell({
       return next
     })
   }
+  // `[` folds and opens the drawer, as its collapse button's tooltip says.
+  useSidebarShortcut(toggleCollapse)
 
   // `overflow-clip`, not `overflow-hidden`: a hidden box can still be scrolled
   // by the browser itself (a #hash link, focus(), scrollIntoView), which slid
@@ -508,8 +527,9 @@ export function WorkspaceShell({
     <div className="app-shell shell-in flex h-dvh overflow-clip">
       <TopLoader />
       <aside
+        id="app-drawer"
         data-sidebar
-        className={`relative hidden shrink-0 flex-none overflow-clip bg-sidebar transition-[width] duration-200 ease-out lg:flex lg:flex-col ${collapsed ? "lg:w-[60px]" : "lg:w-[220px]"}`}
+        className={`relative hidden shrink-0 flex-none overflow-clip bg-sidebar transition-[width] duration-200 ease-out lg:flex lg:flex-col ${collapsed ? "lg:w-[60px]" : "lg:w-[240px]"}`}
       >
         <SidebarBody displayName={displayName} avatarUrl={avatarUrl} unreadCount={unreadCount} navAccess={navAccess} companyName={companyName} collapsed={collapsed} onToggleCollapse={toggleCollapse} announcements={announcements} />
       </aside>

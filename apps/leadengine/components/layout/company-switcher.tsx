@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Building2, Check, Globe, ChevronsUpDown, ChevronDown, Loader2 } from "@/components/icons"
+import { Building2, Check, Globe, ChevronsUpDown, Loader2 } from "@/components/icons"
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
@@ -82,8 +82,18 @@ export function CompanySwitcher() {
 }
 
 /**
- * CompanySwitcherHeader — Notion/Linear style header-integrated switcher.
- * Logo + company name as a single clickable dropdown trigger.
+ * CompanySwitcherHeader: the drawer header's identity, as ONE control (Slack's
+ * workspace menu, Linear's and Notion's workspace switcher, Atlassian's site
+ * switcher): the unit's logo, its name on one line, the scope on the line
+ * under it, and a trailing up-down chevron; a press anywhere on it opens the
+ * unit menu. It spans the header's free width, so "Werkudara Group" and
+ * "Every business unit" read in full in the 240px drawer; a longer name is
+ * cut with an ellipsis and given in full in the tooltip (`title`).
+ *
+ * The menu drops from the header 8px in from the drawer's edge and is the
+ * drawer's width minus both insets (224px), as the app switcher's is, so
+ * neither covers the page. See DESIGN.md, "The drawer: header, app
+ * switcher, collapse".
  */
 export function CompanySwitcherHeader() {
   const { activeCompany, companies, isHoldingView, switchCompany, isSwitching } = useCompany()
@@ -102,11 +112,11 @@ export function CompanySwitcherHeader() {
 
   if (!isMounted) {
     return (
-      <div className="flex items-center gap-2.5">
-        <div className="w-8 h-8 rounded-lg bg-sidebar-accent/30 animate-pulse" />
-        <div className="flex flex-col gap-1">
-          <div className="w-20 h-3 rounded bg-sidebar-accent/30 animate-pulse" />
-          <div className="w-14 h-2 rounded bg-sidebar-accent/20 animate-pulse" />
+      <div className="flex h-12 min-w-0 flex-1 items-center gap-2 px-1.5" aria-hidden="true">
+        <div className="h-8 w-8 shrink-0 rounded-full bg-sidebar-accent/30 animate-pulse" />
+        <div className="flex flex-col gap-1.5">
+          <div className="h-3 w-24 rounded bg-sidebar-accent/30 animate-pulse" />
+          <div className="h-2 w-20 rounded bg-sidebar-accent/20 animate-pulse" />
         </div>
       </div>
     )
@@ -115,25 +125,30 @@ export function CompanySwitcherHeader() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button disabled={isSwitching} className="flex w-full min-w-0 max-w-full items-center gap-2.5 overflow-hidden rounded-lg px-1.5 py-1.5 transition-colors duration-150 hover:bg-sidebar-accent/50 focus:outline-none focus-visible:outline-none group disabled:cursor-wait">
-          <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center shrink-0 overflow-hidden">
+        <button
+          type="button"
+          disabled={isSwitching}
+          title={displayName}
+          className="group flex h-12 min-w-0 flex-1 items-center gap-2 rounded-lg px-1.5 text-left transition-colors duration-150 hover:bg-sidebar-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring data-[state=open]:bg-sidebar-accent disabled:cursor-wait"
+        >
+          <span className="grid h-8 w-8 shrink-0 place-items-center overflow-hidden rounded-full bg-primary">
             {activeLogo
               ? // eslint-disable-next-line @next/next/no-img-element
-                <img src={activeLogo} alt={displayName} className="w-full h-full object-cover" />
-              : <span className="text-white font-bold text-sm">W</span>
+                <img src={activeLogo} alt="" className="h-full w-full object-cover" />
+              : <span className="text-sm font-bold text-primary-foreground">W</span>
             }
-          </div>
-          <div className="flex-1 min-w-0 text-left">
-            <p className="font-semibold text-sm tracking-tight leading-none text-sidebar-accent-foreground truncate">
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-[13px] font-semibold leading-[18px] tracking-tight text-sidebar-accent-foreground">
               {displayName}
-            </p>
-            <p className="text-[11px] font-normal text-sidebar-foreground/50 mt-0.5 truncate whitespace-nowrap">
+            </span>
+            <span className="block truncate text-[11px] leading-[14px] text-sidebar-foreground">
               {isSwitching ? 'Loading\u2026' : subtitle}
-            </p>
-          </div>
+            </span>
+          </span>
           {isSwitching
-            ? <Loader2 className="h-3 w-3 shrink-0 text-sidebar-foreground/60 animate-spin" />
-            : <ChevronDown className="h-3 w-3 shrink-0 text-sidebar-foreground/40 group-hover:text-sidebar-foreground/70 transition-colors" />
+            ? <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-sidebar-foreground" aria-hidden="true" />
+            : <ChevronsUpDown className="h-3.5 w-3.5 shrink-0 text-sidebar-foreground transition-colors group-hover:text-sidebar-accent-foreground" aria-hidden="true" />
           }
         </button>
       </DropdownMenuTrigger>

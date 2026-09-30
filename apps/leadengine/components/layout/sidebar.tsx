@@ -4,9 +4,10 @@ import { useEffect, useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import {
-    LogOut, ChevronsLeft, Settings, Loader2, Moon, Sun, ScrollText, MoreVertical, UserCircle, MonitorSmartphone,
+    LogOut, ChevronsLeft, ChevronsRight, Settings, Loader2, Moon, Sun, ScrollText, MoreVertical, UserCircle, MonitorSmartphone,
 } from "@/components/icons"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { PlainTooltip } from "@/components/ui/tooltip"
 import { CompanySwitcherHeader } from "@/components/layout/company-switcher"
 import dynamic from "next/dynamic"
 
@@ -22,13 +23,16 @@ import dynamic from "next/dynamic"
  */
 const AppSwitcher = dynamic(
   () => import("@/components/layout/app-switcher").then((m) => m.AppSwitcher),
-  { ssr: false }
+  // Holds the button's 36px until it arrives, so the unit's name does not
+  // lay out wider and then shrink.
+  { ssr: false, loading: () => <span className="h-9 w-9 shrink-0" aria-hidden="true" /> }
 )
 import { usePermissions } from "@/contexts/permissions-context"
 import { useSidebarTheme } from "@/contexts/sidebar-theme-context"
 import { createClient } from "@/utils/supabase/client"
 import { useSignOut } from "@/components/layout/use-sign-out"
 import { DESTINATION_ICONS } from "@/components/layout/destination-icons"
+import { SIDEBAR_SHORTCUT, sidebarToggleLabel } from "@/lib/ui/sidebar-shortcut"
 import { CHANGELOG_HREF, DEVICES_HREF, PROFILE_HREF, SETTINGS_HREF, canOpenSettings, isActiveHref, permittedDestinations, roleLabel } from "@/lib/navigation/app-nav"
 
 /**
@@ -61,6 +65,33 @@ interface UserProfile {
     full_name: string | null
     role: string | null
     avatar_url: string | null
+}
+
+/**
+ * Folds the drawer to the rail and opens it again: an icon button at the
+ * drawer's foot, never a labelled one, named by its tooltip, which carries
+ * the shortcut (Notion, Linear, Gmail and Atlassian all fold with an icon).
+ * A 40px target; « when open, » on the rail. Twin of Sales Activity's
+ * `DrawerToggle` in app/workspace/workspace-shell.tsx.
+ */
+function DrawerToggle({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => void }) {
+    const label = sidebarToggleLabel(collapsed)
+    const Icon = collapsed ? ChevronsRight : ChevronsLeft
+    return (
+        <PlainTooltip label={label} shortcut={SIDEBAR_SHORTCUT} side="right">
+            <button
+                type="button"
+                onClick={onToggle}
+                aria-label={label}
+                aria-expanded={!collapsed}
+                aria-controls="app-drawer"
+                aria-keyshortcuts={SIDEBAR_SHORTCUT}
+                className="grid h-10 w-10 shrink-0 place-items-center rounded-lg text-sidebar-foreground transition-colors duration-150 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
+            >
+                <Icon className="h-[18px] w-[18px]" aria-hidden="true" />
+            </button>
+        </PlainTooltip>
+    )
 }
 
 export function Sidebar({ collapsed = false, onToggleCollapse, serverProfile = null }: SidebarProps) {
@@ -113,44 +144,26 @@ export function Sidebar({ collapsed = false, onToggleCollapse, serverProfile = n
         }`
 
     return (
-        <div className="group/sidebar flex flex-col h-full transition-colors duration-300 bg-sidebar text-sidebar-foreground relative">
-            <div className={`relative min-h-14 shrink-0 border-b border-sidebar-border ${collapsed ? "flex flex-col items-center gap-2 px-2 py-2" : "flex h-14 items-center gap-2 pl-3 pr-0"}`}>
-                {/* Header: Logo + Company Switcher integrated (Notion/Linear style) */}
-                {!collapsed ? (
-                    <div className="min-w-0 flex-1 overflow-hidden">
-                        <CompanySwitcherHeader />
-                    </div>
-                ) : (
-                    <Link href="/" className="flex items-center justify-center transition-opacity duration-150 group-hover/sidebar:opacity-0">
-                        <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center shrink-0">
-                            <span className="text-white font-bold text-sm">W</span>
-                        </div>
-                    </Link>
-                )}
-                <div className={`flex shrink-0 items-center justify-center ${collapsed ? "flex-col gap-2" : ""}`}>
-                    <AppSwitcher collapsed={collapsed} />
+        <div className="flex flex-col h-full transition-colors duration-300 bg-sidebar text-sidebar-foreground relative">
+            {/* The header does one job per control (DESIGN.md, "The drawer:
+                header, app switcher, collapse"): the unit you are working in,
+                as one button across the free width, and the apps grid at the
+                trailing end, whose menu drops from the header and stays
+                inside the drawer. The collapse control lives at the foot. On
+                the rail the mark and the grid stack. */}
+            {!collapsed ? (
+                <div className="flex h-14 shrink-0 items-center gap-0.5 border-b border-sidebar-border px-2">
+                    <CompanySwitcherHeader />
+                    <AppSwitcher />
                 </div>
-                {/* Collapse button — appears on sidebar hover */}
-                {/* Expand button — replaces logo on hover when collapsed */}
-                {onToggleCollapse && collapsed && (
-                    <button
-                        onClick={onToggleCollapse}
-                        className="absolute inset-x-0 top-0 h-14 flex items-center justify-center transition-opacity duration-150 text-sidebar-foreground/70 hover:text-sidebar-foreground opacity-0 group-hover/sidebar:opacity-100"
-                        title="Expand sidebar"
-                    >
-                        <ChevronsLeft className="h-[18px] w-[18px] rotate-180" />
-                    </button>
-                )}
-                {!collapsed && onToggleCollapse && (
-                    <button
-                        onClick={onToggleCollapse}
-                        className="-mr-px flex w-8 shrink-0 self-stretch items-center justify-center rounded-l-lg text-sidebar-foreground/50 transition-colors duration-150 hover:bg-sidebar-accent hover:text-sidebar-foreground"
-                        title="Collapse sidebar"
-                    >
-                        <ChevronsLeft className="h-[16px] w-[16px]" />
-                    </button>
-                )}
-            </div>
+            ) : (
+                <div className="flex shrink-0 flex-col items-center gap-2 border-b border-sidebar-border px-2 py-2">
+                    <Link href="/" aria-label="LeadEngine home" className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-primary">
+                        <span className="text-sm font-bold text-primary-foreground">W</span>
+                    </Link>
+                    <AppSwitcher collapsed />
+                </div>
+            )}
 
             <nav aria-label="Main navigation" className={`flex-1 py-4 space-y-1 overflow-y-auto sidebar-scrollbar ${collapsed ? "px-1.5" : "px-3"}`}>
                 {!collapsed && <p className="px-3 mb-2 text-[11px] font-bold uppercase tracking-widest text-sidebar-foreground/70">Menu</p>}
@@ -208,6 +221,15 @@ export function Sidebar({ collapsed = false, onToggleCollapse, serverProfile = n
             </nav>
 
             <div className={`border-t py-3 shrink-0 space-y-2 border-sidebar-border ${collapsed ? "px-1.5" : "px-3"}`}>
+                {/* Collapse: its own compact row above the account (LeadEngine
+                    has no Notifications row for it to share), at the trailing
+                    end where Sales Activity has it; on the rail, centred above
+                    the avatar. */}
+                {onToggleCollapse && (
+                    <div className={`flex ${collapsed ? "justify-center" : "justify-end"}`}>
+                        <DrawerToggle collapsed={collapsed} onToggle={onToggleCollapse} />
+                    </div>
+                )}
                 {/* The account menu: who you are, your profile, the changelog, the
                     panel, and the way out. One trigger, one menu on the panel's own
                     tokens; focus does not jump back on close, so a mouse user never

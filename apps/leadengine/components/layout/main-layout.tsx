@@ -37,6 +37,7 @@ import { PermissionsProvider } from "@/contexts/permissions-context"
 import { SidebarThemeProvider } from "@/contexts/sidebar-theme-context"
 import { CurrencyProvider } from "@/contexts/currency-context"
 import { hasPreferenceCookie, writePreferenceCookie } from "@/lib/preference-cookie"
+import { useSidebarShortcut } from "@/hooks/use-sidebar-shortcut"
 import type { CompanyContext } from "@/types/company"
 import type { CurrencySettings } from "@/types/currency"
 import { DEFAULT_CURRENCY_SETTINGS } from "@/types/currency"
@@ -120,6 +121,8 @@ function MainLayoutInner({
             return next
         })
     }
+    // `[` folds and opens the drawer, as its collapse button's tooltip says.
+    useSidebarShortcut(toggleCollapse)
 
     // Below `lg` the phone shell (Sales Activity's, rule for rule): the top
     // app bar above `<main>`, the navigation bar under it, the drawer gone
@@ -129,8 +132,9 @@ function MainLayoutInner({
     return (
         <div className="shell-in flex h-dvh overflow-hidden">
             <aside
+                id="app-drawer"
                 data-sidebar
-                className={`hidden lg:flex lg:flex-col shrink-0 flex-none overflow-hidden bg-sidebar relative ${darkClass} transition-[width] duration-200 ease-out ${collapsed ? "lg:w-[60px]" : "lg:w-[220px]"}`}
+                className={`hidden lg:flex lg:flex-col shrink-0 flex-none overflow-hidden bg-sidebar relative ${darkClass} transition-[width] duration-200 ease-out ${collapsed ? "lg:w-[60px]" : "lg:w-[240px]"}`}
             >
                 <Sidebar serverProfile={userProfile} collapsed={collapsed} onToggleCollapse={toggleCollapse} />
             </aside>
