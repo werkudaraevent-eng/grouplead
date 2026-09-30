@@ -43,7 +43,7 @@ export default async function MissionFormSettingsPage() {
       <div className="mb-4 space-y-2 rounded-xl border border-dashed bg-muted/40 px-5 py-4 text-sm text-muted-foreground">
         <p>
           Field bertanda <strong className="text-foreground">Inti</strong> menopang deteksi konflik jadwal, kalender,
-          laporan KPI, dan pengiriman lead ke LeadEngine.
+          laporan KPI, dan pengiriman lead ke Group Lead.
         </p>
         <ul className="ml-5 list-disc space-y-1">
           <li><strong className="text-foreground">Bisa diubah:</strong> label, urutan, placeholder, teks bantuan, dan daftar pilihan seperti Jenis aktivitas.</li>

@@ -7,6 +7,8 @@ import {
   DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { useCompany } from '@/contexts/company-context'
+import { AppIcon } from '@/components/layout/app-icon'
+import { PRODUCT_NAME, unitScopeLabel } from '@/lib/navigation/app-nav'
 
 export function CompanySwitcher() {
   const { activeCompany, companies, isHoldingView, switchCompany, isSwitching } = useCompany()
@@ -82,18 +84,21 @@ export function CompanySwitcher() {
 }
 
 /**
- * CompanySwitcherHeader: the drawer header's identity, as ONE control (Slack's
- * workspace menu, Linear's and Notion's workspace switcher, Atlassian's site
- * switcher): the unit's logo, its name on one line, the scope on the line
- * under it, and a trailing up-down chevron; a press anywhere on it opens the
- * unit menu. It spans the header's free width, so "Werkudara Group" and
- * "Every business unit" read in full in the 240px drawer; a longer name is
+ * CompanySwitcherHeader: the drawer header's identity, as ONE control, the
+ * same pattern as Sales Activity's (DESIGN.md, "The drawer: header, app
+ * switcher, collapse"): the app's icon (the family tile with the funnel),
+ * the app's name on the first line, the unit the data is shown for on the
+ * second ("Every business unit" or the unit's name), and a trailing up-down
+ * chevron. A press anywhere on it opens the unit menu. A long unit name is
  * cut with an ellipsis and given in full in the tooltip (`title`).
+ *
+ * Never a company's logo as the mark: the app is not the unit, and a round
+ * logo beside a name read as a person's avatar. The units' logos stay in
+ * the menu, beside each unit, where a unit is chosen.
  *
  * The menu drops from the header 8px in from the drawer's edge and is the
  * drawer's width minus both insets (224px), as the app switcher's is, so
- * neither covers the page. See DESIGN.md, "The drawer: header, app
- * switcher, collapse".
+ * neither covers the page.
  */
 export function CompanySwitcherHeader() {
   const { activeCompany, companies, isHoldingView, switchCompany, isSwitching } = useCompany()
@@ -104,20 +109,33 @@ export function CompanySwitcherHeader() {
   const holdingCompany = companies.find(c => c.isHolding)
   const regularCompanies = companies.filter(c => !c.isHolding)
 
-  const displayName = isHoldingView ? 'Werkudara Group' : (activeCompany?.name ?? 'Werkudara')
-  const subtitle = isHoldingView ? 'Every business unit' : 'Single unit'
-  const activeLogo = isHoldingView
-    ? (holdingCompany?.logoUrl ?? null)
-    : (activeCompany?.logoUrl ?? null)
+  const scope = unitScopeLabel(isHoldingView, activeCompany?.name)
 
+  // The two lines, drawn the same before and after hydration: the product's
+  // name is fixed and the scope comes from the server's company, so nothing
+  // moves when the menu becomes live.
+  const identity = (
+    <>
+      <AppIcon app="leadengine" />
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-[13px] font-semibold leading-[18px] tracking-tight text-sidebar-accent-foreground">
+          {PRODUCT_NAME}
+        </span>
+        <span className="block truncate text-[11px] leading-[14px] text-sidebar-foreground">
+          {isSwitching ? 'Loading\u2026' : scope}
+        </span>
+      </span>
+    </>
+  )
+
+  // The Radix menu's ids are only stable once mounted (see the note on
+  // AppSwitcher in sidebar.tsx), so the first HTML draws the same identity
+  // as a plain block.
   if (!isMounted) {
     return (
       <div className="flex h-12 min-w-0 flex-1 items-center gap-2 px-1.5" aria-hidden="true">
-        <div className="h-8 w-8 shrink-0 rounded-full bg-sidebar-accent/30 animate-pulse" />
-        <div className="flex flex-col gap-1.5">
-          <div className="h-3 w-24 rounded bg-sidebar-accent/30 animate-pulse" />
-          <div className="h-2 w-20 rounded bg-sidebar-accent/20 animate-pulse" />
-        </div>
+        {identity}
+        <ChevronsUpDown className="h-3.5 w-3.5 shrink-0 text-sidebar-foreground" aria-hidden="true" />
       </div>
     )
   }
@@ -128,24 +146,11 @@ export function CompanySwitcherHeader() {
         <button
           type="button"
           disabled={isSwitching}
-          title={displayName}
+          title={`${PRODUCT_NAME} \u00b7 ${scope}`}
+          aria-label={`${PRODUCT_NAME}, ${scope}. Change business unit`}
           className="group flex h-12 min-w-0 flex-1 items-center gap-2 rounded-lg px-1.5 text-left transition-colors duration-150 hover:bg-sidebar-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring data-[state=open]:bg-sidebar-accent disabled:cursor-wait"
         >
-          <span className="grid h-8 w-8 shrink-0 place-items-center overflow-hidden rounded-full bg-primary">
-            {activeLogo
-              ? // eslint-disable-next-line @next/next/no-img-element
-                <img src={activeLogo} alt="" className="h-full w-full object-cover" />
-              : <span className="text-sm font-bold text-primary-foreground">W</span>
-            }
-          </span>
-          <span className="min-w-0 flex-1">
-            <span className="block truncate text-[13px] font-semibold leading-[18px] tracking-tight text-sidebar-accent-foreground">
-              {displayName}
-            </span>
-            <span className="block truncate text-[11px] leading-[14px] text-sidebar-foreground">
-              {isSwitching ? 'Loading\u2026' : subtitle}
-            </span>
-          </span>
+          {identity}
           {isSwitching
             ? <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-sidebar-foreground" aria-hidden="true" />
             : <ChevronsUpDown className="h-3.5 w-3.5 shrink-0 text-sidebar-foreground transition-colors group-hover:text-sidebar-accent-foreground" aria-hidden="true" />

@@ -18,9 +18,10 @@ import { usePermissions } from "@/contexts/permissions-context"
 import { useCompact } from "@/hooks/use-compact"
 import { markHintsSeen } from "@/app/actions/hint-actions"
 import type { AnnouncementState } from "@/lib/announcements/announcements"
+import { PRODUCT_NAME } from "@/lib/navigation/app-nav"
 
 /**
- * "What's new in LeadEngine": the one-time dialog for releases an admin has
+ * "What's new in Group Lead": the one-time dialog for releases an admin has
  * switched on in Settings → Announcements, the way Slack, Notion and Gmail
  * announce a release: once per person, two or three highlights, each with a
  * way straight to the feature, and a text button to put it off. It is
@@ -34,7 +35,6 @@ import type { AnnouncementState } from "@/lib/announcements/announcements"
  * fails to save still holds on this device: in memory for the rest of the
  * session and in localStorage after that.
  */
-const PRODUCT_NAME = "LeadEngine"
 const TITLE = `What's new in ${PRODUCT_NAME}`
 const STORAGE_PREFIX = "le:hint:"
 const SETTLE_MS = 700

@@ -99,7 +99,7 @@ export function useDashboardExportPDF() {
 <body>
   <main class="print-shell">
     <header class="print-header">
-      <div class="print-title">LeadEngine Dashboard Report</div>
+      <div class="print-title">Group Lead Dashboard Report</div>
       <div class="print-meta">${reportDate} · Use browser Save as PDF</div>
     </header>
     <section id="print-dashboard">${cloned.outerHTML}</section>

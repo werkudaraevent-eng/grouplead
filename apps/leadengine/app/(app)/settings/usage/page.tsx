@@ -29,7 +29,7 @@ export const dynamic = "force-dynamic"
 const number = new Intl.NumberFormat("en-US")
 
 const SUBTITLE =
-  "Who opens LeadEngine, when they were last here, and which pages are opened most. Only the page opened and when is recorded, per person per day; nothing typed, nothing shown on a page, and no location."
+  "Who opens Group Lead, when they were last here, and which pages are opened most. Only the page opened and when is recorded, per person per day; nothing typed, nothing shown on a page, and no location."
 
 /**
  * Settings → Usage.
@@ -125,7 +125,7 @@ export default async function UsagePage({ searchParams }: { searchParams: Promis
         </dl>
         {!since && (
           <p className="mt-3 rounded-xl border border-border bg-card px-5 py-4 text-[13px] text-muted-foreground">
-            Nothing recorded yet. Usage is recorded from the day this page shipped; the numbers fill in as people open LeadEngine.
+            Nothing recorded yet. Usage is recorded from the day this page shipped; the numbers fill in as people open Group Lead.
           </p>
         )}
       </section>
@@ -136,7 +136,7 @@ export default async function UsagePage({ searchParams }: { searchParams: Promis
             <h2 id="usage-daily" className="text-[14px] font-semibold text-foreground">
               Daily active users
             </h2>
-            <p className="mt-0.5 text-[13px] text-muted-foreground">How many people opened LeadEngine each day, {ofHeadcount}.</p>
+            <p className="mt-0.5 text-[13px] text-muted-foreground">How many people opened Group Lead each day, {ofHeadcount}.</p>
           </div>
           <UsagePeriodControl period={period} />
         </header>
@@ -151,7 +151,7 @@ export default async function UsagePage({ searchParams }: { searchParams: Promis
             People
           </h2>
           <p className="mt-0.5 text-[13px] text-muted-foreground">
-            Everyone with LeadEngine access, most recently active first. Days active count 30 days, pages opened 7 days, and the trend is days active per week over 8 weeks.
+            Everyone with Group Lead access, most recently active first. Days active count 30 days, pages opened 7 days, and the trend is days active per week over 8 weeks.
           </p>
         </header>
         <UsagePeople people={persons} now={now} />

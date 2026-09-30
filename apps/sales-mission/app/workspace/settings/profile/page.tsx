@@ -25,7 +25,7 @@ export default async function ProfilePage() {
     <WorkspacePage
       introKey={pageIntroKey("profile")}
       title="Profil"
-      description="Namamu, fotomu, dan cara menghubungimu, dipakai di Sales Activity dan LeadEngine."
+      description="Namamu, fotomu, dan cara menghubungimu, dipakai di Sales Activity dan Group Lead."
     >
       <ProfileForm userId={access.userId} profile={profile} />
     </WorkspacePage>

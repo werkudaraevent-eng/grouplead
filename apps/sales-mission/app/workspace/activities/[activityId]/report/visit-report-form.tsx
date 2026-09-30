@@ -852,7 +852,7 @@ export function VisitReportForm({
           <FieldShell key={field.id} field={field}>
             <div className="flex min-h-12 items-center gap-2.5">
               <Checkbox id="opportunity" checked={draft.opportunityExists} onCheckedChange={(checked) => update("opportunityExists", checked === true)} />
-              <Label htmlFor="opportunity" className="font-normal text-foreground">{field.placeholder || "Kirim sebagai lead ke LeadEngine setelah laporan terkirim"}</Label>
+              <Label htmlFor="opportunity" className="font-normal text-foreground">{field.placeholder || "Kirim sebagai lead ke Group Lead setelah laporan terkirim"}</Label>
             </div>
           </FieldShell>
         )
@@ -960,7 +960,7 @@ export function VisitReportForm({
               <p className="font-semibold">Mengubah laporan yang sudah dikirim</p>
               <p className="mt-1">
                 Versi yang sekarang disimpan ke riwayat bersama alasan Anda, dan angka di Laporan mengikuti versi baru.
-                {editing.leadPushed && " Lead yang sudah dikirim ke LeadEngine tidak ikut berubah."}
+                {editing.leadPushed && " Lead yang sudah dikirim ke Group Lead tidak ikut berubah."}
               </p>
             </div>
           </div>

@@ -31,7 +31,7 @@ export default async function DevicesPage() {
     <WorkspacePage
       introKey={pageIntroKey("devices")}
       title="Perangkat aktif"
-      description="Tempat akunmu sedang masuk. Satu kali masuk berlaku untuk Sales Activity dan LeadEngine."
+      description="Tempat akunmu sedang masuk. Satu kali masuk berlaku untuk Sales Activity dan Group Lead."
       action={others > 0 ? <SignOutOthersButton count={others} /> : undefined}
       phoneAction={false}
     >

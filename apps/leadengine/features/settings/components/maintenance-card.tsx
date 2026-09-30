@@ -90,7 +90,7 @@ export function MaintenanceCard({ initialEnabled, initialMessage }: MaintenanceC
                                 value={message}
                                 onChange={(e) => setMessage(e.target.value)}
                                 rows={2}
-                                placeholder="LeadEngine is undergoing maintenance. We'll be back shortly."
+                                placeholder="Group Lead is undergoing maintenance. We'll be back shortly."
                                 className="mt-1.5 w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-[13px] text-foreground outline-none focus:border-primary/50"
                             />
                             <div className="mt-2 flex justify-end">

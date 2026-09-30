@@ -345,7 +345,7 @@ export function describeAudit(row: AuditRow): AuditDescription {
       return { sentence: `mengubah tautan papan “${name}”`, tone: "update", details }
 
     case "lead_pushes":
-      return { sentence: `mengirim lead ke LeadEngine dari aktivitas ke ${name}`, tone: "create", details }
+      return { sentence: `mengirim lead ke Group Lead dari aktivitas ke ${name}`, tone: "create", details }
 
     case "report_contacts":
       if (row.action === "INSERT") return { sentence: `menambah kontak di laporan ${name}`, tone: "create", details }

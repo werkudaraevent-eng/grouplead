@@ -42,7 +42,7 @@ export default async function ReportFormSettingsPage() {
       <div className="mb-4 space-y-2 rounded-xl border border-dashed bg-muted/40 px-5 py-4 text-sm text-muted-foreground">
         <p>
           Field bertanda <strong className="text-foreground">Inti</strong> menopang laporan KPI, pencatatan ke CRM, dan
-          pengiriman lead ke LeadEngine.
+          pengiriman lead ke Group Lead.
         </p>
         <ul className="ml-5 list-disc space-y-1">
           <li><strong className="text-foreground">Bisa diubah:</strong> label, urutan, teks bantuan, daftar pilihan, dan apakah pengisi boleh menambah pilihan sendiri.</li>

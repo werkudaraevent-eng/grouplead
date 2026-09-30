@@ -57,7 +57,7 @@ function LastSeen({ person, now }: { person: PersonUsage; now: Date }) {
 
 export function UsagePeople({ people, now }: { people: PersonUsage[]; now: Date }) {
   if (people.length === 0) {
-    return <p className="px-5 py-6 text-[13px] text-muted-foreground">Nobody has LeadEngine access yet.</p>
+    return <p className="px-5 py-6 text-[13px] text-muted-foreground">Nobody has Group Lead access yet.</p>
   }
 
   return (
@@ -105,7 +105,7 @@ export function UsagePeople({ people, now }: { people: PersonUsage[]; now: Date 
               <TableRow>
                 <TableHead>Name</TableHead>
                 <TableHead>Last active</TableHead>
-                <TableHead className="text-right" title="How many different days this person opened LeadEngine">
+                <TableHead className="text-right" title="How many different days this person opened Group Lead">
                   Days active<Window>30 days</Window>
                 </TableHead>
                 <TableHead className="text-right" title="How many pages this person opened">

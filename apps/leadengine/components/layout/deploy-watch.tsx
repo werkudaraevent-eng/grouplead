@@ -21,7 +21,7 @@ import { STALE_DEPLOYMENT_EVENT, type StaleDeploymentDetail } from "@/lib/deploy
  * - "A new version is available…" when `/api/version` answers with another
  *   build than the one this tab loaded: on coming back to the tab, and
  *   every five minutes while it is in front (`lib/deploy/stale-client.ts`).
- * - "LeadEngine was just updated. Your input is kept…" when something the
+ * - "Group Lead was just updated. Your input is kept…" when something the
  *   person sent failed only because the tab is older than the server: a
  *   form that caught it announces it (`lib/deploy/stale-announce.ts`), and
  *   anything that did not is caught here from the unhandled rejection.

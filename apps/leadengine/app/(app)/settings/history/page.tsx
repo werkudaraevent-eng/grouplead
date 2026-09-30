@@ -108,7 +108,7 @@ export default function ChangeHistoryPage() {
         <div data-fluid-page className="min-h-[100dvh] bg-background">
             <SettingsPageHeader
                 title="Change history"
-                subtitle="Who created, changed and deleted what across LeadEngine, recorded automatically"
+                subtitle="Who created, changed and deleted what across Group Lead, recorded automatically"
                 intro={pageIntroKey("settings-history")}
                 breadcrumbs={[{ label: "Change history" }]}
             />

@@ -72,7 +72,7 @@ describe("activityLabel", () => {
 
 describe("appLabel", () => {
     it("uses each product's own name", () => {
-        expect(appLabel("leadengine")).toBe("LeadEngine")
+        expect(appLabel("leadengine")).toBe("Group Lead")
         expect(appLabel("sales_activity")).toBe("Sales Activity")
         expect(appLabel(null)).toBeNull()
         expect(appLabel("crm")).toBeNull()
@@ -83,7 +83,7 @@ describe("deviceMeta", () => {
     it("joins place, time and app, leaving out what is missing", () => {
         expect(deviceMeta(row({ city: "Jakarta", country: "ID", last_seen_at: "2026-09-29T03:00:00Z", app: "sales_activity" }), NOW))
             .toBe("Jakarta, Indonesia · Last active 2 hours ago · Sales Activity")
-        expect(deviceMeta(row({ is_current: true, app: "leadengine" }), NOW)).toBe("Active now · LeadEngine")
+        expect(deviceMeta(row({ is_current: true, app: "leadengine" }), NOW)).toBe("Active now · Group Lead")
         expect(deviceMeta(row({}), NOW)).toBe("")
     })
 })

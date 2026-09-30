@@ -63,7 +63,7 @@ export default async function SettingsPage() {
           carries the external-link mark the rows above do not. */}
       {canOpenSettings && (
         <p className="mt-8 px-1 text-sm text-muted-foreground">
-          Siapa boleh membuka Sales Activity dan apa yang boleh dilakukannya diatur di LeadEngine, pada Settings → Roles &amp; permissions.
+          Siapa boleh membuka Sales Activity dan apa yang boleh dilakukannya diatur di Group Lead, pada Settings → Roles &amp; permissions.
           {leadEngineUrl && (
             <>
               {" "}
@@ -71,7 +71,7 @@ export default async function SettingsPage() {
                 href={`${leadEngineUrl.replace(/\/$/, "")}/settings/permissions`}
                 className="inline-flex min-h-8 items-center gap-1 font-semibold text-primary hover:underline"
               >
-                Buka di LeadEngine <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
+                Buka di Group Lead <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
               </a>
             </>
           )}

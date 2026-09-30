@@ -33,7 +33,8 @@ import { createClient } from "@/utils/supabase/client"
 import { useSignOut } from "@/components/layout/use-sign-out"
 import { DESTINATION_ICONS } from "@/components/layout/destination-icons"
 import { SIDEBAR_SHORTCUT, sidebarToggleLabel } from "@/lib/ui/sidebar-shortcut"
-import { CHANGELOG_HREF, DEVICES_HREF, PROFILE_HREF, SETTINGS_HREF, canOpenSettings, isActiveHref, permittedDestinations, roleLabel } from "@/lib/navigation/app-nav"
+import { CHANGELOG_HREF, DEVICES_HREF, PRODUCT_NAME, PROFILE_HREF, SETTINGS_HREF, canOpenSettings, isActiveHref, permittedDestinations, roleLabel } from "@/lib/navigation/app-nav"
+import { AppIcon } from "@/components/layout/app-icon"
 
 /**
  * The drawer, from `lg` up. Below `lg` the phone shell takes its place (the
@@ -146,11 +147,13 @@ export function Sidebar({ collapsed = false, onToggleCollapse, serverProfile = n
     return (
         <div className="flex flex-col h-full transition-colors duration-300 bg-sidebar text-sidebar-foreground relative">
             {/* The header does one job per control (DESIGN.md, "The drawer:
-                header, app switcher, collapse"): the unit you are working in,
-                as one button across the free width, and the apps grid at the
-                trailing end, whose menu drops from the header and stays
-                inside the drawer. The collapse control lives at the foot. On
-                the rail the mark and the grid stack. */}
+                header, app switcher, collapse"): the app and the unit you are
+                working in, as one button across the free width (the app's
+                icon, its name, the unit under it; it opens the unit menu),
+                and the apps grid at the trailing end, whose menu drops from
+                the header and stays inside the drawer. The collapse control
+                lives at the foot. On the rail the app's icon, a link home,
+                and the grid stack. */}
             {!collapsed ? (
                 <div className="flex h-14 shrink-0 items-center gap-0.5 border-b border-sidebar-border px-2">
                     <CompanySwitcherHeader />
@@ -158,8 +161,8 @@ export function Sidebar({ collapsed = false, onToggleCollapse, serverProfile = n
                 </div>
             ) : (
                 <div className="flex shrink-0 flex-col items-center gap-2 border-b border-sidebar-border px-2 py-2">
-                    <Link href="/" aria-label="LeadEngine home" className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-primary">
-                        <span className="text-sm font-bold text-primary-foreground">W</span>
+                    <Link href="/" aria-label={`${PRODUCT_NAME} home`} title={PRODUCT_NAME} className="grid h-8 w-8 shrink-0 place-items-center rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring">
+                        <AppIcon app="leadengine" />
                     </Link>
                     <AppSwitcher collapsed />
                 </div>

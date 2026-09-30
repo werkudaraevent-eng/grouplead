@@ -25,7 +25,8 @@ import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
 import { BusinessUnitPicker } from "./business-unit-picker"
 import { SignOutEverywhereSection } from "./sign-out-everywhere"
-import { Loader2, Save, UserCog, Building2, X, Camera, UserCircle } from "@/components/icons"
+import { Loader2, Save, UserCog, Building2, X, Camera } from "@/components/icons"
+import { InitialsAvatar } from "@/components/shared/initials-avatar"
 import { Profile } from "@/types"
 import type { Role } from "@/types/company"
 import { normalizePhoneToE164 } from "@/lib/phone-normalize"
@@ -322,9 +323,8 @@ export function EditUserSheet({ profile, open, onOpenChange, onSaved }: EditUser
                                             // eslint-disable-next-line @next/next/no-img-element
                                             <img src={avatarUrl} alt={profile.full_name ?? "User"} className="w-16 h-16 rounded-full object-cover border-2 border-slate-200" />
                                         ) : (
-                                            <div className="w-16 h-16 rounded-full bg-slate-100 border-2 border-slate-200 flex items-center justify-center">
-                                                <UserCircle className="h-8 w-8 text-slate-300" />
-                                            </div>
+                                            // No photo: the person's initials, as everywhere a person is shown.
+                                            <InitialsAvatar name={profile.full_name ?? ""} size="hero" />
                                         )}
                                         <label className="absolute inset-0 flex items-center justify-center rounded-full bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
                                             {uploadingAvatar ? (

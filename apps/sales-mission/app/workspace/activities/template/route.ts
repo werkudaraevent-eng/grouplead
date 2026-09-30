@@ -90,7 +90,7 @@ export async function GET() {
     [""],
     ["PERUSAHAAN KLIEN"],
     ["  Cukup ketik namanya. Kalau namanya persis sama dengan perusahaan"],
-    ["  di LeadEngine, aktivitas akan otomatis tertaut ke sana."],
+    ["  di Group Lead, aktivitas akan otomatis tertaut ke sana."],
     ["  Import tidak pernah membuat perusahaan baru di CRM."],
     [""],
     ["PILIHAN GANDA"],

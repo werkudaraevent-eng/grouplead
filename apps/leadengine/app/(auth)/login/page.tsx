@@ -26,7 +26,7 @@ export default function LoginPage() {
         const params = new URLSearchParams(window.location.search)
         const errorCode = params.get("error")
         if (errorCode === "access_not_provisioned") {
-            setError("Your account is not provisioned for LeadEngine. Ask an administrator to add your user and business-unit access.")
+            setError("Your account is not provisioned for Group Lead. Ask an administrator to add your user and business-unit access.")
         } else if (params.get("reason") === SIGNED_OUT_REASON) {
             setNotice(SIGNED_OUT_MESSAGE)
         }
@@ -156,7 +156,7 @@ export default function LoginPage() {
                             Welcome back
                         </h2>
                         <p className="text-muted-foreground text-[15px]">
-                            Enter your credentials to access LeadEngine
+                            Enter your credentials to access Group Lead
                         </p>
                     </div>
 

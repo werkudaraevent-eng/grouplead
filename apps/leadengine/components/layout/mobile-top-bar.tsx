@@ -6,6 +6,7 @@ import { ArrowLeft, MoreVertical } from "@/components/icons"
 import { usePageChrome } from "@/components/layout/page-chrome"
 import { ResponsiveMenu } from "@/components/layout/responsive-menu"
 import { fallbackTitle } from "@/lib/navigation/app-nav"
+import { AppIcon } from "@/components/layout/app-icon"
 
 /**
  * Material's small top app bar, below `lg`: the page's title, "back" on a
@@ -13,7 +14,7 @@ import { fallbackTitle } from "@/lib/navigation/app-nav"
  * a back arrow or the settings menu, and the page's overflow menu at the
  * trailing edge. The product mark stands in for "back" at a top
  * destination. Twin of Sales Activity's `MobileTopBar` (workspace-shell.tsx),
- * less the bell: LeadEngine has no notifications.
+ * less the bell: this app has no notifications.
  *
  * 56dp plus the status bar's inset, in the shell's column above `<main>`,
  * so it never scrolls and everything that pins inside `<main>` (a list's
@@ -34,10 +35,8 @@ export function MobileTopBar() {
                     <ArrowLeft className="h-5 w-5" />
                 </Link>
             ) : (
-                // The collapsed drawer's mark: a desk and a phone show one product.
-                <span className="ml-2 grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-primary text-sm font-bold text-primary-foreground" aria-hidden="true">
-                    W
-                </span>
+                // The collapsed drawer's mark, the app's icon: a desk and a phone show one product.
+                <AppIcon app="leadengine" className="ml-2" />
             )}
             <h1 className="min-w-0 flex-1 truncate px-2 text-[17px] font-semibold text-foreground">{heading}</h1>
             {/* A page's secondary actions: Material's top app bar keeps them

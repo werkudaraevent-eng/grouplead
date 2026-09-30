@@ -183,7 +183,7 @@ export function CompanyPicker({
             )}
 
             {results.length > 0 && prospects.length > 0 && onPickProspect && (
-              <p className="border-t px-3 pb-1 pt-2.5 text-[11px] font-semibold text-muted-foreground">LeadEngine</p>
+              <p className="border-t px-3 pb-1 pt-2.5 text-[11px] font-semibold text-muted-foreground">Group Lead</p>
             )}
             {results.map((company) => (
               <button
@@ -243,11 +243,11 @@ export function CompanyPicker({
         </p>
       ) : selected ? (
         <p className="flex items-center gap-1.5 text-xs text-[var(--success-foreground)]">
-          <Check className="h-3.5 w-3.5" /> Tertaut ke perusahaan di LeadEngine
+          <Check className="h-3.5 w-3.5" /> Tertaut ke perusahaan di Group Lead
         </p>
       ) : (
         <p className="text-xs text-muted-foreground">
-          Belum ada di CRM. Aktivitas tetap bisa dibuat. Perusahaan masuk ke LeadEngine setelah
+          Belum ada di CRM. Aktivitas tetap bisa dibuat. Perusahaan masuk ke Group Lead setelah
           laporan kunjungan disubmit, ditandai agar admin CRM melengkapinya.
         </p>
       )}

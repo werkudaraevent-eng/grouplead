@@ -71,7 +71,7 @@ export function DeviceList({ devices, failed }: { devices: DeviceView[]; failed:
     <div className="space-y-4">
       {devices.length === 0 ? (
         <div className="rounded-xl border bg-card px-5 py-6 text-sm text-muted-foreground" role="status">
-          Belum ada perangkat yang tercatat untuk akunmu. Perangkat muncul di sini setelah membuka Sales Activity atau LeadEngine.
+          Belum ada perangkat yang tercatat untuk akunmu. Perangkat muncul di sini setelah membuka Sales Activity atau Group Lead.
         </div>
       ) : (
         <ul className="divide-y overflow-hidden rounded-xl border bg-card" aria-label="Perangkat yang sedang masuk">
@@ -125,7 +125,7 @@ export function DeviceList({ devices, failed }: { devices: DeviceView[]; failed:
           <DialogHeader>
             <DialogTitle>Keluarkan {target?.name}?</DialogTitle>
             <DialogDescription>
-              Perangkat itu langsung keluar dari Sales Activity dan LeadEngine. Isian yang belum dikirim di sana akan hilang. Pemiliknya bisa masuk lagi dengan kata sandi.
+              Perangkat itu langsung keluar dari Sales Activity dan Group Lead. Isian yang belum dikirim di sana akan hilang. Pemiliknya bisa masuk lagi dengan kata sandi.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -180,7 +180,7 @@ export function SignOutOthersButton({ count, className }: { count: number; class
           <DialogHeader>
             <DialogTitle>Keluar dari {count} perangkat lain?</DialogTitle>
             <DialogDescription>
-              Semua perangkat lain langsung keluar dari Sales Activity dan LeadEngine; perangkat ini tetap masuk. Isian yang belum dikirim di sana akan hilang. Pemiliknya bisa masuk lagi dengan kata sandi.
+              Semua perangkat lain langsung keluar dari Sales Activity dan Group Lead; perangkat ini tetap masuk. Isian yang belum dikirim di sana akan hilang. Pemiliknya bisa masuk lagi dengan kata sandi.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

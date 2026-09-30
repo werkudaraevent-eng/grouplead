@@ -238,7 +238,7 @@ export function ReportTable({
         steps={[
           "Sales utama membuka aktivitasnya setelah kunjungan",
           "Mengisi laporan; draf tersimpan otomatis",
-          "Kirim; laporan tampil di sini dan bisa didorong ke LeadEngine",
+          "Kirim; laporan tampil di sini dan bisa didorong ke Group Lead",
         ]}
         action={<Button asChild variant="outline"><Link href={paths.activities()}><ClipboardList className="h-4 w-4" /> Buka daftar aktivitas</Link></Button>}
         learnHref={paths.guideSection("laporan")}

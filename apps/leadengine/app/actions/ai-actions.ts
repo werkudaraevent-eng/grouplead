@@ -81,7 +81,7 @@ export async function askAI(
   try {
     const { client, modelFast: model } = await createAIClient()
 
-    const systemPrompt = `You are a helpful sales analytics assistant for Werkudara Group's CRM (LeadEngine).
+    const systemPrompt = `You are a helpful sales analytics assistant for Werkudara Group's CRM (Group Lead).
 You have access to the current dashboard data. Answer questions about sales performance, leads, revenue, goals, and pipeline.
 Respond in Bahasa Indonesia unless the user writes in English.
 Be concise and data-driven. Use numbers from the provided data when relevant.

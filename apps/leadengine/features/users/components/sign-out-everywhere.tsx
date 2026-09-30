@@ -72,7 +72,7 @@ export function SignOutEverywhereSection({ profile }: { profile: Profile }) {
                     <AlertDialogHeader>
                         <AlertDialogTitle>Sign {name} out everywhere?</AlertDialogTitle>
                         <AlertDialogDescription>
-                            {name} leaves LeadEngine and Sales Activity on every device at once, and anything not yet saved there is lost. They can sign in again with their password unless you also deactivate the account.
+                            {name} leaves Group Lead and Sales Activity on every device at once, and anything not yet saved there is lost. They can sign in again with their password unless you also deactivate the account.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>

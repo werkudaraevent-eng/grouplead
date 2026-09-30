@@ -64,7 +64,7 @@ export const SETTINGS_GROUPS: readonly SettingsGroup[] = [
         items: [
             {
                 title: "Profile",
-                description: "Name, photo, phone, job title and password. One profile for LeadEngine and Sales Activity.",
+                description: "Name, photo, phone, job title and password. One profile for Group Lead and Sales Activity.",
                 href: PROFILE_HREF,
                 icon: "profile",
             },
@@ -147,14 +147,14 @@ export const SETTINGS_GROUPS: readonly SettingsGroup[] = [
         items: [
             {
                 title: "Change history",
-                description: "Who created, changed and deleted what across LeadEngine, with filters by person, action and record. Recorded automatically.",
+                description: "Who created, changed and deleted what across Group Lead, with filters by person, action and record. Recorded automatically.",
                 href: "/settings/history",
                 icon: "history",
                 permission: { module: "settings", action: "read" },
             },
             {
                 title: "Usage",
-                description: "Who opens LeadEngine and when they last did, days active, and the pages opened most. Admins only.",
+                description: "Who opens Group Lead and when they last did, days active, and the pages opened most. Admins only.",
                 href: "/settings/usage",
                 icon: "usage",
                 permission: { module: "settings", action: "read" },

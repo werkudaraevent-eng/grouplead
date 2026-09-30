@@ -181,7 +181,7 @@ export function MissionSettingsForm({ initial, companyName }: { initial: Mission
         <SwitchRow
           id="contact-disc"
           label="Gaya komunikasi (DISC) pada kontak"
-          hint="Nyala: di laporan, tiap kontak yang ditemui bisa diberi tipe DISC (utama dan pendamping) plus catatan cara menghadapinya; hasilnya tampil di halaman aktivitas dan ikut ke kontak LeadEngine, dan terisi otomatis di kunjungan berikutnya ke orang yang sama. Selalu opsional. Mati: bagian ini tidak muncul. Untuk tim yang sudah ikut pelatihan DISC."
+          hint="Nyala: di laporan, tiap kontak yang ditemui bisa diberi tipe DISC (utama dan pendamping) plus catatan cara menghadapinya; hasilnya tampil di halaman aktivitas dan ikut ke kontak Group Lead, dan terisi otomatis di kunjungan berikutnya ke orang yang sama. Selalu opsional. Mati: bagian ini tidak muncul. Untuk tim yang sudah ikut pelatihan DISC."
           checked={form.contactDiscEnabled}
           onChange={(next) => setForm({ ...form, contactDiscEnabled: next })}
         />
@@ -223,7 +223,7 @@ export function MissionSettingsForm({ initial, companyName }: { initial: Mission
           <div className="grid grid-cols-1 gap-2 px-5 py-4 sm:grid-cols-[1fr_8rem] sm:items-center">
             <div>
               <Label htmlFor="ai-insights-hour" className="text-sm font-semibold text-foreground">Jam insight pagi (WIB)</Label>
-              <p className="mt-1 text-sm leading-relaxed text-muted-foreground">Jam 0 sampai 23. Insight pagi merangkum kemarin dan apa yang dijadwalkan hari ini. Siapa yang melihatnya diatur di Role & Izin (LeadEngine), modul Insight AI: Cakupan lihat Semua berarti insight unit, Tim berarti timnya, Sendiri berarti dirinya saja.</p>
+              <p className="mt-1 text-sm leading-relaxed text-muted-foreground">Jam 0 sampai 23. Insight pagi merangkum kemarin dan apa yang dijadwalkan hari ini. Siapa yang melihatnya diatur di Role & Izin (Group Lead), modul Insight AI: Cakupan lihat Semua berarti insight unit, Tim berarti timnya, Sendiri berarti dirinya saja.</p>
             </div>
             <Input
               id="ai-insights-hour"

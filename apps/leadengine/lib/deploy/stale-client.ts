@@ -176,9 +176,9 @@ export const STALE_COPY = {
   /** The version check saw a new build; nothing was lost. */
   newBuild: "A new version is available. Reload so your changes save.",
   /** Something was sent and did not arrive. */
-  actionFailed: "LeadEngine was just updated. Your input is kept — reload and submit again.",
+  actionFailed: "Group Lead was just updated. Your input is kept — reload and submit again.",
   reload: "Reload",
   /** The error screen, when the page itself could not go on. */
-  screenTitle: "LeadEngine was just updated",
+  screenTitle: "Group Lead was just updated",
   screenBody: "This page is from the previous version. Reload to open the new one; unsaved input in the lead form and an activity's composer comes back with it.",
 } as const

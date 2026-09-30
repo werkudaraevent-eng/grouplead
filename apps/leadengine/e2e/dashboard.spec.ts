@@ -3,7 +3,7 @@ import { login } from './helpers'
 
 test('login and check dashboard', async ({ page }) => {
   await login(page)
-  await expect(page.locator('text=Werkudara LeadEngine')).toBeVisible()
+  await expect(page.locator('text=Group Lead')).toBeVisible()
 
   // Take screenshot of dashboard
   await page.screenshot({ path: 'e2e/screenshots/dashboard.png', fullPage: true })

@@ -687,7 +687,7 @@ async function syncVisitToCrm(
     await record({
       crm_synced_at: null,
       crm_sync_error:
-        error instanceof LeadEngineError ? error.message : "LeadEngine tidak dapat dihubungi.",
+        error instanceof LeadEngineError ? error.message : "Group Lead tidak dapat dihubungi.",
     })
   }
 }

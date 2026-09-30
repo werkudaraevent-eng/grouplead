@@ -96,7 +96,7 @@ function lockedTypeReason(reportingKey: string, formKey: FormKey): string {
     return "Daftar sapaan diatur di Form aktivitas, supaya prospek dan aktivitas memakai daftar yang sama."
   }
   if (formKey === "prospect" && reportingKey === "industry") {
-    return "Tersimpan sebagai satu nilai di setiap prospek dan dipakai juga oleh Form aktivitas. Opsinya bisa diubah di bawah; samakan dengan daftar Sector di LeadEngine."
+    return "Tersimpan sebagai satu nilai di setiap prospek dan dipakai juga oleh Form aktivitas. Opsinya bisa diubah di bawah; samakan dengan daftar Sector di Group Lead."
   }
   if (formKey === "mission" && reportingKey === "industry") {
     return "Daftar industri diatur di Form prospek, supaya prospek dan aktivitas memakai daftar yang sama."

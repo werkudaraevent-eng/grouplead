@@ -362,7 +362,7 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
     offersEdit && compactAction !== "edit" ? { label: "Ubah aktivitas", href: paths.activityEdit(missionId) } : null,
     ...calendarItems.map((item) => ({ label: item.label === "Google Calendar" ? "Tambah ke Google Calendar" : "Tambah ke kalender (.ics)", href: item.href })),
     canReadReport ? { label: "Laporan kunjungan", href: paths.activity(missionId, { fokus: "laporan" }) } : null,
-    leadPush && leadEngineUrl ? { label: "Buka lead di LeadEngine", href: `${leadEngineUrl}/leads/${leadPush.leadId}` } : null,
+    leadPush && leadEngineUrl ? { label: "Buka lead di Group Lead", href: `${leadEngineUrl}/leads/${leadPush.leadId}` } : null,
   ].filter((item): item is { label: string; href: string } => Boolean(item))
 
   return (
@@ -918,7 +918,7 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
 
             {!leadPush && canPushLead(report) && !canWriteReport && (
               <p className="rounded-lg border border-dashed bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
-                Laporan ini menandai adanya peluang. Sales utama dapat mengirimkannya ke LeadEngine.
+                Laporan ini menandai adanya peluang. Sales utama dapat mengirimkannya ke Group Lead.
               </p>
             )}
             </aside>
@@ -946,7 +946,7 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
               <p className="text-xs font-semibold text-muted-foreground">Integrasi</p>
               <h3 className="mt-1 flex items-center gap-2 text-base font-semibold text-foreground">
                 <span className="inline-block h-2 w-2 shrink-0 rounded-full bg-[var(--success-foreground)]" aria-hidden />
-                Terkirim ke LeadEngine
+                Terkirim ke Group Lead
               </h3>
             </div>
             <div className="flex flex-wrap items-center gap-3 px-5 py-4">
@@ -957,7 +957,7 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
               {leadEngineUrl && (
                 <Button asChild variant="outline" className="h-10">
                   <a href={`${leadEngineUrl}/leads/${leadPush.leadId}`} target="_blank" rel="noopener noreferrer">
-                    <ExternalLink className="h-4 w-4" /> Buka lead di LeadEngine
+                    <ExternalLink className="h-4 w-4" /> Buka lead di Group Lead
                   </a>
                 </Button>
               )}
@@ -967,7 +967,7 @@ export default async function MissionDetailPage({ params }: { params: Promise<{ 
           <div className="border-t">
             <div className="border-b bg-muted/30 px-5 py-4">
               <p className="text-xs font-semibold text-muted-foreground">Integrasi</p>
-              <h3 className="mt-1 text-base font-semibold text-foreground">Kirim ke LeadEngine</h3>
+              <h3 className="mt-1 text-base font-semibold text-foreground">Kirim ke Group Lead</h3>
             </div>
             <PushLeadPanel
               missionId={missionId}

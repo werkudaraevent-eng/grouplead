@@ -60,7 +60,7 @@ export const SETTINGS_GROUPS: readonly SettingsGroup[] = [
       {
         icon: "profile",
         title: "Profil",
-        description: "Nama, foto, nomor telepon, jabatan, dan kata sandi. Satu profil untuk Sales Activity dan LeadEngine.",
+        description: "Nama, foto, nomor telepon, jabatan, dan kata sandi. Satu profil untuk Sales Activity dan Group Lead.",
         href: paths.settings.profile,
       },
       {
@@ -167,7 +167,7 @@ export const SETTINGS_GROUPS: readonly SettingsGroup[] = [
       {
         icon: "ai",
         title: "AI",
-        description: "Endpoint proxy, kunci API, dan model untuk fitur AI. Satu koneksi dipakai Sales Activity dan LeadEngine.",
+        description: "Endpoint proxy, kunci API, dan model untuk fitur AI. Satu koneksi dipakai Sales Activity dan Group Lead.",
         href: paths.settings.ai,
       },
       {

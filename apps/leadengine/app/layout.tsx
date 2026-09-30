@@ -30,7 +30,7 @@ export const viewport: Viewport = {
 // The icon family is shared with Sales Activity (same tile, colour and grid;
 // only the glyph differs): public/icons, app/favicon.ico, app/manifest.ts.
 export const metadata: Metadata = {
-  title: "LeadEngine - Corporate Lead Management",
+  title: `${PRODUCT_NAME} - Corporate Lead Management`,
   description: "Workflow-driven lead and SLA management system",
   manifest: "/manifest.webmanifest",
   icons: {

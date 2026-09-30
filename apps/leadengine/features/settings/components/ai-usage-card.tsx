@@ -8,11 +8,11 @@ import type { UsageSummary, UsageTotals } from "@/lib/ai/ai-usage"
  */
 
 const FEATURE_LABELS: Record<string, string> = {
-  "leadengine:ask_ai": "Ask AI · LeadEngine",
-  "leadengine:analyze": "Analyze · LeadEngine",
+  "leadengine:ask_ai": "Ask AI · Group Lead",
+  "leadengine:analyze": "Analyze · Group Lead",
   "sales_mission:insight": "Daily insight · Sales Activity",
   "sales_mission:tanya_ai": "Tanya AI · Sales Activity",
-  "leadengine:uji_model": "Model check · LeadEngine",
+  "leadengine:uji_model": "Model check · Group Lead",
   "sales_mission:uji_model": "Model check · Sales Activity",
 }
 

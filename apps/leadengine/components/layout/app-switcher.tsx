@@ -1,12 +1,13 @@
 "use client"
 
 import Link from "next/link"
-import { useEffect, useState, type ReactNode } from "react"
+import { useEffect, useState } from "react"
 import { createPortal } from "react-dom"
 import { Check, ExternalLink } from "@/components/icons"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { usePermissions } from "@/contexts/permissions-context"
 import { AppTransit, type WerkudaraApp } from "@/components/layout/app-transit"
+import { AppIcon } from "@/components/layout/app-icon"
 import { cn } from "@/lib/utils"
 
 /**
@@ -55,46 +56,6 @@ function LauncherMark() {
             <span className="rounded-[2px] bg-amber-400" />
             <span className="rounded-[2px] bg-emerald-400" />
         </span>
-    )
-}
-
-/**
- * The family's glyphs, from public/icons/icon.svg (the funnel) and Sales
- * Activity's public/icons/icon.svg (the map pin), on their 24-unit grid.
- */
-const APP_GLYPHS: Record<WerkudaraApp, ReactNode> = {
-    leadengine: (
-        <path d="M10 20a1 1 0 0 0 .553.895l2 1A1 1 0 0 0 14 21v-7a2 2 0 0 1 .517-1.341L21.74 4.67A1 1 0 0 0 21 3H3a1 1 0 0 0-.742 1.67l7.225 7.989A2 2 0 0 1 10 14z" />
-    ),
-    "sales-mission": (
-        <>
-            <path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0" />
-            <circle cx="12" cy="10" r="3" />
-        </>
-    ),
-}
-
-/**
- * An app's icon at 32px, drawn as the family is (DESIGN.md, "App icon: one
- * family"): the rounded tile at 22% of its side in the primary colour, the
- * white glyph at 60% of it, with the heavier 2.1 stroke the family uses at
- * 32px. Inline rather than an <img> so it takes the tokens.
- */
-function AppIcon({ app }: { app: WerkudaraApp }) {
-    return (
-        <svg viewBox="0 0 512 512" className="h-8 w-8 shrink-0" aria-hidden="true">
-            <rect width="512" height="512" rx="112.64" className="fill-primary" />
-            <g
-                transform="translate(102.4 102.4) scale(12.8)"
-                fill="none"
-                className="stroke-primary-foreground"
-                strokeWidth={2.1}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-            >
-                {APP_GLYPHS[app]}
-            </g>
-        </svg>
     )
 }
 
@@ -172,7 +133,7 @@ export function AppSwitcher({ collapsed = false }: { collapsed?: boolean }) {
                         onClick={() => setOpen(false)}
                         className={cn(ROW, "bg-sidebar-accent focus-visible:ring-2 focus-visible:ring-sidebar-ring")}
                     >
-                        <AppRowBody app="leadengine" name="LeadEngine" line="CRM · this app" />
+                        <AppRowBody app="leadengine" name="Group Lead" line="CRM · this app" />
                         <Check className="h-3.5 w-3.5 shrink-0 text-sidebar-primary-foreground" aria-label="Current app" />
                     </Link>
                     {canOpenSalesMission && salesMissionUrl ? (

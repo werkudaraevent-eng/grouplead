@@ -20,7 +20,7 @@ export default function ActiveDevicesPage() {
                 header={(action) => (
                     <SettingsPageHeader
                         title="Active devices"
-                        subtitle="Where your account is signed in. One sign-in covers LeadEngine and Sales Activity."
+                        subtitle="Where your account is signed in. One sign-in covers Group Lead and Sales Activity."
                         intro={pageIntroKey("settings-devices")}
                         breadcrumbs={[{ label: "Active devices" }]}
                         actions={action ?? undefined}

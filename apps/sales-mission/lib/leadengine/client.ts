@@ -40,7 +40,7 @@ async function request<T>(path: string, schema: z.ZodType<T>, init?: RequestInit
   if (!BASE_URL) {
     throw new LeadEngineError(
       "not_configured",
-      "Integrasi LeadEngine belum dikonfigurasi. Set LEADENGINE_API_URL."
+      "Integrasi Group Lead belum dikonfigurasi. Set LEADENGINE_API_URL."
     )
   }
 
@@ -67,7 +67,7 @@ async function request<T>(path: string, schema: z.ZodType<T>, init?: RequestInit
   } catch {
     // A field rep should be told the other system is unreachable, not shown a
     // raw network error. A timeout lands here too.
-    throw new LeadEngineError("unreachable", "LeadEngine tidak dapat dihubungi. Coba lagi sebentar lagi.")
+    throw new LeadEngineError("unreachable", "Group Lead tidak dapat dihubungi. Coba lagi sebentar lagi.")
   }
 
   if (!response.ok) {
@@ -75,7 +75,7 @@ async function request<T>(path: string, schema: z.ZodType<T>, init?: RequestInit
     const parsed = errorSchema.safeParse(body)
     throw new LeadEngineError(
       parsed.success ? parsed.data.error.code : "http_error",
-      parsed.success ? parsed.data.error.message : `LeadEngine menolak permintaan (${response.status}).`,
+      parsed.success ? parsed.data.error.message : `Group Lead menolak permintaan (${response.status}).`,
       response.status
     )
   }
@@ -84,7 +84,7 @@ async function request<T>(path: string, schema: z.ZodType<T>, init?: RequestInit
   const parsed = schema.safeParse(body)
 
   if (!parsed.success) {
-    throw new LeadEngineError("unexpected_response", "Balasan LeadEngine tidak sesuai kontrak.")
+    throw new LeadEngineError("unexpected_response", "Balasan Group Lead tidak sesuai kontrak.")
   }
 
   return parsed.data

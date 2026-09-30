@@ -122,7 +122,7 @@ export function ActiveDevices({ header }: { header: (action: React.ReactNode | n
                         </div>
                     ) : devices.length === 0 ? (
                         <p className="px-5 py-6 text-sm text-muted-foreground" role="status">
-                            No devices recorded yet. A device shows here once it opens LeadEngine or Sales Activity.
+                            No devices recorded yet. A device shows here once it opens Group Lead or Sales Activity.
                         </p>
                     ) : (
                         <ul className="divide-y" aria-label="Signed-in devices">
@@ -182,8 +182,8 @@ export function ActiveDevices({ header }: { header: (action: React.ReactNode | n
                         </AlertDialogTitle>
                         <AlertDialogDescription>
                             {confirm?.kind === "one"
-                                ? "That device leaves LeadEngine and Sales Activity at once. Anything not yet saved there is lost. Its owner can sign in again with the password."
-                                : "Every other device leaves LeadEngine and Sales Activity at once; this one stays signed in. Anything not yet saved there is lost. They can sign in again with the password."}
+                                ? "That device leaves Group Lead and Sales Activity at once. Anything not yet saved there is lost. Its owner can sign in again with the password."
+                                : "Every other device leaves Group Lead and Sales Activity at once; this one stays signed in. Anything not yet saved there is lost. They can sign in again with the password."}
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>

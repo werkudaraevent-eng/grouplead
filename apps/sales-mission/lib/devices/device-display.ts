@@ -39,7 +39,7 @@ export interface DeviceView {
 export const ACTIVE_NOW_MS = 10 * 60_000
 
 const APP_LABELS: Record<DeviceApp, string> = {
-  leadengine: "LeadEngine",
+  leadengine: "Group Lead",
   sales_activity: "Sales Activity",
 }
 

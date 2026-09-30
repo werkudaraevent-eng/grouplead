@@ -127,7 +127,7 @@ export default async function ProspectDetailPage({ params }: { params: Promise<{
               {prospect.website && (
                 <Fact label="Website"><a href={prospect.website} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 font-medium text-primary hover:underline"><Globe className="h-4 w-4" />{prospect.website.replace(/^https?:\/\//, "")}</a></Fact>
               )}
-              {prospect.clientCompanyId && <Fact label="LeadEngine"><span className="inline-flex items-center gap-2"><Building2 className="h-4 w-4 text-muted-foreground" />Tertaut ke perusahaan di CRM</span></Fact>}
+              {prospect.clientCompanyId && <Fact label="Group Lead"><span className="inline-flex items-center gap-2"><Building2 className="h-4 w-4 text-muted-foreground" />Tertaut ke perusahaan di CRM</span></Fact>}
               {prospect.contactDivision && <Fact label="Divisi">{prospect.contactDivision}</Fact>}
               {prospect.contactPhone && (
                 <Fact label="Telepon">

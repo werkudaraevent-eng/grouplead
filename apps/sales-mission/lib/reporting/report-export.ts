@@ -161,9 +161,9 @@ const ACTIVITY_COLUMNS = [
 const TRAIL_COLUMNS = [
   "Catatan klarifikasi",
   "Catatan pendukung",
-  "Dikirim ke LeadEngine",
+  "Dikirim ke Group Lead",
   "Kategori lead",
-  "ID lead LeadEngine",
+  "ID lead Group Lead",
   "Tindak lanjut",
   "Dikirim oleh",
   "Tanggal dikirim",

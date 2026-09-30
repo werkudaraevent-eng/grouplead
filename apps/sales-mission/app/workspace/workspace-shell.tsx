@@ -15,7 +15,6 @@ import {
   LayoutDashboard,
   Loader2,
   LogOut,
-  MapPinned,
   MonitorPlay,
   MonitorSmartphone,
   Moon,
@@ -72,6 +71,7 @@ import { useSidebarShortcut } from "@/hooks/use-sidebar-shortcut"
 import { createClient } from "@/utils/supabase/client"
 import { hasPreferenceCookie, writePreferenceCookie } from "@/lib/preference-cookie"
 import { PersonAvatar } from "@/components/person-avatar"
+import { AppIcon } from "@/components/app-icon"
 import { cn } from "@/lib/utils"
 import type { NavAccess } from "@/lib/missions/nav-access"
 import { paths } from "@/lib/paths"
@@ -304,23 +304,22 @@ function SidebarBody({
   return (
     <div className="relative flex h-full flex-col bg-sidebar text-sidebar-foreground transition-colors duration-300">
       {/* The header does one job per control (DESIGN.md, "The drawer: header,
-          app switcher, collapse"): the product and the unit, as one link home
-          across the free width (this app has no unit switcher), and the apps
-          grid at the trailing end, whose menu drops from the header and stays
-          inside the drawer. The collapse control lives at the foot. On the
-          rail the mark and the grid stack. */}
+          app switcher, collapse"): the app and the unit, as one link home
+          across the free width (the app's icon, "Sales Activity", the unit
+          under it; this app has no unit switcher), and the apps grid at the
+          trailing end, whose menu drops from the header and stays inside the
+          drawer. The collapse control lives at the foot. On the rail the
+          app's icon, a link home, and the grid stack. */}
       {!collapsed ? (
         <div className="flex h-14 shrink-0 items-center gap-0.5 border-b border-sidebar-border px-2">
           <Link
             href="/workspace"
             onClick={onNavigate}
-            title={companyName}
+            title={`Sales Activity \u00b7 ${companyName}`}
             aria-label={`Beranda Sales Activity, ${companyName}`}
             className="flex h-12 min-w-0 flex-1 items-center gap-2 rounded-lg px-1.5 transition-colors duration-150 hover:bg-sidebar-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
           >
-            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-primary text-primary-foreground" aria-hidden="true">
-              <MapPinned className="h-4 w-4" />
-            </span>
+            <AppIcon app="sales-mission" />
             <span className="min-w-0 flex-1">
               <span className="block truncate text-[13px] font-semibold leading-[18px] tracking-tight text-sidebar-accent-foreground">Sales Activity</span>
               <span className="block truncate text-[11px] leading-[14px] text-sidebar-foreground">{companyName}</span>
@@ -330,8 +329,8 @@ function SidebarBody({
         </div>
       ) : (
         <div className="flex shrink-0 flex-col items-center gap-2 border-b border-sidebar-border px-2 py-2">
-          <Link href="/workspace" onClick={onNavigate} aria-label="Beranda Sales Activity" className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-primary text-primary-foreground">
-            <MapPinned className="h-4 w-4" />
+          <Link href="/workspace" onClick={onNavigate} aria-label="Beranda Sales Activity" title="Sales Activity" className="grid h-8 w-8 shrink-0 place-items-center rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring">
+            <AppIcon app="sales-mission" />
           </Link>
           <AppSwitcher collapsed />
         </div>
@@ -558,8 +557,9 @@ export function WorkspaceShell({
 /**
  * Material's small top app bar, for the phone: the page's title in the
  * middle, "back" on a sub-page where the desktop shows a Kembali button,
- * the bell on the right. The product mark stands in for "back" at a top
- * destination. Everything else the sidebar carries is in the bottom bar.
+ * the bell on the right. The app's icon, the rail's mark, stands in for
+ * "back" at a top destination. Everything else the sidebar carries is in
+ * the bottom bar.
  */
 function MobileTopBar({ unreadCount }: { unreadCount: number }) {
   const { title, backHref, menu } = usePageChrome()
@@ -570,9 +570,7 @@ function MobileTopBar({ unreadCount }: { unreadCount: number }) {
           <ArrowLeft className="h-5 w-5" />
         </Link>
       ) : (
-        <span className="ml-2 grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-primary text-primary-foreground" aria-hidden="true">
-          <MapPinned className="h-4 w-4" />
-        </span>
+        <AppIcon app="sales-mission" className="ml-2" />
       )}
       <h1 className="min-w-0 flex-1 truncate px-2 text-[17px] font-semibold text-foreground">{title ?? "Sales Activity"}</h1>
       <Link

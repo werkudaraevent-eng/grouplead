@@ -191,7 +191,7 @@ export function ContactPicker({
       {/* Says which of the three states this field is in, because "is this
           person in the CRM" is exactly what the rep cannot otherwise tell. */}
       {value.id ? (
-        <p className="text-xs text-[var(--success-foreground)]">Tertaut ke kontak di LeadEngine.</p>
+        <p className="text-xs text-[var(--success-foreground)]">Tertaut ke kontak di Group Lead.</p>
       ) : !clientCompanyId ? (
         <p className="text-xs text-muted-foreground">
           Pilih perusahaan dari CRM lebih dulu untuk melihat kontak yang sudah terdaftar.

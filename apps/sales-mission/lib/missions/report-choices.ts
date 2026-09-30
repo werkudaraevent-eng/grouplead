@@ -61,7 +61,7 @@ export const KIND_HINTS: Record<ChoiceField, Record<string, string>> = {
     cancelled: "Kontak wajib bila ada yang ditemui. Tidak ada yang dikirim ke CRM.",
   },
   interest_level: {
-    hql: "Peluang boleh ditandai. Saat dikirim ke LeadEngine, kategori HQL disarankan.",
+    hql: "Peluang boleh ditandai. Saat dikirim ke Group Lead, kategori HQL disarankan.",
     hot: "Peluang boleh ditandai.",
     warm: "Peluang boleh ditandai.",
     cold: "Peluang boleh ditandai.",

@@ -34,8 +34,8 @@ export function CrmSyncStatus({
   const retry = () => {
     start(async () => {
       const result = await retryCrmSync(missionId)
-      if (result.success) toast.success("Perusahaan dan kontak terdaftar di LeadEngine.")
-      else toast.error(result.error ?? "Gagal mendaftarkan ke LeadEngine.")
+      if (result.success) toast.success("Perusahaan dan kontak terdaftar di Group Lead.")
+      else toast.error(result.error ?? "Gagal mendaftarkan ke Group Lead.")
       router.refresh()
     })
   }
@@ -43,7 +43,7 @@ export function CrmSyncStatus({
   if (!reachesCrm) {
     return (
       <p className="text-xs text-muted-foreground">
-        Tidak ada yang ditemui, jadi tidak ada yang didaftarkan ke LeadEngine.
+        Tidak ada yang ditemui, jadi tidak ada yang didaftarkan ke Group Lead.
       </p>
     )
   }
@@ -52,7 +52,7 @@ export function CrmSyncStatus({
     return (
       <p className="flex items-center gap-1.5 text-xs text-[var(--success-foreground)]">
         <Check className="h-3.5 w-3.5" />
-        Perusahaan dan kontak terdaftar di LeadEngine.
+        Perusahaan dan kontak terdaftar di Group Lead.
       </p>
     )
   }
@@ -61,7 +61,7 @@ export function CrmSyncStatus({
     <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
       <p className="flex items-center gap-1.5 text-xs text-[var(--danger-foreground)]">
         <AlertCircle className="h-3.5 w-3.5" />
-        Belum terdaftar di LeadEngine{error ? `: ${error}` : "."}
+        Belum terdaftar di Group Lead{error ? `: ${error}` : "."}
       </p>
       {canRetry && (
         <Button type="button" variant="outline" size="sm" onClick={retry} disabled={pending} className="h-9">

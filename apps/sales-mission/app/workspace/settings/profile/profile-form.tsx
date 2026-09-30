@@ -131,7 +131,7 @@ function PhotoCard({ userId, name, email, initialUrl }: { userId: string; name: 
         </Button>
       </div>
       <p className="border-t px-5 py-3 text-xs text-muted-foreground">
-        Foto tampil di Sales Activity dan LeadEngine. JPG, PNG, WebP, atau GIF, paling besar 5 MB.
+        Foto tampil di Sales Activity dan Group Lead. JPG, PNG, WebP, atau GIF, paling besar 5 MB.
       </p>
     </section>
   )
@@ -143,7 +143,7 @@ function AccountCard({ email, roleName }: { email: string; roleName: string | nu
     <section aria-labelledby="profile-account" className="overflow-clip rounded-xl border bg-card">
       <header className="border-b px-5 py-4">
         <h2 id="profile-account" className="text-base font-semibold text-foreground">Akun</h2>
-        <p className="mt-0.5 text-sm text-muted-foreground">Email untuk masuk dan peranmu diatur admin di LeadEngine.</p>
+        <p className="mt-0.5 text-sm text-muted-foreground">Email untuk masuk dan peranmu diatur admin di Group Lead.</p>
       </header>
       <dl className="divide-y">
         <div className="grid grid-cols-1 gap-1 px-5 py-3.5 sm:grid-cols-[10rem_1fr] sm:gap-4">

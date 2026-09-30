@@ -4,7 +4,7 @@ import { Wrench } from "@/components/icons"
 export const dynamic = "force-dynamic"
 
 const DEFAULT_MESSAGE =
-    "LeadEngine is undergoing maintenance. We'll be back shortly. Thank you for your patience."
+    "Group Lead is undergoing maintenance. We'll be back shortly. Thank you for your patience."
 
 export default async function MaintenancePage() {
     let message = DEFAULT_MESSAGE
@@ -35,7 +35,7 @@ export default async function MaintenancePage() {
                     {message}
                 </p>
                 <p className="mt-6 text-xs text-slate-400">
-                    Werkudara Group · LeadEngine
+                    Werkudara Group · Group Lead
                 </p>
             </div>
         </main>

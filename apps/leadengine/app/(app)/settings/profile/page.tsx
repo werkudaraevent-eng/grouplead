@@ -15,7 +15,8 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
-import { Loader2, Save, UserCircle, KeyRound, Shield, Mail, Camera, Settings2, Eye, EyeOff } from "@/components/icons"
+import { Loader2, Save, KeyRound, Shield, Mail, Camera, Settings2, Eye, EyeOff } from "@/components/icons"
+import { InitialsAvatar } from "@/components/shared/initials-avatar"
 import { SettingsPageHeader } from "@/components/layout/settings-page-header"
 import { pageIntroKey } from "@/lib/hints/hint-key"
 import { PhoneInput } from "@/components/shared/phone-input"
@@ -181,7 +182,7 @@ export default function MyProfilePage() {
         <div data-fluid-page className="min-h-[100dvh] bg-background">
             <SettingsPageHeader
                 title="Profile"
-                subtitle="Your name, photo and contact details, used in LeadEngine and Sales Activity, and your password."
+                subtitle="Your name, photo and contact details, used in Group Lead and Sales Activity, and your password."
                 intro={pageIntroKey("settings-profile")}
                 breadcrumbs={[{ label: "Profile" }]}
             />
@@ -199,9 +200,10 @@ export default function MyProfilePage() {
                                     className="w-20 h-20 rounded-full object-cover border-2 border-slate-200"
                                 />
                             ) : (
-                                <div className="w-20 h-20 rounded-full bg-slate-100 border-2 border-slate-200 flex items-center justify-center">
-                                    <UserCircle className="h-10 w-10 text-slate-300" />
-                                </div>
+                                // No photo: the person's initials on their tonal
+                                // container, as everywhere a person is shown;
+                                // never a silhouette, never the company's logo.
+                                <InitialsAvatar name={profileForm.watch("full_name") || email} size="hero" className="h-20 w-20 text-[28px]" />
                             )}
                             <label className="absolute inset-0 flex items-center justify-center rounded-full bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
                                 {uploadingAvatar ? (

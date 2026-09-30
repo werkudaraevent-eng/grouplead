@@ -1,4 +1,4 @@
-import { LayoutDashboard, MapPinned } from "@/components/icons"
+import { AppIcon, type WerkudaraApp } from "@/components/app-icon"
 import { cn } from "@/lib/utils"
 import ConcentricLoader from "@/components/ui/loader"
 
@@ -24,11 +24,12 @@ import ConcentricLoader from "@/components/ui/loader"
  * sentence carries the state.
  */
 
-export type WerkudaraApp = "leadengine" | "sales-mission"
+export type { WerkudaraApp }
 
-const APPS: Record<WerkudaraApp, { name: string; tagline: string; Icon: typeof LayoutDashboard }> = {
-  leadengine: { name: "LeadEngine", tagline: "CRM dan operasional pipeline", Icon: LayoutDashboard },
-  "sales-mission": { name: "Sales Activity", tagline: "Rencanakan aktivitas sales dan rekam hasilnya", Icon: MapPinned },
+/** The name each app has on screen; the CRM's code still says "leadengine". */
+const APPS: Record<WerkudaraApp, { name: string; tagline: string }> = {
+  leadengine: { name: "Group Lead", tagline: "CRM dan operasional pipeline" },
+  "sales-mission": { name: "Sales Activity", tagline: "Rencanakan aktivitas sales dan rekam hasilnya" },
 }
 
 /** The indeterminate indicator of the transit screen: the brand's two rings. */
@@ -37,7 +38,7 @@ export function TransitLoader({ className }: { className?: string }) {
 }
 
 export function AppTransit({ app, phase }: { app: WerkudaraApp; phase: "leaving" | "arriving" }) {
-  const { name, tagline, Icon } = APPS[app]
+  const { name, tagline } = APPS[app]
   const status = phase === "leaving" ? `Membuka ${name}…` : `Memuat ${name}…`
   return (
     <div
@@ -49,9 +50,8 @@ export function AppTransit({ app, phase }: { app: WerkudaraApp; phase: "leaving"
       )}
     >
       <div className="flex flex-col items-center gap-6 px-6 text-center">
-        <span className="grid h-14 w-14 place-items-center rounded-2xl bg-primary text-primary-foreground">
-          <Icon className="h-7 w-7" aria-hidden="true" />
-        </span>
+        {/* The family icon, as on the home screen and in the drawer. */}
+        <AppIcon app={app} className="h-14 w-14" strokeWidth={2} />
         <div className="space-y-1">
           <p className="text-lg font-semibold">{name}</p>
           <p className="text-sm text-muted-foreground">{tagline}</p>

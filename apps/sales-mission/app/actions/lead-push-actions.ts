@@ -182,7 +182,7 @@ export async function getPushPrecheck(missionId: string): Promise<PushPrecheck> 
     return {
       ...empty,
       reason: report
-        ? "Laporan harus dikirim dan menandai adanya peluang sebelum bisa dikirim ke LeadEngine."
+        ? "Laporan harus dikirim dan menandai adanya peluang sebelum bisa dikirim ke Group Lead."
         : "Isi dan kirim laporan kunjungan lebih dulu.",
     }
   }
@@ -205,9 +205,9 @@ export async function getPushPrecheck(missionId: string): Promise<PushPrecheck> 
       const options = await fetchMasterOptions(["category", "grade_lead"])
       categoryOptions = options.filter((option) => option.optionType === "category").map(({ label, value }) => ({ label, value }))
       gradeLeadOptions = options.filter((option) => option.optionType === "grade_lead").map(({ label, value }) => ({ label, value }))
-      if (categoryOptions.length === 0) optionsError = "LeadEngine belum punya kategori lead di Master Options."
+      if (categoryOptions.length === 0) optionsError = "Group Lead belum punya kategori lead di Master Options."
     } catch (error) {
-      optionsError = error instanceof LeadEngineError ? error.message : "Daftar kategori LeadEngine tidak terbaca."
+      optionsError = error instanceof LeadEngineError ? error.message : "Daftar kategori Group Lead tidak terbaca."
     }
     const choices = await listReportChoices(access)
     const suggestedCategory = suggestCategory(categoryOptions, kindOf(choices, "interest_level", report.interestLevel))
@@ -255,7 +255,7 @@ export async function getPushPrecheck(missionId: string): Promise<PushPrecheck> 
       interestLabel,
     }
   } catch (error) {
-    const message = error instanceof LeadEngineError ? error.message : "LeadEngine tidak dapat dihubungi."
+    const message = error instanceof LeadEngineError ? error.message : "Group Lead tidak dapat dihubungi."
     return { ...empty, eligible: false, integrationError: message }
   }
 }
@@ -350,7 +350,7 @@ export async function pushMissionToLeadEngine(
     return { success: false, error: describeOutOfScope(scope, "laporan") }
   }
   if (!report || !canPushLead(report)) {
-    return { success: false, error: "Laporan belum memenuhi syarat untuk dikirim ke LeadEngine." }
+    return { success: false, error: "Laporan belum memenuhi syarat untuk dikirim ke Group Lead." }
   }
 
   const supabase = await createClient()
@@ -366,7 +366,7 @@ export async function pushMissionToLeadEngine(
     .maybeSingle()
 
   if (existing) {
-    return { success: false, error: "Aktivitas ini sudah pernah dikirim ke LeadEngine." }
+    return { success: false, error: "Aktivitas ini sudah pernah dikirim ke Group Lead." }
   }
 
   let leadId: string
@@ -406,7 +406,7 @@ export async function pushMissionToLeadEngine(
   } catch (error) {
     return {
       success: false,
-      error: error instanceof LeadEngineError ? error.message : "Lead gagal dibuat di LeadEngine.",
+      error: error instanceof LeadEngineError ? error.message : "Lead gagal dibuat di Group Lead.",
     }
   }
 
@@ -528,7 +528,7 @@ export async function pushMissionToLeadEngine(
     // rather than reporting a failure that would invite a duplicate push.
     return {
       success: false,
-      error: `Lead ${leadId} sudah dibuat di LeadEngine, tetapi pencatatannya di Sales Activity gagal. Jangan kirim ulang — laporkan ke admin.`,
+      error: `Lead ${leadId} sudah dibuat di Group Lead, tetapi pencatatannya di Sales Activity gagal. Jangan kirim ulang — laporkan ke admin.`,
     }
   }
 

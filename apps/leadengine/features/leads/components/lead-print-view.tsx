@@ -711,7 +711,7 @@ export function LeadPrintView({ lead, notes, activities, currencySettings }: Pro
                     </div>
 
                     <footer className="print-footer">
-                        <span>Generated {new Date().toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })} · LeadEngine</span>
+                        <span>Generated {new Date().toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })} · Group Lead</span>
                         <span>Lead #{lead.id}</span>
                     </footer>
                 </article>

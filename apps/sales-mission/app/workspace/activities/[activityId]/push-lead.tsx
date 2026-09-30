@@ -114,12 +114,12 @@ export function PushLeadPanel({
     return (
       <div className="flex flex-wrap items-center gap-3 px-5 py-5">
         <p className="flex-1 text-sm text-muted-foreground">
-          Aktivitas ini sudah dikirim ke LeadEngine sebagai lead <span className="font-mono">{precheck.alreadyPushed.leadId}</span>.
+          Aktivitas ini sudah dikirim ke Group Lead sebagai lead <span className="font-mono">{precheck.alreadyPushed.leadId}</span>.
         </p>
         {leadEngineUrl && (
           <Button asChild size="sm" variant="outline">
             <a href={`${leadEngineUrl}/leads/${precheck.alreadyPushed.leadId}`} target="_blank" rel="noopener noreferrer">
-              <ExternalLink className="h-4 w-4" /> Buka lead di LeadEngine
+              <ExternalLink className="h-4 w-4" /> Buka lead di Group Lead
             </a>
           </Button>
         )}
@@ -178,7 +178,7 @@ export function PushLeadPanel({
 
       if (result.success) {
         setConfirming(false)
-        toast.success("Lead dibuat di LeadEngine")
+        toast.success("Lead dibuat di Group Lead")
         // Flip to the "sudah dikirim" state now rather than waiting for the
         // server render; the refresh then replaces this panel with the record.
         const leadId = result.data?.leadId
@@ -369,7 +369,7 @@ export function PushLeadPanel({
           ) : (
             <p className="flex items-start gap-1.5 text-sm text-[var(--danger-foreground)]">
               <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-              {precheck.optionsError ?? "Daftar kategori LeadEngine tidak terbaca. Muat ulang halaman, atau minta admin memeriksa Master Options."}
+              {precheck.optionsError ?? "Daftar kategori Group Lead tidak terbaca. Muat ulang halaman, atau minta admin memeriksa Master Options."}
             </p>
           )}
         </div>
@@ -383,7 +383,7 @@ export function PushLeadPanel({
             className={SELECT_CLASS}
             disabled={precheck.gradeLeadOptions.length === 0}
           >
-            <option value="">{precheck.gradeLeadOptions.length === 0 ? "Belum ada grade di LeadEngine" : "Belum ditentukan"}</option>
+            <option value="">{precheck.gradeLeadOptions.length === 0 ? "Belum ada grade di Group Lead" : "Belum ditentukan"}</option>
             {precheck.gradeLeadOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
           </select>
         </div>
@@ -477,7 +477,7 @@ export function PushLeadPanel({
           </p>
         )}
         <Button className="h-11" disabled={pending || missing.length > 0} onClick={() => setConfirming(true)}>
-          <Send className="h-4 w-4" /> Kirim ke LeadEngine
+          <Send className="h-4 w-4" /> Kirim ke Group Lead
         </Button>
       </div>
 
@@ -487,9 +487,9 @@ export function PushLeadPanel({
       <Dialog open={confirming} onOpenChange={(next) => { if (!pending) setConfirming(next) }}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>Buat lead ini di LeadEngine?</DialogTitle>
+            <DialogTitle>Buat lead ini di Group Lead?</DialogTitle>
             <DialogDescription>
-              Sekali dikirim, lead tidak bisa dikirim ulang dari aktivitas ini. Perubahan berikutnya dilakukan di LeadEngine.
+              Sekali dikirim, lead tidak bisa dikirim ulang dari aktivitas ini. Perubahan berikutnya dilakukan di Group Lead.
             </DialogDescription>
           </DialogHeader>
           <DialogBody>

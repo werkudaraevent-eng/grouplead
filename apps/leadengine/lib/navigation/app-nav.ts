@@ -69,12 +69,30 @@ export function isMoreActive(pathname: string, destinations: readonly Destinatio
     return !destinations.some((destination) => isActiveHref(pathname, destination.href))
 }
 
-export const PRODUCT_NAME = "LeadEngine"
+/**
+ * The product's name on screen: the tab title, the installed app, the
+ * drawer's header, the app switcher, the transit screen and every sentence
+ * that names the app. Two words, capital G and L. The code, the folders,
+ * the package and the environment variables keep "leadengine"; only what a
+ * person reads says this.
+ */
+export const PRODUCT_NAME = "Group Lead"
+
+/**
+ * The drawer header's second line, under the product's name: the scope the
+ * data is shown for. The holding's view is every unit at once; a single
+ * unit is named. No unit at all (a person the admin has not yet placed)
+ * says so rather than inventing one.
+ */
+export function unitScopeLabel(isHoldingView: boolean, unitName: string | null | undefined): string {
+    if (isHoldingView) return "Every business unit"
+    return unitName?.trim() || "No business unit"
+}
 
 /**
  * The top app bar's title before the page announces its own (the first
  * HTML, a page that announces none): the destination the address is in,
- * so the bar does not read "LeadEngine" and then change a moment later.
+ * so the bar does not read the product's name and then change a moment later.
  */
 export function fallbackTitle(pathname: string): string {
     const destination = DESTINATIONS.find((item) => isActiveHref(pathname, item.href))

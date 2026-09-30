@@ -80,7 +80,7 @@ export async function GET() {
     ["  Kosongkan untuk memakai pemegang yang dipilih saat import."],
     [""],
     ["PERUSAHAAN"],
-    ["  Kalau namanya persis sama dengan perusahaan di LeadEngine, prospek tertaut ke sana."],
+    ["  Kalau namanya persis sama dengan perusahaan di Group Lead, prospek tertaut ke sana."],
     ["  Import tidak pernah membuat perusahaan baru di CRM."],
     [""],
     ["SEBELUM IMPORT"],

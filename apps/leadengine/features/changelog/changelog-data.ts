@@ -25,7 +25,7 @@ export interface ChangelogItem {
 /**
  * A release worth a dialog. Written with the feature, like the entry; an
  * admin decides in Settings → Announcements whether it shows. The dialog
- * ("What's new in LeadEngine") appears once per person on the dashboard.
+ * ("What's new in Group Lead") appears once per person on the dashboard.
  */
 export interface Announcement {
     /**
@@ -76,11 +76,14 @@ export const CHANGE_TYPE_META: Record<
 export const CHANGELOG: ChangelogEntry[] = [
     {
         date: "2026-09-30",
-        title: "The business unit's name reads in full, and the app switcher stays in the sidebar",
+        title: "LeadEngine is now Group Lead, and the top of the sidebar shows the app and your unit",
         items: [
-            { type: "improvement", text: "The top of the sidebar shows the business unit you are working in, in full: “Werkudara Group” and “Every business unit” instead of “Werku… / Every bu…”. Click anywhere on it to choose another unit. The sidebar is a little wider to make the room." },
+            { type: "feature", text: "LeadEngine is now called Group Lead. Only the name changes: the address, your sign-in, your data and your settings stay as they were. The browser tab, the sign-in page, the app switcher and every message that named the app now say Group Lead, and so does the app when you add it to your phone's home screen." },
+            { type: "improvement", text: "The top of the sidebar shows the app and the business unit you are working in, the same way as in Sales Activity: the Group Lead icon (the blue square with the funnel), “Group Lead”, and under it “Every business unit” or the name of the unit you picked, read in full instead of “Werku… / Every bu…”. Click anywhere on it to choose another unit; each unit's logo shows next to its name in that list. The sidebar is a little wider to make the room." },
+            { type: "improvement", text: "The collapsed sidebar and the top bar on a phone show the Group Lead icon instead of a “W”." },
             { type: "improvement", text: "The app switcher (the four squares at the top right of the sidebar) now opens inside the sidebar, right under its top, so it no longer covers the page you are working on. With the sidebar collapsed, it opens beside it." },
             { type: "improvement", text: "Collapse sidebar has moved to the bottom of the sidebar, just above your name, as a small « button; hover it to see its name. You can also press [ on the keyboard to collapse or expand the sidebar, anywhere except while typing." },
+            { type: "improvement", text: "Someone without a profile photo shows as their initials everywhere, now also on your Profile page and in the Edit user window, which showed a grey silhouette. A company's logo is never used in place of a person; a unit's logo shows only where you choose a unit." },
         ],
     },
     {

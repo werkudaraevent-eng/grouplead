@@ -147,7 +147,7 @@ export function WithdrawReportButton({
             <DialogTitle>Tarik kembali laporan ini?</DialogTitle>
             <DialogDescription>
               Laporan kembali menjadi draf dengan isi yang sama, dan aktivitas tidak lagi Selesai. Versi yang terkirim tersimpan di riwayat bersama alasannya, dan tim diberi tahu.
-              {leadPushed && " Lead yang sudah dikirim ke LeadEngine tetap ada di sana; urus di CRM bila perlu."}
+              {leadPushed && " Lead yang sudah dikirim ke Group Lead tetap ada di sana; urus di CRM bila perlu."}
               {" "}Kalau laporannya memang tidak diinginkan, buang drafnya setelah ini.
             </DialogDescription>
           </DialogHeader>

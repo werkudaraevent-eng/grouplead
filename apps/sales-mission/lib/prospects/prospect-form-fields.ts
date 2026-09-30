@@ -30,7 +30,7 @@ export const PROSPECT_SECTIONS: Record<string, string> = {
 
 /** One line under each section title saying what the section decides. */
 export const PROSPECT_SECTION_HINTS: Record<string, string> = {
-  Perusahaan: "Siapa yang akan dihubungi. Kalau sudah ada di LeadEngine, pilih dari daftar supaya tertaut.",
+  Perusahaan: "Siapa yang akan dihubungi. Kalau sudah ada di Group Lead, pilih dari daftar supaya tertaut.",
   Kontak: "Orang yang dihubungi. Nomor telepon disimpan dalam satu format supaya duplikat terdeteksi.",
   "Catatan dan pemegang": "Dari mana prospek ini datang, dan siapa yang menghubunginya.",
   Tambahan: "Field yang ditambahkan admin.",

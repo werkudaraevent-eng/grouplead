@@ -7,6 +7,8 @@ import {
     isMoreActive,
     permittedDestinations,
     roleLabel,
+    unitScopeLabel,
+    PRODUCT_NAME,
     type Can,
 } from "./app-nav"
 
@@ -93,7 +95,30 @@ describe("fallbackTitle", () => {
     })
 
     it("falls back to the product's name", () => {
-        expect(fallbackTitle("/somewhere")).toBe("LeadEngine")
+        expect(fallbackTitle("/somewhere")).toBe("Group Lead")
+    })
+})
+
+describe("PRODUCT_NAME", () => {
+    it("is the name on screen, two words, capital G and L", () => {
+        expect(PRODUCT_NAME).toBe("Group Lead")
+    })
+})
+
+describe("unitScopeLabel", () => {
+    it("says every unit in the holding's view, whatever its name", () => {
+        expect(unitScopeLabel(true, "Werkudara Group")).toBe("Every business unit")
+        expect(unitScopeLabel(true, null)).toBe("Every business unit")
+    })
+
+    it("names a single unit", () => {
+        expect(unitScopeLabel(false, "WG Events")).toBe("WG Events")
+        expect(unitScopeLabel(false, "  WG Events  ")).toBe("WG Events")
+    })
+
+    it("says there is no unit rather than inventing one", () => {
+        expect(unitScopeLabel(false, null)).toBe("No business unit")
+        expect(unitScopeLabel(false, "   ")).toBe("No business unit")
     })
 })
 

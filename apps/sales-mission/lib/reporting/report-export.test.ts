@@ -214,9 +214,9 @@ describe("buildReportExport cells", () => {
         followUp: { status: "OPEN", dueDate: "2026-09-18" },
       }),
     ], coreFields(), { ...OPTIONS, today: "2026-09-22" })
-    expect(cell(laporan, "Dikirim ke LeadEngine")).toBe("Ya")
+    expect(cell(laporan, "Dikirim ke Group Lead")).toBe("Ya")
     expect(cell(laporan, "Kategori lead")).toBe("HQL")
-    expect(cell(laporan, "ID lead LeadEngine")).toBe("lead-9")
+    expect(cell(laporan, "ID lead Group Lead")).toBe("lead-9")
     expect(cell(laporan, "Tindak lanjut")).toBe("Lewat")
     expect(cell(laporan, "Tanggal dikirim")).toBe("2026-09-15")
     expect(cell(laporan, "Jam dikirim")).toBe("17:05")

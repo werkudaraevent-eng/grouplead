@@ -11,10 +11,10 @@ import { MISSION_TIME_ZONE } from "@/lib/missions/mission-schema"
 const FEATURE_LABELS: Record<string, string> = {
   "sales_mission:insight": "Insight hari ini · Sales Activity",
   "sales_mission:tanya_ai": "Tanya AI · Sales Activity",
-  "leadengine:ask_ai": "Ask AI · LeadEngine",
-  "leadengine:analyze": "Analyze · LeadEngine",
+  "leadengine:ask_ai": "Ask AI · Group Lead",
+  "leadengine:analyze": "Analyze · Group Lead",
   "sales_mission:uji_model": "Uji model · Sales Activity",
-  "leadengine:uji_model": "Uji model · LeadEngine",
+  "leadengine:uji_model": "Uji model · Group Lead",
 }
 
 const number = new Intl.NumberFormat("id-ID")

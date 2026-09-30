@@ -110,7 +110,7 @@ export function AiSettingsForm({ initial }: { initial: AiSettings }) {
       </section>
 
       <p className="text-xs leading-relaxed text-muted-foreground">
-        Sales Activity memakai koneksi ini untuk Insight hari ini dan Tanya AI (saklarnya di Aturan aktivitas); LeadEngine untuk Ask AI dan Analyze di dashboard. Simpan menguji koneksi dan kedua model sekali lagi.
+        Sales Activity memakai koneksi ini untuk Insight hari ini dan Tanya AI (saklarnya di Aturan aktivitas); Group Lead untuk Ask AI dan Analyze di dashboard. Simpan menguji koneksi dan kedua model sekali lagi.
       </p>
 
       <div className="flex justify-end">
