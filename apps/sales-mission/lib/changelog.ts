@@ -45,6 +45,17 @@ export const CHANGE_KIND_LABELS: Record<ChangeKind, string> = {
 
 export const CHANGELOG: ChangeEntry[] = [
   {
+    date: "2026-10-08",
+    title: "Foto dan rekaman di ekspor laporan kini bisa diklik, dan tautannya tidak kedaluwarsa",
+    items: [
+      { kind: "lebih-baik", text: "Di ekspor Excel dari halaman Laporan, tiap foto dan rekaman kini punya kolomnya sendiri: Foto bukti kunjungan 1, Foto bukti kunjungan 2, Foto kartu nama 1, Rekaman pertemuan 1, dan seterusnya. Isinya nama berkas yang bisa langsung diklik. Dulu semua berkas ditumpuk dalam satu sel bersama alamat panjang yang tidak bisa diklik." },
+      { kind: "lebih-baik", text: "Tautan foto dan rekaman tidak lagi kedaluwarsa setelah 7 hari, jadi berkas ekspor lama tetap bisa dipakai. Berkasnya dibuka lewat Sales Activity dan selalu minta login, jadi orang di luar unit yang menerima berkas ekspornya tidak bisa membuka foto dan rekamannya. Foto terbuka di browser; rekaman terunduh dengan namanya sendiri." },
+      { kind: "lebih-baik", text: "Kolom Tautan laporan kini juga bisa diklik langsung dari Excel." },
+      { kind: "baru", text: "Membuka tautan Sales Activity saat belum login, misalnya dari berkas ekspor atau bookmark, kini membawamu kembali ke berkas atau halaman itu setelah masuk, bukan ke Hari ini. Begitu juga kalau kamu harus keluar dulu lalu masuk dengan akun Sales Activity yang lain." },
+      { kind: "lebih-baik", text: "Untuk admin: ekspor CSV memakai kolom bernomor yang sama, dan tiap sel berkas berisi nama berkas · tautannya. Kalau ada rumus atau skrip yang membaca kolom Foto bukti kunjungan, Foto kartu nama, atau Rekaman pertemuan yang lama, sesuaikan dengan kolom barunya." },
+    ],
+  },
+  {
     date: "2026-09-30",
     title: "LeadEngine kini bernama Group Lead, dan pengalih aplikasi tidak lagi menutupi halaman",
     items: [

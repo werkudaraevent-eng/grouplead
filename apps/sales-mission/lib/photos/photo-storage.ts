@@ -10,14 +10,14 @@ import { PHOTO_BUCKET, isCompanyPhoto, parsePhotoAnswer } from "./photo-answer"
  */
 
 /**
- * Signed read URLs, keyed by path. Paths outside the company are skipped.
+ * Signed read URLs, keyed by path. Paths outside the company are skipped, and
+ * so is a path whose file is gone: the map simply has no entry for it.
  *
- * An hour by default, which is a screen's lifetime. A caller that writes the
- * link into a file somebody keeps — the visit-report export — asks for longer,
- * because a link that has already expired when the file is opened is worse
- * than no link. Batched: `createSignedUrls` takes an array, and an export of a
- * quarter carries thousands of files, so the paths go 100 at a time rather
- * than one request per photo.
+ * An hour by default, which is a screen's lifetime. The file link of an
+ * exported workbook (`/workspace/lampiran`) asks for minutes, since it signs
+ * one photo the moment it is clicked and redirects to it at once. Batched:
+ * `createSignedUrls` takes an array, so a gallery's paths go 100 at a time
+ * rather than one request per photo.
  */
 export async function signPhotoUrls(
   access: SalesMissionAccess,

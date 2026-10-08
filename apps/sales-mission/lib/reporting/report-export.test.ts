@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest"
+import { audioDownloadName } from "@/lib/audio/audio-answer"
 import { CORE_REPORT_FIELDS, type FieldType, type FormField } from "@/lib/missions/form-fields"
 import { defaultChoiceSet } from "@/lib/missions/report-choices"
 import {
+  attachmentColumnCount,
+  attachmentHeaders,
   buildReportExport,
-  collectAttachmentPaths,
+  csvRows,
   wibDay,
   wibTime,
   type ExportContact,
@@ -15,6 +18,8 @@ const CHOICES = defaultChoiceSet()
 
 const COMPANY = "11111111-1111-4111-8111-111111111111"
 const PHOTO_PATH = `${COMPANY}/report/22222222-2222-4222-8222-222222222222.jpg`
+const PHOTO_PATH_2 = `${COMPANY}/report/22222222-2222-4222-8222-222222222223.jpg`
+const PHOTO_PATH_3 = `${COMPANY}/report/22222222-2222-4222-8222-222222222224.png`
 const AUDIO_PATH = `${COMPANY}/report/33333333-3333-4333-8333-333333333333.m4a`
 
 function field(overrides: Partial<FormField> & { reportingKey: string; label: string }): FormField {
@@ -103,7 +108,7 @@ function row(overrides: Partial<ReportExportRow> = {}): ReportExportRow {
   }
 }
 
-const OPTIONS: ReportExportOptions = { origin: "https://mission.example", signedUrls: new Map<string, string>() }
+const OPTIONS: ReportExportOptions = { origin: "https://mission.example" }
 
 function build(rows: ReportExportRow[], fields: FormField[] = coreFields(), options: ReportExportOptions = OPTIONS) {
   return buildReportExport(rows, fields, CHOICES, options)
@@ -113,6 +118,13 @@ function cell(sheet: string[][], header: string, rowIndex = 1): string {
   const index = sheet[0].indexOf(header)
   expect(index, `column "${header}" is missing`).toBeGreaterThanOrEqual(0)
   return sheet[index === -1 ? 0 : rowIndex][index]
+}
+
+/** The link on a Laporan cell, found by its header. */
+function linkOf(sheets: ReturnType<typeof build>, header: string, rowIndex = 1) {
+  const index = sheets.laporan[0].indexOf(header)
+  expect(index, `column "${header}" is missing`).toBeGreaterThanOrEqual(0)
+  return sheets.laporanLinks[rowIndex][index]
 }
 
 describe("wib formatting", () => {
@@ -221,6 +233,22 @@ describe("buildReportExport cells", () => {
     expect(cell(laporan, "Tanggal dikirim")).toBe("2026-09-15")
     expect(cell(laporan, "Jam dikirim")).toBe("17:05")
     expect(cell(laporan, "Tautan laporan")).toBe("https://mission.example/workspace/activities/mission-1?fokus=laporan")
+  })
+
+  it("makes Tautan laporan a real link to the address it shows", () => {
+    const sheets = build([row()])
+    const link = linkOf(sheets, "Tautan laporan")
+    expect(link?.target).toBe(cell(sheets.laporan, "Tautan laporan"))
+    expect(link?.tooltip).toMatch(/perlu masuk/)
+  })
+
+  it("keeps the links the same shape as the text, with plain cells and the header unlinked", () => {
+    const sheets = build([row({ reportId: "a" }), row({ reportId: "b" })])
+    expect(sheets.laporanLinks).toHaveLength(sheets.laporan.length)
+    sheets.laporanLinks.forEach((links, index) => expect(links).toHaveLength(sheets.laporan[index].length))
+    expect(sheets.laporanLinks[0].every((link) => link === null)).toBe(true)
+    expect(linkOf(sheets, "Perusahaan")).toBeNull()
+    expect(linkOf(sheets, "ID laporan")).toBeNull()
   })
 
   it("leaves the follow-up cell empty when the report has none", () => {
@@ -390,40 +418,163 @@ describe("supporting notes", () => {
 })
 
 describe("attachments", () => {
-  const photos = [{ path: PHOTO_PATH, name: "depan-kantor.jpg", size: 1000 }]
+  const photos = [
+    { path: PHOTO_PATH, name: "WhatsApp Image 2026-10-01 at 15.34.44.jpeg", size: 1000 },
+    { path: PHOTO_PATH_2, name: "depan-kantor.jpg", size: 1000 },
+    { path: PHOTO_PATH_3, name: "papan nama.png", size: 1000 },
+  ]
   const audio = [{ path: AUDIO_PATH, name: "rapat.m4a", size: 2000 }]
+  const photoLink = (path: string) => `https://mission.example/workspace/lampiran?jenis=foto&berkas=${path}`
 
-  it("writes the file name and its signed link, one file per line", () => {
-    const signedUrls = new Map([
-      [PHOTO_PATH, "https://storage.example/photo?token=a"],
-      [AUDIO_PATH, "https://storage.example/audio?token=b"],
-    ])
-    const { laporan } = build([row({ custom: { visit_photos: photos, visit_audio: audio } })], coreFields(), {
-      ...OPTIONS,
-      signedUrls,
-    })
+  it("gives each file its own numbered column, named, and linked through the app", () => {
+    const sheets = build([row({ custom: { visit_photos: photos, visit_audio: audio } })])
+    const { laporan } = sheets
 
-    expect(cell(laporan, "Foto bukti kunjungan")).toBe("depan-kantor.jpg · https://storage.example/photo?token=a")
-    expect(cell(laporan, "Rekaman pertemuan")).toBe("rapat.m4a · https://storage.example/audio?token=b")
+    expect(cell(laporan, "Foto bukti kunjungan 1")).toBe("WhatsApp Image 2026-10-01 at 15.34.44.jpeg")
+    expect(cell(laporan, "Foto bukti kunjungan 2")).toBe("depan-kantor.jpg")
+    expect(cell(laporan, "Foto bukti kunjungan 3")).toBe("papan nama.png")
+    expect(cell(laporan, "Rekaman pertemuan 1")).toBe("rapat.m4a")
+    expect(laporan[0]).not.toContain("Foto bukti kunjungan")
+    expect(laporan[0]).not.toContain("Foto bukti kunjungan 4")
+
+    expect(linkOf(sheets, "Foto bukti kunjungan 1")?.target).toBe(photoLink(PHOTO_PATH))
+    expect(linkOf(sheets, "Foto bukti kunjungan 3")?.target).toBe(photoLink(PHOTO_PATH_3))
+    expect(linkOf(sheets, "Rekaman pertemuan 1")?.target).toBe(
+      `https://mission.example/workspace/lampiran?jenis=rekaman&berkas=${AUDIO_PATH}`
+    )
+    expect(linkOf(sheets, "Foto bukti kunjungan 1")?.tooltip).toBe("Buka foto (perlu masuk ke Sales Activity)")
+    expect(linkOf(sheets, "Rekaman pertemuan 1")?.tooltip).toBe("Unduh rekaman (perlu masuk ke Sales Activity)")
   })
 
-  it("writes the file name alone when the link could not be signed", () => {
+  it("writes the app's own address, never a storage link that expires or opens without a login", () => {
+    const sheets = build([row({ custom: { visit_photos: photos, visit_audio: audio } })])
+    const targets = sheets.laporanLinks.flat().filter((link) => link !== null).map((link) => link.target)
+    expect(targets.length).toBeGreaterThan(0)
+    for (const target of targets) {
+      expect(target.startsWith("https://mission.example/workspace/")).toBe(true)
+      expect(target).not.toMatch(/supabase|token=/)
+    }
+  })
+
+  it("keeps the files in the order they were attached, one per column, with the header in the field's place", () => {
     const { laporan } = build([row({ custom: { visit_photos: photos } })])
-    expect(cell(laporan, "Foto bukti kunjungan")).toBe("depan-kantor.jpg")
+    const headers = laporan[0]
+    const first = headers.indexOf("Foto bukti kunjungan 1")
+    expect(headers.slice(first, first + 3)).toEqual(attachmentHeaders("Foto bukti kunjungan", 3))
+    expect(headers.indexOf("Foto kartu nama 1")).toBeGreaterThan(first + 2)
+  })
+
+  it("counts the columns from the report with the most files and leaves a shorter row empty and unlinked", () => {
+    const sheets = build([
+      row({ reportId: "a", custom: { visit_photos: photos.slice(0, 1) } }),
+      row({ reportId: "b", custom: { visit_photos: photos } }),
+    ])
+    expect(sheets.laporan[0].filter((name) => name.startsWith("Foto bukti kunjungan "))).toHaveLength(3)
+    expect(cell(sheets.laporan, "Foto bukti kunjungan 1", 1)).toBe("WhatsApp Image 2026-10-01 at 15.34.44.jpeg")
+    expect(cell(sheets.laporan, "Foto bukti kunjungan 3", 1)).toBe("")
+    expect(linkOf(sheets, "Foto bukti kunjungan 3", 1)).toBeNull()
+    expect(cell(sheets.laporan, "Foto bukti kunjungan 3", 2)).toBe("papan nama.png")
+    expect(sheets.laporan[1]).toHaveLength(sheets.laporan[0].length)
+    expect(sheets.laporan[2]).toHaveLength(sheets.laporan[0].length)
+  })
+
+  it("keeps one column for a field nobody attached anything to, so the header always exists", () => {
+    const sheets = build([row()])
+    expect(sheets.laporan[0].filter((name) => name.startsWith("Foto kartu nama "))).toEqual(["Foto kartu nama 1"])
+    expect(cell(sheets.laporan, "Foto kartu nama 1")).toBe("")
+    expect(linkOf(sheets, "Foto kartu nama 1")).toBeNull()
+    expect(cell(sheets.laporan, "Rekaman pertemuan 1")).toBe("")
   })
 
   it("reads a stored answer that arrives as JSON text", () => {
-    const { laporan } = build([row({ custom: { visit_photos: JSON.stringify(photos) } })])
-    expect(cell(laporan, "Foto bukti kunjungan")).toBe("depan-kantor.jpg")
+    const sheets = build([row({ custom: { visit_photos: JSON.stringify(photos.slice(1, 2)) } })])
+    expect(cell(sheets.laporan, "Foto bukti kunjungan 1")).toBe("depan-kantor.jpg")
+    expect(linkOf(sheets, "Foto bukti kunjungan 1")?.target).toBe(photoLink(PHOTO_PATH_2))
   })
 
-  it("collects every path of the whole export once, split by bucket", () => {
-    const fields = coreFields()
-    const rows = [
-      row({ reportId: "a", custom: { visit_photos: photos, visit_audio: audio } }),
-      row({ reportId: "b", custom: { business_card_photos: photos } }),
+  it("names a file by its stored file when the phone gave it no name, so a link is never blank", () => {
+    const { laporan } = build([row({ custom: { visit_photos: [{ path: PHOTO_PATH, name: "  ", size: 10 }] } })])
+    expect(cell(laporan, "Foto bukti kunjungan 1")).toBe("22222222-2222-4222-8222-222222222222.jpg")
+  })
+
+  it("names an unnamed recording as it downloads, so the cell and the file agree", () => {
+    const { laporan } = build([row({ custom: { visit_audio: [{ path: AUDIO_PATH, name: "   ", size: 10 }] } })])
+    expect(cell(laporan, "Rekaman pertemuan 1")).toBe(audioDownloadName({ path: AUDIO_PATH, name: "" }))
+    expect(cell(laporan, "Rekaman pertemuan 1")).toMatch(/^rekaman\./)
+  })
+
+  it("spreads a custom photo field the admin added the same way, in the place they gave it", () => {
+    const fields = [
+      field({ reportingKey: "meeting_summary", label: "Ringkasan pertemuan", fieldType: "LONG_TEXT", isCore: true, displayOrder: 10 }),
+      field({ reportingKey: "foto_produk", label: "Foto produk", fieldType: "PHOTO", displayOrder: 20 }),
+      field({ reportingKey: "catatan_lapangan", label: "Catatan lapangan", fieldType: "TEXT", displayOrder: 30 }),
     ]
-    expect(collectAttachmentPaths(rows, fields)).toEqual({ photoPaths: [PHOTO_PATH], audioPaths: [AUDIO_PATH] })
+    const sheets = build([row({ custom: { foto_produk: photos.slice(0, 2) } })], fields)
+    const formColumns = sheets.laporan[0].slice(
+      sheets.laporan[0].indexOf("Status laporan") + 1,
+      sheets.laporan[0].indexOf("Catatan klarifikasi")
+    )
+    expect(formColumns).toEqual(["Ringkasan pertemuan", "Foto produk 1", "Foto produk 2", "Catatan lapangan"])
+    expect(linkOf(sheets, "Foto produk 2")?.target).toBe(photoLink(PHOTO_PATH_2))
+  })
+
+  it("never types a file column as a number, even when a number field carries the same label", () => {
+    const fields = [
+      field({ reportingKey: "visit_photos", label: "Foto", fieldType: "PHOTO", isCore: true, displayOrder: 10 }),
+      field({ reportingKey: "jumlah", label: "Foto 1", fieldType: "NUMBER", displayOrder: 20 }),
+    ]
+    const { numericColumns } = build([row({ custom: { visit_photos: photos } })], fields)
+    expect(numericColumns.has("Foto 1")).toBe(false)
+  })
+
+  it("counts columns per field: the most files any report has, never fewer than one", () => {
+    const photoField = field({ reportingKey: "visit_photos", label: "Foto bukti kunjungan", fieldType: "PHOTO" })
+    expect(attachmentColumnCount([], photoField)).toBe(1)
+    expect(attachmentColumnCount([row()], photoField)).toBe(1)
+    expect(
+      attachmentColumnCount(
+        [
+          row({ custom: { visit_photos: photos.slice(0, 2) } }),
+          row({ custom: { visit_photos: photos } }),
+          row({ custom: { visit_photos: "not json" } }),
+        ],
+        photoField
+      )
+    ).toBe(3)
+    // A malformed entry is not a file and does not earn a column.
+    expect(attachmentColumnCount([row({ custom: { visit_photos: [{ path: "../etc/passwd", name: "x", size: 1 }] } })], photoField)).toBe(1)
+    expect(attachmentHeaders("Rekaman pertemuan", 2)).toEqual(["Rekaman pertemuan 1", "Rekaman pertemuan 2"])
+  })
+})
+
+describe("csv", () => {
+  it("writes each file as its name and its permanent link, in the same numbered columns", () => {
+    const sheets = build([
+      row({
+        custom: {
+          visit_photos: [
+            { path: PHOTO_PATH, name: "depan-kantor.jpg", size: 1000 },
+            { path: PHOTO_PATH_2, name: "lobi.jpg", size: 1000 },
+          ],
+        },
+      }),
+    ])
+    const csv = csvRows(sheets.laporan, sheets.laporanLinks)
+    expect(csv[0]).toEqual(sheets.laporan[0])
+    expect(cell(csv, "Foto bukti kunjungan 1")).toBe(
+      `depan-kantor.jpg · https://mission.example/workspace/lampiran?jenis=foto&berkas=${PHOTO_PATH}`
+    )
+    expect(cell(csv, "Foto bukti kunjungan 2")).toBe(
+      `lobi.jpg · https://mission.example/workspace/lampiran?jenis=foto&berkas=${PHOTO_PATH_2}`
+    )
+  })
+
+  it("leaves a cell that already is its own link, and every plain cell, exactly as it is", () => {
+    const sheets = build([row()])
+    const csv = csvRows(sheets.laporan, sheets.laporanLinks)
+    expect(cell(csv, "Tautan laporan")).toBe("https://mission.example/workspace/activities/mission-1?fokus=laporan")
+    expect(cell(csv, "Perusahaan")).toBe("PT Arunika Kreasi")
+    expect(cell(csv, "Foto bukti kunjungan 1")).toBe("")
   })
 })
 

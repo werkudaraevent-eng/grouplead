@@ -65,6 +65,8 @@ const PAGE_LABELS: Record<string, string> = {
   "/workspace/panduan": "Panduan",
   "/workspace/pasang": "Pasang di ponsel",
   "/workspace/yang-baru": "Yang baru",
+  // Where a file link from an exported workbook lands when the file is gone.
+  "/workspace/lampiran/tidak-tersedia": "Berkas tidak tersedia",
   "/workspace/settings": "Pengaturan",
   // Perangkat aktif's address until it moved into Pengaturan › Akun; rows
   // recorded before then keep their path.

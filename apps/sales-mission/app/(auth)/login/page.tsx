@@ -3,12 +3,19 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { CalendarCheck, ClipboardList, Eye, EyeOff, Info, Loader2, MapPinned, Users } from "@/components/icons"
+import { CalendarCheck, CheckCircle2, ClipboardList, Eye, EyeOff, Info, Loader2, MapPinned, Users } from "@/components/icons"
 import { createClient } from "@/utils/supabase/client"
 import { SIGNED_OUT_MESSAGE, SIGNED_OUT_REASON } from "@/lib/devices/signed-out"
+import { NEXT_PARAM, safeNextPath } from "@/lib/auth/next-path"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+
+/**
+ * How long the page waits after sending the person on to `next` before it
+ * concludes the place was a download. A page unloads this one well before.
+ */
+const DOWNLOAD_HANDOFF_MS = 2500
 
 export default function LoginPage() {
   const [email, setEmail] = useState("")
@@ -22,6 +29,8 @@ export default function LoginPage() {
   // A rejected user arrives here still holding a valid shared session, so the
   // form alone would be a dead end. Offer a way out of that session.
   const [signedInButRejected, setSignedInButRejected] = useState(false)
+  // Signed in and sent on to `next`, but still here: the place was a download.
+  const [handedOff, setHandedOff] = useState(false)
   const router = useRouter()
   const supabase = createClient()
 
@@ -60,6 +69,27 @@ export default function LoginPage() {
 
     // Several sessions may be open at once, here and in LeadEngine; this one
     // joins them, and the workspace records the device on load (Perangkat aktif).
+    //
+    // Back to where the person was going when the proxy sent them here with
+    // `?next=` (a file link from an exported workbook, a bookmark). A full
+    // navigation rather than the router's: the place may be a file route
+    // that answers with a redirect to storage, not a page the router can draw.
+    // Replacing this entry, so Back from the photo does not land on /login,
+    // which would bounce a signed-in person straight to the file again.
+    //
+    // A recording or an export answers with a download, and a download leaves
+    // this page where it is, so the form would sit on "Memproses…" for good.
+    // When the page is still here a moment later it says the person is in and
+    // where the file went; a page destination unloads it before the timer.
+    const next = safeNextPath(new URLSearchParams(window.location.search).get(NEXT_PARAM))
+    if (next) {
+      window.location.replace(next)
+      window.setTimeout(() => {
+        setLoading(false)
+        setHandedOff(true)
+      }, DOWNLOAD_HANDOFF_MS)
+      return
+    }
     router.push("/workspace")
     router.refresh()
   }
@@ -141,77 +171,89 @@ export default function LoginPage() {
             <p className="text-sm text-muted-foreground">Masuk dengan akun Werkudara Anda.</p>
           </div>
 
-          <form onSubmit={handleLogin} className="space-y-5">
-            {notice && !error && (
-              <div className="flex items-start gap-2 rounded-lg border bg-muted px-4 py-3 text-sm text-foreground" role="status">
-                <Info className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-                <p>{notice}</p>
+          {handedOff ? (
+            <div className="space-y-5" role="status">
+              <div className="flex items-start gap-2 rounded-lg border bg-muted px-4 py-3 text-sm text-foreground">
+                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                <p>Kamu sudah masuk. Kalau berkasnya terunduh, cek folder Unduhan di perangkatmu.</p>
               </div>
-            )}
-            {error && (
-              <div className="rounded-lg border border-[var(--danger-foreground)]/20 bg-[var(--danger)] px-4 py-3 text-sm text-[var(--danger-foreground)]" role="alert">
-                <p>{error}</p>
-                {signedInButRejected && (
-                  <button className="mt-2 font-semibold underline" type="button" onClick={handleSignOut}>
-                    Keluar dan masuk dengan akun lain
-                  </button>
-                )}
-              </div>
-            )}
-
-            <div className="space-y-1.5">
-              <Label htmlFor="email">Alamat email</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="nama@werkudara.com"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                required
-                autoComplete="email"
-                className="h-12 bg-field transition-colors focus:bg-card"
-              />
+              <Button asChild className="h-12 w-full font-medium">
+                <Link href="/workspace">Buka Sales Activity</Link>
+              </Button>
             </div>
+          ) : (
+            <form onSubmit={handleLogin} className="space-y-5">
+              {notice && !error && (
+                <div className="flex items-start gap-2 rounded-lg border bg-muted px-4 py-3 text-sm text-foreground" role="status">
+                  <Info className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                  <p>{notice}</p>
+                </div>
+              )}
+              {error && (
+                <div className="rounded-lg border border-[var(--danger-foreground)]/20 bg-[var(--danger)] px-4 py-3 text-sm text-[var(--danger-foreground)]" role="alert">
+                  <p>{error}</p>
+                  {signedInButRejected && (
+                    <button className="mt-2 font-semibold underline" type="button" onClick={handleSignOut}>
+                      Keluar dan masuk dengan akun lain
+                    </button>
+                  )}
+                </div>
+              )}
 
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="password">Kata sandi</Label>
-                <Link href="/forgot-password" className="inline-flex min-h-8 items-center text-sm font-medium text-primary transition-colors hover:text-primary/80">
-                  Lupa kata sandi?
-                </Link>
-              </div>
-              <div className="relative">
+              <div className="space-y-1.5">
+                <Label htmlFor="email">Alamat email</Label>
                 <Input
-                  id="password"
-                  type={showPassword ? "text" : "password"}
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(event) => setPassword(event.target.value)}
+                  id="email"
+                  type="email"
+                  placeholder="nama@werkudara.com"
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
                   required
-                  autoComplete="current-password"
-                  className="h-12 bg-field pr-12 transition-colors focus:bg-card"
+                  autoComplete="email"
+                  className="h-12 bg-field transition-colors focus:bg-card"
                 />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword((value) => !value)}
-                  aria-label={showPassword ? "Sembunyikan kata sandi" : "Tampilkan kata sandi"}
-                  aria-pressed={showPassword}
-                  className="absolute right-1 top-1/2 inline-flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                >
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
               </div>
-            </div>
 
-            <Button
-              type="submit"
-              disabled={loading}
-              className="h-12 w-full font-medium"
-            >
-              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-              {loading ? "Memproses…" : "Masuk"}
-            </Button>
-          </form>
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="password">Kata sandi</Label>
+                  <Link href="/forgot-password" className="inline-flex min-h-8 items-center text-sm font-medium text-primary transition-colors hover:text-primary/80">
+                    Lupa kata sandi?
+                  </Link>
+                </div>
+                <div className="relative">
+                  <Input
+                    id="password"
+                    type={showPassword ? "text" : "password"}
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
+                    required
+                    autoComplete="current-password"
+                    className="h-12 bg-field pr-12 transition-colors focus:bg-card"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((value) => !value)}
+                    aria-label={showPassword ? "Sembunyikan kata sandi" : "Tampilkan kata sandi"}
+                    aria-pressed={showPassword}
+                    className="absolute right-1 top-1/2 inline-flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+              </div>
+
+              <Button
+                type="submit"
+                disabled={loading}
+                className="h-12 w-full font-medium"
+              >
+                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                {loading ? "Memproses…" : "Masuk"}
+              </Button>
+            </form>
+          )}
 
           <div className="border-t border-border/40 pt-4">
             <p className="text-center text-xs text-muted-foreground">

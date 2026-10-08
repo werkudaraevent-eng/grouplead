@@ -110,6 +110,49 @@ export function isCompanyAudio(path: string, companyId: string): boolean {
   return AUDIO_PATH_PATTERN.test(path) && path.startsWith(`${companyId}/`)
 }
 
+/**
+ * What becomes a space in a download name:
+ * - the characters no file system accepts (`\ / : * ? " < > |`) and control characters;
+ * - the ones storage-js leaves raw when it appends the name to the signed URL
+ *   (`encodeURI` keeps `# & = + ;`), which the storage server then reads as
+ *   the URL's own punctuation: "Rapat & Co.m4a" arrived as "Rapat ", and
+ *   "x.exe#.m4a" as "x.exe", without the extension forced below;
+ * - the bidirectional controls that make a name display in another order.
+ */
+const UNSAFE_NAME_CHARACTERS = /[\\/:*?"<>|#&=+;\u0000-\u001f\u007f‎‏‪-‮⁦-⁩]+/g
+
+/**
+ * The name a recording is downloaded under: the stored name, given the file's
+ * real extension when the phone left it off (a uuid is no name for a file
+ * dropped into Fireflies). The extension is the stored path's, which only
+ * ever is an audio one, so whatever the name says the file arrives as audio.
+ */
+export function audioDownloadName(item: Pick<AudioAnswer, "path" | "name">): string {
+  const extension = item.path.slice(item.path.lastIndexOf(".") + 1)
+  const base = item.name.replace(UNSAFE_NAME_CHARACTERS, " ").replace(/\s+/g, " ").trim() || "rekaman"
+  return base.toLowerCase().endsWith(`.${extension}`) ? base : `${base}.${extension}`
+}
+
+/** The recording stored at `path` among these stored answers, as its report holds it. */
+export function findRecording(values: unknown[], path: string): AudioAnswer | undefined {
+  for (const value of values) {
+    const found = parseAudioAnswer(value).find((item) => item.path === path)
+    if (found) return found
+  }
+  return undefined
+}
+
+/**
+ * The folder a recording was uploaded into, when it is a visit's: the report
+ * form uploads into the activity's id, so a uuid there names the activity
+ * whose report holds the file. Null for the other folders (`missions`,
+ * `prospects`).
+ */
+export function audioActivityId(path: string): string | null {
+  const scope = path.split("/")[1] ?? ""
+  return new RegExp(`^${UUID}$`).test(scope) ? scope : null
+}
+
 export function describeAudioCount(count: number): string {
   return count === 1 ? "1 rekaman" : `${count} rekaman`
 }

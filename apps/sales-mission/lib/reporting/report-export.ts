@@ -1,4 +1,5 @@
-import { parseAudioAnswer } from "@/lib/audio/audio-answer"
+import type { AttachmentKind } from "@/lib/attachments/attachment-request"
+import { audioDownloadName, parseAudioAnswer } from "@/lib/audio/audio-answer"
 import { FOLLOW_UP_STATE_LABELS, followUpState, type FollowUpStatus } from "@/lib/missions/follow-ups"
 import { isAttachmentType, visibleFields, type FieldType, type FormField } from "@/lib/missions/form-fields"
 import { MISSION_TIME_ZONE } from "@/lib/missions/mission-schema"
@@ -28,10 +29,15 @@ import { parsePhotoAnswer } from "@/lib/photos/photo-answer"
  * cell that can be filtered and sorted. The lists that cannot be spread that
  * way keep their own sheet: Kontak for one row per person met, Catatan
  * pendukung for what the rest of the team wrote.
+ *
+ * Photos and recordings are numbered columns the same way — "Foto bukti
+ * kunjungan 1", "Foto bukti kunjungan 2" — because a spreadsheet cell holds
+ * one hyperlink: each cell shows the file's name and links to it through the
+ * app (`paths.attachment`), an address that never expires and asks for a
+ * login. The links ride beside the text (`laporanLinks`), so the workbook
+ * writes them as hyperlinks and CSV, which cannot, writes the address after
+ * the name (`csvRows`).
  */
-
-/** How long an attachment link in an export stays valid: a working week plus the weekend. */
-export const EXPORT_LINK_SECONDS = 7 * 24 * 60 * 60
 
 /** The visit-report form field whose answer the actual-time columns already carry. */
 const TIME_FIELD_KEY = "visit_time"
@@ -122,21 +128,49 @@ export interface ReportExportRow {
 }
 
 export interface ReportExportOptions {
-  /** Where the app is served from, so the record link is one anyone can paste. */
+  /** Where the app is served from, so the record and file links are absolute and work from a file. */
   origin: string
-  /** Signed read URLs by storage path, for every attachment of the whole export. */
-  signedUrls: Map<string, string>
   /** Today in mission time, so an overdue follow-up reads as late. Optional. */
   today?: string
 }
 
+/** A hyperlink on one cell. */
+export interface ExportLink {
+  /** The absolute address the cell opens. */
+  target: string
+  /** What Excel shows on hover in place of the address. */
+  tooltip: string
+}
+
 export interface ReportExportSheets {
   laporan: string[][]
+  /**
+   * The links on Laporan, cell for cell: `laporanLinks[row][column]` belongs
+   * to `laporan[row][column]` (row 0 is the header), null where the cell is
+   * plain text. Same shape as `laporan`, so neither the numeric typing nor
+   * CSV has to know links exist.
+   */
+  laporanLinks: (ExportLink | null)[][]
   kontak: string[][]
   catatan: string[][]
   /** Headers whose cells are numbers, so the workbook types them instead of writing text. */
   numericColumns: Set<string>
 }
+
+/** One file of a photo or recording answer, as the export names and links it. */
+export interface ExportFile {
+  kind: AttachmentKind
+  path: string
+  name: string
+}
+
+/** A Laporan cell: its text, and the link it opens when it has one. */
+interface ExportCell {
+  text: string
+  link: ExportLink | null
+}
+
+const plain = (text: string): ExportCell => ({ text, link: null })
 
 /** The activity's own facts, before the form's own columns. */
 const ACTIVITY_COLUMNS = [
@@ -276,54 +310,66 @@ export function contactCells(contact: ExportContact | undefined): string[] {
   ]
 }
 
-/** The files of one attachment answer, one per line: the name, and the link while it lasts. */
-export function attachmentLines(
-  fieldType: FieldType,
-  value: unknown,
-  signedUrls: Map<string, string>
-): string {
-  const files =
-    fieldType === "AUDIO"
-      ? parseAudioAnswer(value).map((item) => ({ path: item.path, name: item.name }))
-      : parsePhotoAnswer(value).map((item) => ({ path: item.path, name: item.name }))
-
-  return files
-    .map((file) => {
-      const url = signedUrls.get(file.path)
-      // A path that could not be signed is still evidence the file exists;
-      // writing the name alone beats writing nothing.
-      return url ? `${file.name} · ${url}` : file.name
-    })
-    .join("\n")
-}
-
-/** Every attachment path in the export, so the whole file is signed in one pass. */
-export function collectAttachmentPaths(
-  rows: ReportExportRow[],
-  fields: FormField[]
-): { photoPaths: string[]; audioPaths: string[] } {
-  const photoPaths = new Set<string>()
-  const audioPaths = new Set<string>()
-
-  for (const field of fields) {
-    if (!isAttachmentType(field.fieldType)) continue
-    for (const row of rows) {
-      const value = row.custom[field.reportingKey]
-      if (value === undefined || value === null) continue
-      if (field.fieldType === "AUDIO") {
-        for (const item of parseAudioAnswer(value)) audioPaths.add(item.path)
-      } else {
-        for (const item of parsePhotoAnswer(value)) photoPaths.add(item.path)
-      }
-    }
+/** The files of one photo or recording answer, in the order the rep attached them. */
+export function attachmentFiles(fieldType: FieldType, value: unknown): ExportFile[] {
+  if (value === null || value === undefined) return []
+  if (fieldType === "AUDIO") {
+    return parseAudioAnswer(value).map((item) => ({ kind: "rekaman", path: item.path, name: item.name }))
   }
-
-  return { photoPaths: [...photoPaths], audioPaths: [...audioPaths] }
+  return parsePhotoAnswer(value).map((item) => ({ kind: "foto", path: item.path, name: item.name }))
 }
 
-/** A custom answer as the tenant's field type says to read it. */
-function customCell(field: FormField, value: unknown, signedUrls: Map<string, string>): string {
-  if (isAttachmentType(field.fieldType)) return attachmentLines(field.fieldType, value, signedUrls)
+/**
+ * How many numbered columns an attachment field gets: as many as the most
+ * files any report in this export has for it, and never fewer than one, so
+ * the header exists even when nobody attached anything.
+ */
+export function attachmentColumnCount(rows: ReportExportRow[], field: FormField): number {
+  let count = 1
+  for (const row of rows) count = Math.max(count, attachmentFiles(field.fieldType, row.custom[field.reportingKey]).length)
+  return count
+}
+
+/** The headers of an attachment field's columns: "Foto bukti kunjungan 1" … "Foto bukti kunjungan 3". */
+export function attachmentHeaders(label: string, count: number): string[] {
+  return Array.from({ length: count }, (_, index) => `${label} ${index + 1}`)
+}
+
+/**
+ * The permanent link to one file, through the app: never expires, always asks
+ * who is opening it. The file itself opens on storage's address once the app
+ * has let the person through, so the tooltip names the sign-in, not a place.
+ */
+export function attachmentLink(origin: string, file: ExportFile): ExportLink {
+  return {
+    target: `${origin}${paths.attachment(file.kind, file.path)}`,
+    tooltip: file.kind === "rekaman" ? "Unduh rekaman (perlu masuk ke Sales Activity)" : "Buka foto (perlu masuk ke Sales Activity)",
+  }
+}
+
+/**
+ * What a file cell says: the name the rep's phone gave the file. Without one,
+ * a recording says the name it downloads under ("rekaman.m4a"), so the cell
+ * and the file agree, and a photo the stored file's own name.
+ */
+function fileLabel(file: ExportFile): string {
+  if (file.name.trim()) return file.name
+  return file.kind === "rekaman" ? audioDownloadName(file) : file.path.slice(file.path.lastIndexOf("/") + 1)
+}
+
+/**
+ * One attachment answer as `count` cells: a file per cell, named and linked,
+ * in the order attached, then empty cells, so the grid stays rectangular.
+ */
+function attachmentCells(files: ExportFile[], count: number, origin: string): ExportCell[] {
+  return Array.from({ length: count }, (_, index) => {
+    const file = files[index]
+    return file ? { text: fileLabel(file), link: attachmentLink(origin, file) } : plain("")
+  })
+}
+
+/** A custom answer as the tenant's field type says to read it. Attachments are their own columns. */
+function customCell(field: FormField, value: unknown): string {
   if (value === null || value === undefined) return ""
 
   switch (field.fieldType) {
@@ -349,15 +395,11 @@ function customCell(field: FormField, value: unknown, signedUrls: Map<string, st
  * kunjungan" to "Hasil" still gets the outcome in that column.
  *
  * Returns null for a core key with no column of its own, so the caller falls
- * back to the stored answer — which is how attachments and any core field
- * added later are carried without a change here.
+ * back to the stored answer — which is how any core field added later is
+ * carried without a change here. The core photo and recording fields never
+ * reach this: they are numbered columns of their own.
  */
-function coreCell(
-  field: FormField,
-  row: ReportExportRow,
-  choices: ChoiceSet | null,
-  signedUrls: Map<string, string>
-): string | null {
+function coreCell(field: FormField, row: ReportExportRow, choices: ChoiceSet | null): string | null {
   switch (field.reportingKey) {
     case "visit_outcome":
       return labelOf(choices, "visit_outcome", row.visitOutcome)
@@ -382,9 +424,7 @@ function coreCell(
     case "follow_up_date":
       return text(row.followUpDate)
     default:
-      return isAttachmentType(field.fieldType)
-        ? attachmentLines(field.fieldType, row.custom[field.reportingKey], signedUrls)
-        : null
+      return null
   }
 }
 
@@ -401,6 +441,27 @@ function followUpCell(followUp: ExportFollowUp | null, today: string): string {
 }
 
 /**
+ * The Laporan sheet for CSV, which cannot hold a link: a cell whose text is
+ * not its own address carries the address after a middle dot ("depan.jpg ·
+ * https://…/workspace/lampiran?…"), so a machine reading the file still has
+ * it; a cell that already is its address (Tautan laporan) stays as it is.
+ */
+export function csvRows(sheet: string[][], links: (ExportLink | null)[][]): string[][] {
+  return sheet.map((row, rowIndex) =>
+    row.map((cell, columnIndex) => {
+      const link = links[rowIndex]?.[columnIndex]
+      return link && link.target !== cell ? `${cell} · ${link.target}` : cell
+    })
+  )
+}
+
+/** How one form field is spread across the Laporan sheet's columns. */
+type FormColumns =
+  | { field: FormField; kind: "contacts"; headers: string[]; count: number }
+  | { field: FormField; kind: "attachment"; headers: string[]; count: number }
+  | { field: FormField; kind: "value"; headers: string[] }
+
+/**
  * The export's three sheets, header row first.
  *
  * Column order is: what the activity was, then the report form as the admin
@@ -408,8 +469,9 @@ function followUpCell(followUp: ExportFollowUp | null, today: string): string {
  * from the middle because the activity block already carries the reported
  * start and end as their own day and clock columns, and a second rendering of
  * the same answer is a column people reconcile instead of read. "Ketemu
- * siapa" becomes the numbered contact groups, in the place the admin gave the
- * field, so reordering the field moves the whole block of columns with it.
+ * siapa" becomes the numbered contact groups and each photo or recording
+ * field its numbered file columns, in the place the admin gave the field, so
+ * reordering the field moves the whole block of columns with it.
  */
 export function buildReportExport(
   rows: ReportExportRow[],
@@ -420,76 +482,99 @@ export function buildReportExport(
   const shown = visibleFields(fields).filter((field) => field.reportingKey !== TIME_FIELD_KEY)
   const today = options.today ?? ""
 
-  // As many groups as the widest report, and never fewer than one: a header
-  // that appears only when somebody was met is a file whose shape moves.
+  // As many groups (and file columns) as the widest report, and never fewer
+  // than one: a header that appears only when somebody was met, or a photo
+  // attached, is a file whose shape moves.
   let contactGroups = 1
   for (const row of rows) contactGroups = Math.max(contactGroups, row.contacts.length)
-  const contactHeaders = shown.some((field) => field.reportingKey === CONTACTS_FIELD_KEY)
-    ? contactGroupHeaders(contactGroups)
-    : []
-  const contactHeaderNames = new Set(contactHeaders)
 
+  const form: FormColumns[] = shown.map((field) => {
+    if (field.reportingKey === CONTACTS_FIELD_KEY) {
+      return { field, kind: "contacts", headers: contactGroupHeaders(contactGroups), count: contactGroups }
+    }
+    if (isAttachmentType(field.fieldType)) {
+      const count = attachmentColumnCount(rows, field)
+      return { field, kind: "attachment", headers: attachmentHeaders(field.label, count), count }
+    }
+    return { field, kind: "value", headers: [field.label] }
+  })
+
+  // Typing is by header name, so a field renamed onto a generated header (a
+  // contact's, a file's) would turn that person's phone number into a number
+  // and eat its leading zero.
+  const generatedHeaders = new Set(form.flatMap((column) => (column.kind === "value" ? [] : column.headers)))
   const numericColumns = new Set<string>()
-  for (const field of shown) {
-    // Typing is by header name, so a field renamed onto a contact header would
-    // turn that person's phone number into a number and eat its leading zero.
-    if (contactHeaderNames.has(field.label)) continue
-    if (field.fieldType === "NUMBER" || field.fieldType === "CURRENCY") numericColumns.add(field.label)
+  for (const column of form) {
+    if (column.kind !== "value" || generatedHeaders.has(column.field.label)) continue
+    if (column.field.fieldType === "NUMBER" || column.field.fieldType === "CURRENCY") numericColumns.add(column.field.label)
   }
 
-  const header = [
-    ...ACTIVITY_COLUMNS,
-    ...shown.flatMap((field) => (field.reportingKey === CONTACTS_FIELD_KEY ? contactHeaders : [field.label])),
-    ...TRAIL_COLUMNS,
-  ]
+  const header = [...ACTIVITY_COLUMNS, ...form.flatMap((column) => column.headers), ...TRAIL_COLUMNS]
 
   const laporan: string[][] = [header]
+  const laporanLinks: (ExportLink | null)[][] = [header.map(() => null)]
   const kontak: string[][] = [CONTACT_COLUMNS]
   const catatan: string[][] = [NOTE_COLUMNS]
 
   for (const row of rows) {
     const visitDay = wibDay(row.actualStart)
 
-    const answers = shown.flatMap((field) => {
-      // The people met are not one answer but one group of columns per person,
-      // written where the admin put the field.
-      if (field.reportingKey === CONTACTS_FIELD_KEY) {
-        return Array.from({ length: contactGroups }, (_, index) => contactCells(row.contacts[index])).flat()
+    const answers = form.flatMap((column): ExportCell[] => {
+      const { field } = column
+      switch (column.kind) {
+        // The people met are not one answer but one group of columns per
+        // person, written where the admin put the field.
+        case "contacts":
+          return Array.from({ length: column.count }, (_, index) => contactCells(row.contacts[index])).flat().map(plain)
+        case "attachment":
+          return attachmentCells(attachmentFiles(field.fieldType, row.custom[field.reportingKey]), column.count, options.origin)
+        default: {
+          const core = field.isCore ? coreCell(field, row, choices) : null
+          return [plain(core ?? customCell(field, row.custom[field.reportingKey]))]
+        }
       }
-      const core = field.isCore ? coreCell(field, row, choices, options.signedUrls) : null
-      return [core ?? customCell(field, row.custom[field.reportingKey], options.signedUrls)]
     })
 
-    laporan.push([
-      row.clientCompanyName,
-      row.missionType,
-      wibDay(row.scheduledStart),
-      wibTime(row.scheduledStart),
-      wibTime(row.scheduledEnd),
-      visitDay,
-      wibTime(row.actualStart),
-      wibTime(row.actualEnd),
-      text(row.location),
-      text(row.address),
-      text(row.industry),
-      text(row.objective),
-      text(row.primarySalesName),
-      joined(row.supportingSalesNames),
-      statusLabel(row.status),
+    // The durable road back to the record: its own address, shown and linked.
+    const reportUrl = `${options.origin}${paths.activity(row.missionId, { fokus: "laporan" })}`
+
+    const cells: ExportCell[] = [
+      ...[
+        row.clientCompanyName,
+        row.missionType,
+        wibDay(row.scheduledStart),
+        wibTime(row.scheduledStart),
+        wibTime(row.scheduledEnd),
+        visitDay,
+        wibTime(row.actualStart),
+        wibTime(row.actualEnd),
+        text(row.location),
+        text(row.address),
+        text(row.industry),
+        text(row.objective),
+        text(row.primarySalesName),
+        joined(row.supportingSalesNames),
+        statusLabel(row.status),
+      ].map(plain),
       ...answers,
-      text(row.clarificationNote),
-      supportingNotesCell(row.supportingNotes),
-      yesNo(row.pushedLeadId !== null),
-      text(row.pushedCategory),
-      text(row.pushedLeadId),
-      followUpCell(row.followUp, today),
-      text(row.submittedByName),
-      wibDay(row.submittedAt),
-      wibTime(row.submittedAt),
-      `${options.origin}${paths.activity(row.missionId, { fokus: "laporan" })}`,
-      row.missionId,
-      row.reportId,
-    ])
+      ...[
+        text(row.clarificationNote),
+        supportingNotesCell(row.supportingNotes),
+        yesNo(row.pushedLeadId !== null),
+        text(row.pushedCategory),
+        text(row.pushedLeadId),
+        followUpCell(row.followUp, today),
+        text(row.submittedByName),
+        wibDay(row.submittedAt),
+        wibTime(row.submittedAt),
+      ].map(plain),
+      { text: reportUrl, link: { target: reportUrl, tooltip: "Buka laporan di Sales Activity (perlu masuk)" } },
+      plain(row.missionId),
+      plain(row.reportId),
+    ]
+
+    laporan.push(cells.map((cell) => cell.text))
+    laporanLinks.push(cells.map((cell) => cell.link))
 
     for (const contact of row.contacts) {
       kontak.push([
@@ -522,5 +607,5 @@ export function buildReportExport(
     }
   }
 
-  return { laporan, kontak, catatan, numericColumns }
+  return { laporan, laporanLinks, kontak, catatan, numericColumns }
 }

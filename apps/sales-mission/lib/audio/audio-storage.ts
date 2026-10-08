@@ -1,6 +1,6 @@
 import { createClient } from "@/utils/supabase/server"
 import type { SalesMissionAccess } from "@/lib/sales-mission-access"
-import { AUDIO_BUCKET, isCompanyAudio, parseAudioAnswer, type AudioAnswer } from "./audio-answer"
+import { AUDIO_BUCKET, audioActivityId, audioDownloadName, findRecording, isCompanyAudio, parseAudioAnswer, type AudioAnswer } from "./audio-answer"
 
 /**
  * Server side of audio storage, the photo module's twin: everything goes
@@ -11,9 +11,8 @@ import { AUDIO_BUCKET, isCompanyAudio, parseAudioAnswer, type AudioAnswer } from
 /**
  * Signed read URLs, keyed by path. Paths outside the company are skipped.
  *
- * An hour by default; the visit-report export asks for a week, because the
- * link it writes into the file has to still work when somebody opens the file.
- * Batched 100 paths at a time, like the photos.
+ * An hour by default, a screen's lifetime. Batched 100 paths at a time, like
+ * the photos.
  */
 export async function signAudioUrls(
   access: SalesMissionAccess,
@@ -35,28 +34,65 @@ export async function signAudioUrls(
 
 /**
  * Signed download URLs that hand the browser the recording's own name
- * (a uuid is no name for a file dropped into Fireflies). One call per file:
- * the batch endpoint takes a single name for all of them.
+ * (`audioDownloadName`). One call per file: the batch endpoint takes a single
+ * name for all of them. An hour by default; the file link of an exported
+ * workbook (`/workspace/lampiran`) asks for minutes, since it is followed at
+ * once.
  */
-export async function signAudioDownloads(access: SalesMissionAccess, recordings: AudioAnswer[]): Promise<Map<string, string>> {
+export async function signAudioDownloads(
+  access: SalesMissionAccess,
+  recordings: Array<Pick<AudioAnswer, "path" | "name">>,
+  expiresIn = 3600
+): Promise<Map<string, string>> {
   const own = recordings.filter((item) => isCompanyAudio(item.path, access.companyId))
   const result = new Map<string, string>()
   if (own.length === 0) return result
   const supabase = await createClient()
   await Promise.all(
     own.map(async (item) => {
-      const { data } = await supabase.storage.from(AUDIO_BUCKET).createSignedUrl(item.path, 3600, { download: downloadName(item) })
+      const { data } = await supabase.storage.from(AUDIO_BUCKET).createSignedUrl(item.path, expiresIn, { download: audioDownloadName(item) })
       if (data?.signedUrl) result.set(item.path, data.signedUrl)
     })
   )
   return result
 }
 
-/** The stored name, given the file's real extension when the phone left it off. */
-function downloadName(item: AudioAnswer): string {
-  const extension = item.path.slice(item.path.lastIndexOf(".") + 1)
-  const base = item.name.replace(/[\\/:*?"<>|]+/g, " ").trim() || "rekaman"
-  return base.toLowerCase().endsWith(`.${extension}`) ? base : `${base}.${extension}`
+/**
+ * One recording as its visit report stores it, for the file link of an
+ * exported workbook (`/workspace/lampiran`), which names the download from
+ * the record rather than from anything in the link: a name carried in the
+ * address could be rewritten by whoever forwards it.
+ *
+ * The report form uploads into the activity's own folder, so the path names
+ * the activity; its reports' answers are read with the person's own session
+ * and filtered by company. A recording no report holds (one from the activity
+ * or prospect form, or since removed) keeps an empty name, which downloads as
+ * "rekaman.<ext>".
+ */
+export async function storedReportRecording(
+  access: SalesMissionAccess,
+  path: string
+): Promise<Pick<AudioAnswer, "path" | "name">> {
+  const unnamed = { path, name: "" }
+  const activityId = audioActivityId(path)
+  if (!activityId || !isCompanyAudio(path, access.companyId)) return unnamed
+
+  const schema = (await createClient()).schema("sales_mission")
+  const { data: reports } = await schema
+    .from("visit_reports")
+    .select("id")
+    .eq("company_id", access.companyId)
+    .eq("mission_id", activityId)
+  const reportIds = (reports ?? []).map((row) => row.id as string)
+  if (reportIds.length === 0) return unnamed
+
+  const { data: values } = await schema
+    .from("report_field_values")
+    .select("value")
+    .eq("company_id", access.companyId)
+    .in("report_id", reportIds)
+  const found = findRecording((values ?? []).map((row) => row.value as unknown), path)
+  return found ? { path, name: found.name } : unnamed
 }
 
 /** Remove files. Best effort: a missing object is not an error worth surfacing. */

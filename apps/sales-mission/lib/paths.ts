@@ -63,6 +63,18 @@ export const paths = {
   /** One activity as a downloadable .ics. */
   activityIcs: (id: string) => `${ACTIVITIES}/${id}/aktivitas.ics`,
 
+  /**
+   * One stored photo or recording, opened through the app: the permanent link
+   * an exported workbook carries (`app/workspace/lampiran/route.ts`). A query
+   * rather than path segments, because the proxy skips any path that ends in
+   * .jpg or .png and this one must pass its sign-in check. The storage path's
+   * slashes are left readable; the rest is encoded. Nothing else rides along:
+   * a recording's download name is read from its report, not from the link.
+   */
+  attachment: (kind: "foto" | "rekaman", path: string) =>
+    `/workspace/lampiran?jenis=${kind}&berkas=${encodeURIComponent(path).replaceAll("%2F", "/")}`,
+  attachmentUnavailable: "/workspace/lampiran/tidak-tersedia",
+
   settings: {
     index: "/workspace/settings",
     /** Profil: the person's own name, photo, phone, job title and password; open to everyone. */

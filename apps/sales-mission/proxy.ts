@@ -2,6 +2,7 @@ import { createServerClient, type CookieOptions } from "@supabase/ssr"
 import { NextResponse, type NextRequest } from "next/server"
 import { authCookieOptions } from "@/utils/supabase/cookie-options"
 import { hasAuthCookie, isSignedOutError, SIGNED_OUT_REASON } from "@/lib/devices/signed-out"
+import { loginPathFor, NEXT_PARAM, safeNextPath } from "@/lib/auth/next-path"
 
 /**
  * A redirect that keeps what the auth client wrote on `from`. When getUser()
@@ -39,12 +40,16 @@ export async function proxy(request: NextRequest) {
   const hadSession = hasAuthCookie(request.cookies.getAll().map((cookie) => cookie.name))
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   const signedOutElsewhere = !user && hadSession && isSignedOutError(authError)
-  const loginUrl = () => {
-    const url = new URL("/login", request.url)
-    if (signedOutElsewhere) url.searchParams.set("reason", SIGNED_OUT_REASON)
-    return url
-  }
   const pathname = request.nextUrl.pathname
+  // The place this request was going rides along as `?next=`, so a link
+  // opened without a session (a file link in an exported workbook, a
+  // notification, a bookmark) comes back to it after signing in rather than
+  // to Hari ini. Only a workspace path is carried (`safeNextPath`), so the
+  // bare root and the public pages go to /login with nothing to come back to.
+  const loginUrl = () => {
+    const extra: Record<string, string> = signedOutElsewhere ? { reason: SIGNED_OUT_REASON } : {}
+    return new URL(loginPathFor(pathname, request.nextUrl.search, extra), request.url)
+  }
   // `/reset-password` must stay public: the recovery link is opened before a
   // normal session exists, and the page establishes one from the token itself.
   // `/board` likewise: a TV in the office has no session, and the page
@@ -73,9 +78,19 @@ export async function proxy(request: NextRequest) {
   // Sales Mission permission arrives authenticated, gets rejected by the
   // workspace layout, and would be thrown straight back at it. Keep /login
   // reachable whenever it carries an error to show.
+  //
+  // A signed-in visitor goes on to `next` when it carries one. That is not
+  // only the second tab: Excel and Word resolve a link's redirects with their
+  // own HTTP client, which holds no session, and then open the browser on the
+  // address they ended at — /login?next=… — so the person who is already
+  // signed in must be passed straight through to the file they clicked. By
+  // then the access token has usually expired, so getUser() has just
+  // refreshed the session: the redirect carries those cookies on, or the
+  // next hop would have to refresh again with a token already spent.
   const hasAuthError = request.nextUrl.searchParams.has("error")
   if (user && pathname.startsWith("/login") && !hasAuthError) {
-    return NextResponse.redirect(new URL("/workspace", request.url))
+    const next = safeNextPath(request.nextUrl.searchParams.get(NEXT_PARAM))
+    return redirectKeepingCookies(new URL(next ?? "/workspace", request.url), response)
   }
 
   return response
